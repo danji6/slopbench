@@ -1,0 +1,46 @@
+diff --git a/dist/index.js b/dist/index.js
+index 2156d2d4bfaa0d5ea47c43b8f4f30068c37a23c4..3d1117524b42b8d67f5da3f2b932ad2b64acd7e2 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -1154,7 +1154,7 @@ function Root({ open: openProp, onOpenChange, children, onDrag: onDragProp, onRe
+                     } else {
+                         drawerRef.current.style.height = `${Math.max(newDrawerHeight, visualViewportHeight - offsetFromTop)}px`;
+                     }
+-                } else if (!isMobileFirefox()) {
++                } else {
+                     drawerRef.current.style.height = `${initialDrawerHeight.current}px`;
+                 }
+                 if (snapPoints && snapPoints.length > 0 && !keyboardIsOpen.current) {
+@@ -1163,6 +1163,9 @@ function Root({ open: openProp, onOpenChange, children, onDrag: onDragProp, onRe
+                     // Negative bottom value would never make sense
+                     drawerRef.current.style.bottom = `${Math.max(diffFromInitial, 0)}px`;
+                 }
++            } else {
++                drawerRef.current.style.height = '';
++                drawerRef.current.style.bottom = '';
+             }
+         }
+         (_window_visualViewport = window.visualViewport) == null ? undefined : _window_visualViewport.addEventListener("resize", onVisualViewportChange);
+diff --git a/dist/index.mjs b/dist/index.mjs
+index cbdca1a9e4ea3de2b4fff9e8c0530e23040202b1..a4f7ba2741c98e89a013be827718fd5329e2833d 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -1133,7 +1133,7 @@ function Root({ open: openProp, onOpenChange, children, onDrag: onDragProp, onRe
+                     } else {
+                         drawerRef.current.style.height = `${Math.max(newDrawerHeight, visualViewportHeight - offsetFromTop)}px`;
+                     }
+-                } else if (!isMobileFirefox()) {
++                } else {
+                     drawerRef.current.style.height = `${initialDrawerHeight.current}px`;
+                 }
+                 if (snapPoints && snapPoints.length > 0 && !keyboardIsOpen.current) {
+@@ -1142,6 +1142,9 @@ function Root({ open: openProp, onOpenChange, children, onDrag: onDragProp, onRe
+                     // Negative bottom value would never make sense
+                     drawerRef.current.style.bottom = `${Math.max(diffFromInitial, 0)}px`;
+                 }
++            } else {
++                drawerRef.current.style.height = '';
++                drawerRef.current.style.bottom = '';
+             }
+         }
+         (_window_visualViewport = window.visualViewport) == null ? undefined : _window_visualViewport.addEventListener("resize", onVisualViewportChange);

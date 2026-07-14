@@ -1,0 +1,10 @@
+{
+  "name": "@sb/convex",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "convex": "cd ../.. && bunx convex dev",
+    "codegen": "cd ../.. && bunx convex codegen",
+    "deploy": "cd ../.. && bunx convex deploy"
+  }
+}

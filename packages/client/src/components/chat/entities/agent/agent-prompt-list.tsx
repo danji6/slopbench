@@ -1,0 +1,177 @@
+import { PromptList } from '@/components/chat/prompts'
+import { Combobox, RippleButton } from '@/components/ui'
+import { useSettings } from '@/hooks/chat'
+import type { OrderedItem, Prompt } from '@/lib/chat'
+import { mergePrompts, newPrompt, newPromptMarker } from '@/lib/chat/prompts'
+import type { MergedPromptItem } from '@/lib/chat/prompts'
+import { BookmarkIcon, FileTextIcon } from 'lucide-react'
+import { useEffect } from 'react'
+import type { Control, UseFormSetValue } from 'react-hook-form'
+import { useController, useWatch } from 'react-hook-form'
+
+import type { AgentFormValues } from './agent-form'
+
+const LIBRARY_SEARCH_THRESHOLD = 3
+
+type AgentPromptListProps = {
+  control: Control<AgentFormValues>
+  setValue: UseFormSetValue<AgentFormValues>
+}
+
+function toOrderedItem(m: MergedPromptItem): OrderedItem {
+  if (m.isLibrary) return { kind: 'library', id: m.item.id }
+  if (m.isGlobal) return { kind: 'global', id: m.item.id }
+  return { kind: 'own', id: m.item.id }
+}
+
+export function AgentPromptList({ control, setValue }: AgentPromptListProps) {
+  const settings = useSettings()
+  const globalPrompts = settings?.globalPrompts ?? []
+  const libraryPrompts = (settings?.libraryPrompts ?? []) as Prompt[]
+
+  const { field: promptsField } = useController({ control, name: 'prompts' })
+  const { field: orderField } = useController({ control, name: 'promptOrder' })
+  const globalPromptsEnabled = useWatch({
+    control,
+    name: 'globalPromptsEnabled',
+  })
+
+  const prompts = promptsField.value
+  const promptOrder = orderField.value
+
+  const mergeResult = mergePrompts(
+    { globalPromptsEnabled, prompts, promptOrder },
+    globalPrompts,
+    libraryPrompts,
+  )
+
+  useEffect(() => {
+    if (mergeResult.cleanedOrder) {
+      // Prompt merge operations don't count as user edits
+      setValue('promptOrder', mergeResult.cleanedOrder, { shouldDirty: false })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mergeResult.cleanedOrder])
+
+  const referencedLibraryIds = new Set(
+    (promptOrder ?? [])
+      .filter((ref) => ref.kind === 'library')
+      .map((ref) => ref.id),
+  )
+  const availableLibrary = libraryPrompts.filter(
+    (p) => !referencedLibraryIds.has(p.id),
+  )
+  const hasAgentsMarker = prompts.some(
+    (prompt) => 'type' in prompt && prompt.type === 'agents',
+  )
+
+  function handleReorder(order: OrderedItem[]) {
+    orderField.onChange(order)
+  }
+
+  function handleAdd(data?: Omit<Prompt, 'id'>) {
+    const prompt = newPrompt(data)
+    promptsField.onChange([...prompts, prompt])
+    if (promptOrder) {
+      orderField.onChange([
+        ...promptOrder,
+        { kind: 'own' as const, id: prompt.id },
+      ])
+    }
+  }
+
+  function handleAddLibrary(id: string) {
+    const order = promptOrder ?? mergeResult.items.map(toOrderedItem)
+    orderField.onChange([...order, { kind: 'library' as const, id }])
+  }
+
+  function handleAddAgentsMarker() {
+    const marker = newPromptMarker('agents')
+    promptsField.onChange([...prompts, marker])
+    if (promptOrder) {
+      orderField.onChange([
+        ...promptOrder,
+        { kind: 'own' as const, id: marker.id },
+      ])
+    }
+  }
+
+  function handleEdit(id: string, data: Partial<Prompt>) {
+    promptsField.onChange(
+      prompts.map((p) => (p.id === id ? { ...p, ...data } : p)),
+    )
+  }
+
+  function handleDelete(id: string) {
+    promptsField.onChange(prompts.filter((p) => p.id !== id))
+    if (promptOrder) {
+      orderField.onChange(promptOrder.filter((ref) => ref.id !== id))
+    }
+  }
+
+  return (
+    <PromptList
+      items={mergeResult.items}
+      onReorder={handleReorder}
+      onAdd={handleAdd}
+      onPaste={handleAdd}
+      onEdit={handleEdit}
+      onDelete={handleDelete}
+      extraButtons={
+        <>
+          <RippleButton
+            size="sm"
+            variant="link"
+            className="text-m3-secondary"
+            disabled={hasAgentsMarker}
+            onClick={handleAddAgentsMarker}
+          >
+            <FileTextIcon className="size-4" />
+            AGENTS.md
+          </RippleButton>
+          {libraryPrompts.length > 0 && (
+            <AddFromLibrary
+              prompts={availableLibrary}
+              onSelect={handleAddLibrary}
+            />
+          )}
+        </>
+      }
+    />
+  )
+}
+
+function AddFromLibrary({
+  prompts,
+  onSelect,
+}: {
+  prompts: Prompt[]
+  onSelect: (id: string) => void
+}) {
+  const showSearch = prompts.length > LIBRARY_SEARCH_THRESHOLD
+
+  return (
+    <Combobox onValueChange={onSelect}>
+      <Combobox.Trigger
+        variant="input"
+        size="sm"
+        className="text-m3-secondary w-auto"
+        disabled={prompts.length === 0}
+      >
+        <BookmarkIcon className="size-4" />
+        Library
+      </Combobox.Trigger>
+      <Combobox.Content className="min-w-52">
+        {showSearch && <Combobox.Search placeholder="Search prompts..." />}
+        <Combobox.List>
+          <Combobox.Empty>No prompts found.</Combobox.Empty>
+          {prompts.map((p) => (
+            <Combobox.Item key={p.id} value={p.id}>
+              {p.name}
+            </Combobox.Item>
+          ))}
+        </Combobox.List>
+      </Combobox.Content>
+    </Combobox>
+  )
+}

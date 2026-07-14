@@ -1,0 +1,8 @@
+{
+  "name": "@sb/sidecar",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun ../../scripts/sidecar.ts"
+  }
+}

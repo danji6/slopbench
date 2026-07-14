@@ -1,0 +1,28 @@
+{
+  "delete": true,
+  "local": true,
+  "location": "all",
+  "singleQuotes": true,
+  "noSemicolon": true,
+  "directory": [
+    "./packages/client/src/components",
+    "./packages/client/src/hooks",
+    "./packages/client/src/providers",
+    "./packages/client/src/lib",
+    "./packages/core/src/types"
+  ],
+  "exclude": [
+    "\\/sqlite\\.ts$",
+    "\\/_generated\\/",
+    "\\/terminal-view\\.tsx$",
+    "\\/rich-text-editor\\.tsx$",
+    "\\/code-block-shiki\\.ts$",
+    "\\/composer-editor\\.tsx$",
+    "\\/prompt-content-editor\\.tsx$",
+    "\\/session-completions\\.ts$",
+    "\\/lib\\/tiptap\\.ts$",
+    "\\/lib\\/code-block-editing\\.ts$",
+    "\\/lib\\/dynamic-block\\.ts$",
+    "\\/lib\\/editor-clear\\.ts$"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@sb/client",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite --clearScreen false --host",
+    "preview": "vite preview"
+  }
+}
