@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { useEffect, useRef, useState } from 'react'
 
 import { useGrowOnly } from './grow-only'
-import { useMessageList } from './message-list-context'
+import { useMessageList } from './message-list/message-list-context'
 import { useScrollIntoView } from './scroll-into-view'
 
 export type CollapsibleBlockProps = React.ComponentPropsWithoutRef<'div'> & {

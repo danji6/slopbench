@@ -9,7 +9,7 @@ import { BotIcon, CogIcon, SearchIcon, UserIcon } from 'lucide-react'
 import { type ReactNode, useCallback } from 'react'
 
 import { useMessageHighlight } from '../messages/message-highlight-context'
-import type { MessageListHandle } from '../messages/message-list'
+import type { MessageListHandle } from '../messages/message-list/message-list'
 
 // Lead should be kept short so the highlighted match lands near the start
 const SNIPPET_LEAD = 24

@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { CollapsibleBlock } from '../collapsible-block'
 import type { CollapsibleBlockProps } from '../collapsible-block'
-import { useMessageList } from '../message-list-context'
+import { useMessageList } from '../message-list/message-list-context'
 
 const openStates = new Map<string, boolean>()
 

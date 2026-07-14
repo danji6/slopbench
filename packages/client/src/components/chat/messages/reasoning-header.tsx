@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useGrowOnly } from './grow-only'
 import { MessageHeader, type MessageSender } from './message-header'
 import { useMessageHighlight } from './message-highlight-context'
-import { useMessageList } from './message-list-context'
+import { useMessageList } from './message-list/message-list-context'
 import { SmoothText } from './smooth-text'
 
 export type ReasoningHeaderProps = {

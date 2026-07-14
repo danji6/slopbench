@@ -5,7 +5,7 @@ import { isTextUIPart } from 'ai'
 import { CollapsibleBlock } from './collapsible-block'
 import { useCollapsible } from './collapsible-store'
 import { EditableText } from './editor/editable-text'
-import { useMessageList } from './message-list-context'
+import { useMessageList } from './message-list/message-list-context'
 import { SmoothText } from './smooth-text'
 
 export function SummaryBlock({ message }: { message: UIMessage }) {

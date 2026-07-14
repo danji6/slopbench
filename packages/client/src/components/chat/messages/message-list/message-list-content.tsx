@@ -17,7 +17,7 @@ import {
   type WindowVirtualizerHandle,
 } from 'virtua'
 
-import { EmptyMessage } from '../empty-message'
+import { EmptyMessage } from '../../empty-message'
 
 const CONTENT_FADE_TRANSITION = { duration: 0.18, ease: 'easeOut' } as const
 

@@ -3,7 +3,7 @@ import type { TextUIPart } from 'ai'
 import React, { Suspense, lazy, useLayoutEffect, useRef, useState } from 'react'
 
 import { useMessage } from '../message-context'
-import { useMessageList } from '../message-list-context'
+import { useMessageList } from '../message-list/message-list-context'
 import { SmoothText } from '../smooth-text'
 import { BubbleMenu } from './menu/bubble-menu'
 import { useMessageEdit, useMessageEditDraft } from './message-edit-context'

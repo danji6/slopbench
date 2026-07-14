@@ -5,7 +5,7 @@ import type { ToolUIPart } from 'ai'
 import { useQuery } from 'convex/react'
 import { useRef } from 'react'
 
-import { useMessageList } from '../message-list-context'
+import { useMessageList } from '../message-list/message-list-context'
 import { useScrollIntoView } from '../scroll-into-view'
 import { ToolShell, useToolPart } from './tool-shell'
 

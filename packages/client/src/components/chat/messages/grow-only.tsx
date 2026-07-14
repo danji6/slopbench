@@ -21,12 +21,22 @@ export { useGrowOnly }
 const SETTLE_STABLE_FRAMES = 2
 const SETTLE_MAX_FRAMES = 40
 
+type GrowOnlyProps = React.ComponentPropsWithoutRef<'div'> & {
+  /**
+   * Identity of the rendered content. When it changes the floor is dropped and
+   * the wrapper tracks the new content height down, so swapping content (e.g. a
+   * message version switch) doesn't leave the row stuck at the old height.
+   */
+  growKey?: string | number
+}
+
 /** A component that never shrinks in height unless `release` is called. */
 export function GrowOnly({
   children,
   className,
+  growKey,
   ...rest
-}: React.ComponentPropsWithoutRef<'div'>) {
+}: GrowOnlyProps) {
   const contentRef = useRef<HTMLDivElement>(null)
   const floorRef = useRef(0)
   const followingRef = useRef(false)
@@ -73,6 +83,13 @@ export function GrowOnly({
   useLayoutEffect(() => {
     grow(measure())
   }, [grow])
+
+  const prevKeyRef = useRef(growKey)
+  useLayoutEffect(() => {
+    if (prevKeyRef.current === growKey) return
+    prevKeyRef.current = growKey
+    release()
+  }, [growKey, release])
 
   useEffect(() => {
     const el = contentRef.current
