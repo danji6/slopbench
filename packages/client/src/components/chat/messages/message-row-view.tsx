@@ -129,7 +129,7 @@ function RowShell({ message, messageMeta, row, children }: RowShellProps) {
           roleClass,
         )}
       >
-        <GrowOnly>{children}</GrowOnly>
+        <GrowOnly growKey={messageMeta?.selectedVersion}>{children}</GrowOnly>
       </div>
     </MessageContextMenu>
   )

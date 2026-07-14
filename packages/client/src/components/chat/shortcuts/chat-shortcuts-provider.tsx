@@ -3,7 +3,7 @@ import { extractTextFromMessage, latestEditableUserMessageId } from '@/lib/chat'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { useMessageEdit } from '../messages/editor'
-import type { MessageListHandle } from '../messages/message-list'
+import type { MessageListHandle } from '../messages/message-list/message-list'
 import { ChatShortcutsContext } from './chat-shortcuts-context'
 
 export type ChatShortcutsProviderProps = {

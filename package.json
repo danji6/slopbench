@@ -112,7 +112,7 @@
     "turndown": "^7.2.4",
     "unist-util-visit": "^5.1.0",
     "vaul-base": "^1.0.0",
-    "virtua": "^0.49.2",
+    "virtua": "^0.49.3",
     "wouter": "^3.10.0",
     "zod": "^4.4.3"
   },

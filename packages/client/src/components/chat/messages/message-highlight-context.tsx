@@ -2,7 +2,7 @@ import { createOptionalContext } from '@/hooks/context'
 import { AnimatePresence, motion } from 'motion/react'
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
-import { useMessageList } from './message-list-context'
+import { useMessageList } from './message-list/message-list-context'
 
 export type HighlightTarget = {
   messageId: string

@@ -14,6 +14,7 @@
   "exclude": [
     "\\/sqlite\\.ts$",
     "\\/_generated\\/",
+    "\\/messages\\/message-list\\/",
     "\\/terminal-view\\.tsx$",
     "\\/rich-text-editor\\.tsx$",
     "\\/code-block-shiki\\.ts$",
