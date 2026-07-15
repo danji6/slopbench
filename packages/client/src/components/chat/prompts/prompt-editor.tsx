@@ -11,7 +11,7 @@ import {
   Switch,
 } from '@/components/ui'
 import type { Prompt } from '@/lib/chat'
-import { SESSION_ENV } from '@sb/core/interpreter/env'
+import { SESSION_ENV, SessionEnvEntry } from '@sb/core/interpreter/env'
 import { capitalize } from '@sb/core/utils/strings'
 import { useEffect } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
@@ -224,9 +224,11 @@ export function PromptEditor({
   )
 }
 
+const kindOf = (entry: SessionEnvEntry) =>
+  entry.name.startsWith('$') ? 'function' : 'variable'
+
 const envTableRows = SESSION_ENV.map(
-  (entry) =>
-    `| \`${entry.name}\` | ${entry.description}${entry.kind === 'helper' ? ' (helper)' : ''} |`,
+  (entry) => `| \`${entry.name}\` | ${entry.description} | ${kindOf(entry)} |`,
 ).join('\n')
 
 const fence = '` $``` `'
@@ -258,7 +260,7 @@ Alternatively you can write inline code by wrapping your expression within doubl
 
 **Supported variables and functions**
 
-| Variable/Function | Description |
-|-------------------|-------------|
+| Name | Description | Type |
+|------|-------------|------|
 ${envTableRows}
 `.trim()
