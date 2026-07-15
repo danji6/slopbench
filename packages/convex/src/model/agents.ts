@@ -44,12 +44,7 @@ export async function update(
 ) {
   const agent = await requireOwned(ctx, agentId)
   if (patch.subAgents) {
-    patch.subAgents = await sanitizeSubAgents(
-      ctx,
-      ctx.userId,
-      patch.subAgents,
-      agentId,
-    )
+    patch.subAgents = await sanitizeSubAgents(ctx, ctx.userId, patch.subAgents)
   }
   // Explicit `undefined` in a patch deletes the field. Used to clear overrides.
   const cleared = Object.fromEntries(

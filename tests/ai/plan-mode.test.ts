@@ -493,8 +493,9 @@ describe('plan mode transition tools', () => {
 
     expect(await resolveNeedsApproval(tools.exit_plan_mode)).toBe(false)
 
-    const output = await tools.exit_plan_mode.execute?.({}, {} as never)
-    expect(output).toContain('write_plan')
+    expect(tools.exit_plan_mode.execute?.({}, {} as never)).rejects.toThrow(
+      'write_plan',
+    )
   })
 
   test('exit_plan_mode never re-prompts for an approved plan', async () => {

@@ -8,18 +8,16 @@ export type SpawnableAgent = {
   description?: string
 }
 
-/** Drops ids that aren't the owner's agents, plus the agent itself. */
+/** Drops ids that aren't the owner's agents. */
 export async function sanitizeSubAgents(
   ctx: QueryCtx,
   ownerId: Id<'users'>,
   subAgents: AgentSubAgents<Id<'agents'>> | undefined,
-  selfId?: Id<'agents'>,
 ): Promise<AgentSubAgents<Id<'agents'>> | undefined> {
   if (!subAgents) return undefined
 
   const agentIds: Id<'agents'>[] = []
   for (const id of new Set(subAgents.agentIds)) {
-    if (id === selfId) continue
     const agent = await ctx.db.get(id)
     if (agent?.ownerId === ownerId) agentIds.push(id)
   }
@@ -48,9 +46,7 @@ export async function resolveSpawnableAgents(
   const listed = new Set<Id<'agents'>>(config.agentIds)
   return owned
     .filter(
-      (candidate) =>
-        candidate._id !== agent._id &&
-        (config.mode === 'allow') === listed.has(candidate._id),
+      (candidate) => (config.mode === 'allow') === listed.has(candidate._id),
     )
     .map(({ _id, name, description }) => ({ _id, name, description }))
 }

@@ -11,7 +11,7 @@ import {
   Switch,
 } from '@/components/ui'
 import type { Prompt } from '@/lib/chat'
-import { SESSION_ENV, SessionEnvEntry } from '@sb/core/interpreter/env'
+import { SESSION_ENV, type SessionEnvEntry } from '@sb/core/interpreter/env'
 import { capitalize } from '@sb/core/utils/strings'
 import { useEffect } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'

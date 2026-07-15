@@ -363,7 +363,7 @@ describe('shellFailure', () => {
   test('yields a single failed output', async () => {
     const outputs = await collect(shellFailure('nope'))
     expect(outputs).toHaveLength(1)
-    expect(outputs[0].text).toBe('Tool failed: nope')
+    expect(outputs[0].text).toBe('nope')
   })
 })
 

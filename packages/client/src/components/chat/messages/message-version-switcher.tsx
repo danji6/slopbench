@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { useQuery } from 'convex/react'
-import { CheckIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
+import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import { useState } from 'react'
 
 type MessageVersionSwitcherProps = {

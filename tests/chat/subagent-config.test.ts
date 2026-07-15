@@ -62,24 +62,26 @@ describe('resolveSpawnableAgents', () => {
     ] as never)
   })
 
-  test('deny mode returns every owned agent except the listed ones', async () => {
+  test('deny mode returns every owned agent (including self) except the listed ones', async () => {
     const ctx = fakeCtx([coder, explorer, planner])
     const spawnable = await resolveSpawnableAgents(ctx, {
       ...coder,
       subAgents: { mode: 'deny', agentIds: ['agent_planner'] },
     } as never)
     expect(spawnable.map((agent) => String(agent._id))).toEqual([
+      'agent_coder',
       'agent_explorer',
     ])
   })
 
-  test('the agent itself is never spawnable', async () => {
+  test('the agent itself is spawnable when configured', async () => {
     const ctx = fakeCtx([coder, explorer])
     const spawnable = await resolveSpawnableAgents(ctx, {
       ...coder,
       subAgents: { mode: 'allow', agentIds: ['agent_coder', 'agent_explorer'] },
     } as never)
     expect(spawnable.map((agent) => String(agent._id))).toEqual([
+      'agent_coder',
       'agent_explorer',
     ])
 
@@ -88,35 +90,31 @@ describe('resolveSpawnableAgents', () => {
       subAgents: { mode: 'deny', agentIds: [] },
     } as never)
     expect(denyAll.map((agent) => String(agent._id))).toEqual([
+      'agent_coder',
       'agent_explorer',
     ])
   })
 })
 
 describe('sanitizeSubAgents', () => {
-  test('drops foreign, unknown, self and duplicate ids', async () => {
+  test('drops foreign, unknown and duplicate ids but keeps self', async () => {
     const foreign = { _id: 'agent_foreign', ownerId: 'user_2', name: 'Other' }
     const ctx = fakeCtx([coder, explorer, foreign])
 
-    const sanitized = await sanitizeSubAgents(
-      ctx,
-      owner as never,
-      {
-        mode: 'allow',
-        agentIds: [
-          'agent_explorer',
-          'agent_explorer',
-          'agent_foreign',
-          'agent_coder',
-          'agent_missing',
-        ],
-      } as never,
-      'agent_coder' as never,
-    )
+    const sanitized = await sanitizeSubAgents(ctx, owner as never, {
+      mode: 'allow',
+      agentIds: [
+        'agent_explorer',
+        'agent_explorer',
+        'agent_foreign',
+        'agent_coder',
+        'agent_missing',
+      ],
+    } as never)
 
     expect(sanitized).toEqual({
       mode: 'allow',
-      agentIds: ['agent_explorer'],
+      agentIds: ['agent_explorer', 'agent_coder'],
     } as never)
   })
 

@@ -1,6 +1,6 @@
 import { md } from '@/components/markdown'
 import { SettingsList } from '@/components/ui'
-import { useEditingAgent, useOwnedAgents } from '@/hooks/chat'
+import { useOwnedAgents } from '@/hooks/chat'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import type { Control } from 'react-hook-form'
 import { useController } from 'react-hook-form'
@@ -13,10 +13,7 @@ export function SubagentSettings({
 }: {
   control: Control<AgentFormValues>
 }) {
-  const editing = useEditingAgent()
-  const agents = (useOwnedAgents() ?? []).filter(
-    (agent) => agent._id !== editing?._id,
-  )
+  const agents = useOwnedAgents() ?? []
   const { field: modeField } = useController({ control, name: 'subAgentsMode' })
   const { field: idsField } = useController({ control, name: 'subAgentIds' })
 
@@ -70,47 +67,36 @@ export function SubagentSettings({
         </SettingsList.Select.Item>
       </SettingsList.Select>
 
-      {agents.length === 0 ? (
-        // TODO this will never appear once we allow the same agent to spawn itself, so we can remove it later
-        <SettingsList.Item
-          unclickable
-          unhoverable
-          description="You have no agents. Create one to let this agent delegate tasks to it."
-        />
-      ) : (
-        <>
-          <SettingsList.Checkbox
-            label={<span className="font-semibold">All agents</span>}
-            checked={allOn}
-            indeterminate={spawnableCount > 0 && !allOn}
-            onCheckedChange={toggleAll}
-          />
-          {agents.map((agent) => (
-            <SettingsList.Checkbox
-              key={agent._id}
-              className="pl-8"
-              label={
-                <AgentItemLabel
-                  agent={{
-                    id: agent._id,
-                    name: agent.name,
-                    avatarId: agent.avatarId,
-                  }}
-                />
-              }
-              description={
-                agent.description && (
-                  <span className="line-clamp-1" title={agent.description}>
-                    {agent.description}
-                  </span>
-                )
-              }
-              checked={isSpawnable(agent._id)}
-              onCheckedChange={() => toggle(agent._id)}
+      <SettingsList.Checkbox
+        label={<span className="font-semibold">All agents</span>}
+        checked={allOn}
+        indeterminate={spawnableCount > 0 && !allOn}
+        onCheckedChange={toggleAll}
+      />
+      {agents.map((agent) => (
+        <SettingsList.Checkbox
+          key={agent._id}
+          className="pl-8"
+          label={
+            <AgentItemLabel
+              agent={{
+                id: agent._id,
+                name: agent.name,
+                avatarId: agent.avatarId,
+              }}
             />
-          ))}
-        </>
-      )}
+          }
+          description={
+            agent.description && (
+              <span className="line-clamp-1" title={agent.description}>
+                {agent.description}
+              </span>
+            )
+          }
+          checked={isSpawnable(agent._id)}
+          onCheckedChange={() => toggle(agent._id)}
+        />
+      ))}
     </SettingsList>
   )
 }
