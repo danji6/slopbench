@@ -1,6 +1,7 @@
 import type { ToolUIPart } from 'ai'
 import { SquareTerminalIcon } from 'lucide-react'
 
+import { CollapsibleBlock } from '../collapsible-block'
 import { ShellBlock } from './shell-block'
 
 /** Renders one or more consecutive `shell` calls as a single grouped run. */
@@ -24,12 +25,19 @@ export function ShellGroupBlock({
   }
 
   return (
-    <div data-slot="shell-group" className="w-full">
-      <div className="text-muted-foreground mb-1 flex items-center gap-1.5 px-2.5 text-xs">
-        <SquareTerminalIcon className="size-3.5 shrink-0" />
-        <span>{parts.length} commands</span>
-      </div>
-      <div className="border-border/60 ml-3.5 flex flex-col gap-0.5 border-l pl-2">
+    <CollapsibleBlock
+      data-slot="shell-group"
+      collapsible={false}
+      fullWidth
+      leadingIcon={<SquareTerminalIcon className="size-3.5 shrink-0" />}
+      label={
+        <>
+          <span className="text-foreground font-medium">{parts.length}</span>{' '}
+          commands
+        </>
+      }
+    >
+      <div className="border-border/60 ml-3.5 flex flex-col gap-0.5 border-l pb-2.5 pl-2">
         {parts.map((part) => (
           <ShellBlock
             key={part.toolCallId}
@@ -40,6 +48,6 @@ export function ShellGroupBlock({
           />
         ))}
       </div>
-    </div>
+    </CollapsibleBlock>
   )
 }

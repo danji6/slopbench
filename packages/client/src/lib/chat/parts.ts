@@ -69,7 +69,7 @@ export function isSubagentReportPart(
 }
 
 // Tools whose consecutive calls collapse into a single grouped block
-const GROUPED_TOOLS = new Set(['read_file', 'shell'])
+const GROUPED_TOOLS = new Set(['read_file', 'shell', 'task'])
 
 export function groupParts(parts: UIMessage['parts']): PartGroup[] {
   const groups: PartGroup[] = []

@@ -18,15 +18,16 @@ import {
 } from 'ai'
 import { memo } from 'react'
 
+import { SubagentReportBlock } from '../subagents/subagent-report-block'
 import { FileBlock } from './file-block'
 import { FileLinkBlock } from './file-link-block'
 import { PlanLinkBlock } from './plan-link-block'
 import { ReasoningBlock } from './reasoning-block'
-import { SubagentReportBlock } from '../subagents/subagent-report-block'
 import { SummaryBlock } from './summary-block'
 import { TextBlock } from './text-block'
 import { ReadFileBlock } from './tools/read-file-block'
 import { ShellGroupBlock } from './tools/shell-group-block'
+import { SubagentGroupBlock } from './tools/subagent-group-block'
 import { ToolPartBlock } from './tools/tool-part-block'
 
 export type RenderGroupProps = {
@@ -50,6 +51,15 @@ export const RenderGroup = memo(function RenderGroup(props: RenderGroupProps) {
     if (group.toolName === 'shell') {
       return (
         <ShellGroupBlock
+          parts={group.parts}
+          messageId={props.message.id}
+          toolErrors={partMeta?.toolErrors}
+        />
+      )
+    }
+    if (group.toolName === 'task') {
+      return (
+        <SubagentGroupBlock
           parts={group.parts}
           messageId={props.message.id}
           toolErrors={partMeta?.toolErrors}

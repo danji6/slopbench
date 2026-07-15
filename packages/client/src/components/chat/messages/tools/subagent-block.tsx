@@ -15,6 +15,45 @@ type TaskInput = { agent_name?: string; prompt?: string; title?: string }
 
 type TaskPart = ToolUIPart & { subagentSessionId?: string }
 
+export type SubagentInfo = {
+  input: TaskInput | undefined
+  childSessionId: Id<'sessions'> | undefined
+  live: ReturnType<typeof useSubagentLive>
+  status: string | null
+  openSession: (() => void) | undefined
+}
+
+/**
+ * Parses a `task` tool part and subscribes to its child session, exposing the
+ * sub-agent's identity, live status, and a navigation callback. Shared by the
+ * single and grouped renderers.
+ */
+export function useSubagentInfo(part: ToolUIPart): SubagentInfo {
+  const [, navigate] = useLocation()
+  const input = part.input as TaskInput | undefined
+  const childSessionId = (part as TaskPart).subagentSessionId as
+    Id<'sessions'> | undefined
+
+  const live = useSubagentLive(childSessionId)
+
+  return {
+    input,
+    childSessionId,
+    live,
+    status: subagentStatus(part.state, childSessionId, live),
+    openSession: childSessionId
+      ? () => navigate(`/?id=${childSessionId}`)
+      : undefined,
+  }
+}
+
+function useSubagentLive(childSessionId: Id<'sessions'> | undefined) {
+  return useQuery(
+    api.subagents.watch,
+    childSessionId ? { sessionId: childSessionId } : 'skip',
+  )
+}
+
 /**
  * Renders a `task` tool call as a compact label for the sub-agent's background
  * work, showing its identity, live status, and token use. Can be clicked to
@@ -25,16 +64,8 @@ export function SubagentBlock({
   messageId,
   forceError,
 }: ToolRendererProps) {
-  const [, navigate] = useLocation()
-  const input = part.input as TaskInput | undefined
-  const childSessionId = (part as TaskPart).subagentSessionId as
-    | Id<'sessions'>
-    | undefined
-
-  const live = useQuery(
-    api.subagents.watch,
-    childSessionId ? { sessionId: childSessionId } : 'skip',
-  )
+  const { input, childSessionId, live, status, openSession } =
+    useSubagentInfo(part)
 
   return (
     <ToolShell
@@ -42,15 +73,13 @@ export function SubagentBlock({
       part={part}
       messageId={messageId}
       forceError={forceError}
-      onLabelClick={
-        childSessionId ? () => navigate(`/?id=${childSessionId}`) : undefined
-      }
+      onLabelClick={openSession}
       label={
         <SubagentLabel
           name={live?.agent?.name ?? input?.agent_name}
           avatarId={live?.agent?.avatarId}
           title={input?.title}
-          status={subagentStatus(part.state, childSessionId, live)}
+          status={status}
           tokens={live?.tokens ?? null}
           linked={Boolean(childSessionId)}
         />
@@ -70,7 +99,7 @@ function subagentStatus(
   return live?.status ? 'running' : 'done'
 }
 
-function SubagentLabel({
+export function SubagentLabel({
   name,
   avatarId,
   title,

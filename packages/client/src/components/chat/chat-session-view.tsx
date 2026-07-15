@@ -280,6 +280,7 @@ export function ChatSessionView({
               {subagentParent && (
                 <SubagentBanner
                   parent={subagentParent}
+                  title={session?.title}
                   status={status}
                   onStop={onStop}
                   onScrollToBottom={() =>
