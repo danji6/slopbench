@@ -46,5 +46,6 @@ export async function buildEvalContext({
     isAdmin,
     userCount,
     agentCount,
+    workDir: session.workspace?.path,
   }
 }

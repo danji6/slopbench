@@ -61,6 +61,12 @@ export const SESSION_ENV: SessionEnvEntry[] = [
     kind: 'variable',
   },
   {
+    name: 'workDir',
+    description:
+      'Absolute path of the workspace directory',
+    kind: 'variable',
+  },
+  {
     name: '$get',
     description: 'Get a value from the current session',
     kind: 'helper',

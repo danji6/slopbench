@@ -50,9 +50,18 @@ export function SessionWorkspaceSection() {
         unclickable
         label="Working directory"
         description={
-          session?.workspace
-            ? `Configured: ${session.workspace.label}`
-            : 'Coding tools stay unavailable until a directory is configured.'
+          session?.workspace ? (
+            <>
+              <div className="truncate font-semibold">
+                {session.workspace.label}
+              </div>
+              <div className="truncate text-[10px]">
+                {session.workspace.path}
+              </div>
+            </>
+          ) : (
+            'Coding tools stay unavailable until a directory is configured.'
+          )
         }
       >
         <div className="flex flex-wrap gap-2">

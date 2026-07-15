@@ -14,6 +14,7 @@ export type EvalContext = {
   isAdmin?: boolean
   userCount?: number
   agentCount?: number
+  workDir?: string
 }
 
 export interface VariableStore {

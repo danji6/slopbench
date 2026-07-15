@@ -391,7 +391,7 @@ export async function _patchWorkspace(
   ctx: MutationCtx,
   args: {
     sessionId: Id<'sessions'>
-    workspace: { workspaceId: string; label: string } | null
+    workspace: { workspaceId: string; label: string; path: string } | null
   },
 ) {
   await ctx.db.patch(args.sessionId, {

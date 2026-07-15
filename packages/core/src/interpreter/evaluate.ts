@@ -66,6 +66,7 @@ function sessionBindings(
     isAdmin: context.isAdmin ?? false,
     userCount: context.userCount ?? 0,
     agentCount: context.agentCount ?? 0,
+    workDir: context.workDir,
     $get: get,
     $set: set,
   }

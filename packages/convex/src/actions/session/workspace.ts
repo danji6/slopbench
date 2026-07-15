@@ -116,11 +116,12 @@ export async function resolveFileLinks(
 export async function bindWorkspace(
   ctx: ActionCtx,
   args: { sessionId: Id<'sessions'>; root: string },
-): Promise<{ workspaceId: string; label: string }> {
+): Promise<{ workspaceId: string; label: string; path: string }> {
   await requireAdminWorkspaceAction(ctx, args.sessionId)
   const workspace = await postWorkspaceSidecar<{
     workspaceId: string
     label: string
+    path: string
   }>('/workspace/bind', { sessionId: args.sessionId, root: args.root })
   await ctx.runMutation(internal.sessions._patchWorkspace, {
     sessionId: args.sessionId,

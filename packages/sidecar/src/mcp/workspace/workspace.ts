@@ -124,7 +124,8 @@ export async function bindWorkspace(
       updatedAt: now,
     }
 
-    return { workspaceId, label: state.workspaces[workspaceId].label }
+    const record = state.workspaces[workspaceId]
+    return { workspaceId, label: record.label, path: record.root }
   })
 }
 

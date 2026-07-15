@@ -95,6 +95,7 @@ export const sessionSettingsValidator = v.object({
 export const workspaceRefValidator = v.object({
   workspaceId: v.string(),
   label: v.string(),
+  path: v.string(),
 })
 
 export const toolApprovalsValidator = v.object({
