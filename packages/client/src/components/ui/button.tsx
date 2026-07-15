@@ -37,7 +37,7 @@ export const buttonVariants = cva(
         outline:
           'bg-m3-surface-container text-m3-on-surface border-input hover:ring-ring hover:border-ring border shadow-xs',
         input:
-          'bg-m3-surface-container-low text-m3-on-surface border-input hover:bg-m3-surface-container border shadow-xs',
+          'bg-m3-surface-container-low text-m3-on-surface border-input hover:bg-m3-surface-container-high border shadow-xs',
         ghost:
           'text-m3-on-surface hover:bg-m3-secondary hover:text-m3-on-secondary',
         link: 'text-primary underline',
