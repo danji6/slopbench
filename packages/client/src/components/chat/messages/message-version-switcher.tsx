@@ -102,19 +102,10 @@ function VersionRow({ version, preview, selected, onSelect }: VersionRowProps) {
       )}
       onClick={onSelect}
     >
-      <span className="flex w-full items-center gap-1.5">
-        <span className="text-foreground/90 font-medium tabular-nums">
-          v{version}
-        </span>
-        {selected && (
-          <CheckIcon className="text-primary ml-auto size-3.5 shrink-0" />
-        )}
+      <span className="text-muted-foreground line-clamp-3 text-xs leading-snug font-normal wrap-break-word whitespace-pre-wrap">
+        <span className="text-foreground font-bold">{version}. </span>
+        {preview || ''}
       </span>
-      {preview && (
-        <span className="text-muted-foreground line-clamp-3 text-xs leading-snug font-normal wrap-break-word whitespace-pre-wrap">
-          {preview}
-        </span>
-      )}
     </RippleButton>
   )
 }

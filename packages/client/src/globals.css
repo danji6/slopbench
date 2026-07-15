@@ -439,6 +439,26 @@
   }
 }
 
+/* --- Message version switch cross-fade --- */
+@keyframes version-swap-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+[data-version-swap='1'] {
+  animation: version-swap-fade 200ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-version-swap='1'] {
+    animation: none;
+  }
+}
+
 /* --- Shimmer (running tool labels) --- */
 @keyframes text-shimmer {
   0% {

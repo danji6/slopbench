@@ -33,7 +33,7 @@ export function SlowModeLabel({ className }: { className?: string }) {
       )}
     >
       <TimerIcon className="size-3.5 shrink-0" />
-      <span>Slow mode · {seconds(remaining)}s</span>
+      <span>Slow mode • {seconds(remaining)}s</span>
     </div>
   )
 }

@@ -4,7 +4,7 @@ import { trackUntilSettled } from '@/lib/scroll-settle'
 import type { ChatStatus } from 'ai'
 import { useCallback, useEffect, useRef } from 'react'
 
-import type { ScrollDeps } from './deps'
+import type { ScrollDeps } from '../deps'
 
 type FollowEdgesOptions = {
   returnToLatest: () => void

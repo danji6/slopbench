@@ -3,7 +3,7 @@ import type { MessageRow } from '@/lib/chat/rows'
 import { trackUntilSettled } from '@/lib/scroll-settle'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import type { ScrollDeps } from './deps'
+import type { ScrollDeps } from '../deps'
 
 type AnchorAround = (target: {
   _id: string

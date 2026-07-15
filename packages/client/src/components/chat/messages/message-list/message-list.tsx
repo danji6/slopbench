@@ -24,7 +24,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
 } from 'react'
 import type { WindowVirtualizerHandle } from 'virtua'
 
@@ -33,19 +32,23 @@ import { ChatScrollArea } from '../../chat-scroll-area'
 import { useMessageEdit } from '../editor/message-edit-context'
 import { MessageRowView } from '../message-row-view'
 import type { ScrollDeps, WindowMeta } from './deps'
-import { useDelayedVisibility } from './helpers'
+import { useDelayedVisibility } from './hooks/delayed-visibility'
+import { useFollowEdges } from './hooks/follow-edges'
+import { useMessageReveal } from './hooks/message-reveal'
+import { usePageScroll } from './hooks/page-scroll'
+import { useSeek } from './hooks/seek'
+import {
+  useConditionalFollow,
+  useConditionalScroll,
+} from './hooks/stream-reveal'
+import { useVersionCrossfade } from './hooks/version-crossfade'
+import { useVersionHold } from './hooks/version-hold'
+import { useWindowSlide } from './hooks/window-slide'
 import {
   MessageListContent,
   type MessageListContentState,
 } from './message-list-content'
 import { MessageListContext } from './message-list-context'
-import { useFollowEdges } from './use-follow-edges'
-import { usePageScroll } from './use-page-scroll'
-import { useReveal } from './use-reveal'
-import { useSeek } from './use-seek'
-import { useConditionalFollow, useConditionalScroll } from './use-stream-reveal'
-import { useTailRepin } from './use-tail-repin'
-import { useWindowSlide } from './use-window-slide'
 
 const LOADING_INDICATOR_DELAY_MS = 150
 
@@ -223,7 +226,7 @@ export function MessageList({
     setFollowOverride,
   })
 
-  const { revealLatest } = useReveal(deps, {
+  const { revealLatest } = useMessageReveal(deps, {
     returnToLatest,
     messageIds,
     messageStore,
@@ -357,15 +360,10 @@ export function MessageList({
 
   useEffect(() => () => initialSettleRef.current?.(), [])
 
-  // Selected version of the tail message
-  const lastMessageId = messageIds[messageIds.length - 1]
-  const lastVersion = useSyncExternalStore(messageStore.subscribe, () =>
-    lastMessageId
-      ? (messageStore.getMessageMetadata(lastMessageId)?.selectedVersion ?? 1)
-      : 0,
-  )
-
-  useTailRepin(deps, { lastMessageId, lastVersion, autoScroll, isAtLiveTail })
+  // Hold the scroll position while a turn's version is switched
+  useVersionHold(deps, { messageIds, messageStore, autoScroll, status })
+  // Fade the swapped content for a smoother transition
+  useVersionCrossfade(messageIds, messageStore)
 
   const settleCancelRef = useRef<(() => void) | null>(null)
   // Suppress auto-follow during layout shifts and emit scroll change when the

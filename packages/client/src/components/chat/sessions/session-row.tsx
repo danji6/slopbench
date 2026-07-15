@@ -133,7 +133,7 @@ export function SessionRow({ id, rename }: SessionRowProps) {
                     </span>
                     {showPreview && (
                       <>
-                        <span className="shrink-0">·</span>
+                        <span className="shrink-0">•</span>
                         <span className="min-w-0 flex-1 truncate text-start font-normal">
                           {item.lastMessagePreview}
                         </span>

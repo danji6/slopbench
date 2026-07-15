@@ -26,7 +26,7 @@ export function SubagentReportBlock({ part }: { part: SubagentReportPart }) {
       <BotIcon className="size-3.5 shrink-0" />
       <span className="truncate">
         Report from {part.agentName}
-        {part.title && ` · ${part.title}`}
+        {part.title && ` • ${part.title}`}
       </span>
       <span className="shrink-0">({STATUS_LABELS[part.status]})</span>
       <ExternalLinkIcon className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />

@@ -2,12 +2,12 @@ import type { useMessageStore } from '@/hooks/chat'
 import { getNavPaddingPx } from '@/hooks/nav-padding'
 import { useCallback, useEffect, useRef } from 'react'
 
-import type { ScrollDeps } from './deps'
+import type { ScrollDeps } from '../deps'
 import {
   appendedMessageIds,
   firstMessageRowIndex,
   latestRemoteUserMessageId,
-} from './helpers'
+} from '../helpers'
 
 type RevealOptions = {
   returnToLatest: () => void
@@ -20,7 +20,7 @@ type RevealOptions = {
 }
 
 /** Brings a resolved message to the top of the viewport once it mounts. */
-export function useReveal(
+export function useMessageReveal(
   deps: ScrollDeps,
   {
     returnToLatest,

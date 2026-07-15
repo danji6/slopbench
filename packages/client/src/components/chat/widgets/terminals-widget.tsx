@@ -100,7 +100,7 @@ function JobRow({
         <span className="truncate font-mono text-xs">{job.command}</span>
         <span className="text-muted-foreground truncate text-[10px]">
           {job.jobId}
-          {job.background && ' · background'} · {formatElapsed(job.startedAt)}
+          {job.background && ' • background'} • {formatElapsed(job.startedAt)}
         </span>
       </RippleButton>
       <RippleButton

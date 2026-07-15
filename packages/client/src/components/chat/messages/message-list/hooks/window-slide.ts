@@ -2,7 +2,7 @@ import { getNavPaddingPx } from '@/hooks/nav-padding'
 import { trackUntilSettled } from '@/lib/scroll-settle'
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 
-import type { ScrollDeps } from './deps'
+import type { ScrollDeps } from '../deps'
 
 type WindowSlideOptions = {
   extendOlder: () => boolean

@@ -101,7 +101,7 @@ function SubagentRow({
           {agent.agentName ?? 'Sub-agent'}
         </span>
         <span className="text-muted-foreground truncate text-[10px]">
-          {agent.title ?? agent.sessionId} · {formatElapsed(agent.startedAt)}
+          {agent.title ?? agent.sessionId} • {formatElapsed(agent.startedAt)}
         </span>
       </RippleButton>
       <RippleButton

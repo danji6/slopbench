@@ -107,7 +107,7 @@ function SubagentLabel({
         {name ?? 'Sub-agent'}
         {title && (
           <>
-            <span className="mx-1.5 shrink-0">·</span>
+            <span className="mx-1.5 shrink-0">•</span>
             <span className="text-muted-foreground font-normal">{title}</span>
           </>
         )}
