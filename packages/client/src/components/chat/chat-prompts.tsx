@@ -7,9 +7,10 @@ import { MessageView } from './messages'
 
 export function ChatPrompts({
   showEmptyState,
+  workDir,
   ...props
-}: React.ComponentProps<'div'> & { showEmptyState?: boolean }) {
-  const { messages, sender, css } = useDeferredValue(useAgentPrompts())
+}: React.ComponentProps<'div'> & { showEmptyState?: boolean; workDir?: string }) {
+  const { messages, sender, css } = useDeferredValue(useAgentPrompts(workDir))
 
   if (messages.length === 0) {
     if (!showEmptyState) return null

@@ -6,7 +6,7 @@ import type { Editor } from '@tiptap/react'
 /** Session env entries offered while typing inside a dynamic block. */
 const SESSION_COMPLETIONS: Completion[] = SESSION_ENV.map((entry) => ({
   label: entry.name,
-  detail: entry.kind,
+  detail: entry.name.startsWith('$') ? 'function' : 'variable',
   snippet: entry.snippet,
 }))
 

@@ -102,6 +102,7 @@ export function EmptyChat({
           >
             <ChatPrompts
               showEmptyState
+              workDir={workspaceRoot ?? undefined}
               className="mx-auto my-auto w-full"
               style={{ width: `calc(${chatBoxWidth} - var(--spacing)*6)` }}
             />

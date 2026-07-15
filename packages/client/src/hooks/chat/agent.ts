@@ -64,9 +64,13 @@ export function useActiveAgent(): ActiveAgent | null {
   )
 }
 
-export function useAgentPrompts() {
+/**
+ * @param workDir The currently picked workspace path
+ */
+export function useAgentPrompts(workDir?: string) {
   const activeAgent = useActiveAgent()
   const sessionId = useActiveSessionId()
+  const session = useActiveSession()
   const settings = useSettings()
   const isAdmin = useIsAdmin()
   const agent = activeAgent && 'prompts' in activeAgent ? activeAgent : null
@@ -92,6 +96,7 @@ export function useAgentPrompts() {
       isAdmin,
       userCount: 1,
       agentCount: agent ? 1 : 0,
+      workDir: workDir ?? session?.workspace?.path,
     }
 
     const messages = merged
@@ -125,6 +130,8 @@ export function useAgentPrompts() {
     settings?.globalPrompts,
     settings?.libraryPrompts,
     isAdmin,
+    workDir,
+    session?.workspace?.path,
   ])
 }
 
