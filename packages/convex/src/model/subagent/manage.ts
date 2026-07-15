@@ -3,17 +3,23 @@ import { error } from '../../errors'
 import type { AuthMutationCtx, AuthQueryCtx } from '../../functions'
 import { getActiveStream, requireMember } from '../session/memberships'
 import { stopForSession } from '../stream/lifecycle'
+import { lastRequestInputTokens } from './usage'
 
 export type SubagentSummary = {
   sessionId: Id<'sessions'>
   title: string | null
   agentName: string | null
   avatarId?: Id<'avatars'>
-  status: Doc<'streams'>['status']
+  /** Whether the child still has an active stream. */
+  running: boolean
+  /** Active stream status, null once the child turn settled. */
+  status: Doc<'streams'>['status'] | null
   startedAt: number
+  /** Input tokens on the child session's most recent request. */
+  tokens: number | null
 }
 
-async function runningChildren(
+async function childSessions(
   ctx: AuthQueryCtx | AuthMutationCtx,
   sessionId: Id<'sessions'>,
 ) {
@@ -33,13 +39,11 @@ export async function list(
 ): Promise<SubagentSummary[]> {
   await requireMember(ctx, sessionId, ctx.userId)
 
-  const children = await runningChildren(ctx, sessionId)
+  const children = await childSessions(ctx, sessionId)
   const summaries: SubagentSummary[] = []
 
   for (const child of children) {
     const stream = await getActiveStream(ctx, child._id)
-    if (!stream) continue
-
     const agent = child.activeAgentId
       ? await ctx.db.get(child.activeAgentId)
       : null
@@ -49,12 +53,15 @@ export async function list(
       title: child.title ?? null,
       agentName: agent?.name ?? null,
       avatarId: agent?.avatarId,
-      status: stream.status,
-      startedAt: stream._creationTime,
+      running: Boolean(stream),
+      status: stream?.status ?? null,
+      startedAt: child._creationTime,
+      tokens: await lastRequestInputTokens(ctx, child._id),
     })
   }
 
-  return summaries.sort((a, b) => a.startedAt - b.startedAt)
+  // Newest first
+  return summaries.sort((a, b) => b.startedAt - a.startedAt)
 }
 
 async function requireChild(
@@ -85,7 +92,7 @@ export async function stopAll(
   { sessionId }: { sessionId: Id<'sessions'> },
 ) {
   await requireMember(ctx, sessionId, ctx.userId)
-  const children = await runningChildren(ctx, sessionId)
+  const children = await childSessions(ctx, sessionId)
   for (const child of children) {
     await stopForSession(ctx, child._id, { suppressReport: true })
   }

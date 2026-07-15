@@ -51,7 +51,7 @@ export function MessageHeader({ sender, role, extra }: MessageHeaderProps) {
 function RoleIcon({ role }: { role: MessageRole }) {
   const Icon =
     role === 'user' ? UserIcon : role === 'system' ? CogIcon : BotIcon
-  return <Icon className="size-full" />
+  return <Icon />
 }
 
 function AvatarWithLightbox({

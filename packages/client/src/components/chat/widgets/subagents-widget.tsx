@@ -1,8 +1,9 @@
 import { List, RippleButton } from '@/components/ui'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Popover } from '@/components/ui/popover'
 import { useActiveSessionId } from '@/hooks/chat/session'
 import { toast } from '@/lib/notifications'
-import { cn } from '@/lib/utils'
+import { abbreviateNumber, cn } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { useMutation, useQuery } from 'convex/react'
@@ -15,13 +16,15 @@ type Subagent = NonNullable<
 
 export function SubagentsWidget({ className }: { className?: string }) {
   const sessionId = useActiveSessionId() as Id<'sessions'> | null
-  const running = useQuery(
+  const agents = useQuery(
     api.subagents.list,
     sessionId ? { sessionId } : 'skip',
   )
   const stopAll = useMutation(api.subagents.stopAll)
 
-  if (!sessionId || !running || running.length === 0) return null
+  if (!sessionId || !agents || agents.length === 0) return null
+
+  const runningCount = agents.filter((agent) => agent.running).length
 
   function handleStopAll() {
     if (!sessionId) return
@@ -35,37 +38,46 @@ export function SubagentsWidget({ className }: { className?: string }) {
           'text-muted-foreground hover:text-foreground focus-visible:ring-ring flex h-full cursor-pointer items-center gap-1 rounded-full px-2 outline-0 transition-colors focus-visible:ring-1',
           className,
         )}
-        aria-label={`${running.length} running sub-agent${running.length === 1 ? '' : 's'}`}
+        aria-label={`${agents.length} sub-agent${agents.length === 1 ? '' : 's'}`}
       >
         <BotIcon className="size-4" />
-        <span className="text-xs tabular-nums">{running.length}</span>
+        <span className="text-xs tabular-nums">{agents.length}</span>
       </Popover.Trigger>
       <Popover.Content align="end" className="w-72">
         <Popover.Header>
           <Popover.Title>Sub-agents</Popover.Title>
           <Popover.Description>
-            {running.length} running in the background
+            {runningCount > 0
+              ? `${runningCount} running, ${agents.length} total`
+              : `${agents.length} finished`}
           </Popover.Description>
         </Popover.Header>
 
         <List
-          items={running}
+          items={agents}
           keys={(agent) => agent.sessionId}
           render={(agent) => (
             <SubagentRow agent={agent} sessionId={sessionId} />
           )}
-          className="flex flex-col gap-2"
+          className="flex max-h-64 flex-col gap-2 overflow-y-auto"
         />
 
-        {running.length > 1 && (
-          <RippleButton
-            variant="input"
-            size="sm"
-            onClick={handleStopAll}
-            className="text-muted-foreground self-start text-xs"
+        {runningCount > 1 && (
+          <ConfirmDialog
+            variant="destructive"
+            title="Stop all sub-agents?"
+            description={`This stops ${runningCount} running sub-agents.`}
+            confirmText="Stop all"
+            onConfirm={handleStopAll}
           >
-            <SquareIcon /> Stop all
-          </RippleButton>
+            <RippleButton
+              variant="input"
+              size="sm"
+              className="text-muted-foreground self-start text-xs"
+            >
+              <SquareIcon /> Stop all
+            </RippleButton>
+          </ConfirmDialog>
         )}
       </Popover.Content>
     </Popover>
@@ -94,26 +106,37 @@ function SubagentRow({
       <RippleButton
         variant="stealth"
         onClick={() => navigate(`/?id=${agent.sessionId}`)}
-        className="h-auto min-w-0 flex-1 flex-col items-stretch gap-0.5 rounded-md px-2 py-1.5 text-left"
-        title="Open the sub-agent session"
+        className={cn(
+          'h-auto min-w-0 flex-1 flex-col items-stretch gap-0.5 rounded-md px-2 py-1.5 text-left',
+          !agent.running && 'opacity-60',
+        )}
       >
-        <span className="truncate text-xs font-medium">
-          {agent.agentName ?? 'Sub-agent'}
+        <span className="text-muted-foreground">
+          <span className="text-foreground truncate text-xs font-semibold">
+            {agent.agentName ?? 'Sub-agent'}
+          </span>
+          <span className="shrink-0 text-xs tabular-nums">
+            {' • '}
+            {agent.running ? formatElapsed(agent.startedAt) : 'Done'}
+            {agent.tokens ? ` • ${abbreviateNumber(agent.tokens)} tokens` : ''}
+          </span>
         </span>
-        <span className="text-muted-foreground truncate text-[10px]">
-          {agent.title ?? agent.sessionId} • {formatElapsed(agent.startedAt)}
+        <span className="text-muted-foreground truncate text-xs">
+          {agent.title ?? agent.sessionId}
         </span>
       </RippleButton>
-      <RippleButton
-        variant="stealth"
-        size="icon"
-        onClick={handleStop}
-        disabled={stopping}
-        className="text-muted-foreground shrink-0"
-        aria-label="Stop sub-agent"
-      >
-        <BanIcon />
-      </RippleButton>
+      {agent.running && (
+        <RippleButton
+          variant="stealth"
+          size="icon"
+          onClick={handleStop}
+          disabled={stopping}
+          className="text-muted-foreground shrink-0"
+          aria-label="Stop sub-agent"
+        >
+          <BanIcon />
+        </RippleButton>
+      )}
     </div>
   )
 }

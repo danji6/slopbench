@@ -75,7 +75,9 @@ export function AgentItemLabel({
 } & React.ComponentProps<typeof SessionAvatar>) {
   return (
     <span className="flex min-w-0 items-center gap-2.5">
-      {agent && <SessionAvatar avatarId={agent.avatarId} {...props} noHover />}
+      {agent && (
+        <SessionAvatar avatarId={agent.avatarId} {...props} noHover size="sm" />
+      )}
       <span className="min-w-0 truncate">{agent?.name || placeholder}</span>
     </span>
   )

@@ -7,6 +7,8 @@ import { useQuery } from 'convex/react'
 import { ArrowDownIcon, ArrowLeftIcon, SquareIcon } from 'lucide-react'
 import { useLocation } from 'wouter'
 
+import { TokenWidget } from '../widgets/token-widget'
+
 /** Replaces the composer in sub-agent sessions. */
 export function SubagentBanner({
   parent,
@@ -46,6 +48,8 @@ export function SubagentBanner({
         >
           <ArrowLeftIcon /> Back to parent
         </RippleButton>
+        <div className="border-input/50 h-8 w-px border" />
+        <TokenWidget className="h-8" />
         <div className="border-input/50 h-8 w-px border" />
         <RippleButton
           variant="input"

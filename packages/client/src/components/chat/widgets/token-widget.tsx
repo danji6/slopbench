@@ -34,7 +34,7 @@ export function TokenWidget({ className }: { className?: string }) {
         />
 
         <UsageSection title="Last request" usage={lastRequest} />
-        <UsageSection title="This session" usage={session} />
+        <UsageSection title="Cumulative" usage={session} />
       </Popover.Content>
     </Popover>
   )

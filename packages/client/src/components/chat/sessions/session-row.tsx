@@ -203,14 +203,10 @@ function ParticipantStack({
         <SessionAvatar
           key={participant.id}
           avatarId={participant.avatarId}
-          size="sm"
-          className="ring-m3-surface size-5 ring-2"
+          size="xs"
+          className="ring-m3-surface ring-2"
           fallbackIcon={
-            participant.kind === 'agent' ? (
-              <BotIcon className="size-full" />
-            ) : (
-              <UserIcon className="size-full" />
-            )
+            participant.kind === 'agent' ? <BotIcon /> : <UserIcon />
           }
         />
       ))}

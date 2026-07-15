@@ -17,9 +17,9 @@ export function SessionAvatar({
   const stableSrc = useStableValue(src, Boolean(avatarId && !src))
   return (
     <Avatar
-      size="sm"
+      size="md"
       src={stableSrc}
-      fallbackIcon={fallbackIcon ?? <BotIcon className="size-full" />}
+      fallbackIcon={fallbackIcon ?? <BotIcon />}
       {...props}
     />
   )

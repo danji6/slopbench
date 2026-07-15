@@ -6,21 +6,23 @@ export type AvatarProps = {
   src?: string | null
   alt?: string
   fallbackIcon?: React.ReactNode
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'xs' | 'sm' | 'md' | 'lg'
   onClick?: () => void
   noHover?: boolean
   className?: string
 }
 
 const sizeClasses = {
+  xs: 'size-5',
   sm: 'size-8',
   md: 'size-12',
   lg: 'size-20',
 } as const
 
 const iconSizeClasses = {
+  xs: 'size-2.5',
   sm: 'size-4',
-  md: 'size-5',
+  md: 'size-6',
   lg: 'size-8',
 } as const
 
@@ -97,11 +99,11 @@ function FallbackIcon({
   return (
     <div
       className={cn(
-        'text-muted-foreground absolute flex items-center justify-center',
+        'text-muted-foreground absolute flex items-center justify-center *:size-full!',
         iconSize,
       )}
     >
-      {fallbackIcon ?? <UserIcon className="size-full" />}
+      {fallbackIcon ?? <UserIcon />}
     </div>
   )
 }
