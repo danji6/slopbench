@@ -21,41 +21,55 @@ import { EmptyMessage } from '../../empty-message'
 
 const CONTENT_FADE_TRANSITION = { duration: 0.18, ease: 'easeOut' } as const
 
-const contentClassName = {
-  loading: 'flex flex-1 flex-col justify-center',
-  empty: 'flex flex-1 flex-col justify-center',
-  messages: 'w-full',
-} as const
-
 const VirtualizedRowsContext = createContext<readonly MessageRow[]>([])
 
-export type MessageListContentState = keyof typeof contentClassName
-
 type MessageListContentProps = {
-  state: MessageListContentState
+  /** Whether the list has finished positioning and may fade into view. */
+  revealed: boolean
+  isEmpty: boolean
   showLoadingIndicator: boolean
+  /** Loading overlay style. Inset is passed here to keep it centered. */
+  overlayStyle?: CSSProperties
   emptyStyle?: CSSProperties
   messages: MessageRowsProps
 }
 
 export function MessageListContent({
-  state,
+  revealed,
+  isEmpty,
   showLoadingIndicator,
+  overlayStyle,
   emptyStyle,
   messages,
 }: MessageListContentProps) {
-  return (
-    <AnimatePresence initial={false} mode="popLayout">
-      <ContentFade key={state} className={contentClassName[state]}>
-        {state === 'loading' ? (
-          <MessageListLoadingState showIndicator={showLoadingIndicator} />
-        ) : state === 'empty' ? (
-          <MessageListEmptyState style={emptyStyle} />
-        ) : (
-          <MessageRows {...messages} />
-        )}
+  if (isEmpty) {
+    return (
+      <ContentFade className="flex flex-1 flex-col justify-center">
+        <EmptyMessage style={emptyStyle} />
       </ContentFade>
-    </AnimatePresence>
+    )
+  }
+
+  return (
+    <>
+      <motion.div
+        className="w-full"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: revealed ? 1 : 0 }}
+        transition={CONTENT_FADE_TRANSITION}
+      >
+        <MessageRows {...messages} />
+      </motion.div>
+      <AnimatePresence>
+        {!revealed && (
+          <LoadingOverlay
+            key="loading"
+            showIndicator={showLoadingIndicator}
+            style={overlayStyle}
+          />
+        )}
+      </AnimatePresence>
+    </>
   )
 }
 
@@ -86,37 +100,37 @@ function ContentFade({
   )
 }
 
-type MessageListLoadingStateProps = {
+type LoadingOverlayProps = {
   showIndicator: boolean
-}
-
-function MessageListLoadingState({
-  showIndicator,
-}: MessageListLoadingStateProps) {
-  return (
-    <AnimatePresence>
-      {showIndicator && (
-        <motion.div
-          key="loading-indicator"
-          className="mx-auto"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={CONTENT_FADE_TRANSITION}
-        >
-          <WavyProgressCircle size={64} />
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
-}
-
-type MessageListEmptyStateProps = {
   style?: CSSProperties
 }
 
-function MessageListEmptyState({ style }: MessageListEmptyStateProps) {
-  return <EmptyMessage style={style} />
+/** Viewport-anchored loading overlay shown while the list positions itself. */
+function LoadingOverlay({ showIndicator, style }: LoadingOverlayProps) {
+  return (
+    <motion.div
+      className="pointer-events-none fixed inset-x-0 z-10 flex items-center justify-center"
+      style={style}
+      initial={{ opacity: 1 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={CONTENT_FADE_TRANSITION}
+    >
+      <AnimatePresence>
+        {showIndicator && (
+          <motion.div
+            key="loading-indicator"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={CONTENT_FADE_TRANSITION}
+          >
+            <WavyProgressCircle size={64} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  )
 }
 
 type MessageRowsProps = {
@@ -239,6 +253,8 @@ function VirtualizedItem({
       data-slot="virtualized-item"
       data-row-kind={row?.kind}
       data-message-id={row?.messageId}
+      data-row-key={row?.key}
+      data-segment-index={row?.kind === 'group' ? row.segmentIndex : undefined}
       style={style}
     >
       {spacing && <div aria-hidden className={row.grouped ? 'h-3' : 'h-10'} />}

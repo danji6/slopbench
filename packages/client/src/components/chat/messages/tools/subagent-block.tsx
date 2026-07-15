@@ -115,31 +115,30 @@ export function SubagentLabel({
   linked: boolean
 }) {
   return (
-    <span className="text-muted-foreground flex min-w-0 items-center gap-2">
+    <span className="text-muted-foreground flex min-w-0 items-start gap-2">
       <SessionAvatar avatarId={avatarId} noHover size="xs" />
-      <span className="text-foreground font-semibold">
-        {name ?? 'Sub-agent'}
-      </span>
-      {title && (
-        <>
-          <span className="shrink-0">•</span>
-          <span className="font-normal">{title}</span>
-        </>
-      )}
-      {status && (
-        <>
-          <span className="shrink-0">•</span>
-          <span className="text-xs">{capitalize(status)}</span>
-        </>
-      )}
-      {tokens ? (
-        <>
-          <span className="shrink-0">•</span>
-          <span className="shrink-0 text-xs tabular-nums">
-            {abbreviateNumber(tokens)} tokens
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="text-foreground truncate font-semibold">
+            {name ?? 'Sub-agent'}
           </span>
-        </>
-      ) : null}
+          {status && (
+            <>
+              <span className="shrink-0">•</span>
+              <span className="shrink-0 text-xs">{capitalize(status)}</span>
+            </>
+          )}
+          {tokens ? (
+            <>
+              <span className="shrink-0">•</span>
+              <span className="shrink-0 text-xs tabular-nums">
+                {abbreviateNumber(tokens)} tokens
+              </span>
+            </>
+          ) : null}
+        </span>
+        {title && <span className="truncate font-normal">{title}</span>}
+      </span>
       {linked && (
         <ExternalLinkIcon className="size-3 shrink-0 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100" />
       )}

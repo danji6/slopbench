@@ -51,6 +51,7 @@ function convertDoc(doc: MessageDoc): ConvertedEntry {
   const entry: ConvertedEntry = {
     message: doc.status === 'done' ? finalizeMessageParts(message) : message,
     record: {
+      _creationTime: doc._creationTime,
       sender: doc.sender,
       senderSnapshot: doc.senderSnapshot,
       type: doc.type,

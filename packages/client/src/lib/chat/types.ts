@@ -69,7 +69,12 @@ export type MessageSegmentInfo = {
 
 export type MessageRecord = Pick<
   Doc<'messages'>,
-  'sender' | 'senderSnapshot' | 'type' | 'selectedVersion' | 'versionCount'
+  | 'sender'
+  | 'senderSnapshot'
+  | 'type'
+  | 'selectedVersion'
+  | 'versionCount'
+  | '_creationTime'
 > & {
   metadata?: Pick<MessageMetadata, 'error' | 'warnings' | 'usage'>
   segments: MessageSegmentInfo[]

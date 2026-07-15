@@ -12,6 +12,7 @@ import {
   useWindowControls,
   useWindowMetadata,
 } from '@/hooks/chat'
+import { getNavPaddingPx } from '@/hooks/nav-padding'
 import { useScroller } from '@/hooks/scroller'
 import type { MessageRow } from '@/lib/chat/rows'
 import { isOngoingStream } from '@/lib/chat/stream'
@@ -36,7 +37,8 @@ import { useDelayedVisibility } from './hooks/delayed-visibility'
 import { useFollowEdges } from './hooks/follow-edges'
 import { useMessageReveal } from './hooks/message-reveal'
 import { usePageScroll } from './hooks/page-scroll'
-import { useSeek } from './hooks/seek'
+import { useScrollPersistence } from './hooks/scroll-persistence'
+import { type SeekTargetOptions, useSeek } from './hooks/seek'
 import {
   useConditionalFollow,
   useConditionalScroll,
@@ -44,13 +46,13 @@ import {
 import { useVersionCrossfade } from './hooks/version-crossfade'
 import { useVersionHold } from './hooks/version-hold'
 import { useWindowSlide } from './hooks/window-slide'
-import {
-  MessageListContent,
-  type MessageListContentState,
-} from './message-list-content'
+import { MessageListContent } from './message-list-content'
 import { MessageListContext } from './message-list-context'
 
 const LOADING_INDICATOR_DELAY_MS = 150
+
+/** Failsafe in case a scroll restore never settles. */
+const REVEAL_TIMEOUT_MS = 5000
 
 export type MessageListProps = Omit<React.ComponentProps<'div'>, 'ref'> & {
   ref?: React.Ref<MessageListHandle>
@@ -78,6 +80,7 @@ export type MessageListHandle = {
     id: string,
     creationTime?: number,
     segmentIndex?: number,
+    options?: SeekTargetOptions,
   ) => void
 }
 
@@ -130,8 +133,15 @@ export function MessageList({
 
   const sessionStatus = useActiveSessionStatus()
   const isLoading = sessionStatus === 'loading' || isLoadingFirstPage
+  const isEmpty = !isLoading && messageIds.length === 0 && status === 'ready'
+
+  // The list stays hidden behind the loading phase until its initial scroll
+  // position has settled
+  const [revealed, setRevealed] = useState(false)
+  const markRevealed = useCallback(() => setRevealed(true), [])
+
   const showLoadingIndicator = useDelayedVisibility(
-    isLoading,
+    !revealed && !isEmpty,
     LOADING_INDICATOR_DELAY_MS,
   )
 
@@ -140,7 +150,9 @@ export function MessageList({
   const [followOverride, setFollowOverride] = useState(false)
 
   // Sub-agent sessions open with autoscrolling enabled
-  const isSubagentSession = !!useActiveSession()?.parent
+  const activeSession = useActiveSession()
+  const sessionId = activeSession?._id
+  const isSubagentSession = !!activeSession?.parent
   const [subagentFollowReleased, setSubagentFollowReleased] = useState(false)
   const subagentFollow =
     isSubagentSession && !subagentFollowReleased && isOngoingStream(status)
@@ -241,6 +253,15 @@ export function MessageList({
   const { scrollToMessage, requestScrollToMessage } = useSeek(deps, {
     anchorAround,
     rows,
+  })
+
+  const { restore: restoreScroll } = useScrollPersistence(deps, {
+    sessionId,
+    messageStore,
+    isAtBottom,
+    requestScrollToMessage,
+    followToBottom,
+    onRestoreSettled: markRevealed,
   })
 
   // Keep track of the previous stream status to reset the scroll override
@@ -346,6 +367,8 @@ export function MessageList({
     setReady(true)
     if (!hasInitiallyScrolledRef.current && rows.length > 0) {
       hasInitiallyScrolledRef.current = true
+      // Attempt scroll restore
+      if (restoreScroll()) return
       // Snap immediately while the freshly mounted list re-measures its rows
       setImmediate(true)
       virtuaRef.current?.scrollToIndex(rows.length - 1, { align: 'end' })
@@ -355,10 +378,27 @@ export function MessageList({
         document.documentElement,
         () => setImmediate(false),
       )
+      // Reveal on the next frame
+      requestAnimationFrame(markRevealed)
     }
-  }, [isLoading, setReady, rows.length, scrollToBottom, setImmediate])
+  }, [
+    isLoading,
+    setReady,
+    rows.length,
+    scrollToBottom,
+    setImmediate,
+    restoreScroll,
+    markRevealed,
+  ])
 
   useEffect(() => () => initialSettleRef.current?.(), [])
+
+  // Never leave the list hidden if a restore never settles
+  useEffect(() => {
+    if (revealed) return
+    const timer = setTimeout(markRevealed, REVEAL_TIMEOUT_MS)
+    return () => clearTimeout(timer)
+  }, [revealed, markRevealed])
 
   // Hold the scroll position while a turn's version is switched
   useVersionHold(deps, { messageIds, messageStore, autoScroll, status })
@@ -400,11 +440,10 @@ export function MessageList({
     ],
   )
 
-  const contentState: MessageListContentState = isLoading
-    ? 'loading'
-    : messageIds.length === 0 && status === 'ready'
-      ? 'empty'
-      : 'messages'
+  const overlayStyle = useMemo(
+    () => ({ top: getNavPaddingPx(topPad), bottom: bottomPadding ?? 0 }),
+    [topPad, bottomPadding],
+  )
 
   return (
     <ChatScrollArea
@@ -418,8 +457,10 @@ export function MessageList({
       <MessageListContext.Provider value={messageListCtxValue}>
         <>
           <MessageListContent
-            state={contentState}
+            revealed={revealed}
+            isEmpty={isEmpty}
             showLoadingIndicator={showLoadingIndicator}
+            overlayStyle={overlayStyle}
             emptyStyle={innerStyle}
             messages={{
               rows,
@@ -437,7 +478,7 @@ export function MessageList({
               virtuaRef,
             }}
           />
-          {contentState === 'messages' && (
+          {revealed && !isEmpty && (
             <div className="mx-auto" style={innerStyle}>
               <PendingAgentRow />
             </div>

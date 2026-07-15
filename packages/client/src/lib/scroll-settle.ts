@@ -59,6 +59,8 @@ type TrackOptions = {
   tolerance?: number
   stableFrames?: number
   maxMs?: number
+  /** Fires once when the loop finishes, whether it settles or is cancelled. */
+  onDone?: () => void
 }
 
 /**
@@ -72,11 +74,19 @@ export function trackUntilSettled(
     tolerance = CONVERGE_TOLERANCE,
     stableFrames = CONVERGE_STABLE_FRAMES,
     maxMs = CONVERGE_MAX_MS,
+    onDone,
   }: TrackOptions = {},
 ): () => void {
   let raf = 0
   let stable = 0
+  let done = false
   const start = performance.now()
+
+  const finish = () => {
+    if (done) return
+    done = true
+    onDone?.()
+  }
 
   const tick = () => {
     const remaining = step()
@@ -85,15 +95,19 @@ export function trackUntilSettled(
     } else {
       stable = 0
     }
-    raf =
-      stable < stableFrames && performance.now() - start < maxMs
-        ? requestAnimationFrame(tick)
-        : 0
+    if (stable < stableFrames && performance.now() - start < maxMs) {
+      raf = requestAnimationFrame(tick)
+    } else {
+      raf = 0
+      finish()
+    }
   }
 
   raf = requestAnimationFrame(tick)
 
   return () => {
     if (raf) cancelAnimationFrame(raf)
+    raf = 0
+    finish()
   }
 }
