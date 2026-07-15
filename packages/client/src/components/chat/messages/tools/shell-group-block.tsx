@@ -14,16 +14,6 @@ export function ShellGroupBlock({
   messageId: string
   toolErrors?: string[]
 }) {
-  if (parts.length === 1) {
-    return (
-      <ShellBlock
-        part={parts[0]}
-        messageId={messageId}
-        forceError={toolErrors?.includes(parts[0].toolCallId)}
-      />
-    )
-  }
-
   return (
     <CollapsibleBlock
       data-slot="shell-group"
@@ -32,8 +22,10 @@ export function ShellGroupBlock({
       leadingIcon={<SquareTerminalIcon className="size-3.5 shrink-0" />}
       label={
         <>
-          <span className="text-foreground font-medium">{parts.length}</span>{' '}
-          commands
+          Ran{' '}
+          <span className="text-foreground font-medium">
+            {parts.length} {parts.length === 1 ? 'command' : 'commands'}
+          </span>
         </>
       }
     >

@@ -1,6 +1,7 @@
 import { getToolErrorText, getToolStatus } from '@/lib/chat'
 import { cn } from '@/lib/utils'
 import type { ToolUIPart } from 'ai'
+import { FileTextIcon } from 'lucide-react'
 
 import { CollapsibleBlock } from '../collapsible-block'
 
@@ -14,13 +15,12 @@ export function ReadFileBlock({
   parts: ToolUIPart[]
   toolErrors?: string[]
 }) {
-  const grouped = parts.length > 1
-  const label = !grouped ? (
-    'Read'
-  ) : (
+  const label = (
     <>
       Read{' '}
-      <span className="text-foreground font-medium">{parts.length} files</span>
+      <span className="text-foreground font-medium">
+        {parts.length} {parts.length === 1 ? 'file' : 'files'}
+      </span>
     </>
   )
 
@@ -28,15 +28,10 @@ export function ReadFileBlock({
     <CollapsibleBlock
       data-slot="read-file-block"
       collapsible={false}
+      leadingIcon={<FileTextIcon className="size-3.5 shrink-0" />}
       label={label}
     >
-      <ul
-        className={cn(
-          'flex flex-col gap-1 px-2.5 pb-2.5',
-          grouped &&
-            'before:bg-border relative ml-4 pl-3 before:absolute before:top-0 before:left-0 before:h-2 before:w-px',
-        )}
-      >
+      <ul className="before:bg-border relative ml-4 flex flex-col gap-1 pb-2.5 pl-3 before:absolute before:top-0 before:left-0 before:h-2 before:w-px">
         {parts.map((part, index) => {
           const error = partError(part, toolErrors)
           const running = !error && partRunning(part, toolErrors)
@@ -45,11 +40,8 @@ export function ReadFileBlock({
             <li
               key={part.toolCallId}
               className={cn(
-                'flex flex-wrap items-baseline gap-x-2 text-xs',
-                grouped &&
-                  'before:bg-border relative before:absolute before:top-2 before:-left-3 before:h-px before:w-2.5',
-                grouped &&
-                  !last &&
+                'before:bg-border relative flex flex-wrap items-baseline gap-x-2 text-xs before:absolute before:top-2 before:-left-3 before:h-px before:w-2.5',
+                !last &&
                   'after:bg-border after:absolute after:top-2 after:-bottom-3 after:-left-3 after:w-px',
               )}
             >

@@ -1,34 +1,23 @@
 import { cn } from '@/lib/utils'
 import type { ToolUIPart } from 'ai'
+import { NetworkIcon } from 'lucide-react'
 
 import { CollapsibleBlock } from '../collapsible-block'
-import { SubagentBlock, SubagentLabel, useSubagentInfo } from './subagent-block'
+import { SubagentLabel, useSubagentInfo } from './subagent-block'
 
 /** Renders one or more consecutive `task` calls as a list of sub-agents. */
 export function SubagentGroupBlock({
   parts,
-  messageId,
-  toolErrors,
 }: {
   parts: ToolUIPart[]
   messageId: string
   toolErrors?: string[]
 }) {
-  if (parts.length === 1) {
-    return (
-      <SubagentBlock
-        part={parts[0]}
-        messageId={messageId}
-        forceError={toolErrors?.includes(parts[0].toolCallId)}
-      />
-    )
-  }
-
   const label = (
     <>
       Launched{' '}
       <span className="text-foreground font-medium">
-        {parts.length} sub-agents
+        {parts.length} {parts.length === 1 ? 'sub-agent' : 'sub-agents'}
       </span>
     </>
   )
@@ -37,6 +26,7 @@ export function SubagentGroupBlock({
     <CollapsibleBlock
       data-slot="subagent-group"
       collapsible={false}
+      leadingIcon={<NetworkIcon className="size-3.5 shrink-0" />}
       label={label}
     >
       <ul className="before:bg-border relative ml-4 flex flex-col gap-1 pb-2.5 pl-3 before:absolute before:top-0 before:left-0 before:h-2.5 before:w-px">
