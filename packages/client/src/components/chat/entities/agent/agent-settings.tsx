@@ -50,6 +50,8 @@ const EMPTY_FORM: AgentFormValues = {
   prompts: [],
   promptOrder: undefined,
   globalPromptsEnabled: true,
+  reminderPrompts: [],
+  globalRemindersEnabled: true,
   modelId: null,
   reasoningEffort: null,
   tools: [],

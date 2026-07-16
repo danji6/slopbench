@@ -55,6 +55,7 @@ import type * as model_chat_identities from "../model/chat/identities.js";
 import type * as model_chat_index from "../model/chat/index.js";
 import type * as model_chat_mutations from "../model/chat/mutations.js";
 import type * as model_chat_queries from "../model/chat/queries.js";
+import type * as model_chat_reminders from "../model/chat/reminders.js";
 import type * as model_chat_reserve from "../model/chat/reserve.js";
 import type * as model_chat_retry from "../model/chat/retry.js";
 import type * as model_chat_send from "../model/chat/send.js";
@@ -172,6 +173,7 @@ declare const fullApi: ApiFromModules<{
   "model/chat/index": typeof model_chat_index;
   "model/chat/mutations": typeof model_chat_mutations;
   "model/chat/queries": typeof model_chat_queries;
+  "model/chat/reminders": typeof model_chat_reminders;
   "model/chat/reserve": typeof model_chat_reserve;
   "model/chat/retry": typeof model_chat_retry;
   "model/chat/send": typeof model_chat_send;

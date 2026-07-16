@@ -8,18 +8,21 @@ import {
   useUserProfile,
 } from '@/hooks/chat'
 import { useIsDarkMode } from '@/hooks/theme'
-import { extractTextFromMessage, isEditableMessage } from '@/lib/chat'
+import {
+  canMutateMessage,
+  extractTextFromMessage,
+  isEditableMessage,
+} from '@/lib/chat'
 import type { MessageRecord, PartMetadata } from '@/lib/chat'
 import { type MessageRow, segmentGroupsFor } from '@/lib/chat/rows'
 import { schemeToCssVars } from '@/lib/theme'
 import { cn, formatDuration, isTouchDevice } from '@/lib/utils'
-import type { Doc } from '@sb/convex/_generated/dataModel'
-import { minRole } from '@sb/convex/lib/roles'
 import { type UIMessage, isReasoningUIPart } from 'ai'
 import { memo, useCallback, useMemo } from 'react'
 
 import { ErrorBlock } from './error-block'
 import { GrowOnly } from './grow-only'
+import { HiddenChip } from './hidden-chip'
 import { MessageContext } from './message-context'
 import { MessageContextMenu } from './message-context-menu'
 import { MessageHeader } from './message-header'
@@ -41,6 +44,10 @@ export const MessageRowView = memo(function MessageRowView({
   )
 
   if (!message) return null
+
+  if (row.kind === 'hidden') {
+    return <HiddenChip message={message} record={messageMeta} />
+  }
 
   return (
     <RowShell message={message} messageMeta={messageMeta} row={row}>
@@ -151,29 +158,6 @@ function RowShell({ message, messageMeta, row, children }: RowShellProps) {
       )}
     </MessageContext.Provider>
   )
-}
-
-function canMutateMessage(
-  message: UIMessage,
-  messageMeta: MessageRecord | undefined,
-  session: Doc<'sessions'> | null,
-  profile: Doc<'users'> | null,
-): boolean {
-  if (!session || !profile || isMessageProcessing(message)) return false
-
-  const isSessionOwner = session.ownerId === profile._id
-  if (session.settings?.disabled && !isSessionOwner) return false
-
-  return (
-    messageMeta?.sender.type !== 'user' ||
-    messageMeta.sender.id === profile._id ||
-    isSessionOwner ||
-    minRole(profile.role, 'moderator')
-  )
-}
-
-function isMessageProcessing(message: UIMessage): boolean {
-  return (message as { status?: string }).status === 'processing'
 }
 
 type HeaderRowProps = {

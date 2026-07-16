@@ -53,7 +53,7 @@ export type UIMetadata = {
   usage: UsageTotals
 }
 
-export type UIMessageType = 'summary'
+export type UIMessageType = NonNullable<Doc<'messages'>['type']>
 
 type MessageMetadata = NonNullable<Doc<'messages'>['metadata']>
 
@@ -72,6 +72,8 @@ export type MessageRecord = Pick<
   | 'sender'
   | 'senderSnapshot'
   | 'type'
+  | 'hidden'
+  | 'extra'
   | 'selectedVersion'
   | 'versionCount'
   | '_creationTime'

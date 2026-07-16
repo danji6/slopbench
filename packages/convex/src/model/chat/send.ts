@@ -18,6 +18,7 @@ import {
 import * as Memberships from '../session/memberships'
 import { get as getSettings } from '../settings'
 import { resolveSender } from './identities'
+import { bumpTurnCount, injectDueReminders } from './reminders'
 import {
   latestMessageId,
   rescheduleStream,
@@ -63,6 +64,7 @@ export async function sendMessage(ctx: AuthMutationCtx, args: SendMessageArgs) {
   const settings = await getSettings(ctx)
 
   await maybeInsertStarters(ctx, session)
+  await injectDueReminders(ctx, session, ctx.userId)
 
   const silent = args.silent ?? false
 
@@ -106,6 +108,8 @@ export async function sendMessage(ctx: AuthMutationCtx, args: SendMessageArgs) {
   for (const { attachment } of attachments) {
     await ctx.db.patch(attachment._id, { messageId })
   }
+
+  await bumpTurnCount(ctx, args.sessionId)
 
   await scheduleMessageEval(ctx, {
     messageId,

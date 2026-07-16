@@ -5,4 +5,6 @@
 export * from './prompt-clipboard'
 export * from './prompt-editor'
 export * from './prompt-list'
+export * from './reminder-editor'
+export * from './reminder-prompt-list'
 export * from './resettable-prompt-list'

@@ -38,6 +38,15 @@ export type SessionParticipant = CoreSessionParticipant<
   Id<'avatars'>
 >
 
+/**
+ * Payloads carried by the `messages.extra` field, keyed by the message `type`
+ * that owns them. We deliberately bypass validation to allow any shape here.
+ */
+export type MessageExtra = {
+  /** Snapshot of the reminder prompt that produced an injected message. */
+  reminder: { id: string; name: string }
+}
+
 export type SessionListItem = CoreSessionListItem<
   Doc<'sessions'>,
   Id<'users'>,

@@ -220,6 +220,42 @@ describe('sender grouping', () => {
     expect(rows.map((row) => row.key)).toContain('h:message-2')
   })
 
+  test('hidden messages render a single chip row', () => {
+    const hiddenMeta = {
+      ...agentMeta,
+      hidden: true,
+    } as unknown as MessageRecord
+
+    const rows = rowsFor(
+      { 'message-1': agentMeta, 'message-2': hiddenMeta },
+      false,
+    )
+
+    expect(rows.filter((row) => row.messageId === 'message-2')).toEqual([
+      { kind: 'hidden', key: 'hid:message-2', messageId: 'message-2' },
+    ])
+  })
+
+  test('grouping stays stable across a hidden chip', () => {
+    const hiddenMeta = {
+      ...agentMeta,
+      hidden: true,
+    } as unknown as MessageRecord
+
+    const rows = rowsFor(
+      {
+        'message-1': agentMeta,
+        'message-2': hiddenMeta,
+        'message-3': agentMeta,
+      },
+      true,
+    )
+
+    // The message after the chip still folds into the sender group
+    expect(rows.map((row) => row.key)).not.toContain('h:message-3')
+    expect(rows.some((row) => row.key.endsWith(':grp'))).toBe(true)
+  })
+
   test('a summary breaks the group on both sides', () => {
     const rows = rowsFor(
       {

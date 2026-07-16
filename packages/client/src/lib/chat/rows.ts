@@ -33,6 +33,7 @@ export type MessageRow =
       grouped?: boolean
     }
   | { kind: 'footer'; key: string; messageId: string; grouped?: boolean }
+  | { kind: 'hidden'; key: string; messageId: string; grouped?: boolean }
 
 /** One loaded segment's part slice with its cached part groups. */
 export type SegmentGroups = {
@@ -108,6 +109,19 @@ export function buildRows(
     if (!message) continue
 
     const meta = getMessageMetadata(id)
+    // Hidden messages render as a single compact chip (styled by type).
+    // Leaving the sender key untouched keeps grouping stable across them.
+    if (meta?.hidden) {
+      const grouped = groupBySender && previousSenderKey !== null
+      rows.push({
+        kind: 'hidden',
+        key: `hid:${id}`,
+        messageId: id,
+        ...(grouped && { grouped }),
+      })
+      continue
+    }
+
     const isSystem = message.role === 'system'
     // Summaries and other typed messages never join a sender group
     const senderKey =

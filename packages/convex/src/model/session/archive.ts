@@ -156,6 +156,8 @@ function exportMessage(message: MessageWithParts): SessionArchiveMessage {
   return {
     role: message.role,
     type: message.type,
+    hidden: message.hidden,
+    extra: message.extra,
     parts: sanitizeParts(finalizeMessageParts(message.parts)),
     senderSnapshot: sanitizeSnapshot(message.senderSnapshot),
     metadata: message.metadata,
@@ -178,6 +180,8 @@ function importMessage(
             ? undefined
             : importSnapshot(message.senderSnapshot, avatars),
         type: message.type,
+        hidden: message.hidden,
+        extra: message.extra,
         status: 'done' as const,
         metadata: message.metadata,
       },

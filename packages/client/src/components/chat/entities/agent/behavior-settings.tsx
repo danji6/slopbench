@@ -1,4 +1,7 @@
-import { ResettablePromptList } from '@/components/chat/prompts'
+import {
+  ReminderPromptList,
+  ResettablePromptList,
+} from '@/components/chat/prompts'
 import { md } from '@/components/markdown'
 import { SettingsList } from '@/components/ui'
 import { useSettings } from '@/hooks/chat'
@@ -106,6 +109,40 @@ export function BehaviorSettings({
         render={({ field }) => (
           <SettingsList.Switch
             label="Inject global prompts"
+            checked={field.value}
+            onCheckedChange={(v) => field.onChange(v)}
+          />
+        )}
+      />
+
+      <SettingsList.Item
+        unclickable
+        unhoverable
+        orientation="vertical"
+        label="Reminders"
+        help={md`
+          Reminders are injected into the conversation at intervals, in addition
+          to the global reminders from your user settings.
+        `}
+      >
+        <Controller
+          control={control}
+          name="reminderPrompts"
+          render={({ field }) => (
+            <ReminderPromptList
+              reminders={field.value}
+              onChange={field.onChange}
+            />
+          )}
+        />
+      </SettingsList.Item>
+
+      <Controller
+        control={control}
+        name="globalRemindersEnabled"
+        render={({ field }) => (
+          <SettingsList.Switch
+            label="Inject global reminders"
             checked={field.value}
             onCheckedChange={(v) => field.onChange(v)}
           />

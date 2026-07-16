@@ -22,7 +22,10 @@ export const senderSnapshotValidator = v.object({
   theme: v.optional(themeSnapshotValidator),
 })
 
-export const messageTypeValidator = v.union(v.literal('summary'))
+export const messageTypeValidator = v.union(
+  v.literal('summary'),
+  v.literal('reminder'),
+)
 
 export const messageStatusValidator = v.union(
   v.literal('processing'),
@@ -165,6 +168,16 @@ export const promptOrderRefValidator = v.object({
   id: v.string(),
 })
 
+export const reminderPromptValidator = v.object({
+  id: v.string(),
+  name: v.string(),
+  role: roleValidator,
+  content: v.string(),
+  enabled: v.boolean(),
+  interval: v.number(), // injected as a hidden message every N logical turns
+  eager: v.optional(v.boolean()), // fire on first sight instead of waiting a full interval
+})
+
 export const libraryPromptValidator = v.object({
   id: v.string(),
   name: v.string(),
@@ -277,6 +290,8 @@ export const sessionArchiveAvatarValidator = v.object({
 export const sessionArchiveMessageValidator = v.object({
   role: roleValidator,
   type: v.optional(messageTypeValidator),
+  hidden: v.optional(v.boolean()),
+  extra: v.optional(v.any()),
   parts: v.array(v.any()),
   senderSnapshot: v.optional(sessionArchiveSenderSnapshotValidator),
   metadata: v.optional(messageMetaValidator),

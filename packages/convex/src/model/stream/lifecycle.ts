@@ -7,6 +7,7 @@ import type { MutationCtx } from '../../_generated/server'
 import { settleAbandonedTaskParts } from '../../lib/subagent'
 import { cleanUpGeneratedAttachments } from '../attachments'
 import { streamOutputIdentity } from '../chat/identities'
+import { bumpTurnCount, injectDueReminders } from '../chat/reminders'
 import {
   allVersionParts,
   appendSegment,
@@ -89,6 +90,12 @@ export async function _claim(
 
 /** Materializes the processing message for a turn that is starting to stream. */
 async function claimFreshTurn(ctx: MutationCtx, stream: Doc<'streams'>) {
+  if (stream.operation === 'invoke') {
+    const session = await ctx.db.get(stream.sessionId)
+    // Inject due reminders to include them in the next turn's context
+    if (session) await injectDueReminders(ctx, session, stream.invokedBy)
+  }
+
   const boundary = await latestContextMessage(ctx, stream.sessionId)
   const output = await streamOutputIdentity(ctx, stream)
 
@@ -104,6 +111,8 @@ async function claimFreshTurn(ctx: MutationCtx, stream: Doc<'streams'>) {
     },
     [],
   )
+
+  await bumpTurnCount(ctx, stream.sessionId)
 
   await ctx.db.patch(stream._id, {
     status: 'streaming',
@@ -312,6 +321,8 @@ async function rolloverProcessingMessage(
     },
     [],
   )
+
+  await bumpTurnCount(ctx, stream.sessionId)
 
   await ctx.db.patch(stream._id, {
     processingMessageId: messageId,
@@ -807,6 +818,9 @@ export async function reserveInvokeTurn(
     )
     .unique()
   if (!link) return
+
+  await injectDueReminders(ctx, session, invokedBy)
+  await bumpTurnCount(ctx, session._id)
 
   const { messageId: processingMessageId, contentId } = await insertMessage(
     ctx,

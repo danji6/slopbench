@@ -248,7 +248,7 @@ export function ToolApprovalPicker({
         >
           <Suspense fallback={null}>
             <ComposerEditor
-              placeholder="Add a note (optional)..."
+              placeholder="Add a note (optional)…"
               autoFocus={false}
               editorClassName="min-h-8! [&_p]:mt-0!"
               onReady={handleNoteReady}

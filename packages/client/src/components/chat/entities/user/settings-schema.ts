@@ -65,6 +65,16 @@ export const libraryPromptSchema = promptSchema.extend({
   createdAt: z.number().optional(),
 })
 
+export const reminderPromptSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  role: z.enum(['system', 'user', 'assistant']),
+  content: z.string(),
+  enabled: z.boolean(),
+  interval: z.number().int().min(1),
+  eager: z.boolean().optional(),
+})
+
 export const overrideSchema = z.object({
   fonts: z.object({
     enabled: z.boolean(),
@@ -96,6 +106,7 @@ export const settingsFormSchema = z.object({
   themeMode: z.enum(['system', 'light', 'dark']),
   globalPrompts: z.array(promptSchema),
   libraryPrompts: z.array(libraryPromptSchema),
+  reminderPrompts: z.array(reminderPromptSchema),
   compactionPrompts: z.array(promptItemSchema),
   impersonationPrompts: z.array(promptItemSchema),
   planPrompts: z.array(promptItemSchema),

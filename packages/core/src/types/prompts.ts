@@ -10,6 +10,18 @@ export type Prompt = {
   starter?: boolean
 }
 
+export type ReminderPrompt = {
+  id: string
+  name: string
+  role: MessageRole
+  content: string
+  enabled: boolean
+  /** Injected as a hidden message every N logical turns. */
+  interval: number
+  /** Fire immediately when first seen instead of waiting a full interval. */
+  eager?: boolean
+}
+
 export type PromptMarkerType = 'message-history' | 'agents'
 
 export type PromptMarker = {

@@ -1,5 +1,8 @@
 import { ModelPicker } from '@/components/chat/models'
-import { ResettablePromptList } from '@/components/chat/prompts'
+import {
+  ReminderPromptList,
+  ResettablePromptList,
+} from '@/components/chat/prompts'
 import { SettingsList } from '@/components/ui'
 import {
   createDefaultCompactionPrompts,
@@ -149,6 +152,24 @@ export function BehaviorSettings({ control }: BehaviorSettingsProps) {
           name="globalPrompts"
           render={({ field }) => (
             <GlobalPromptList prompts={field.value} onChange={field.onChange} />
+          )}
+        />
+      </SettingsList.Item>
+      <SettingsList.Item
+        unclickable
+        unhoverable
+        orientation="vertical"
+        label="Reminders"
+        description="Prompts injected at intervals in agents that have global reminders enabled."
+      >
+        <Controller
+          control={control}
+          name="reminderPrompts"
+          render={({ field }) => (
+            <ReminderPromptList
+              reminders={field.value}
+              onChange={field.onChange}
+            />
           )}
         />
       </SettingsList.Item>

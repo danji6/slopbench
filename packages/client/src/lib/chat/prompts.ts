@@ -1,5 +1,5 @@
 import type { OrderedItem, Prompt, PromptItem, PromptMarker } from '@/lib/chat'
-import type { PromptMarkerType, PromptSource } from '@/lib/chat'
+import type { PromptMarkerType, PromptSource, ReminderPrompt } from '@/lib/chat'
 import { mergeOrderedPromptItems } from '@sb/convex/model/prompt/merge'
 import { evaluate } from '@sb/core/interpreter/evaluate'
 import { hasInterpolation } from '@sb/core/interpreter/parse'
@@ -41,6 +41,21 @@ export function newPrompt(
   }
 }
 
+export function newReminderPrompt(
+  overrides?: Partial<ReminderPrompt>,
+): ReminderPrompt {
+  return {
+    id: generateId(),
+    name: 'Reminder',
+    role: 'system',
+    content: '',
+    enabled: true,
+    interval: 10,
+    eager: false,
+    ...overrides,
+  }
+}
+
 export function newPromptMarker(type: PromptMarkerType): PromptMarker {
   return {
     id: generateId(),
@@ -75,13 +90,11 @@ export function mergePrompts(
     order: source.promptOrder,
     getGlobalId: (item) => item.id,
   })
-  const items = result.items.map(
-    (entry): MergedPromptItem => ({
-      item: entry.item as PromptItem,
-      isGlobal: entry.kind === 'global',
-      isLibrary: entry.kind === 'library',
-    }),
-  )
+  const items = result.items.map((entry): MergedPromptItem => ({
+    item: entry.item as PromptItem,
+    isGlobal: entry.kind === 'global',
+    isLibrary: entry.kind === 'library',
+  }))
   const cleanedOrder: OrderedItem[] | null = result.changed
     ? result.order
     : null

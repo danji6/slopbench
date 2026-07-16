@@ -15,6 +15,8 @@ type InsertMessageFields = {
   type?: Doc<'messages'>['type']
   status: Doc<'messages'>['status']
   metadata?: Doc<'messages'>['metadata']
+  hidden?: boolean
+  extra?: Doc<'messages'>['extra']
 }
 
 /** Point read of a single segment row. */
@@ -148,7 +150,8 @@ export async function insertMessage(
     parts,
     metadata: fields.metadata,
     senderSnapshot: fields.senderSnapshot,
-    searchText: searchTextFromParts(parts),
+    // Hidden messages must not surface in message search
+    searchText: fields.hidden ? undefined : searchTextFromParts(parts),
   })
 
   return { messageId, contentId }

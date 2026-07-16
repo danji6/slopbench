@@ -6,42 +6,41 @@ import {
   HelpPopoverLabel,
   Input,
   Label,
+  NumberInput,
   RippleButton,
   Select,
   Switch,
 } from '@/components/ui'
-import type { Prompt } from '@/lib/chat'
-import { SESSION_ENV, type SessionEnvEntry } from '@sb/core/interpreter/env'
+import type { ReminderPrompt } from '@/lib/chat'
 import { capitalize } from '@sb/core/utils/strings'
 import { useEffect } from 'react'
-import { Controller, useForm, useWatch } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 
 import { PromptContentEditor } from './prompt-content-editor'
+import { contentGuide } from './prompt-editor'
 
 type FormValues = Pick<
-  Prompt,
-  'name' | 'role' | 'content' | 'visible' | 'starter'
+  ReminderPrompt,
+  'name' | 'role' | 'interval' | 'eager' | 'content'
 >
 
-export type PromptEditDialogProps = {
-  prompt: Prompt
-  onSave: (data: Partial<Prompt>) => void
+export type ReminderEditorProps = {
+  reminder: ReminderPrompt
+  onSave: (data: Partial<ReminderPrompt>) => void
   trigger?: React.ReactElement<Record<string, unknown>>
   open: boolean
   onOpenChange: (open: boolean) => void
-  showVisibleSwitch?: boolean
   title?: string
 }
 
-export function PromptEditor({
-  prompt,
+export function ReminderEditor({
+  reminder,
   onSave,
   trigger,
   open,
   onOpenChange,
-  showVisibleSwitch = true,
-  title = 'Edit Prompt',
-}: PromptEditDialogProps) {
+  title = 'Edit Reminder',
+}: ReminderEditorProps) {
   const {
     register,
     control,
@@ -50,29 +49,28 @@ export function PromptEditor({
     formState: { isDirty },
   } = useForm<FormValues>({
     defaultValues: {
-      name: prompt.name,
-      role: prompt.role,
-      content: prompt.content,
-      visible: prompt.visible,
-      starter: prompt.starter ?? false,
+      name: reminder.name,
+      role: reminder.role,
+      interval: reminder.interval,
+      eager: reminder.eager ?? false,
+      content: reminder.content,
     },
   })
-  const starter = useWatch({ control, name: 'starter' })
 
   useEffect(() => {
     if (!open) {
       reset({
-        name: prompt.name,
-        role: prompt.role,
-        content: prompt.content,
-        visible: prompt.visible,
-        starter: prompt.starter ?? false,
+        name: reminder.name,
+        role: reminder.role,
+        interval: reminder.interval,
+        eager: reminder.eager ?? false,
+        content: reminder.content,
       })
     }
-  }, [prompt, open, reset])
+  }, [reminder, open, reset])
 
   function handleSave(values: FormValues) {
-    onSave(values)
+    onSave({ ...values, interval: Math.max(1, Math.round(values.interval)) })
     onOpenChange(false)
   }
 
@@ -113,7 +111,7 @@ export function PromptEditor({
             <Input {...register('name')} />
           </div>
 
-          <div className="flex flex-row gap-12">
+          <div className="flex flex-row items-end gap-10">
             <div className="flex flex-col gap-2">
               <Label>Role</Label>
               <Controller
@@ -137,49 +135,46 @@ export function PromptEditor({
               />
             </div>
 
-            {showVisibleSwitch && (
-              <div className="flex h-full flex-wrap items-center gap-x-8 gap-y-3">
-                <div className="flex items-center gap-4">
-                  <HelpPopoverLabel help="Show this prompt in the chat header. Visual only, not persisted.">
-                    Visible
-                  </HelpPopoverLabel>
-                  <Controller
-                    name="visible"
-                    control={control}
-                    render={({ field }) => (
-                      <Switch
-                        checked={starter || !!field.value}
-                        disabled={starter}
-                        onCheckedChange={field.onChange}
-                      />
-                    )}
+            <div className="flex h-10 items-center gap-4">
+              <HelpPopoverLabel
+                help={md`
+                  Inject the first reminder as soon as the session (or the
+                  reminder) is new, instead of waiting for a full interval
+                  to elapse first.
+                `}
+              >
+                Eager
+              </HelpPopoverLabel>
+              <Controller
+                name="eager"
+                control={control}
+                render={({ field }) => (
+                  <Switch
+                    checked={!!field.value}
+                    onCheckedChange={field.onChange}
                   />
-                </div>
-                <div className="flex items-center gap-4">
-                  <HelpPopoverLabel
-                    help={md`
-                      Store this prompt as a normal message when a new session starts.
+                )}
+              />
+            </div>
+          </div>
 
-                      Only the first agent's starter prompts are used. After the session
-                      is started, all starter prompts are ignored. Starter prompts are
-                      inherently visible.
-                    `}
-                  >
-                    Starter
-                  </HelpPopoverLabel>
-                  <Controller
-                    name="starter"
-                    control={control}
-                    render={({ field }) => (
-                      <Switch
-                        checked={!!field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    )}
-                  />
-                </div>
-              </div>
-            )}
+          <div className="flex flex-col gap-2">
+            <HelpPopoverLabel help="Inject this reminder every N turns (messages).">
+              Interval
+            </HelpPopoverLabel>
+            <Controller
+              name="interval"
+              control={control}
+              render={({ field }) => (
+                <NumberInput
+                  value={field.value}
+                  onChange={field.onChange}
+                  minValue={1}
+                  decimals={0}
+                  className="w-42"
+                />
+              )}
+            />
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col gap-2">
@@ -196,12 +191,13 @@ export function PromptEditor({
                 <PromptContentEditor
                   value={field.value}
                   onChange={field.onChange}
-                  placeholder="Write your prompt…"
+                  placeholder="Write your reminder…"
                 />
               )}
             />
           </div>
         </div>
+
         <Dialog.Footer>
           <ConfirmDialog
             disabled={!isDirty}
@@ -223,44 +219,3 @@ export function PromptEditor({
     </Dialog>
   )
 }
-
-const kindOf = (entry: SessionEnvEntry) =>
-  entry.name.startsWith('$') ? 'function' : 'variable'
-
-const envTableRows = SESSION_ENV.map(
-  (entry) => `| \`${entry.name}\` | ${entry.description} | ${kindOf(entry)} |`,
-).join('\n')
-
-const fence = '` $``` `'
-
-export const contentGuide = `
-You can write JavaScript code in the content of your prompts. Code is evaluated before sending a
-message and the output replaces the block itself. This is useful when you want to inject dynamic
-values into your prompts, like the current user's name, or values from previous messages.
-
-To write a dynamic code block, type \`$\` followed by three backticks (${fence}):
-
-\`\`\`js
-function calculate() { ... }
-
-// Get a value from the current session:
-let value = $get('myValue')
-
-if (!value) {
-  // Store a value in the current session:
-  value = calculate()
-  $set('myValue', value)
-}
-
-return \`The result is \${value}\`
-\`\`\`
-
-Alternatively you can write inline code by wrapping your expression within double curly braces:
-\`{{user ?? 'Bob'}}\`
-
-**Supported variables and functions**
-
-| Name | Description | Type |
-|------|-------------|------|
-${envTableRows}
-`.trim()

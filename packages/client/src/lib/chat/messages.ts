@@ -1,6 +1,8 @@
 import type { MessageRole } from '@/lib/chat'
 import { generateId } from '@/lib/utils'
 import type { Doc } from '@sb/convex/_generated/dataModel'
+import { minRole } from '@sb/convex/lib/roles'
+import type { MessageExtra } from '@sb/convex/types'
 import type { FileUIPart, TextUIPart, ToolUIPart, UIMessage } from 'ai'
 import { isFileUIPart, isReasoningUIPart, isTextUIPart, isToolUIPart } from 'ai'
 
@@ -55,6 +57,8 @@ function convertDoc(doc: MessageDoc): ConvertedEntry {
       sender: doc.sender,
       senderSnapshot: doc.senderSnapshot,
       type: doc.type,
+      hidden: doc.hidden,
+      extra: doc.extra,
       selectedVersion: doc.selectedVersion,
       versionCount: doc.versionCount,
       segments: doc.segments.map((segment) => ({
@@ -91,6 +95,14 @@ export function convertMessages(docs: MessageDoc[]): Messages {
   }
 
   return { messages, byId, partMetaById, summaryId }
+}
+
+/** Narrows a record's `extra` payload to the shape owned by its type. */
+export function messageExtra<T extends keyof MessageExtra>(
+  record: MessageRecord | undefined,
+  type: T,
+): MessageExtra[T] | undefined {
+  return record?.type === type ? (record.extra as MessageExtra[T]) : undefined
 }
 
 function pickMessageMetadata(
@@ -243,6 +255,30 @@ export function extractTextFromMessage(message: UIMessage): string {
 /** A message can be inline-edited when it is a single plain text part. */
 export function isEditableMessage(message: UIMessage): boolean {
   return message.parts.filter(isTextUIPart).length === 1
+}
+
+/** Whether the current user may edit or delete this message. */
+export function canMutateMessage(
+  message: UIMessage,
+  record: MessageRecord | undefined,
+  session: Doc<'sessions'> | null,
+  profile: Doc<'users'> | null,
+): boolean {
+  if (!session || !profile || isMessageProcessing(message)) return false
+
+  const isSessionOwner = session.ownerId === profile._id
+  if (session.settings?.disabled && !isSessionOwner) return false
+
+  return (
+    record?.sender.type !== 'user' ||
+    record.sender.id === profile._id ||
+    isSessionOwner ||
+    minRole(profile.role, 'moderator')
+  )
+}
+
+function isMessageProcessing(message: UIMessage): boolean {
+  return (message as { status?: string }).status === 'processing'
 }
 
 /** Returns the id of the most recent user message only if it's editable. */

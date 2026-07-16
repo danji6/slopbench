@@ -16,6 +16,9 @@ export const sessionSchema = v.object({
   lastMessageAt: v.optional(v.number()),
   lastMessagePreview: v.optional(v.string()),
   firstMessagePreview: v.optional(v.string()), // title fallback
+  turnCount: v.optional(v.number()), // logical turn counter
+  // (reminderId, turnCount) at last injection, or baseline when first seen
+  reminderState: v.optional(v.record(v.string(), v.number())),
 })
 
 export const agentSchema = v.object({
@@ -26,6 +29,8 @@ export const agentSchema = v.object({
   prompts: v.array(V.promptItemValidator),
   promptOrder: v.optional(v.array(V.promptOrderRefValidator)),
   globalPromptsEnabled: v.optional(v.boolean()),
+  reminderPrompts: v.optional(v.array(V.reminderPromptValidator)),
+  globalRemindersEnabled: v.optional(v.boolean()),
   modelId: v.optional(v.string()),
   reasoningEffort: v.optional(v.string()),
   tools: v.optional(v.any()),
@@ -60,6 +65,7 @@ export const settingsSchema = v.object({
   groupBySender: v.optional(v.boolean()),
   globalPrompts: v.optional(v.array(V.promptValidator)),
   libraryPrompts: v.optional(v.array(V.libraryPromptValidator)),
+  reminderPrompts: v.optional(v.array(V.reminderPromptValidator)),
   modelProviders: v.optional(v.array(V.modelProviderValidator)),
   webSearchInstances: v.optional(v.array(V.webSearchInstanceValidator)),
   mcpServers: v.optional(v.array(V.mcpServerValidator)),
@@ -92,6 +98,8 @@ export const messageSchema = v.object({
   type: v.optional(V.messageTypeValidator),
   status: V.messageStatusValidator,
   contextEligible: v.optional(v.boolean()),
+  hidden: v.optional(v.boolean()), // excluded from search
+  extra: v.optional(v.any()), // extra payload, see MessageExtra in types.ts
   selectedVersion: v.number(),
   versionCount: v.number(),
   metadata: v.optional(V.messageMetaValidator), // whole-turn accumulation for the selected version

@@ -3,6 +3,7 @@ import type {
   OrderedItem,
   PromptItem,
   ReasoningEffort,
+  ReminderPrompt,
   ScrollMode,
   ToolMetadata,
   UpdateAgentArgs,
@@ -20,6 +21,8 @@ export type AgentFormValues = {
   prompts: PromptItem[]
   promptOrder?: OrderedItem[]
   globalPromptsEnabled: boolean
+  reminderPrompts: ReminderPrompt[]
+  globalRemindersEnabled: boolean
   modelId?: string | null
   reasoningEffort?: ReasoningEffort | null
   tools: AgentToolSelection
@@ -100,6 +103,8 @@ export function agentToFormValues(agent: Doc<'agents'>): AgentFormValues {
     prompts: agent.prompts as PromptItem[],
     promptOrder: agent.promptOrder as OrderedItem[] | undefined,
     globalPromptsEnabled: agent.globalPromptsEnabled ?? true,
+    reminderPrompts: (agent.reminderPrompts as ReminderPrompt[]) ?? [],
+    globalRemindersEnabled: agent.globalRemindersEnabled ?? true,
     modelId: agent.modelId ?? null,
     reasoningEffort: (agent.reasoningEffort as ReasoningEffort | undefined) ?? null, // prettier-ignore
     tools: Array.isArray(agent.tools) ? (agent.tools as string[]) : [],
