@@ -87,7 +87,12 @@ export async function applyPlanModeTransition(
 
 export function patchToolApproval(
   parts: unknown[],
-  args: { toolCallId: string; approved: boolean; reason?: string },
+  args: {
+    toolCallId: string
+    approved: boolean
+    reason?: string
+    note?: string
+  },
 ) {
   let matched: { toolName: string; input: unknown } | undefined
   const next = parts.map((part) => {
@@ -104,7 +109,12 @@ export function patchToolApproval(
       type?: string
       input?: unknown
       state?: string
-      approval?: { id?: string; reason?: string; approved?: boolean }
+      approval?: {
+        id?: string
+        reason?: string
+        approved?: boolean
+        note?: string
+      }
     }
 
     if (typed.state !== 'approval-requested' || !typed.approval?.id) {
@@ -115,6 +125,7 @@ export function patchToolApproval(
       toolName: typed.type?.replace(/^tool-/, '') ?? '',
       input: typed.input,
     }
+    const note = args.note?.trim()
     return {
       ...typed,
       state: args.approved ? 'approval-responded' : 'output-denied',
@@ -122,6 +133,7 @@ export function patchToolApproval(
         id: typed.approval.id,
         approved: args.approved,
         ...(args.reason && { reason: args.reason }),
+        ...(note && { note }),
       },
     }
   })

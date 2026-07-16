@@ -17,3 +17,11 @@ export function serializeBlocksToMarkdown(editor: Editor): string {
   })
   return blocks.join('\n').trim()
 }
+
+/** Replaces the editor content with the given markdown. */
+export function setEditorMarkdown(editor: Editor, markdown: string): void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const manager = (editor.storage.markdown as any).manager
+  const content = markdown ? manager.parse(markdown) : ''
+  editor.commands.setContent(content)
+}

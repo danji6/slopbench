@@ -7,12 +7,16 @@ import type {
   CommandAvailabilityContext,
   CommandDefinition,
 } from '@/lib/chat/commands'
+import { useComposerDraft } from '@/lib/chat/composer-draft-store'
 import type { MentionEntry } from '@/lib/chat/file-mentions'
 import { filterMentions } from '@/lib/chat/file-mentions'
 import { handleSelectAllDelete } from '@/lib/editor-clear'
 import { toast } from '@/lib/notifications'
 import { pasteCollapsedText } from '@/lib/tiptap/paste'
-import { serializeBlocksToMarkdown } from '@/lib/tiptap/serialize'
+import {
+  serializeBlocksToMarkdown,
+  setEditorMarkdown,
+} from '@/lib/tiptap/serialize'
 import { cn } from '@/lib/utils'
 import { getActiveMention, mentionToken } from '@sb/core/mentions/parse'
 import type { Editor } from '@tiptap/react'
@@ -58,7 +62,11 @@ const ComposerEditor = lazy(() =>
 const MENTION_KEYS = new Set(['Enter', 'Tab', 'ArrowUp', 'ArrowDown', 'Escape'])
 
 /** Imperative handle exposed to parents for focusing the composer. */
-export type ComposerHandle = { focus: (options?: FocusOptions) => void }
+export type ComposerHandle = {
+  focus: (options?: FocusOptions) => void
+  /** Replaces the editor content from a markdown string. */
+  setContent: (markdown: string) => void
+}
 
 export type ChatComposerProps = Omit<InputGroupProps, 'onSubmit'> & {
   onSubmit: (message: PendingMessage) => void
@@ -87,6 +95,8 @@ export type ChatComposerProps = Omit<InputGroupProps, 'onSubmit'> & {
   passiveSend?: boolean
   /** Whether sending messages should be disabled. */
   sendDisabled?: boolean
+  /** Session id for the draft key. Omit to disable persistence. */
+  draftKey?: string
 }
 
 export function ChatComposer({
@@ -108,10 +118,12 @@ export function ChatComposer({
   fileIndex,
   passiveSend = false,
   sendDisabled = false,
+  draftKey,
   className,
   style,
   ...props
 }: ChatComposerProps) {
+  const draft = useComposerDraft(draftKey)
   const [message, setMessage] = useState('')
   const [caret, setCaret] = useState(0)
   const [dismissedMention, setDismissedMention] = useState<string | null>(null)
@@ -143,12 +155,24 @@ export function ChatComposer({
     onContentChange?.(hasContent)
   }, [hasContent, onContentChange])
 
+  // Suppresses the typing indicator for programmatic content changes so they
+  // don't look like the user is writing
+  const suppressTypingRef = useRef(false)
+  const applyMarkdown = useCallback((editor: Editor, markdown: string) => {
+    if (markdown) suppressTypingRef.current = true
+    setEditorMarkdown(editor, markdown)
+  }, [])
+
   useImperativeHandle(
     inputRef,
     () => ({
       focus: (options) => editorRef.current?.view.dom.focus(options),
+      setContent: (markdown) => {
+        const editor = editorRef.current
+        if (editor) applyMarkdown(editor, markdown)
+      },
     }),
-    [],
+    [applyMarkdown],
   )
 
   const onTypingRef = useRef(onTyping)
@@ -160,25 +184,51 @@ export function ChatComposer({
     setCaret(doc.textBetween(0, selection.from, '\n').length)
   }, [])
 
+  const draftRef = useRef(draft)
+  draftRef.current = draft
+
+  const restoredKeyRef = useRef<string>(undefined)
+  const restoreDraft = useCallback(
+    (editor: Editor) => {
+      if (!draftKey || restoredKeyRef.current === draftKey) return
+      restoredKeyRef.current = draftKey
+      const saved = draftRef.current.read()
+      if (saved && editor.isEmpty) applyMarkdown(editor, saved)
+    },
+    [draftKey, applyMarkdown],
+  )
+
+  useEffect(() => {
+    const editor = editorRef.current
+    if (editor) restoreDraft(editor)
+  }, [restoreDraft])
+
   const handleEditorReady = useCallback(
     (editor: Editor) => {
       editorRef.current = editor
       editor.on('update', () => {
         syncFromEditor(editor)
+        draftRef.current.save(serializeBlocksToMarkdown(editor))
+        if (suppressTypingRef.current) {
+          suppressTypingRef.current = false
+          return
+        }
         if (editor.state.doc.textContent.trim().length > 0) {
           onTypingRef.current?.()
         }
       })
       editor.on('selectionUpdate', () => syncFromEditor(editor))
+      restoreDraft(editor)
       syncFromEditor(editor)
     },
-    [syncFromEditor],
+    [syncFromEditor, restoreDraft],
   )
 
   function clearEditor() {
     editorRef.current?.commands.clearContent(true)
     setMessage('')
     setCaret(0)
+    draft.clear()
   }
 
   function setEditorText(text: string) {

@@ -6,7 +6,12 @@ import {
   useStreamProcessingMessageId,
 } from '@/hooks/chat'
 import type { ApproveToolArgs, RememberScope, ToolApprovals } from '@/lib/chat'
+import { useComposerDraft } from '@/lib/chat/composer-draft-store'
 import { toast } from '@/lib/notifications'
+import {
+  serializeBlocksToMarkdown,
+  setEditorMarkdown,
+} from '@/lib/tiptap/serialize'
 import { cn } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import {
@@ -15,11 +20,14 @@ import {
   isPathForbidden,
   isReadOnlyShellCommand,
 } from '@sb/convex/lib/tool/approval'
+import type { Editor } from '@tiptap/react'
 import type { ToolUIPart } from 'ai'
 import type { OptimisticLocalStore } from 'convex/browser'
 import { useMutation } from 'convex/react'
 import {
   type RefObject,
+  Suspense,
+  lazy,
   useCallback,
   useEffect,
   useMemo,
@@ -29,6 +37,12 @@ import {
 
 import { Code } from '../../ui'
 import { Command } from '../../ui/command'
+
+const ComposerEditor = lazy(() =>
+  import('../composer/composer-editor').then((module) => ({
+    default: module.ComposerEditor,
+  })),
+)
 
 type ApprovalAction = {
   id: string
@@ -43,6 +57,8 @@ type PlanApprovalMeta = {
   heading: string
   approveLabel: string
   denyLabel: string
+  /** When true, the deny action aborts the turn instead of denying the tool. */
+  denyAborts?: boolean
 }
 
 const PLAN_APPROVALS: Record<string, PlanApprovalMeta> = {
@@ -50,6 +66,7 @@ const PLAN_APPROVALS: Record<string, PlanApprovalMeta> = {
     heading: 'The agent wants to start implementing the plan.',
     approveLabel: 'Approve plan',
     denyLabel: 'Keep planning',
+    denyAborts: true,
   },
   enter_plan_mode: {
     heading: 'The agent wants to plan before making changes.',
@@ -76,6 +93,8 @@ export function ToolApprovalPicker({
   )
   const { message } = useChatMessage(processingMessageId ?? '')
   const rootRef = useRef<HTMLDivElement>(null)
+  const noteEditorRef = useRef<Editor | null>(null)
+  const draft = useComposerDraft(session?._id)
   const [selectedAction, setSelectedAction] = useState('')
 
   const part = message?.parts.find(isApprovalRequested) as
@@ -94,8 +113,9 @@ export function ToolApprovalPicker({
     isAdmin && awaitingApproval && Boolean(session && message && part)
 
   const respond = useCallback(
-    async (approved: boolean, remember?: RememberScope) => {
+    async (approved: boolean, remember?: RememberScope, note?: string) => {
       if (!session || !part) return
+      draft.clear()
       try {
         await approveTool({
           sessionId: session._id,
@@ -103,12 +123,18 @@ export function ToolApprovalPicker({
           approved,
           ...(remember ? { remember } : {}),
           ...(!approved ? { reason: 'Denied by user.' } : {}),
+          ...(note ? { note } : {}),
         })
+        // Still mounted when further approvals are pending in the same turn
+        const editor = noteEditorRef.current
+        if (editor && !editor.isDestroyed) editor.commands.clearContent(true)
       } catch (err) {
+        // The rolled back picker remounts its editor from the draft
+        if (note) draft.flush(note)
         toast(err instanceof Error ? err.message : String(err))
       }
     },
-    [approveTool, part, session],
+    [approveTool, part, session, draft],
   )
   const actions = useMemo(
     () =>
@@ -122,13 +148,27 @@ export function ToolApprovalPicker({
   )
   const selectAction = useCallback(
     (action: ApprovalAction) => {
+      const editor = noteEditorRef.current
+      const note = editor ? serializeBlocksToMarkdown(editor).trim() : ''
       if (action.abort) {
+        // Preserve the note so it reappears in the composer after the abort
+        draft.flush(note)
         onAbort?.()
         return
       }
-      void respond(action.approved, action.remember)
+      void respond(action.approved, action.remember, note || undefined)
     },
-    [respond, onAbort],
+    [respond, onAbort, draft],
+  )
+
+  const handleNoteReady = useCallback(
+    (editor: Editor) => {
+      noteEditorRef.current = editor
+      editor.on('update', () => draft.save(serializeBlocksToMarkdown(editor)))
+      const saved = draft.read()
+      if (saved) setEditorMarkdown(editor, saved)
+    },
+    [draft],
   )
 
   useSelectedApprovalAction(actions, setSelectedAction)
@@ -144,6 +184,11 @@ export function ToolApprovalPicker({
     if (visible) rootRef.current?.focus({ preventScroll: true })
   }, [visible, part?.toolCallId])
 
+  const focusNote = useCallback(
+    () => noteEditorRef.current?.commands.focus(),
+    [],
+  )
+
   useApprovalKeybinds({
     actions,
     onSelect: selectAction,
@@ -151,6 +196,7 @@ export function ToolApprovalPicker({
     setSelectedAction,
     visible,
     rootRef,
+    focusNote,
   })
 
   if (!visible || !part) return null
@@ -192,6 +238,23 @@ export function ToolApprovalPicker({
             {HOLD_HINTS[hold]}
           </div>
         )}
+        <div
+          data-slot="approval-note"
+          className="bg-background/60 max-h-32 overflow-y-auto rounded-lg border px-3 py-1.5"
+          style={{
+            fontFamily: 'var(--chat-font-family)',
+            fontSize: 'var(--chat-font-size)',
+          }}
+        >
+          <Suspense fallback={null}>
+            <ComposerEditor
+              placeholder="Add a note (optional)..."
+              autoFocus={false}
+              editorClassName="min-h-8! [&_p]:mt-0!"
+              onReady={handleNoteReady}
+            />
+          </Suspense>
+        </div>
         <Command
           shouldFilter={false}
           value={selectedAction}
@@ -238,6 +301,17 @@ function buildApprovalActions(
     },
   ]
 
+  if (planApproval) {
+    items.push({
+      id: 'deny',
+      label: planApproval.denyLabel,
+      shortcut: 'n',
+      approved: false,
+      abort: planApproval.denyAborts,
+    })
+    return items
+  }
+
   if (hold === 'paths') {
     items.push({
       id: 'remember-paths',
@@ -258,7 +332,7 @@ function buildApprovalActions(
 
   items.push({
     id: 'deny',
-    label: planApproval?.denyLabel ?? 'Deny',
+    label: 'Deny',
     shortcut: 'n',
     approved: false,
   })
@@ -295,6 +369,7 @@ function useApprovalKeybinds({
   setSelectedAction,
   visible,
   rootRef,
+  focusNote,
 }: {
   actions: ApprovalAction[]
   onSelect: (action: ApprovalAction) => void
@@ -302,6 +377,7 @@ function useApprovalKeybinds({
   setSelectedAction: (value: string) => void
   visible: boolean
   rootRef: React.RefObject<HTMLDivElement | null>
+  focusNote: () => void
 }) {
   useEffect(() => {
     if (!visible || actions.length === 0) return
@@ -309,6 +385,35 @@ function useApprovalKeybinds({
     function handleKeyDown(e: KeyboardEvent) {
       const root = rootRef.current
       if (!root || !root.contains(document.activeElement)) return
+
+      // While typing a note, let the editor own its keys. Ctrl/Cmd+Enter still
+      // submits the highlighted action; Escape hands focus back to the list.
+      const typingNote =
+        (document.activeElement as HTMLElement | null)?.isContentEditable ===
+        true
+      if (typingNote) {
+        // Tab/Escape leave the note and hand focus to the options list
+        if (e.key === 'Tab' || e.key === 'Escape') {
+          e.preventDefault()
+          e.stopPropagation()
+          root.focus({ preventScroll: true })
+        } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault()
+          e.stopPropagation()
+          const action =
+            actions.find((item) => item.id === selectedAction) ?? actions[0]
+          if (action) onSelect(action)
+        }
+        return
+      }
+
+      // From the options, Tab/Shift+Tab moves into the note editor
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        e.stopPropagation()
+        focusNote()
+        return
+      }
 
       if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.length === 1) {
         const key = e.key.toLowerCase()
@@ -340,7 +445,15 @@ function useApprovalKeybinds({
     window.addEventListener('keydown', handleKeyDown, { capture: true })
     return () =>
       window.removeEventListener('keydown', handleKeyDown, { capture: true })
-  }, [actions, onSelect, rootRef, selectedAction, setSelectedAction, visible])
+  }, [
+    actions,
+    onSelect,
+    rootRef,
+    selectedAction,
+    setSelectedAction,
+    visible,
+    focusNote,
+  ])
 }
 
 function optimisticallyRespondApproval(
@@ -408,6 +521,7 @@ function respondToPart(parts: unknown[], args: ApproveToolArgs): unknown[] {
         id: typed.approval?.id,
         approved: args.approved,
         ...(args.reason && { reason: args.reason }),
+        ...(args.note?.trim() && { note: args.note.trim() }),
       },
     }
   })

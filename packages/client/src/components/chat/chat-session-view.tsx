@@ -15,6 +15,7 @@ import { useHasElapsed } from '@/hooks/expiry'
 import { useAtBottomSticky } from '@/hooks/scroll'
 import { Result } from '@/lib'
 import type { PendingMessage } from '@/lib/chat'
+import { getDraft } from '@/lib/chat/composer-draft-store'
 import { isOngoingStream } from '@/lib/chat/stream'
 import { cn } from '@/lib/utils'
 import { AnimatePresence } from 'motion/react'
@@ -150,6 +151,18 @@ export function ChatSessionView({
       composerRef.current?.focus({ preventScroll: true })
     }
   }, [showDock])
+
+  // When an approval closes, the note draft becomes the composer content
+  const prevShowApprovalRef = useRef(showApproval)
+  useEffect(() => {
+    const wasShowing = prevShowApprovalRef.current
+    prevShowApprovalRef.current = showApproval
+    if (!wasShowing || showApproval || !session) return
+
+    const text = getDraft(session._id)
+    composerRef.current?.setContent(text)
+    if (text) pendingFocusRef.current = true
+  }, [showApproval, session])
 
   const handledEditRevisionRef = useRef(completedEditRevision)
   // Refocus composer after editing a message
@@ -297,7 +310,12 @@ export function ChatSessionView({
               )}
               {!subagentParent && (
                 <>
-                  <div className="mb-1.5 flex items-center justify-end gap-2 px-1 empty:hidden">
+                  <div
+                    className={cn(
+                      'mb-1.5 flex items-center justify-end gap-2 px-1 empty:hidden',
+                      showApproval && 'hidden',
+                    )}
+                  >
                     <SubagentsWidget className="bg-background/80 h-9 px-3 backdrop-blur-md" />
                     <TerminalsWidget className="bg-background/80 h-9 px-3 backdrop-blur-md" />
                   </div>
@@ -331,6 +349,7 @@ export function ChatSessionView({
                     fileIndex={fileIndex}
                     passiveSend={passiveSend}
                     sendDisabled={sendDisabled}
+                    draftKey={session?._id}
                     className={cn('w-full', showApproval && 'hidden')}
                     inert={!showDock || showApproval}
                   />

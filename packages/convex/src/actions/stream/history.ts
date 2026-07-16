@@ -80,11 +80,12 @@ export async function buildProviderHistory(
     ...message,
     parts: prefixSenderName(message, history[index], data.agent),
   }))
+  const withNotes = injectApprovalNotes(attributed)
 
   const [{ convertToModelMessages }, { shellHistoryTools: shellHistoryTools }] =
     await Promise.all([import('ai'), import('../../model/tool/shell')])
 
-  let modelMessages = await convertToModelMessages(attributed, {
+  let modelMessages = await convertToModelMessages(withNotes, {
     ignoreIncompleteToolCalls: true,
     // Maps shell outputs so replayed history never contains terminal scrollback
     tools: shellHistoryTools(),
@@ -101,6 +102,32 @@ export async function buildProviderHistory(
   return trimContext && (contextWindow ?? 0) > 0
     ? await trimContextToThreshold(modelMessages, undefined, contextWindow!)
     : modelMessages
+}
+
+function injectApprovalNotes(messages: UIMessage[]): UIMessage[] {
+  const out: UIMessage[] = []
+  for (const message of messages) {
+    out.push(message)
+    const notes = collectApprovalNotes(message.parts)
+    if (notes.length > 0) {
+      out.push({
+        id: `${message.id}:approval-note`,
+        role: 'user',
+        parts: [{ type: 'text', text: notes.join('\n\n') }],
+      })
+    }
+  }
+  return out
+}
+
+function collectApprovalNotes(parts: UIMessage['parts']): string[] {
+  const notes: string[] = []
+  for (const part of parts) {
+    if (!part.type.startsWith('tool-')) continue
+    const note = (part as { approval?: { note?: string } }).approval?.note
+    if (typeof note === 'string' && note.trim()) notes.push(note.trim())
+  }
+  return notes
 }
 
 export function removeOrphanToolCalls(

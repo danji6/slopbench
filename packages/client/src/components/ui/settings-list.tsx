@@ -90,9 +90,9 @@ function SettingsListItem({
         <div className="pointer-events-none flex flex-col gap-0.5">
           <HelpPopoverLabel help={help}>{label}</HelpPopoverLabel>
           {description && (
-            <p className="text-muted-foreground text-sm leading-normal">
+            <div className="text-muted-foreground text-sm leading-normal">
               {description}
-            </p>
+            </div>
           )}
         </div>
       )}

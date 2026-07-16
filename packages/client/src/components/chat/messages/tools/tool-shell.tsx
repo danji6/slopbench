@@ -107,8 +107,9 @@ export function ToolShell({
   )
   const [userOpen, setUserOpen] = usePersistentOpen(part.toolCallId)
 
+  const note = (part as { approval?: { note?: string } }).approval?.note?.trim()
   const showErrorText = Boolean(errorText) && !noErrorText
-  const hasBody = Boolean(children) || showErrorText
+  const hasBody = Boolean(children) || showErrorText || Boolean(note)
   const open =
     isAwaitingApproval || (userOpen ?? (autoExpand || Boolean(errorText)))
 
@@ -138,6 +139,11 @@ export function ToolShell({
             <pre className="bg-background text-destructive overflow-x-auto rounded px-2 py-1 text-xs">
               {errorText}
             </pre>
+          )}
+          {note && (
+            <div className="text-muted-foreground text-xs">
+              <span className="font-medium">You:</span> {note}
+            </div>
           )}
         </div>
       )}

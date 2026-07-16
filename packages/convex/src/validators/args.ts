@@ -224,6 +224,8 @@ export const approveToolArgsValidator = v.object({
   approved: v.boolean(),
   reason: v.optional(v.string()),
   remember: v.optional(rememberScopeValidator),
+  // Note from the user, delivered to the agent alongside the response.
+  note: v.optional(v.string()),
 })
 
 export const importSessionArgsValidator = v.object({

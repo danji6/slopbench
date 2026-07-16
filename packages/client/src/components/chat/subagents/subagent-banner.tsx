@@ -44,7 +44,7 @@ export function SubagentBanner({
         >
           <ArrowLeftIcon /> Back to parent
         </RippleButton>
-        <div className="border-input/50 h-8 w-px border" />
+        <div className="bg-border/80 h-7 w-px shrink-0" />
         <TokenWidget className="h-8" />
         <RippleButton
           variant="input"

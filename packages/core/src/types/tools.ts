@@ -11,6 +11,8 @@ export type ApproveToolArgs<SessionId extends string = string> = {
   approved: boolean
   reason?: string
   remember?: RememberScope
+  /** Note from the user, delivered to the agent alongside the response. */
+  note?: string
 }
 
 export type ShellJobStatus =

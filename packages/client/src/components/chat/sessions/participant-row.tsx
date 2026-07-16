@@ -35,7 +35,11 @@ export function ParticipantRow({
         )}
         onClick={onClick}
       >
-        <SessionAvatar avatarId={avatarId} fallbackIcon={fallbackIcon} />
+        <SessionAvatar
+          avatarId={avatarId}
+          fallbackIcon={fallbackIcon}
+          size="sm"
+        />
         <span className="min-w-0 flex-1 truncate text-start">{name}</span>
         {badge}
       </RippleButton>
