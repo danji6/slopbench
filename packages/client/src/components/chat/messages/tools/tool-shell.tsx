@@ -1,6 +1,7 @@
 import {
   useStreamAwaitingApproval,
   useStreamProcessingMessageId,
+  useStreamStore,
 } from '@/hooks/chat'
 import { getToolErrorText, getToolStatus } from '@/lib/chat'
 import type { SourceMessagePart } from '@/lib/chat/combine'
@@ -42,6 +43,7 @@ export function useToolPart(
 ): ToolPartState {
   const awaitingApproval = useStreamAwaitingApproval()
   const processingMessageId = useStreamProcessingMessageId()
+  const streamStore = useStreamStore()
   const sourceMessageId =
     (part as SourceMessagePart).sourceMessageId ?? messageId
   const messageList = useMessageList()
@@ -52,13 +54,17 @@ export function useToolPart(
     processingMessageId === sourceMessageId
 
   const wasAwaitingApprovalRef = useRef(isAwaitingApproval)
-  // Resume following once the approval resolves
+  // Resume following once the approval resolves, but only when the turn
+  // continues (approve/deny)
   useEffect(() => {
     if (wasAwaitingApprovalRef.current && !isAwaitingApproval) {
-      messageList?.resumeFollow()
+      const status = streamStore.getRawStatus()
+      const turnContinues =
+        status === 'pending' || status === 'streaming' || status === 'retrying'
+      if (turnContinues) messageList?.resumeFollow()
     }
     wasAwaitingApprovalRef.current = isAwaitingApproval
-  }, [isAwaitingApproval, messageList])
+  }, [isAwaitingApproval, messageList, streamStore])
 
   return {
     status: forceError ? 'error' : getToolStatus(part),

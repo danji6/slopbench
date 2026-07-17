@@ -1,9 +1,14 @@
 import { MarkdownRenderer } from '@/components/markdown/renderer'
-import { useActiveSession, useMathMode } from '@/hooks/chat'
+import {
+  useActiveSession,
+  useMathMode,
+  useStreamProcessingMessageId,
+} from '@/hooks/chat'
+import type { SourceMessagePart } from '@/lib/chat/combine'
 import { api } from '@sb/convex/_generated/api'
 import type { ToolUIPart } from 'ai'
 import { useQuery } from 'convex/react'
-import { useRef } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 
 import { useMessageList } from '../message-list/message-list-context'
 import { useScrollIntoView } from '../scroll-into-view'
@@ -15,6 +20,12 @@ const PLAN_TOOL_LABELS: Record<string, string> = {
   enter_plan_mode: 'Enter plan mode',
   exit_plan_mode: 'Present plan',
 }
+
+const PRE_APPROVAL_STATES: ReadonlySet<string> = new Set([
+  'input-streaming',
+  'input-available',
+  'approval-requested',
+])
 
 export function PlanBlock({
   part,
@@ -28,6 +39,7 @@ export function PlanBlock({
   const toolName = part.type.slice('tool-'.length)
   const session = useActiveSession()
   const { isAwaitingApproval } = useToolPart(part, messageId, forceError)
+  const processingMessageId = useStreamProcessingMessageId()
   const plan = useQuery(
     api.plans.get,
     session && toolName === 'exit_plan_mode'
@@ -38,7 +50,22 @@ export function PlanBlock({
   const editCount = toolName === 'edit_plan' ? (edits?.length ?? 0) : 0
 
   if (toolName === 'exit_plan_mode' && plan) {
-    return <PresentedPlan content={plan.content} reveal={isAwaitingApproval} />
+    const sourceMessageId =
+      (part as SourceMessagePart).sourceMessageId ?? messageId
+
+    const expectsApproval =
+      processingMessageId === sourceMessageId &&
+      PRE_APPROVAL_STATES.has(part.state) &&
+      plan.status !== 'approved' &&
+      !!plan.content.trim()
+
+    return (
+      <PresentedPlan
+        content={plan.content}
+        reveal={isAwaitingApproval}
+        holdFollow={expectsApproval}
+      />
+    )
   }
 
   return (
@@ -65,19 +92,28 @@ export function PlanBlock({
 function PresentedPlan({
   content,
   reveal,
+  holdFollow,
 }: {
   content: string
   reveal: boolean
+  holdFollow: boolean
 }) {
   const mathMode = useMathMode()
   const blockRef = useRef<HTMLDivElement>(null)
   const messageList = useMessageList()
 
+  const releaseFollow = messageList?.releaseFollow
+  // Release the follow before paint
+  useLayoutEffect(() => {
+    if (holdFollow) releaseFollow?.()
+  }, [holdFollow, releaseFollow])
+
   // Plans are read from the top, so align the start below the nav
   useScrollIntoView({
     active: reveal,
+    revealOnMount: true,
     align: 'start',
-    behavior: 'instant',
+    behavior: 'smooth',
     blockRef,
     scrollRef: messageList?.scrollRef,
     onBeforeScroll: messageList?.releaseFollow,

@@ -6,6 +6,11 @@ type ScrollIntoViewParams = {
   /** When this turns true, the block is scrolled into view. */
   active: boolean
   /**
+   * Also reveal when the block first mounts already active. Needed when the
+   * content that hosts the reveal mounts after `active` is already true.
+   */
+  revealOnMount?: boolean
+  /**
    * Which edge of the block to bring into view: 'end' reveals the bottom
    * above the dock, 'start' aligns the top below the nav (for long blocks
    * that should be read from the beginning).
@@ -14,6 +19,7 @@ type ScrollIntoViewParams = {
   behavior?: ScrollBehavior
   blockRef: React.RefObject<HTMLElement | null>
   scrollRef?: React.RefObject<HTMLElement | null>
+  /** Callback used to release any active follows before scrolling into view. */
   onBeforeScroll?: () => void
   bottomPadding?: number
   topPadding?: number
@@ -22,6 +28,7 @@ type ScrollIntoViewParams = {
 /** Scrolls a block into view once layout settles. */
 export function useScrollIntoView({
   active,
+  revealOnMount = false,
   align = 'end',
   behavior = 'smooth',
   blockRef,
@@ -30,7 +37,7 @@ export function useScrollIntoView({
   bottomPadding = 0,
   topPadding = 0,
 }: ScrollIntoViewParams) {
-  const prevActive = useRef(active)
+  const prevActive = useRef(revealOnMount ? false : active)
   const paddingRef = useRef({ bottomPadding, topPadding })
   const onBeforeScrollRef = useRef(onBeforeScroll)
 
@@ -48,6 +55,9 @@ export function useScrollIntoView({
     const scrollEl = scrollRef?.current
     const blockEl = blockRef.current
     if (!scrollEl || !blockEl) return
+
+    // Stop following if start-aligned
+    if (align === 'start') onBeforeScrollRef.current?.()
 
     const isDocScroll = scrollEl === document.documentElement
 
@@ -87,10 +97,12 @@ export function useScrollIntoView({
 
       if (align === 'start') {
         const targetTop = scrollRect.top + topPaddingPx + 16
-        // Leave the block alone while its start is already readable
-        if (blockRect.top >= targetTop - 1 && blockRect.top <= visibleBottom) {
-          return
-        }
+        // Leave the block alone only when it's already aligned at the top or
+        // entirely on screen
+        const alreadyReadable =
+          blockRect.top >= targetTop - 1 &&
+          (blockRect.top <= targetTop + 1 || blockRect.bottom <= visibleBottom)
+        if (alreadyReadable) return
         scrollBy(blockRect.top - targetTop)
         return
       }
