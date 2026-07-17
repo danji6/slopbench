@@ -1,3 +1,4 @@
+import { TODO_EDIT_STATUSES } from '@sb/core/const'
 import {
   type McpServer,
   type McpToolMeta,
@@ -394,6 +395,51 @@ async function createEditPlanTool(context: PlanToolContext) {
   })
 }
 
+async function createWriteTodoTool(context: PlanToolContext) {
+  const [{ tool }, { z }] = await Promise.all([import('ai'), import('zod')])
+  return tool({
+    description: TOOL_DESCRIPTIONS.write_todo,
+    inputSchema: z.object({
+      todos: z
+        .array(z.string().min(1))
+        .describe('Every task as a short string; replaces the previous list'),
+    }),
+    execute: async ({ todos }) => {
+      await context.ctx.runMutation(internal.todos._write, {
+        sessionId: context.sessionId,
+        todos,
+      })
+      return todos.length === 0 ? 'Todos cleared.' : 'Todos updated.'
+    },
+  })
+}
+
+async function createEditTodoTool(context: PlanToolContext) {
+  const [{ tool }, { z }] = await Promise.all([import('ai'), import('zod')])
+  return tool({
+    description: TOOL_DESCRIPTIONS.edit_todo,
+    inputSchema: z.object({
+      edits: z.array(
+        z.object({
+          task: z.string().describe('Exact text of an existing task'),
+          status: z.enum(['todo', 'doing', 'done']),
+        }),
+      ),
+    }),
+    execute: async ({ edits }) => {
+      const result = await context.ctx.runMutation(internal.todos._edit, {
+        sessionId: context.sessionId,
+        edits: edits.map(({ task, status }) => ({
+          task,
+          status: TODO_EDIT_STATUSES[status],
+        })),
+      })
+      if (!result.ok) throw new ToolError(result.error)
+      return 'Todos updated.'
+    },
+  })
+}
+
 async function createEnterPlanModeTool(
   context: PlanToolContext,
   streamMode?: SessionMode,
@@ -582,6 +628,12 @@ export async function getEnabledTools(
     await createModeTools(invokerRole, session, options),
   )
 
+  if (options?.ctx && session) {
+    const todoContext = { ctx: options.ctx, sessionId: session._id }
+    withPlanTools.write_todo = await createWriteTodoTool(todoContext)
+    withPlanTools.edit_todo = await createEditTodoTool(todoContext)
+  }
+
   if (options?.spawnableAgents?.length) {
     withPlanTools[TASK_TOOL_NAME] = await createTaskTool(
       options.spawnableAgents,
@@ -639,11 +691,14 @@ const PLAN_MODE_REMINDER =
   'Plan mode is active, you CANNOT make any changes. Keep researching and refine the plan.' +
   '</system-reminder>'
 
-const PLAN_TOOL_NAMES = new Set([
+/** Tools whose outputs skip the plan mode reminder. */
+const REMINDER_EXEMPT_TOOL_NAMES = new Set([
   'write_plan',
   'edit_plan',
   'enter_plan_mode',
   'exit_plan_mode',
+  'write_todo',
+  'edit_todo',
 ])
 
 /** Adds the plan mode reminder to tool outputs. */
@@ -651,7 +706,8 @@ export function withPlanModeReminders(tools: ToolSet): ToolSet {
   return Object.fromEntries(
     Object.entries(tools).map(([name, definition]) => {
       const execute = definition.execute
-      if (PLAN_TOOL_NAMES.has(name) || !execute) return [name, definition]
+      if (REMINDER_EXEMPT_TOOL_NAMES.has(name) || !execute)
+        return [name, definition]
 
       // Streaming tools (shell) must return their async iterable
       // synchronously for the AI SDK to properly handle them

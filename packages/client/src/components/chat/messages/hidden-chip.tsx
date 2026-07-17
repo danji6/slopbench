@@ -15,7 +15,13 @@ import type { MessageRecord } from '@/lib/chat'
 import { cn, isTouchDevice } from '@/lib/utils'
 import type { UIMessage } from 'ai'
 import type { LucideIcon } from 'lucide-react'
-import { AlarmClockIcon, CopyIcon, EyeOffIcon, Trash2Icon } from 'lucide-react'
+import {
+  AlarmClockIcon,
+  CopyIcon,
+  EyeOffIcon,
+  ListTodoIcon,
+  Trash2Icon,
+} from 'lucide-react'
 import { useCallback, useMemo, useRef, useState } from 'react'
 
 import { useMessageHighlight } from './message-highlight-context'
@@ -37,7 +43,12 @@ function chipPresentation(record: MessageRecord | undefined): ChipPresentation {
         noun: 'reminder',
       }
     }
-    // TODO add 'todo' chip here
+    case 'todo':
+      return {
+        icon: ListTodoIcon,
+        label: 'Todo reminder',
+        noun: 'reminder',
+      }
     default:
       return { icon: EyeOffIcon, label: 'Hidden message', noun: 'message' }
   }

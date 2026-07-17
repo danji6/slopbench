@@ -44,8 +44,10 @@ function makeCtx({ agent, settings = null, session }: InjectCtxArgs = {}) {
       patch: async (id: string, patch: Record<string, unknown>) => {
         patches.push({ id, patch })
       },
-      query: () => ({
-        withIndex: () => ({ unique: async () => settings }),
+      query: (table: string) => ({
+        withIndex: () => ({
+          unique: async () => (table === 'settings' ? settings : null),
+        }),
       }),
     },
     scheduler: {

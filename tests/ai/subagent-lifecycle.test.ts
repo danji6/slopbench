@@ -69,6 +69,7 @@ function fakeCtx({
       },
       filter: () => chain,
       order: () => chain,
+      take: async (n: number) => (await chain.collect()).slice(0, n),
       first: async () => (await chain.collect())[0] ?? null,
       unique: async () => (await chain.collect())[0] ?? null,
       collect: async () => {
@@ -696,6 +697,7 @@ describe('subagent management widget', () => {
   const parentSession = { _id: 'parent_session', ownerId: owner }
   const childSession = {
     _id: 'child_session_1',
+    _creationTime: 900,
     title: 'Find the config',
     activeAgentId: 'agent_explorer',
     parent: { sessionId: 'parent_session', agentId: 'agent_coder' },
@@ -728,13 +730,15 @@ describe('subagent management widget', () => {
         title: 'Find the config',
         agentName: 'Explore',
         avatarId: undefined,
+        running: true,
         status: 'streaming',
         startedAt: expect.any(Number),
+        tokens: null,
       },
     ])
   })
 
-  test('list omits settled children (no active stream)', async () => {
+  test('list keeps settled children with running=false', async () => {
     const { ctx } = fakeCtx({
       docs: [parentSession, explorer],
       membershipsBySession: { parent_session: [membership] },
@@ -742,11 +746,17 @@ describe('subagent management widget', () => {
       streamsBySession: {},
     })
 
-    const result = await listSubagents(ctx, {
+    const result = (await listSubagents(ctx, {
       sessionId: 'parent_session' as never,
-    })
+    })) as Array<Record<string, unknown>>
 
-    expect(result).toEqual([])
+    expect(result).toEqual([
+      expect.objectContaining({
+        sessionId: 'child_session_1',
+        running: false,
+        status: null,
+      }),
+    ])
   })
 
   test('list rejects a non-member', async () => {

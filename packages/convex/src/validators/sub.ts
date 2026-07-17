@@ -25,6 +25,7 @@ export const senderSnapshotValidator = v.object({
 export const messageTypeValidator = v.union(
   v.literal('summary'),
   v.literal('reminder'),
+  v.literal('todo'),
 )
 
 export const messageStatusValidator = v.union(
@@ -238,6 +239,17 @@ export const planStatusValidator = v.union(
   v.literal('draft'),
   v.literal('approved'),
 )
+
+export const todoStatusValidator = v.union(
+  v.literal('pending'),
+  v.literal('in_progress'),
+  v.literal('completed'),
+)
+
+export const todoItemValidator = v.object({
+  content: v.string(),
+  status: todoStatusValidator,
+})
 
 export const streamOperationValidator = v.union(
   v.literal('invoke'),

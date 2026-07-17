@@ -56,6 +56,8 @@ export type SessionListItem = CoreSessionListItem<
 
 export type SessionMode = Infer<typeof V.sessionModeValidator>
 export type PlanStatus = Infer<typeof V.planStatusValidator>
+export type TodoStatus = Infer<typeof V.todoStatusValidator>
+export type TodoItem = Infer<typeof V.todoItemValidator>
 
 export type SendMessageArgs = Infer<typeof V.sendMessageArgsValidator>
 export type CreateAgentArgs = Infer<typeof V.createAgentArgsValidator>

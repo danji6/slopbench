@@ -14,6 +14,7 @@ import {
   sessionShareSchema,
   settingsSchema,
   streamSchema,
+  todoSchema,
   typingSchema,
   userSchema,
   userSessionSchema,
@@ -25,12 +26,21 @@ export default defineSchema({
     .index('by_ownerId', ['ownerId'])
     .index('by_parentSessionId', ['parent.sessionId']),
 
+  plans: defineTable(planSchema)
+    .index('by_sessionId', ['sessionId']),
+
+  todos: defineTable(todoSchema)
+    .index('by_sessionId', ['sessionId']),
+
   agents: defineTable(agentSchema)
     .index('by_ownerId_name', ['ownerId', 'name'])
     .index('by_avatarId', ['avatarId']),
 
   users: defineTable(userSchema)
     .index('by_subject', ['subject']),
+
+  avatars: defineTable(avatarSchema)
+    .index('by_storageId', ['storageId']),
 
   settings: defineTable(settingsSchema)
     .index('by_ownerId', ['ownerId'])
@@ -86,12 +96,6 @@ export default defineSchema({
     .index('by_messageId', ['messageId'])
     .index('by_streamId', ['streamId']),
 
-  avatars: defineTable(avatarSchema)
-    .index('by_storageId', ['storageId']),
-
   offloadedOutputs: defineTable(offloadedOutputSchema)
     .index('by_streamId', ['streamId']),
-
-  plans: defineTable(planSchema)
-    .index('by_sessionId', ['sessionId']),
 })

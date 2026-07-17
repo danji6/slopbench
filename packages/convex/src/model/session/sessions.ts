@@ -302,6 +302,8 @@ export async function remove(
     'userSessions',
     'sessionShares',
     'sessionAgents',
+    'plans',
+    'todos',
   ] as const
 
   for (const table of sessionTables) {

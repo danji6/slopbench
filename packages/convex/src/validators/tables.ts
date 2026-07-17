@@ -189,6 +189,13 @@ export const planSchema = v.object({
   updatedAt: v.number(),
 })
 
+export const todoSchema = v.object({
+  sessionId: v.id('sessions'),
+  items: v.array(V.todoItemValidator),
+  turnCount: v.number(), // session turnCount at last write or nudge
+  updatedAt: v.number(),
+})
+
 export const avatarSchema = v.object({
   storageId: v.id('_storage'),
   thumbStorageId: v.id('_storage'),

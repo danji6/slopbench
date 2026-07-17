@@ -1,11 +1,17 @@
-import type { ReminderPrompt } from '@sb/core/types'
+import { TODO_NUDGE_INTERVAL_TURNS } from '@sb/core/const'
+import type { MessageRole, ReminderPrompt } from '@sb/core/types'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
-import type { MessageExtra } from '../../types'
+import type { MessageExtra, TodoItem } from '../../types'
 import { insertMessage } from '../messageContents'
 import { scheduleMessageEval } from '../messages'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
+import {
+  formatTodoList,
+  getBySession as getTodosBySession,
+  hasUnresolvedTodos,
+} from '../todos'
 import { agentSenderSnapshot } from './identities'
 
 type ReminderState = Record<string, number>
@@ -56,6 +62,33 @@ export function resolveDueReminders(
   return { due, nextState }
 }
 
+/** Whether unresolved todos went stale enough to warrant a nudge. */
+export function isTodoNudgeDue(
+  todo: { items: TodoItem[]; turnCount: number } | null,
+  turnCount: number,
+  interval = TODO_NUDGE_INTERVAL_TURNS,
+) {
+  return (
+    todo !== null &&
+    hasUnresolvedTodos(todo.items) &&
+    turnCount - todo.turnCount >= interval
+  )
+}
+
+export function buildTodoNudgeContent(items: TodoItem[]) {
+  return [
+    '<system-reminder>',
+    'Your todo list has not been updated in a while. Current todos:',
+    '',
+    formatTodoList(items),
+    '',
+    'Continue the task if it still applies and update statuses with ' +
+      'edit_todo as you make progress, or clear the list with an empty ' +
+      'write_todo call if it is no longer relevant.',
+    '</system-reminder>',
+  ].join('\n')
+}
+
 /**
  * Inserts every due reminder as a hidden done message. Call before
  * inserting the triggering message or computing a fresh context boundary.
@@ -71,8 +104,24 @@ export async function injectDueReminders(
   if (!agent) return
 
   const settings = await getSettingsByOwnerId(ctx, agent.ownerId)
+  const sender: ReminderSender = {
+    agent,
+    senderSnapshot: agentSenderSnapshot(agent, settings),
+  }
+
+  await injectConfiguredReminders(ctx, session, invokerId, sender, settings)
+  await injectTodoNudge(ctx, session, invokerId, sender)
+}
+
+async function injectConfiguredReminders(
+  ctx: MutationCtx,
+  session: Doc<'sessions'>,
+  invokerId: Id<'users'>,
+  sender: ReminderSender,
+  settings: Doc<'settings'> | null,
+) {
   const reminders = mergeReminders(
-    agent as ReminderSource,
+    sender.agent as ReminderSource,
     (settings?.reminderPrompts ?? []) as ReminderPrompt[],
   )
   if (reminders.length === 0 && !session.reminderState) return
@@ -86,37 +135,80 @@ export async function injectDueReminders(
   if (!sameState(session.reminderState ?? {}, nextState)) {
     await ctx.db.patch(session._id, { reminderState: nextState })
   }
-  if (due.length === 0) return
-
-  const senderSnapshot = agentSenderSnapshot(agent, settings)
 
   for (const reminder of due) {
-    const parts = [{ type: 'text', text: reminder.content }]
-    const { messageId } = await insertMessage(
-      ctx,
-      {
-        sessionId: session._id,
-        sender: { type: 'agent', id: agent._id },
-        role: reminder.role,
-        senderSnapshot,
-        status: 'done',
-        type: 'reminder',
-        hidden: true,
-        extra: {
-          id: reminder.id,
-          name: reminder.name,
-        } satisfies MessageExtra['reminder'],
-      },
-      parts,
-    )
-    await scheduleMessageEval(ctx, {
-      messageId,
-      invokerId,
-      parts,
-      version: 1,
-      segmentIndex: 0,
+    await insertReminderMessage(ctx, session, invokerId, sender, {
+      type: 'reminder',
+      role: reminder.role,
+      content: reminder.content,
+      extra: {
+        id: reminder.id,
+        name: reminder.name,
+      } satisfies MessageExtra['reminder'],
     })
   }
+}
+
+/** Nudges the agent about a stale todo list. */
+async function injectTodoNudge(
+  ctx: MutationCtx,
+  session: Doc<'sessions'>,
+  invokerId: Id<'users'>,
+  sender: ReminderSender,
+) {
+  const todo = await getTodosBySession(ctx, session._id)
+  const turnCount = session.turnCount ?? 0
+  if (!todo || !isTodoNudgeDue(todo, turnCount)) return
+
+  await ctx.db.patch(todo._id, { turnCount })
+  await insertReminderMessage(ctx, session, invokerId, sender, {
+    type: 'todo',
+    role: 'system',
+    content: buildTodoNudgeContent(todo.items),
+  })
+}
+
+type ReminderSender = {
+  agent: Doc<'agents'>
+  senderSnapshot: ReturnType<typeof agentSenderSnapshot>
+}
+
+type ReminderMessage = {
+  type: NonNullable<Doc<'messages'>['type']>
+  role: MessageRole
+  content: string
+  extra?: unknown
+}
+
+async function insertReminderMessage(
+  ctx: MutationCtx,
+  session: Doc<'sessions'>,
+  invokerId: Id<'users'>,
+  sender: ReminderSender,
+  message: ReminderMessage,
+) {
+  const parts = [{ type: 'text', text: message.content }]
+  const { messageId } = await insertMessage(
+    ctx,
+    {
+      sessionId: session._id,
+      sender: { type: 'agent', id: sender.agent._id },
+      role: message.role,
+      senderSnapshot: sender.senderSnapshot,
+      status: 'done',
+      type: message.type,
+      hidden: true,
+      extra: message.extra,
+    },
+    parts,
+  )
+  await scheduleMessageEval(ctx, {
+    messageId,
+    invokerId,
+    parts,
+    version: 1,
+    segmentIndex: 0,
+  })
 }
 
 /** Counts a new logical turn (user send, fresh agent turn, mid-stream rollover). */
@@ -130,9 +222,9 @@ export async function bumpTurnCount(
 }
 
 /**
-* Rewinds the turn count after messages are deleted and adjusts reminders to
-* prevent negative deltas.
-*/
+ * Rewinds the turn count after messages are deleted and adjusts reminders to
+ * prevent negative deltas.
+ */
 export async function rewindTurnCount(
   ctx: MutationCtx,
   sessionId: Id<'sessions'>,

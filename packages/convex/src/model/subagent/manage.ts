@@ -30,7 +30,7 @@ async function childSessions(
 }
 
 /**
- * Live list of a session's background sub-agents that are still running (for
+ * Live list of a session's background sub-agents, running and settled (for
  * the subagents widget).
  */
 export async function list(

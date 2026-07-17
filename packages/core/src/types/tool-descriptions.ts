@@ -45,6 +45,16 @@ const exit_plan_mode = inline`
   Present the current plan for user approval. Call this once the plan is
   complete.`
 
+const write_todo = inline`
+  Create or replace the session todo list. Use it for substantial tasks of 3+
+  steps. Tasks matching existing ones keep their status; an empty list clears
+  the list. Update statuses with edit_todo.`
+
+const edit_todo = inline`
+  Update todo statuses. Each edit names the exact text of an existing task and
+  its new status. Mark a task 'doing' before starting it (one at a time) and
+  'done' immediately when finished; never batch completions.`
+
 const task = [
   inline`
     Delegate a task to a sub-agent that works in its own separate session in the
@@ -74,5 +84,7 @@ export const TOOL_DESCRIPTIONS = {
   edit_plan,
   enter_plan_mode,
   exit_plan_mode,
+  write_todo,
+  edit_todo,
   task,
 } as const

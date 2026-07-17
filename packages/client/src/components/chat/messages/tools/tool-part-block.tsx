@@ -5,6 +5,7 @@ import { FileChangeBlock } from './file-change-block'
 import { PlanBlock } from './plan-block'
 import { ShellBlock } from './shell-block'
 import { SubagentBlock } from './subagent-block'
+import { EditTodoBlock, WriteTodoBlock } from './todo-block'
 import { WebFetchBlock } from './web-fetch-block'
 
 export type ToolRendererProps = {
@@ -30,6 +31,10 @@ export function ToolPartBlock(props: ToolRendererProps) {
     case 'enter_plan_mode':
     case 'exit_plan_mode':
       return <PlanBlock {...props} />
+    case 'write_todo':
+      return <WriteTodoBlock {...props} />
+    case 'edit_todo':
+      return <EditTodoBlock {...props} />
     default:
       return <ToolBlock {...props} />
   }

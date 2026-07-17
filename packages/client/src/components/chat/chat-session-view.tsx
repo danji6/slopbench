@@ -40,6 +40,7 @@ import { ChatShortcutsProvider } from './shortcuts'
 import { SubagentBanner } from './subagents/subagent-banner'
 import { SubagentsWidget } from './widgets/subagents-widget'
 import { TerminalsWidget } from './widgets/terminals-widget'
+import { TodosWidget } from './widgets/todos-widget'
 import { ToolApprovalPicker } from './workspace/tool-approval-picker'
 
 const DOCK_HIDE_DISTANCE = 160
@@ -316,6 +317,7 @@ export function ChatSessionView({
                       showApproval && 'hidden',
                     )}
                   >
+                    <TodosWidget className="bg-background/80 h-9 px-3 backdrop-blur-md" />
                     <SubagentsWidget className="bg-background/80 h-9 px-3 backdrop-blur-md" />
                     <TerminalsWidget className="bg-background/80 h-9 px-3 backdrop-blur-md" />
                   </div>
