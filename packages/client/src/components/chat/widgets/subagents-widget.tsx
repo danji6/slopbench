@@ -43,7 +43,7 @@ export function SubagentsWidget({ className }: { className?: string }) {
         <BotIcon className="size-4" />
         <span className="text-xs tabular-nums">{agents.length}</span>
       </Popover.Trigger>
-      <Popover.Content align="end" className="w-72">
+      <Popover.Content align="end" side="top" className="w-72">
         <Popover.Header>
           <Popover.Title>Sub-agents</Popover.Title>
           <Popover.Description>

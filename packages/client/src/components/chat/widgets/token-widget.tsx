@@ -19,7 +19,7 @@ export function TokenWidget({ className }: { className?: string }) {
       >
         <ProgressCircle value={context.value} max={context.max ?? Infinity} />
       </Popover.Trigger>
-      <Popover.Content align="end" className="w-64">
+      <Popover.Content align="end" side="top" className="w-64">
         <Popover.Header>
           <Popover.Title>Token usage</Popover.Title>
           {context.modelLabel && (

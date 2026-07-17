@@ -34,7 +34,11 @@ export function QuickSettingsWidget({
           </RippleButton>
         }
       />
-      <Popover.Content align="center" className="w-90 max-w-dvw space-y-3 p-4">
+      <Popover.Content
+        align="center"
+        side="top"
+        className="w-90 max-w-dvw space-y-3 p-4"
+      >
         <Popover.Header>
           <Popover.Title>Quick settings</Popover.Title>
         </Popover.Header>

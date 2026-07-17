@@ -52,8 +52,8 @@ export function AutoApproveSettings({
   return (
     <SettingsList>
       <SettingsList.Item
-        label={<span className="font-semibold">Auto-approve</span>}
-        description="Actions this agent may take without asking, in every session. Sub-agents cannot ask: anything not auto-approved is denied."
+        label={<span className="font-semibold">Auto approve</span>}
+        description="Actions this agent may take without your explicit approval."
         unclickable
         unhoverable
       />

@@ -6,7 +6,7 @@ import type { Id } from '@sb/convex/_generated/dataModel'
 import { useQuery } from 'convex/react'
 import { ListTodoIcon } from 'lucide-react'
 
-import { countCompleted, TodoList } from '../messages/tools/todo-block'
+import { TodoList, countCompleted } from '../messages/tools/todo-block'
 
 export function TodosWidget({ className }: { className?: string }) {
   const sessionId = useActiveSessionId() as Id<'sessions'> | null
@@ -31,7 +31,7 @@ export function TodosWidget({ className }: { className?: string }) {
           {done}/{items.length}
         </span>
       </Popover.Trigger>
-      <Popover.Content align="end" className="w-72">
+      <Popover.Content align="end" side="top" className="w-72">
         <Popover.Header>
           <Popover.Title>Todos</Popover.Title>
           <Popover.Description>
