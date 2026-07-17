@@ -104,7 +104,7 @@ export async function buildProviderHistory(
     : modelMessages
 }
 
-function injectApprovalNotes(messages: UIMessage[]): UIMessage[] {
+export function injectApprovalNotes(messages: UIMessage[]): UIMessage[] {
   const out: UIMessage[] = []
   for (const message of messages) {
     out.push(message)
@@ -124,7 +124,10 @@ function collectApprovalNotes(parts: UIMessage['parts']): string[] {
   const notes: string[] = []
   for (const part of parts) {
     if (!part.type.startsWith('tool-')) continue
-    const note = (part as { approval?: { note?: string } }).approval?.note
+    const typed = part as { state?: string; approval?: { note?: string } }
+    // Only surface the note once the tool has settled, otherwise it never runs
+    if (!typed.state?.startsWith('output-')) continue
+    const note = typed.approval?.note
     if (typeof note === 'string' && note.trim()) notes.push(note.trim())
   }
   return notes
