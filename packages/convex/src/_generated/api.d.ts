@@ -71,6 +71,7 @@ import type * as model_prompt_dynamic from "../model/prompt/dynamic.js";
 import type * as model_prompt_markers from "../model/prompt/markers.js";
 import type * as model_prompt_merge from "../model/prompt/merge.js";
 import type * as model_prompt_prompts from "../model/prompt/prompts.js";
+import type * as model_provider_cache from "../model/provider/cache.js";
 import type * as model_provider_known from "../model/provider/known.js";
 import type * as model_provider_options from "../model/provider/options.js";
 import type * as model_provider_providers from "../model/provider/providers.js";
@@ -191,6 +192,7 @@ declare const fullApi: ApiFromModules<{
   "model/prompt/markers": typeof model_prompt_markers;
   "model/prompt/merge": typeof model_prompt_merge;
   "model/prompt/prompts": typeof model_prompt_prompts;
+  "model/provider/cache": typeof model_provider_cache;
   "model/provider/known": typeof model_provider_known;
   "model/provider/options": typeof model_provider_options;
   "model/provider/providers": typeof model_provider_providers;

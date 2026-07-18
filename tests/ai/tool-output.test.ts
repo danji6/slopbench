@@ -6,6 +6,7 @@ import {
   isOffloadableToolPart,
   makeOutputPreview,
   serializeToolOutput,
+  toolStateSignature,
 } from '@sb/convex/model/stream/toolOutput'
 import { describe, expect, test } from 'bun:test'
 
@@ -124,6 +125,58 @@ describe('collectToolOutputStorageIds / hasOutputRef', () => {
     expect(hasOutputRef(parts[1])).toBe(true)
     expect(hasOutputRef(parts[2])).toBe(false)
     expect(collectToolOutputStorageIds(parts)).toEqual(['s1', 's2'] as never)
+  })
+})
+
+describe('toolStateSignature', () => {
+  const runningShell = {
+    type: 'tool-shell',
+    state: 'output-available',
+    toolCallId: 'c1',
+    preliminary: true,
+    output: shellOutput('', 'partial'),
+  }
+
+  test('stable across content growth of the same state', () => {
+    const before = [{ type: 'text', text: 'a' }, runningShell]
+    const after = [
+      { type: 'text', text: 'ab' },
+      { ...runningShell, output: shellOutput('', 'partial more') },
+    ]
+    expect(toolStateSignature(after)).toBe(toolStateSignature(before))
+  })
+
+  test('changes when a preliminary output finalizes', () => {
+    const before = [runningShell]
+    const after = [
+      {
+        ...runningShell,
+        preliminary: undefined,
+        output: shellOutput('done', 'done'),
+      },
+    ]
+    expect(toolStateSignature(after)).not.toBe(toolStateSignature(before))
+  })
+
+  test('changes on per-call state transitions', () => {
+    const before = [
+      runningShell,
+      { type: 'tool-read_file', state: 'input-streaming', toolCallId: 'c2' },
+    ]
+    const after = [
+      runningShell,
+      { type: 'tool-read_file', state: 'input-available', toolCallId: 'c2' },
+    ]
+    expect(toolStateSignature(after)).not.toBe(toolStateSignature(before))
+  })
+
+  test('ignores non-tool parts', () => {
+    expect(
+      toolStateSignature([
+        { type: 'text', text: 'a' },
+        { type: 'reasoning', text: 'r' },
+      ]),
+    ).toBe('')
   })
 })
 

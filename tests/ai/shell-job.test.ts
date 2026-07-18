@@ -20,27 +20,33 @@ type Frame = {
   status?: 'running' | 'done' | 'killed' | 'timeout'
   exitCode?: number | null
   background?: boolean
+  /** Silence before this frame's events arrive. */
+  delayMs?: number
 }
 
-type SseEvent = { event: string; data: string }
+type SseEvent = { event: string; data: string; delayMs?: number }
 
 /** Expands frames into the SSE events the sidecar route would emit. */
 function framesToEvents(frames: Frame[]): SseEvent[] {
   const events: SseEvent[] = []
   let offset = 0
   for (const frame of frames) {
+    const frameEvents: SseEvent[] = []
     if (frame.chunk) {
       offset += frame.chunk.length
-      events.push({
+      frameEvents.push({
         event: 'chunk',
         data: JSON.stringify({ text: frame.chunk, nextOffset: offset }),
       })
     }
     if (frame.background) {
-      events.push({ event: 'meta', data: JSON.stringify({ background: true }) })
+      frameEvents.push({
+        event: 'meta',
+        data: JSON.stringify({ background: true }),
+      })
     }
     if (frame.status && frame.status !== 'running') {
-      events.push({
+      frameEvents.push({
         event: 'end',
         data: JSON.stringify({
           status: frame.status,
@@ -48,8 +54,14 @@ function framesToEvents(frames: Frame[]): SseEvent[] {
         }),
       })
     }
+    if (frame.delayMs && frameEvents[0]) frameEvents[0].delayMs = frame.delayMs
+    events.push(...frameEvents)
   }
   return events
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 function abortError(): Error {
@@ -90,6 +102,7 @@ function mockSidecar(frames: Frame[]) {
     streamCount += 1
     const events = framesToEvents(frames)
     for (const event of events) {
+      if (event.delayMs) await sleep(event.delayMs)
       if (signal?.aborted) throw abortError()
       yield event
     }
@@ -203,6 +216,33 @@ describe('executeShellJob', () => {
     // Detaches at the background meta event; never reaches the 'done' event.
     expect(final?.status).toBe('background')
     expect(final?.text).toContain('still running')
+  })
+
+  test('heartbeats during silence without dropping or duplicating events', async () => {
+    const { post, openStream, streams } = mockSidecar([
+      { chunk: 'first ' },
+      { chunk: 'second\n', delayMs: 150, status: 'done', exitCode: 0 },
+    ])
+
+    const outputs = await collect(
+      executeShellJob(
+        context,
+        { command: 'slow' },
+        { ...fast, post, openStream, heartbeatMs: 25 },
+      ),
+    )
+
+    // Heartbeats fired while the job was silent
+    const running = outputs.filter((o) => o.status === 'running')
+    expect(running.length).toBeGreaterThanOrEqual(3)
+
+    // The delayed chunk is neither lost nor double-appended, and the end
+    // event still terminates the single connection
+    const final = outputs.at(-1)
+    expect(final?.status).toBe('done')
+    expect(final?.term).toBe('first second\n')
+    expect(final?.text).toBe('first second')
+    expect(streams()).toBe(1)
   })
 
   test('kills the job and finalizes when aborted', async () => {

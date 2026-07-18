@@ -8,6 +8,7 @@ import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { sanitizeChatError } from '../../errors'
 import { hasPendingTaskParts } from '../../lib/subagent'
+import { applyPromptCaching } from '../../model/provider/cache'
 import { getProviderOptions } from '../../model/provider/options'
 import { findCredentialsForModel } from '../../model/provider/providers'
 import { postSidecar } from '../../model/sidecar'
@@ -26,6 +27,7 @@ import {
   isOffloadableToolPart,
   makeOutputPreview,
   serializeToolOutput,
+  toolStateSignature,
 } from '../../model/stream/toolOutput'
 import { stopWhenInactive } from '../../model/stream/transformers'
 import { resolveUsage } from '../../model/stream/usage'
@@ -183,6 +185,11 @@ async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
     credentials,
   )
 
+  const request = applyPromptCaching(
+    { systemPrompt, messages },
+    credentials?.providerId,
+  )
+
   return {
     stream: data.stream,
     agent: data.agent,
@@ -190,8 +197,8 @@ async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
     workspace: data.session.workspace,
     isSubagent: !!data.session.parent,
     evalResult,
-    systemPrompt,
-    messages,
+    systemPrompt: request.systemPrompt,
+    messages: request.messages,
     resolved,
     tools,
   }
@@ -255,6 +262,7 @@ async function consumeProviderStep(
   let streamError: unknown
   let lastPatch = 0
   let latestParts = initialMessage.parts
+  let lastToolStates = toolStateSignature(latestParts)
   let lastRequestBody: string | undefined
   try {
     const startedAt = Date.now()
@@ -318,8 +326,12 @@ async function consumeProviderStep(
       },
     })) {
       latestParts = message.parts
-      if (Date.now() - lastPatch < PATCH_INTERVAL_MS) continue
+      // Tool state transitions bypass the throttle to avoid staleness
+      const toolStates = toolStateSignature(latestParts)
+      const throttled = Date.now() - lastPatch < PATCH_INTERVAL_MS
+      if (throttled && toolStates === lastToolStates) continue
       lastPatch = Date.now()
+      lastToolStates = toolStates
       latestParts = await offload(latestParts)
       if (!(await patchMessage(ctx, streamId, latestParts))) {
         return {

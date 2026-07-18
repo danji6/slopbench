@@ -73,6 +73,22 @@ export function makeOutputPreview(output: unknown): unknown {
   return next
 }
 
+/** Signature of every tool part's lifecycle state. */
+export function toolStateSignature(parts: unknown[]): string {
+  const entries: string[] = []
+  for (const part of parts) {
+    const record = asRecord(part)
+    if (!record) continue
+    if (!record.type.startsWith('tool-') && record.type !== 'dynamic-tool') {
+      continue
+    }
+    entries.push(
+      `${record.toolCallId}:${record.state}:${record.preliminary === true}`,
+    )
+  }
+  return entries.join('|')
+}
+
 export function collectToolOutputStorageIds(
   parts: unknown[],
 ): Id<'_storage'>[] {

@@ -48,6 +48,7 @@ export type ShellJobOptions = {
   post?: PostSidecar
   openStream?: OpenStream
   pollIntervalMs?: number
+  heartbeatMs?: number
 }
 
 type StartResponse = { jobId: string; mode: string }
@@ -239,6 +240,7 @@ async function* consumeConnection(
   try {
     // The first event is processed without a deadline race to make sure
     // the current output is always included
+    const heartbeatMs = options.heartbeatMs ?? HEARTBEAT_MS
     let pending = events.next()
     let step = await pending
     while (true) {
@@ -249,19 +251,26 @@ async function* consumeConnection(
       if (outcome.done) return 'ended'
 
       pending = events.next()
-      const raced = await raceNextEvent(
+      // Heartbeats keep racing the same pending event
+      let raced = await raceNextEvent(
         pending,
         state.lastYield,
         options.waitDeadline,
+        heartbeatMs,
       )
+      while (raced === 'heartbeat') {
+        state.lastYield = Date.now()
+        yield runningPart(jobId, state.output)
+        raced = await raceNextEvent(
+          pending,
+          state.lastYield,
+          options.waitDeadline,
+          heartbeatMs,
+        )
+      }
       if (raced === 'deadline') {
         yield stillRunningOutput(jobId, state.output)
         return 'ended'
-      }
-      if (raced === 'heartbeat') {
-        state.lastYield = Date.now()
-        yield runningPart(jobId, state.output)
-        continue
       }
       step = raced.result
     }
@@ -283,12 +292,13 @@ async function raceNextEvent(
   pending: Promise<IteratorResult<ShellStreamEvent>>,
   lastYield: number,
   deadline: number | undefined,
+  heartbeatMs: number,
 ): Promise<RaceResult> {
   const timers: ReturnType<typeof setTimeout>[] = []
   const contenders: Promise<RaceResult>[] = [
     pending.then((result) => ({ result }) as RaceResult),
     new Promise<RaceResult>((resolve) => {
-      const delay = Math.max(0, HEARTBEAT_MS - (Date.now() - lastYield))
+      const delay = Math.max(0, heartbeatMs - (Date.now() - lastYield))
       timers.push(setTimeout(() => resolve('heartbeat'), delay))
     }),
   ]
