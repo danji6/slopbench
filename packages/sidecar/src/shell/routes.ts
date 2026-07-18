@@ -163,7 +163,8 @@ async function pumpShellJobStream(
   stream: ShellJobStream,
   maxBytes?: number,
 ) {
-  const { initial, status, exitCode, background, registered, events } = stream
+  const { initial, status, exitCode, background, waiting, registered, events } =
+    stream
   let aborted = false
   let sent = 0
   sse.onAbort(() => {
@@ -192,7 +193,10 @@ async function pumpShellJobStream(
 
     if (budgetSpent()) return
 
-    await sse.writeSSE({ event: 'meta', data: JSON.stringify({ background }) })
+    await sse.writeSSE({
+      event: 'meta',
+      data: JSON.stringify({ background, waiting }),
+    })
 
     let pending = events.next()
     while (!aborted && !budgetSpent()) {
@@ -248,7 +252,7 @@ async function writeEvent(
   if (ev.type === 'meta') {
     await sse.writeSSE({
       event: 'meta',
-      data: JSON.stringify({ background: ev.background }),
+      data: JSON.stringify({ background: ev.background, waiting: ev.waiting }),
     })
     return { open: true, bytes: 0 }
   }

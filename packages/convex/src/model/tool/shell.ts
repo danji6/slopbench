@@ -162,6 +162,8 @@ type WatchState = {
   output: TermOutputAccumulator
   offset: number
   lastYield: number
+  /** True when the sidecar reports that the terminal is waiting for input. */
+  waiting: boolean
 }
 
 /** Result of consuming a single SSE connection. */
@@ -177,6 +179,7 @@ async function* watchJob(
     output: new TermOutputAccumulator(),
     offset: 0,
     lastYield: Date.now(),
+    waiting: false,
   }
   let failures = 0
 
@@ -260,7 +263,7 @@ async function* consumeConnection(
       )
       while (raced === 'heartbeat') {
         state.lastYield = Date.now()
-        yield runningPart(jobId, state.output)
+        yield runningPart(jobId, state)
         raced = await raceNextEvent(
           pending,
           state.lastYield,
@@ -338,14 +341,21 @@ function handleStreamEvent(
     state.offset =
       typeof nextOffset === 'number' ? nextOffset : state.offset + text.length
     state.lastYield = Date.now()
-    return { part: runningPart(jobId, state.output) }
+    return { part: runningPart(jobId, state) }
   }
   if (event.event === 'meta') {
-    const { background } = JSON.parse(event.data) as { background: boolean }
+    const { background, waiting } = JSON.parse(event.data) as {
+      background: boolean
+      waiting?: boolean
+    }
     if (options.detachOnBackground && background) {
       return { part: stillRunningOutput(jobId, state.output), done: true }
     }
-    return {}
+    const nextWaiting = waiting ?? false
+    if (nextWaiting === state.waiting) return {}
+    state.waiting = nextWaiting
+    state.lastYield = Date.now()
+    return { part: runningPart(jobId, state) }
   }
   if (event.event === 'end') {
     const { status, exitCode } = JSON.parse(event.data) as {
@@ -360,17 +370,15 @@ function handleStreamEvent(
   return {}
 }
 
-function runningPart(
-  jobId: string,
-  output: TermOutputAccumulator,
-): ShellToolOutput {
+function runningPart(jobId: string, state: WatchState): ShellToolOutput {
   return {
     jobId,
     status: 'running',
     exitCode: null,
     text: '',
-    term: output.term,
-    termOffset: output.termOffset,
+    term: state.output.term,
+    termOffset: state.output.termOffset,
+    waiting: state.waiting,
   }
 }
 

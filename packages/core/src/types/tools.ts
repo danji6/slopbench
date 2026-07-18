@@ -28,6 +28,11 @@ export type ShellToolOutput = {
   term: string
   /** Index of term[0] in the job's full decoded output. */
   termOffset: number
+  /**
+   * True when the sidecar reports that the terminal is waiting for input.
+   * Only meaningful while the job is running.
+   */
+  waiting?: boolean
 }
 
 export type ShellModelToolOutput = {
@@ -42,6 +47,7 @@ export type ShellJobSummary = {
   status: ShellJobStatus
   exitCode: number | null
   background: boolean
+  waiting: boolean
   startedAt: number
   exitedAt?: number
 }
@@ -54,4 +60,5 @@ export type ShellJobPoll = {
   status: ShellJobStatus
   exitCode: number | null
   background: boolean
+  waiting: boolean
 }

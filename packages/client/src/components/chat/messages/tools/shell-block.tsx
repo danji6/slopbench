@@ -5,7 +5,7 @@ import { useIsWorkspaceAdmin } from '@/hooks/chat'
 import { useActiveSessionId } from '@/hooks/chat/session'
 import { type JobTail, useJobTail } from '@/hooks/chat/terminals'
 import { useToolOutput } from '@/hooks/chat/tool-output'
-import { useDebouncedCallback, useDelayedFlag } from '@/hooks/debounce'
+import { useDebouncedCallback } from '@/hooks/debounce'
 import type { ShellToolOutput } from '@/lib/chat'
 import { parseOutputValue } from '@/lib/chat/tool-output'
 import { toast } from '@/lib/notifications'
@@ -86,9 +86,13 @@ export function ShellBlock({
     liveStatus === 'timeout' ||
     liveStatus === 'lost'
 
-  const interactive = useDelayedFlag(
-    isLive && !isBackground && isAdmin && sessionId !== null,
-  )
+  // Auto-expand only when the sidecar reports the job is waiting on terminal input
+  const interactive =
+    Boolean(output?.waiting) &&
+    isLive &&
+    !isBackground &&
+    isAdmin &&
+    sessionId !== null
   // Reveal an interactive terminal only the first time it goes live
   const revealTerminal = useRevealOnce(part.toolCallId, interactive)
 

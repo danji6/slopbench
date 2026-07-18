@@ -20,6 +20,7 @@ type Frame = {
   status?: 'running' | 'done' | 'killed' | 'timeout'
   exitCode?: number | null
   background?: boolean
+  waiting?: boolean
   /** Silence before this frame's events arrive. */
   delayMs?: number
 }
@@ -39,10 +40,13 @@ function framesToEvents(frames: Frame[]): SseEvent[] {
         data: JSON.stringify({ text: frame.chunk, nextOffset: offset }),
       })
     }
-    if (frame.background) {
+    if (frame.background || frame.waiting !== undefined) {
       frameEvents.push({
         event: 'meta',
-        data: JSON.stringify({ background: true }),
+        data: JSON.stringify({
+          background: frame.background ?? false,
+          waiting: frame.waiting ?? false,
+        }),
       })
     }
     if (frame.status && frame.status !== 'running') {
@@ -195,6 +199,37 @@ describe('executeShellJob', () => {
     expect(outputs[0].status).toBe('background')
     expect(outputs[0].text).toContain('job-1')
     expect(streams()).toBe(0)
+  })
+
+  test('carries the sidecar waiting flag into preliminary outputs', async () => {
+    const { post, openStream } = mockSidecar([
+      { chunk: 'Password: ' },
+      { chunk: '', waiting: true },
+      { chunk: 'ok\n', waiting: false, status: 'done', exitCode: 0 },
+    ])
+
+    const outputs = await collect(
+      executeShellJob(
+        context,
+        { command: 'sudo true' },
+        { ...fast, post, openStream },
+      ),
+    )
+
+    const waitingIndex = outputs.findIndex((o) => o.waiting === true)
+    expect(waitingIndex).toBeGreaterThan(-1)
+    expect(outputs[waitingIndex].status).toBe('running')
+
+    // The waiting=false meta clears the flag on a later preliminary part
+    expect(
+      outputs
+        .slice(waitingIndex + 1)
+        .some((o) => o.status === 'running' && o.waiting === false),
+    ).toBe(true)
+
+    const final = outputs.at(-1)
+    expect(final?.status).toBe('done')
+    expect(final?.waiting).toBeUndefined()
   })
 
   test('detaches a foreground job once it is sent to the background', async () => {

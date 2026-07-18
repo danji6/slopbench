@@ -35,6 +35,15 @@ function start(command: string, overrides?: Record<string, unknown>) {
   })
 }
 
+async function waitFor(condition: () => boolean, timeoutMs = 6_000) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (condition()) return
+    await Bun.sleep(100)
+  }
+  throw new Error('Condition not met in time')
+}
+
 async function waitForExit(jobId: string, timeoutMs = 10_000) {
   const deadline = Date.now() + timeoutMs
   let offset = 0
@@ -132,6 +141,25 @@ describe('job registry', () => {
 
     killShellJob(fg.jobId, session.sessionId)
     await waitForExit(fg.jobId)
+  })
+
+  test('reports waiting while a job blocks reading stdin', async () => {
+    const { jobId } = await start('read line; echo "got:$line"')
+    await waitFor(() => pollShellJob(jobId, session.sessionId, 0).waiting)
+
+    writeStdin(jobId, session.sessionId, 'ping\n')
+    const result = await waitForExit(jobId)
+    expect(result.waiting).toBe(false)
+    expect(result.output).toContain('got:ping')
+  })
+
+  test('reports waiting when a job enters the alternate screen', async () => {
+    const { jobId } = await start("printf '\\033[?1049h'; sleep 30")
+    await waitFor(() => pollShellJob(jobId, session.sessionId, 0).waiting)
+
+    killShellJob(jobId, session.sessionId)
+    const result = await waitForExit(jobId)
+    expect(result.waiting).toBe(false)
   })
 
   test('kill_session only kills foreground jobs', async () => {
@@ -278,7 +306,11 @@ describe('job stream', () => {
 
     backgroundShellJob(jobId, session.sessionId)
     const first = await stream.events.next()
-    expect(first.value).toEqual({ type: 'meta', background: true })
+    expect(first.value).toEqual({
+      type: 'meta',
+      background: true,
+      waiting: false,
+    })
 
     stream.unsubscribe()
     killShellJob(jobId, session.sessionId)

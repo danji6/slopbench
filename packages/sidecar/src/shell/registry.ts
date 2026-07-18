@@ -1,3 +1,4 @@
+import { probeStdinWait, scanAltScreen } from './interactive'
 import { type PtyMode, type ShellJobProcess, spawnJob } from './pty'
 
 const MAX_BUFFER_CHARS = 1_000_000
@@ -7,6 +8,7 @@ const MAX_TIMEOUT_S = 1800
 const FINISHED_JOB_TTL_MS = 30 * 60 * 1000
 const SWEEP_INTERVAL_MS = 60 * 1000
 const EXIT_FLUSH_MS = 50
+const WAIT_PROBE_MS = 700
 
 export type ShellJobStatus = 'running' | 'done' | 'killed' | 'timeout'
 
@@ -27,6 +29,7 @@ export type ShellJobSummary = {
   status: ShellJobStatus
   exitCode: number | null
   background: boolean
+  waiting: boolean
   startedAt: number
   exitedAt?: number
   mode: PtyMode
@@ -39,6 +42,7 @@ export type PollResult = {
   status: ShellJobStatus
   exitCode: number | null
   background: boolean
+  waiting: boolean
 }
 
 type ChunkListener = (chunk: string) => void
@@ -87,13 +91,13 @@ export class OutputRing {
 
 export type ShellStreamEvent =
   | { type: 'chunk'; text: string; nextOffset: number }
-  | { type: 'meta'; background: boolean }
+  | { type: 'meta'; background: boolean; waiting: boolean }
   | { type: 'end'; status: ShellJobStatus; exitCode: number | null }
 
 /** Buffers a shell's live output/status into an async iterator for the SSE route. */
 export class ShellJobSubscriber {
   private pendingChunk = ''
-  private pendingMeta: { background: boolean } | null = null
+  private pendingMeta: { background: boolean; waiting: boolean } | null = null
   private ended: { status: ShellJobStatus; exitCode: number | null } | null =
     null
   private wake: (() => void) | null = null
@@ -106,8 +110,8 @@ export class ShellJobSubscriber {
     this.signal()
   }
 
-  onMeta(background: boolean) {
-    this.pendingMeta = { background }
+  onMeta(background: boolean, waiting: boolean) {
+    this.pendingMeta = { background, waiting }
     this.signal()
   }
 
@@ -139,9 +143,9 @@ export class ShellJobSubscriber {
         continue
       }
       if (this.pendingMeta) {
-        const { background } = this.pendingMeta
+        const { background, waiting } = this.pendingMeta
         this.pendingMeta = null
-        yield { type: 'meta', background }
+        yield { type: 'meta', background, waiting }
         continue
       }
       if (this.ended) {
@@ -165,6 +169,12 @@ type ShellJob = {
   endReason?: 'killed' | 'timeout'
   exitCode: number | null
   background: boolean
+  /** Job is waiting on terminal input (blocked stdin read or alt screen). */
+  waiting: boolean
+  stdinWait: boolean
+  altScreen: boolean
+  altCarry: string
+  waitProbe?: ReturnType<typeof setInterval>
   startedAt: number
   exitedAt?: number
   timeoutTimer: ReturnType<typeof setTimeout>
@@ -230,6 +240,10 @@ export async function startShellJob(
     status: 'running',
     exitCode: null,
     background: input.background ?? false,
+    waiting: false,
+    stdinWait: false,
+    altScreen: false,
+    altCarry: '',
     startedAt: Date.now(),
     subscribers: new Set(),
     timeoutTimer: setTimeout(() => {
@@ -239,14 +253,21 @@ export async function startShellJob(
     }, timeoutSeconds * 1000),
   }
 
-  proc.onData((chunk) => job.ring.append(chunk))
+  proc.onData((chunk) => {
+    job.ring.append(chunk)
+    trackAltScreen(job, chunk)
+  })
+
+  startWaitProbe(job)
 
   proc.onExit((exitCode) => {
     // Grace period after exit for the final output
     setTimeout(() => {
+      clearInterval(job.waitProbe)
       clearTimeout(job.timeoutTimer)
       job.exitCode = exitCode
       job.exitedAt = Date.now()
+      job.waiting = false
       if (job.status === 'running') job.status = job.endReason ?? 'done'
       for (const sub of job.subscribers) sub.onEnd(job.status, job.exitCode)
       job.subscribers.clear()
@@ -256,6 +277,38 @@ export async function startShellJob(
   jobs.set(job.jobId, job)
   ensureSweeper()
   return { jobId: job.jobId, mode: proc.mode }
+}
+
+/**
+ * Periodically probes /proc for a blocked stdin read while the job runs.
+ * Skipped in pipe mode, where there is no pty to wait on.
+ */
+function startWaitProbe(job: ShellJob) {
+  const pid = job.proc.pid
+  if (pid === undefined || job.proc.mode === 'pipe') return
+  job.waitProbe = setInterval(() => {
+    if (job.status !== 'running') return
+    const stdinWait = probeStdinWait(pid)
+    if (stdinWait === job.stdinWait) return
+    job.stdinWait = stdinWait
+    updateWaiting(job)
+  }, WAIT_PROBE_MS)
+  job.waitProbe.unref?.()
+}
+
+function trackAltScreen(job: ShellJob, chunk: string) {
+  const scanned = scanAltScreen(job.altCarry + chunk, job.altScreen)
+  job.altCarry = scanned.carry
+  if (scanned.active === job.altScreen) return
+  job.altScreen = scanned.active
+  updateWaiting(job)
+}
+
+function updateWaiting(job: ShellJob) {
+  const waiting = job.status === 'running' && (job.stdinWait || job.altScreen)
+  if (waiting === job.waiting) return
+  job.waiting = waiting
+  for (const sub of job.subscribers) sub.onMeta(job.background, waiting)
 }
 
 function requireJob(jobId: string, sessionId: string): ShellJob {
@@ -280,6 +333,7 @@ export function pollShellJob(
     status: job.status,
     exitCode: job.exitCode,
     background: job.background,
+    waiting: job.waiting,
   }
 }
 
@@ -288,6 +342,7 @@ export type ShellJobStream = {
   status: ShellJobStatus
   exitCode: number | null
   background: boolean
+  waiting: boolean
   registered: boolean // false when the job already ended
   events: AsyncGenerator<ShellStreamEvent>
   unsubscribe: () => void
@@ -321,6 +376,7 @@ export function subscribeShellJob(
     status: job.status,
     exitCode: job.exitCode,
     background: job.background,
+    waiting: job.waiting,
     registered,
     events: sub.events(),
     unsubscribe: () => {
@@ -336,7 +392,7 @@ export function backgroundShellJob(jobId: string, sessionId: string) {
   const job = requireJob(jobId, sessionId)
   if (job.status !== 'running') return
   job.background = true
-  for (const sub of job.subscribers) sub.onMeta(true)
+  for (const sub of job.subscribers) sub.onMeta(true, job.waiting)
 }
 
 export function writeStdin(jobId: string, sessionId: string, data: string) {
@@ -371,6 +427,7 @@ export function listShellJobs(sessionId: string): ShellJobSummary[] {
       status: job.status,
       exitCode: job.exitCode,
       background: job.background,
+      waiting: job.waiting,
       startedAt: job.startedAt,
       exitedAt: job.exitedAt,
       mode: job.proc.mode,
