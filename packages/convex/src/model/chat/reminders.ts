@@ -1,4 +1,4 @@
-import { TODO_NUDGE_INTERVAL_TURNS } from '@sb/core/const'
+import { TODO_NUDGE_INTERVAL_TURNS, TODO_TOOL_TOGGLE } from '@sb/core/const'
 import type { MessageRole, ReminderPrompt } from '@sb/core/types'
 
 import type { Doc, Id } from '../../_generated/dataModel'
@@ -156,6 +156,10 @@ async function injectTodoNudge(
   invokerId: Id<'users'>,
   sender: ReminderSender,
 ) {
+  // The nudge asks for write_todo/edit_todo calls, so it needs the toggle on
+  const tools = sender.agent.tools
+  if (!Array.isArray(tools) || !tools.includes(TODO_TOOL_TOGGLE)) return
+
   const todo = await getTodosBySession(ctx, session._id)
   const turnCount = session.turnCount ?? 0
   if (!todo || !isTodoNudgeDue(todo, turnCount)) return

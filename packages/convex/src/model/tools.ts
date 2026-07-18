@@ -1,4 +1,4 @@
-import { TODO_EDIT_STATUSES } from '@sb/core/const'
+import { TODO_EDIT_STATUSES, TODO_TOOL_TOGGLE } from '@sb/core/const'
 import {
   type McpServer,
   type McpToolMeta,
@@ -112,6 +112,10 @@ export const TOOL_METAS = [
     category: 'workspace',
     requiresAdmin: true,
     requiresWorkspace: true,
+  },
+  {
+    name: TODO_TOOL_TOGGLE,
+    description: 'Track multi-step work with a todo list.',
   },
 ] as const
 
@@ -628,7 +632,8 @@ export async function getEnabledTools(
     await createModeTools(invokerRole, session, options),
   )
 
-  if (options?.ctx && session) {
+  if (options?.ctx && session && names.includes(TODO_TOOL_TOGGLE)) {
+    // One toggle covers both tools
     const todoContext = { ctx: options.ctx, sessionId: session._id }
     withPlanTools.write_todo = await createWriteTodoTool(todoContext)
     withPlanTools.edit_todo = await createEditTodoTool(todoContext)

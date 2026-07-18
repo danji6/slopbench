@@ -16,6 +16,9 @@ export const MESSAGE_WINDOW_MAX_ROWS = 160
 /** Turns without a todo write/edit before unresolved todos trigger a nudge. */
 export const TODO_NUDGE_INTERVAL_TURNS = 10
 
+/** Single agent settings toggle covering both todo tools. */
+export const TODO_TOOL_TOGGLE = 'write_todo / edit_todo'
+
 /** Compact edit_todo statuses mapped to their stored counterparts. */
 export const TODO_EDIT_STATUSES = {
   todo: 'pending',

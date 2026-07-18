@@ -1,7 +1,9 @@
 /// <reference types="bun-types" />
 import { injectDueReminders } from '@sb/convex/model/chat/reminders'
 import { _edit, _write, applyTodoEdits } from '@sb/convex/model/todos'
+import { getEnabledTools } from '@sb/convex/model/tools'
 import type { TodoItem } from '@sb/convex/types'
+import { TODO_NUDGE_INTERVAL_TURNS, TODO_TOOL_TOGGLE } from '@sb/core/const'
 import { describe, expect, test } from 'bun:test'
 
 type CtxArgs = {
@@ -11,7 +13,12 @@ type CtxArgs = {
   todo?: Record<string, unknown> | null
 }
 
-function makeCtx({ agent, settings = null, session, todo = null }: CtxArgs = {}) {
+function makeCtx({
+  agent,
+  settings = null,
+  session,
+  todo = null,
+}: CtxArgs = {}) {
   const inserts: Array<{ table: string; doc: Record<string, unknown> }> = []
   const patches: Array<{ id: string; patch: Record<string, unknown> }> = []
   const deletes: string[] = []
@@ -63,7 +70,12 @@ function todos(...statuses: TodoItem['status'][]): TodoItem[] {
 }
 
 const session = { _id: 'session_1', activeAgentId: 'agent_1', turnCount: 6 }
-const agent = { _id: 'agent_1', name: 'Agent', ownerId: 'user_1' }
+const agent = {
+  _id: 'agent_1',
+  name: 'Agent',
+  ownerId: 'user_1',
+  tools: [TODO_TOOL_TOGGLE],
+}
 
 describe('_write', () => {
   test('creates a pending row stamped with the session turn count', async () => {
@@ -198,10 +210,13 @@ describe('_edit', () => {
 })
 
 describe('injectDueReminders todo nudge', () => {
+  // A todo row exactly one full interval staler than the session
+  const staleSession = { ...session, turnCount: 2 + TODO_NUDGE_INTERVAL_TURNS }
+
   test('injects a stale nudge as a todo message and re-arms the row', async () => {
     const { ctx, inserts, patches } = makeCtx({
       agent,
-      session,
+      session: staleSession,
       todo: {
         _id: 'todo_1',
         items: [{ content: 'ship it', status: 'pending' }],
@@ -209,7 +224,7 @@ describe('injectDueReminders todo nudge', () => {
       },
     })
 
-    await injectDueReminders(ctx, session as never, 'user_1' as never)
+    await injectDueReminders(ctx, staleSession as never, 'user_1' as never)
 
     const message = inserts.find((entry) => entry.table === 'messages')
     expect(message?.doc).toMatchObject({
@@ -226,7 +241,9 @@ describe('injectDueReminders todo nudge', () => {
     expect(part.text).toContain('[ ] ship it')
     expect(part.text).toContain('<system-reminder>')
 
-    expect(patches).toEqual([{ id: 'todo_1', patch: { turnCount: 6 } }])
+    expect(patches).toEqual([
+      { id: 'todo_1', patch: { turnCount: staleSession.turnCount } },
+    ])
   })
 
   test('does nothing before the interval elapses', async () => {
@@ -245,17 +262,60 @@ describe('injectDueReminders todo nudge', () => {
   test('never nudges a fully completed list', async () => {
     const { ctx, inserts, patches } = makeCtx({
       agent,
-      session,
+      session: staleSession,
       todo: {
         _id: 'todo_1',
         items: todos('completed', 'completed'),
-        turnCount: 0,
+        turnCount: 2,
       },
     })
 
-    await injectDueReminders(ctx, session as never, 'user_1' as never)
+    await injectDueReminders(ctx, staleSession as never, 'user_1' as never)
 
     expect(inserts).toEqual([])
     expect(patches).toEqual([])
+  })
+
+  test('never nudges an agent with the todo toggle off', async () => {
+    const { ctx, inserts, patches } = makeCtx({
+      agent: { ...agent, tools: [] },
+      session: staleSession,
+      todo: { _id: 'todo_1', items: todos('pending'), turnCount: 2 },
+    })
+
+    await injectDueReminders(ctx, staleSession as never, 'user_1' as never)
+
+    expect(inserts).toEqual([])
+    expect(patches).toEqual([])
+  })
+})
+
+describe('todo tool toggle', () => {
+  const fakeCtx = {
+    runQuery: async () => null,
+    runMutation: async () => undefined,
+  } as never
+  const toolSession = { _id: 'session_1' } as never
+
+  test('one toggle enables both tools', async () => {
+    const tools = await getEnabledTools(
+      [TODO_TOOL_TOGGLE],
+      undefined,
+      toolSession,
+      null,
+      { ctx: fakeCtx },
+    )
+
+    expect(tools.write_todo).toBeDefined()
+    expect(tools.edit_todo).toBeDefined()
+  })
+
+  test('both tools are hidden when the toggle is off', async () => {
+    const tools = await getEnabledTools([], undefined, toolSession, null, {
+      ctx: fakeCtx,
+    })
+
+    expect(tools.write_todo).toBeUndefined()
+    expect(tools.edit_todo).toBeUndefined()
   })
 })
