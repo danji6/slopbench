@@ -11,7 +11,7 @@ export type AgentArchive = {
 }
 
 const PROMPT_ROLES = ['system', 'user', 'assistant'] as const
-const PROMPT_MARKER_TYPES = ['message-history', 'agents'] as const
+const PROMPT_MARKER_TYPES = ['message-history'] as const
 const SCROLL_MODES = ['follow', 'into-view'] as const
 
 // subAgents is deliberately excluded here as ids don't survive import/export

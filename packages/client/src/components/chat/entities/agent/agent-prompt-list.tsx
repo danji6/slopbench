@@ -1,10 +1,10 @@
 import { PromptList } from '@/components/chat/prompts'
-import { Combobox, RippleButton } from '@/components/ui'
+import { Combobox } from '@/components/ui'
 import { useSettings } from '@/hooks/chat'
 import type { OrderedItem, Prompt } from '@/lib/chat'
-import { mergePrompts, newPrompt, newPromptMarker } from '@/lib/chat/prompts'
+import { mergePrompts, newPrompt } from '@/lib/chat/prompts'
 import type { MergedPromptItem } from '@/lib/chat/prompts'
-import { BookmarkIcon, FileTextIcon } from 'lucide-react'
+import { BookmarkIcon } from 'lucide-react'
 import { useEffect } from 'react'
 import type { Control, UseFormSetValue } from 'react-hook-form'
 import { useController, useWatch } from 'react-hook-form'
@@ -61,9 +61,6 @@ export function AgentPromptList({ control, setValue }: AgentPromptListProps) {
   const availableLibrary = libraryPrompts.filter(
     (p) => !referencedLibraryIds.has(p.id),
   )
-  const hasAgentsMarker = prompts.some(
-    (prompt) => 'type' in prompt && prompt.type === 'agents',
-  )
 
   function handleReorder(order: OrderedItem[]) {
     orderField.onChange(order)
@@ -83,17 +80,6 @@ export function AgentPromptList({ control, setValue }: AgentPromptListProps) {
   function handleAddLibrary(id: string) {
     const order = promptOrder ?? mergeResult.items.map(toOrderedItem)
     orderField.onChange([...order, { kind: 'library' as const, id }])
-  }
-
-  function handleAddAgentsMarker() {
-    const marker = newPromptMarker('agents')
-    promptsField.onChange([...prompts, marker])
-    if (promptOrder) {
-      orderField.onChange([
-        ...promptOrder,
-        { kind: 'own' as const, id: marker.id },
-      ])
-    }
   }
 
   function handleEdit(id: string, data: Partial<Prompt>) {
@@ -118,24 +104,12 @@ export function AgentPromptList({ control, setValue }: AgentPromptListProps) {
       onEdit={handleEdit}
       onDelete={handleDelete}
       extraButtons={
-        <>
-          <RippleButton
-            size="sm"
-            variant="link"
-            className="text-m3-secondary"
-            disabled={hasAgentsMarker}
-            onClick={handleAddAgentsMarker}
-          >
-            <FileTextIcon className="size-4" />
-            AGENTS.md
-          </RippleButton>
-          {libraryPrompts.length > 0 && (
-            <AddFromLibrary
-              prompts={availableLibrary}
-              onSelect={handleAddLibrary}
-            />
-          )}
-        </>
+        libraryPrompts.length > 0 && (
+          <AddFromLibrary
+            prompts={availableLibrary}
+            onSelect={handleAddLibrary}
+          />
+        )
       }
     />
   )

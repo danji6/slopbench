@@ -23,7 +23,7 @@ import { glob } from 'tinyglobby'
 import { z } from 'zod'
 
 import { runCommand } from './command'
-import { expandHome } from './paths'
+import { assertInside, expandHome } from './paths'
 
 const DATA_DIR = process.env.CHAT_SIDECAR_DATA_DIR
 if (!DATA_DIR) throw new Error('Sidecar data directory must be set.')
@@ -36,9 +36,6 @@ const CHECKPOINT_DIR =
 
 const MAX_READ_BYTES = 50_000
 
-const WORKSPACE_INSTRUCTIONS_FILE = 'AGENTS.md'
-const MAX_WORKSPACE_INSTRUCTIONS_BYTES = 64_000
-
 export const bindWorkspaceSchema = z.object({
   sessionId: z.string(),
   root: z.string().min(1),
@@ -50,11 +47,6 @@ export const clearWorkspaceSchema = z.object({
 })
 
 export const restoreCheckpointSchema = z.object({
-  sessionId: z.string(),
-  workspaceId: z.string(),
-})
-
-export const readWorkspaceInstructionsSchema = z.object({
   sessionId: z.string(),
   workspaceId: z.string(),
 })
@@ -179,27 +171,6 @@ export async function readWorkspaceFile(input: {
     content,
     totalLines: lines.length,
     offset,
-    truncated,
-  }
-}
-
-export async function readWorkspaceInstructions(
-  input: z.infer<typeof readWorkspaceInstructionsSchema>,
-) {
-  const workspace = await requireWorkspace(input.sessionId, input.workspaceId)
-  const target = await resolveOptionalWorkspaceInstructions(workspace.root)
-  if (!target) return null
-
-  const buffer = await readFile(target.absolutePath)
-  const raw = buffer.toString('utf-8')
-  const { content, truncated } = capUtf8Content(
-    raw,
-    MAX_WORKSPACE_INSTRUCTIONS_BYTES,
-  )
-
-  return {
-    path: target.relativePath,
-    content,
     truncated,
   }
 }
@@ -505,15 +476,6 @@ export async function resolveExistingPath(root: string, filePath: string) {
   }
 }
 
-async function resolveOptionalWorkspaceInstructions(root: string) {
-  try {
-    return await resolveExistingFile(root, WORKSPACE_INSTRUCTIONS_FILE)
-  } catch (err) {
-    if (isMissingPathError(err) || isNotFileError(err)) return null
-    throw err
-  }
-}
-
 async function resolveWritablePath(root: string, filePath: string) {
   const absolutePath = await resolveWorkspacePath(root, filePath, false)
   return { absolutePath, relativePath: toRelativePath(root, absolutePath) }
@@ -571,21 +533,6 @@ function isMissingPathError(error: unknown) {
   )
 }
 
-function isNotFileError(error: unknown) {
-  return error instanceof Error && error.message === 'Path is not a file'
-}
-
-function assertInside(root: string, candidate: string) {
-  const relative = path.relative(root, candidate)
-  if (
-    relative === '' ||
-    (!relative.startsWith('..') && !path.isAbsolute(relative))
-  ) {
-    return
-  }
-  throw new Error('Path escapes the configured workspace')
-}
-
 function toRelativePath(root: string, absolutePath: string) {
   return path.relative(root, absolutePath).split(path.sep).join('/')
 }
@@ -595,19 +542,6 @@ const MAX_DIFF_BYTES = 50_000
 function capDiff(diff: string): string {
   if (diff.length <= MAX_DIFF_BYTES) return diff
   return `${diff.slice(0, MAX_DIFF_BYTES)}\n[diff truncated]`
-}
-
-function capUtf8Content(content: string, maxBytes: number) {
-  if (Buffer.byteLength(content, 'utf-8') <= maxBytes) {
-    return { content, truncated: false }
-  }
-
-  let capped = content.slice(0, maxBytes)
-  while (Buffer.byteLength(capped, 'utf-8') > maxBytes) {
-    capped = capped.slice(0, -1)
-  }
-
-  return { content: `${capped}\n[truncated]`, truncated: true }
 }
 
 type FileSnapshot = { existed: boolean; content?: string }

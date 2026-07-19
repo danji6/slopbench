@@ -159,10 +159,8 @@ function PromptListItem({
   const [editOpen, setEditOpen] = useState(false)
   const isMarker = 'type' in item
   const isEditable = !isMarker && !isGlobal && !isLibrary
-  const isRemovableMarker =
-    isMarker && !isGlobal && !isLibrary && item.type === 'agents'
   const canCopy = !isMarker
-  const hasMenu = isEditable || isLibrary || isRemovableMarker
+  const hasMenu = isEditable || isLibrary
   const label = isMarker ? getPromptMarkerLabel(item.type) : item.name
 
   return (

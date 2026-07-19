@@ -60,6 +60,11 @@ export const retryStreamNow = authMutation({
   handler: Chat.retryStreamNow,
 })
 
+export const resetPromptSnapshots = authMutation({
+  args: { sessionId: v.id('sessions') },
+  handler: Chat.resetPromptSnapshots,
+})
+
 export const approveTool = authMutation({
   args: V.approveToolArgsValidator,
   handler: Chat.approveTool,

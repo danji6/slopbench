@@ -35,11 +35,6 @@ const messageHistory: PromptItem = {
   type: 'message-history',
 }
 
-const agentsMarker: PromptItem = {
-  id: 'agents-marker',
-  type: 'agents',
-}
-
 const globalSystem: Prompt = {
   id: 'global-system',
   name: 'Global System',
@@ -209,19 +204,6 @@ describe('prompt merging', () => {
     expect(messages).toEqual([{ role: 'user', content: 'Normal user prompt.' }])
   })
 
-  test('non-history markers do not control history placement', () => {
-    const messages = buildPrompts(
-      [firstSystem, agentsMarker, secondSystem],
-      [{ role: 'user', content: 'History message.' }],
-      (value) => value,
-    )
-
-    expect(messages).toEqual([
-      { role: 'system', content: 'First system prompt.' },
-      { role: 'system', content: 'Second system prompt.' },
-      { role: 'user', content: 'History message.' },
-    ])
-  })
 })
 
 const libraryPrompt: Prompt = {

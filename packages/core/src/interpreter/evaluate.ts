@@ -5,17 +5,23 @@ import type { EvalContext, JsonValue, Segment, VariableStore } from './types'
 
 type CompiledFn = (...args: unknown[]) => unknown
 
+/** Host-provided functions exposed to dynamic blocks (all synchronous). */
+export type EvalHelpers = {
+  file?: (path: string, wrap?: boolean) => string
+}
+
 export function evaluate(
   text: string,
   context: EvalContext = {},
   store: VariableStore = createVariableStore(),
+  helpers: EvalHelpers = {},
 ): string {
   const segments = parse(text)
   if (segments.length === 0) return ''
 
   const get = (key: string) => store.get(key)
   const set = (key: string, value: JsonValue) => store.set(key, value)
-  const bindings = sessionBindings(context, get, set)
+  const bindings = sessionBindings(context, get, set, helpers)
   const args = SESSION_ENV_NAMES.map((name) => bindings[name])
 
   const parts: string[] = []
@@ -53,9 +59,11 @@ function sessionBindings(
   context: EvalContext,
   get: (key: string) => JsonValue | undefined,
   set: (key: string, value: JsonValue) => void,
+  helpers: EvalHelpers,
 ): Record<string, unknown> {
   const agent = context.assistant
   return {
+    $file: helpers.file ?? (() => ''),
     user: context.user,
     owner: context.owner,
     agent,

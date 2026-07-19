@@ -14,6 +14,13 @@ import {
   sessionSettingsValidator,
 } from './sub'
 
+export const savePromptSnapshotArgsValidator = v.object({
+  sessionId: v.id('sessions'),
+  agentId: v.id('agents'),
+  items: v.optional(v.array(promptItemValidator)),
+  planItems: v.optional(v.array(promptItemValidator)),
+})
+
 const workspaceTextLinkValidator = v.object({
   kind: v.literal('text'),
   path: v.string(),

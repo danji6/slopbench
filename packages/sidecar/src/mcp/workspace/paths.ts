@@ -12,6 +12,18 @@ export function expandHome(input: string): string {
   return input
 }
 
+/** Throw when `candidate` resolves outside `root`. */
+export function assertInside(root: string, candidate: string) {
+  const relative = path.relative(root, candidate)
+  if (
+    relative === '' ||
+    (!relative.startsWith('..') && !path.isAbsolute(relative))
+  ) {
+    return
+  }
+  throw new Error('Path escapes the configured workspace')
+}
+
 /** Collapse a leading home directory into `~` for display. */
 export function collapseHome(input: string): string {
   const relative = path.relative(HOME, input)

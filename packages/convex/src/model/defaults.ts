@@ -188,6 +188,15 @@ if (user) {
   return \`You refer to the user as \${user}.\`
 }
 \`\`\`
+\`\`\`
+const agentsMd = file('AGENTS.md')
+if (agentsMd) {
+  return \`
+The AGENTS.md file contains important project-specific instructions:
+\${agentsMd}
+\`.trim()
+}
+\`\`\`
 `.trim()
 
 export function createDefaultAgent() {
@@ -202,10 +211,6 @@ export function createDefaultAgent() {
         enabled: true,
         visible: false,
         starter: false,
-      },
-      {
-        id: generateId(),
-        type: 'agents',
       },
       {
         id: generateId(),

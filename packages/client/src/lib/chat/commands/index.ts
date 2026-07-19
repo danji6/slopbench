@@ -4,6 +4,7 @@
 
 export * from './assistant'
 export * from './compact'
+export * from './eval'
 export * from './impersonate'
 export * from './plan'
 export * from './registry'

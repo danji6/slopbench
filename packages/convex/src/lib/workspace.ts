@@ -2,6 +2,7 @@ import type {
   WorkspaceDirectoryLink,
   WorkspaceTextLink,
 } from '@sb/core/types/workspace'
+import { escapeBlockPath, fileBlock } from '@sb/core/workspace/blocks'
 
 import { SUBAGENT_REPORT_PREFIX } from './subagent'
 
@@ -19,18 +20,8 @@ export function toPlanBlock(snapshot: { content: string; status: string }) {
   return `<plan status="${snapshot.status}">\n${snapshot.content}\n</plan>`
 }
 
-/** Collapse control whitespace and escape characters that break the path attribute. */
-export function escapeBlockPath(path: string): string {
-  const normalized = path.trim().replace(/[\r\n\t]+/g, ' ') || 'file'
-  return normalized
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-}
-
 export function toFileBlock(link: WorkspaceTextLink) {
-  return `<file path="${escapeBlockPath(link.path)}">\n${link.content}\n</file>`
+  return fileBlock(link.path, link.content)
 }
 
 export function toDirectoryBlock(link: WorkspaceDirectoryLink) {

@@ -189,6 +189,16 @@ export const planSchema = v.object({
   updatedAt: v.number(),
 })
 
+export const promptSnapshotSchema = v.object({
+  sessionId: v.id('sessions'),
+  agentId: v.id('agents'),
+  /** Evaluated invoke prompts, frozen for this (session, agent). */
+  items: v.array(V.promptItemValidator),
+  /** Evaluated plan-mode framing prompts. Added lazily on first plan invoke. */
+  planItems: v.optional(v.array(V.promptItemValidator)),
+  capturedAt: v.number(),
+})
+
 export const todoSchema = v.object({
   sessionId: v.id('sessions'),
   items: v.array(V.todoItemValidator),

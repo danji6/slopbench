@@ -71,6 +71,7 @@ function ChatSessionContent({
   const invokeAgent = useMutation(api.chat.invokeAgent)
   const resumeAgentMessage = useMutation(api.chat.resumeAgentMessage)
   const impersonate = useMutation(api.chat.impersonate)
+  const resetPromptSnapshots = useMutation(api.chat.resetPromptSnapshots)
   const pendingProcessed = useRef(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [dismissedKeys, setDismissedKeys] = useState(() => new Set<string>())
@@ -161,6 +162,11 @@ function ChatSessionContent({
               name,
             ).catch(handleError)
           break
+        case 'eval':
+          await resetPromptSnapshots({ sessionId: session._id }).catch(
+            handleError,
+          )
+          break
         case 'shortcuts':
           setShowShortcuts(true)
           break
@@ -172,6 +178,7 @@ function ChatSessionContent({
       toggleMode,
       resumeAgentMessage,
       impersonate,
+      resetPromptSnapshots,
       sendMessage,
       handleError,
     ],

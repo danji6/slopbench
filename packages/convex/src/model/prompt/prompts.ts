@@ -57,7 +57,8 @@ export function buildSystemPrompt(
   while (i < prompts.length) {
     const item = prompts[i]
     if (!isPrompt(item) || item.role !== 'system' || !item.enabled) break
-    systemParts.push(render(item.content))
+    const rendered = render(item.content)
+    if (rendered) systemParts.push(rendered)
     i++
   }
 

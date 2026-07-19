@@ -56,7 +56,7 @@ export const promptSchema = z.object({
 
 export const promptMarkerSchema = z.object({
   id: z.string(),
-  type: z.enum(['message-history', 'agents']),
+  type: z.literal('message-history'),
 })
 
 export const promptItemSchema = z.union([promptSchema, promptMarkerSchema])

@@ -2,10 +2,12 @@ import { v } from 'convex/values'
 
 import { internalMutation, internalQuery } from './_generated/server'
 import { authQuery } from './functions'
+import * as Snapshots from './model/prompt/snapshots'
 import * as StreamLifecycle from './model/stream/lifecycle'
 import * as StreamReads from './model/stream/reads'
 import * as StreamSubagents from './model/stream/subagents'
 import {
+  savePromptSnapshotArgsValidator,
   saveStreamMetaArgsValidator,
   scheduleStreamRetryArgsValidator,
 } from './validators/args'
@@ -47,6 +49,11 @@ export const _continue = internalMutation({
 export const _saveMeta = internalMutation({
   args: saveStreamMetaArgsValidator.fields,
   handler: StreamLifecycle._saveMeta,
+})
+
+export const _savePromptSnapshot = internalMutation({
+  args: savePromptSnapshotArgsValidator.fields,
+  handler: Snapshots._save,
 })
 
 export const _complete = internalMutation({

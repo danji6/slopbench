@@ -35,11 +35,10 @@ import {
   previewWorkspaceDiff,
   readWorkspaceFileLink,
   readWorkspaceFileLinkSchema,
-  readWorkspaceInstructions,
-  readWorkspaceInstructionsSchema,
   restoreCheckpointSchema,
   restoreLatestCheckpoint,
 } from './mcp/workspace'
+import { createFileHelper } from './eval/fileHelper'
 import { shellRoutes } from './shell/routes'
 
 const PORT = Number(process.env.MCP_PORT ?? 3212)
@@ -91,11 +90,12 @@ app.post('/eval/prompts', async (c) => {
       environment: Record<string, JsonValue>
     }
     const store = createVariableStore(environment ?? {})
+    const helpers = { file: createFileHelper(context.workDir) }
     const renderedItems = items.map((item) => {
       if ('type' in item || !item.enabled) return item
       return {
         ...item,
-        content: evaluate(item.content as string, context, store),
+        content: evaluate(item.content as string, context, store, helpers),
       }
     })
     return c.json({
@@ -116,9 +116,10 @@ app.post('/eval/message', async (c) => {
       environment: Record<string, JsonValue>
     }
     const store = createVariableStore(environment ?? {})
+    const helpers = { file: createFileHelper(context.workDir) }
     const renderedParts = parts.map((part) =>
       part.type === 'text'
-        ? { ...part, text: evaluate(part.text as string, context, store) }
+        ? { ...part, text: evaluate(part.text as string, context, store, helpers) }
         : part,
     )
     return c.json({
@@ -216,15 +217,6 @@ app.post('/workspace/read-file', async (c) => {
   try {
     const input = readWorkspaceFileLinkSchema.parse(await c.req.json())
     return c.json(await readWorkspaceFileLink(input))
-  } catch (err: unknown) {
-    return ioError(c, err)
-  }
-})
-
-app.post('/workspace/instructions', async (c) => {
-  try {
-    const input = readWorkspaceInstructionsSchema.parse(await c.req.json())
-    return c.json(await readWorkspaceInstructions(input))
   } catch (err: unknown) {
     return ioError(c, err)
   }

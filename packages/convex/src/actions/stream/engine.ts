@@ -150,22 +150,40 @@ async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
 
   const operationPlan = createOperationPlan(data)
 
-  const evalContext = await buildEvalContext({
-    agent: data.agent,
-    invoker: data.invoker,
-    invokerSettings: data.invokerSettings,
-    owner: data.owner,
-    ownerSettings: data.ownerSettings,
-    session: data.session,
-    userCount: data.userCount,
-    agentCount: data.agentCount,
-  })
-
-  const evalResult = await postSidecar<PromptEvalResult>('/eval/prompts', {
-    items: operationPlan.evalItems,
-    context: evalContext,
+  // Frozen prompts skip evaluation (see snapshots.ts)
+  let evalResult: PromptEvalResult = {
+    items: [],
     environment: (data.session.environment as Record<string, unknown>) ?? {},
-  })
+    dirty: false,
+  }
+
+  if (operationPlan.evalItems.length > 0) {
+    const evalContext = await buildEvalContext({
+      agent: data.agent,
+      invoker: data.invoker,
+      invokerSettings: data.invokerSettings,
+      owner: data.owner,
+      ownerSettings: data.ownerSettings,
+      session: data.session,
+      userCount: data.userCount,
+      agentCount: data.agentCount,
+    })
+
+    evalResult = await postSidecar<PromptEvalResult>('/eval/prompts', {
+      items: operationPlan.evalItems,
+      context: evalContext,
+      environment: evalResult.environment,
+    })
+
+    const patch = operationPlan.snapshotPatch(evalResult)
+    if (patch) {
+      await ctx.runMutation(internal.streams._savePromptSnapshot, {
+        sessionId: data.stream.sessionId,
+        agentId: data.stream.agentId,
+        ...patch,
+      })
+    }
+  }
 
   const { systemPrompt, messages, tools } = await operationPlan.buildRequest(
     ctx,

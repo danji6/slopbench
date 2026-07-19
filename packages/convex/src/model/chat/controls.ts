@@ -1,7 +1,9 @@
 import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'
+import { error } from '../../errors'
 import type { AuthMutationCtx } from '../../functions'
 import { scheduleTitle } from '../messages'
+import { removeForSession as removePromptSnapshots } from '../prompt/snapshots'
 import * as Memberships from '../session/memberships'
 import { STREAM_LEASE_MS } from '../stream/lifecycle'
 
@@ -32,6 +34,23 @@ export async function stopStream(
   await ctx.scheduler.runAfter(0, internal.streams._finalizeStopped, {
     streamId: stream._id,
   })
+}
+
+/**
+ * Drops the session's prompt snapshots, forcing re-evaluation on the next
+ * invocation.
+ */
+export async function resetPromptSnapshots(
+  ctx: AuthMutationCtx,
+  { sessionId }: { sessionId: Id<'sessions'> },
+) {
+  await Memberships.requireMember(ctx, sessionId, ctx.userId)
+
+  if (await Memberships.getActiveStream(ctx, sessionId)) {
+    error('Cannot re-evaluate prompts while the agent is responding', 409)
+  }
+
+  await removePromptSnapshots(ctx, sessionId)
 }
 
 export async function retryStreamNow(

@@ -3,7 +3,10 @@
 import type { ToolSet } from 'ai'
 
 import type { ActionCtx } from '../../_generated/server'
-import { resolveDynamicPromptMarkers } from '../../model/prompt/dynamic'
+import {
+  planSnapshotEval,
+  type SnapshotPatch,
+} from '../../model/prompt/snapshots'
 import {
   buildExtraInstructions,
   buildPromptMessages,
@@ -33,6 +36,8 @@ export type ProviderRequest = {
 
 type OperationPlan = {
   evalItems: WirePromptItem[]
+  /** Snapshot rows to persist after eval; null for one-shot operations. */
+  snapshotPatch: (evalResult: PromptEvalResult) => SnapshotPatch | null
   buildRequest: (
     ctx: ActionCtx,
     data: StreamContext,
@@ -64,18 +69,24 @@ function createInvokePlan(
   data: StreamContext,
   prompts: WirePromptItem[],
 ): OperationPlan {
-  const planPrompts =
-    data.stream.mode === 'plan'
+  const planMode = data.stream.mode === 'plan'
+  const plan = planSnapshotEval({
+    snapshot: data.promptSnapshot,
+    planMode,
+    planPrompts: planMode
       ? resolvePlanPrompts(
           data.agent.planPrompts ?? data.settings?.planPrompts,
           !!data.session.parent,
         )
-      : []
+      : [],
+    prompts,
+  })
 
   return {
-    evalItems: [...planPrompts, ...prompts],
+    evalItems: plan.evalItems,
+    snapshotPatch: (evalResult) => plan.snapshotPatch(evalResult.items),
     buildRequest: (ctx, data, evalResult) =>
-      buildInvokeRequest(ctx, data, evalResult.items),
+      buildInvokeRequest(ctx, data, plan.requestItems(evalResult.items)),
   }
 }
 
@@ -89,6 +100,7 @@ function createCompactPlan(
 
   return {
     evalItems: [...compactionPrompts, ...prompts],
+    snapshotPatch: () => null,
     buildRequest: (ctx, data, evalResult) =>
       buildFramedRequest(ctx, data, evalResult.items, compactionPrompts.length),
   }
@@ -104,6 +116,7 @@ function createImpersonatePlan(
 
   return {
     evalItems: [...impersonationPrompts, ...prompts],
+    snapshotPatch: () => null,
     buildRequest: (ctx, data, evalResult) =>
       buildFramedRequest(
         ctx,
@@ -119,9 +132,8 @@ async function buildInvokeRequest(
   data: StreamContext,
   prompts: WirePromptItem[],
 ): Promise<ProviderRequest> {
-  const resolvedPrompts = await resolveDynamicPromptMarkers(data, prompts)
   const { systemPrompt, remainingPrompts } = buildSystemPrompt(
-    resolvedPrompts,
+    prompts,
     (value) => value,
   )
   const [{ getEnabledTools }, messages] = await Promise.all([
@@ -162,10 +174,8 @@ async function buildFramedRequest(
   prompts: WirePromptItem[],
   framingPromptCount: number,
 ): Promise<ProviderRequest> {
-  const [framingPrompts, normalPrompts] = await Promise.all([
-    resolveDynamicPromptMarkers(data, prompts.slice(0, framingPromptCount)),
-    resolveDynamicPromptMarkers(data, prompts.slice(framingPromptCount)),
-  ])
+  const framingPrompts = prompts.slice(0, framingPromptCount)
+  const normalPrompts = prompts.slice(framingPromptCount)
   const { beforeHistory, afterHistory } = splitAtMessageHistory(framingPrompts)
   const { systemPrompt, remainingPrompts } = buildSystemPrompt(
     [...beforeHistory, ...normalPrompts],
