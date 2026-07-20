@@ -90,6 +90,14 @@ function RowShell({ message, messageMeta, row, children }: RowShellProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [message.parts],
   )
+
+  // Only group rows hold parts that can legitimately shrink. Header/footer keep
+  // the plain version key to keep their height stable.
+  const growKey =
+    row.kind === 'group'
+      ? `${messageMeta?.selectedVersion}:${isStreaming}:${structureSig}`
+      : messageMeta?.selectedVersion
+
   const canMutate = canMutateMessage(message, messageMeta, session, profile)
   const canEdit = useMemo(
     () => canMutate && isEditableMessage(message),
@@ -143,11 +151,7 @@ function RowShell({ message, messageMeta, row, children }: RowShellProps) {
           roleClass,
         )}
       >
-        <GrowOnly
-          growKey={`${messageMeta?.selectedVersion}:${isStreaming}:${structureSig}`}
-        >
-          {children}
-        </GrowOnly>
+        <GrowOnly growKey={growKey}>{children}</GrowOnly>
       </div>
     </MessageContextMenu>
   )

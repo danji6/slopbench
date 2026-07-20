@@ -317,9 +317,9 @@ export function ChatSessionView({
                       showApproval && 'hidden',
                     )}
                   >
+                    <TerminalsWidget className="bg-background/80 h-9 px-3 backdrop-blur-md" />
                     <TodosWidget className="bg-background/80 h-9 px-3 backdrop-blur-md" />
                     <SubagentsWidget className="bg-background/80 h-9 px-3 backdrop-blur-md" />
-                    <TerminalsWidget className="bg-background/80 h-9 px-3 backdrop-blur-md" />
                   </div>
                   <ChatComposer
                     onSubmit={handleSubmit}
