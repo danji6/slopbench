@@ -2,6 +2,7 @@ import { handleSelectAllDelete } from '@/lib/editor-clear'
 import { getHighlighter } from '@/lib/shiki/core'
 import { theme, themeName } from '@/lib/shiki/theme'
 import { CodeEdit } from '@/lib/tiptap/extensions/code-edit'
+import { SnippetStops } from '@/lib/tiptap/extensions/snippet-stops'
 import { cn } from '@/lib/utils'
 import { Node } from '@tiptap/core'
 import { Placeholder } from '@tiptap/extension-placeholder'
@@ -88,6 +89,7 @@ export function CodeEditor({
         lineNumbers,
       }),
       CodeEdit,
+      SnippetStops,
       // Mutually exclusive with the gutter (shared pre::before pseudo-element)
       ...(placeholder && !lineNumbers
         ? [Placeholder.configure({ placeholder })]

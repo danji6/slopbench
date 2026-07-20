@@ -11,7 +11,7 @@ import {
   Switch,
 } from '@/components/ui'
 import type { Prompt } from '@/lib/chat'
-import { SESSION_ENV, type SessionEnvEntry } from '@sb/core/interpreter/env'
+import { PROMPT_CONTENT_GUIDE } from '@sb/core/interpreter/guide'
 import { capitalize } from '@sb/core/utils/strings'
 import { useEffect } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
@@ -185,7 +185,7 @@ export function PromptEditor({
           <div className="flex min-h-0 flex-1 flex-col gap-2">
             <HelpDialogLabel
               title="Content Guide"
-              help={<MarkdownRenderer>{contentGuide}</MarkdownRenderer>}
+              help={<MarkdownRenderer>{PROMPT_CONTENT_GUIDE}</MarkdownRenderer>}
             >
               Content
             </HelpDialogLabel>
@@ -223,44 +223,3 @@ export function PromptEditor({
     </Dialog>
   )
 }
-
-const kindOf = (entry: SessionEnvEntry) =>
-  entry.name.startsWith('$') ? 'function' : 'variable'
-
-const envTableRows = SESSION_ENV.map(
-  (entry) => `| \`${entry.name}\` | ${entry.description} | ${kindOf(entry)} |`,
-).join('\n')
-
-const fence = '` $``` `'
-
-export const contentGuide = `
-You can write JavaScript code in the content of your prompts. Code is evaluated before sending a
-message and the output replaces the block itself. This is useful when you want to inject dynamic
-values into your prompts, like the current user's name, or values from previous messages.
-
-To write a dynamic code block, type \`$\` followed by three backticks (${fence}):
-
-\`\`\`js
-function calculate() { ... }
-
-// Get a value from the current session:
-let value = $get('myValue')
-
-if (!value) {
-  // Store a value in the current session:
-  value = calculate()
-  $set('myValue', value)
-}
-
-return \`The result is \${value}\`
-\`\`\`
-
-Alternatively you can write inline code by wrapping your expression within double curly braces:
-\`{{user ?? 'Bob'}}\`
-
-**Supported variables and functions**
-
-| Name | Description | Type |
-|------|-------------|------|
-${envTableRows}
-`.trim()

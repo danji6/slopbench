@@ -12,12 +12,12 @@ import {
   Switch,
 } from '@/components/ui'
 import type { ReminderPrompt } from '@/lib/chat'
+import { PROMPT_CONTENT_GUIDE } from '@sb/core/interpreter/guide'
 import { capitalize } from '@sb/core/utils/strings'
 import { useEffect } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 
 import { PromptContentEditor } from './prompt-content-editor'
-import { contentGuide } from './prompt-editor'
 
 type FormValues = Pick<
   ReminderPrompt,
@@ -180,7 +180,7 @@ export function ReminderEditor({
           <div className="flex min-h-0 flex-1 flex-col gap-2">
             <HelpDialogLabel
               title="Content Guide"
-              help={<MarkdownRenderer>{contentGuide}</MarkdownRenderer>}
+              help={<MarkdownRenderer>{PROMPT_CONTENT_GUIDE}</MarkdownRenderer>}
             >
               Content
             </HelpDialogLabel>

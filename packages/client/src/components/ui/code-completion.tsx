@@ -1,4 +1,8 @@
 import { Command } from '@/components/ui/command'
+import {
+  type SnippetStop,
+  activateSnippet,
+} from '@/lib/tiptap/extensions/snippet-stops'
 import { TextSelection, type Transaction } from '@tiptap/pm/state'
 import type { Editor } from '@tiptap/react'
 import Fuse from 'fuse.js'
@@ -11,7 +15,11 @@ export type Completion = {
   label: string
   /** Secondary text shown on the right. */
   detail?: string
-  /** The completion. Use `$0` to position the cursor. */
+  /**
+   * The inserted text. Supports numbered tab stops the user cycles through with
+   * Tab (`$1`, `$2`, …), an optional final caret (`$0`), and `${n:label}`
+   * placeholders whose label is pre-selected. A bare `$0` positions the caret.
+   */
   snippet?: string
 }
 
@@ -22,8 +30,9 @@ export type Completion = {
  */
 export type CompletionSource = Completion[] | ((query: string) => Completion[])
 
-const CARET_MARKER = '$0'
 const WORD_RE = /[\p{L}\p{N}_$]+$/u
+/** `$1`, `$2`, … or `${1:label}` tab-stop markers within a snippet. */
+const STOP_RE = /\$(\d+)|\$\{(\d+):([^}]*)\}/g
 const APPEAR_DELAY_MS = 250
 
 type CompletionContext = {
@@ -250,29 +259,69 @@ function getCompletionContext(editor: Editor): CompletionContext | null {
   }
 }
 
-/** Inserts a completion and returns the word before the caret, if any. */
+/** Inserts a completion and returns the word before the first stop, if any. */
 function acceptCompletion(
   editor: Editor,
   context: CompletionContext,
   completion: Completion,
 ): string | null {
-  const snippet = completion.snippet ?? completion.label
-  const marker = snippet.indexOf(CARET_MARKER)
-  const text = marker === -1 ? snippet : snippet.replace(CARET_MARKER, '')
-  const caretOffset = marker === -1 ? text.length : marker
+  const { text, stops } = parseSnippet(completion.snippet ?? completion.label)
+  const first = stops[0] ?? { start: text.length, end: text.length }
 
   editor
     .chain()
     .focus()
     .command(({ tr }) => {
       tr.insertText(text, context.from, context.to)
-      tr.setSelection(TextSelection.create(tr.doc, context.from + caretOffset))
+      tr.setSelection(
+        TextSelection.create(
+          tr.doc,
+          context.from + first.start,
+          context.from + first.end,
+        ),
+      )
       return true
     })
     .run()
 
-  return text.slice(0, caretOffset).match(WORD_RE)?.[0] ?? null
+  const absolute: SnippetStop[] = stops.map((stop) => ({
+    from: context.from + stop.start,
+    to: context.from + stop.end,
+  }))
+  activateSnippet(editor.view, absolute)
+
+  return text.slice(0, first.start).match(WORD_RE)?.[0] ?? null
 }
+
+/** A tab stop's offsets relative to the start of the inserted text. */
+type ParsedStop = { start: number; end: number }
+
+/**
+ * Expands a snippet into plain text plus ordered tab stops. Stops are sorted by
+ * their number, with `$0` (the exit caret) always placed last.
+ */
+function parseSnippet(snippet: string): { text: string; stops: ParsedStop[] } {
+  let text = ''
+  let last = 0
+  const numbered: { num: number; start: number; end: number }[] = []
+
+  for (const match of snippet.matchAll(STOP_RE)) {
+    text += snippet.slice(last, match.index)
+    last = match.index + match[0].length
+    const num = Number(match[1] ?? match[2])
+    const label = match[3] ?? ''
+    const start = text.length
+    text += label
+    numbered.push({ num, start, end: text.length })
+  }
+  text += snippet.slice(last)
+
+  numbered.sort((a, b) => stopRank(a.num) - stopRank(b.num))
+  return { text, stops: numbered.map(({ start, end }) => ({ start, end })) }
+}
+
+/** `$0` is the final stop; everything else keeps its natural order. */
+const stopRank = (num: number) => (num === 0 ? Infinity : num)
 
 function makeFuse(completions: Completion[]): Fuse<Completion> {
   return new Fuse(completions, {
@@ -309,7 +358,7 @@ function isAbbreviationMatch(label: string, query: string): boolean {
   let firstStart = -1
   let firstRun = 0
 
-  for (let qi = 0; qi < q.length; ) {
+  for (let qi = 0; qi < q.length;) {
     let pos = -1
     for (let i = li; i < lower.length; i++) {
       if (isWordBoundary(label, i) && lower[i] === q[qi]) {

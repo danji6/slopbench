@@ -9,6 +9,7 @@ import {
   DYNAMIC_LANG,
   DynamicBlock,
 } from '@/lib/tiptap/extensions/dynamic-block'
+import { SnippetStops } from '@/lib/tiptap/extensions/snippet-stops'
 import { pasteCollapsedText } from '@/lib/tiptap/paste'
 import { serializeBlocksToMarkdown } from '@/lib/tiptap/serialize'
 import { cn } from '@/lib/utils'
@@ -66,6 +67,7 @@ export function PromptContentEditor({
       }),
       Markdown,
       CodeEdit,
+      SnippetStops,
       DynamicBlock,
       ...(placeholder ? [Placeholder.configure({ placeholder })] : []),
     ],

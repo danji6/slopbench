@@ -1,12 +1,12 @@
 import type { Completion } from '@/components/ui/code-completion'
 import { DYNAMIC_LANG } from '@/lib/tiptap/extensions/dynamic-block'
-import { SESSION_ENV } from '@sb/core/interpreter/env'
+import { SESSION_ENV, isEnvFunction } from '@sb/core/interpreter/env'
 import type { Editor } from '@tiptap/react'
 
 /** Session env entries offered while typing inside a dynamic block. */
 const SESSION_COMPLETIONS: Completion[] = SESSION_ENV.map((entry) => ({
   label: entry.name,
-  detail: entry.name.startsWith('$') ? 'function' : 'variable',
+  detail: isEnvFunction(entry) ? 'function' : 'variable',
   snippet: entry.snippet,
 }))
 

@@ -93,7 +93,7 @@ export const SESSION_ENV: SessionEnvEntry[] = [
     snippet: "file('${1:path}')",
   },
   {
-    name: 'get',
+    name: 'getVar',
     description: 'Get a value from the current session',
     params: [
       {
@@ -101,10 +101,10 @@ export const SESSION_ENV: SessionEnvEntry[] = [
         description: 'Name of the stored value to read back',
       },
     ],
-    snippet: "get('${1:key}')",
+    snippet: "getVar('${1:key}')",
   },
   {
-    name: 'set',
+    name: 'setVar',
     description: 'Store a value in the current session',
     params: [
       {
@@ -116,7 +116,7 @@ export const SESSION_ENV: SessionEnvEntry[] = [
         description: 'Any JSON-serializable value to persist for the session',
       },
     ],
-    snippet: "set('${1:key}', ${2:value})",
+    snippet: "setVar('${1:key}', ${2:value})",
   },
 ]
 

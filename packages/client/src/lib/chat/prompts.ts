@@ -7,7 +7,7 @@ import type { EvalContext } from '@sb/core/interpreter/types'
 
 import { generateId } from '../utils'
 
-/** Preview eval outside of a session env. `$get/$set` are no-ops. */
+/** Preview eval outside of a session env. `getVar/setVar` are no-ops. */
 export function evaluatePromptPreview(
   content: string,
   context: EvalContext,

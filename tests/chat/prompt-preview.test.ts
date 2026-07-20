@@ -41,19 +41,19 @@ describe('evaluatePromptPreview', () => {
     expect(evaluatePromptPreview('{{ userCount }}', {})).toBe('0')
   })
 
-  test('treats $get/$set as no-ops without throwing', () => {
+  test('treats getVar/setVar as no-ops without throwing', () => {
     const out = evaluatePromptPreview(
-      'before\n$```\n$set("x", 1)\nreturn $get("x")\n```\nafter',
+      'before\n$```\nsetVar("x", 1)\nreturn getVar("x")\n```\nafter',
       context,
     )
-    // $get reads from the throwaway store seeded within the same evaluation.
+    // getVar reads from the throwaway store seeded within the same evaluation.
     expect(out).toContain('before')
     expect(out).toContain('after')
   })
 
-  test('renders an unknown $get as empty', () => {
-    expect(evaluatePromptPreview('value:{{ $get("missing") }}', context)).toBe(
-      'value:',
-    )
+  test('renders an unknown getVar as empty', () => {
+    expect(
+      evaluatePromptPreview('value:{{ getVar("missing") }}', context),
+    ).toBe('value:')
   })
 })

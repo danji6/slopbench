@@ -63,7 +63,7 @@ function sessionBindings(
 ): Record<string, unknown> {
   const agent = context.assistant
   return {
-    $file: helpers.file ?? (() => ''),
+    file: helpers.file ?? (() => ''),
     user: context.user,
     owner: context.owner,
     agent,
@@ -75,8 +75,8 @@ function sessionBindings(
     userCount: context.userCount ?? 0,
     agentCount: context.agentCount ?? 0,
     workDir: context.workDir,
-    $get: get,
-    $set: set,
+    getVar: get,
+    setVar: set,
   }
 }
 
