@@ -17,6 +17,7 @@ import type {
   UpdateSessionArgs,
 } from '../../types'
 import * as Avatars from '../avatars'
+import { injectWorkspaceNote } from '../chat/notes'
 import { deleteVersions } from '../messageContents'
 import { demoteToDraft } from '../plans'
 import { findModelEntry } from '../provider/providers'
@@ -397,9 +398,12 @@ export async function _patchWorkspace(
     workspace: { workspaceId: string; label: string; path: string } | null
   },
 ) {
-  await ctx.db.patch(args.sessionId, {
-    workspace: args.workspace ?? undefined,
-  })
+  const session = await ctx.db.get(args.sessionId)
+  if (!session) return
+
+  const workspace = args.workspace ?? undefined
+  await injectWorkspaceNote(ctx, session, workspace)
+  await ctx.db.patch(args.sessionId, { workspace })
 }
 
 export async function _patchLastRequestBody(

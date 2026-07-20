@@ -19,6 +19,7 @@ import {
   AlarmClockIcon,
   CopyIcon,
   EyeOffIcon,
+  FolderSyncIcon,
   ListTodoIcon,
   Trash2Icon,
 } from 'lucide-react'
@@ -49,6 +50,14 @@ function chipPresentation(record: MessageRecord | undefined): ChipPresentation {
         label: 'Todo reminder',
         noun: 'reminder',
       }
+    case 'workspace': {
+      const label = messageExtra(record, 'workspace')?.label
+      return {
+        icon: FolderSyncIcon,
+        label: label ? `Workspace • ${label}` : 'Workspace unbound',
+        noun: 'note',
+      }
+    }
     default:
       return { icon: EyeOffIcon, label: 'Hidden message', noun: 'message' }
   }

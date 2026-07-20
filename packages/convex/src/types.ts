@@ -46,6 +46,8 @@ export type SessionParticipant = CoreSessionParticipant<
 export type MessageExtra = {
   /** Snapshot of the reminder prompt that produced an injected message. */
   reminder: { id: string; name: string }
+  /** Label of the workspace bound by the change, absent when unbound. */
+  workspace: { label?: string }
 }
 
 export type SessionListItem = CoreSessionListItem<

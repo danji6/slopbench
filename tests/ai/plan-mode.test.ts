@@ -428,7 +428,7 @@ describe('plan mode reminders', () => {
     const output = await tools.read_file!.execute?.({} as never, {} as never)
 
     expect(output).toContain('file contents')
-    expect(output).toContain('<system-reminder>Plan mode is active')
+    expect(output).toContain('<system-reminder>\nPlan mode is active')
   })
 
   test('stays silent outside plan mode', async () => {
@@ -465,7 +465,7 @@ describe('plan mode reminders', () => {
 
     expect(outputs[0]?.text).toBe('')
     expect(outputs.at(-1)?.text).toContain(
-      '<system-reminder>Plan mode is active',
+      '<system-reminder>\nPlan mode is active',
     )
   })
 

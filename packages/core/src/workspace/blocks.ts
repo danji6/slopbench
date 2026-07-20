@@ -1,14 +1,11 @@
-/** Collapse control whitespace and escape characters that break the path attribute. */
-export function escapeBlockPath(path: string): string {
-  const normalized = path.trim().replace(/[\r\n\t]+/g, ' ') || 'file'
-  return normalized
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
+import { block } from '../utils/blocks'
+
+/** Normalize a path for a block attribute (escaping happens at render). */
+export function blockPath(path: string): string {
+  return path.trim() || 'file'
 }
 
-/** Wrap file content in the canonical `<file path="...">` context block. */
+/** Wrap file content in a `<file path="...">` block. */
 export function fileBlock(path: string, content: string): string {
-  return `<file path="${escapeBlockPath(path)}">\n${content}\n</file>`
+  return block('file', content, { path: blockPath(path) })
 }

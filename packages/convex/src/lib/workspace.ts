@@ -2,7 +2,8 @@ import type {
   WorkspaceDirectoryLink,
   WorkspaceTextLink,
 } from '@sb/core/types/workspace'
-import { escapeBlockPath, fileBlock } from '@sb/core/workspace/blocks'
+import { block, closeBlock, openBlock } from '@sb/core/utils/blocks'
+import { blockPath, fileBlock } from '@sb/core/workspace/blocks'
 
 import { SUBAGENT_REPORT_PREFIX } from './subagent'
 
@@ -17,7 +18,7 @@ export const INJECTED_BLOCK_PREFIXES = [
 ]
 
 export function toPlanBlock(snapshot: { content: string; status: string }) {
-  return `<plan status="${snapshot.status}">\n${snapshot.content}\n</plan>`
+  return block('plan', snapshot.content, { status: snapshot.status })
 }
 
 export function toFileBlock(link: WorkspaceTextLink) {
@@ -25,13 +26,15 @@ export function toFileBlock(link: WorkspaceTextLink) {
 }
 
 export function toDirectoryBlock(link: WorkspaceDirectoryLink) {
-  return `<directory path="${escapeBlockPath(link.path)}">\n${link.entries.join('\n')}\n</directory>`
+  return block('directory', link.entries.join('\n'), {
+    path: blockPath(link.path),
+  })
 }
 
 export function openFileBlock(path: string) {
-  return `<file path="${escapeBlockPath(path)}">`
+  return openBlock('file', { path: blockPath(path) })
 }
 
 export function closeFileBlock() {
-  return '</file>'
+  return closeBlock('file')
 }

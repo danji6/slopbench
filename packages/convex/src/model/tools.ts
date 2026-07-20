@@ -14,6 +14,7 @@ import {
   webSearchQuerySchema,
   writeFileFields,
 } from '@sb/core/types'
+import { systemReminder } from '@sb/core/utils/blocks'
 import type { ToolSet } from 'ai'
 
 import { internal } from '../_generated/api'
@@ -698,10 +699,10 @@ async function isPlanMode(
   return mode === 'plan'
 }
 
-const PLAN_MODE_REMINDER =
-  '<system-reminder>' +
-  'Plan mode is active, you CANNOT make any changes. Keep researching and refine the plan.' +
-  '</system-reminder>'
+const PLAN_MODE_REMINDER = systemReminder(
+  'Plan mode is active, you CANNOT make any changes. ' +
+    'Keep researching and refine the plan.',
+)
 
 /** Tools whose outputs skip the plan mode reminder. */
 const REMINDER_EXEMPT_TOOL_NAMES = new Set([

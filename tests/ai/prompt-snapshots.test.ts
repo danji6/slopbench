@@ -16,7 +16,9 @@ function prompt(name: string, content = `${name} raw`): WirePromptItem {
 
 function evaluated(items: WirePromptItem[]): WirePromptItem[] {
   return items.map((item) =>
-    'content' in item ? { ...item, content: `${item.content} (evaluated)` } : item,
+    'content' in item
+      ? { ...item, content: `${item.content} (evaluated)` }
+      : item,
   )
 }
 
@@ -26,7 +28,7 @@ const planPrompts = [prompt('plan-framing')]
 describe('planSnapshotEval', () => {
   test('no snapshot: evaluates everything and freezes items', () => {
     const plan = planSnapshotEval({
-      snapshot: null,
+      cache: null,
       planMode: false,
       planPrompts: [],
       prompts,
@@ -41,7 +43,7 @@ describe('planSnapshotEval', () => {
   test('frozen snapshot in normal mode: no eval, request from snapshot', () => {
     const items = evaluated(prompts)
     const plan = planSnapshotEval({
-      snapshot: { items },
+      cache: { items },
       planMode: false,
       planPrompts: [],
       prompts,
@@ -54,7 +56,7 @@ describe('planSnapshotEval', () => {
   test('first plan-mode invoke on a frozen base: plan block only', () => {
     const items = evaluated(prompts)
     const plan = planSnapshotEval({
-      snapshot: { items },
+      cache: { items },
       planMode: true,
       planPrompts,
       prompts,
@@ -68,7 +70,7 @@ describe('planSnapshotEval', () => {
 
   test('no snapshot in plan mode: evaluates and splits both blocks', () => {
     const plan = planSnapshotEval({
-      snapshot: null,
+      cache: null,
       planMode: true,
       planPrompts,
       prompts,
@@ -87,7 +89,7 @@ describe('planSnapshotEval', () => {
     const items = evaluated(prompts)
     const planItems = evaluated(planPrompts)
     const plan = planSnapshotEval({
-      snapshot: { items, planItems },
+      cache: { items, planItems },
       planMode: true,
       planPrompts,
       prompts,
@@ -101,7 +103,7 @@ describe('planSnapshotEval', () => {
     const items = evaluated(prompts)
     const planItems = evaluated(planPrompts)
     const plan = planSnapshotEval({
-      snapshot: { items, planItems },
+      cache: { items, planItems },
       planMode: false,
       planPrompts: [],
       prompts,

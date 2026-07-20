@@ -1,11 +1,10 @@
 import { TODO_NUDGE_INTERVAL_TURNS, TODO_TOOL_TOGGLE } from '@sb/core/const'
-import type { MessageRole, ReminderPrompt } from '@sb/core/types'
+import type { ReminderPrompt } from '@sb/core/types'
+import { systemReminder } from '@sb/core/utils/blocks'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import type { MessageExtra, TodoItem } from '../../types'
-import { insertMessage } from '../messageContents'
-import { scheduleMessageEval } from '../messages'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 import {
   formatTodoList,
@@ -13,6 +12,8 @@ import {
   hasUnresolvedTodos,
 } from '../todos'
 import { agentSenderSnapshot } from './identities'
+import { insertHiddenNote } from './notes'
+import type { NoteSender } from './notes'
 
 type ReminderState = Record<string, number>
 
@@ -76,8 +77,7 @@ export function isTodoNudgeDue(
 }
 
 export function buildTodoNudgeContent(items: TodoItem[]) {
-  return [
-    '<system-reminder>',
+  return systemReminder(
     'Your todo list has not been updated in a while. Current todos:',
     '',
     formatTodoList(items),
@@ -85,8 +85,7 @@ export function buildTodoNudgeContent(items: TodoItem[]) {
     'Continue the task if it still applies and update statuses with ' +
       'edit_todo as you make progress, or clear the list with an empty ' +
       'write_todo call if it is no longer relevant.',
-    '</system-reminder>',
-  ].join('\n')
+  )
 }
 
 /**
@@ -104,7 +103,7 @@ export async function injectDueReminders(
   if (!agent) return
 
   const settings = await getSettingsByOwnerId(ctx, agent.ownerId)
-  const sender: ReminderSender = {
+  const sender: NoteSender = {
     agent,
     senderSnapshot: agentSenderSnapshot(agent, settings),
   }
@@ -117,7 +116,7 @@ async function injectConfiguredReminders(
   ctx: MutationCtx,
   session: Doc<'sessions'>,
   invokerId: Id<'users'>,
-  sender: ReminderSender,
+  sender: NoteSender,
   settings: Doc<'settings'> | null,
 ) {
   const reminders = mergeReminders(
@@ -137,7 +136,7 @@ async function injectConfiguredReminders(
   }
 
   for (const reminder of due) {
-    await insertReminderMessage(ctx, session, invokerId, sender, {
+    await insertHiddenNote(ctx, session, invokerId, sender, {
       type: 'reminder',
       role: reminder.role,
       content: reminder.content,
@@ -154,7 +153,7 @@ async function injectTodoNudge(
   ctx: MutationCtx,
   session: Doc<'sessions'>,
   invokerId: Id<'users'>,
-  sender: ReminderSender,
+  sender: NoteSender,
 ) {
   // The nudge asks for write_todo/edit_todo calls, so it needs the toggle on
   const tools = sender.agent.tools
@@ -165,53 +164,10 @@ async function injectTodoNudge(
   if (!todo || !isTodoNudgeDue(todo, turnCount)) return
 
   await ctx.db.patch(todo._id, { turnCount })
-  await insertReminderMessage(ctx, session, invokerId, sender, {
+  await insertHiddenNote(ctx, session, invokerId, sender, {
     type: 'todo',
     role: 'system',
     content: buildTodoNudgeContent(todo.items),
-  })
-}
-
-type ReminderSender = {
-  agent: Doc<'agents'>
-  senderSnapshot: ReturnType<typeof agentSenderSnapshot>
-}
-
-type ReminderMessage = {
-  type: NonNullable<Doc<'messages'>['type']>
-  role: MessageRole
-  content: string
-  extra?: unknown
-}
-
-async function insertReminderMessage(
-  ctx: MutationCtx,
-  session: Doc<'sessions'>,
-  invokerId: Id<'users'>,
-  sender: ReminderSender,
-  message: ReminderMessage,
-) {
-  const parts = [{ type: 'text', text: message.content }]
-  const { messageId } = await insertMessage(
-    ctx,
-    {
-      sessionId: session._id,
-      sender: { type: 'agent', id: sender.agent._id },
-      role: message.role,
-      senderSnapshot: sender.senderSnapshot,
-      status: 'done',
-      type: message.type,
-      hidden: true,
-      extra: message.extra,
-    },
-    parts,
-  )
-  await scheduleMessageEval(ctx, {
-    messageId,
-    invokerId,
-    parts,
-    version: 1,
-    segmentIndex: 0,
   })
 }
 

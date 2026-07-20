@@ -26,6 +26,7 @@ export const messageTypeValidator = v.union(
   v.literal('summary'),
   v.literal('reminder'),
   v.literal('todo'),
+  v.literal('workspace'),
 )
 
 export const messageStatusValidator = v.union(
