@@ -16,23 +16,6 @@ export type FileMutationOutput = {
   checkpointId?: string
 }
 
-export type FileEdit = { oldText: string; newText: string }
-
-function isFileEdit(value: unknown): value is FileEdit {
-  if (!value || typeof value !== 'object') return false
-  const edit = value as Partial<Record<keyof FileEdit, unknown>>
-  return typeof edit.oldText === 'string' && typeof edit.newText === 'string'
-}
-
-export function parseFileEdits(edits: unknown): FileEdit[] | undefined {
-  if (Array.isArray(edits)) {
-    const parsed = edits.filter(isFileEdit)
-    return parsed.length ? parsed : undefined
-  }
-
-  return isFileEdit(edits) ? [edits] : undefined
-}
-
 export function parseOutputValue<T extends object>(
   output: unknown,
 ): T | undefined {
@@ -54,26 +37,6 @@ export function parseToolOutput<T extends object>(
 ): T | undefined {
   if (part.state !== 'output-available') return undefined
   return parseOutputValue<T>(part.output)
-}
-
-export function buildEditsPreviewDiff(
-  path: string | undefined,
-  edits: FileEdit[],
-): string {
-  const sections = edits.map((edit) => {
-    const removed = edit.oldText
-      .split('\n')
-      .map((line) => `-${line}`)
-      .join('\n')
-    const added = edit.newText
-      .split('\n')
-      .map((line) => `+${line}`)
-      .join('\n')
-    return `${removed}\n${added}`
-  })
-
-  const header = path ? [`--- ${path}`, `+++ ${path}`] : []
-  return [...header, ...sections].join('\n')
 }
 
 const EXTENSION_LANGS: Record<string, string> = {

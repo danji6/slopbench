@@ -267,7 +267,7 @@ export async function editWorkspaceFile(input: {
 /** Simulate a unified diff for the given input. */
 export async function previewWorkspaceDiff(
   input: z.infer<typeof previewDiffSchema>,
-): Promise<{ diff: string }> {
+): Promise<{ diff: string; path?: string }> {
   const workspace = await requireWorkspace(input.sessionId, input.workspaceId)
 
   try {
@@ -282,6 +282,7 @@ export async function previewWorkspaceDiff(
       )
 
       return {
+        path: target.relativePath,
         diff: capDiff(
           createUnifiedDiff(target.relativePath, baseContent, newContent),
         ),
@@ -295,6 +296,7 @@ export async function previewWorkspaceDiff(
       const newContent = normalizeToLf(stripBom(input.content).text)
 
       return {
+        path: target.relativePath,
         diff: capDiff(
           createUnifiedDiff(target.relativePath, baseContent, newContent),
         ),

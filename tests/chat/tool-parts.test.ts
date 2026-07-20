@@ -6,11 +6,7 @@ import {
   groupParts,
   isToolInFlight,
 } from '@/lib/chat'
-import {
-  buildEditsPreviewDiff,
-  parseFileEdits,
-  parseToolOutput,
-} from '@/lib/chat/tool-output'
+import { parseToolOutput } from '@/lib/chat/tool-output'
 import type { ToolUIPart, UIMessage } from 'ai'
 import { describe, expect, test } from 'bun:test'
 
@@ -199,24 +195,5 @@ describe('tool output parsing', () => {
     const part = toolPart({ output: 'Tool failed: nope' })
 
     expect(parseToolOutput(part)).toBeUndefined()
-  })
-
-  test('builds a reviewable diff from edits', () => {
-    const diff = buildEditsPreviewDiff('src/a.ts', [
-      { oldText: 'const a = 1', newText: 'const a = 2' },
-    ])
-
-    expect(diff).toContain('--- src/a.ts')
-    expect(diff).toContain('-const a = 1')
-    expect(diff).toContain('+const a = 2')
-  })
-
-  test('normalizes edit input before preview rendering', () => {
-    expect(
-      parseFileEdits({ oldText: 'const a = 1', newText: 'const a = 2' }),
-    ).toEqual([{ oldText: 'const a = 1', newText: 'const a = 2' }])
-
-    expect(parseFileEdits({ oldText: 'const a = 1' })).toBeUndefined()
-    expect(parseFileEdits('not edits')).toBeUndefined()
   })
 })

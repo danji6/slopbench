@@ -346,6 +346,9 @@ async function consumeProviderStep(
       },
     })) {
       latestParts = message.parts
+      // Defer surfacing the approval-requested state to the client until the
+      // sidecar preview diff is available
+      if (hasAwaitingApproval(latestParts) && !setup.isSubagent) continue
       // Tool state transitions bypass the throttle to avoid staleness
       const toolStates = toolStateSignature(latestParts)
       const throttled = Date.now() - lastPatch < PATCH_INTERVAL_MS
@@ -626,17 +629,18 @@ async function attachApprovalPreviews(
       }
 
       try {
-        const { diff } = await postSidecar<{ diff: string }>(
-          '/workspace/preview-diff',
-          {
-            sessionId: setup.stream.sessionId,
-            workspaceId,
-            filePath: toolPart.input.path,
-            content: toolPart.input.content,
-            edits: toolPart.input.edits,
-          },
-        )
-        return diff ? { ...part, previewDiff: diff } : part
+        const { diff, path } = await postSidecar<{
+          diff: string
+          path?: string
+        }>('/workspace/preview-diff', {
+          sessionId: setup.stream.sessionId,
+          workspaceId,
+          filePath: toolPart.input.path,
+          content: toolPart.input.content,
+          edits: toolPart.input.edits,
+        })
+        if (!diff) return part
+        return { ...part, previewDiff: diff, previewPath: path }
       } catch {
         return part
       }

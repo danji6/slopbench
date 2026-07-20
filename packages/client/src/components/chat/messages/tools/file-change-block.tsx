@@ -2,9 +2,7 @@ import { Code } from '@/components/ui'
 import { useToolOutput } from '@/hooks/chat/tool-output'
 import {
   type FileMutationOutput,
-  buildEditsPreviewDiff,
   languageFromPath,
-  parseFileEdits,
   parseOutputValue,
 } from '@/lib/chat/tool-output'
 import type { ToolUIPart } from 'ai'
@@ -16,6 +14,11 @@ type FileChangeInput = {
   path?: string
   content?: string
   edits?: unknown
+}
+
+type FileChangePart = ToolUIPart & {
+  previewDiff?: string
+  previewPath?: string
 }
 
 /**
@@ -34,6 +37,7 @@ export function FileChangeBlock({
 }) {
   const verb = part.type === 'tool-write_file' ? 'Write' : 'Edit'
   const input = part.input as FileChangeInput | undefined
+  const { previewDiff, previewPath } = part as FileChangePart
 
   const {
     output: rawOutput,
@@ -47,16 +51,11 @@ export function FileChangeBlock({
       ? parseOutputValue<FileMutationOutput>(rawOutput)
       : undefined
 
-  const path = output?.path ?? input?.path
-  const inputEdits = parseFileEdits(input?.edits)
-
-  const previewDiff = (part as { previewDiff?: string }).previewDiff
-  const diff =
-    output?.diff ??
-    (previewDiff || undefined) ??
-    (inputEdits ? buildEditsPreviewDiff(path, inputEdits) : undefined)
+  const path = output?.path ?? previewPath ?? input?.path
+  const diff = output?.diff ?? previewDiff ?? undefined
 
   const showContentFallback = !diff && Boolean(input?.content)
+  const showPending = !diff && !showContentFallback
 
   return (
     <ToolShell
@@ -95,6 +94,11 @@ export function FileChangeBlock({
           noLoadingIndicator
           noCopyButton
         />
+      )}
+      {showPending && (
+        <div className="text-muted-foreground my-1 px-1 text-xs">
+          Preparing diff…
+        </div>
       )}
       {truncated && <LoadFullOutput onLoad={loadFull} loading={loadingFull} />}
     </ToolShell>
