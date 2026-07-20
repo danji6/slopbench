@@ -77,9 +77,10 @@ export function CodeContainer({
   ...props
 }: CodeContainerProps) {
   const lineNumberSource = lineNumberValue ?? copyValue
-  const lineNumberDigits = lineNumbers && lineNumberSource
-    ? Math.max(2, String(lineNumberSource.split('\n').length).length)
-    : undefined
+  const lineNumberDigits =
+    lineNumbers && lineNumberSource
+      ? Math.max(2, String(lineNumberSource.split('\n').length).length)
+      : undefined
 
   const codeSurfaceStyle = lineNumberDigits
     ? ({
@@ -91,7 +92,7 @@ export function CodeContainer({
   const surfaceClassName = cn(
     copyValue && 'col-start-1 row-start-1 pr-12',
     wordWrap &&
-      'overflow-x-hidden wrap-break-word whitespace-pre-wrap [&_code]:wrap-break-word [&_code]:whitespace-pre-wrap [&_pre]:wrap-break-word [&_pre]:whitespace-pre-wrap',
+      'overflow-x-hidden wrap-anywhere whitespace-pre-wrap [&_.line]:wrap-anywhere [&_code]:wrap-anywhere [&_code]:whitespace-pre-wrap [&_pre]:wrap-anywhere [&_pre]:whitespace-pre-wrap',
     lineNumbers && 'shiki-numbered',
     innerClassName,
   )

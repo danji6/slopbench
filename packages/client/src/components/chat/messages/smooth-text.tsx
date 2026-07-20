@@ -69,6 +69,7 @@ function StreamingCodeBlock({
         copyValue={text}
         className={cn('mt-4 w-full', cursor && 'streaming-cursor-code')}
         lineNumbers
+        wordWrap
       >
         <PlainCode text={text} />
       </CodeContainer>
@@ -82,6 +83,7 @@ function StreamingCodeBlock({
       copyValue={text}
       className={cn('mt-4 w-full', cursor && 'streaming-cursor-code')}
       lineNumbers
+      wordWrap
     />
   )
 }
