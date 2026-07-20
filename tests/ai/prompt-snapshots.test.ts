@@ -1,9 +1,9 @@
 /// <reference types="bun-types" />
-import type { WirePromptItem } from '@sb/convex/model/prompt/prompts'
+import type { PromptItem } from '@sb/convex/model/prompt/prompts'
 import { planSnapshotEval } from '@sb/convex/model/prompt/snapshots'
 import { describe, expect, test } from 'bun:test'
 
-function prompt(name: string, content = `${name} raw`): WirePromptItem {
+function prompt(name: string, content = `${name} raw`): PromptItem {
   return {
     id: name,
     name,
@@ -14,7 +14,7 @@ function prompt(name: string, content = `${name} raw`): WirePromptItem {
   }
 }
 
-function evaluated(items: WirePromptItem[]): WirePromptItem[] {
+function evaluated(items: PromptItem[]): PromptItem[] {
   return items.map((item) =>
     'content' in item
       ? { ...item, content: `${item.content} (evaluated)` }

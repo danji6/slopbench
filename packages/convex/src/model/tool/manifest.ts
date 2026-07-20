@@ -21,7 +21,7 @@ export type ToolManifest = {
   names: string[]
   /** Agent roster baked into the task tool description. */
   taskRoster?: string
-  /** External MCP wire metadata, keyed by name. */
+  /** External MCP metadata, keyed by name. */
   mcp?: McpManifestEntry[]
 }
 

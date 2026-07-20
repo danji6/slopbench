@@ -4,7 +4,7 @@ import {
   sanitizeSubAgents,
 } from '@sb/convex/model/agent/subagents'
 import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
-import { getEnabledTools } from '@sb/convex/model/tools'
+import { getEnabledTools } from '@sb/convex/model/tool/build'
 import { describe, expect, test } from 'bun:test'
 
 type Row = Record<string, unknown> & { _id: string }

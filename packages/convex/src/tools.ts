@@ -1,7 +1,7 @@
 import { authQuery } from './functions'
-import * as Tools from './model/tools'
+import { listTools } from './model/tool/metas'
 
 export const list = authQuery({
   args: {},
-  handler: Tools.listTools,
+  handler: listTools,
 })

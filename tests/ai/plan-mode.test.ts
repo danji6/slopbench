@@ -10,7 +10,8 @@ import {
 import { _edit, createPlanLinkPart } from '@sb/convex/model/plans'
 import { resolvePlanPrompts } from '@sb/convex/model/prompt/prompts'
 import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
-import { getEnabledTools, withPlanModeReminders } from '@sb/convex/model/tools'
+import { getEnabledTools } from '@sb/convex/model/tool/build'
+import { withPlanModeReminders } from '@sb/convex/model/tool/plan'
 import { PLAN_TOOL_TOGGLE } from '@sb/core/const'
 import { describe, expect, test } from 'bun:test'
 

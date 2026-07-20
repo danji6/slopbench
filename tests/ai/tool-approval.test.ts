@@ -4,7 +4,7 @@ import {
   patchToolApproval,
 } from '@sb/convex/model/chat'
 import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
-import { getEnabledTools } from '@sb/convex/model/tools'
+import { getEnabledTools } from '@sb/convex/model/tool/build'
 import { describe, expect, test } from 'bun:test'
 
 describe('.git access requires approval instead of failing', () => {

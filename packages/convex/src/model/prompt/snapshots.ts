@@ -1,18 +1,18 @@
 import type { Doc } from '../../_generated/dataModel'
-import type { WirePromptItem } from './prompts'
+import type { PromptItem } from './prompts'
 
 export type SnapshotPatch = {
-  items?: WirePromptItem[]
-  planItems?: WirePromptItem[]
+  items?: PromptItem[]
+  planItems?: PromptItem[]
 }
 
 export type SnapshotEvalPlan = {
   /** Items that still need sidecar evaluation (empty when fully frozen). */
-  evalItems: WirePromptItem[]
+  evalItems: PromptItem[]
   /** What to persist after eval; null when the snapshot is already complete. */
-  snapshotPatch: (evaluated: WirePromptItem[]) => SnapshotPatch | null
+  snapshotPatch: (evaluated: PromptItem[]) => SnapshotPatch | null
   /** Frozen-first composition used to build the provider request. */
-  requestItems: (evaluated: WirePromptItem[]) => WirePromptItem[]
+  requestItems: (evaluated: PromptItem[]) => PromptItem[]
 }
 
 /**
@@ -28,14 +28,14 @@ export function planSnapshotEval({
 }: {
   cache: Pick<Doc<'sessionCache'>, 'items' | 'planItems'> | null
   planMode: boolean
-  planPrompts: WirePromptItem[]
-  prompts: WirePromptItem[]
+  planPrompts: PromptItem[]
+  prompts: PromptItem[]
 }): SnapshotEvalPlan {
   const needBase = !cache
   const needPlan = planMode && !cache?.planItems
   const evalPlanPrompts = needPlan ? planPrompts : []
 
-  const planBlock = (evaluated: WirePromptItem[]) => {
+  const planBlock = (evaluated: PromptItem[]) => {
     if (!planMode) return []
     return needPlan
       ? evaluated.slice(0, evalPlanPrompts.length)

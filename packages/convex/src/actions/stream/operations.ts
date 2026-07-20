@@ -14,7 +14,7 @@ import {
   resolvePlanPrompts,
   splitAtMessageHistory,
 } from '../../model/prompt/prompts'
-import type { WirePromptItem } from '../../model/prompt/prompts'
+import type { PromptItem } from '../../model/prompt/prompts'
 import {
   type SnapshotPatch,
   planSnapshotEval,
@@ -27,7 +27,7 @@ import type { Prompt, StreamContext } from '../../types'
 import { buildProviderHistory } from './history'
 
 export type PromptEvalResult = {
-  items: WirePromptItem[]
+  items: PromptItem[]
   environment: Record<string, unknown>
   dirty: boolean
 }
@@ -39,7 +39,7 @@ export type ProviderRequest = {
 }
 
 type OperationPlan = {
-  evalItems: WirePromptItem[]
+  evalItems: PromptItem[]
   /** Tool names exposed to the prompt interpreter's `tools` binding. */
   toolNames: string[]
   /** Cache row patch to persist; null for one-shot operations. */
@@ -75,7 +75,7 @@ export function createOperationPlan(data: StreamContext): OperationPlan {
 
 function createInvokePlan(
   data: StreamContext,
-  prompts: WirePromptItem[],
+  prompts: PromptItem[],
 ): OperationPlan {
   const planMode = data.stream.mode === 'plan'
   const plan = planSnapshotEval({
@@ -114,7 +114,7 @@ function createInvokePlan(
 
 function createCompactPlan(
   data: StreamContext,
-  prompts: WirePromptItem[],
+  prompts: PromptItem[],
 ): OperationPlan {
   const compactionPrompts = resolveCompactionPrompts(
     data.agent.compactionPrompts ?? data.settings?.compactionPrompts,
@@ -131,7 +131,7 @@ function createCompactPlan(
 
 function createImpersonatePlan(
   data: StreamContext,
-  prompts: WirePromptItem[],
+  prompts: PromptItem[],
 ): OperationPlan {
   const impersonationPrompts = resolveImpersonationPrompts(
     data.agent.impersonationPrompts ?? data.settings?.impersonationPrompts,
@@ -154,7 +154,7 @@ function createImpersonatePlan(
 async function buildInvokeRequest(
   ctx: ActionCtx,
   data: StreamContext,
-  prompts: WirePromptItem[],
+  prompts: PromptItem[],
   manifest: ToolManifest,
 ): Promise<ProviderRequest> {
   const { systemPrompt, remainingPrompts } = buildSystemPrompt(
@@ -162,7 +162,7 @@ async function buildInvokeRequest(
     (value) => value,
   )
   const [{ getEnabledTools }, messages] = await Promise.all([
-    import('../../model/tools'),
+    import('../../model/tool/build'),
     buildProviderHistory(ctx, data, remainingPrompts),
   ])
 
@@ -187,7 +187,7 @@ async function buildInvokeRequest(
 async function buildFramedRequest(
   ctx: ActionCtx,
   data: StreamContext,
-  prompts: WirePromptItem[],
+  prompts: PromptItem[],
   framingPromptCount: number,
 ): Promise<ProviderRequest> {
   const framingPrompts = prompts.slice(0, framingPromptCount)

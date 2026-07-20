@@ -14,11 +14,11 @@ import type { PromptOrderRef } from './merge'
 type WirePrompt = Prompt
 type WireMarker = PromptMarker
 
-export type WirePromptItem = WirePrompt | WireMarker
+export type PromptItem = WirePrompt | WireMarker
 
 export type BuiltSystemPrompt = {
   systemPrompt: string | undefined
-  remainingPrompts: WirePromptItem[]
+  remainingPrompts: PromptItem[]
 }
 
 export type RenderFn = (text: string) => string
@@ -27,8 +27,8 @@ export function mergePrompts(
   source: PromptSource,
   globalPrompts: Prompt[],
   libraryPrompts: Prompt[] = [],
-): WirePromptItem[] {
-  const ownItems = source.prompts as WirePromptItem[]
+): PromptItem[] {
+  const ownItems = source.prompts as PromptItem[]
   const globals = source.globalPromptsEnabled === false ? [] : globalPrompts
 
   if (!source.promptOrder?.length) {
@@ -48,7 +48,7 @@ export function mergePrompts(
 }
 
 export function buildSystemPrompt(
-  prompts: WirePromptItem[],
+  prompts: PromptItem[],
   render: RenderFn,
 ): BuiltSystemPrompt {
   const systemParts: string[] = []
@@ -68,18 +68,18 @@ export function buildSystemPrompt(
   }
 }
 
-export function collectStarterPrompts(prompts: WirePromptItem[]): Prompt[] {
+export function collectStarterPrompts(prompts: PromptItem[]): Prompt[] {
   return prompts.filter(
     (item): item is Prompt => isPrompt(item) && item.enabled && isStarter(item),
   )
 }
 
-export function removeStarterPrompts(prompts: WirePromptItem[]) {
+export function removeStarterPrompts(prompts: PromptItem[]) {
   return prompts.filter((item) => !isPrompt(item) || !isStarter(item))
 }
 
 export function buildPrompts(
-  remainingPrompts: WirePromptItem[],
+  remainingPrompts: PromptItem[],
   allMessages: ModelMessage[],
   render: RenderFn,
 ): ModelMessage[] {
@@ -100,13 +100,13 @@ export function buildPrompts(
 }
 
 export function buildPromptMessages(
-  prompts: WirePromptItem[],
+  prompts: PromptItem[],
   render: RenderFn,
 ): ModelMessage[] {
   return toModelMessages(prompts, render)
 }
 
-export function splitAtMessageHistory(prompts: WirePromptItem[]) {
+export function splitAtMessageHistory(prompts: PromptItem[]) {
   const markerIndex = prompts.findIndex(isMessageHistoryMarker)
 
   if (markerIndex === -1) {
@@ -122,28 +122,28 @@ export function splitAtMessageHistory(prompts: WirePromptItem[]) {
   }
 }
 
-export function resolveCompactionPrompts(prompts: unknown): WirePromptItem[] {
+export function resolveCompactionPrompts(prompts: unknown): PromptItem[] {
   return hasPromptItems(prompts)
     ? prompts
-    : (createDefaultCompactionPrompts() as WirePromptItem[])
+    : (createDefaultCompactionPrompts() as PromptItem[])
 }
 
 export function resolveImpersonationPrompts(
   prompts: unknown,
-): WirePromptItem[] {
+): PromptItem[] {
   return hasPromptItems(prompts)
     ? prompts
-    : (createDefaultImpersonationPrompts() as WirePromptItem[])
+    : (createDefaultImpersonationPrompts() as PromptItem[])
 }
 
 export function resolvePlanPrompts(
   prompts: unknown,
   subagent = false,
-): WirePromptItem[] {
+): PromptItem[] {
   if (hasPromptItems(prompts)) return prompts
   return createDefaultPlanPrompts(
     subagent ? DEFAULT_SUBAGENT_PLAN_PROMPT : undefined,
-  ) as WirePromptItem[]
+  ) as PromptItem[]
 }
 
 export function buildExtraInstructions(instructions?: string) {
@@ -153,7 +153,7 @@ export function buildExtraInstructions(instructions?: string) {
   return parts.join('\n\n')
 }
 
-function hasPromptItems(value: unknown): value is WirePromptItem[] {
+function hasPromptItems(value: unknown): value is PromptItem[] {
   return (
     Array.isArray(value) &&
     value.length > 0 &&
@@ -189,7 +189,7 @@ function isWireMarker(item: unknown): item is WireMarker {
   )
 }
 
-function isPrompt(item: WirePromptItem): item is WirePrompt {
+function isPrompt(item: PromptItem): item is WirePrompt {
   return !('type' in item)
 }
 
@@ -197,16 +197,16 @@ function isStarter(item: WirePrompt): boolean {
   return item.starter === true
 }
 
-function isMarker(item: WirePromptItem): item is WireMarker {
+function isMarker(item: PromptItem): item is WireMarker {
   return 'type' in item
 }
 
-function isMessageHistoryMarker(item: WirePromptItem): item is WireMarker {
+function isMessageHistoryMarker(item: PromptItem): item is WireMarker {
   return isMarker(item) && item.type === 'message-history'
 }
 
 function toModelMessages(
-  items: WirePromptItem[],
+  items: PromptItem[],
   render: RenderFn,
 ): ModelMessage[] {
   return items
