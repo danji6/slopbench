@@ -9,7 +9,7 @@ import {
   withPartsMany,
 } from '../messageContents'
 import { getBySession as getPlan } from '../plans'
-import { getBySessionAgent as getPromptSnapshot } from '../prompt/snapshots'
+import { getBySessionAgent as getSessionCache } from '../session/cache'
 import { countParticipants, getMembership } from '../session/memberships'
 import { getByOwnerId as getSettings } from '../settings'
 
@@ -66,12 +66,12 @@ export async function _getContext(
       ? await resolveSpawnableAgents(ctx, agent)
       : []
 
-  const promptSnapshot = invocation
-    ? await getPromptSnapshot(ctx, stream.sessionId, stream.agentId)
+  const sessionCache = invocation
+    ? await getSessionCache(ctx, stream.sessionId, stream.agentId)
     : null
 
   return {
-    promptSnapshot,
+    sessionCache,
     spawnableAgents,
     stream,
     session,

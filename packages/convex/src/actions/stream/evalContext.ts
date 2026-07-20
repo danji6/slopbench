@@ -14,13 +14,14 @@ type EvalContextInput = {
   session: Doc<'sessions'>
   userCount: number
   agentCount: number
+  toolNames: string[]
 }
 
 /**
  * Builds the interpreter context shared by prompt and message evaluation, so
  * every script resolves against the same variables regardless of where it runs.
  */
-export async function buildEvalContext({
+export function buildEvalContext({
   agent,
   invoker,
   invokerSettings,
@@ -28,22 +29,14 @@ export async function buildEvalContext({
   session,
   userCount,
   agentCount,
-}: EvalContextInput): Promise<EvalContext> {
-  const { getEnabledTools } = await import('../../model/tools')
-  const isAdmin = minRole(invoker.role, 'admin')
-  const tools = await getEnabledTools(
-    agent.tools,
-    invoker.role,
-    session,
-    ownerSettings,
-  )
-
+  toolNames,
+}: EvalContextInput): EvalContext {
   return {
     assistant: agent.name,
     user: invokerSettings?.displayName,
     owner: ownerSettings?.displayName ?? 'User',
-    tools: Object.keys(tools),
-    isAdmin,
+    tools: toolNames,
+    isAdmin: minRole(invoker.role, 'admin'),
     userCount,
     agentCount,
     workDir: session.workspace?.path,

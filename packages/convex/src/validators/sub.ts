@@ -77,6 +77,22 @@ export const mcpServerValidator = v.object({
   tools: v.optional(v.array(mcpToolMetaValidator)),
 })
 
+/** Cached metadata for one external MCP tool. */
+export const mcpManifestEntryValidator = v.object({
+  name: v.string(),
+  serverId: v.string(),
+  toolName: v.string(),
+  description: v.optional(v.string()),
+  inputSchema: v.optional(v.string()),
+})
+
+/** Cached shape of a session's tool set. */
+export const toolManifestValidator = v.object({
+  names: v.array(v.string()),
+  taskRoster: v.optional(v.string()),
+  mcp: v.optional(v.array(mcpManifestEntryValidator)),
+})
+
 export const tokenUsageValidator = v.object({
   inputTokens: v.number(),
   outputTokens: v.number(),

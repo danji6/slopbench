@@ -9,8 +9,8 @@ import {
   messageSchema,
   offloadedOutputSchema,
   planSchema,
-  promptSnapshotSchema,
   sessionAgentSchema,
+  sessionCacheSchema,
   sessionSchema,
   sessionShareSchema,
   settingsSchema,
@@ -33,7 +33,7 @@ export default defineSchema({
   todos: defineTable(todoSchema)
     .index('by_sessionId', ['sessionId']),
 
-  promptSnapshots: defineTable(promptSnapshotSchema)
+  sessionCache: defineTable(sessionCacheSchema)
     .index('by_sessionId', ['sessionId'])
     .index('by_sessionId_agentId', ['sessionId', 'agentId']),
 

@@ -60,9 +60,9 @@ export const retryStreamNow = authMutation({
   handler: Chat.retryStreamNow,
 })
 
-export const resetPromptSnapshots = authMutation({
+export const resetSessionCache = authMutation({
   args: { sessionId: v.id('sessions') },
-  handler: Chat.resetPromptSnapshots,
+  handler: Chat.resetSessionCache,
 })
 
 export const approveTool = authMutation({

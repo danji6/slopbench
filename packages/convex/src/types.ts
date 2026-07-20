@@ -23,7 +23,7 @@ export type StreamContext = {
   output: Doc<'messages'>
   settings: Doc<'settings'> | null
   plan: Doc<'plans'> | null
-  promptSnapshot: Doc<'promptSnapshots'> | null
+  sessionCache: Doc<'sessionCache'> | null
   spawnableAgents: SpawnableAgent[]
 }
 
@@ -60,8 +60,8 @@ export type PlanStatus = Infer<typeof V.planStatusValidator>
 export type TodoStatus = Infer<typeof V.todoStatusValidator>
 export type TodoItem = Infer<typeof V.todoItemValidator>
 
-export type SavePromptSnapshotArgs = Infer<
-  typeof V.savePromptSnapshotArgsValidator
+export type SaveSessionCacheArgs = Infer<
+  typeof V.saveSessionCacheArgsValidator
 >
 export type SendMessageArgs = Infer<typeof V.sendMessageArgsValidator>
 export type CreateAgentArgs = Infer<typeof V.createAgentArgsValidator>

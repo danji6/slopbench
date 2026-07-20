@@ -4,10 +4,6 @@ import type { ToolSet } from 'ai'
 
 import type { ActionCtx } from '../../_generated/server'
 import {
-  planSnapshotEval,
-  type SnapshotPatch,
-} from '../../model/prompt/snapshots'
-import {
   buildExtraInstructions,
   buildPromptMessages,
   buildSystemPrompt,
@@ -19,6 +15,14 @@ import {
   splitAtMessageHistory,
 } from '../../model/prompt/prompts'
 import type { WirePromptItem } from '../../model/prompt/prompts'
+import {
+  type SnapshotPatch,
+  planSnapshotEval,
+} from '../../model/prompt/snapshots'
+import {
+  type ToolManifest,
+  resolveToolManifest,
+} from '../../model/tool/manifest'
 import type { Prompt, StreamContext } from '../../types'
 import { buildProviderHistory } from './history'
 
@@ -36,14 +40,18 @@ export type ProviderRequest = {
 
 type OperationPlan = {
   evalItems: WirePromptItem[]
-  /** Snapshot rows to persist after eval; null for one-shot operations. */
-  snapshotPatch: (evalResult: PromptEvalResult) => SnapshotPatch | null
+  /** Tool names exposed to the prompt interpreter's `tools` binding. */
+  toolNames: string[]
+  /** Cache row patch to persist; null for one-shot operations. */
+  snapshotPatch: (evalResult: PromptEvalResult) => CachePatch | null
   buildRequest: (
     ctx: ActionCtx,
     data: StreamContext,
     evalResult: PromptEvalResult,
   ) => Promise<ProviderRequest>
 }
+
+type CachePatch = SnapshotPatch & { tools?: ToolManifest }
 
 export function createOperationPlan(data: StreamContext): OperationPlan {
   const prompts = removeStarterPrompts(
@@ -71,7 +79,7 @@ function createInvokePlan(
 ): OperationPlan {
   const planMode = data.stream.mode === 'plan'
   const plan = planSnapshotEval({
-    snapshot: data.promptSnapshot,
+    cache: data.sessionCache,
     planMode,
     planPrompts: planMode
       ? resolvePlanPrompts(
@@ -82,11 +90,25 @@ function createInvokePlan(
     prompts,
   })
 
+  // Cached on first invoke, then reused for the rest of the session
+  const frozenTools = data.sessionCache?.tools
+  const manifest = frozenTools ?? resolveToolManifest(data)
+
   return {
     evalItems: plan.evalItems,
-    snapshotPatch: (evalResult) => plan.snapshotPatch(evalResult.items),
+    toolNames: manifest.names,
+    snapshotPatch: (evalResult) => {
+      const patch = plan.snapshotPatch(evalResult.items)
+      if (!patch && frozenTools) return null
+      return { ...patch, ...(frozenTools ? {} : { tools: manifest }) }
+    },
     buildRequest: (ctx, data, evalResult) =>
-      buildInvokeRequest(ctx, data, plan.requestItems(evalResult.items)),
+      buildInvokeRequest(
+        ctx,
+        data,
+        plan.requestItems(evalResult.items),
+        manifest,
+      ),
   }
 }
 
@@ -100,6 +122,7 @@ function createCompactPlan(
 
   return {
     evalItems: [...compactionPrompts, ...prompts],
+    toolNames: [],
     snapshotPatch: () => null,
     buildRequest: (ctx, data, evalResult) =>
       buildFramedRequest(ctx, data, evalResult.items, compactionPrompts.length),
@@ -116,6 +139,7 @@ function createImpersonatePlan(
 
   return {
     evalItems: [...impersonationPrompts, ...prompts],
+    toolNames: [],
     snapshotPatch: () => null,
     buildRequest: (ctx, data, evalResult) =>
       buildFramedRequest(
@@ -131,6 +155,7 @@ async function buildInvokeRequest(
   ctx: ActionCtx,
   data: StreamContext,
   prompts: WirePromptItem[],
+  manifest: ToolManifest,
 ): Promise<ProviderRequest> {
   const { systemPrompt, remainingPrompts } = buildSystemPrompt(
     prompts,
@@ -144,19 +169,10 @@ async function buildInvokeRequest(
   return {
     systemPrompt,
     messages,
-    tools: await getEnabledTools(
-      data.agent.tools,
-      data.invoker.role,
-      data.session,
-      data.settings,
-      {
-        ctx,
-        mode: data.stream.mode,
-        plan: data.plan,
-        autoApprove: data.agent.autoApprove,
-        spawnableAgents: data.spawnableAgents,
-      },
-    ),
+    tools: await getEnabledTools(manifest, data.session, data.settings, {
+      ctx,
+      autoApprove: data.agent.autoApprove,
+    }),
   }
 }
 

@@ -1,11 +1,12 @@
-import { TODO_EDIT_STATUSES, TODO_TOOL_TOGGLE } from '@sb/core/const'
+import {
+  PLAN_TOOL_TOGGLE,
+  TODO_EDIT_STATUSES,
+  TODO_TOOL_TOGGLE,
+} from '@sb/core/const'
 import {
   type McpServer,
-  type McpToolMeta,
   TOOL_DESCRIPTIONS,
-  type WebSearchInstance,
   editFileFields,
-  isSearchEngineId,
   mcpToolDescription,
   mcpToolName,
   readFileFields,
@@ -20,7 +21,7 @@ import type { Doc, Id } from '../_generated/dataModel'
 import type { ActionCtx } from '../_generated/server'
 import { ToolError, extractErrorMessage, toolFailure } from '../errors'
 import type { AuthQueryCtx } from '../functions'
-import { type Role, minRole } from '../lib/roles'
+import { minRole } from '../lib/roles'
 import { TASK_TOOL_NAME, sharedSessionId } from '../lib/subagent'
 import {
   commandReferencesForbiddenPath,
@@ -31,10 +32,15 @@ import {
   isToolAutoApproved,
   mergeToolApprovals,
 } from '../lib/tool/approval'
-import type { AgentAutoApprove, SessionMode, ToolApprovals } from '../types'
+import type { AgentAutoApprove, ToolApprovals } from '../types'
 import type { ShellToolOutput } from '../types'
-import type { SpawnableAgent } from './agent/subagents'
 import { getOrDefault as getSettings } from './settings'
+import type { McpManifestEntry, ToolManifest } from './tool/manifest'
+import {
+  type WebToolSettings,
+  enabledMcpServers,
+  normalizeWebSearchInstances,
+} from './tool/settings'
 import {
   type ShellJobInput,
   type ShellOutputInput,
@@ -50,19 +56,13 @@ type WorkspaceToolContext = {
   sessionId: Id<'sessions'>
   workspaceId: string
   approvals?: ToolApprovals
-  /** Shell commands that modify state always require approval. */
-  readOnly?: boolean
+  isPlanMode?: () => Promise<boolean>
 }
 
 type PlanToolContext = {
   ctx: ActionCtx
   sessionId: Id<'sessions'>
 }
-
-type WebToolSettings = Pick<
-  Doc<'settings'>,
-  'webSearchInstances' | 'mcpServers'
-> | null
 
 type ToolMeta = {
   name: string
@@ -116,6 +116,11 @@ export const TOOL_METAS = [
   {
     name: TODO_TOOL_TOGGLE,
     description: 'Track multi-step work with a todo list.',
+  },
+  {
+    name: PLAN_TOOL_TOGGLE,
+    description: 'Research and author implementation plans before editing.',
+    requiresAdmin: true,
   },
 ] as const
 
@@ -225,16 +230,28 @@ async function callExternalMcpTool(
   }
 }
 
-async function createExternalMcpTool(server: McpServer, meta: McpToolMeta) {
+async function createExternalMcpTool(
+  entry: McpManifestEntry,
+  settings?: WebToolSettings,
+) {
   const { tool, jsonSchema } = await import('ai')
-  const schema = parseInputSchema(meta.inputSchema) as Parameters<
+  const schema = parseInputSchema(entry.inputSchema) as Parameters<
     typeof jsonSchema
   >[0]
   return tool({
-    description: mcpToolDescription(meta),
+    description: entry.description,
     inputSchema: jsonSchema(schema),
-    execute: (args, { abortSignal }) =>
-      callExternalMcpTool(server, meta.name, args, abortSignal),
+    execute: async (args, { abortSignal }) => {
+      const server = enabledMcpServers(settings).find(
+        (candidate) => candidate.id === entry.serverId,
+      )
+      if (!server) {
+        throw new ToolError(
+          `The MCP server providing "${entry.name}" is no longer configured.`,
+        )
+      }
+      return callExternalMcpTool(server, entry.toolName, args, abortSignal)
+    },
   })
 }
 
@@ -288,6 +305,14 @@ async function createReadFileTool(context: WorkspaceToolContext) {
   })
 }
 
+async function assertNotPlanMode(context: WorkspaceToolContext) {
+  if (await context.isPlanMode?.()) {
+    throw new ToolError(
+      'Plan mode is active, you CANNOT modify files. Keep researching and refine the plan.',
+    )
+  }
+}
+
 async function createWriteFileTool(context: WorkspaceToolContext) {
   const [{ tool }, { z }] = await Promise.all([import('ai'), import('zod')])
   return tool({
@@ -296,12 +321,14 @@ async function createWriteFileTool(context: WorkspaceToolContext) {
     needsApproval: ({ path }) =>
       isPathForbidden(path) ||
       !isToolAutoApproved('write_file', undefined, context.approvals),
-    execute: ({ path, content }) =>
-      callMcpTool('write_file', {
+    execute: async ({ path, content }) => {
+      await assertNotPlanMode(context)
+      return callMcpTool('write_file', {
         ...workspaceArgs(context),
         path,
         content,
-      }),
+      })
+    },
   })
 }
 
@@ -313,12 +340,14 @@ async function createEditFileTool(context: WorkspaceToolContext) {
     needsApproval: ({ path }) =>
       isPathForbidden(path) ||
       !isToolAutoApproved('edit_file', undefined, context.approvals),
-    execute: ({ path, edits }) =>
-      callMcpTool('edit_file', {
+    execute: async ({ path, edits }) => {
+      await assertNotPlanMode(context)
+      return callMcpTool('edit_file', {
         ...workspaceArgs(context),
         path,
         edits,
-      }),
+      })
+    },
   })
 }
 
@@ -444,22 +473,17 @@ async function createEditTodoTool(context: PlanToolContext) {
   })
 }
 
-async function createEnterPlanModeTool(
-  context: PlanToolContext,
-  streamMode?: SessionMode,
-) {
+async function createEnterPlanModeTool(context: PlanToolContext) {
   const [{ tool }, { z }] = await Promise.all([import('ai'), import('zod')])
+  const planMode = () => isPlanMode(context.ctx, context.sessionId)
 
   return tool({
     description: TOOL_DESCRIPTIONS.enter_plan_mode,
     inputSchema: z.object({}),
     // Entering an already active plan mode is a no-op
-    needsApproval: async () =>
-      (await context.ctx.runQuery(internal.sessions._getMode, {
-        sessionId: context.sessionId,
-      })) !== 'plan',
+    needsApproval: async () => !(await planMode()),
     execute: async () =>
-      streamMode === 'plan'
+      (await planMode())
         ? 'Plan mode is active. Research the task and author a plan with write_plan, then present it with exit_plan_mode.'
         : 'Plan mode is already active for this session.',
   })
@@ -495,15 +519,8 @@ async function createExitPlanModeTool(context: PlanToolContext) {
  * acknowledgment, and the child's report arrives later as its own
  * message in the parent session (see model/stream/subagents.ts).
  */
-async function createTaskTool(spawnable: SpawnableAgent[]) {
+async function createTaskTool(roster: string) {
   const [{ tool }, { z }] = await Promise.all([import('ai'), import('zod')])
-
-  const roster = spawnable
-    .map(
-      (agent) =>
-        `- ${agent.name}${agent.description ? `: ${agent.description}` : ''}`,
-    )
-    .join('\n')
 
   return tool({
     description: `${TOOL_DESCRIPTIONS.task}\n\nAvailable agents:\n${roster}`,
@@ -527,7 +544,9 @@ async function shellNeedsApproval(
   context: WorkspaceToolContext,
 ): Promise<boolean> {
   if (commandReferencesForbiddenPath(command)) return true
-  if (context.readOnly && !isReadOnlyShellCommand(command)) return true
+  if (!isReadOnlyShellCommand(command) && (await context.isPlanMode?.())) {
+    return true
+  }
   if (!isToolAutoApproved('shell', { command }, context.approvals)) return true
   const flagged = await getFlaggedPaths(command, context)
   if (flagged === null) return true
@@ -559,136 +578,124 @@ export async function getFlaggedPaths(
   }
 }
 
-export type ModeToolOptions = {
+export type ToolBuildOptions = {
   ctx?: ActionCtx
-  mode?: SessionMode
-  plan?: Doc<'plans'> | null
   /** The agent's own approvals, merged into the session's. */
   autoApprove?: AgentAutoApprove
-  /** Agents the task tool may spawn. Empty/absent hides the tool. */
-  spawnableAgents?: SpawnableAgent[]
 }
 
+/**
+ * Builds the tool set from a cached manifest, kept stable to prevent provider
+ * cache invalidation.
+ */
 export async function getEnabledTools(
-  tools: unknown,
-  invokerRole?: Role,
+  manifest: ToolManifest,
   session?: Pick<
     Doc<'sessions'>,
     '_id' | 'workspace' | 'toolApprovals' | 'parent'
   >,
   settings?: WebToolSettings,
-  options?: ModeToolOptions,
+  options?: ToolBuildOptions,
 ): Promise<ToolSet> {
-  const planMode = options?.mode === 'plan'
-  const available: ToolSet = { web_fetch: await createWebFetchTool() }
+  const ctx = options?.ctx
+  const sessionId = session ? sharedSessionId(session) : undefined
 
-  if (normalizeWebSearchInstances(settings?.webSearchInstances).length > 0) {
-    available.web_search = await createWebSearchTool(settings)
-  }
+  const workspace: WorkspaceToolContext | undefined =
+    session?.workspace && sessionId
+      ? {
+          sessionId,
+          workspaceId: session.workspace.workspaceId,
+          approvals: mergeToolApprovals(
+            session.toolApprovals,
+            options?.autoApprove,
+          ),
+          // Plan mode can be entered or approved mid-turn
+          isPlanMode: ctx ? () => isPlanMode(ctx, sessionId) : undefined,
+        }
+      : undefined
 
-  for (const server of enabledMcpServers(settings)) {
-    for (const meta of server.tools ?? []) {
-      const name = mcpToolName(server, meta.name)
-      // Don't let an external tool shadow a built-in or an already-registered tool
-      if (name in available) continue
-      available[name] = await createExternalMcpTool(server, meta)
-    }
-  }
+  const planContext: PlanToolContext | undefined =
+    ctx && sessionId ? { ctx, sessionId } : undefined
 
-  const admin = minRole(invokerRole, 'admin')
-  if (admin && session?.workspace) {
-    const context: WorkspaceToolContext = {
-      sessionId: sharedSessionId(session),
-      workspaceId: session.workspace.workspaceId,
-      approvals: mergeToolApprovals(
-        session.toolApprovals,
-        options?.autoApprove,
-      ),
-      readOnly: planMode,
-    }
-    Object.assign(available, {
-      read_file: await createReadFileTool(context),
-      shell: await createShellTool(context),
-      shell_output: await createShellOutputTool(context),
-      kill_shell: await createKillShellTool(context),
+  const mcpByName = new Map((manifest.mcp ?? []).map((e) => [e.name, e]))
+  const tools: ToolSet = {}
+
+  for (const name of manifest.names) {
+    const built = await createManifestTool(name, {
+      manifest,
+      mcpByName,
+      settings,
+      workspace,
+      planContext,
     })
-    // Plan mode disables write tools entirely
-    if (!planMode) {
-      Object.assign(available, {
-        write_file: await createWriteFileTool(context),
-        edit_file: await createEditFileTool(context),
-      })
-    }
+    if (built) tools[name] = built
   }
 
-  const names = Array.isArray(tools) ? (tools as string[]) : []
-  const selected = Object.fromEntries(
-    Object.entries(available).filter(([name]) => names.includes(name)),
-  )
-
-  const withCompanions = withShellCompanions(selected, available)
-  const withPlanTools = Object.assign(
-    withCompanions,
-    await createModeTools(invokerRole, session, options),
-  )
-
-  if (options?.ctx && session && names.includes(TODO_TOOL_TOGGLE)) {
-    // One toggle covers both tools
-    const todoContext = { ctx: options.ctx, sessionId: session._id }
-    withPlanTools.write_todo = await createWriteTodoTool(todoContext)
-    withPlanTools.edit_todo = await createEditTodoTool(todoContext)
-  }
-
-  if (options?.spawnableAgents?.length) {
-    withPlanTools[TASK_TOOL_NAME] = await createTaskTool(
-      options.spawnableAgents,
-    )
-  }
-
-  return planMode ? withPlanModeReminders(withPlanTools) : withPlanTools
+  return withPlanModeReminders(tools, planContext)
 }
 
-/** Mode-driven tools, auto-included. */
-async function createModeTools(
-  invokerRole?: Role,
-  session?: Pick<Doc<'sessions'>, '_id' | 'workspace' | 'parent'>,
-  options?: ModeToolOptions,
-): Promise<ToolSet> {
-  if (!options?.ctx || !session || !minRole(invokerRole, 'admin')) return {}
+type AnyTool = ToolSet[string]
 
-  // Sub-agents work on the parent's plan and never transition modes
-  const subagent = !!session.parent
-  const context: PlanToolContext = {
-    ctx: options.ctx,
-    sessionId: sharedSessionId(session),
+type BuildContext = {
+  manifest: ToolManifest
+  mcpByName: Map<string, McpManifestEntry>
+  settings?: WebToolSettings
+  workspace?: WorkspaceToolContext
+  planContext?: PlanToolContext
+}
+
+/** Constructs one tool by its cached name. */
+async function createManifestTool(
+  name: string,
+  build: BuildContext,
+): Promise<AnyTool | undefined> {
+  const { workspace, planContext } = build
+
+  switch (name) {
+    case 'web_fetch':
+      return createWebFetchTool()
+    case 'web_search':
+      return createWebSearchTool(build.settings)
+    case 'read_file':
+      return workspace && createReadFileTool(workspace)
+    case 'write_file':
+      return workspace && createWriteFileTool(workspace)
+    case 'edit_file':
+      return workspace && createEditFileTool(workspace)
+    // Streaming tools carry narrower generics than the ToolSet value type
+    case 'shell':
+      return workspace && (createShellTool(workspace) as Promise<AnyTool>)
+    case 'shell_output':
+      return workspace && (createShellOutputTool(workspace) as Promise<AnyTool>)
+    case 'kill_shell':
+      return workspace && createKillShellTool(workspace)
+    case 'write_plan':
+      return planContext && createWritePlanTool(planContext)
+    case 'edit_plan':
+      return planContext && createEditPlanTool(planContext)
+    case 'enter_plan_mode':
+      return planContext && createEnterPlanModeTool(planContext)
+    case 'exit_plan_mode':
+      return planContext && createExitPlanModeTool(planContext)
+    case 'write_todo':
+      return planContext && createWriteTodoTool(planContext)
+    case 'edit_todo':
+      return planContext && createEditTodoTool(planContext)
+    case TASK_TOOL_NAME:
+      return createTaskTool(build.manifest.taskRoster ?? '')
   }
 
-  if (options.mode === 'plan') {
-    const modeTools: ToolSet = {
-      write_plan: await createWritePlanTool(context),
-      edit_plan: await createEditPlanTool(context),
-    }
-    if (!subagent) {
-      modeTools.exit_plan_mode = await createExitPlanModeTool(context)
-      modeTools.enter_plan_mode = await createEnterPlanModeTool(context, 'plan')
-    }
-    return modeTools
-  }
+  const entry = build.mcpByName.get(name)
+  if (!entry) return undefined
+  return createExternalMcpTool(entry, build.settings)
+}
 
-  const modeTools: ToolSet = {}
-  if (session.workspace && !subagent) {
-    modeTools.enter_plan_mode = await createEnterPlanModeTool(
-      context,
-      options.mode,
-    )
-  }
-  if (options.plan?.status === 'approved') {
-    modeTools.edit_plan = await createEditPlanTool(context)
-    if (!subagent) {
-      modeTools.exit_plan_mode = await createExitPlanModeTool(context)
-    }
-  }
-  return modeTools
+async function isPlanMode(
+  ctx: ActionCtx,
+  sessionId: Id<'sessions'>,
+): Promise<boolean> {
+  const mode = await ctx.runQuery(internal.sessions._getMode, { sessionId })
+  return mode === 'plan'
 }
 
 const PLAN_MODE_REMINDER =
@@ -706,8 +713,14 @@ const REMINDER_EXEMPT_TOOL_NAMES = new Set([
   'edit_todo',
 ])
 
-/** Adds the plan mode reminder to tool outputs. */
-export function withPlanModeReminders(tools: ToolSet): ToolSet {
+/** Adds the plan mode reminder to tool outputs by wrapping `execute`. */
+export function withPlanModeReminders(
+  tools: ToolSet,
+  context?: PlanToolContext,
+): ToolSet {
+  if (!context) return tools
+  const planMode = () => isPlanMode(context.ctx, context.sessionId)
+
   return Object.fromEntries(
     Object.entries(tools).map(([name, definition]) => {
       const execute = definition.execute
@@ -719,8 +732,8 @@ export function withPlanModeReminders(tools: ToolSet): ToolSet {
       const decorated = ((input, executionOptions) => {
         const result = execute(input, executionOptions)
         return isAsyncIterable(result)
-          ? withReminderOnFinalOutput(result)
-          : withReminderOnOutput(result)
+          ? withReminderOnFinalOutput(result, planMode)
+          : withReminderOnOutput(result, planMode)
       }) as typeof execute
 
       return [name, { ...definition, execute: decorated }]
@@ -728,19 +741,24 @@ export function withPlanModeReminders(tools: ToolSet): ToolSet {
   )
 }
 
-async function withReminderOnOutput(result: unknown): Promise<unknown> {
+type PlanModeCheck = () => Promise<boolean>
+
+async function withReminderOnOutput(
+  result: unknown,
+  planMode: PlanModeCheck,
+): Promise<unknown> {
   const output = await result
-  return typeof output === 'string'
-    ? `${output}\n\n${PLAN_MODE_REMINDER}`
-    : output
+  if (typeof output !== 'string' || !(await planMode())) return output
+  return `${output}\n\n${PLAN_MODE_REMINDER}`
 }
 
 /** Adds the plan reminder on the final shell output. */
 async function* withReminderOnFinalOutput(
   outputs: AsyncIterable<unknown>,
+  planMode: PlanModeCheck,
 ): AsyncGenerator<unknown> {
   for await (const output of outputs) {
-    yield isFinalShellOutput(output)
+    yield isFinalShellOutput(output) && (await planMode())
       ? { ...output, text: `${output.text}\n\n${PLAN_MODE_REMINDER}` }
       : output
   }
@@ -759,57 +777,6 @@ function isFinalShellOutput(output: unknown): output is ShellToolOutput {
     typeof (output as ShellToolOutput).text === 'string' &&
     (output as ShellToolOutput).status !== 'running'
   )
-}
-
-/** shell_output and kill_shell are included with the shell tool. */
-function withShellCompanions(selected: ToolSet, available: ToolSet): ToolSet {
-  if (!selected.shell || !available.shell_output || !available.kill_shell) {
-    return selected
-  }
-  return {
-    ...selected,
-    shell_output: available.shell_output,
-    kill_shell: available.kill_shell,
-  }
-}
-
-function normalizeWebSearchInstances(instances: unknown): WebSearchInstance[] {
-  if (!Array.isArray(instances)) return []
-
-  const seen = new Set<string>()
-  const normalized: WebSearchInstance[] = []
-
-  for (const instance of instances) {
-    if (!instance || typeof instance !== 'object') continue
-    const record = instance as Record<string, unknown>
-    const engine = record.engine
-    const url = typeof record.url === 'string' ? record.url.trim() : ''
-    if (!isSearchEngineId(engine) || !isHttpUrl(url)) continue
-
-    const key = `${engine}:${url}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    normalized.push({ engine, url })
-  }
-
-  return normalized
-}
-
-/** Configured MCP servers that are enabled and reachable over http(s). */
-function enabledMcpServers(settings?: WebToolSettings): McpServer[] {
-  const servers = settings?.mcpServers
-  if (!Array.isArray(servers)) return []
-  return servers.filter((server) => server.enabled && isHttpUrl(server.url))
-}
-
-function isHttpUrl(value: string): boolean {
-  if (!value) return false
-  try {
-    const { protocol } = new URL(value)
-    return protocol === 'http:' || protocol === 'https:'
-  } catch {
-    return false
-  }
 }
 
 export async function listTools(ctx: AuthQueryCtx): Promise<ToolMeta[]> {

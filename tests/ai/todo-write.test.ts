@@ -1,6 +1,7 @@
 /// <reference types="bun-types" />
 import { injectDueReminders } from '@sb/convex/model/chat/reminders'
 import { _edit, _write, applyTodoEdits } from '@sb/convex/model/todos'
+import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
 import { getEnabledTools } from '@sb/convex/model/tools'
 import type { TodoItem } from '@sb/convex/types'
 import { TODO_NUDGE_INTERVAL_TURNS, TODO_TOOL_TOGGLE } from '@sb/core/const'
@@ -297,10 +298,18 @@ describe('todo tool toggle', () => {
   } as never
   const toolSession = { _id: 'session_1' } as never
 
+  const manifestFor = (tools: string[]) =>
+    resolveToolManifest({
+      agent: { tools } as never,
+      invoker: {} as never,
+      session: toolSession,
+      settings: null,
+      spawnableAgents: [],
+    } as never)
+
   test('one toggle enables both tools', async () => {
     const tools = await getEnabledTools(
-      [TODO_TOOL_TOGGLE],
-      undefined,
+      manifestFor([TODO_TOOL_TOGGLE]),
       toolSession,
       null,
       { ctx: fakeCtx },
@@ -311,7 +320,7 @@ describe('todo tool toggle', () => {
   })
 
   test('both tools are hidden when the toggle is off', async () => {
-    const tools = await getEnabledTools([], undefined, toolSession, null, {
+    const tools = await getEnabledTools(manifestFor([]), toolSession, null, {
       ctx: fakeCtx,
     })
 

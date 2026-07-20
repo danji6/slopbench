@@ -5,6 +5,7 @@ import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { partsHaveScript } from '../../model/messages'
 import { postSidecar } from '../../model/sidecar'
+import { resolveToolManifest } from '../../model/tool/manifest'
 import { buildEvalContext } from './evalContext'
 
 type MessageEvalResult = {
@@ -49,7 +50,7 @@ export async function _evalMessage(
   } = data
   if (!partsHaveScript(message.parts)) return
 
-  const context = await buildEvalContext({
+  const context = buildEvalContext({
     agent,
     invoker,
     invokerSettings,
@@ -58,6 +59,14 @@ export async function _evalMessage(
     session,
     userCount,
     agentCount,
+    // No cached manifest outside a stream; resolve from live state
+    toolNames: resolveToolManifest({
+      agent,
+      invoker,
+      session,
+      settings: ownerSettings,
+      spawnableAgents: [],
+    }).names,
   })
 
   const result = await postSidecar<MessageEvalResult>('/eval/message', {

@@ -158,7 +158,7 @@ async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
   }
 
   if (operationPlan.evalItems.length > 0) {
-    const evalContext = await buildEvalContext({
+    const evalContext = buildEvalContext({
       agent: data.agent,
       invoker: data.invoker,
       invokerSettings: data.invokerSettings,
@@ -167,6 +167,7 @@ async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
       session: data.session,
       userCount: data.userCount,
       agentCount: data.agentCount,
+      toolNames: operationPlan.toolNames,
     })
 
     evalResult = await postSidecar<PromptEvalResult>('/eval/prompts', {
@@ -174,15 +175,16 @@ async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
       context: evalContext,
       environment: evalResult.environment,
     })
+  }
 
-    const patch = operationPlan.snapshotPatch(evalResult)
-    if (patch) {
-      await ctx.runMutation(internal.streams._savePromptSnapshot, {
-        sessionId: data.stream.sessionId,
-        agentId: data.stream.agentId,
-        ...patch,
-      })
-    }
+  // The tool manifest needs freezing on the first invoke
+  const patch = operationPlan.snapshotPatch(evalResult)
+  if (patch) {
+    await ctx.runMutation(internal.streams._saveSessionCache, {
+      sessionId: data.stream.sessionId,
+      agentId: data.stream.agentId,
+      ...patch,
+    })
   }
 
   const { systemPrompt, messages, tools } = await operationPlan.buildRequest(

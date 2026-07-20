@@ -3,7 +3,7 @@ import type { Id } from '../../_generated/dataModel'
 import { error } from '../../errors'
 import type { AuthMutationCtx } from '../../functions'
 import { scheduleTitle } from '../messages'
-import { removeForSession as removePromptSnapshots } from '../prompt/snapshots'
+import { removeForSession as removeSessionCache } from '../session/cache'
 import * as Memberships from '../session/memberships'
 import { STREAM_LEASE_MS } from '../stream/lifecycle'
 
@@ -37,10 +37,10 @@ export async function stopStream(
 }
 
 /**
- * Drops the session's prompt snapshots, forcing re-evaluation on the next
- * invocation.
+ * Drops the session's cached prompts and tool manifest, forcing both to be
+ * recomputed on the next invocation.
  */
-export async function resetPromptSnapshots(
+export async function resetSessionCache(
   ctx: AuthMutationCtx,
   { sessionId }: { sessionId: Id<'sessions'> },
 ) {
@@ -50,7 +50,7 @@ export async function resetPromptSnapshots(
     error('Cannot re-evaluate prompts while the agent is responding', 409)
   }
 
-  await removePromptSnapshots(ctx, sessionId)
+  await removeSessionCache(ctx, sessionId)
 }
 
 export async function retryStreamNow(

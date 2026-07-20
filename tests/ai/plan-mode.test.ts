@@ -9,10 +9,9 @@ import {
 } from '@sb/convex/model/defaults'
 import { _edit, createPlanLinkPart } from '@sb/convex/model/plans'
 import { resolvePlanPrompts } from '@sb/convex/model/prompt/prompts'
-import {
-  getEnabledTools,
-  withPlanModeReminders,
-} from '@sb/convex/model/tools'
+import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
+import { getEnabledTools, withPlanModeReminders } from '@sb/convex/model/tools'
+import { PLAN_TOOL_TOGGLE } from '@sb/core/const'
 import { describe, expect, test } from 'bun:test'
 
 function shellOutput(status: string, text: string) {
@@ -247,7 +246,7 @@ describe('plan mode transitions', () => {
   })
 })
 
-describe('plan mode tool set', () => {
+describe('frozen tool manifest', () => {
   const session = {
     _id: 'session_1',
     workspace: { workspaceId: 'ws_1' },
@@ -260,77 +259,171 @@ describe('plan mode tool set', () => {
     'edit_file',
     'shell',
     'web_fetch',
+    PLAN_TOOL_TOGGLE,
   ]
+
+  const manifestFor = (
+    tools: string[] = agentTools,
+    over: Record<string, unknown> = {},
+  ) =>
+    resolveToolManifest({
+      agent: { tools } as never,
+      invoker: { role: 'admin' } as never,
+      session,
+      settings: null,
+      spawnableAgents: [],
+      ...over,
+    } as never)
+
+  test('the manifest is mode-independent', () => {
+    // Nothing about session mode or plan status is an input, so a plan
+    // approval mid-turn cannot shift the cached prefix
+    const names = manifestFor().names
+
+    expect(names).toContain('write_file')
+    expect(names).toContain('edit_file')
+    expect(names).toContain('write_plan')
+    expect(names).toContain('edit_plan')
+    expect(names).toContain('enter_plan_mode')
+    expect(names).toContain('exit_plan_mode')
+  })
+
+  test('shell companions ride along with shell', () => {
+    expect(manifestFor().names).toContain('shell_output')
+    expect(manifestFor().names).toContain('kill_shell')
+    expect(manifestFor(['read_file']).names).not.toContain('shell_output')
+  })
+
+  test('planning tools need the toggle and an admin invoker', () => {
+    const withoutToggle = manifestFor(['read_file']).names
+    expect(withoutToggle).not.toContain('write_plan')
+    expect(withoutToggle).not.toContain('exit_plan_mode')
+
+    const asUser = manifestFor(agentTools, {
+      invoker: { role: 'user' },
+    }).names
+    expect(asUser).not.toContain('write_plan')
+    expect(asUser).not.toContain('exit_plan_mode')
+  })
+
+  test('sub-agents plan but never transition modes', () => {
+    const names = manifestFor(agentTools, {
+      session: { ...(session as object), parent: { sessionId: 'session_p' } },
+    }).names
+
+    expect(names).toContain('write_plan')
+    expect(names).toContain('edit_plan')
+    expect(names).not.toContain('exit_plan_mode')
+    expect(names).not.toContain('enter_plan_mode')
+  })
+
+  test('the task roster is frozen into the description', async () => {
+    const manifest = manifestFor(agentTools, {
+      spawnableAgents: [{ name: 'Explore', description: 'Searches' }],
+    })
+    expect(manifest.names).toContain('task')
+    expect(manifest.taskRoster).toContain('- Explore: Searches')
+
+    const tools = await getEnabledTools(manifest, session, null, {
+      ctx: fakeCtx,
+    })
+    expect(tools.task?.description).toContain('- Explore: Searches')
+  })
 
   const fakeCtx = {
     runQuery: async () => null,
     runMutation: async () => undefined,
   } as never
 
-  test('plan mode disables write tools and adds the planning tools', async () => {
-    const tools = await getEnabledTools(agentTools, 'admin', session, null, {
-      ctx: fakeCtx,
-      mode: 'plan',
-      plan: null,
+  const planCtx = {
+    runQuery: async () => 'plan',
+    runMutation: async () => undefined,
+  } as never
+
+  test('write_file stays on the wire but refuses in plan mode', async () => {
+    const manifest = manifestFor()
+    const tools = await getEnabledTools(manifest, session, null, {
+      ctx: planCtx,
     })
 
-    const names = Object.keys(tools)
-    expect(names).toContain('read_file')
-    expect(names).toContain('shell')
-    expect(names).toContain('write_plan')
-    expect(names).toContain('edit_plan')
-    expect(names).toContain('exit_plan_mode')
-    // Kept so an approved enter_plan_mode call from history can still
-    // execute after the stream resumes in plan mode
-    expect(names).toContain('enter_plan_mode')
-    expect(names).not.toContain('write_file')
-    expect(names).not.toContain('edit_file')
+    expect(Object.keys(tools)).toContain('write_file')
+    expect(
+      tools.write_file.execute?.({ path: 'a.ts', content: 'x' }, {} as never),
+    ).rejects.toThrow('Plan mode is active')
+    expect(
+      tools.edit_file.execute?.({ path: 'a.ts', edits: [] }, {} as never),
+    ).rejects.toThrow('Plan mode is active')
   })
 
-  test('normal mode keeps write tools and offers enter_plan_mode', async () => {
-    const tools = await getEnabledTools(agentTools, 'admin', session, null, {
-      ctx: fakeCtx,
-      mode: undefined,
-      plan: null,
+  test('plan mode gates non-read-only shell commands behind approval', async () => {
+    const tools = await getEnabledTools(manifestFor(), session, null, {
+      ctx: planCtx,
+    })
+    const needsApproval = tools.shell.needsApproval as (
+      input: unknown,
+    ) => Promise<boolean>
+
+    // Short-circuits before the sidecar path check
+    expect(await needsApproval({ command: 'rm -rf src' })).toBe(true)
+    expect(await needsApproval({ command: 'find . -delete' })).toBe(true)
+  })
+
+  test('the real shell execute stays synchronously iterable', async () => {
+    const tools = await getEnabledTools(manifestFor(), session, null, {
+      ctx: planCtx,
     })
 
-    const names = Object.keys(tools)
-    expect(names).toContain('write_file')
-    expect(names).toContain('edit_file')
-    expect(names).toContain('enter_plan_mode')
-    expect(names).not.toContain('write_plan')
-    expect(names).not.toContain('edit_plan')
-    expect(names).not.toContain('exit_plan_mode')
+    const result = tools.shell.execute?.({ command: 'rm -rf src' }, {} as never)
+    expect(Symbol.asyncIterator in (result as object)).toBe(true)
+
+    // Close without consuming: the generator never started, no sidecar call
+    await (result as AsyncGenerator).return(undefined)
   })
 
-  test('normal mode with an approved plan keeps edit_plan for progress', async () => {
-    const tools = await getEnabledTools(agentTools, 'admin', session, null, {
-      ctx: fakeCtx,
-      plan: { status: 'approved' } as never,
-    })
+  test('children write to the parent session plan', async () => {
+    const writes: unknown[] = []
+    const ctx = {
+      runQuery: async () => null,
+      runMutation: async (_ref: unknown, args: unknown) => {
+        writes.push(args)
+      },
+    } as never
+    const childSession = {
+      _id: 'session_child',
+      workspace: { workspaceId: 'ws_1' },
+      toolApprovals: undefined,
+      parent: { sessionId: 'session_parent' },
+    } as never
 
-    expect(Object.keys(tools)).toContain('edit_plan')
-    // Kept so an approved exit_plan_mode call from history can still echo
-    // the plan after the stream resumes in normal mode
-    expect(Object.keys(tools)).toContain('exit_plan_mode')
-    expect(Object.keys(tools)).not.toContain('write_plan')
+    const tools = await getEnabledTools(
+      manifestFor(agentTools, { session: childSession }),
+      childSession,
+      null,
+      { ctx },
+    )
+
+    await tools.write_plan.execute?.({ content: '# Plan' }, {} as never)
+
+    expect(writes).toEqual([{ sessionId: 'session_parent', content: '# Plan' }])
   })
+})
 
-  test('planning tools require an admin invoker', async () => {
-    const tools = await getEnabledTools(agentTools, 'user', session, null, {
-      ctx: fakeCtx,
-      mode: 'plan',
-      plan: null,
-    })
+describe('plan mode reminders', () => {
+  const planContext = {
+    ctx: { runQuery: async () => 'plan' },
+    sessionId: 'session_1',
+  } as never
 
-    expect(Object.keys(tools)).not.toContain('write_plan')
-    expect(Object.keys(tools)).not.toContain('exit_plan_mode')
-  })
+  const normalContext = {
+    ctx: { runQuery: async () => null },
+    sessionId: 'session_1',
+  } as never
 
-  test('plan mode rides a reminder on string tool outputs', async () => {
-    const tools = withPlanModeReminders({
-      read_file: { execute: async () => 'file contents' },
-    } as never)
+  test('rides a reminder on string tool outputs while planning', async () => {
+    const tools = withPlanModeReminders(
+      { read_file: { execute: async () => 'file contents' } } as never,
+      planContext,
+    )
 
     const output = await tools.read_file!.execute?.({} as never, {} as never)
 
@@ -338,14 +431,26 @@ describe('plan mode tool set', () => {
     expect(output).toContain('<system-reminder>Plan mode is active')
   })
 
-  test('plan mode rides the reminder on the final streaming output only', async () => {
+  test('stays silent outside plan mode', async () => {
+    const tools = withPlanModeReminders(
+      { read_file: { execute: async () => 'file contents' } } as never,
+      normalContext,
+    )
+
+    const output = await tools.read_file!.execute?.({} as never, {} as never)
+
+    expect(output).toBe('file contents')
+  })
+
+  test('rides the reminder on the final streaming output only', async () => {
     async function* run() {
       yield shellOutput('running', '')
       yield shellOutput('completed', 'done')
     }
-    const tools = withPlanModeReminders({
-      shell: { execute: () => run() },
-    } as never)
+    const tools = withPlanModeReminders(
+      { shell: { execute: () => run() } } as never,
+      planContext,
+    )
 
     // The result must be a synchronously returned async iterable — the SDK
     // detects streaming tools on the raw return value, and a promise-wrapped
@@ -364,49 +469,32 @@ describe('plan mode tool set', () => {
     )
   })
 
-  test('plan mode keeps the real shell execute synchronously iterable', async () => {
-    const tools = await getEnabledTools(agentTools, 'admin', session, null, {
-      ctx: fakeCtx,
-      mode: 'plan',
-      plan: null,
-    })
-
-    const result = tools.shell.execute?.({ command: 'rm -rf src' }, {} as never)
-    expect(Symbol.asyncIterator in (result as object)).toBe(true)
-
-    // Close without consuming: the generator never started, no sidecar call
-    await (result as AsyncGenerator).return(undefined)
-  })
-
-  test('plan mode gates non-read-only shell commands behind approval', async () => {
-    const tools = await getEnabledTools(agentTools, 'admin', session, null, {
-      ctx: fakeCtx,
-      mode: 'plan',
-      plan: null,
-    })
-    const needsApproval = tools.shell.needsApproval as (
-      input: unknown,
-    ) => Promise<boolean>
-
-    // Short-circuits before the sidecar path check
-    expect(await needsApproval({ command: 'rm -rf src' })).toBe(true)
-    expect(await needsApproval({ command: 'find . -delete' })).toBe(true)
-  })
-
   test('plan tool outputs skip the reminder', async () => {
     const writes: unknown[] = []
     const ctx = {
-      runQuery: async () => null,
+      runQuery: async () => 'plan',
       runMutation: async (_ref: unknown, args: unknown) => {
         writes.push(args)
       },
     } as never
+    const session = {
+      _id: 'session_1',
+      workspace: { workspaceId: 'ws_1' },
+      toolApprovals: undefined,
+    } as never
 
-    const tools = await getEnabledTools(agentTools, 'admin', session, null, {
-      ctx,
-      mode: 'plan',
-      plan: null,
-    })
+    const tools = await getEnabledTools(
+      resolveToolManifest({
+        agent: { tools: [PLAN_TOOL_TOGGLE] } as never,
+        invoker: { role: 'admin' } as never,
+        session,
+        settings: null,
+        spawnableAgents: [],
+      } as never),
+      session,
+      null,
+      { ctx },
+    )
 
     const output = await tools.write_plan.execute?.(
       { content: '# Plan' },
@@ -425,13 +513,24 @@ describe('plan mode transition tools', () => {
     toolApprovals: undefined,
   } as never
 
-  const agentTools = ['read_file']
-
-  const ctxWith = (queryResult: unknown) =>
-    ({
-      runQuery: async () => queryResult,
-      runMutation: async () => undefined,
-    }) as never
+  const buildTools = (queryResult: unknown) =>
+    getEnabledTools(
+      resolveToolManifest({
+        agent: { tools: ['read_file', PLAN_TOOL_TOGGLE] } as never,
+        invoker: { role: 'admin' } as never,
+        session,
+        settings: null,
+        spawnableAgents: [],
+      } as never),
+      session,
+      null,
+      {
+        ctx: {
+          runQuery: async () => queryResult,
+          runMutation: async () => undefined,
+        } as never,
+      },
+    )
 
   async function resolveNeedsApproval(tool: unknown): Promise<boolean> {
     const needsApproval = (tool as { needsApproval?: unknown }).needsApproval
@@ -443,53 +542,32 @@ describe('plan mode transition tools', () => {
   }
 
   test('enter_plan_mode asks approval when the session is not planning', async () => {
-    const tools = await getEnabledTools(agentTools, 'admin', session, null, {
-      ctx: ctxWith(null),
-      plan: null,
-    })
+    const tools = await buildTools(null)
 
     expect(await resolveNeedsApproval(tools.enter_plan_mode)).toBe(true)
   })
 
   test('enter_plan_mode is a quiet no-op when plan mode is already active', async () => {
-    const tools = await getEnabledTools(agentTools, 'admin', session, null, {
-      ctx: ctxWith('plan'),
-      plan: null,
-    })
+    const tools = await buildTools('plan')
 
     expect(await resolveNeedsApproval(tools.enter_plan_mode)).toBe(false)
-
-    const output = await tools.enter_plan_mode.execute?.({}, {} as never)
-    expect(output).toContain('already active')
   })
 
-  test('enter_plan_mode on a plan-mode stream instructs to start planning', async () => {
-    const tools = await getEnabledTools(agentTools, 'admin', session, null, {
-      ctx: ctxWith('plan'),
-      mode: 'plan',
-      plan: null,
-    })
+  test('enter_plan_mode reads the mode live, after approval flipped it', async () => {
+    const tools = await buildTools('plan')
 
     const output = await tools.enter_plan_mode.execute?.({}, {} as never)
     expect(output).toContain('write_plan')
   })
 
   test('exit_plan_mode asks approval for a non-empty draft', async () => {
-    const tools = await getEnabledTools(agentTools, 'admin', session, null, {
-      ctx: ctxWith({ content: '# Plan', status: 'draft' }),
-      mode: 'plan',
-      plan: null,
-    })
+    const tools = await buildTools({ content: '# Plan', status: 'draft' })
 
     expect(await resolveNeedsApproval(tools.exit_plan_mode)).toBe(true)
   })
 
   test('exit_plan_mode skips approval and fails fast when no plan exists', async () => {
-    const tools = await getEnabledTools(agentTools, 'admin', session, null, {
-      ctx: ctxWith(null),
-      mode: 'plan',
-      plan: null,
-    })
+    const tools = await buildTools(null)
 
     expect(await resolveNeedsApproval(tools.exit_plan_mode)).toBe(false)
 
@@ -499,9 +577,9 @@ describe('plan mode transition tools', () => {
   })
 
   test('exit_plan_mode never re-prompts for an approved plan', async () => {
-    const tools = await getEnabledTools(agentTools, 'admin', session, null, {
-      ctx: ctxWith({ content: '# The Plan', status: 'approved' }),
-      plan: { status: 'approved' } as never,
+    const tools = await buildTools({
+      content: '# The Plan',
+      status: 'approved',
     })
 
     expect(await resolveNeedsApproval(tools.exit_plan_mode)).toBe(false)
@@ -511,108 +589,7 @@ describe('plan mode transition tools', () => {
   })
 })
 
-describe('sub-agent planning tools', () => {
-  const childSession = {
-    _id: 'session_child',
-    workspace: { workspaceId: 'ws_1' },
-    toolApprovals: undefined,
-    parent: {
-      sessionId: 'session_parent',
-      streamId: 'stream_parent',
-      toolCallId: 'tc_1',
-      agentId: 'agent_parent',
-    },
-  } as never
-
-  const agentTools = ['read_file']
-
-  const fakeCtx = {
-    runQuery: async () => null,
-    runMutation: async () => undefined,
-  } as never
-
-  const spawnableAgents = [{ _id: 'agent_explorer', name: 'Explore' }] as never
-
-  test('plan mode exposes the task tool', async () => {
-    const session = {
-      _id: 'session_1',
-      workspace: { workspaceId: 'ws_1' },
-      toolApprovals: undefined,
-    } as never
-
-    const tools = await getEnabledTools(agentTools, 'admin', session, null, {
-      ctx: fakeCtx,
-      mode: 'plan',
-      plan: null,
-      spawnableAgents,
-    })
-
-    expect(Object.keys(tools)).toContain('task')
-  })
-
-  test('plan-mode children plan but cannot transition modes', async () => {
-    const tools = await getEnabledTools(
-      agentTools,
-      'admin',
-      childSession,
-      null,
-      { ctx: fakeCtx, mode: 'plan', plan: null },
-    )
-
-    const names = Object.keys(tools)
-    expect(names).toContain('write_plan')
-    expect(names).toContain('edit_plan')
-    expect(names).not.toContain('exit_plan_mode')
-    expect(names).not.toContain('enter_plan_mode')
-  })
-
-  test('children write to the parent session plan', async () => {
-    const writes: unknown[] = []
-    const ctx = {
-      runQuery: async () => null,
-      runMutation: async (_ref: unknown, args: unknown) => {
-        writes.push(args)
-      },
-    } as never
-
-    const tools = await getEnabledTools(
-      agentTools,
-      'admin',
-      childSession,
-      null,
-      { ctx, mode: 'plan', plan: null },
-    )
-
-    await tools.write_plan.execute?.({ content: '# Plan' }, {} as never)
-
-    expect(writes).toEqual([{ sessionId: 'session_parent', content: '# Plan' }])
-  })
-
-  test('normal-mode children never enter plan mode themselves', async () => {
-    const tools = await getEnabledTools(
-      agentTools,
-      'admin',
-      childSession,
-      null,
-      { ctx: fakeCtx, plan: null },
-    )
-
-    expect(Object.keys(tools)).not.toContain('enter_plan_mode')
-  })
-
-  test('an approved parent plan grants edit_plan but not exit_plan_mode', async () => {
-    const tools = await getEnabledTools(
-      agentTools,
-      'admin',
-      childSession,
-      null,
-      { ctx: fakeCtx, plan: { status: 'approved' } as never },
-    )
-
-    expect(Object.keys(tools)).toContain('edit_plan')
-    expect(Object.keys(tools)).not.toContain('exit_plan_mode')
-  })
-
+describe('plan prompts', () => {
   test('the default plan prompt has a report-oriented sub-agent variant', () => {
     const [prompt] = resolvePlanPrompts(null, true)
     const content = (prompt as { content: string }).content

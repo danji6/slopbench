@@ -12,13 +12,15 @@ import {
   sessionArchiveValidator,
   sessionModeValidator,
   sessionSettingsValidator,
+  toolManifestValidator,
 } from './sub'
 
-export const savePromptSnapshotArgsValidator = v.object({
+export const saveSessionCacheArgsValidator = v.object({
   sessionId: v.id('sessions'),
   agentId: v.id('agents'),
   items: v.optional(v.array(promptItemValidator)),
   planItems: v.optional(v.array(promptItemValidator)),
+  tools: v.optional(toolManifestValidator),
 })
 
 const workspaceTextLinkValidator = v.object({

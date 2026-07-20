@@ -3,6 +3,7 @@ import {
   resolveSpawnableAgents,
   sanitizeSubAgents,
 } from '@sb/convex/model/agent/subagents'
+import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
 import { getEnabledTools } from '@sb/convex/model/tools'
 import { describe, expect, test } from 'bun:test'
 
@@ -101,16 +102,20 @@ describe('sanitizeSubAgents', () => {
     const foreign = { _id: 'agent_foreign', ownerId: 'user_2', name: 'Other' }
     const ctx = fakeCtx([coder, explorer, foreign])
 
-    const sanitized = await sanitizeSubAgents(ctx, owner as never, {
-      mode: 'allow',
-      agentIds: [
-        'agent_explorer',
-        'agent_explorer',
-        'agent_foreign',
-        'agent_coder',
-        'agent_missing',
-      ],
-    } as never)
+    const sanitized = await sanitizeSubAgents(
+      ctx,
+      owner as never,
+      {
+        mode: 'allow',
+        agentIds: [
+          'agent_explorer',
+          'agent_explorer',
+          'agent_foreign',
+          'agent_coder',
+          'agent_missing',
+        ],
+      } as never,
+    )
 
     expect(sanitized).toEqual({
       mode: 'allow',
@@ -127,17 +132,28 @@ describe('sanitizeSubAgents', () => {
 })
 
 describe('task tool', () => {
+  const manifestFor = (spawnableAgents: unknown[]) =>
+    resolveToolManifest({
+      agent: { tools: [] } as never,
+      invoker: {} as never,
+      session: {} as never,
+      settings: null,
+      spawnableAgents,
+    } as never)
+
   test('is exposed with the agent roster when spawnable agents exist', async () => {
-    const tools = await getEnabledTools([], undefined, undefined, null, {
-      spawnableAgents: [
+    const tools = await getEnabledTools(
+      manifestFor([
         {
           _id: 'agent_explorer' as never,
           name: 'Explore',
           description: 'Searches the codebase',
         },
         { _id: 'agent_planner' as never, name: 'Plan' },
-      ],
-    })
+      ]),
+      undefined,
+      null,
+    )
 
     expect(tools.task).toBeDefined()
     expect(tools.task?.description).toContain(
@@ -149,17 +165,14 @@ describe('task tool', () => {
   })
 
   test('is hidden without spawnable agents', async () => {
-    const none = await getEnabledTools([], undefined, undefined, null, {
-      spawnableAgents: [],
-    })
+    const none = await getEnabledTools(manifestFor([]), undefined, null)
     expect(none.task).toBeUndefined()
   })
 
-  test('stays exposed in plan mode', async () => {
-    const planMode = await getEnabledTools([], undefined, undefined, null, {
-      mode: 'plan',
-      spawnableAgents: [{ _id: 'agent_explorer' as never, name: 'Explore' }],
-    })
-    expect(planMode.task).toBeDefined()
+  test('the roster is frozen into the manifest', () => {
+    const manifest = manifestFor([
+      { _id: 'agent_explorer' as never, name: 'Explore' },
+    ])
+    expect(manifest.taskRoster).toBe('- Explore')
   })
 })

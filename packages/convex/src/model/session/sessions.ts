@@ -304,7 +304,7 @@ export async function remove(
     'sessionAgents',
     'plans',
     'todos',
-    'promptSnapshots',
+    'sessionCache',
   ] as const
 
   for (const table of sessionTables) {
