@@ -21,8 +21,32 @@ export type WorkspaceDirectoryLink = {
 }
 
 export type WorkspaceFileLink =
+  WorkspaceTextLink | WorkspaceBinaryLink | WorkspaceDirectoryLink
+
+/** A binary link cached at send time. */
+export type WorkspaceBinaryRefLink<TStorageId extends string = string> = {
+  kind: 'binary-ref'
+  path: string
+  storageId: TStorageId
+  mediaType: string
+  filename: string
+}
+
+/** A link deliberately not injected (e.g. over the binary size cap). */
+export type WorkspaceSkippedLink = {
+  kind: 'skipped'
+  path: string
+  reason: string
+}
+
+/**
+ * What a persisted `file-link` part may carry.
+ * `TStorageId` lets Convex callers keep their `Id<'_storage'>`.
+ */
+export type WorkspaceLinkSnapshot<TStorageId extends string = string> =
   | WorkspaceTextLink
-  | WorkspaceBinaryLink
   | WorkspaceDirectoryLink
+  | WorkspaceBinaryRefLink<TStorageId>
+  | WorkspaceSkippedLink
 
 export type WorkspaceFileListing = { files: string[]; truncated: boolean }

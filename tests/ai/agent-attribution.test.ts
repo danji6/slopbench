@@ -273,7 +273,7 @@ describe('buildProviderHistory', () => {
     ])
   })
 
-  test('drops snapshotless file links when no workspace is bound', async () => {
+  test('marks snapshotless file links unavailable when no workspace is bound', async () => {
     const message = userMessage([
       { type: 'file-link', path: 'src/a.ts' },
       { type: 'text', text: 'explain @src/a.ts' },
@@ -287,7 +287,16 @@ describe('buildProviderHistory', () => {
     expect(history).toEqual([
       {
         role: 'user',
-        content: [{ type: 'text', text: 'explain @src/a.ts' }],
+        content: [
+          {
+            type: 'text',
+            text:
+              '<file path="src/a.ts" status="unavailable">\n' +
+              'This file is no longer available.\n' +
+              '</file>',
+          },
+          { type: 'text', text: 'explain @src/a.ts' },
+        ],
       },
     ])
   })
@@ -362,7 +371,11 @@ describe('buildProviderHistory', () => {
     ])
   })
 
-  test('drops snapshotless links that no longer resolve', async () => {
+  /**
+   * Dropping the part would shift every byte after it, retroactively rewriting
+   * history for the rest of the session; the placeholder keeps the prefix.
+   */
+  test('replaces links that no longer resolve with a fixed placeholder', async () => {
     const message = userMessage([
       { type: 'file-link', path: 'gone.txt' },
       { type: 'text', text: 'explain @gone.txt' },
@@ -377,7 +390,53 @@ describe('buildProviderHistory', () => {
     expect(history).toEqual([
       {
         role: 'user',
-        content: [{ type: 'text', text: 'explain @gone.txt' }],
+        content: [
+          {
+            type: 'text',
+            text:
+              '<file path="gone.txt" status="unavailable">\n' +
+              'This file is no longer available.\n' +
+              '</file>',
+          },
+          { type: 'text', text: 'explain @gone.txt' },
+        ],
+      },
+    ])
+  })
+
+  test('renders an over-cap binary link as a skip marker', async () => {
+    const message = userMessage([
+      {
+        type: 'file-link',
+        path: 'huge.bin',
+        snapshot: {
+          kind: 'skipped',
+          path: 'huge.bin',
+          reason: 'larger than 2000000 bytes',
+        },
+      },
+    ])
+    const ctx = { runQuery: async () => [message] } as never
+
+    const history = await withFetch(
+      () => {
+        throw new Error('a skipped link must not read the workspace')
+      },
+      () => buildProviderHistory(ctx, providerDataWithWorkspace(), []),
+    )
+
+    expect(history).toEqual([
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text:
+              '<file path="huge.bin" status="skipped">\n' +
+              'Not included: larger than 2000000 bytes.\n' +
+              '</file>',
+          },
+        ],
       },
     ])
   })

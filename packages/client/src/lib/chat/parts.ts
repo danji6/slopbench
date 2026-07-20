@@ -1,8 +1,6 @@
 import type { FileItem } from '@/hooks'
-import type {
-  WorkspaceDirectoryLink,
-  WorkspaceTextLink,
-} from '@sb/core/types/workspace'
+import type { Id } from '@sb/convex/_generated/dataModel'
+import type { WorkspaceLinkSnapshot } from '@sb/core/types/workspace'
 import { collapseToolError } from '@sb/core/utils/tool-errors'
 import type { FileUIPart, ToolUIPart, UIMessage } from 'ai'
 import { isFileUIPart, isReasoningUIPart, isTextUIPart, isToolUIPart } from 'ai'
@@ -20,7 +18,7 @@ export type PartGroup =
 export type FileLinkPart = {
   type: 'file-link'
   path: string
-  snapshot?: WorkspaceTextLink | WorkspaceDirectoryLink
+  snapshot?: WorkspaceLinkSnapshot<Id<'_storage'>>
 }
 
 export function isFileLinkPart(part: unknown): part is FileLinkPart {

@@ -1,8 +1,5 @@
 import { parseFileMentions } from '@sb/core/mentions/parse'
-import type {
-  WorkspaceDirectoryLink,
-  WorkspaceTextLink,
-} from '@sb/core/types/workspace'
+import type { WorkspaceLinkSnapshot } from '@sb/core/types/workspace'
 
 import type { Id } from '../../_generated/dataModel'
 import { error } from '../../errors'
@@ -299,7 +296,7 @@ async function loadStagedAttachments(
   return staged
 }
 
-type SnapshotLink = WorkspaceTextLink | WorkspaceDirectoryLink
+type SnapshotLink = WorkspaceLinkSnapshot<Id<'_storage'>>
 type ResolvedFileLink = { path: string; snapshot?: SnapshotLink }
 type FileLinkPart = { type: 'file-link'; path: string; snapshot?: SnapshotLink }
 

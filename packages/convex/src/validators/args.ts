@@ -37,9 +37,25 @@ const workspaceDirectoryLinkValidator = v.object({
   truncated: v.boolean(),
 })
 
+const workspaceBinaryRefLinkValidator = v.object({
+  kind: v.literal('binary-ref'),
+  path: v.string(),
+  storageId: v.id('_storage'),
+  mediaType: v.string(),
+  filename: v.string(),
+})
+
+const workspaceSkippedLinkValidator = v.object({
+  kind: v.literal('skipped'),
+  path: v.string(),
+  reason: v.string(),
+})
+
 export const workspaceSnapshotValidator = v.union(
   workspaceTextLinkValidator,
   workspaceDirectoryLinkValidator,
+  workspaceBinaryRefLinkValidator,
+  workspaceSkippedLinkValidator,
 )
 
 export const sendMessageArgsValidator = v.object({

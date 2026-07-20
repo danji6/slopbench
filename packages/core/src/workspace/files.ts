@@ -1,6 +1,12 @@
 /** Max characters of inlined text content for a snapshot or text attachment. */
 export const MAX_TEXT_SNAPSHOT_CHARS = 50_000
 
+/**
+ * Max bytes of a linked binary file that can be cached into history. Larger
+ * files stay linkable but are never injected.
+ */
+export const MAX_BINARY_LINK_BYTES = 2_000_000
+
 const TEXT_FILE_EXTENSIONS = new Set([
   'astro',
   'bash',

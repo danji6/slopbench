@@ -1,12 +1,17 @@
 'use node'
 
-import type { WorkspaceFileLink } from '@sb/core/types/workspace'
+import type {
+  WorkspaceFileLink,
+  WorkspaceLinkSnapshot,
+} from '@sb/core/types/workspace'
+import { MAX_BINARY_LINK_BYTES } from '@sb/core/workspace/files'
 
 import { api, internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import { authorizeAdmin } from '../../functions'
+import { decodeBase64 } from '../../model/io/base64'
 import type { SessionMode } from '../../types'
 
 export async function createSession(
@@ -78,13 +83,12 @@ export async function readWorkspaceFileLink(args: {
 
 type ResolvedFileLink = {
   path: string
-  snapshot?: Extract<WorkspaceFileLink, { kind: 'text' | 'directory' }>
+  snapshot?: WorkspaceLinkSnapshot<Id<'_storage'>>
 }
 
 /**
- * Resolve `@path` mentions against the workspace. Directories and plain
- * text files are snapshotted, while binary files are resolved lazily at
- * history build time.
+ * Resolve `@path` mentions against the workspace. Every link is snapshotted
+ * here: text and directories inline, binaries by reference into storage.
  */
 export async function resolveFileLinks(
   ctx: ActionCtx,
@@ -102,15 +106,47 @@ export async function resolveFileLinks(
         workspaceId: workspace.workspaceId,
         path,
       })
-      return link.kind === 'binary'
-        ? { path: link.path }
-        : { path: link.path, snapshot: link }
+      return {
+        path: link.path,
+        snapshot:
+          link.kind === 'binary' ? await freezeBinaryLink(ctx, link) : link,
+      }
     }),
   )
 
   return results.flatMap((result) =>
     result.status === 'fulfilled' ? [result.value] : [],
   )
+}
+
+/**
+ * Moves a binary link's bytes into storage so history resolves them from an
+ * immutable blob instead of re-reading the workspace on every request. Files
+ * over the cap stay linkable but are never injected.
+ */
+async function freezeBinaryLink(
+  ctx: ActionCtx,
+  link: Extract<WorkspaceFileLink, { kind: 'binary' }>,
+): Promise<WorkspaceLinkSnapshot<Id<'_storage'>>> {
+  const bytes = decodeBase64(link.base64)
+  if (bytes.byteLength > MAX_BINARY_LINK_BYTES) {
+    return {
+      kind: 'skipped',
+      path: link.path,
+      reason: `larger than ${MAX_BINARY_LINK_BYTES} bytes`,
+    }
+  }
+
+  const storageId = await ctx.storage.store(
+    new Blob([bytes as BlobPart], { type: link.mediaType }),
+  )
+  return {
+    kind: 'binary-ref',
+    path: link.path,
+    storageId,
+    mediaType: link.mediaType,
+    filename: link.filename,
+  }
 }
 
 export async function bindWorkspace(

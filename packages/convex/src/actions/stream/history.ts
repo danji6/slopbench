@@ -6,7 +6,13 @@ import {
   toFileBlock,
   toPlanBlock,
 } from '@sb/convex/lib/workspace'
-import type { WorkspaceFileLink } from '@sb/core/types/workspace'
+import type {
+  WorkspaceBinaryRefLink,
+  WorkspaceFileLink,
+  WorkspaceSkippedLink,
+} from '@sb/core/types/workspace'
+import { block } from '@sb/core/utils/blocks'
+import { blockPath } from '@sb/core/workspace/blocks'
 import {
   MAX_TEXT_SNAPSHOT_CHARS,
   isKnownTextFile,
@@ -80,16 +86,17 @@ export async function buildProviderHistory(
     ...message,
     parts: prefixSenderName(message, history[index], data.agent),
   }))
-  const withNotes = injectApprovalNotes(attributed)
+  const approvalNotes = collectApprovalNotes(attributed)
 
   const [{ convertToModelMessages }, { shellHistoryTools: shellHistoryTools }] =
     await Promise.all([import('ai'), import('../../model/tool/shell')])
 
-  let modelMessages = await convertToModelMessages(withNotes, {
+  let modelMessages = await convertToModelMessages(attributed, {
     ignoreIncompleteToolCalls: true,
     // Maps shell outputs so replayed history never contains terminal scrollback
     tools: shellHistoryTools(),
   })
+  modelMessages = addApprovalNotes(modelMessages, approvalNotes)
   modelMessages = removeOrphanToolCalls(modelMessages)
   modelMessages = buildPrompts(
     remainingPrompts,
@@ -104,33 +111,57 @@ export async function buildProviderHistory(
     : modelMessages
 }
 
-export function injectApprovalNotes(messages: UIMessage[]): UIMessage[] {
-  const out: UIMessage[] = []
+/** Approval notes keyed by the call they annotate, settled calls only. */
+export function collectApprovalNotes(
+  messages: UIMessage[],
+): Map<string, string> {
+  const notes = new Map<string, string>()
   for (const message of messages) {
-    out.push(message)
-    const notes = collectApprovalNotes(message.parts)
-    if (notes.length > 0) {
-      out.push({
-        id: `${message.id}:approval-note`,
-        role: 'user',
-        parts: [{ type: 'text', text: notes.join('\n\n') }],
-      })
+    for (const part of message.parts) {
+      if (!part.type.startsWith('tool-')) continue
+      const typed = part as {
+        state?: string
+        toolCallId?: string
+        approval?: { note?: string }
+      }
+      // Only surface the note once the tool has settled, otherwise it never runs
+      if (!typed.state?.startsWith('output-')) continue
+      const note = typed.approval?.note?.trim()
+      if (note && typed.toolCallId) notes.set(typed.toolCallId, note)
     }
   }
-  return out
+  return notes
 }
 
-function collectApprovalNotes(parts: UIMessage['parts']): string[] {
-  const notes: string[] = []
-  for (const part of parts) {
-    if (!part.type.startsWith('tool-')) continue
-    const typed = part as { state?: string; approval?: { note?: string } }
-    // Only surface the note once the tool has settled, otherwise it never runs
-    if (!typed.state?.startsWith('output-')) continue
-    const note = typed.approval?.note
-    if (typeof note === 'string' && note.trim()) notes.push(note.trim())
-  }
-  return notes
+/** Adds each note on the tool result it annotates. */
+export function addApprovalNotes(
+  messages: ModelMessage[],
+  notes: Map<string, string>,
+): ModelMessage[] {
+  if (notes.size === 0) return messages
+
+  return messages.map((message) => {
+    if (message.role !== 'tool') return message
+    return {
+      ...message,
+      content: message.content.map((part) => {
+        if (part.type !== 'tool-result') return part
+        const note = notes.get(part.toolCallId)
+        const output = part.output
+        // Approvable tools that don't emit plain text output can't carry a note for now
+        if (!note || (output.type !== 'text' && output.type !== 'error-text')) {
+          return part
+        }
+        return {
+          ...part,
+          output: {
+            ...output,
+            value: `${output.value}\n\n${block('user-note', note)}`,
+          },
+        }
+      }),
+    }
+  })
 }
 
 export function removeOrphanToolCalls(
@@ -280,8 +311,7 @@ async function resolveParts(
   const resolved = await Promise.all(
     parts.map((part) => resolvePart(ctx, part, session)),
   )
-  // File links that no longer resolve (missing file, no workspace) are dropped.
-  return resolved.filter((part) => part !== null) as UIMessage['parts']
+  return resolved as UIMessage['parts']
 }
 
 async function resolvePart(
@@ -296,7 +326,7 @@ async function resolvePart(
   if (isSubagentReportPart(part)) {
     return { type: 'text' as const, text: toSubagentReportBlock(part) }
   }
-  if (isFileLinkPart(part)) return resolveFileLink(part, session)
+  if (isFileLinkPart(part)) return resolveFileLink(ctx, part, session)
   if (!isAttachmentPart(part)) return part
   if (part.url.startsWith('data:')) return part
 
@@ -356,14 +386,20 @@ async function resolveOffloadedOutput(
 }
 
 async function resolveFileLink(
+  ctx: ActionCtx,
   part: { type: 'file-link'; path: string; snapshot?: unknown },
   session: Doc<'sessions'>,
 ) {
-  // Text/directory links carry a stable snapshot embedded at send time
-  if (isWorkspaceFileLink(part.snapshot)) return fileLinkToPart(part.snapshot)
+  // Links snapshotted at send time never touch disk again
+  const snapshot = part.snapshot
+  if (isSkippedLink(snapshot)) {
+    return skippedFileLink(snapshot.path, snapshot.reason)
+  }
+  if (isBinaryRefLink(snapshot)) return resolveBinaryRef(ctx, snapshot)
+  if (isWorkspaceFileLink(snapshot)) return fileLinkToPart(snapshot)
 
-  // The rest is resolved lazily or dropped if invalid
-  if (!session.workspace) return null
+  // Pre-snapshot parts and unresolvable sends fall back to a lazy read
+  if (!session.workspace) return unavailableFileLink(part.path)
   try {
     const file = await readWorkspaceFileLink({
       sessionId: sharedSessionId(session),
@@ -372,7 +408,49 @@ async function resolveFileLink(
     })
     return fileLinkToPart(file)
   } catch {
-    return null
+    return unavailableFileLink(part.path)
+  }
+}
+
+function isSkippedLink(value: unknown): value is WorkspaceSkippedLink {
+  return (value as { kind?: string } | null)?.kind === 'skipped'
+}
+
+function isBinaryRefLink(value: unknown): value is WorkspaceBinaryRefLink {
+  return (value as { kind?: string } | null)?.kind === 'binary-ref'
+}
+
+async function resolveBinaryRef(ctx: ActionCtx, link: WorkspaceBinaryRefLink) {
+  const blob = await ctx.storage.get(link.storageId as Id<'_storage'>)
+  if (!blob) return unavailableFileLink(link.path)
+
+  const base64 = encodeBase64(new Uint8Array(await blob.arrayBuffer()))
+  return {
+    type: 'file' as const,
+    url: `data:${link.mediaType};base64,${base64}`,
+    mediaType: link.mediaType,
+    filename: link.filename,
+  }
+}
+
+/** Names a link the user made but that is deliberately not injected. */
+function skippedFileLink(path: string, reason: string) {
+  return {
+    type: 'text' as const,
+    text: block('file', `Not included: ${reason}.`, {
+      path: blockPath(path),
+      status: 'skipped',
+    }),
+  }
+}
+
+function unavailableFileLink(path: string) {
+  return {
+    type: 'text' as const,
+    text: block('file', 'This file is no longer available.', {
+      path: blockPath(path),
+      status: 'unavailable',
+    }),
   }
 }
 

@@ -10,10 +10,7 @@ import { api } from '@sb/convex/_generated/api'
 import type { Doc, Id } from '@sb/convex/_generated/dataModel'
 import type { ResolvedSettings } from '@sb/convex/model/defaults'
 import { parseFileMentions } from '@sb/core/mentions/parse'
-import type {
-  WorkspaceDirectoryLink,
-  WorkspaceTextLink,
-} from '@sb/core/types/workspace'
+import type { WorkspaceLinkSnapshot } from '@sb/core/types/workspace'
 import type { FileUIPart } from 'ai'
 import type { OptimisticLocalStore } from 'convex/browser'
 import { useAction, useMutation } from 'convex/react'
@@ -29,7 +26,7 @@ type WindowMessage = FunctionReturnType<
 type StagedAttachment = { id: Id<'attachments'>; data?: string }
 type ResolvedFileLink = {
   path: string
-  snapshot?: WorkspaceTextLink | WorkspaceDirectoryLink
+  snapshot?: WorkspaceLinkSnapshot<Id<'_storage'>>
 }
 
 type SendArgs = {
