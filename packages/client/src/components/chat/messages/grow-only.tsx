@@ -22,11 +22,7 @@ const SETTLE_STABLE_FRAMES = 2
 const SETTLE_MAX_FRAMES = 40
 
 type GrowOnlyProps = React.ComponentPropsWithoutRef<'div'> & {
-  /**
-   * Identity of the rendered content. When it changes the floor is dropped and
-   * the wrapper tracks the new content height down, so swapping content (e.g. a
-   * message version switch) doesn't leave the row stuck at the old height.
-   */
+  /** When this changes, the growth is released. */
   growKey?: string | number
 }
 

@@ -224,6 +224,22 @@ export function messageActivitySignature(message: UIMessage): string {
     .join('|')
 }
 
+/**
+ * Signature of a message's structure that intentionally ignores text growth.
+ * It changes on structural transitions such as a part being added or a tool
+ * changing state, which are the settle points where a row may legitimately
+ * shrink, but stays stable while text/markdown merely streams in.
+ */
+export function messageStructureSignature(message: UIMessage): string {
+  return message.parts
+    .map((part) => {
+      const state =
+        'state' in part ? ((part as { state?: string }).state ?? '') : ''
+      return `${part.type}:${state}`
+    })
+    .join('|')
+}
+
 export function sanitizeMessages(messages: UIMessage[]): UIMessage[] {
   return messages.map(finalizeMessageParts).filter((m) => !isMessageEmpty(m))
 }

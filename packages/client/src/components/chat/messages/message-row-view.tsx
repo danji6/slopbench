@@ -12,6 +12,7 @@ import {
   canMutateMessage,
   extractTextFromMessage,
   isEditableMessage,
+  messageStructureSignature,
 } from '@/lib/chat'
 import type { MessageRecord, PartMetadata } from '@/lib/chat'
 import { type MessageRow, segmentGroupsFor } from '@/lib/chat/rows'
@@ -83,6 +84,12 @@ type RowShellProps = {
 function RowShell({ message, messageMeta, row, children }: RowShellProps) {
   const session = useActiveSession()
   const profile = useUserProfile()
+  const isStreaming = useIsMessageStreaming(message.id)
+  const structureSig = useMemo(
+    () => messageStructureSignature(message),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [message.parts],
+  )
   const canMutate = canMutateMessage(message, messageMeta, session, profile)
   const canEdit = useMemo(
     () => canMutate && isEditableMessage(message),
@@ -136,7 +143,11 @@ function RowShell({ message, messageMeta, row, children }: RowShellProps) {
           roleClass,
         )}
       >
-        <GrowOnly growKey={messageMeta?.selectedVersion}>{children}</GrowOnly>
+        <GrowOnly
+          growKey={`${messageMeta?.selectedVersion}:${isStreaming}:${structureSig}`}
+        >
+          {children}
+        </GrowOnly>
       </div>
     </MessageContextMenu>
   )

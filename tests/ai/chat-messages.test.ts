@@ -3,6 +3,7 @@ import {
   convertMessages,
   isMessagePending,
   isMessageStreaming,
+  messageStructureSignature,
   sanitizeMessages,
 } from '@/lib/chat/messages'
 import {
@@ -188,6 +189,55 @@ describe('chat message visibility', () => {
         parts: [{ type: 'reasoning', text: 'thinking', state: 'streaming' }],
       } as unknown as UIMessage),
     ).toBe(false)
+  })
+})
+
+describe('message structure signature (grow-only re-settle key)', () => {
+  const withParts = (parts: unknown[]) =>
+    ({ id: 'm', role: 'assistant', parts }) as unknown as UIMessage
+
+  test('ignores text growth so grow-only keeps clamping during streaming', () => {
+    const before = messageStructureSignature(
+      withParts([{ type: 'text', text: 'Ed', state: 'streaming' }]),
+    )
+    const after = messageStructureSignature(
+      withParts([
+        { type: 'text', text: 'Edit the file …', state: 'streaming' },
+      ]),
+    )
+
+    expect(after).toBe(before)
+  })
+
+  test('changes when a tool part errors mid-stream so the row can shrink', () => {
+    const streaming = messageStructureSignature(
+      withParts([
+        { type: 'text', text: 'Edit …', state: 'done' },
+        { type: 'tool-edit_file', state: 'input-streaming' },
+      ]),
+    )
+    const errored = messageStructureSignature(
+      withParts([
+        { type: 'text', text: 'Edit …', state: 'done' },
+        { type: 'tool-edit_file', state: 'output-error' },
+      ]),
+    )
+
+    expect(errored).not.toBe(streaming)
+  })
+
+  test('changes when a new part is appended', () => {
+    const before = messageStructureSignature(
+      withParts([{ type: 'tool-edit_file', state: 'output-error' }]),
+    )
+    const after = messageStructureSignature(
+      withParts([
+        { type: 'tool-edit_file', state: 'output-error' },
+        { type: 'reasoning', text: 'Thought', state: 'done' },
+      ]),
+    )
+
+    expect(after).not.toBe(before)
   })
 })
 
