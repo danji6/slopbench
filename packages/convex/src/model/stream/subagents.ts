@@ -403,7 +403,7 @@ async function resolveReport(
   }
 }
 
-/** The child turn's final text, concatenated across split segments. */
+/** The sub-agent's report, extracted by concatenating the final text parts. */
 async function childReportText(
   ctx: MutationCtx,
   childStream: Doc<'streams'>,
@@ -413,16 +413,21 @@ async function childReportText(
   if (!message) return ''
 
   const segments = await listSelectedSegments(ctx, message)
-  return segments
-    .flatMap((segment) => segment.parts)
-    .flatMap((part) => {
-      const typed = part as { type?: string; text?: string }
-      return typed.type === 'text' && typeof typed.text === 'string'
-        ? [typed.text]
-        : []
-    })
+  const parts = segments.flatMap((segment) => segment.parts)
+
+  let start = parts.length
+  while (start > 0 && isTextPart(parts[start - 1])) start--
+
+  return parts
+    .slice(start)
+    .flatMap((part) => (isTextPart(part) ? [part.text] : []))
     .join('\n\n')
     .trim()
+}
+
+function isTextPart(part: unknown): part is { type: 'text'; text: string } {
+  const typed = part as { type?: string; text?: unknown }
+  return typed.type === 'text' && typeof typed.text === 'string'
 }
 
 function truncateReport(text: string): string {

@@ -580,6 +580,38 @@ describe('deliverChildReport', () => {
     expect(text.length).toBeLessThan(33_000)
     expect(text).toContain('[Report truncated.')
   })
+
+  test('reports only the concluding text, dropping interstitial narration', async () => {
+    const { ctx, inserts } = fakeCtx({
+      docs: reportDocs(),
+      sessionAgents: [coderLink],
+      contentsByMessage: {
+        child_message_1: [
+          {
+            _id: 'cc_1',
+            parts: [
+              { type: 'text', text: 'Let me check the config.' },
+              { type: 'tool-read_file', state: 'output-available' },
+              { type: 'text', text: 'Now searching for usages.' },
+              { type: 'tool-shell', state: 'output-available' },
+              { type: 'text', text: '## Report' },
+              { type: 'text', text: 'It lives in config.ts.' },
+            ],
+          },
+        ],
+      },
+    })
+
+    await deliverChildReport(ctx, childStream1, { kind: 'complete' })
+
+    const content = inserts.find(({ table }) => table === 'messageContents')
+    const text = (content?.fields.parts as { text: string }[])[0]!.text
+    // The trailing run of text parts is kept in full...
+    expect(text).toBe('## Report\n\nIt lives in config.ts.')
+    // ...and the narration before the last tool call is dropped.
+    expect(text.includes('Let me check')).toBe(false)
+    expect(text.includes('Now searching')).toBe(false)
+  })
 })
 
 describe('settleAbandonedTaskParts', () => {
