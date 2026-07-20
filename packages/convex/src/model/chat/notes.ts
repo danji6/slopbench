@@ -84,23 +84,32 @@ export function buildWorkspaceNoteContent(
   previous: Workspace,
   next: Workspace,
 ) {
-  const body = next
-    ? [
-        `The workspace is now "${next.label}" (${next.path}).`,
-        previous
-          ? `It was previously "${previous.label}" (${previous.path}). ` +
-            'Paths you resolved earlier no longer apply.'
-          : 'File and shell tools now operate on this workspace.',
-        'Re-read any file you need instead of relying on earlier reads.',
-      ]
-    : [
-        previous
-          ? `The workspace "${previous.label}" (${previous.path}) was unbound.`
-          : 'The workspace was unbound.',
-        'File and shell tools have nothing to operate on until one is bound.',
-      ]
+  return systemReminder(...workspaceNoteBody(previous, next))
+}
 
-  return systemReminder(...body)
+function workspaceNoteBody(previous: Workspace, next: Workspace): string[] {
+  if (!next) {
+    return [
+      previous
+        ? `The workspace "${previous.label}" (${previous.path}) was unbound.`
+        : 'The workspace was unbound.',
+      'File and shell tools have nothing to operate on until one is bound.',
+    ]
+  }
+
+  if (!previous) {
+    return [
+      `The workspace "${next.label}" (${next.path}) is bound.`,
+      'File and shell tools operate on this workspace.',
+    ]
+  }
+
+  return [
+    `The workspace is now "${next.label}" (${next.path}).`,
+    `It was previously "${previous.label}" (${previous.path}). ` +
+      'Paths you resolved earlier no longer apply.',
+    'Re-read any file you need instead of relying on earlier reads.',
+  ]
 }
 
 /** Tells the agent its workspace moved. */

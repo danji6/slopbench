@@ -42,11 +42,15 @@ describe('workspace note', () => {
     expect(content).toContain('previously "old" (/srv/old)')
   })
 
-  test('a first bind has no previous workspace to mention', () => {
+  test('a first bind reads as initial state, not a move', () => {
     const content = buildWorkspaceNoteContent(undefined, ws('new'))
 
-    expect(content).toContain('is now "new" (/srv/new)')
+    expect(content).toContain('"new" (/srv/new) is bound')
+    // Nothing was resolved earlier, so it must not read like a re-bind.
     expect(content).not.toContain('previously')
+    expect(content).not.toContain('is now')
+    expect(content).not.toContain('no longer apply')
+    expect(content).not.toContain('Re-read')
   })
 
   test('unbinding names the workspace that went away', () => {

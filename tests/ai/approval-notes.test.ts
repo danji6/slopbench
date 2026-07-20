@@ -1,7 +1,7 @@
 /// <reference types="bun-types" />
 import {
+  addApprovalNotes,
   collectApprovalNotes,
-  foldApprovalNotes,
 } from '@sb/convex/actions/stream/history'
 import type { ModelMessage, UIMessage } from 'ai'
 import { describe, expect, test } from 'bun:test'
@@ -58,7 +58,7 @@ describe('collectApprovalNotes', () => {
   })
 })
 
-describe('foldApprovalNotes', () => {
+describe('addApprovalNotes', () => {
   const toolMessage = (
     toolCallId: string,
     value: string,
@@ -84,7 +84,7 @@ describe('foldApprovalNotes', () => {
     ).output.value
 
   test('appends the note to the annotated tool result', () => {
-    const out = foldApprovalNotes(
+    const out = addApprovalNotes(
       [toolMessage('c1', 'The plan was approved.')],
       new Map([['c1', 'ship it']]),
     )
@@ -94,7 +94,7 @@ describe('foldApprovalNotes', () => {
   })
 
   test('folds a denied result the same way', () => {
-    const out = foldApprovalNotes(
+    const out = addApprovalNotes(
       [toolMessage('c1', 'Denied.', 'error-text')],
       new Map([['c1', 'nope']]),
     )
@@ -103,9 +103,7 @@ describe('foldApprovalNotes', () => {
 
   test('leaves unannotated results untouched', () => {
     const input = [toolMessage('c1', 'output')]
-    expect(foldApprovalNotes(input, new Map([['other', 'note']]))).toEqual(
-      input,
-    )
+    expect(addApprovalNotes(input, new Map([['other', 'note']]))).toEqual(input)
   })
 
   /**
@@ -115,8 +113,8 @@ describe('foldApprovalNotes', () => {
    */
   test('a note keeps identical bytes as the turn grows', () => {
     const notes = new Map([['c1', 'ship it']])
-    const early = foldApprovalNotes([toolMessage('c1', 'first')], notes)
-    const late = foldApprovalNotes(
+    const early = addApprovalNotes([toolMessage('c1', 'first')], notes)
+    const late = addApprovalNotes(
       [toolMessage('c1', 'first'), toolMessage('c2', 'second')],
       notes,
     )
@@ -124,7 +122,7 @@ describe('foldApprovalNotes', () => {
   })
 
   test('two notes in one turn do not rewrite each other', () => {
-    const out = foldApprovalNotes(
+    const out = addApprovalNotes(
       [toolMessage('c1', 'first'), toolMessage('c2', 'second')],
       new Map([
         ['c1', 'note one'],
