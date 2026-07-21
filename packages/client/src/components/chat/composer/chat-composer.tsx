@@ -11,6 +11,7 @@ import { useComposerDraft } from '@/lib/chat/composer-draft-store'
 import type { MentionEntry } from '@/lib/chat/file-mentions'
 import { filterMentions } from '@/lib/chat/file-mentions'
 import { handleSelectAllDelete } from '@/lib/editor-clear'
+import { registerFocusReturn } from '@/lib/focus-return'
 import { toast } from '@/lib/notifications'
 import { pasteCollapsedText } from '@/lib/tiptap/paste'
 import {
@@ -173,6 +174,12 @@ export function ChatComposer({
       },
     }),
     [applyMarkdown],
+  )
+
+  // Closing modals and the window regaining focus hand focus back here
+  useEffect(
+    () => registerFocusReturn(() => editorRef.current?.view.dom ?? null),
+    [],
   )
 
   const onTypingRef = useRef(onTyping)
