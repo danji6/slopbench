@@ -44,6 +44,8 @@ import { TodosWidget } from './widgets/todos-widget'
 import { ToolApprovalPicker } from './workspace/tool-approval-picker'
 
 const DOCK_HIDE_DISTANCE = 160
+/** Gap between the dock and the toolbar sitting above it. */
+const DOCK_HEADER_GAP = 16
 
 type ChatSessionViewProps = {
   dockWidth: string
@@ -115,7 +117,7 @@ export function ChatSessionView({
 
   // Layout
   const [alertHeight, setAlertHeight] = useState(0)
-  const keyboardInset = useKeyboardInset(16)
+  const keyboardInset = useKeyboardInset()
   const chatWidth = useChatWidth()
   const messageWidth = `min(95%, ${chatWidth}px - var(--spacing)*36)`
 
@@ -223,6 +225,7 @@ export function ChatSessionView({
       <MessageHighlightProvider>
         <ChatLayout
           scrollbar
+          bottomInset={keyboardInset}
           mainContent={(bottomPadding) => (
             <MessageList
               ref={messageListRef}
@@ -238,7 +241,7 @@ export function ChatSessionView({
           )}
           dockHeader={(bottomPadding) => {
             const dockTop =
-              keyboardInset + (showDock ? bottomPadding + alertHeight : 0)
+              DOCK_HEADER_GAP + (showDock ? bottomPadding + alertHeight : 0)
             return (
               <>
                 <div

@@ -9,6 +9,8 @@ export type ChatLayoutProps = {
   mainContent: (bottomPadding: number) => React.ReactNode
   /** Content that sits at the bottom of the layout. */
   dock: React.ReactNode
+  /** Space at the bottom of the viewport the dock has to stay clear of. */
+  bottomInset?: number
   /** Content above the dock. */
   dockHeader?: (bottomPadding: number) => React.ReactNode
   /** Content below the dock. */
@@ -25,6 +27,7 @@ const FOOTER_BASELINE = '0.75rem'
 export function ChatLayout({
   mainContent,
   dock,
+  bottomInset = 0,
   dockFooter,
   showDockFooter = false,
   dockFooterWidth,
@@ -51,8 +54,12 @@ export function ChatLayout({
   return (
     <div className="relative flex min-h-dvh flex-1 flex-col overflow-y-clip">
       {scrollbar && <ChatScrollbar />}
-      {mainContent(bottomHeight)}
-      <div className="pointer-events-none sticky inset-x-0 bottom-0 z-10 h-0">
+      {mainContent(bottomHeight + bottomInset)}
+      <div
+        className="pointer-events-none sticky inset-x-0 bottom-0 z-10 h-0"
+        style={{ bottom: bottomInset }}
+      >
+        {/* Offsets within the docked stack, which the inset already lifted */}
         {dockHeader?.(bottomHeight)}
         <div
           ref={bottomRef}
