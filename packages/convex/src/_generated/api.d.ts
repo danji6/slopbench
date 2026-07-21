@@ -90,6 +90,7 @@ import type * as model_sidecar from "../model/sidecar.js";
 import type * as model_stream_generatedFiles from "../model/stream/generatedFiles.js";
 import type * as model_stream_lifecycle from "../model/stream/lifecycle.js";
 import type * as model_stream_reads from "../model/stream/reads.js";
+import type * as model_stream_reasoning from "../model/stream/reasoning.js";
 import type * as model_stream_retry from "../model/stream/retry.js";
 import type * as model_stream_subagents from "../model/stream/subagents.js";
 import type * as model_stream_toolOutput from "../model/stream/toolOutput.js";
@@ -224,6 +225,7 @@ declare const fullApi: ApiFromModules<{
   "model/stream/generatedFiles": typeof model_stream_generatedFiles;
   "model/stream/lifecycle": typeof model_stream_lifecycle;
   "model/stream/reads": typeof model_stream_reads;
+  "model/stream/reasoning": typeof model_stream_reasoning;
   "model/stream/retry": typeof model_stream_retry;
   "model/stream/subagents": typeof model_stream_subagents;
   "model/stream/toolOutput": typeof model_stream_toolOutput;

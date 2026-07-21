@@ -1,22 +1,11 @@
-import { useTimer } from '@/hooks/timer'
-import { formatDuration } from '@/lib/utils'
-import type { ReasoningUIPart } from 'ai'
-import { useMemo } from 'react'
+import type { ReasoningPart } from '@sb/convex/types'
 
 import { CollapsibleBlock } from './collapsible-block'
+import { useReasoningLabel } from './reasoning-label'
 import { SmoothText } from './smooth-text'
 
-export function ReasoningBlock({ part }: { part: ReasoningUIPart }) {
-  const isStreaming = part.state === 'streaming'
-  const elapsedMs = useTimer(isStreaming)
-
-  const label = useMemo(() => {
-    return isStreaming
-      ? 'Thinking...'
-      : elapsedMs > 0
-        ? `Thought for ${formatDuration(elapsedMs)}`
-        : 'Thought'
-  }, [elapsedMs, isStreaming])
+export function ReasoningBlock({ part }: { part: ReasoningPart }) {
+  const { label, isStreaming } = useReasoningLabel(part)
 
   if (!part.text) return null
 

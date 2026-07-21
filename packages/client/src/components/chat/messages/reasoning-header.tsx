@@ -1,20 +1,20 @@
 import { Accordion, Button } from '@/components/ui'
-import { useTimer } from '@/hooks/timer'
 import type { MessageRole } from '@/lib/chat'
-import { cn, formatDuration } from '@/lib/utils'
-import type { ReasoningUIPart } from 'ai'
+import { cn } from '@/lib/utils'
+import type { ReasoningPart } from '@sb/convex/types'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useGrowOnly } from './grow-only'
 import { MessageHeader, type MessageSender } from './message-header'
 import { useMessageHighlight } from './message-highlight-context'
 import { useMessageList } from './message-list/message-list-context'
+import { useReasoningLabel } from './reasoning-label'
 import { SmoothText } from './smooth-text'
 
 export type ReasoningHeaderProps = {
   sender: MessageSender
   role: MessageRole
-  part: ReasoningUIPart
+  part: ReasoningPart
   messageId: string
   segmentIndex: number
   groupIndex: number
@@ -28,18 +28,9 @@ export function ReasoningHeader({
   segmentIndex,
   groupIndex,
 }: ReasoningHeaderProps) {
-  const isStreaming = part.state === 'streaming'
-  const elapsedMs = useTimer(isStreaming)
+  const { label, isStreaming } = useReasoningLabel(part)
   const [open, setOpen] = useState(false)
   const messageList = useMessageList()
-
-  const label = useMemo(() => {
-    return isStreaming
-      ? 'Thinking...'
-      : elapsedMs > 0
-        ? `Thought for ${formatDuration(elapsedMs)}`
-        : 'Thought'
-  }, [elapsedMs, isStreaming])
 
   const registerElement = useMessageHighlight()?.registerElement
 

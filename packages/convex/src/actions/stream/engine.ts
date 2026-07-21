@@ -248,28 +248,21 @@ async function consumeProviderStep(
       withProviderRequestLogging,
     },
     { repairToolCall },
+    { applyReasoningDurations, createReasoningTracker, trackReasoningTimings },
   ] = await Promise.all([
     import('ai'),
     import('../../model/stream/transformers'),
     import('../../model/tool/repair'),
+    import('../../model/stream/reasoning'),
   ])
 
   const outputTracker = { hasOutput: false }
   const toolErrorTracker = { toolErrors: new Set<string>() }
+  const reasoningTracker = createReasoningTracker()
   const offloadCache = new Map<string, unknown>()
   const fileCache = new Map<string, unknown>()
   const abortController = new AbortController()
   const stopWatcher = watchForStop(ctx, streamId, abortController)
-
-  const offload = (parts: UIMessage['parts']) =>
-    offloadLargeParts(ctx, parts, {
-      toolCache: offloadCache,
-      fileCache,
-      streamId,
-      messageId: setup.output._id,
-      sessionId: setup.stream.sessionId,
-      uploaderId: setup.stream.invokedBy,
-    })
 
   const initialMessage = {
     id: setup.output._id,
@@ -278,6 +271,21 @@ async function consumeProviderStep(
   } satisfies UIMessage
 
   const initialPartCount = initialMessage.parts.length
+
+  /** Everything a parts array needs before it can be persisted. */
+  const prepareParts = async (parts: UIMessage['parts']) =>
+    applyReasoningDurations(
+      await offloadLargeParts(ctx, parts, {
+        toolCache: offloadCache,
+        fileCache,
+        streamId,
+        messageId: setup.output._id,
+        sessionId: setup.stream.sessionId,
+        uploaderId: setup.stream.invokedBy,
+      }),
+      reasoningTracker,
+      initialPartCount,
+    )
 
   let streamError: unknown
   let lastPatch = 0
@@ -328,6 +336,7 @@ async function consumeProviderStep(
         deduplicateToolCallIds,
         trackGeneratedOutput(outputTracker),
         trackToolErrors(toolErrorTracker),
+        trackReasoningTimings(reasoningTracker),
         stopWhenInactive(abortController),
       ],
     })
@@ -355,7 +364,7 @@ async function consumeProviderStep(
       if (throttled && toolStates === lastToolStates) continue
       lastPatch = Date.now()
       lastToolStates = toolStates
-      latestParts = await offload(latestParts)
+      latestParts = await prepareParts(latestParts)
       if (!(await patchMessage(ctx, streamId, latestParts))) {
         return {
           shouldContinue: null,
@@ -373,7 +382,7 @@ async function consumeProviderStep(
 
     if (streamError !== undefined) throw streamError
 
-    latestParts = await offload(latestParts)
+    latestParts = await prepareParts(latestParts)
     const awaitingApproval = hasAwaitingApproval(latestParts)
     const awaitingTasks = hasPendingTaskParts(latestParts)
     // Sub-agent approvals are auto-denied
@@ -421,7 +430,7 @@ async function consumeProviderStep(
       usage,
     }
   } catch (error) {
-    latestParts = await offload(latestParts).catch(() => latestParts)
+    latestParts = await prepareParts(latestParts).catch(() => latestParts)
 
     await tryPatchMessage(ctx, streamId, latestParts)
 

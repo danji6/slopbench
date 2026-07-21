@@ -3,6 +3,7 @@ import type {
   SessionMember as CoreSessionMember,
   SessionParticipant as CoreSessionParticipant,
 } from '@sb/core/types'
+import type { ReasoningUIPart } from 'ai'
 import type { Infer } from 'convex/values'
 
 import type { Doc, Id } from './_generated/dataModel'
@@ -56,6 +57,9 @@ export type MessageExtra = {
     error?: string
   }
 }
+
+/** Reasoning parts persist how long the model spent thinking, in ms. */
+export type ReasoningPart = ReasoningUIPart & { duration?: number }
 
 export type CommandName = Infer<typeof V.commandNameValidator>
 export type CommandStatus = 'queued' | 'ran' | 'failed'
