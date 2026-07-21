@@ -17,6 +17,7 @@ export const sessionSchema = v.object({
   lastMessagePreview: v.optional(v.string()),
   firstMessagePreview: v.optional(v.string()), // title fallback
   turnCount: v.optional(v.number()), // logical turn counter
+  commandQueue: v.optional(v.array(V.queuedCommandValidator)), // deferred commands
   // (reminderId, turnCount) at last injection, or baseline when first seen
   reminderState: v.optional(v.record(v.string(), v.number())),
 })

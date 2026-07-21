@@ -37,12 +37,27 @@ function fakeCtx({
     [...docs, ...rows].map((row) => [row._id, row]),
   )
 
+  // Enough of a filter builder to evaluate the guards the model applies
+  const filterFor = (row: Row) => ({
+    field: (name: string) => row[name],
+    eq: (a: unknown, b: unknown) => a === b,
+    neq: (a: unknown, b: unknown) => a !== b,
+  })
+
   const makeQuery = (table: string) => {
+    let predicate: ((q: ReturnType<typeof filterFor>) => boolean) | null = null
     const chain = {
       withIndex: () => chain,
       order: () => chain,
+      filter: (next: (q: ReturnType<typeof filterFor>) => boolean) => {
+        predicate = next
+        return chain
+      },
       first: async () => {
         if (table === 'messageContents') return rows[rows.length - 1] ?? null
+        if (firstMessage && predicate && !predicate(filterFor(firstMessage))) {
+          return null
+        }
         return firstMessage
       },
       unique: async () => (table === 'settings' ? settings : null),
@@ -406,6 +421,47 @@ describe('_continue', () => {
         contextBoundaryCreationTime: 20,
       }),
     })
+  })
+
+  test('a command chip is not an interjection and never rolls the turn over', async () => {
+    const stream = {
+      _id: 'stream_1',
+      status: 'streaming',
+      sessionId: 'session_1',
+      processingMessageId: 'message_1',
+      processingContentId: 'content_1',
+      operation: 'invoke',
+      attempt: 0,
+    }
+    const message = {
+      _id: 'message_1',
+      _creationTime: 10,
+      sessionId: 'session_1',
+      selectedVersion: 1,
+      sender: { type: 'agent', id: 'agent_1' },
+    }
+    const { ctx, patches, inserts } = fakeCtx({
+      docs: [stream, message],
+      contents: [
+        {
+          _id: 'content_1',
+          version: 1,
+          segmentIndex: 0,
+          parts: [{ type: 'text', text: 'hi' }],
+        },
+      ],
+      firstMessage: {
+        _id: 'chip_1',
+        _creationTime: 20,
+        type: 'command',
+        sender: { type: 'user', id: 'user_1' },
+      },
+    })
+
+    await _continue(ctx, { streamId: stream._id as never })
+
+    expect(inserts.some(({ table }) => table === 'messages')).toBe(false)
+    expect(patches.some(({ id }) => id === 'message_1')).toBe(false)
   })
 
   // Approval/task parking moved to _suspendStep (see subagent-lifecycle.test.ts)

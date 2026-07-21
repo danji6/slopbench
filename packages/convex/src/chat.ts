@@ -126,6 +126,11 @@ export const listMessageVersions = authQuery({
   handler: Chat.listMessageVersions,
 })
 
+export const _drainCommandQueue = internalMutation({
+  args: { sessionId: v.id('sessions') },
+  handler: Chat.drainCommandQueue,
+})
+
 export const _getMessageEvalContext = internalQuery({
   args: {
     messageId: v.id('messages'),

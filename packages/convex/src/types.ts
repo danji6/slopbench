@@ -48,7 +48,18 @@ export type MessageExtra = {
   reminder: { id: string; name: string }
   /** Label of the workspace bound by the change, absent when unbound. */
   workspace: { label?: string }
+  /** The invoked command a chip announces, and how far it got. */
+  command: {
+    name: CommandName
+    argument?: string
+    status: CommandStatus
+    error?: string
+  }
 }
+
+export type CommandName = Infer<typeof V.commandNameValidator>
+export type CommandStatus = 'queued' | 'ran' | 'failed'
+export type QueuedCommand = Infer<typeof V.queuedCommandValidator>
 
 export type SessionListItem = CoreSessionListItem<
   Doc<'sessions'>,
@@ -62,9 +73,7 @@ export type PlanStatus = Infer<typeof V.planStatusValidator>
 export type TodoStatus = Infer<typeof V.todoStatusValidator>
 export type TodoItem = Infer<typeof V.todoItemValidator>
 
-export type SaveSessionCacheArgs = Infer<
-  typeof V.saveSessionCacheArgsValidator
->
+export type SaveSessionCacheArgs = Infer<typeof V.saveSessionCacheArgsValidator>
 export type SendMessageArgs = Infer<typeof V.sendMessageArgsValidator>
 export type CreateAgentArgs = Infer<typeof V.createAgentArgsValidator>
 export type UpdateAgentArgs = Infer<typeof V.updateAgentArgsValidator>

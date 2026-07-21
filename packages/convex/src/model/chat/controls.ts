@@ -1,6 +1,6 @@
 import { internal } from '../../_generated/api'
-import type { Id } from '../../_generated/dataModel'
-import { error } from '../../errors'
+import type { Doc, Id } from '../../_generated/dataModel'
+import type { MutationCtx } from '../../_generated/server'
 import type { AuthMutationCtx } from '../../functions'
 import { scheduleTitle } from '../messages'
 import { removeForSession as removeSessionCache } from '../session/cache'
@@ -11,7 +11,11 @@ export async function stopStream(
   ctx: AuthMutationCtx,
   { sessionId }: { sessionId: Id<'sessions'> },
 ) {
-  const { session } = await Memberships.requireMember(ctx, sessionId, ctx.userId)
+  const { session } = await Memberships.requireMember(
+    ctx,
+    sessionId,
+    ctx.userId,
+  )
 
   const stream = await Memberships.getActiveStream(ctx, sessionId)
   if (!stream) return
@@ -22,6 +26,9 @@ export async function stopStream(
   if (!stream.processingMessageId) {
     await ctx.db.delete(stream._id)
     await scheduleTitle(ctx, stream.sessionId)
+    await ctx.scheduler.runAfter(0, internal.chat._drainCommandQueue, {
+      sessionId: stream.sessionId,
+    })
     return
   }
 
@@ -40,17 +47,8 @@ export async function stopStream(
  * Drops the session's cached prompts and tool manifest, forcing both to be
  * recomputed on the next invocation.
  */
-export async function resetSessionCache(
-  ctx: AuthMutationCtx,
-  { sessionId }: { sessionId: Id<'sessions'> },
-) {
-  await Memberships.requireMember(ctx, sessionId, ctx.userId)
-
-  if (await Memberships.getActiveStream(ctx, sessionId)) {
-    error('Cannot re-evaluate prompts while the agent is responding', 409)
-  }
-
-  await removeSessionCache(ctx, sessionId)
+export async function executeEval(ctx: MutationCtx, session: Doc<'sessions'>) {
+  await removeSessionCache(ctx, session._id)
 }
 
 export async function retryStreamNow(

@@ -13,6 +13,7 @@ import {
 } from '@/lib/chat'
 import type { MessageRecord } from '@/lib/chat'
 import { cn, isTouchDevice } from '@/lib/utils'
+import type { MessageExtra } from '@sb/convex/types'
 import type { UIMessage } from 'ai'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -20,8 +21,11 @@ import {
   CopyIcon,
   EyeOffIcon,
   FolderSyncIcon,
+  HourglassIcon,
   ListTodoIcon,
+  TerminalIcon,
   Trash2Icon,
+  TriangleAlertIcon,
 } from 'lucide-react'
 import { useCallback, useMemo, useRef, useState } from 'react'
 
@@ -32,6 +36,8 @@ type ChipPresentation = {
   label: string
   /** What the delete confirmation calls the message. */
   noun: string
+  /** Copied instead of the message parts, for chips that carry none. */
+  copyText?: string
 }
 
 function chipPresentation(record: MessageRecord | undefined): ChipPresentation {
@@ -58,8 +64,35 @@ function chipPresentation(record: MessageRecord | undefined): ChipPresentation {
         noun: 'note',
       }
     }
+    case 'command':
+      return commandPresentation(messageExtra(record, 'command'))
     default:
       return { icon: EyeOffIcon, label: 'Hidden message', noun: 'message' }
+  }
+}
+
+/** A command chip reads as its invocation, prefixed by what became of it. */
+function commandPresentation(
+  command: MessageExtra['command'] | undefined,
+): ChipPresentation {
+  const invocation = command
+    ? `/${command.name}${command.argument ? ` ${command.argument}` : ''}`
+    : 'Command'
+  const base = { noun: 'command', copyText: invocation }
+
+  switch (command?.status) {
+    case 'queued':
+      return { ...base, icon: HourglassIcon, label: `Queued • ${invocation}` }
+    case 'failed':
+      return {
+        ...base,
+        icon: TriangleAlertIcon,
+        label: command.error
+          ? `${invocation} — ${command.error}`
+          : `Failed • ${invocation}`,
+      }
+    default:
+      return { ...base, icon: TerminalIcon, label: invocation }
   }
 }
 
@@ -80,7 +113,7 @@ export function HiddenChip({ message, record }: HiddenChipProps) {
   const ownsHighlightRef = useRef(false)
 
   const canMutate = canMutateMessage(message, record, session, profile)
-  const { icon: Icon, label, noun } = chipPresentation(record)
+  const { icon: Icon, label, noun, copyText } = chipPresentation(record)
 
   const highlightTarget = useMemo(
     () => ({ messageId: message.id, segmentIndex: null, groupIndex: null }),
@@ -129,7 +162,7 @@ export function HiddenChip({ message, record }: HiddenChipProps) {
           <ContextMenu.Item
             onSelect={() => {
               navigator.clipboard
-                .writeText(extractTextFromMessage(message))
+                .writeText(copyText ?? extractTextFromMessage(message))
                 .catch(() => {})
             }}
           >

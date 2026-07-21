@@ -11,7 +11,7 @@ import type { Doc, Id } from '../../_generated/dataModel'
 import type { AuthQueryCtx } from '../../functions'
 import schema from '../../schema'
 import { listSelectedSegments, withParts } from '../messageContents'
-import { textFromParts } from '../messages'
+import { notACommandChip, textFromParts } from '../messages'
 import * as Memberships from '../session/memberships'
 import { hasOutputRef } from '../stream/toolOutput'
 
@@ -362,6 +362,7 @@ export async function listFirstHumanMessage(
     .withIndex('by_sessionId_senderType', (q) =>
       q.eq('sessionId', sessionId).eq('sender.type', 'user'),
     )
+    .filter(notACommandChip)
     .order('asc')
     .first()
   if (!message) return null

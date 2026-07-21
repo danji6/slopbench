@@ -1,7 +1,8 @@
 import { parseFileMentions } from '@sb/core/mentions/parse'
 import type { WorkspaceLinkSnapshot } from '@sb/core/types/workspace'
 
-import type { Id } from '../../_generated/dataModel'
+import type { Doc, Id } from '../../_generated/dataModel'
+import type { MutationCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import type { AuthMutationCtx } from '../../functions'
 import type { SendMessageArgs } from '../../types'
@@ -179,21 +180,12 @@ export async function invokeAgent(
   })
 }
 
-export async function resumeAgentMessage(
-  ctx: AuthMutationCtx,
-  { sessionId }: { sessionId: Id<'sessions'> },
+export async function executeResume(
+  ctx: MutationCtx,
+  session: Doc<'sessions'>,
+  invokedBy: Id<'users'>,
 ) {
-  const { session } = await Memberships.requireMember(
-    ctx,
-    sessionId,
-    ctx.userId,
-  )
-
-  Memberships.requireEnabled(session)
-
-  if (await Memberships.getActiveStream(ctx, sessionId)) {
-    error('Session is busy', 409)
-  }
+  const sessionId = session._id
 
   const message = await latestResumableAgentMessage(ctx, sessionId)
   if (!message) error('No agent message to continue', 404)
@@ -210,69 +202,46 @@ export async function resumeAgentMessage(
   return reserveResumableStream(ctx, {
     sessionId,
     agentId: message.sender.id,
-    invokedBy: ctx.userId,
+    invokedBy,
     messageId: message._id,
     boundaryId: boundary?._id,
     suppressFollowUp: true,
   })
 }
 
-export async function compact(
-  ctx: AuthMutationCtx,
-  args: { sessionId: Id<'sessions'>; extraInstructions?: string },
+export async function executeCompact(
+  ctx: MutationCtx,
+  session: Doc<'sessions'>,
+  invokedBy: Id<'users'>,
+  instructions?: string,
 ) {
-  const { session } = await Memberships.requireMember(
-    ctx,
-    args.sessionId,
-    ctx.userId,
-  )
-
-  Memberships.requireEnabled(session)
-
-  if (await Memberships.getActiveStream(ctx, args.sessionId)) {
-    error('Session is busy', 409)
-  }
-
   if (!session.activeAgentId) error('No active agent', 409)
 
   return reserveStream(ctx, {
-    sessionId: args.sessionId,
+    sessionId: session._id,
     agentId: session.activeAgentId,
-    invokedBy: ctx.userId,
-    boundaryId: await latestMessageId(ctx, args.sessionId),
+    invokedBy,
+    boundaryId: await latestMessageId(ctx, session._id),
     operation: 'compact',
-    instructions: args.extraInstructions,
+    instructions,
   })
 }
 
-export async function impersonate(
-  ctx: AuthMutationCtx,
-  {
-    sessionId,
-    extraInstructions,
-  }: { sessionId: Id<'sessions'>; extraInstructions?: string },
+export async function executeImpersonate(
+  ctx: MutationCtx,
+  session: Doc<'sessions'>,
+  invokedBy: Id<'users'>,
+  instructions?: string,
 ) {
-  const { session } = await Memberships.requireMember(
-    ctx,
-    sessionId,
-    ctx.userId,
-  )
-
-  Memberships.requireEnabled(session)
-
-  if (await Memberships.getActiveStream(ctx, sessionId)) {
-    error('Session is busy', 409)
-  }
-
   if (!session.activeAgentId) error('No active agent', 409)
 
   return reserveStream(ctx, {
-    sessionId,
+    sessionId: session._id,
     agentId: session.activeAgentId,
-    invokedBy: ctx.userId,
-    boundaryId: await latestMessageId(ctx, sessionId),
+    invokedBy,
+    boundaryId: await latestMessageId(ctx, session._id),
     operation: 'impersonate',
-    instructions: extraInstructions,
+    instructions,
   })
 }
 
@@ -337,7 +306,7 @@ function resolvedFileLinkParts(resolved: ResolvedFileLink[]): FileLinkPart[] {
 }
 
 async function latestResumableAgentMessage(
-  ctx: AuthMutationCtx,
+  ctx: MutationCtx,
   sessionId: Id<'sessions'>,
 ) {
   const messages = await ctx.db
@@ -360,7 +329,7 @@ async function latestResumableAgentMessage(
 }
 
 export async function latestMessageBefore(
-  ctx: AuthMutationCtx,
+  ctx: MutationCtx,
   sessionId: Id<'sessions'>,
   creationTime: number,
 ) {

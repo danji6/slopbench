@@ -14,7 +14,11 @@ import {
   insertMessage,
   withPartsMany,
 } from '../messageContents'
-import { finalizeMessageParts, textFromParts } from '../messages'
+import {
+  finalizeMessageParts,
+  notACommandChip,
+  textFromParts,
+} from '../messages'
 import { getMember } from './memberships'
 import { resolveTitle } from './title'
 
@@ -52,6 +56,7 @@ export async function exportOne(
   const messages = await ctx.db
     .query('messages')
     .withIndex('by_sessionId', (q) => q.eq('sessionId', sessionId))
+    .filter(notACommandChip)
     .order('asc')
     .collect()
 

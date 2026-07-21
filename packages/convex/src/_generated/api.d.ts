@@ -49,6 +49,7 @@ import type * as model_agents from "../model/agents.js";
 import type * as model_attachments from "../model/attachments.js";
 import type * as model_avatars from "../model/avatars.js";
 import type * as model_chat_approvals from "../model/chat/approvals.js";
+import type * as model_chat_commands from "../model/chat/commands.js";
 import type * as model_chat_controls from "../model/chat/controls.js";
 import type * as model_chat_eval from "../model/chat/eval.js";
 import type * as model_chat_identities from "../model/chat/identities.js";
@@ -182,6 +183,7 @@ declare const fullApi: ApiFromModules<{
   "model/attachments": typeof model_attachments;
   "model/avatars": typeof model_avatars;
   "model/chat/approvals": typeof model_chat_approvals;
+  "model/chat/commands": typeof model_chat_commands;
   "model/chat/controls": typeof model_chat_controls;
   "model/chat/eval": typeof model_chat_eval;
   "model/chat/identities": typeof model_chat_identities;

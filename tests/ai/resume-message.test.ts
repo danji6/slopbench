@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import { resumeAgentMessage } from '@sb/convex/model/chat/send'
+import { executeResume } from '@sb/convex/model/chat/send'
 import { describe, expect, test } from 'bun:test'
 
 function resumeCtx({
@@ -93,10 +93,10 @@ function resumeCtx({
     },
   } as never
 
-  return { ctx, patches, inserts, scheduled }
+  return { ctx, session, patches, inserts, scheduled }
 }
 
-describe('resumeAgentMessage', () => {
+describe('executeResume', () => {
   test('resumes the latest normal assistant message behind newer user messages', async () => {
     const assistant = {
       _id: 'assistant_1',
@@ -117,7 +117,7 @@ describe('resumeAgentMessage', () => {
       _creationTime: 10,
       role: 'user',
     }
-    const { ctx, patches, inserts, scheduled } = resumeCtx({
+    const { ctx, session, patches, inserts, scheduled } = resumeCtx({
       messages: [
         {
           _id: 'user_2',
@@ -131,9 +131,11 @@ describe('resumeAgentMessage', () => {
       boundary,
     })
 
-    const streamId = await resumeAgentMessage(ctx, {
-      sessionId: 'session_1' as never,
-    })
+    const streamId = await executeResume(
+      ctx,
+      session as never,
+      'user_1' as never,
+    )
 
     expect(streamId).toBe('streams_1' as never)
     expect(patches).toContainEqual({
@@ -154,7 +156,7 @@ describe('resumeAgentMessage', () => {
   })
 
   test('skips summaries when choosing the resumable assistant message', async () => {
-    const { ctx, inserts } = resumeCtx({
+    const { ctx, session, inserts } = resumeCtx({
       messages: [
         {
           _id: 'summary_1',
@@ -173,7 +175,7 @@ describe('resumeAgentMessage', () => {
       boundary: null,
     })
 
-    await resumeAgentMessage(ctx, { sessionId: 'session_1' as never })
+    await executeResume(ctx, session as never, 'user_1' as never)
 
     expect(inserts).toContainEqual({
       table: 'streams',
@@ -184,18 +186,18 @@ describe('resumeAgentMessage', () => {
   })
 
   test('errors when there is no assistant message to resume', async () => {
-    const { ctx } = resumeCtx({
+    const { ctx, session } = resumeCtx({
       messages: [{ _id: 'user_1', role: 'user' }],
       boundary: null,
     })
 
     await expect(
-      resumeAgentMessage(ctx, { sessionId: 'session_1' as never }),
+      executeResume(ctx, session as never, 'user_1' as never),
     ).rejects.toThrow('No agent message to continue')
   })
 
   test('errors when the original agent is no longer linked', async () => {
-    const { ctx } = resumeCtx({
+    const { ctx, session } = resumeCtx({
       messages: [
         {
           _id: 'assistant_1',
@@ -209,7 +211,7 @@ describe('resumeAgentMessage', () => {
     })
 
     await expect(
-      resumeAgentMessage(ctx, { sessionId: 'session_1' as never }),
+      executeResume(ctx, session as never, 'user_1' as never),
     ).rejects.toThrow('Original agent is not linked')
   })
 })

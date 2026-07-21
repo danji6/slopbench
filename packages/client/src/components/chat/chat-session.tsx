@@ -138,7 +138,7 @@ function ChatSessionContent({
       setLocalError(null)
       switch (name) {
         case 'compact':
-          await compact(argument)
+          await compact(argument).catch(handleError)
           break
         case 'plan':
           await toggleMode('plan').catch(handleError)
@@ -163,9 +163,7 @@ function ChatSessionContent({
             ).catch(handleError)
           break
         case 'eval':
-          await resetSessionCache({ sessionId: session._id }).catch(
-            handleError,
-          )
+          await resetSessionCache({ sessionId: session._id }).catch(handleError)
           break
         case 'shortcuts':
           setShowShortcuts(true)

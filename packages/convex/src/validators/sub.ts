@@ -27,7 +27,24 @@ export const messageTypeValidator = v.union(
   v.literal('reminder'),
   v.literal('todo'),
   v.literal('workspace'),
+  v.literal('command'),
 )
+
+/** Slash commands the server runs, and may defer while a stream is active. */
+export const commandNameValidator = v.union(
+  v.literal('compact'),
+  v.literal('eval'),
+  v.literal('impersonate'),
+  v.literal('resume'),
+)
+
+/** One command awaiting an idle session, with the chip that announces it. */
+export const queuedCommandValidator = v.object({
+  name: commandNameValidator,
+  argument: v.optional(v.string()),
+  invokedBy: v.id('users'),
+  messageId: v.id('messages'),
+})
 
 export const messageStatusValidator = v.union(
   v.literal('processing'),

@@ -1,8 +1,9 @@
 import { hasInterpolation } from '@sb/core/interpreter/parse'
 import type { UIMessage } from 'ai'
+import type { FilterBuilder, NamedTableInfo } from 'convex/server'
 
 import { internal } from '../_generated/api'
-import type { Doc, Id } from '../_generated/dataModel'
+import type { DataModel, Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx } from '../_generated/server'
 
 const PREVIEW_LENGTH = 140
@@ -174,6 +175,15 @@ export function shouldSaveSubmittedPrompt(
 export function isContextEligible(parts: unknown[]) {
   return parts.length > 0
 }
+
+type MessageFilter = FilterBuilder<NamedTableInfo<DataModel, 'messages'>>
+
+/**
+ * Command chips are user-facing markers with no content. Turn logic must look
+ * past them, or they read as an interjection that splits or extends a turn.
+ */
+export const notACommandChip = (q: MessageFilter) =>
+  q.neq(q.field('type'), 'command')
 
 export async function scheduleMessageEval(
   ctx: MutationCtx,

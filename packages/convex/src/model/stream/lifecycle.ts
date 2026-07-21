@@ -20,6 +20,7 @@ import {
 } from '../messageContents'
 import {
   finalizeMessageParts,
+  notACommandChip,
   scheduleMessageEval,
   scheduleTitle,
   syncActivity,
@@ -251,6 +252,7 @@ export async function _continue(
         .eq('sessionId', stream.sessionId)
         .gt('_creationTime', current._creationTime),
     )
+    .filter(notACommandChip)
     .order('desc')
     .first()
 
@@ -440,6 +442,7 @@ export async function _complete(
     await cleanUpOffloadedOutputs(ctx, streamId)
     await cleanUpGeneratedAttachments(ctx, streamId)
     await ctx.db.delete(streamId)
+    await scheduleCommandDrain(ctx, stream.sessionId)
     return
   }
 
@@ -489,6 +492,16 @@ export async function _complete(
 
   // A finished sub-agent turn reports back to its parent session
   await deliverChildReport(ctx, stream, { kind: 'complete' })
+
+  // Scheduled, not inline: a bad command must not roll back this turn
+  await scheduleCommandDrain(ctx, stream.sessionId)
+}
+
+/** Gives any command that was waiting on this stream a chance to run. */
+function scheduleCommandDrain(ctx: MutationCtx, sessionId: Id<'sessions'>) {
+  return ctx.scheduler.runAfter(0, internal.chat._drainCommandQueue, {
+    sessionId,
+  })
 }
 
 /** True when a 'retry' stream regenerated the session's newest message. */
@@ -541,6 +554,8 @@ export async function _fail(
 
   // A failed sub-agent still reports back so the parent can react
   await deliverChildReport(ctx, stream, { kind: 'failed', message })
+
+  await scheduleCommandDrain(ctx, stream.sessionId)
 }
 
 export async function _scheduleRetry(
@@ -584,6 +599,7 @@ export async function _finalizeStopped(
     await cleanUpOffloadedOutputs(ctx, streamId)
     await cleanUpGeneratedAttachments(ctx, streamId)
     await ctx.db.delete(streamId)
+    await scheduleCommandDrain(ctx, stream.sessionId)
     return
   }
 
@@ -635,6 +651,8 @@ export async function _finalizeStopped(
   })
 
   await deliverChildReport(ctx, stream, { kind: 'stopped' })
+
+  await scheduleCommandDrain(ctx, stream.sessionId)
 }
 
 function preserveStoppedStreamError(
@@ -767,6 +785,7 @@ async function earliestUnconsumedMessage(
         .eq('sender.type', 'user')
         .gt('_creationTime', boundary),
     )
+    .filter(notACommandChip)
     .order('asc')
     .first()
 

@@ -1,7 +1,7 @@
 import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'
+import type { MutationCtx } from '../../_generated/server'
 import { error } from '../../errors'
-import type { AuthMutationCtx } from '../../functions'
 import { addVersion, getActiveSegmentRow } from '../messageContents'
 import { stripMessageError } from '../messages'
 import { findModelEntry } from '../provider/providers'
@@ -12,7 +12,7 @@ import { STREAM_LEASE_MS } from '../stream/lifecycle'
 import { agentSenderSnapshot } from './identities'
 
 export async function reserveStream(
-  ctx: AuthMutationCtx,
+  ctx: MutationCtx,
   args: {
     sessionId: Id<'sessions'>
     agentId: Id<'agents'>
@@ -82,7 +82,7 @@ export async function reserveStream(
 
 /** Reschedules a pending stream invocation (debounce). */
 export async function rescheduleStream(
-  ctx: AuthMutationCtx,
+  ctx: MutationCtx,
   stream: { _id: Id<'streams'>; jobId?: Id<'_scheduled_functions'> },
   { boundaryId, delayMs }: { boundaryId: Id<'messages'>; delayMs: number },
 ) {
@@ -104,7 +104,7 @@ export async function rescheduleStream(
 }
 
 export async function reserveResumableStream(
-  ctx: AuthMutationCtx,
+  ctx: MutationCtx,
   args: {
     sessionId: Id<'sessions'>
     agentId: Id<'agents'>
@@ -188,7 +188,7 @@ export async function reserveResumableStream(
 }
 
 export async function reserveRetryStream(
-  ctx: AuthMutationCtx,
+  ctx: MutationCtx,
   args: {
     sessionId: Id<'sessions'>
     agentId: Id<'agents'>
@@ -263,7 +263,7 @@ export async function reserveRetryStream(
 }
 
 export async function latestMessageId(
-  ctx: AuthMutationCtx,
+  ctx: MutationCtx,
   sessionId: Id<'sessions'>,
 ) {
   return (

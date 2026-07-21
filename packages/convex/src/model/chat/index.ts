@@ -1,4 +1,5 @@
 export * from './approvals'
+export * from './commands'
 export * from './eval'
 export * from './mutations'
 export * from './queries'
