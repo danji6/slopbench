@@ -22,7 +22,7 @@ export type AgentFormValues = {
   promptOrder?: OrderedItem[]
   globalPromptsEnabled: boolean
   reminderPrompts: ReminderPrompt[]
-  globalRemindersEnabled: boolean
+  libraryReminderIds: string[]
   modelId?: string | null
   reasoningEffort?: ReasoningEffort | null
   tools: AgentToolSelection
@@ -104,7 +104,7 @@ export function agentToFormValues(agent: Doc<'agents'>): AgentFormValues {
     promptOrder: agent.promptOrder as OrderedItem[] | undefined,
     globalPromptsEnabled: agent.globalPromptsEnabled ?? true,
     reminderPrompts: (agent.reminderPrompts as ReminderPrompt[]) ?? [],
-    globalRemindersEnabled: agent.globalRemindersEnabled ?? true,
+    libraryReminderIds: agent.libraryReminderIds ?? [],
     modelId: agent.modelId ?? null,
     reasoningEffort: (agent.reasoningEffort as ReasoningEffort | undefined) ?? null, // prettier-ignore
     tools: Array.isArray(agent.tools) ? (agent.tools as string[]) : [],

@@ -19,17 +19,20 @@ type ReminderState = Record<string, number>
 
 type ReminderSource = {
   reminderPrompts?: ReminderPrompt[]
-  globalRemindersEnabled?: boolean
+  libraryReminderIds?: string[]
 }
 
-/** Global reminders first unless opted out, then the agent's. */
+/** Referenced library reminders first, then the agent's own. */
 export function mergeReminders(
   agent: ReminderSource,
-  globalReminders: ReminderPrompt[],
+  libraryReminders: ReminderPrompt[],
 ): ReminderPrompt[] {
+  const libraryById = new Map(libraryReminders.map((r) => [r.id, r]))
   const merged = new Map<string, ReminderPrompt>()
-  if (agent.globalRemindersEnabled !== false) {
-    for (const reminder of globalReminders) merged.set(reminder.id, reminder)
+
+  for (const id of agent.libraryReminderIds ?? []) {
+    const reminder = libraryById.get(id)
+    if (reminder) merged.set(id, reminder)
   }
   for (const reminder of agent.reminderPrompts ?? []) {
     merged.set(reminder.id, reminder)
@@ -121,7 +124,7 @@ async function injectConfiguredReminders(
 ) {
   const reminders = mergeReminders(
     sender.agent as ReminderSource,
-    (settings?.reminderPrompts ?? []) as ReminderPrompt[],
+    (settings?.libraryReminders ?? []) as ReminderPrompt[],
   )
   if (reminders.length === 0 && !session.reminderState) return
 

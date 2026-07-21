@@ -1,17 +1,13 @@
-import { PromptList } from '@/components/chat/prompts'
-import { Combobox } from '@/components/ui'
+import { AddFromLibrary, PromptList } from '@/components/chat/prompts'
 import { useSettings } from '@/hooks/chat'
 import type { OrderedItem, Prompt } from '@/lib/chat'
 import { mergePrompts, newPrompt } from '@/lib/chat/prompts'
 import type { MergedPromptItem } from '@/lib/chat/prompts'
-import { BookmarkIcon } from 'lucide-react'
 import { useEffect } from 'react'
 import type { Control, UseFormSetValue } from 'react-hook-form'
 import { useController, useWatch } from 'react-hook-form'
 
 import type { AgentFormValues } from './agent-form'
-
-const LIBRARY_SEARCH_THRESHOLD = 3
 
 type AgentPromptListProps = {
   control: Control<AgentFormValues>
@@ -106,46 +102,11 @@ export function AgentPromptList({ control, setValue }: AgentPromptListProps) {
       extraButtons={
         libraryPrompts.length > 0 && (
           <AddFromLibrary
-            prompts={availableLibrary}
+            items={availableLibrary}
             onSelect={handleAddLibrary}
           />
         )
       }
     />
-  )
-}
-
-function AddFromLibrary({
-  prompts,
-  onSelect,
-}: {
-  prompts: Prompt[]
-  onSelect: (id: string) => void
-}) {
-  const showSearch = prompts.length > LIBRARY_SEARCH_THRESHOLD
-
-  return (
-    <Combobox onValueChange={onSelect}>
-      <Combobox.Trigger
-        variant="input"
-        size="sm"
-        className="text-m3-secondary w-auto"
-        disabled={prompts.length === 0}
-      >
-        <BookmarkIcon className="size-4" />
-        Library
-      </Combobox.Trigger>
-      <Combobox.Content className="min-w-52">
-        {showSearch && <Combobox.Search placeholder="Search prompts..." />}
-        <Combobox.List>
-          <Combobox.Empty>No prompts found.</Combobox.Empty>
-          {prompts.map((p) => (
-            <Combobox.Item key={p.id} value={p.id}>
-              {p.name}
-            </Combobox.Item>
-          ))}
-        </Combobox.List>
-      </Combobox.Content>
-    </Combobox>
   )
 }

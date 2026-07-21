@@ -7,27 +7,60 @@ import {
 } from '@/components/ui'
 import { newReminderPrompt } from '@/lib/chat'
 import type { ReminderPrompt } from '@/lib/chat'
-import { CopyIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import {
+  BookmarkIcon,
+  ClipboardPasteIcon,
+  CopyIcon,
+  PencilIcon,
+  PlusIcon,
+  Trash2Icon,
+} from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useState } from 'react'
 
+import { useReminderClipboard } from './reminder-clipboard'
 import { ReminderEditor } from './reminder-editor'
+
+type ReminderListItem = ReminderPrompt & { isLibrary?: boolean }
 
 type ReminderPromptListProps = {
   reminders: ReminderPrompt[]
   onChange: (reminders: ReminderPrompt[]) => void
+  /** Read-only reminders referenced from the user's library. */
+  libraryItems?: ReminderPrompt[]
+  onRemoveLibrary?: (id: string) => void
+  extraButtons?: ReactNode
+  /** Off in the library, where agents opt in by referencing a reminder. */
+  showEnabledSwitch?: boolean
 }
 
 export function ReminderPromptList({
   reminders,
   onChange,
+  libraryItems = [],
+  onRemoveLibrary,
+  extraButtons,
+  showEnabledSwitch = true,
 }: ReminderPromptListProps) {
   const [editing, setEditing] = useState<ReminderPrompt | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const { copy, pasteData } = useReminderClipboard()
 
   const isExisting = !!editing && reminders.some((r) => r.id === editing.id)
 
+  const items: ReminderListItem[] = [
+    ...libraryItems.map((r) => ({ ...r, isLibrary: true })),
+    ...reminders,
+  ]
+
   function handleAdd() {
     setEditing(newReminderPrompt({ name: 'New Reminder' }))
+  }
+
+  function handlePaste() {
+    if (!pasteData) return
+    onChange([newReminderPrompt(pasteData), ...reminders])
   }
 
   function handleSave(data: Partial<ReminderPrompt>) {
@@ -48,30 +81,31 @@ export function ReminderPromptList({
     setDeleteId(null)
   }
 
-  function handleDuplicate(reminder: ReminderPrompt) {
-    const { id: _, ...rest } = reminder
-    onChange([
-      newReminderPrompt({
-        ...rest,
-        name: getDuplicateName(reminder.name, reminders),
-      }),
-      ...reminders,
-    ])
-  }
-
   return (
     <>
-      <SearchableList<ReminderPrompt>
-        items={reminders}
+      <SearchableList<ReminderListItem>
+        items={items}
         keys={(r) => r.id}
         fields={['name', 'content']}
         pageSize={10}
         searchPlaceholder="Search reminders..."
         actions={
-          <RippleButton size="sm" variant="input" onClick={handleAdd}>
-            <PlusIcon />
-            Add
-          </RippleButton>
+          <div className="flex items-center gap-1">
+            {extraButtons}
+            <RippleButton
+              size="sm"
+              variant="input"
+              disabled={!pasteData}
+              onClick={handlePaste}
+            >
+              <ClipboardPasteIcon />
+              Paste
+            </RippleButton>
+            <RippleButton size="sm" variant="input" onClick={handleAdd}>
+              <PlusIcon />
+              Add
+            </RippleButton>
+          </div>
         }
         empty={() => (
           <div className="text-muted-foreground p-2 text-center text-xs">
@@ -81,7 +115,12 @@ export function ReminderPromptList({
         className="flex flex-col gap-2"
         itemProps={{ className: 'w-full' }}
         render={(r) => (
-          <div className="bg-m3-surface-container-low border-input flex w-full items-center gap-0.5 rounded-full border py-1.5 pr-1.5 pl-5">
+          <div
+            className={cn(
+              'bg-m3-surface-container-low border-input flex w-full items-center gap-0.5 rounded-full border py-1.5 pr-1.5 pl-5',
+              r.isLibrary && 'bg-muted border-dashed opacity-60',
+            )}
+          >
             <span className="min-w-0 flex-1 truncate text-sm">{r.name}</span>
             <span className="text-muted-foreground mr-2 text-xs capitalize">
               {r.role}
@@ -89,36 +128,55 @@ export function ReminderPromptList({
             <span className="text-muted-foreground mr-2 text-xs whitespace-nowrap">
               every {r.interval} {r.interval === 1 ? 'turn' : 'turns'}
             </span>
-            <Switch
-              checked={r.enabled}
-              onCheckedChange={(v) => handleToggle(r.id, v)}
-              className="mr-1"
-            />
-            <TooltipButton
-              tooltip="Duplicate"
-              size="icon"
-              variant="stealth"
-              className="text-muted-foreground hover:text-foreground"
-              onClick={() => handleDuplicate(r)}
-            >
-              <CopyIcon />
-            </TooltipButton>
-            <RippleButton
-              size="icon"
-              variant="stealth"
-              className="text-muted-foreground hover:text-foreground"
-              onClick={() => setEditing(r)}
-            >
-              <PencilIcon />
-            </RippleButton>
-            <RippleButton
-              size="icon"
-              variant="stealth"
-              className="text-muted-foreground hover:text-destructive"
-              onClick={() => setDeleteId(r.id)}
-            >
-              <Trash2Icon />
-            </RippleButton>
+            {r.isLibrary ? (
+              <>
+                <BookmarkIcon className="text-muted-foreground/80 mr-1 size-5" />
+                <TooltipButton
+                  tooltip="Remove"
+                  size="icon"
+                  variant="stealth"
+                  className="text-muted-foreground hover:text-destructive"
+                  onClick={() => onRemoveLibrary?.(r.id)}
+                >
+                  <Trash2Icon />
+                </TooltipButton>
+              </>
+            ) : (
+              <>
+                {showEnabledSwitch && (
+                  <Switch
+                    checked={r.enabled}
+                    onCheckedChange={(v) => handleToggle(r.id, v)}
+                    className="mr-1"
+                  />
+                )}
+                <TooltipButton
+                  tooltip="Copy"
+                  size="icon"
+                  variant="stealth"
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => copy(r)}
+                >
+                  <CopyIcon />
+                </TooltipButton>
+                <RippleButton
+                  size="icon"
+                  variant="stealth"
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => setEditing(r)}
+                >
+                  <PencilIcon />
+                </RippleButton>
+                <RippleButton
+                  size="icon"
+                  variant="stealth"
+                  className="text-muted-foreground hover:text-destructive"
+                  onClick={() => setDeleteId(r.id)}
+                >
+                  <Trash2Icon />
+                </RippleButton>
+              </>
+            )}
           </div>
         )}
       />
@@ -143,18 +201,4 @@ export function ReminderPromptList({
       />
     </>
   )
-}
-
-function escapeRegex(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-function getDuplicateName(name: string, reminders: ReminderPrompt[]) {
-  const pattern = new RegExp(`^${escapeRegex(name)} (\\d+)$`)
-  const indexes = reminders
-    .map((r) => r.name.match(pattern)?.[1])
-    .filter((index): index is string => index !== undefined)
-    .map(Number)
-
-  return `${name} ${Math.max(0, ...indexes) + 1}`
 }

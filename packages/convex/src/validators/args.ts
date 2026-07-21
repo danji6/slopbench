@@ -87,7 +87,7 @@ export const agentMutableFieldsValidator = {
   tools: v.optional(v.any()),
   globalPromptsEnabled: v.optional(v.boolean()),
   reminderPrompts: v.optional(v.array(reminderPromptValidator)),
-  globalRemindersEnabled: v.optional(v.boolean()),
+  libraryReminderIds: v.optional(v.array(v.string())),
   promptOrder: v.optional(v.array(promptOrderRefValidator)),
   modelId: v.optional(v.string()),
   reasoningEffort: v.optional(v.string()),

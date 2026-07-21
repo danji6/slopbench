@@ -5,6 +5,7 @@
 export * from './agent-form'
 export * from './agent-picker'
 export * from './agent-prompt-list'
+export * from './agent-reminder-list'
 export * from './agent-settings'
 export * from './appearance-settings'
 export * from './auto-approve-settings'

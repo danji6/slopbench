@@ -106,7 +106,7 @@ export const settingsFormSchema = z.object({
   themeMode: z.enum(['system', 'light', 'dark']),
   globalPrompts: z.array(promptSchema),
   libraryPrompts: z.array(libraryPromptSchema),
-  reminderPrompts: z.array(reminderPromptSchema),
+  libraryReminders: z.array(reminderPromptSchema),
   compactionPrompts: z.array(promptItemSchema),
   impersonationPrompts: z.array(promptItemSchema),
   planPrompts: z.array(promptItemSchema),

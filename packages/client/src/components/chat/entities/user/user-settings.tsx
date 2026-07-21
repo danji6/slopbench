@@ -139,7 +139,7 @@ function ChatSettingsDialog({
       themeMode: DEFAULT_SETTINGS.themeMode,
       globalPrompts: [],
       libraryPrompts: [],
-      reminderPrompts: [],
+      libraryReminders: [],
       compactionPrompts: createDefaultCompactionPrompts(),
       impersonationPrompts: createDefaultImpersonationPrompts(),
       planPrompts: createDefaultPlanPrompts(),
@@ -212,7 +212,7 @@ function ChatSettingsDialog({
       themeMode: settings.themeMode,
       globalPrompts: settings.globalPrompts ?? [],
       libraryPrompts: settings.libraryPrompts ?? [],
-      reminderPrompts: settings.reminderPrompts ?? [],
+      libraryReminders: settings.libraryReminders ?? [],
       compactionPrompts:
         settings.compactionPrompts ?? createDefaultCompactionPrompts(),
       impersonationPrompts:
@@ -320,7 +320,7 @@ function ChatSettingsDialog({
         themeMode: values.themeMode,
         globalPrompts: values.globalPrompts,
         libraryPrompts: values.libraryPrompts,
-        reminderPrompts: values.reminderPrompts,
+        libraryReminders: values.libraryReminders,
         compactionPrompts: values.compactionPrompts,
         impersonationPrompts: values.impersonationPrompts,
         planPrompts: values.planPrompts,

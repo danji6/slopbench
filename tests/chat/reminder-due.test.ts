@@ -93,33 +93,51 @@ describe('resolveDueReminders', () => {
 })
 
 describe('mergeReminders', () => {
-  const globals = [reminder({ id: 'g1' }), reminder({ id: 'g2' })]
+  const library = [reminder({ id: 'g1' }), reminder({ id: 'g2' })]
 
-  test('appends agent reminders after the globals', () => {
+  test('appends agent reminders after the referenced library ones', () => {
     const merged = mergeReminders(
-      { reminderPrompts: [reminder({ id: 'own' })] },
-      globals,
+      {
+        reminderPrompts: [reminder({ id: 'own' })],
+        libraryReminderIds: ['g1', 'g2'],
+      },
+      library,
     )
 
     expect(merged.map((r) => r.id)).toEqual(['g1', 'g2', 'own'])
   })
 
-  test('skips globals when the agent opts out', () => {
+  test('resolves library reminders in reference order', () => {
+    const merged = mergeReminders({ libraryReminderIds: ['g2', 'g1'] }, library)
+
+    expect(merged.map((r) => r.id)).toEqual(['g2', 'g1'])
+  })
+
+  test('skips library reminders the agent does not reference', () => {
     const merged = mergeReminders(
-      {
-        reminderPrompts: [reminder({ id: 'own' })],
-        globalRemindersEnabled: false,
-      },
-      globals,
+      { reminderPrompts: [reminder({ id: 'own' })] },
+      library,
     )
 
     expect(merged.map((r) => r.id)).toEqual(['own'])
   })
 
-  test('an agent reminder overrides a global one with the same id', () => {
+  test('skips references to reminders that no longer exist', () => {
     const merged = mergeReminders(
-      { reminderPrompts: [reminder({ id: 'g1', content: 'agent version' })] },
-      globals,
+      { libraryReminderIds: ['g1', 'deleted'] },
+      library,
+    )
+
+    expect(merged.map((r) => r.id)).toEqual(['g1'])
+  })
+
+  test('an agent reminder overrides a library one with the same id', () => {
+    const merged = mergeReminders(
+      {
+        reminderPrompts: [reminder({ id: 'g1', content: 'agent version' })],
+        libraryReminderIds: ['g1', 'g2'],
+      },
+      library,
     )
 
     expect(merged).toHaveLength(2)

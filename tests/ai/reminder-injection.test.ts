@@ -133,29 +133,29 @@ describe('injectDueReminders', () => {
     expect(patches).toEqual([])
   })
 
-  test('ignores global reminders when the agent opts out', async () => {
+  test('ignores library reminders the agent does not reference', async () => {
     const session = baseSession({ turnCount: 10, reminderState: { g1: 2 } })
     const { ctx, inserts, patches } = makeCtx({
-      agent: { ...baseAgent, globalRemindersEnabled: false },
-      settings: { reminderPrompts: [reminder({ id: 'g1' })] },
+      agent: baseAgent,
+      settings: { libraryReminders: [reminder({ id: 'g1' })] },
       session,
     })
 
     await injectDueReminders(ctx, session as never, 'user_1' as never)
 
     expect(inserts).toEqual([])
-    // The opted-out reminder's stale state entry is pruned
+    // The unreferenced reminder's stale state entry is pruned
     expect(patches.find((entry) => entry.id === 'session_1')?.patch).toEqual({
       reminderState: {},
     })
   })
 
-  test('injects global reminders from the agent owner settings', async () => {
+  test('injects referenced library reminders from the agent owner settings', async () => {
     const session = baseSession({ turnCount: 8, reminderState: { g1: 5 } })
     const { ctx, inserts } = makeCtx({
-      agent: baseAgent,
+      agent: { ...baseAgent, libraryReminderIds: ['g1'] },
       settings: {
-        reminderPrompts: [reminder({ id: 'g1', role: 'user', interval: 3 })],
+        libraryReminders: [reminder({ id: 'g1', role: 'user', interval: 3 })],
       },
       session,
     })

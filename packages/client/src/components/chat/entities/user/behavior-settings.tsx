@@ -144,6 +144,25 @@ export function BehaviorSettings({ control }: BehaviorSettingsProps) {
         unclickable
         unhoverable
         orientation="vertical"
+        label="Reminder library"
+        description="A library of reminders that can be reused across agents."
+      >
+        <Controller
+          control={control}
+          name="libraryReminders"
+          render={({ field }) => (
+            <ReminderPromptList
+              reminders={field.value}
+              onChange={field.onChange}
+              showEnabledSwitch={false}
+            />
+          )}
+        />
+      </SettingsList.Item>
+      <SettingsList.Item
+        unclickable
+        unhoverable
+        orientation="vertical"
         label="Global prompts"
         description="Prompts included in agents that have global prompts enabled."
       >
@@ -152,24 +171,6 @@ export function BehaviorSettings({ control }: BehaviorSettingsProps) {
           name="globalPrompts"
           render={({ field }) => (
             <GlobalPromptList prompts={field.value} onChange={field.onChange} />
-          )}
-        />
-      </SettingsList.Item>
-      <SettingsList.Item
-        unclickable
-        unhoverable
-        orientation="vertical"
-        label="Reminders"
-        description="Prompts injected at intervals in agents that have global reminders enabled."
-      >
-        <Controller
-          control={control}
-          name="reminderPrompts"
-          render={({ field }) => (
-            <ReminderPromptList
-              reminders={field.value}
-              onChange={field.onChange}
-            />
           )}
         />
       </SettingsList.Item>

@@ -1,7 +1,4 @@
-import {
-  ReminderPromptList,
-  ResettablePromptList,
-} from '@/components/chat/prompts'
+import { ResettablePromptList } from '@/components/chat/prompts'
 import { md } from '@/components/markdown'
 import { SettingsList } from '@/components/ui'
 import { useSettings } from '@/hooks/chat'
@@ -16,6 +13,7 @@ import { Controller } from 'react-hook-form'
 
 import type { AgentFormValues } from './agent-form'
 import { AgentPromptList } from './agent-prompt-list'
+import { AgentReminderList } from './agent-reminder-list'
 import { OverrideLabel, OverrideSection } from './override-section'
 
 export function BehaviorSettings({
@@ -121,33 +119,13 @@ export function BehaviorSettings({
         orientation="vertical"
         label="Reminders"
         help={md`
-          Reminders are injected into the conversation at intervals, in addition
-          to the global reminders from your user settings.
+          Reminders are injected into the conversation at intervals. Add
+          reminders of this agent's own, or pull reusable ones from your
+          reminder library. Library reminders are edited in your user settings.
         `}
       >
-        <Controller
-          control={control}
-          name="reminderPrompts"
-          render={({ field }) => (
-            <ReminderPromptList
-              reminders={field.value}
-              onChange={field.onChange}
-            />
-          )}
-        />
+        <AgentReminderList control={control} />
       </SettingsList.Item>
-
-      <Controller
-        control={control}
-        name="globalRemindersEnabled"
-        render={({ field }) => (
-          <SettingsList.Switch
-            label="Inject global reminders"
-            checked={field.value}
-            onCheckedChange={(v) => field.onChange(v)}
-          />
-        )}
-      />
 
       <OverrideSection
         control={control}
