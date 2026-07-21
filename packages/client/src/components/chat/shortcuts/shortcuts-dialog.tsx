@@ -20,11 +20,11 @@ function isShortcut(item: ShortcutItem): item is Shortcut {
 
 function buildGroups(passiveSend: boolean): ShortcutGroup[] {
   const send = {
-    keys: ['Shift', '+', 'Enter'],
+    keys: ['Shift', 'Enter'],
     description: 'Send the message',
   }
   const silent = {
-    keys: [mod, '+', 'Enter'],
+    keys: [mod, 'Enter'],
     description: 'Send silently (with content)',
   }
 
@@ -45,7 +45,8 @@ function buildGroups(passiveSend: boolean): ShortcutGroup[] {
       title: 'Messages',
       items: [
         { keys: ['Esc'], description: 'Stop generating / cancel edit' },
-        { keys: [mod, '+', 'S'], description: 'Save (while editing)' },
+        { keys: [mod, 'S'], description: 'Save (while editing)' },
+        { keys: [mod, 'Shift', 'F'], description: 'Search messages' },
       ],
     },
     {
@@ -92,19 +93,20 @@ export function ShortcutsDialog({
                       className="flex items-center justify-between gap-4"
                     >
                       <span className="text-sm">{item.description}</span>
-                      <span className="flex shrink-0 items-center gap-1">
-                        {item.keys.map((key, keyIndex) =>
-                          key === '+' ? (
-                            <span
-                              key={keyIndex}
-                              className="text-muted-foreground text-xs"
-                            >
-                              +
-                            </span>
-                          ) : (
+                      <span className="flex shrink-0 items-center gap-0.5">
+                        {item.keys.map((key, keyIndex) => (
+                          <>
                             <T.kbd key={keyIndex}>{key}</T.kbd>
-                          ),
-                        )}
+                            {keyIndex < item.keys.length - 1 && (
+                              <span
+                                key={keyIndex}
+                                className="text-muted-foreground text-xs"
+                              >
+                                +
+                              </span>
+                            )}
+                          </>
+                        ))}
                       </span>
                     </li>
                   ) : (

@@ -71,7 +71,11 @@ export function ChatShortcutsProvider({
       const { status, editingMessageId, onAbort, onOpenSearch } =
         latestRef.current
 
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'f' || e.key === 'F')) {
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        (e.key === 'f' || e.key === 'F')
+      ) {
         if (!onOpenSearch) return
         e.preventDefault()
         onOpenSearch()
