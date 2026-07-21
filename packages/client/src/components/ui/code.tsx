@@ -199,7 +199,7 @@ function CodePlaceholder({
 }) {
   const heightClass = innerClassName
     ?.split(' ')
-    .find((c) => c.startsWith('h-') || c.startsWith('max-h-'))
+    .find((c) => /^(max-)?h-\d+$/.test(c))
 
   const heightValue = heightClass?.replace(/(h|max-h)-/, '')
   const heightProp = heightClass?.startsWith('max-h-') ? 'maxHeight' : 'height'

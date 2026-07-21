@@ -2,19 +2,22 @@ import { Code, Dialog, RippleButton, SettingsList } from '@/components/ui'
 import { useActiveSession } from '@/hooks/chat'
 import { normalizeBrowserUrl } from '@/lib/auth/site-url'
 import { api } from '@sb/convex/_generated/api'
+import type { Id } from '@sb/convex/_generated/dataModel'
 import { useQuery } from 'convex/react'
 import { useEffect, useMemo, useState } from 'react'
 
+type OpenedLog = { sessionId: Id<'sessions'>; hasStoredLog: boolean }
+
 export function SessionRequestLogSection() {
   const session = useActiveSession()
-  const [open, setOpen] = useState(false)
-  const metadata = session?.metadata
-  const hasStoredLog = Boolean(metadata?.log)
+  const [opened, setOpened] = useState<OpenedLog | null>(null)
+  const open = Boolean(opened)
+  const hasStoredLog = opened?.hasStoredLog ?? false
   const logUrls = useQuery(
     api.sessions.getLogUrls,
-    open && session && hasStoredLog ? { sessionId: session._id } : 'skip',
+    opened && hasStoredLog ? { sessionId: opened.sessionId } : 'skip',
   )
-  const logUrl = normalizeBrowserUrl(logUrls?.logUrl)
+  const logUrl = useLatchedUrl(normalizeBrowserUrl(logUrls?.logUrl), open)
   const [storedLog, setStoredLog] = useState<{
     url?: string | null
     error?: string
@@ -28,7 +31,7 @@ export function SessionRequestLogSection() {
     () => buildRequestLogBody(requestBody, responseBody),
     [requestBody, responseBody],
   )
-  const loadingLog =
+  const pendingLog =
     open &&
     hasStoredLog &&
     (logUrls === undefined || Boolean(logUrl)) &&
@@ -59,21 +62,23 @@ export function SessionRequestLogSection() {
       <SettingsList.Item unclickable label="Request log">
         <RippleButton
           variant="input"
-          onClick={() => setOpen(true)}
+          onClick={() =>
+            session &&
+            setOpened({
+              sessionId: session._id,
+              hasStoredLog: Boolean(session.metadata?.log),
+            })
+          }
           className="w-32"
         >
           View
         </RippleButton>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <Dialog.Content className="sm:max-w-5xl">
+        <Dialog open={open} onOpenChange={(next) => !next && setOpened(null)}>
+          <Dialog.Content className="grid h-[calc(100svh-2rem)] max-w-none grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
             <Dialog.Header>
               <Dialog.Title>Request Log</Dialog.Title>
             </Dialog.Header>
-            {loadingLog ? (
-              <p className="text-muted-foreground text-sm">
-                Loading request log…
-              </p>
-            ) : visibleStoredLog?.error ? (
+            {pendingLog ? null : visibleStoredLog?.error ? (
               <p className="text-destructive text-sm">
                 {visibleStoredLog.error}
               </p>
@@ -82,7 +87,9 @@ export function SessionRequestLogSection() {
                 text={logBody}
                 language="json"
                 hugParent
-                innerClassName="max-h-[min(90svh,800px)]"
+                noLoadingIndicator
+                className="h-full"
+                innerClassName="h-full"
               />
             ) : hasStoredLog ? (
               <p className="text-muted-foreground text-sm">
@@ -98,6 +105,15 @@ export function SessionRequestLogSection() {
       </SettingsList.Item>
     </SettingsList>
   )
+}
+
+function useLatchedUrl(url: string | null, open: boolean) {
+  const [latched, setLatched] = useState<string | null>(null)
+
+  if (!open && latched) setLatched(null)
+  if (open && !latched && url) setLatched(url)
+
+  return open ? (latched ?? url) : null
 }
 
 async function fetchLogBody(url: string | null, signal: AbortSignal) {
