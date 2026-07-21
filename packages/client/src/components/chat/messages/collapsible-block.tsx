@@ -7,6 +7,9 @@ import { useGrowOnly } from './grow-only'
 import { useMessageList } from './message-list/message-list-context'
 import { useScrollIntoView } from './scroll-into-view'
 
+const TRIGGER_FOCUS =
+  'has-[>div>[data-block-trigger]:focus-visible]:border-ring'
+
 export type CollapsibleBlockProps = React.ComponentPropsWithoutRef<'div'> & {
   label: React.ReactNode
   leadingIcon?: React.ReactNode
@@ -78,7 +81,8 @@ export function CollapsibleBlock({
   const rowMinH = dense ? 'min-h-7' : 'min-h-9'
 
   const shellClassName = cn(
-    'group has-focus-visible:ring-ring overflow-x-auto rounded-2xl border border-transparent transition-all has-focus-visible:ring-1 has-[[contenteditable]:focus]:ring-0',
+    'group overflow-x-auto rounded-2xl border border-transparent transition-all',
+    TRIGGER_FOCUS,
     dense ? 'mb-0' : 'mb-2',
     fullWidth ? 'w-full' : 'w-fit max-w-full',
     surface &&
@@ -242,6 +246,7 @@ function Trigger({
     <Button
       variant="plain"
       size={null}
+      data-block-trigger=""
       onClick={onLabelClick ?? (canExpand ? toggle : undefined)}
       className={cn(
         'flex min-w-0 shrink grow items-center justify-start gap-2 rounded-none text-left whitespace-normal focus-visible:ring-0',
