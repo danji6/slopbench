@@ -12,6 +12,7 @@ import {
   Switch,
 } from '@/components/ui'
 import type { ReminderPrompt } from '@/lib/chat'
+import { formatMarkdown } from '@/lib/markdown/format'
 import { PROMPT_CONTENT_GUIDE } from '@sb/core/interpreter/guide'
 import { capitalize } from '@sb/core/utils/strings'
 import { useEffect } from 'react'
@@ -70,7 +71,11 @@ export function ReminderEditor({
   }, [reminder, open, reset])
 
   function handleSave(values: FormValues) {
-    onSave({ ...values, interval: Math.max(1, Math.round(values.interval)) })
+    onSave({
+      ...values,
+      content: formatMarkdown(values.content),
+      interval: Math.max(1, Math.round(values.interval)),
+    })
     onOpenChange(false)
   }
 

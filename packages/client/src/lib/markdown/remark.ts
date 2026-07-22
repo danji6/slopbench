@@ -403,6 +403,44 @@ export function remarkHighlightQuotes() {
   }
 }
 
+/** Matches every opening/closing tag name in a raw HTML chunk. */
+const HTML_TAG = /<\/?([a-zA-Z][a-zA-Z0-9-]*)/g
+
+function hasUnknownTag(value: string, allowed: Set<string>): boolean {
+  for (const [, tag] of value.matchAll(HTML_TAG)) {
+    if (!allowed.has(tag.toLowerCase())) return true
+  }
+  return false
+}
+
+/** Splits raw HTML into text nodes, preserving its line breaks. */
+function toLiteralText(value: string): any[] {
+  return value.split('\n').flatMap((line, i) => {
+    const text = { type: 'text', value: line }
+    return i === 0 ? [text] : [{ type: 'break' }, text]
+  })
+}
+
+/**
+ * Renders raw HTML the sanitizer would strip as literal text, preventing
+ * unknown tags (like `<system-reminder>`) from disappearing.
+ */
+export function remarkLiteralHtml({ allowed }: { allowed: Set<string> }) {
+  return (tree: any) => {
+    visit(tree, 'html', (node: any, index, parent: any) => {
+      if (index == null || !parent) return
+      if (!hasUnknownTag(node.value, allowed)) return
+
+      const children = toLiteralText(node.value)
+      const nodes =
+        parent.type === 'root' ? [{ type: 'paragraph', children }] : children
+
+      parent.children.splice(index, 1, ...nodes)
+      return [SKIP, index + nodes.length]
+    })
+  }
+}
+
 /** Wraps `@path` / `@"spaced path"` file mentions in a `md-mention` node. */
 export function remarkMention() {
   return (tree: any) => {

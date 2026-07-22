@@ -5,4 +5,5 @@
 export * from './code-edit'
 export * from './dynamic-block'
 export * from './markdown-math'
+export * from './markdown'
 export * from './snippet-stops'

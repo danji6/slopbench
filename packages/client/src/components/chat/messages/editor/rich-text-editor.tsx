@@ -1,9 +1,6 @@
 import { CodeBlockShiki } from '@/components/ui/code-block-shiki'
 import { useMathMode } from '@/hooks/chat'
-import {
-  normalizeMathDelimiters,
-  restoreMathEntities,
-} from '@/lib/markdown/helpers'
+import { normalizeMathDelimiters } from '@/lib/markdown/helpers'
 import { getHighlighter } from '@/lib/shiki/core'
 import { theme, themeName } from '@/lib/shiki/theme'
 import {
@@ -13,14 +10,15 @@ import {
   setEditorMathMode,
 } from '@/lib/tiptap/decorations'
 import { CodeEdit } from '@/lib/tiptap/extensions/code-edit'
+import { Markdown } from '@/lib/tiptap/extensions/markdown'
 import { MarkdownMath } from '@/lib/tiptap/extensions/markdown-math'
+import { serializeDocumentToMarkdown } from '@/lib/tiptap/serialize'
 import { cn } from '@/lib/utils'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { Table } from '@tiptap/extension-table'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
 import { TableRow } from '@tiptap/extension-table-row'
-import { Markdown } from '@tiptap/markdown'
 import type { EditorView } from '@tiptap/pm/view'
 import { EditorContent, useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
@@ -104,7 +102,7 @@ export function RichTextEditor({
     contentType: 'markdown',
     immediatelyRender: false,
     onUpdate({ editor: e }) {
-      onChange(readMarkdown(e))
+      onChange(serializeDocumentToMarkdown(e))
     },
     editorProps: {
       attributes: {
@@ -196,9 +194,9 @@ export function RichTextEditor({
   )
 }
 
-/** Serializes the editor to markdown, undoing HTML encoding inside math. */
+/** Serializes the editor to markdown. */
 function readMarkdown(editor: Editor | null | undefined): string {
-  return restoreMathEntities(editor?.getMarkdown() ?? '')
+  return editor ? serializeDocumentToMarkdown(editor) : ''
 }
 
 /**

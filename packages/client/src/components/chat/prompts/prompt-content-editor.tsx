@@ -9,13 +9,13 @@ import {
   DYNAMIC_LANG,
   DynamicBlock,
 } from '@/lib/tiptap/extensions/dynamic-block'
+import { Markdown } from '@/lib/tiptap/extensions/markdown'
 import { SnippetStops } from '@/lib/tiptap/extensions/snippet-stops'
 import { pasteCollapsedText } from '@/lib/tiptap/paste'
-import { serializeBlocksToMarkdown } from '@/lib/tiptap/serialize'
+import { serializeDocumentToMarkdown } from '@/lib/tiptap/serialize'
 import { cn } from '@/lib/utils'
 import type { JSONContent, MarkdownRendererHelpers } from '@tiptap/core'
 import { Placeholder } from '@tiptap/extension-placeholder'
-import { Markdown } from '@tiptap/markdown'
 import { EditorContent, useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 import { StarterKit } from '@tiptap/starter-kit'
@@ -76,7 +76,7 @@ export function PromptContentEditor({
     immediatelyRender: false,
     autofocus: autoFocus ? 'end' : false,
     onUpdate({ editor: e }) {
-      onChangeRef.current(serializeBlocksToMarkdown(e))
+      onChangeRef.current(serializeDocumentToMarkdown(e))
     },
     editorProps: {
       attributes: {
@@ -98,7 +98,7 @@ export function PromptContentEditor({
   // Resync when the value changes from outside while unfocused
   useEffect(() => {
     if (!editor || editor.isFocused) return
-    if (value === serializeBlocksToMarkdown(editor)) return
+    if (value === serializeDocumentToMarkdown(editor)) return
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const manager = (editor.storage.markdown as any).manager
     editor.commands.setContent(manager.parse(value), { emitUpdate: false })

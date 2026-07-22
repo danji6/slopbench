@@ -11,6 +11,7 @@ import {
   Switch,
 } from '@/components/ui'
 import type { Prompt } from '@/lib/chat'
+import { formatMarkdown } from '@/lib/markdown/format'
 import { PROMPT_CONTENT_GUIDE } from '@sb/core/interpreter/guide'
 import { capitalize } from '@sb/core/utils/strings'
 import { useEffect } from 'react'
@@ -72,7 +73,7 @@ export function PromptEditor({
   }, [prompt, open, reset])
 
   function handleSave(values: FormValues) {
-    onSave(values)
+    onSave({ ...values, content: formatMarkdown(values.content) })
     onOpenChange(false)
   }
 

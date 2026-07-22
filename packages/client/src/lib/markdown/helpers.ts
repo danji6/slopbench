@@ -64,23 +64,6 @@ export function normalizeMathDelimiters(source: string): string {
   )
 }
 
-/**
- * Reverses the HTML encoding the TipTap markdown serializer applies to text
- * nodes inside math spans.
- */
-export function restoreMathEntities(markdown: string): string {
-  return markdown.replace(
-    /(```[\s\S]*?```|~~~[\s\S]*?~~~|`+[^`]*?`+)|(\$\$(?:(?!\$\$)[\s\S])+\$\$|\$[^$\n]+\$)/g,
-    (match, code, math) => {
-      if (code != null) return match
-      return math
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&amp;/g, '&')
-    },
-  )
-}
-
 export function stripMarkdown(markdown: string): string {
   return markdown
     .replace(/```[\s\S]*?```/g, '')

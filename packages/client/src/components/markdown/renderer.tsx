@@ -5,17 +5,19 @@ import {
   remarkCodeMeta,
   remarkGroup,
   remarkHighlightQuotes,
+  remarkLiteralHtml,
   remarkMention,
   remarkMeta,
   remarkPromoteDisplayMath,
   remarkSplitImages,
 } from '@/lib/markdown/remark'
+import { allowedTags, sanitizeSchema } from '@/lib/markdown/sanitize'
 import { cn } from '@/lib/utils'
 import { dedent } from '@sb/core/utils/strings'
 import type React from 'react'
 import Markdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
-import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
+import rehypeSanitize from 'rehype-sanitize'
 import rehypeSlug from 'rehype-slug'
 import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
@@ -26,34 +28,6 @@ import { Surface } from '../ui'
 import { MarkdownGroup } from './group'
 import { MarkdownMeta } from './meta'
 import { H2AnchorHash, MarkdownVariants } from './variants'
-
-const sanitizeSchema = {
-  ...defaultSchema,
-  tagNames: [
-    ...(defaultSchema.tagNames ?? []),
-    'md-group',
-    'md-meta',
-    'md-quoted',
-    'md-mention',
-    'md-streaming-cursor',
-  ],
-  attributes: {
-    ...(defaultSchema.attributes ?? {}),
-    code: [
-      [
-        'className',
-        /^language-./,
-        // Prevent math classes from getting stripped
-        'math-inline',
-        'math-display',
-      ],
-      'data*',
-    ],
-    'md-group': ['type', 'items', 'direction'],
-    'md-meta': ['content'],
-    'md-mention': ['path'],
-  },
-}
 
 type MarkdownProps = Parameters<typeof Markdown>[0]
 type RemarkPlugin = NonNullable<MarkdownProps['remarkPlugins']>[number]
@@ -99,6 +73,7 @@ export function MarkdownRenderer({
       ? [remarkMath, { singleDollarTextMath: false }]
       : remarkMath
   const remarkPlugins = [
+    [remarkLiteralHtml, { allowed: allowedTags }] as RemarkPlugin,
     remarkToc,
     remarkSplitImages,
     remarkCodeMeta,
