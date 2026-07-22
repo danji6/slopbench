@@ -7,6 +7,7 @@ import type { MutationCtx } from '../../_generated/server'
 import { settleAbandonedTaskParts } from '../../lib/subagent'
 import { cleanUpGeneratedAttachments } from '../attachments'
 import { streamOutputIdentity } from '../chat/identities'
+import { clearAnnouncedMode, injectModeNote } from '../chat/notes'
 import { bumpTurnCount, injectDueReminders } from '../chat/reminders'
 import {
   allVersionParts,
@@ -93,8 +94,13 @@ export async function _claim(
 async function claimFreshTurn(ctx: MutationCtx, stream: Doc<'streams'>) {
   if (stream.operation === 'invoke') {
     const session = await ctx.db.get(stream.sessionId)
-    // Inject due reminders to include them in the next turn's context
-    if (session) await injectDueReminders(ctx, session, stream.invokedBy)
+    if (session) {
+      // Catch up a mode change nothing has announced yet (session created in
+      // plan mode, inherited by a sub-agent, flipped by an approved tool call)
+      await injectModeNote(ctx, session, stream.invokedBy)
+      // Inject due reminders to include them in the next turn's context
+      await injectDueReminders(ctx, session, stream.invokedBy)
+    }
   }
 
   const boundary = await latestContextMessage(ctx, stream.sessionId)
@@ -455,6 +461,8 @@ export async function _complete(
   if (stream.operation === 'compact') {
     const plan = await getPlan(ctx, stream.sessionId)
     if (plan) parts.push(createPlanLinkPart(plan))
+    // The mode note is behind the new boundary, state it again on the next turn
+    await clearAnnouncedMode(ctx, stream.sessionId)
   }
 
   if (row && message) {
@@ -838,6 +846,7 @@ export async function reserveInvokeTurn(
     .unique()
   if (!link) return
 
+  await injectModeNote(ctx, session, invokedBy)
   await injectDueReminders(ctx, session, invokedBy)
   await bumpTurnCount(ctx, session._id)
 

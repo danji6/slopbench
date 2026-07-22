@@ -11,7 +11,6 @@ import {
   removeStarterPrompts,
   resolveCompactionPrompts,
   resolveImpersonationPrompts,
-  resolvePlanPrompts,
   splitAtMessageHistory,
 } from '../../model/prompt/prompts'
 import type { PromptItem } from '../../model/prompt/prompts'
@@ -77,18 +76,7 @@ function createInvokePlan(
   data: StreamContext,
   prompts: PromptItem[],
 ): OperationPlan {
-  const planMode = data.stream.mode === 'plan'
-  const plan = planSnapshotEval({
-    cache: data.sessionCache,
-    planMode,
-    planPrompts: planMode
-      ? resolvePlanPrompts(
-          data.agent.planPrompts ?? data.settings?.planPrompts,
-          !!data.session.parent,
-        )
-      : [],
-    prompts,
-  })
+  const plan = planSnapshotEval({ cache: data.sessionCache, prompts })
 
   // Cached on first invoke, then reused for the rest of the session
   const frozenTools = data.sessionCache?.tools

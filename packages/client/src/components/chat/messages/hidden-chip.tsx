@@ -18,11 +18,13 @@ import type { UIMessage } from 'ai'
 import type { LucideIcon } from 'lucide-react'
 import {
   AlarmClockIcon,
+  ClipboardListIcon,
   CopyIcon,
   EyeOffIcon,
   FolderSyncIcon,
   HourglassIcon,
   ListTodoIcon,
+  MessagesSquareIcon,
   TerminalIcon,
   Trash2Icon,
   TriangleAlertIcon,
@@ -61,6 +63,14 @@ function chipPresentation(record: MessageRecord | undefined): ChipPresentation {
       return {
         icon: FolderSyncIcon,
         label: label ? `Workspace • ${label}` : 'Workspace unbound',
+        noun: 'note',
+      }
+    }
+    case 'mode': {
+      const planning = messageExtra(record, 'mode')?.to === 'plan'
+      return {
+        icon: planning ? ClipboardListIcon : MessagesSquareIcon,
+        label: planning ? 'Plan mode' : 'Normal mode',
         noun: 'note',
       }
     }

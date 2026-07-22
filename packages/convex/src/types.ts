@@ -49,7 +49,9 @@ export type MessageExtra = {
   reminder: { id: string; name: string }
   /** Label of the workspace bound by the change, absent when unbound. */
   workspace: { label?: string }
-  /** The invoked command a chip announces, and how far it got. */
+  /** The announced session mode change. */
+  mode: { from: SessionMode; to: SessionMode }
+  /** The announced invoked command, and how far it got. */
   command: {
     name: CommandName
     argument?: string

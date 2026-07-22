@@ -3,14 +3,9 @@ import { prefixSenderName } from '@sb/convex/actions/stream/history'
 import { isReadOnlyShellCommand } from '@sb/convex/lib/tool/approval'
 import { toPlanBlock } from '@sb/convex/lib/workspace'
 import { applyPlanModeTransition } from '@sb/convex/model/chat'
-import {
-  DEFAULT_PLAN_PROMPT,
-  createDefaultPlanPrompts,
-} from '@sb/convex/model/defaults'
 import { _edit, createPlanLinkPart } from '@sb/convex/model/plans'
-import { resolvePlanPrompts } from '@sb/convex/model/prompt/prompts'
-import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
 import { getEnabledTools } from '@sb/convex/model/tool/build'
+import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
 import { withPlanModeReminders } from '@sb/convex/model/tool/plan'
 import { PLAN_TOOL_TOGGLE } from '@sb/core/const'
 import { describe, expect, test } from 'bun:test'
@@ -46,44 +41,6 @@ describe('read-only shell commands', () => {
 
   test('rejects a chain that mixes read-only and write segments', () => {
     expect(isReadOnlyShellCommand('git log && git push')).toBe(false)
-  })
-})
-
-describe('plan prompts', () => {
-  test('defaults to a leading system prompt followed by history', () => {
-    const prompts = createDefaultPlanPrompts()
-
-    expect(prompts).toHaveLength(2)
-    expect(prompts[0]).toMatchObject({
-      role: 'system',
-      content: DEFAULT_PLAN_PROMPT,
-      enabled: true,
-    })
-    expect(prompts[1]).toMatchObject({ type: 'message-history' })
-  })
-
-  test('resolves configured prompts over the defaults', () => {
-    const custom = [
-      {
-        id: 'custom-plan',
-        name: 'Custom',
-        role: 'system',
-        content: 'Custom planning instructions.',
-        enabled: true,
-        visible: false,
-        starter: false,
-      },
-    ]
-
-    expect(resolvePlanPrompts(custom)).toBe(custom as never)
-    expect(resolvePlanPrompts(undefined)).toMatchObject([
-      { content: DEFAULT_PLAN_PROMPT },
-      { type: 'message-history' },
-    ])
-    expect(resolvePlanPrompts([])).toMatchObject([
-      { content: DEFAULT_PLAN_PROMPT },
-      { type: 'message-history' },
-    ])
   })
 })
 
@@ -587,18 +544,5 @@ describe('plan mode transition tools', () => {
 
     const output = await tools.exit_plan_mode.execute?.({}, {} as never)
     expect(output).toContain('# The Plan')
-  })
-})
-
-describe('plan prompts', () => {
-  test('the default plan prompt has a report-oriented sub-agent variant', () => {
-    const [prompt] = resolvePlanPrompts(null, true)
-    const content = (prompt as { content: string }).content
-
-    expect(content).toContain('delegating agent')
-    expect(content).not.toContain('exit_plan_mode')
-
-    const [normal] = resolvePlanPrompts(null)
-    expect((normal as { content: string }).content).toContain('exit_plan_mode')
   })
 })

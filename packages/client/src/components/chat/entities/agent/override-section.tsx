@@ -5,8 +5,7 @@ import { Controller } from 'react-hook-form'
 
 import type { AgentFormValues } from './agent-form'
 
-type OverridableName =
-  'compactionPrompts' | 'impersonationPrompts' | 'planPrompts'
+type OverridableName = 'compactionPrompts' | 'impersonationPrompts'
 
 /**
  * Renders an "Override" toggle for an agent field that inherits the user's

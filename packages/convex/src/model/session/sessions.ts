@@ -17,7 +17,7 @@ import type {
   UpdateSessionArgs,
 } from '../../types'
 import * as Avatars from '../avatars'
-import { injectWorkspaceNote } from '../chat/notes'
+import { injectModeNote, injectWorkspaceNote } from '../chat/notes'
 import { deleteVersions } from '../messageContents'
 import { demoteToDraft } from '../plans'
 import { findModelEntry } from '../provider/providers'
@@ -255,11 +255,14 @@ export async function setMode(
   ctx: AuthMutationCtx,
   { sessionId, mode }: { sessionId: Id<'sessions'>; mode: SessionMode },
 ) {
-  await requireMember(ctx, sessionId, ctx.userId)
-  await ctx.db.patch(sessionId, { mode: mode === 'plan' ? mode : undefined })
+  const { session } = await requireMember(ctx, sessionId, ctx.userId)
+  const next = mode === 'plan' ? mode : undefined
+  await ctx.db.patch(sessionId, { mode: next })
 
   // Re-entering plan mode reopens an approved plan for revision
   if (mode === 'plan') await demoteToDraft(ctx, sessionId)
+
+  await injectModeNote(ctx, { ...session, mode: next }, ctx.userId)
 }
 
 export async function setDisabled(

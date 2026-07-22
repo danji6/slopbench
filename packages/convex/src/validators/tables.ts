@@ -7,6 +7,7 @@ export const sessionSchema = v.object({
   title: v.optional(v.string()),
   activeAgentId: v.optional(v.id('agents')),
   mode: v.optional(V.sessionModeValidator),
+  announcedMode: v.optional(V.sessionModeValidator), // mode the transcript states
   environment: v.optional(v.any()),
   settings: v.optional(V.sessionSettingsValidator),
   metadata: v.optional(V.sessionMetadataValidator),
@@ -195,8 +196,6 @@ export const sessionCacheSchema = v.object({
   agentId: v.id('agents'),
   /** Evaluated invoke prompts, frozen for this (session, agent). */
   items: v.array(V.promptItemValidator),
-  /** Evaluated plan-mode framing prompts. Added lazily on first plan invoke. */
-  planItems: v.optional(v.array(V.promptItemValidator)),
   /** Cached shape of the tool set. Behavior is rebuilt live each step. */
   tools: v.optional(V.toolManifestValidator),
   capturedAt: v.number(),

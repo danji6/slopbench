@@ -109,7 +109,6 @@ export const settingsFormSchema = z.object({
   libraryReminders: z.array(reminderPromptSchema),
   compactionPrompts: z.array(promptItemSchema),
   impersonationPrompts: z.array(promptItemSchema),
-  planPrompts: z.array(promptItemSchema),
   providers: z.array(providerSchema).superRefine(providerRefinement),
 })
 

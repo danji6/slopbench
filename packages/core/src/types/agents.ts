@@ -14,7 +14,6 @@ export type OverridableFields = {
   chatWidth?: number
   compactionPrompts?: PromptItem[]
   impersonationPrompts?: PromptItem[]
-  planPrompts?: PromptItem[]
 }
 
 /** Per-agent approvals merged into every session's approvals. */

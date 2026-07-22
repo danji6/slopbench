@@ -7,6 +7,7 @@ import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { ToolError } from '../../errors'
 import type { ShellToolOutput } from '../../types'
+import { modeNoteBody } from '../chat/notes'
 import type { PlanToolContext } from './context'
 
 export async function createWritePlanTool(context: PlanToolContext) {
@@ -53,7 +54,8 @@ export async function createEnterPlanModeTool(context: PlanToolContext) {
     needsApproval: async () => !(await planMode()),
     execute: async () =>
       (await planMode())
-        ? 'Plan mode is active. Research the task and author a plan with write_plan, then present it with exit_plan_mode.'
+        ? // The tools only exist for a non sub-agent session that has them
+          modeNoteBody('plan', { planTools: true, subagent: false }).join('\n')
         : 'Plan mode is already active for this session.',
   })
 }

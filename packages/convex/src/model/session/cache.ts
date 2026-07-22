@@ -5,8 +5,6 @@ import type { SaveSessionCacheArgs } from '../../types'
 /**
  * Cache of everything that shapes the provider request prefix:
  * - Row absence means the entry needs to be (re)computed.
- * - Mode flips never re-evaluate; the plan mode framing block is frozen
- *   separately (lazily, on the first plan mode invoke).
  * - `getVar()` inside a frozen prompt reads the environment as of capture time.
  * - `tools` is just the shape, their behavior is rebuilt live every step.
  * - Invalidated only by `/eval` (see model/chat/controls.ts) or session removal.
@@ -24,10 +22,7 @@ export async function getBySessionAgent(
     .unique()
 }
 
-/**
- * Upsert. Patches only the keys present, so the first invoke writes `items`
- * and `tools` while a later first plan invoke adds `planItems`.
- */
+/** Upsert. Patches only the keys present. */
 export async function _save(ctx: MutationCtx, args: SaveSessionCacheArgs) {
   const existing = await getBySessionAgent(ctx, args.sessionId, args.agentId)
   const capturedAt = Date.now()
@@ -35,7 +30,6 @@ export async function _save(ctx: MutationCtx, args: SaveSessionCacheArgs) {
   if (existing) {
     await ctx.db.patch(existing._id, {
       ...(args.items && { items: args.items }),
-      ...(args.planItems && { planItems: args.planItems }),
       ...(args.tools && { tools: args.tools }),
       capturedAt,
     })
@@ -46,7 +40,6 @@ export async function _save(ctx: MutationCtx, args: SaveSessionCacheArgs) {
     sessionId: args.sessionId,
     agentId: args.agentId,
     items: args.items ?? [],
-    planItems: args.planItems,
     tools: args.tools,
     capturedAt,
   })

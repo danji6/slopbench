@@ -50,7 +50,6 @@ export type AgentFormValues = {
   chatWidth?: number | null
   compactionPrompts?: PromptItem[] | null
   impersonationPrompts?: PromptItem[] | null
-  planPrompts?: PromptItem[] | null
 }
 
 /** Overridable doc fields, mapped from their form representation. Any entry
@@ -63,7 +62,6 @@ const OVERRIDABLE_FORM_KEYS = [
   'chatWidth',
   'compactionPrompts',
   'impersonationPrompts',
-  'planPrompts',
 ] as const
 
 /** Orders a set of tool names by their position in the available list. */
@@ -131,7 +129,6 @@ export function agentToFormValues(agent: Doc<'agents'>): AgentFormValues {
     compactionPrompts: agent.compactionPrompts as PromptItem[] | undefined,
     impersonationPrompts: agent.impersonationPrompts as
       PromptItem[] | undefined,
-    planPrompts: agent.planPrompts as PromptItem[] | undefined,
   }
 }
 
@@ -148,7 +145,6 @@ export async function formValuesToPatch(
     chatWidth,
     compactionPrompts,
     impersonationPrompts,
-    planPrompts,
     description,
     autoApproveTools,
     autoApproveShell,
@@ -167,7 +163,6 @@ export async function formValuesToPatch(
     chatWidth: chatWidth ?? undefined,
     compactionPrompts: compactionPrompts ?? undefined,
     impersonationPrompts: impersonationPrompts ?? undefined,
-    planPrompts: planPrompts ?? undefined,
   }
 
   const patch: UpdateAgentArgs = {

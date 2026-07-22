@@ -28,6 +28,7 @@ export const messageTypeValidator = v.union(
   v.literal('todo'),
   v.literal('workspace'),
   v.literal('command'),
+  v.literal('mode'),
 )
 
 /** Slash commands the server runs, and may defer while a stream is active. */
@@ -359,7 +360,6 @@ export const overridableFields = {
   chatWidth: v.optional(v.number()),
   compactionPrompts: v.optional(v.array(promptItemValidator)),
   impersonationPrompts: v.optional(v.array(promptItemValidator)),
-  planPrompts: v.optional(v.array(promptItemValidator)),
 }
 
 export const overridableFieldsValidator = v.object(overridableFields)

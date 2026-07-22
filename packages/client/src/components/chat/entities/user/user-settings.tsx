@@ -26,7 +26,6 @@ import {
   SOURCE_COLOR,
   createDefaultCompactionPrompts,
   createDefaultImpersonationPrompts,
-  createDefaultPlanPrompts,
 } from '@sb/convex/model/defaults'
 import {
   type McpServer,
@@ -142,7 +141,6 @@ function ChatSettingsDialog({
       libraryReminders: [],
       compactionPrompts: createDefaultCompactionPrompts(),
       impersonationPrompts: createDefaultImpersonationPrompts(),
-      planPrompts: createDefaultPlanPrompts(),
       providers: [],
     },
   })
@@ -217,7 +215,6 @@ function ChatSettingsDialog({
         settings.compactionPrompts ?? createDefaultCompactionPrompts(),
       impersonationPrompts:
         settings.impersonationPrompts ?? createDefaultImpersonationPrompts(),
-      planPrompts: settings.planPrompts ?? createDefaultPlanPrompts(),
       providers: ((settings.modelProviders as ProviderFormValues[]) ?? []).map(
         (p) => ({
           ...p,
@@ -323,7 +320,6 @@ function ChatSettingsDialog({
         libraryReminders: values.libraryReminders,
         compactionPrompts: values.compactionPrompts,
         impersonationPrompts: values.impersonationPrompts,
-        planPrompts: values.planPrompts,
         modelProviders: values.providers.map(({ _clientId: _, ...p }) => p),
       },
     })

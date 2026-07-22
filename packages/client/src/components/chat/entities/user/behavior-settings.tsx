@@ -7,7 +7,6 @@ import { SettingsList } from '@/components/ui'
 import {
   createDefaultCompactionPrompts,
   createDefaultImpersonationPrompts,
-  createDefaultPlanPrompts,
 } from '@sb/convex/model/defaults'
 import type { Control } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
@@ -210,26 +209,6 @@ export function BehaviorSettings({ control }: BehaviorSettingsProps) {
               onChange={field.onChange}
               kind="impersonation"
               createDefaults={createDefaultImpersonationPrompts}
-            />
-          )}
-        />
-      </SettingsList.Item>
-      <SettingsList.Item
-        unclickable
-        unhoverable
-        orientation="vertical"
-        label="Planning prompts"
-        description="Prompts used while the agent is in plan mode."
-      >
-        <Controller
-          control={control}
-          name="planPrompts"
-          render={({ field }) => (
-            <ResettablePromptList
-              prompts={field.value}
-              onChange={field.onChange}
-              kind="planning"
-              createDefaults={createDefaultPlanPrompts}
             />
           )}
         />

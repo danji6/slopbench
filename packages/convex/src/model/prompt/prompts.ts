@@ -2,10 +2,8 @@ import type { ModelMessage } from '@ai-sdk/provider-utils'
 
 import type { Prompt, PromptMarker, PromptSource } from '../../types'
 import {
-  DEFAULT_SUBAGENT_PLAN_PROMPT,
   createDefaultCompactionPrompts,
   createDefaultImpersonationPrompts,
-  createDefaultPlanPrompts,
 } from '../defaults'
 import { PROMPT_MARKERS } from './markers'
 import { mergeOrderedPromptItems } from './merge'
@@ -128,22 +126,10 @@ export function resolveCompactionPrompts(prompts: unknown): PromptItem[] {
     : (createDefaultCompactionPrompts() as PromptItem[])
 }
 
-export function resolveImpersonationPrompts(
-  prompts: unknown,
-): PromptItem[] {
+export function resolveImpersonationPrompts(prompts: unknown): PromptItem[] {
   return hasPromptItems(prompts)
     ? prompts
     : (createDefaultImpersonationPrompts() as PromptItem[])
-}
-
-export function resolvePlanPrompts(
-  prompts: unknown,
-  subagent = false,
-): PromptItem[] {
-  if (hasPromptItems(prompts)) return prompts
-  return createDefaultPlanPrompts(
-    subagent ? DEFAULT_SUBAGENT_PLAN_PROMPT : undefined,
-  ) as PromptItem[]
 }
 
 export function buildExtraInstructions(instructions?: string) {

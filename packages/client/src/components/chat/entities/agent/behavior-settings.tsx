@@ -6,7 +6,6 @@ import type { MathMode, ScrollMode } from '@/lib/chat'
 import {
   createDefaultCompactionPrompts,
   createDefaultImpersonationPrompts,
-  createDefaultPlanPrompts,
 } from '@sb/convex/model/defaults'
 import type { Control, UseFormSetValue } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
@@ -159,22 +158,6 @@ export function BehaviorSettings({
             onChange={onChange}
             kind="impersonation"
             createDefaults={createDefaultImpersonationPrompts}
-          />
-        )}
-      </OverrideSection>
-
-      <OverrideSection
-        control={control}
-        name="planPrompts"
-        label="Planning prompts"
-        seed={() => settings?.planPrompts ?? createDefaultPlanPrompts()}
-      >
-        {(value, onChange) => (
-          <ResettablePromptList
-            prompts={value}
-            onChange={onChange}
-            kind="planning"
-            createDefaults={createDefaultPlanPrompts}
           />
         )}
       </OverrideSection>

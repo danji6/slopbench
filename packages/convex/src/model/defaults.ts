@@ -31,50 +31,6 @@ export const DEFAULT_IMPERSONATION_SENTINEL_PROMPT = inline`
 (TASK: Write {{user ?? 'the user'}}'s next message according to the previous system instructions.)
 `
 
-export const DEFAULT_PLAN_PROMPT = [
-  inline`You are in plan mode. Your task is to research the conversation's current
-    request and produce an implementation plan. Editing is NOT allowed in this mode.`,
-  '',
-  `- Explore using the available read-only tools and commands.`,
-  inline`- Author the plan with the write_plan tool, and refine specific sections with
-    edit_plan as your understanding deepens. Keep the plan concise, concrete, and
-    actionable: context, approach, steps, critical files, verification.`,
-  inline`- When the plan is ready, call exit_plan_mode to present it for approval. If
-    approval is denied, keep researching and refining the plan.`,
-].join('\n')
-
-export const DEFAULT_SUBAGENT_PLAN_PROMPT = [
-  inline`You are in plan mode, working on a task delegated by another agent.
-    Editing is NOT allowed in this mode.`,
-  '',
-  `- Explore using the available read-only tools and commands.`,
-  inline`- The session plan is shared with the delegating agent. Contribute to it with
-    the write_plan and edit_plan tools when your task calls for it.`,
-  inline`- You cannot exit plan mode or present the plan for approval. When done, write
-    your findings as your final message. It is returned to the delegating agent as your
-    report.`,
-].join('\n')
-
-export function createDefaultPlanPrompts(
-  content: string = DEFAULT_PLAN_PROMPT,
-): PromptItem[] {
-  return [
-    {
-      id: 'default-plan-system',
-      name: 'Prompt',
-      role: 'system',
-      content,
-      enabled: true,
-      visible: false,
-      starter: false,
-    },
-    {
-      id: 'default-plan-history',
-      type: 'message-history',
-    },
-  ]
-}
-
 export function createDefaultImpersonationPrompts(): PromptItem[] {
   return [
     {
@@ -139,7 +95,6 @@ export const DEFAULT_SETTINGS = {
   mcpServers: [] as McpServer[],
   compactionPrompts: createDefaultCompactionPrompts(),
   impersonationPrompts: createDefaultImpersonationPrompts(),
-  planPrompts: createDefaultPlanPrompts(),
   uiFont: 'Roboto',
   chatFont: 'Roboto',
   monoFont: 'Maple Mono',
