@@ -1,16 +1,11 @@
 import type { ModelMessage } from '@ai-sdk/provider-utils'
 
-import type {
-  Prompt,
-  PromptMarker,
-  PromptMarkerType,
-  PromptSource,
-} from '../../types'
+import type { Prompt, PromptMarker, PromptSource } from '../../types'
 import {
   createDefaultCompactionPrompts,
   createDefaultImpersonationPrompts,
 } from '../defaults'
-import { PROMPT_MARKERS, promptItemKey } from './markers'
+import { PROMPT_MARKERS, findPromptMarker, promptItemKey } from './markers'
 import { mergeOrderedPromptItems } from './merge'
 import type { PromptOrderRef } from './merge'
 
@@ -90,7 +85,7 @@ export function buildPrompts(
   allMessages: ModelMessage[],
   render: RenderFn,
 ): ModelMessage[] {
-  const markerIndex = findMarker(remainingPrompts, 'message-history')
+  const markerIndex = findPromptMarker(remainingPrompts, 'message-history')
 
   if (markerIndex === -1) {
     return [...toModelMessages(remainingPrompts, render), ...allMessages]
@@ -114,7 +109,7 @@ export function buildPromptMessages(
 }
 
 export function splitAtMessageHistory(prompts: PromptItem[]) {
-  const markerIndex = findMarker(prompts, 'message-history')
+  const markerIndex = findPromptMarker(prompts, 'message-history')
 
   if (markerIndex === -1) {
     return {
@@ -138,8 +133,8 @@ export function spliceAgentPrompts(
   framing: PromptItem[],
   agentPrompts: PromptItem[],
 ): PromptItem[] {
-  const at = findMarker(framing, 'agent-prompts')
-  const fallback = findMarker(framing, 'message-history')
+  const at = findPromptMarker(framing, 'agent-prompts')
+  const fallback = findPromptMarker(framing, 'message-history')
   const index = at !== -1 ? at : fallback !== -1 ? fallback : framing.length
 
   return [
@@ -206,14 +201,6 @@ function isPrompt(item: PromptItem): item is WirePrompt {
 
 function isStarter(item: WirePrompt): boolean {
   return item.starter === true
-}
-
-function isMarker(item: PromptItem): item is WireMarker {
-  return 'type' in item
-}
-
-function findMarker(items: PromptItem[], type: PromptMarkerType): number {
-  return items.findIndex((item) => isMarker(item) && item.type === type)
 }
 
 function toModelMessages(

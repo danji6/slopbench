@@ -8,7 +8,10 @@ import type {
 } from '@/lib/chat'
 import { mergePrompts, newPrompt } from '@/lib/chat/prompts'
 import type { MergedPromptItem } from '@/lib/chat/prompts'
-import { promptItemKey } from '@sb/convex/model/prompt/markers'
+import {
+  ensurePromptMarkers,
+  promptItemKey,
+} from '@sb/convex/model/prompt/markers'
 import { useEffect } from 'react'
 import type { Control, UseFormSetValue } from 'react-hook-form'
 import { useController, useWatch } from 'react-hook-form'
@@ -41,7 +44,7 @@ export function AgentPromptList({ control, setValue }: AgentPromptListProps) {
     name: 'globalPromptsEnabled',
   })
 
-  const prompts = promptsField.value
+  const prompts = ensurePromptMarkers(promptsField.value, MARKERS)
   const promptOrder = orderField.value
 
   const mergeResult = mergePrompts(
@@ -49,6 +52,15 @@ export function AgentPromptList({ control, setValue }: AgentPromptListProps) {
     globalPrompts,
     libraryPrompts,
   )
+
+  useEffect(() => {
+    // Keep the field in sync with the markers, or reorders reference items the
+    // stored list doesn't have. Adding a structural marker isn't a user edit.
+    if (prompts !== promptsField.value) {
+      setValue('prompts', prompts, { shouldDirty: false })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prompts])
 
   useEffect(() => {
     if (mergeResult.cleanedOrder) {
@@ -81,8 +93,8 @@ export function AgentPromptList({ control, setValue }: AgentPromptListProps) {
     }
   }
 
-  function handleAdd(marker?: PromptMarkerType) {
-    handleAddItem(marker ? { type: marker } : newPrompt())
+  function handleAdd() {
+    handleAddItem(newPrompt())
   }
 
   function handlePaste(data: Omit<Prompt, 'id'>) {
@@ -115,7 +127,6 @@ export function AgentPromptList({ control, setValue }: AgentPromptListProps) {
       onPaste={handlePaste}
       onEdit={handleEdit}
       onDelete={handleDelete}
-      markers={MARKERS}
       extraButtons={
         libraryPrompts.length > 0 && (
           <AddFromLibrary

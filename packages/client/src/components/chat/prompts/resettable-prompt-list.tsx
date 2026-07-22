@@ -6,15 +6,18 @@ import type {
   PromptItem,
   PromptMarkerType,
 } from '@/lib/chat'
-import { promptItemKey } from '@sb/convex/model/prompt/markers'
+import {
+  ensurePromptMarkers,
+  promptItemKey,
+} from '@sb/convex/model/prompt/markers'
 import { RotateCcwIcon } from 'lucide-react'
 
 import { PromptList } from './prompt-list'
 
 const MARKERS: PromptMarkerType[] = [
   'message-history',
-  'system-boundary',
   'agent-prompts',
+  'system-boundary',
 ]
 
 export type ResettablePromptListProps = {
@@ -31,29 +34,30 @@ export function ResettablePromptList({
   kind,
   createDefaults,
 }: ResettablePromptListProps) {
-  const items = prompts.map((item) => ({
+  const items = ensurePromptMarkers(prompts, MARKERS)
+  const merged = items.map((item) => ({
     item,
     isGlobal: false as const,
   }))
 
   function handleReorder(order: OrderedItem[]) {
     const reordered = order
-      .map((ref) => prompts.find((item) => promptItemKey(item) === ref.id))
+      .map((ref) => items.find((item) => promptItemKey(item) === ref.id))
       .filter((item): item is PromptItem => item !== undefined)
     onChange(reordered)
   }
 
-  function handleAdd(marker?: PromptMarkerType) {
-    onChange([...prompts, marker ? { type: marker } : newPrompt()])
+  function handleAdd() {
+    onChange([...items, newPrompt()])
   }
 
   function handlePaste(data: Omit<Prompt, 'id'>) {
-    onChange([...prompts, newPrompt(data)])
+    onChange([...items, newPrompt(data)])
   }
 
   function handleEdit(key: string, data: Partial<Prompt>) {
     onChange(
-      prompts.map((item) =>
+      items.map((item) =>
         promptItemKey(item) === key && !('type' in item)
           ? { ...item, ...data }
           : item,
@@ -62,18 +66,17 @@ export function ResettablePromptList({
   }
 
   function handleDelete(key: string) {
-    onChange(prompts.filter((item) => promptItemKey(item) !== key))
+    onChange(items.filter((item) => promptItemKey(item) !== key))
   }
 
   return (
     <PromptList
-      items={items}
+      items={merged}
       onReorder={handleReorder}
       onAdd={handleAdd}
       onPaste={handlePaste}
       onEdit={handleEdit}
       onDelete={handleDelete}
-      markers={MARKERS}
       showVisibleSwitch={false}
       extraButtons={
         <ConfirmDialog

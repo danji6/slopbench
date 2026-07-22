@@ -34,6 +34,12 @@ export const DEFAULT_IMPERSONATION_SENTINEL_PROMPT = inline`
 export function createDefaultImpersonationPrompts(): PromptItem[] {
   return [
     {
+      type: 'agent-prompts',
+    },
+    {
+      type: 'system-boundary',
+    },
+    {
       type: 'message-history',
     },
     {
@@ -59,6 +65,12 @@ export function createDefaultImpersonationPrompts(): PromptItem[] {
 
 export function createDefaultCompactionPrompts(): PromptItem[] {
   return [
+    {
+      type: 'agent-prompts',
+    },
+    {
+      type: 'system-boundary',
+    },
     {
       type: 'message-history',
     },
@@ -164,6 +176,9 @@ export function createDefaultAgent() {
         enabled: true,
         visible: false,
         starter: false,
+      },
+      {
+        type: 'system-boundary',
       },
       {
         type: 'message-history',

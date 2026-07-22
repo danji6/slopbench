@@ -2,7 +2,7 @@ import { ConfirmDialog, RippleButton } from '@/components/ui'
 import { DropdownMenu } from '@/components/ui/dropdown-menu'
 import type { SortableHandleProps } from '@/components/ui/sortable-list'
 import { SortableList } from '@/components/ui/sortable-list'
-import type { OrderedItem, Prompt, PromptMarkerType } from '@/lib/chat'
+import type { OrderedItem, Prompt } from '@/lib/chat'
 import type { MergedPromptItem } from '@/lib/chat/prompts'
 import { cn } from '@/lib/utils'
 import {
@@ -29,12 +29,10 @@ import { PromptEditor } from './prompt-editor'
 export type PromptListProps = {
   items: MergedPromptItem[]
   onReorder: (order: OrderedItem[]) => void
-  onAdd: (marker?: PromptMarkerType) => void
+  onAdd: () => void
   onPaste: (data: Omit<Prompt, 'id'>) => void
   onEdit: (id: string, data: Partial<Prompt>) => void
   onDelete: (key: string) => void
-  /** Marker types this list accepts. Omit to disallow markers entirely. */
-  markers?: PromptMarkerType[]
   extraButtons?: ReactNode
   showVisibleSwitch?: boolean
 }
@@ -46,7 +44,6 @@ export function PromptList({
   onPaste,
   onEdit,
   onDelete,
-  markers,
   extraButtons,
   showVisibleSwitch = true,
 }: PromptListProps) {
@@ -59,14 +56,6 @@ export function PromptList({
     setPrevItems(items)
     setOptimisticItems(items)
   }
-
-  const presentMarkers = new Set(
-    optimisticItems
-      .map((m) => m.item)
-      .filter(isPromptMarker)
-      .map((item) => item.type),
-  )
-  const availableMarkers = (markers ?? []).filter((m) => !presentMarkers.has(m))
 
   function handleReorder(reordered: MergedPromptItem[]) {
     setOptimisticItems(reordered)
@@ -136,51 +125,20 @@ export function PromptList({
             <ClipboardPasteIcon className="size-4" />
             Paste
           </RippleButton>
-          {availableMarkers.length > 0 ? (
-            <DropdownMenu>
-              <DropdownMenu.Trigger
-                render={
-                  <RippleButton
-                    size="sm"
-                    variant="link"
-                    className="text-m3-secondary"
-                  >
-                    Add
-                  </RippleButton>
-                }
-              />
-              <DropdownMenu.Content>
-                <DropdownMenu.Item onClick={() => onAdd()}>
-                  Prompt
-                </DropdownMenu.Item>
-                <DropdownMenu.Separator />
-                {availableMarkers.map((marker) => (
-                  <DropdownMenu.Item key={marker} onClick={() => onAdd(marker)}>
-                    {getPromptMarkerLabel(marker)}
-                  </DropdownMenu.Item>
-                ))}
-              </DropdownMenu.Content>
-            </DropdownMenu>
-          ) : (
-            <RippleButton
-              size="sm"
-              variant="link"
-              className="text-m3-secondary"
-              onClick={() => onAdd()}
-            >
-              Add
-            </RippleButton>
-          )}
+          <RippleButton
+            size="sm"
+            variant="link"
+            className="text-m3-secondary"
+            onClick={onAdd}
+          >
+            Add
+          </RippleButton>
         </div>
       </div>
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(v) => !v && setDeleteTarget(null)}
-        title={
-          deleteTarget && isPromptMarker(deleteTarget.item)
-            ? 'Delete marker?'
-            : 'Delete prompt?'
-        }
+        title="Delete prompt?"
         description="This action cannot be undone."
         confirmText="Delete"
         variant="destructive"
@@ -211,8 +169,7 @@ function PromptListItem({
   const [editOpen, setEditOpen] = useState(false)
   const isMarker = isPromptMarker(item)
   const isEditable = !isMarker && !isGlobal && !isLibrary
-  const canCopy = !isMarker
-  const hasMenu = isEditable || isLibrary || isMarker
+  const hasMenu = isEditable || isLibrary
   const label = isMarker ? getPromptMarkerLabel(item.type) : item.name
 
   return (
@@ -261,12 +218,10 @@ function PromptListItem({
                   Edit
                 </DropdownMenu.Item>
               )}
-              {canCopy && (
-                <DropdownMenu.Item onClick={onCopy}>
-                  <CopyIcon />
-                  Copy
-                </DropdownMenu.Item>
-              )}
+              <DropdownMenu.Item onClick={onCopy}>
+                <CopyIcon />
+                Copy
+              </DropdownMenu.Item>
               {isLibrary ? (
                 <DropdownMenu.Item onClick={onRemove}>
                   <Trash2Icon />

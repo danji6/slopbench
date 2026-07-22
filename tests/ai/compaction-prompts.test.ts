@@ -4,6 +4,7 @@ import {
   DEFAULT_COMPACTION_SENTINEL_PROMPT,
   createDefaultCompactionPrompts,
 } from '@sb/convex/model/defaults'
+import { isPromptMarker } from '@sb/convex/model/prompt/markers'
 import {
   buildPromptMessages,
   buildPrompts,
@@ -22,7 +23,7 @@ describe('compaction prompts', () => {
     )
 
     // The instruction and its sentinel both trail the history for cache reuse
-    expect(beforeHistory).toHaveLength(0)
+    expect(beforeHistory.every(isPromptMarker)).toBe(true)
     expect(afterHistory).toHaveLength(2)
     expect(afterHistory[0]).toMatchObject({
       role: 'system',
@@ -56,10 +57,14 @@ describe('compaction prompts', () => {
     const history: ModelMessage[] = [{ role: 'user', content: 'Hello' }]
 
     const { beforeHistory, afterHistory } = splitAtMessageHistory(
-      createDefaultCompactionPrompts(),
+      spliceAgentPrompts(createDefaultCompactionPrompts(), [
+        normalSystem,
+        { type: 'message-history' },
+        normalUser,
+      ]),
     )
     const { systemPrompt, remainingPrompts } = buildSystemPrompt(
-      [...beforeHistory, normalSystem, { type: 'message-history' }, normalUser],
+      beforeHistory,
       (value) => value,
     )
     const messages = buildPrompts(remainingPrompts, history, (value) => value)
@@ -177,7 +182,6 @@ describe('agent prompts marker', () => {
 
   test('without a marker it reproduces the legacy composition', () => {
     const framings: PromptItem[][] = [
-      createDefaultCompactionPrompts(),
       [task, { type: 'message-history' }, sentinel],
       [task, sentinel], // no history marker at all
       [],
