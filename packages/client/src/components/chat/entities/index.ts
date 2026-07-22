@@ -4,3 +4,4 @@
 
 export * from './avatar-picker'
 export * from './entity-actions-menu'
+export * from './prompt-help'

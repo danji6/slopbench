@@ -96,7 +96,10 @@ export type ChatComposerProps = Omit<InputGroupProps, 'onSubmit'> & {
   passiveSend?: boolean
   /** Whether sending messages should be disabled. */
   sendDisabled?: boolean
-  /** Session id for the draft key. Omit to disable persistence. */
+  /**
+   * Draft key: a session id, or `NO_SESSION_DRAFT_KEY` outside of a session.
+   * Omit to disable persistence.
+   */
   draftKey?: string
 }
 

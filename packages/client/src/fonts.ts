@@ -106,7 +106,7 @@ const sorted = (names: Iterable<string>) =>
 
 const discoveredMono = [...discovered.keys()].filter((f) => MONO_NAME.test(f))
 
-// Names shown in the appearance picker
+/** Names shown in the appearance picker */
 export const FONT_NAMES: string[] = sorted([
   ...Object.keys(WEB_SAFE),
   ...Object.keys(WEB_SAFE_MONO),
@@ -131,7 +131,7 @@ function faceRule(family: string, face: FontFace): string {
 
 let installed = false
 
-// Injects @font-face rules for every discovered font
+/** Injects @font-face rules for every discovered font */
 export function installFonts(): void {
   if (installed || typeof document === 'undefined' || discovered.size === 0)
     return

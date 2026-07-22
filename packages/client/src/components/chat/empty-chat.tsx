@@ -1,6 +1,6 @@
 import { useNavPadding } from '@/hooks'
 import { useSettings, useWorkspaceFileIndexByRoot } from '@/hooks/chat'
-import type { PendingMessage } from '@/lib/chat'
+import { NO_SESSION_DRAFT_KEY, type PendingMessage } from '@/lib/chat'
 import type { SessionMode } from '@/lib/chat/modes'
 import { nextSessionMode } from '@/lib/chat/modes'
 import { api } from '@sb/convex/_generated/api'
@@ -122,6 +122,7 @@ export function EmptyChat({
             onRunCommand={handleRunCommand}
             onCycleMode={workspaceRoot ? cycleMode : undefined}
             status="ready"
+            draftKey={NO_SESSION_DRAFT_KEY}
             hideTokenWidget
             commandAvailability={{
               hasActiveSession: false,
