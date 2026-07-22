@@ -14,6 +14,7 @@ import type { AgentFormValues } from './agent-form'
 import { AgentPromptList } from './agent-prompt-list'
 import { AgentReminderList } from './agent-reminder-list'
 import { OverrideLabel, OverrideSection } from './override-section'
+import { promptHelp } from '../prompt-help'
 
 export function BehaviorSettings({
   control,
@@ -82,20 +83,7 @@ export function BehaviorSettings({
         unhoverable
         orientation="vertical"
         label="Prompts"
-        help={md`
-          Prompts are instructions that guide the AI's behavior and responses.
-          You can add, edit, and reorder prompts to customize how the AI
-          interacts with you. Some prompts are static and non-editable. These
-          are not prompts but **markers**, they mark specific places in the
-          message history. Adding a prompt after a marker will make it appear
-          after that point in the conversation. For example if you add a prompt
-          after 'Message History', it will be appended after the last message in
-          the history.
-
-          Keep in mind that dynamic prompts may invalidate the
-          prompt cache for any providers that support it and result in higher
-          costs.
-        `}
+        help={promptHelp()}
       >
         <AgentPromptList control={control} setValue={setValue} />
       </SettingsList.Item>

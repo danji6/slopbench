@@ -11,6 +11,7 @@ import {
 import type { Control } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
 
+import { promptHelp } from '../prompt-help'
 import { GlobalPromptList } from './global-prompt-list'
 import { LibraryPromptList } from './library-prompt-list'
 import type { SettingsFormValues } from './settings-schema'
@@ -179,6 +180,7 @@ export function BehaviorSettings({ control }: BehaviorSettingsProps) {
         orientation="vertical"
         label="Compaction prompts"
         description="Prompts used when compacting conversation history."
+        help={promptHelp(true)}
       >
         <Controller
           control={control}
@@ -199,6 +201,7 @@ export function BehaviorSettings({ control }: BehaviorSettingsProps) {
         orientation="vertical"
         label="Impersonation prompts"
         description="Prompts used when the agent sends a message on your behalf."
+        help={promptHelp(true)}
       >
         <Controller
           control={control}

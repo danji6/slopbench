@@ -1,3 +1,4 @@
+import { PROMPT_MARKERS } from '@sb/convex/model/prompt/markers'
 import { MCP_TRANSPORTS, SEARCH_ENGINE_IDS } from '@sb/core/types'
 import { z } from 'zod/v4'
 
@@ -55,8 +56,7 @@ export const promptSchema = z.object({
 })
 
 export const promptMarkerSchema = z.object({
-  id: z.string(),
-  type: z.literal('message-history'),
+  type: z.enum(PROMPT_MARKERS),
 })
 
 export const promptItemSchema = z.union([promptSchema, promptMarkerSchema])

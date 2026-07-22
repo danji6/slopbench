@@ -1,9 +1,21 @@
 import { ConfirmDialog, RippleButton } from '@/components/ui'
 import { newPrompt } from '@/lib/chat'
-import type { OrderedItem, Prompt, PromptItem } from '@/lib/chat'
+import type {
+  OrderedItem,
+  Prompt,
+  PromptItem,
+  PromptMarkerType,
+} from '@/lib/chat'
+import { promptItemKey } from '@sb/convex/model/prompt/markers'
 import { RotateCcwIcon } from 'lucide-react'
 
 import { PromptList } from './prompt-list'
+
+const MARKERS: PromptMarkerType[] = [
+  'message-history',
+  'system-boundary',
+  'agent-prompts',
+]
 
 export type ResettablePromptListProps = {
   prompts: PromptItem[]
@@ -26,29 +38,31 @@ export function ResettablePromptList({
 
   function handleReorder(order: OrderedItem[]) {
     const reordered = order
-      .map((ref) => prompts.find((item) => item.id === ref.id))
+      .map((ref) => prompts.find((item) => promptItemKey(item) === ref.id))
       .filter((item): item is PromptItem => item !== undefined)
     onChange(reordered)
   }
 
-  function handleAdd() {
-    onChange([...prompts, newPrompt()])
+  function handleAdd(marker?: PromptMarkerType) {
+    onChange([...prompts, marker ? { type: marker } : newPrompt()])
   }
 
   function handlePaste(data: Omit<Prompt, 'id'>) {
     onChange([...prompts, newPrompt(data)])
   }
 
-  function handleEdit(id: string, data: Partial<Prompt>) {
+  function handleEdit(key: string, data: Partial<Prompt>) {
     onChange(
       prompts.map((item) =>
-        item.id === id && !('type' in item) ? { ...item, ...data } : item,
+        promptItemKey(item) === key && !('type' in item)
+          ? { ...item, ...data }
+          : item,
       ),
     )
   }
 
-  function handleDelete(id: string) {
-    onChange(prompts.filter((item) => item.id !== id || 'type' in item))
+  function handleDelete(key: string) {
+    onChange(prompts.filter((item) => promptItemKey(item) !== key))
   }
 
   return (
@@ -59,6 +73,7 @@ export function ResettablePromptList({
       onPaste={handlePaste}
       onEdit={handleEdit}
       onDelete={handleDelete}
+      markers={MARKERS}
       showVisibleSwitch={false}
       extraButtons={
         <ConfirmDialog

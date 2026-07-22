@@ -1,11 +1,16 @@
 import type { ModelMessage } from '@ai-sdk/provider-utils'
 
-import type { Prompt, PromptMarker, PromptSource } from '../../types'
+import type {
+  Prompt,
+  PromptMarker,
+  PromptMarkerType,
+  PromptSource,
+} from '../../types'
 import {
   createDefaultCompactionPrompts,
   createDefaultImpersonationPrompts,
 } from '../defaults'
-import { PROMPT_MARKERS } from './markers'
+import { PROMPT_MARKERS, promptItemKey } from './markers'
 import { mergeOrderedPromptItems } from './merge'
 import type { PromptOrderRef } from './merge'
 
@@ -39,6 +44,7 @@ export function mergePrompts(
     globalItems: globals,
     libraryItems: libraryPrompts,
     order,
+    getOwnId: promptItemKey,
     getGlobalId: (item) => item.id,
   })
 
@@ -52,11 +58,14 @@ export function buildSystemPrompt(
   const systemParts: string[] = []
   let i = 0
 
+  // Any marker ends the block; a disabled prompt is skipped
   while (i < prompts.length) {
     const item = prompts[i]
-    if (!isPrompt(item) || item.role !== 'system' || !item.enabled) break
-    const rendered = render(item.content)
-    if (rendered) systemParts.push(rendered)
+    if (!isPrompt(item) || item.role !== 'system') break
+    if (item.enabled) {
+      const rendered = render(item.content)
+      if (rendered) systemParts.push(rendered)
+    }
     i++
   }
 
@@ -81,7 +90,7 @@ export function buildPrompts(
   allMessages: ModelMessage[],
   render: RenderFn,
 ): ModelMessage[] {
-  const markerIndex = remainingPrompts.findIndex(isMessageHistoryMarker)
+  const markerIndex = findMarker(remainingPrompts, 'message-history')
 
   if (markerIndex === -1) {
     return [...toModelMessages(remainingPrompts, render), ...allMessages]
@@ -105,7 +114,7 @@ export function buildPromptMessages(
 }
 
 export function splitAtMessageHistory(prompts: PromptItem[]) {
-  const markerIndex = prompts.findIndex(isMessageHistoryMarker)
+  const markerIndex = findMarker(prompts, 'message-history')
 
   if (markerIndex === -1) {
     return {
@@ -118,6 +127,26 @@ export function splitAtMessageHistory(prompts: PromptItem[]) {
     beforeHistory: prompts.slice(0, markerIndex),
     afterHistory: prompts.slice(markerIndex + 1),
   }
+}
+
+/**
+ * Splices an agent's own prompts into an operation's framing list at its
+ * `agent-prompts` marker, which is consumed in the process. Without the marker
+ * they go just before the message history, or at the end when there is none.
+ */
+export function spliceAgentPrompts(
+  framing: PromptItem[],
+  agentPrompts: PromptItem[],
+): PromptItem[] {
+  const at = findMarker(framing, 'agent-prompts')
+  const fallback = findMarker(framing, 'message-history')
+  const index = at !== -1 ? at : fallback !== -1 ? fallback : framing.length
+
+  return [
+    ...framing.slice(0, index),
+    ...agentPrompts,
+    ...framing.slice(at !== -1 ? at + 1 : index),
+  ]
 }
 
 export function resolveCompactionPrompts(prompts: unknown): PromptItem[] {
@@ -168,11 +197,7 @@ function isWireMarker(item: unknown): item is WireMarker {
     return false
   }
   const candidate = item as Partial<WireMarker>
-  return (
-    typeof candidate.id === 'string' &&
-    candidate.type !== undefined &&
-    PROMPT_MARKERS.includes(candidate.type)
-  )
+  return candidate.type !== undefined && PROMPT_MARKERS.includes(candidate.type)
 }
 
 function isPrompt(item: PromptItem): item is WirePrompt {
@@ -187,8 +212,8 @@ function isMarker(item: PromptItem): item is WireMarker {
   return 'type' in item
 }
 
-function isMessageHistoryMarker(item: PromptItem): item is WireMarker {
-  return isMarker(item) && item.type === 'message-history'
+function findMarker(items: PromptItem[], type: PromptMarkerType): number {
+  return items.findIndex((item) => isMarker(item) && item.type === type)
 }
 
 function toModelMessages(

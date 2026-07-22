@@ -1,5 +1,6 @@
-import type { OrderedItem, Prompt, PromptItem, PromptMarker } from '@/lib/chat'
-import type { PromptMarkerType, PromptSource, ReminderPrompt } from '@/lib/chat'
+import type { OrderedItem, Prompt, PromptItem } from '@/lib/chat'
+import type { PromptSource, ReminderPrompt } from '@/lib/chat'
+import { promptItemKey } from '@sb/convex/model/prompt/markers'
 import { mergeOrderedPromptItems } from '@sb/convex/model/prompt/merge'
 import { evaluate } from '@sb/core/interpreter/evaluate'
 import { hasInterpolation } from '@sb/core/interpreter/parse'
@@ -56,13 +57,6 @@ export function newReminderPrompt(
   }
 }
 
-export function newPromptMarker(type: PromptMarkerType): PromptMarker {
-  return {
-    id: generateId(),
-    type,
-  }
-}
-
 export function mergePrompts(
   source: PromptSource,
   globalPrompts: Prompt[],
@@ -88,6 +82,7 @@ export function mergePrompts(
     globalItems: globals,
     libraryItems: libraryPrompts,
     order: source.promptOrder,
+    getOwnId: promptItemKey,
     getGlobalId: (item) => item.id,
   })
   const items = result.items.map((entry): MergedPromptItem => ({

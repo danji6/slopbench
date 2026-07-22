@@ -1,8 +1,14 @@
 import { AddFromLibrary, PromptList } from '@/components/chat/prompts'
 import { useSettings } from '@/hooks/chat'
-import type { OrderedItem, Prompt } from '@/lib/chat'
+import type {
+  OrderedItem,
+  Prompt,
+  PromptItem,
+  PromptMarkerType,
+} from '@/lib/chat'
 import { mergePrompts, newPrompt } from '@/lib/chat/prompts'
 import type { MergedPromptItem } from '@/lib/chat/prompts'
+import { promptItemKey } from '@sb/convex/model/prompt/markers'
 import { useEffect } from 'react'
 import type { Control, UseFormSetValue } from 'react-hook-form'
 import { useController, useWatch } from 'react-hook-form'
@@ -14,10 +20,13 @@ type AgentPromptListProps = {
   setValue: UseFormSetValue<AgentFormValues>
 }
 
+const MARKERS: PromptMarkerType[] = ['message-history', 'system-boundary']
+
 function toOrderedItem(m: MergedPromptItem): OrderedItem {
-  if (m.isLibrary) return { kind: 'library', id: m.item.id }
-  if (m.isGlobal) return { kind: 'global', id: m.item.id }
-  return { kind: 'own', id: m.item.id }
+  const id = promptItemKey(m.item)
+  if (m.isLibrary) return { kind: 'library', id }
+  if (m.isGlobal) return { kind: 'global', id }
+  return { kind: 'own', id }
 }
 
 export function AgentPromptList({ control, setValue }: AgentPromptListProps) {
@@ -62,15 +71,22 @@ export function AgentPromptList({ control, setValue }: AgentPromptListProps) {
     orderField.onChange(order)
   }
 
-  function handleAdd(data?: Omit<Prompt, 'id'>) {
-    const prompt = newPrompt(data)
-    promptsField.onChange([...prompts, prompt])
+  function handleAddItem(item: PromptItem) {
+    promptsField.onChange([...prompts, item])
     if (promptOrder) {
       orderField.onChange([
         ...promptOrder,
-        { kind: 'own' as const, id: prompt.id },
+        { kind: 'own' as const, id: promptItemKey(item) },
       ])
     }
+  }
+
+  function handleAdd(marker?: PromptMarkerType) {
+    handleAddItem(marker ? { type: marker } : newPrompt())
+  }
+
+  function handlePaste(data: Omit<Prompt, 'id'>) {
+    handleAddItem(newPrompt(data))
   }
 
   function handleAddLibrary(id: string) {
@@ -78,16 +94,16 @@ export function AgentPromptList({ control, setValue }: AgentPromptListProps) {
     orderField.onChange([...order, { kind: 'library' as const, id }])
   }
 
-  function handleEdit(id: string, data: Partial<Prompt>) {
+  function handleEdit(key: string, data: Partial<Prompt>) {
     promptsField.onChange(
-      prompts.map((p) => (p.id === id ? { ...p, ...data } : p)),
+      prompts.map((p) => (promptItemKey(p) === key ? { ...p, ...data } : p)),
     )
   }
 
-  function handleDelete(id: string) {
-    promptsField.onChange(prompts.filter((p) => p.id !== id))
+  function handleDelete(key: string) {
+    promptsField.onChange(prompts.filter((p) => promptItemKey(p) !== key))
     if (promptOrder) {
-      orderField.onChange(promptOrder.filter((ref) => ref.id !== id))
+      orderField.onChange(promptOrder.filter((ref) => ref.id !== key))
     }
   }
 
@@ -96,9 +112,10 @@ export function AgentPromptList({ control, setValue }: AgentPromptListProps) {
       items={mergeResult.items}
       onReorder={handleReorder}
       onAdd={handleAdd}
-      onPaste={handleAdd}
+      onPaste={handlePaste}
       onEdit={handleEdit}
       onDelete={handleDelete}
+      markers={MARKERS}
       extraButtons={
         libraryPrompts.length > 0 && (
           <AddFromLibrary

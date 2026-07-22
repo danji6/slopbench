@@ -2,10 +2,14 @@ import { ConfirmDialog, RippleButton } from '@/components/ui'
 import { DropdownMenu } from '@/components/ui/dropdown-menu'
 import type { SortableHandleProps } from '@/components/ui/sortable-list'
 import { SortableList } from '@/components/ui/sortable-list'
-import type { OrderedItem, Prompt } from '@/lib/chat'
+import type { OrderedItem, Prompt, PromptMarkerType } from '@/lib/chat'
 import type { MergedPromptItem } from '@/lib/chat/prompts'
 import { cn } from '@/lib/utils'
-import { getPromptMarkerLabel } from '@sb/convex/model/prompt/markers'
+import {
+  getPromptMarkerLabel,
+  isPromptMarker,
+  promptItemKey,
+} from '@sb/convex/model/prompt/markers'
 import {
   BookmarkIcon,
   ClipboardPasteIcon,
@@ -25,10 +29,12 @@ import { PromptEditor } from './prompt-editor'
 export type PromptListProps = {
   items: MergedPromptItem[]
   onReorder: (order: OrderedItem[]) => void
-  onAdd: () => void
+  onAdd: (marker?: PromptMarkerType) => void
   onPaste: (data: Omit<Prompt, 'id'>) => void
   onEdit: (id: string, data: Partial<Prompt>) => void
-  onDelete: (id: string) => void
+  onDelete: (key: string) => void
+  /** Marker types this list accepts. Omit to disallow markers entirely. */
+  markers?: PromptMarkerType[]
   extraButtons?: ReactNode
   showVisibleSwitch?: boolean
 }
@@ -40,11 +46,12 @@ export function PromptList({
   onPaste,
   onEdit,
   onDelete,
+  markers,
   extraButtons,
   showVisibleSwitch = true,
 }: PromptListProps) {
   const [optimisticItems, setOptimisticItems] = useState(items)
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<MergedPromptItem | null>(null) // prettier-ignore
   const [prevItems, setPrevItems] = useState(items)
   const { copy, pasteData } = usePromptClipboard()
 
@@ -53,26 +60,40 @@ export function PromptList({
     setOptimisticItems(items)
   }
 
+  const presentMarkers = new Set(
+    optimisticItems
+      .map((m) => m.item)
+      .filter(isPromptMarker)
+      .map((item) => item.type),
+  )
+  const availableMarkers = (markers ?? []).filter((m) => !presentMarkers.has(m))
+
   function handleReorder(reordered: MergedPromptItem[]) {
     setOptimisticItems(reordered)
     const order = reordered.map((m): OrderedItem => {
-      if (m.isLibrary) return { kind: 'library', id: m.item.id }
-      if (m.isGlobal) return { kind: 'global', id: m.item.id }
-      return { kind: 'own', id: m.item.id }
+      const id = promptItemKey(m.item)
+      if (m.isLibrary) return { kind: 'library', id }
+      if (m.isGlobal) return { kind: 'global', id }
+      return { kind: 'own', id }
     })
     onReorder(order)
   }
 
-  function handleDelete(promptId: string) {
-    setOptimisticItems((prev) => prev.filter((m) => m.item.id !== promptId))
-    onDelete(promptId)
-    setDeleteTargetId(null)
+  function handleDelete(target: MergedPromptItem) {
+    const key = promptItemKey(target.item)
+    setOptimisticItems((prev) =>
+      prev.filter((m) => promptItemKey(m.item) !== key),
+    )
+    onDelete(key)
+    setDeleteTarget(null)
   }
 
   function handleEdit(promptId: string, data: Partial<Prompt>) {
     setOptimisticItems((prev) =>
       prev.map((m) =>
-        m.item.id === promptId ? { ...m, item: { ...m.item, ...data } } : m,
+        promptItemKey(m.item) === promptId
+          ? { ...m, item: { ...m.item, ...data } }
+          : m,
       ),
     )
     onEdit(promptId, data)
@@ -82,18 +103,18 @@ export function PromptList({
     <div className="flex flex-col gap-2">
       <SortableList<MergedPromptItem>
         items={optimisticItems}
-        keys={(m) => m.item.id}
+        keys={(m) => promptItemKey(m.item)}
         onReorder={handleReorder}
         className="flex flex-col gap-2"
         render={(merged, _index, handleProps: SortableHandleProps) => (
           <PromptListItem
-            key={merged.item.id}
+            key={promptItemKey(merged.item)}
             merged={merged}
             handleProps={handleProps}
             onCopy={() => copy(merged.item as Prompt)}
-            onEdit={(data) => handleEdit(merged.item.id, data)}
-            onDelete={() => setDeleteTargetId(merged.item.id)}
-            onRemove={() => handleDelete(merged.item.id)}
+            onEdit={(data) => handleEdit(promptItemKey(merged.item), data)}
+            onDelete={() => setDeleteTarget(merged)}
+            onRemove={() => handleDelete(merged)}
             showVisibleSwitch={showVisibleSwitch}
           />
         )}
@@ -115,24 +136,55 @@ export function PromptList({
             <ClipboardPasteIcon className="size-4" />
             Paste
           </RippleButton>
-          <RippleButton
-            size="sm"
-            variant="link"
-            className="text-m3-secondary"
-            onClick={() => onAdd()}
-          >
-            Add
-          </RippleButton>
+          {availableMarkers.length > 0 ? (
+            <DropdownMenu>
+              <DropdownMenu.Trigger
+                render={
+                  <RippleButton
+                    size="sm"
+                    variant="link"
+                    className="text-m3-secondary"
+                  >
+                    Add
+                  </RippleButton>
+                }
+              />
+              <DropdownMenu.Content>
+                <DropdownMenu.Item onClick={() => onAdd()}>
+                  Prompt
+                </DropdownMenu.Item>
+                <DropdownMenu.Separator />
+                {availableMarkers.map((marker) => (
+                  <DropdownMenu.Item key={marker} onClick={() => onAdd(marker)}>
+                    {getPromptMarkerLabel(marker)}
+                  </DropdownMenu.Item>
+                ))}
+              </DropdownMenu.Content>
+            </DropdownMenu>
+          ) : (
+            <RippleButton
+              size="sm"
+              variant="link"
+              className="text-m3-secondary"
+              onClick={() => onAdd()}
+            >
+              Add
+            </RippleButton>
+          )}
         </div>
       </div>
       <ConfirmDialog
-        open={!!deleteTargetId}
-        onOpenChange={(v) => !v && setDeleteTargetId(null)}
-        title="Delete prompt?"
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+        title={
+          deleteTarget && isPromptMarker(deleteTarget.item)
+            ? 'Delete marker?'
+            : 'Delete prompt?'
+        }
         description="This action cannot be undone."
         confirmText="Delete"
         variant="destructive"
-        onConfirm={() => handleDelete(deleteTargetId!)}
+        onConfirm={() => handleDelete(deleteTarget!)}
       />
     </div>
   )
@@ -157,10 +209,10 @@ function PromptListItem({
 }) {
   const { item, isGlobal, isLibrary } = merged
   const [editOpen, setEditOpen] = useState(false)
-  const isMarker = 'type' in item
+  const isMarker = isPromptMarker(item)
   const isEditable = !isMarker && !isGlobal && !isLibrary
   const canCopy = !isMarker
-  const hasMenu = isEditable || isLibrary
+  const hasMenu = isEditable || isLibrary || isMarker
   const label = isMarker ? getPromptMarkerLabel(item.type) : item.name
 
   return (

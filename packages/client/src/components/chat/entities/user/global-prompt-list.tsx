@@ -1,16 +1,14 @@
 import { PromptList } from '@/components/chat/prompts'
 import { newPrompt } from '@/lib/chat'
 import type { OrderedItem, Prompt } from '@/lib/chat'
+import { promptItemKey } from '@sb/convex/model/prompt/markers'
 
 type GlobalPromptListProps = {
   prompts: Prompt[]
   onChange: (prompts: Prompt[]) => void
 }
 
-export function GlobalPromptList({
-  prompts,
-  onChange,
-}: GlobalPromptListProps) {
+export function GlobalPromptList({ prompts, onChange }: GlobalPromptListProps) {
   const items = prompts.map((p) => ({
     item: p,
     isGlobal: false as const,
@@ -18,7 +16,7 @@ export function GlobalPromptList({
 
   function handleReorder(order: OrderedItem[]) {
     const reordered = order
-      .map((ref) => prompts.find((p) => p.id === ref.id))
+      .map((ref) => prompts.find((p) => promptItemKey(p) === ref.id))
       .filter((p): p is Prompt => p !== undefined)
     onChange(reordered)
   }

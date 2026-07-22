@@ -184,10 +184,13 @@ export const promptValidator = v.object({
   starter: v.optional(v.boolean()),
 })
 
-export const promptMarkerTypeValidator = v.literal('message-history')
+export const promptMarkerTypeValidator = v.union(
+  v.literal('message-history'),
+  v.literal('system-boundary'),
+  v.literal('agent-prompts'),
+)
 
 export const promptMarkerValidator = v.object({
-  id: v.string(),
   type: promptMarkerTypeValidator,
 })
 

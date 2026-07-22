@@ -34,7 +34,6 @@ export const DEFAULT_IMPERSONATION_SENTINEL_PROMPT = inline`
 export function createDefaultImpersonationPrompts(): PromptItem[] {
   return [
     {
-      id: 'default-impersonation-history',
       type: 'message-history',
     },
     {
@@ -61,7 +60,6 @@ export function createDefaultImpersonationPrompts(): PromptItem[] {
 export function createDefaultCompactionPrompts(): PromptItem[] {
   return [
     {
-      id: 'default-compaction-history',
       type: 'message-history',
     },
     {
@@ -168,7 +166,6 @@ export function createDefaultAgent() {
         starter: false,
       },
       {
-        id: generateId(),
         type: 'message-history',
       },
     ] satisfies PromptItem[],

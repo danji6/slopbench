@@ -1,5 +1,11 @@
 import { generateId } from '../../lib/utils'
-import type { CreateAgentArgs, Prompt, PromptItem } from '../../types'
+import type {
+  CreateAgentArgs,
+  Prompt,
+  PromptItem,
+  PromptMarkerType,
+} from '../../types'
+import { PROMPT_MARKERS } from '../prompt/markers'
 import type { PromptOrderRef } from '../prompt/merge'
 
 export const AGENT_ARCHIVE_VERSION = 1
@@ -11,7 +17,6 @@ export type AgentArchive = {
 }
 
 const PROMPT_ROLES = ['system', 'user', 'assistant'] as const
-const PROMPT_MARKER_TYPES = ['message-history'] as const
 const SCROLL_MODES = ['follow', 'into-view'] as const
 
 // subAgents is deliberately excluded here as ids don't survive import/export
@@ -122,10 +127,7 @@ function sanitizePromptItem(value: unknown): PromptItem | null {
   if (!isRecord(value)) return null
 
   if (isPromptMarkerType(value.type)) {
-    return {
-      id: typeof value.id === 'string' ? value.id : generateId(),
-      type: value.type,
-    }
+    return { type: value.type }
   }
 
   if (typeof value.content !== 'string') return null
@@ -153,12 +155,8 @@ function isPromptRole(value: unknown): value is (typeof PROMPT_ROLES)[number] {
   return PROMPT_ROLES.includes(value as (typeof PROMPT_ROLES)[number])
 }
 
-function isPromptMarkerType(
-  value: unknown,
-): value is (typeof PROMPT_MARKER_TYPES)[number] {
-  return PROMPT_MARKER_TYPES.includes(
-    value as (typeof PROMPT_MARKER_TYPES)[number],
-  )
+function isPromptMarkerType(value: unknown): value is PromptMarkerType {
+  return PROMPT_MARKERS.includes(value as PromptMarkerType)
 }
 
 function isPromptOrderRef(value: unknown): value is PromptOrderRef {

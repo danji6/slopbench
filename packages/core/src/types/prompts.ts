@@ -22,10 +22,10 @@ export type ReminderPrompt = {
   eager?: boolean
 }
 
-export type PromptMarkerType = 'message-history'
+export type PromptMarkerType =
+  'message-history' | 'system-boundary' | 'agent-prompts'
 
 export type PromptMarker = {
-  id: string
   type: PromptMarkerType
 }
 

@@ -26,12 +26,7 @@ describe('agent import data normalization', () => {
       exportedAt: 123,
       agent: {
         name: 'Assistant',
-        prompts: [
-          {
-            id: 'history',
-            type: 'message-history',
-          },
-        ],
+        prompts: [{ type: 'message-history' }],
         tools: undefined,
         globalPromptsEnabled: undefined,
         promptOrder: undefined,
@@ -67,12 +62,7 @@ describe('agent import data normalization', () => {
       ],
     })
 
-    expect(data.prompts).toEqual([
-      {
-        id: 'history',
-        type: 'message-history',
-      },
-    ])
+    expect(data.prompts).toEqual([{ type: 'message-history' }])
   })
 
   test('defaults partial prompt exports into valid prompt items', () => {

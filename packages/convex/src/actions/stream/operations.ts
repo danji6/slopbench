@@ -11,6 +11,7 @@ import {
   removeStarterPrompts,
   resolveCompactionPrompts,
   resolveImpersonationPrompts,
+  spliceAgentPrompts,
   splitAtMessageHistory,
 } from '../../model/prompt/prompts'
 import type { PromptItem } from '../../model/prompt/prompts'
@@ -109,11 +110,11 @@ function createCompactPlan(
   )
 
   return {
-    evalItems: [...compactionPrompts, ...prompts],
+    evalItems: spliceAgentPrompts(compactionPrompts, prompts),
     toolNames: [],
     snapshotPatch: () => null,
     buildRequest: (ctx, data, evalResult) =>
-      buildFramedRequest(ctx, data, evalResult.items, compactionPrompts.length),
+      buildFramedRequest(ctx, data, evalResult.items),
   }
 }
 
@@ -126,16 +127,11 @@ function createImpersonatePlan(
   )
 
   return {
-    evalItems: [...impersonationPrompts, ...prompts],
+    evalItems: spliceAgentPrompts(impersonationPrompts, prompts),
     toolNames: [],
     snapshotPatch: () => null,
     buildRequest: (ctx, data, evalResult) =>
-      buildFramedRequest(
-        ctx,
-        data,
-        evalResult.items,
-        impersonationPrompts.length,
-      ),
+      buildFramedRequest(ctx, data, evalResult.items),
   }
 }
 
@@ -165,24 +161,18 @@ async function buildInvokeRequest(
 }
 
 /**
- * Builds a request whose history is framed by a leading block of operation
- * prompts (system + a message-history marker + a trailing task command), used
- * by both compaction and impersonation.
- *
- * @param framingPromptCount: how many of the leading prompts belong to the
- * operation versus the agent's own prompts.
+ * Builds a request whose history is framed by operation prompts (system + a
+ * message-history marker + a trailing task command), used by both compaction
+ * and impersonation. The agent's own prompts are already spliced in.
  */
 async function buildFramedRequest(
   ctx: ActionCtx,
   data: StreamContext,
   prompts: PromptItem[],
-  framingPromptCount: number,
 ): Promise<ProviderRequest> {
-  const framingPrompts = prompts.slice(0, framingPromptCount)
-  const normalPrompts = prompts.slice(framingPromptCount)
-  const { beforeHistory, afterHistory } = splitAtMessageHistory(framingPrompts)
+  const { beforeHistory, afterHistory } = splitAtMessageHistory(prompts)
   const { systemPrompt, remainingPrompts } = buildSystemPrompt(
-    [...beforeHistory, ...normalPrompts],
+    beforeHistory,
     (value) => value,
   )
   const messages = await buildProviderHistory(ctx, data, remainingPrompts)
