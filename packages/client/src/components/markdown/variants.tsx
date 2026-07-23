@@ -93,12 +93,14 @@ function DefaultCodeBlock({
   if (display !== null) {
     return <KatexMath latex={String(children)} display={display} />
   }
-  const match = /language-(\w+)/.exec(className ?? '')
-  if (match) {
+  const language = /language-(\w+)/.exec(className ?? '')?.[1]
+  // Fenced blocks always carry a trailing newline, inline code never does
+  const isBlock = language !== undefined || String(children).includes('\n')
+  if (isBlock) {
     return (
       <Code
         text={String(children).trimEnd()}
-        language={match[1]}
+        language={language ?? 'text'}
         hugParent
         className="mt-4"
         noLoadingIndicator
