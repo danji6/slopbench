@@ -4,7 +4,7 @@ export type JsonValue =
   | number
   | string
   | JsonValue[]
-  | { [key: string]: JsonValue }
+  | { [key: string]: JsonValue } // prettier-ignore
 
 export type EvalContext = {
   user?: string
@@ -25,7 +25,16 @@ export interface VariableStore {
   markClean(): void
 }
 
+/** The condition of an `#if`/`#elif` directive. */
+export type Condition =
+  | { kind: 'expr'; expr: string }
+  | { kind: 'block'; code: string } // prettier-ignore
+
 export type Segment =
   | { type: 'literal'; text: string }
   | { type: 'block'; code: string }
   | { type: 'inline'; expr: string }
+  | { type: 'if'; cond: Condition }
+  | { type: 'elif'; cond: Condition }
+  | { type: 'else' }
+  | { type: 'endif' }

@@ -1,13 +1,14 @@
 import { SESSION_ENV_NAMES } from './env'
 import { parse } from './parse'
 import { createVariableStore } from './store'
-import type { EvalContext, JsonValue, Segment, VariableStore } from './types'
+import type { Condition, EvalContext, JsonValue, VariableStore } from './types'
 
 type CompiledFn = (...args: unknown[]) => unknown
 
 /** Host-provided functions exposed to dynamic blocks (all synchronous). */
 export type EvalHelpers = {
-  file?: (path: string, wrap?: boolean) => string
+  readFile?: (path: string, wrap?: boolean) => string
+  fileExists?: (path: string) => boolean
 }
 
 export function evaluate(
@@ -27,24 +28,66 @@ export function evaluate(
   const parts: string[] = []
   const isEmptyBlock: boolean[] = []
 
-  for (const segment of segments) {
-    if (segment.type === 'literal') {
-      parts.push(segment.text)
-      isEmptyBlock.push(false)
-      continue
-    }
+  const stack: BranchFrame[] = []
+  const currentActive = () =>
+    stack.length === 0 || stack[stack.length - 1].branchActive
+  const truthy = (cond: Condition) => Boolean(run(conditionBody(cond), args))
 
-    const fn = compile(segment)
-    let str = ''
-    if (fn) {
-      try {
-        str = stringify(fn(...args))
-      } catch (error) {
-        console.error('[interpreter] runtime error', error)
+  for (const segment of segments) {
+    switch (segment.type) {
+      case 'if': {
+        const parentActive = currentActive()
+        const val = parentActive && truthy(segment.cond)
+        stack.push({ parentActive, taken: val, branchActive: val })
+        parts.push('')
+        isEmptyBlock.push(true)
+        continue
+      }
+      case 'elif': {
+        const frame = stack[stack.length - 1]
+        if (frame) {
+          const val = frame.parentActive && !frame.taken && truthy(segment.cond)
+          frame.branchActive = val
+          if (val) frame.taken = true
+        }
+        parts.push('')
+        isEmptyBlock.push(true)
+        continue
+      }
+      case 'else': {
+        const frame = stack[stack.length - 1]
+        if (frame) {
+          frame.branchActive = frame.parentActive && !frame.taken
+          frame.taken = true
+        }
+        parts.push('')
+        isEmptyBlock.push(true)
+        continue
+      }
+      case 'endif': {
+        stack.pop()
+        parts.push('')
+        isEmptyBlock.push(true)
+        continue
+      }
+      case 'literal': {
+        parts.push(currentActive() ? segment.text : '')
+        isEmptyBlock.push(false)
+        continue
+      }
+      default: {
+        if (!currentActive()) {
+          parts.push('')
+          isEmptyBlock.push(false)
+          continue
+        }
+        const body =
+          segment.type === 'inline' ? `return (${segment.expr})` : segment.code
+        const str = stringify(run(body, args))
+        parts.push(str)
+        isEmptyBlock.push(segment.type === 'block' && str === '')
       }
     }
-    parts.push(str)
-    isEmptyBlock.push(segment.type === 'block' && str === '')
   }
 
   for (let i = 0; i < parts.length; i++) {
@@ -55,6 +98,27 @@ export function evaluate(
   return parts.join('').trimEnd()
 }
 
+type BranchFrame = {
+  parentActive: boolean
+  taken: boolean
+  branchActive: boolean
+}
+
+const conditionBody = (cond: Condition) =>
+  cond.kind === 'expr' ? `return (${cond.expr})` : cond.code
+
+/** Compile and run a body with the session args; any error yields undefined. */
+function run(body: string, args: unknown[]): unknown {
+  const fn = compile(body)
+  if (!fn) return undefined
+  try {
+    return fn(...args)
+  } catch (error) {
+    console.error('[interpreter] runtime error', error)
+    return undefined
+  }
+}
+
 function sessionBindings(
   context: EvalContext,
   get: (key: string) => JsonValue | undefined,
@@ -63,7 +127,8 @@ function sessionBindings(
 ): Record<string, unknown> {
   const agent = context.assistant
   return {
-    file: helpers.file ?? (() => ''),
+    readFile: helpers.readFile ?? (() => ''),
+    fileExists: helpers.fileExists ?? (() => false),
     user: context.user,
     owner: context.owner,
     agent,
@@ -80,11 +145,7 @@ function sessionBindings(
   }
 }
 
-function compile(
-  segment: Exclude<Segment, { type: 'literal' }>,
-): CompiledFn | null {
-  const body =
-    segment.type === 'inline' ? `return (${segment.expr})` : segment.code
+function compile(body: string): CompiledFn | null {
   try {
     return new Function(...SESSION_ENV_NAMES, body) as CompiledFn
   } catch (error) {

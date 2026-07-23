@@ -1,11 +1,12 @@
+import { serve } from '@hono/node-server'
 import { evaluate } from '@sb/core/interpreter/evaluate'
 import { createVariableStore } from '@sb/core/interpreter/store'
 import type { EvalContext, JsonValue } from '@sb/core/interpreter/types'
 import { mcpTransportSchema } from '@sb/core/types'
-import { serve } from '@hono/node-server'
 import { type Context, Hono } from 'hono'
 import { ZodError, z } from 'zod'
 
+import { createFileExistsHelper, createFileHelper } from './eval/fileHelper'
 import {
   exportAgent,
   exportAgentSchema,
@@ -38,7 +39,6 @@ import {
   restoreCheckpointSchema,
   restoreLatestCheckpoint,
 } from './mcp/workspace'
-import { createFileHelper } from './eval/fileHelper'
 import { shellRoutes } from './shell/routes'
 
 const PORT = Number(process.env.MCP_PORT ?? 3212)
@@ -90,7 +90,10 @@ app.post('/eval/prompts', async (c) => {
       environment: Record<string, JsonValue>
     }
     const store = createVariableStore(environment ?? {})
-    const helpers = { file: createFileHelper(context.workDir) }
+    const helpers = {
+      readFile: createFileHelper(context.workDir),
+      fileExists: createFileExistsHelper(context.workDir),
+    }
     const renderedItems = items.map((item) => {
       if ('type' in item || !item.enabled) return item
       return {
@@ -116,10 +119,16 @@ app.post('/eval/message', async (c) => {
       environment: Record<string, JsonValue>
     }
     const store = createVariableStore(environment ?? {})
-    const helpers = { file: createFileHelper(context.workDir) }
+    const helpers = {
+      readFile: createFileHelper(context.workDir),
+      fileExists: createFileExistsHelper(context.workDir),
+    }
     const renderedParts = parts.map((part) =>
       part.type === 'text'
-        ? { ...part, text: evaluate(part.text as string, context, store, helpers) }
+        ? {
+            ...part,
+            text: evaluate(part.text as string, context, store, helpers),
+          }
         : part,
     )
     return c.json({

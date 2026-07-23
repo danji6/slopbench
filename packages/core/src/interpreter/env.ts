@@ -77,7 +77,18 @@ export const SESSION_ENV: SessionEnvEntry[] = [
     description: 'Absolute path of the workspace directory',
   },
   {
-    name: 'file',
+    name: 'fileExists',
+    description: 'Check whether a workspace file exists',
+    params: [
+      {
+        name: 'path',
+        description: 'Workspace-relative path of the file to check',
+      },
+    ],
+    snippet: "fileExists('${1:path}')",
+  },
+  {
+    name: 'readFile',
     description: 'Read a workspace file and inject its contents',
     params: [
       {
@@ -90,7 +101,7 @@ export const SESSION_ENV: SessionEnvEntry[] = [
         optional: true,
       },
     ],
-    snippet: "file('${1:path}')",
+    snippet: "readFile('${1:path}')",
   },
   {
     name: 'getVar',
