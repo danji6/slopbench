@@ -26,6 +26,8 @@ export const sanitizeSchema = {
     'md-group': ['type', 'items', 'direction'],
     'md-meta': ['content'],
     'md-mention': ['path'],
+    // Allow HTML with inline styling
+    '*': [...(defaultSchema.attributes?.['*'] ?? []), 'style', 'className'],
   },
 }
 
