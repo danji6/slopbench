@@ -38,12 +38,6 @@ describe('formatMarkdown', () => {
     )
   })
 
-  test('keeps whitespace inside a dynamic block', () => {
-    expect(formatMarkdown('$```\nreturn 1  \n```\n\ntext  ')).toBe(
-      '$```\nreturn 1  \n```\n\ntext',
-    )
-  })
-
   // Without this, one fence inside another inverts the state for the rest of
   // the document and half the content silently stops being formatted.
   test('only closes a fence on a matching delimiter', () => {

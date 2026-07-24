@@ -1,4 +1,5 @@
 import { SESSION_ENV_NAMES } from './env'
+import { CONSUMED_LINE, formatOutput } from './format'
 import { parse } from './parse'
 import { createVariableStore } from './store'
 import type { Condition, EvalContext, JsonValue, VariableStore } from './types'
@@ -26,8 +27,6 @@ export function evaluate(
   const args = SESSION_ENV_NAMES.map((name) => bindings[name])
 
   const parts: string[] = []
-  const isEmptyBlock: boolean[] = []
-
   const stack: BranchFrame[] = []
   const currentActive = () =>
     stack.length === 0 || stack[stack.length - 1].branchActive
@@ -39,8 +38,7 @@ export function evaluate(
         const parentActive = currentActive()
         const val = parentActive && truthy(segment.cond)
         stack.push({ parentActive, taken: val, branchActive: val })
-        parts.push('')
-        isEmptyBlock.push(true)
+        parts.push(CONSUMED_LINE)
         continue
       }
       case 'elif': {
@@ -50,8 +48,7 @@ export function evaluate(
           frame.branchActive = val
           if (val) frame.taken = true
         }
-        parts.push('')
-        isEmptyBlock.push(true)
+        parts.push(CONSUMED_LINE)
         continue
       }
       case 'else': {
@@ -60,42 +57,34 @@ export function evaluate(
           frame.branchActive = frame.parentActive && !frame.taken
           frame.taken = true
         }
-        parts.push('')
-        isEmptyBlock.push(true)
+        parts.push(CONSUMED_LINE)
         continue
       }
       case 'endif': {
         stack.pop()
-        parts.push('')
-        isEmptyBlock.push(true)
+        parts.push(CONSUMED_LINE)
         continue
       }
       case 'literal': {
         parts.push(currentActive() ? segment.text : '')
-        isEmptyBlock.push(false)
         continue
       }
       default: {
         if (!currentActive()) {
           parts.push('')
-          isEmptyBlock.push(false)
           continue
         }
         const body =
           segment.type === 'inline' ? `return (${segment.expr})` : segment.code
         const str = stringify(run(body, args))
-        parts.push(str)
-        isEmptyBlock.push(segment.type === 'block' && str === '')
+        // An eval block that renders nothing takes its own line with it
+        const empty = segment.type === 'block' && str === ''
+        parts.push(empty ? CONSUMED_LINE : str)
       }
     }
   }
 
-  for (let i = 0; i < parts.length; i++) {
-    if (!isEmptyBlock[i]) continue
-    if (i < parts.length - 1) parts[i + 1] = parts[i + 1].replace(/^\n/, '')
-  }
-
-  return parts.join('').trimEnd()
+  return formatOutput(parts.join(''))
 }
 
 type BranchFrame = {

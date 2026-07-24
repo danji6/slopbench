@@ -4,6 +4,8 @@ import { theme, themeName } from '@/lib/shiki/theme'
 import { MentionDecoration } from '@/lib/tiptap/decorations/mention'
 import { CodeEdit } from '@/lib/tiptap/extensions/code-edit'
 import { Markdown } from '@/lib/tiptap/extensions/markdown'
+import { RevealInsert } from '@/lib/tiptap/extensions/reveal-insert'
+import { copyCollapsedText } from '@/lib/tiptap/paste'
 import { cn } from '@/lib/utils'
 import type { EditorView } from '@tiptap/pm/view'
 import { EditorContent, useEditor } from '@tiptap/react'
@@ -55,6 +57,7 @@ export function ComposerEditor({
       Markdown,
       MentionDecoration,
       CodeEdit,
+      RevealInsert,
       placeholderExtension,
     ],
     [placeholderExtension],
@@ -68,6 +71,7 @@ export function ComposerEditor({
         'data-slot': 'editor',
         class: cn('min-h-20', editorClassName),
       },
+      clipboardTextSerializer: copyCollapsedText,
       handleKeyDown: (view, event) =>
         handleKeyDownRef.current?.(view, event) ?? false,
       handlePaste: (view, event) =>

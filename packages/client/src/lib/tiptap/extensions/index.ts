@@ -3,7 +3,9 @@
  */
 
 export * from './code-edit'
-export * from './dynamic-block'
+export * from './interpreter-input'
+export * from './line-breaks'
 export * from './markdown-math'
 export * from './markdown'
+export * from './reveal-insert'
 export * from './snippet-stops'

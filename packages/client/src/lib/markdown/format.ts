@@ -1,5 +1,5 @@
-/** Matches an opening or closing code fence, including the `$\`\`\`` form. */
-const CODE_FENCE = /^ {0,3}\$?(`{3,}|~{3,})/
+/** Matches an opening or closing code fence. */
+const CODE_FENCE = /^ {0,3}(`{3,}|~{3,})/
 
 /**
  * Formats markdown for storage: normalizes line endings, drops whitespaces at

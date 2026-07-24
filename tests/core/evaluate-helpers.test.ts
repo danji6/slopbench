@@ -10,14 +10,14 @@ describe('evaluate file helper', () => {
     expect(result).toBe('contents of AGENTS.md')
   })
 
-  test('works inside code blocks', () => {
+  test('works inside eval blocks', () => {
     const text = [
-      '$```',
+      '#eval',
       "const content = readFile('AGENTS.md')",
       'if (content) {',
       '  return `<file path="AGENTS.md">\\n${content}\\n</file>`',
       '}',
-      '```',
+      '#end',
     ].join('\n')
 
     expect(evaluate(text, {}, undefined, { readFile: () => 'Use bun.' })).toBe(

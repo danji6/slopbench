@@ -1,11 +1,12 @@
 import { Command } from '@/components/ui/command'
+import { makeFuse, rankMatches } from '@/lib/completion-match'
 import {
   type SnippetStop,
   activateSnippet,
 } from '@/lib/tiptap/extensions/snippet-stops'
+import { leafText } from '@/lib/tiptap/serialize'
 import { TextSelection, type Transaction } from '@tiptap/pm/state'
 import type { Editor } from '@tiptap/react'
-import Fuse from 'fuse.js'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -124,10 +125,7 @@ export function useCodeCompletion(
   const items =
     typeof source === 'function'
       ? source(context.query)
-      : fuse!
-          .search(context.query)
-          .map((result) => result.item)
-          .filter((item) => isRelevantMatch(item.label, context.query))
+      : rankMatches(fuse!, context.query)
   if (items.length === 0) return null
 
   const close = () => {
@@ -242,9 +240,10 @@ function getCompletionContext(editor: Editor): CompletionContext | null {
   if (!empty) return null
 
   const $pos = state.doc.resolve(from)
-  if ($pos.parent.type.name !== 'codeBlock') return null
+  // Any text block is eligible and the completion source decides relevance
+  if (!$pos.parent.isTextblock) return null
 
-  const before = $pos.parent.textBetween(0, $pos.parentOffset, '\n')
+  const before = $pos.parent.textBetween(0, $pos.parentOffset, '\n', leafText)
   const match = before.match(WORD_RE)
   if (!match) return null
 
@@ -322,94 +321,6 @@ function parseSnippet(snippet: string): { text: string; stops: ParsedStop[] } {
 
 /** `$0` is the final stop; everything else keeps its natural order. */
 const stopRank = (num: number) => (num === 0 ? Infinity : num)
-
-function makeFuse(completions: Completion[]): Fuse<Completion> {
-  return new Fuse(completions, {
-    keys: ['label'],
-    threshold: 0.6,
-    ignoreLocation: false,
-    isCaseSensitive: false,
-  })
-}
-
-/** A camelCase or post-separator word boundary within a label. */
-function isWordBoundary(label: string, i: number): boolean {
-  if (i === 0) return true
-  const c = label[i]!
-  const prev = label[i - 1]!
-  if (/[A-Z]/.test(c) && /[a-z0-9]/.test(prev)) return true
-  return /[A-Za-z0-9]/.test(c) && /[^A-Za-z0-9]/.test(prev)
-}
-
-/** Whether a Fuse candidate is relevant enough to show. */
-function isRelevantMatch(label: string, query: string): boolean {
-  return isAbbreviationMatch(label, query) || isPrefixTypo(label, query)
-}
-
-/**
- * True when each query character lands on a word boundary or continues the
- * current word, and the match opens at the start or with a run of at least two
- * characters.
- */
-function isAbbreviationMatch(label: string, query: string): boolean {
-  const lower = label.toLowerCase()
-  const q = query.toLowerCase()
-  let li = 0
-  let firstStart = -1
-  let firstRun = 0
-
-  for (let qi = 0; qi < q.length;) {
-    let pos = -1
-    for (let i = li; i < lower.length; i++) {
-      if (isWordBoundary(label, i) && lower[i] === q[qi]) {
-        pos = i
-        break
-      }
-    }
-    if (pos === -1) return false
-
-    li = pos
-    let run = 0
-    while (qi < q.length && li < lower.length && lower[li] === q[qi]) {
-      qi++
-      li++
-      run++
-    }
-    if (firstStart === -1) {
-      firstStart = pos
-      firstRun = run
-    }
-  }
-
-  return firstStart === 0 || firstRun >= 2
-}
-
-/**
- * True when the query is within a small edit distance of the label's prefix,
- * allowing one error every four characters.
- */
-function isPrefixTypo(label: string, query: string): boolean {
-  const maxEdits = Math.floor(query.length / 4)
-  if (maxEdits === 0) return false
-  const prefix = label.toLowerCase().slice(0, query.length)
-  return editDistance(query.toLowerCase(), prefix) <= maxEdits
-}
-
-/** Levenshtein distance between two strings. */
-function editDistance(a: string, b: string): number {
-  let prev = Array.from({ length: b.length + 1 }, (_, i) => i)
-  for (let i = 1; i <= a.length; i++) {
-    const curr = [i]
-    for (let j = 1; j <= b.length; j++) {
-      curr[j] =
-        a[i - 1] === b[j - 1]
-          ? prev[j - 1]!
-          : 1 + Math.min(prev[j - 1]!, prev[j]!, curr[j - 1]!)
-    }
-    prev = curr
-  }
-  return prev[b.length]!
-}
 
 function sameContext(
   a: CompletionContext | null,

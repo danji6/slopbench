@@ -1,5 +1,10 @@
 import { formatMarkdown } from '@/lib/markdown/format'
+import type { Node } from '@tiptap/pm/model'
 import type { Editor } from '@tiptap/react'
+
+/** Renders a hard break as a newline. */
+export const leafText = (node: Node) =>
+  node.type.name === 'hardBreak' ? '\n' : ''
 
 /**
  * Serializes the editor to markdown, preserving the blank lines that separate

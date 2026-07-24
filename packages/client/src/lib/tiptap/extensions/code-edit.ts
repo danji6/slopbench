@@ -1,10 +1,19 @@
+import {
+  type CodeGate,
+  INDENT_UNIT,
+  autoClosePairs,
+  backspaceIndent,
+  deletePair,
+} from '@/lib/tiptap/code-pairs'
 import { Extension } from '@tiptap/core'
 import { closeHistory } from '@tiptap/pm/history'
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
 import type { Editor } from '@tiptap/react'
 
-const INDENT_UNIT = '  '
+/** Caret is inside a real code block (this extension's editable region). */
+const inCodeBlock: CodeGate = (state, pos) =>
+  state.doc.resolve(pos).parent.type.name === 'codeBlock'
 
 /** Basic code editing functionality with indent support and common shortcuts. */
 export const CodeEdit = Extension.create({
@@ -26,12 +35,12 @@ export const CodeEdit = Extension.create({
           handleKeyDown: (view, event) =>
             insertLineBelow(view, event) ||
             deleteWordBackward(view, event) ||
-            deletePair(view, event) ||
-            backspaceIndent(view, event),
+            deletePair(view, event, inCodeBlock) ||
+            backspaceIndent(view, event, inCodeBlock),
           handleTextInput: (view, from, to, text) => {
             if (shouldBreakHistory(view, from, text))
               view.dispatch(closeHistory(view.state.tr))
-            return autoClosePairs(view, from, to, text)
+            return autoClosePairs(view, from, to, text, inCodeBlock)
           },
         },
       }),
@@ -98,89 +107,6 @@ function insertLineBelow(view: EditorView, event: KeyboardEvent): boolean {
   return true
 }
 
-/** Brackets and quotes that are auto-closed around the caret. */
-const PAIRS: Record<string, string> = {
-  '(': ')',
-  '[': ']',
-  '{': '}',
-  '"': '"',
-  "'": "'",
-}
-const CLOSERS = new Set(Object.values(PAIRS))
-/** Closing brackets that dedent their line when typed on a blank line. */
-const DEDENT_CLOSERS = new Set(['}', ')', ']'])
-
-function autoClosePairs(
-  view: EditorView,
-  from: number,
-  to: number,
-  text: string,
-): boolean {
-  if (text.length !== 1) return false
-  const { state } = view
-  const $from = state.doc.resolve(from)
-  if ($from.parent.type.name !== 'codeBlock') return false
-
-  const blockBefore = $from.parent.textBetween(0, $from.parentOffset, '\n')
-  const line = blockBefore.slice(blockBefore.lastIndexOf('\n') + 1)
-  const prevChar = blockBefore.slice(-1)
-  const $to = state.doc.resolve(to)
-  const after = $to.parent.textBetween(
-    $to.parentOffset,
-    $to.parent.content.size,
-    '\n',
-  )
-  const nextChar = after.slice(0, 1)
-
-  // Skip over an auto-inserted closer instead of typing a duplicate
-  if (from === to && CLOSERS.has(text) && nextChar === text) {
-    view.dispatch(
-      state.tr
-        .setSelection(TextSelection.create(state.doc, to + 1))
-        .scrollIntoView(),
-    )
-    return true
-  }
-
-  // Dedent a closing bracket typed as the first thing on its line
-  if (
-    from === to &&
-    DEDENT_CLOSERS.has(text) &&
-    /^[ \t]*$/.test(line) &&
-    line.endsWith(INDENT_UNIT)
-  ) {
-    const lineStart = from - line.length
-    const tr = state.tr.delete(lineStart, lineStart + INDENT_UNIT.length)
-    tr.insertText(text, from - INDENT_UNIT.length)
-    view.dispatch(tr.scrollIntoView())
-    return true
-  }
-
-  const close = PAIRS[text]
-  if (!close) return false
-
-  const wrap = from !== to
-  if (!wrap) {
-    // Don't auto-close against adjacent text
-    if (nextChar && !/[\s)\]}'"]/.test(nextChar)) return false
-    // Quotes are ambiguous next to words
-    if (close === text && /\w/.test(prevChar)) return false
-  }
-
-  const selected = state.doc.textBetween(from, to, '\n')
-  const tr = state.tr.insertText(text + selected + close, from, to)
-  tr.setSelection(
-    TextSelection.create(tr.doc, from + 1, from + 1 + selected.length),
-  )
-  view.dispatch(tr.scrollIntoView())
-  return true
-}
-
-/** A modifier-augmented Backspace (delete word/line), handled specially. */
-function isWordDelete(event: KeyboardEvent): boolean {
-  return event.ctrlKey || event.metaKey || event.altKey
-}
-
 const SPACE = /[ \t]/
 
 /**
@@ -230,47 +156,8 @@ function wordStart(text: string): number {
   return i
 }
 
-/** Backspace inside an empty auto-closed pair (`(|)`) removes both sides. */
-function deletePair(view: EditorView, event: KeyboardEvent): boolean {
-  if (event.key !== 'Backspace' || isWordDelete(event)) return false
-  const { state } = view
-  const { from, empty } = state.selection
-  if (!empty) return false
-  const $from = state.doc.resolve(from)
-  if ($from.parent.type.name !== 'codeBlock') return false
-
-  const offset = $from.parentOffset
-  if (offset === 0 || offset === $from.parent.content.size) return false
-  const prev = $from.parent.textBetween(offset - 1, offset)
-  const next = $from.parent.textBetween(offset, offset + 1)
-  if (PAIRS[prev] !== next) return false
-
-  view.dispatch(state.tr.delete(from - 1, from + 1).scrollIntoView())
-  return true
-}
-
-/** Backspace in leading whitespace removes a full indent unit (snaps to stop). */
-function backspaceIndent(view: EditorView, event: KeyboardEvent): boolean {
-  if (event.key !== 'Backspace' || isWordDelete(event)) return false
-  const { state } = view
-  const { from, empty } = state.selection
-  if (!empty) return false
-  const $from = state.doc.resolve(from)
-  if ($from.parent.type.name !== 'codeBlock') return false
-
-  const before = $from.parent.textBetween(0, $from.parentOffset, '\n')
-  const line = before.slice(before.lastIndexOf('\n') + 1)
-  // Only when everything before the caret on this line is spaces
-  if (!/^ +$/.test(line)) return false
-
-  const unit = INDENT_UNIT.length
-  const remove = ((line.length - 1) % unit) + 1
-  view.dispatch(state.tr.delete(from - remove, from).scrollIntoView())
-  return true
-}
-
 /** What an indent rule sees about the line the caret sits on. */
-type IndentContext = {
+export type IndentContext = {
   /** The current line, up to the caret. */
   before: string
   /** The current line, from the caret onwards. */
@@ -280,7 +167,7 @@ type IndentContext = {
 }
 
 /** How a newline should be indented. */
-type IndentResult = {
+export type IndentResult = {
   /** Indentation for the line the caret lands on. */
   indent: string
   /** If set, the text after the caret moves to its own line at this indent. */
@@ -305,7 +192,7 @@ const bracketRule: IndentRule = ({ before, after, indent }) => {
 const INDENT_RULES: IndentRule[] = [bracketRule]
 
 /** Runs the indent rules in order. First match wins. */
-function applyIndentRules(ctx: IndentContext): IndentResult {
+export function applyIndentRules(ctx: IndentContext): IndentResult {
   for (const rule of INDENT_RULES) {
     const applied = rule(ctx)
     if (applied) return applied

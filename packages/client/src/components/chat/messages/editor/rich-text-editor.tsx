@@ -12,6 +12,7 @@ import {
 import { CodeEdit } from '@/lib/tiptap/extensions/code-edit'
 import { Markdown } from '@/lib/tiptap/extensions/markdown'
 import { MarkdownMath } from '@/lib/tiptap/extensions/markdown-math'
+import { RevealInsert } from '@/lib/tiptap/extensions/reveal-insert'
 import { serializeDocumentToMarkdown } from '@/lib/tiptap/serialize'
 import { cn } from '@/lib/utils'
 import { Placeholder } from '@tiptap/extension-placeholder'
@@ -96,6 +97,7 @@ export function RichTextEditor({
       MentionDecoration,
       MathDecoration.configure({ mathMode }),
       CodeEdit,
+      RevealInsert,
       ...(placeholder ? [Placeholder.configure({ placeholder })] : []),
     ],
     content,

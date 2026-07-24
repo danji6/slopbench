@@ -4,17 +4,16 @@ import { useCodeCompletion } from '@/components/ui/code-completion'
 import { handleSelectAllDelete } from '@/lib/editor-clear'
 import { getHighlighter } from '@/lib/shiki/core'
 import { theme, themeName } from '@/lib/shiki/theme'
+import { InterpreterHighlight } from '@/lib/tiptap/decorations'
 import { CodeEdit } from '@/lib/tiptap/extensions/code-edit'
-import {
-  DYNAMIC_LANG,
-  DynamicBlock,
-} from '@/lib/tiptap/extensions/dynamic-block'
+import { InterpreterInput } from '@/lib/tiptap/extensions/interpreter-input'
+import { LineBreaks } from '@/lib/tiptap/extensions/line-breaks'
 import { Markdown } from '@/lib/tiptap/extensions/markdown'
+import { RevealInsert } from '@/lib/tiptap/extensions/reveal-insert'
 import { SnippetStops } from '@/lib/tiptap/extensions/snippet-stops'
-import { pasteCollapsedText } from '@/lib/tiptap/paste'
+import { copyBlockText, pasteTextLines } from '@/lib/tiptap/paste'
 import { serializeDocumentToMarkdown } from '@/lib/tiptap/serialize'
 import { cn } from '@/lib/utils'
-import type { JSONContent, MarkdownRendererHelpers } from '@tiptap/core'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { EditorContent, useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
@@ -30,16 +29,6 @@ export type PromptContentEditorProps = {
   autoFocus?: boolean
   className?: string
 }
-
-/** Serializes a dynamic code block to its `$\`\`\`` fenced form. */
-const PromptCodeBlock = CodeBlockShiki.extend({
-  renderMarkdown(node: JSONContent, h: MarkdownRendererHelpers) {
-    const code = h.renderChildren(node.content ?? [])
-    const language = node.attrs?.language
-    const open = language === DYNAMIC_LANG ? '$```' : `\`\`\`${language || ''}`
-    return [open, code, '```'].join('\n')
-  },
-})
 
 /** Markdown editor for agent prompts. */
 export function PromptContentEditor({
@@ -58,17 +47,20 @@ export function PromptContentEditor({
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ codeBlock: false }),
-      PromptCodeBlock.configure({
+      CodeBlockShiki.configure({
         themes: { light: themeName, dark: themeName },
         customThemes: [theme],
         highlighter: getHighlighter(),
-        languageAliases: { [DYNAMIC_LANG]: 'javascript' },
+        lineNumbers: true,
         debounce: 60,
       }),
       Markdown,
       CodeEdit,
+      RevealInsert,
+      LineBreaks,
       SnippetStops,
-      DynamicBlock,
+      InterpreterInput,
+      InterpreterHighlight,
       ...(placeholder ? [Placeholder.configure({ placeholder })] : []),
     ],
     content: value,
@@ -84,10 +76,9 @@ export function PromptContentEditor({
         class: cn('min-h-0 flex-1 p-4', className),
       },
       handleKeyDown: handleSelectAllDelete,
+      clipboardTextSerializer: copyBlockText,
       handlePaste: (_view, event) =>
-        editorRef.current
-          ? pasteCollapsedText(editorRef.current, event)
-          : false,
+        editorRef.current ? pasteTextLines(editorRef.current, event) : false,
     },
   })
 
@@ -115,7 +106,7 @@ export function PromptContentEditor({
       className={cn(codeEditorVariants({ variant: 'default' }), className)}
     >
       <EditorContent
-        className="flex min-h-0 flex-1 [&_p]:mt-0!"
+        className="flex min-h-0 flex-1 [&_p]:mt-0! [&_p+p]:mt-7!"
         editor={editor}
       />
       {completionPopup}

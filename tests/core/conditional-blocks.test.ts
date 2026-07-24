@@ -78,11 +78,11 @@ describe('conditional blocks', () => {
     expect(evaluate(text)).toBe('shown')
   })
 
-  test('supports a dynamic block as the condition', () => {
+  test('supports a multiline block as the condition', () => {
     const text = [
-      '#if $```',
+      '#if',
       'return userCount > 1 && isAdmin',
-      '```',
+      '#then',
       'privileged group instructions',
       '#endif',
     ].join('\n')
@@ -90,6 +90,23 @@ describe('conditional blocks', () => {
       'privileged group instructions',
     )
     expect(evaluate(text, { userCount: 2, isAdmin: false })).toBe('')
+  })
+
+  test('supports a multiline block as an elif condition', () => {
+    const text = [
+      '#if isAdmin',
+      'admin',
+      '#elif',
+      'return userCount > 1',
+      '#then',
+      'group',
+      '#else',
+      'solo',
+      '#endif',
+    ].join('\n')
+    expect(evaluate(text, { isAdmin: true, userCount: 3 })).toBe('admin')
+    expect(evaluate(text, { isAdmin: false, userCount: 3 })).toBe('group')
+    expect(evaluate(text, { isAdmin: false, userCount: 1 })).toBe('solo')
   })
 
   test('does not execute segments inside a non-taken branch', () => {
@@ -121,5 +138,68 @@ describe('conditional blocks', () => {
   test('keeps an else branch when the if condition is false', () => {
     const text = ['#if false', 'A', '#else', 'B', '#endif'].join('\n')
     expect(evaluate(text)).toBe('B')
+  })
+})
+
+// Editor content is stored as markdown, so every authored line arrives blank
+// line separated. Directive lines must not leave that padding behind.
+describe('directive whitespace', () => {
+  test('leaves no gap where a dropped block stood', () => {
+    const text = [
+      'You are a helpful assistant.',
+      '',
+      '#if userCount > 1',
+      '',
+      'Additional instructions.',
+      '',
+      '#endif',
+      '',
+      'Be concise.',
+    ].join('\n')
+    expect(evaluate(text, { userCount: 1 })).toBe(
+      'You are a helpful assistant.\n\nBe concise.',
+    )
+  })
+
+  test('collapses the blank lines that padded a rendered block', () => {
+    const text = [
+      'You are a helpful assistant.',
+      '',
+      '',
+      '#if userCount > 1',
+      '',
+      'Additional instructions.',
+      '',
+      '#endif',
+      '',
+      '',
+      'Be concise.',
+    ].join('\n')
+    expect(evaluate(text, { userCount: 2 })).toBe(
+      'You are a helpful assistant.\n\nAdditional instructions.\n\nBe concise.',
+    )
+  })
+
+  test('joins the surrounding lines when nothing padded the block', () => {
+    const text = [
+      'You are a helpful assistant.',
+      '#if userCount > 1',
+      'Additional instructions.',
+      '#endif',
+      'Be concise.',
+    ].join('\n')
+    expect(evaluate(text, { userCount: 1 })).toBe(
+      'You are a helpful assistant.\nBe concise.',
+    )
+  })
+
+  test('removes the line of a block that renders nothing', () => {
+    const text = ['A', '', '#eval', 'return null', '#end', '', 'B'].join('\n')
+    expect(evaluate(text)).toBe('A\n\nB')
+  })
+
+  test('leaves blank lines that neighbour no directive alone', () => {
+    const text = ['A', '', '', 'B'].join('\n')
+    expect(evaluate(text)).toBe(text)
   })
 })

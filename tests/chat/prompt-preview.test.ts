@@ -43,7 +43,7 @@ describe('evaluatePromptPreview', () => {
 
   test('treats getVar/setVar as no-ops without throwing', () => {
     const out = evaluatePromptPreview(
-      'before\n$```\nsetVar("x", 1)\nreturn getVar("x")\n```\nafter',
+      'before\n#eval\nsetVar("x", 1)\nreturn getVar("x")\n#end\nafter',
       context,
     )
     // getVar reads from the throwaway store seeded within the same evaluation.

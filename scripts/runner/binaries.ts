@@ -15,7 +15,7 @@ export async function ensureConvexBinaries(config: RunnerConfig) {
   prependPath(dirname(config.nodeBinary))
 
   if (!existsSync(config.convexBinary)) {
-    await downloadBinary('convex-local-backend', config.convexBinary, config)
+    await downloadBinary(config)
   }
 }
 
@@ -37,7 +37,7 @@ async function downloadNode(config: RunnerConfig) {
     : `v${config.nodeVersion}`
   const archiveName = nodeArchiveName(version)
   const url = `https://nodejs.org/dist/${version}/${archiveName}`
-  const tmp = join(config.dataDir, 'tmp',`node-${Date.now()}`)
+  const tmp = join(config.dataDir, 'tmp', `node-${Date.now()}`)
   const archivePath = join(tmp, archiveName)
 
   console.log(`Downloading Node.js ${version}...`)
@@ -66,17 +66,15 @@ async function downloadNode(config: RunnerConfig) {
   console.log(`Saved Node.js to ${config.nodeBinary}`)
 }
 
-async function downloadBinary(
-  asset: 'convex-local-backend',
-  destination: string,
-  config: RunnerConfig,
-) {
+async function downloadBinary(config: RunnerConfig) {
+  const asset = 'convex-local-backend'
   const tag = config.releaseTag ?? (await latestReleaseTag())
   const triple = platformTriple()
   const zipName = `${asset}-${triple}.zip`
   const url = `https://github.com/get-convex/convex-backend/releases/download/${tag}/${zipName}`
-  const tmp = join(config.dataDir, 'tmp',`${asset}-${Date.now()}`)
+  const tmp = join(config.dataDir, 'tmp', `${asset}-${Date.now()}`)
   const zipPath = join(tmp, zipName)
+  const destination = config.convexBinary
 
   console.log(`Downloading ${asset} (${tag})...`)
   await mkdir(tmp, { recursive: true })

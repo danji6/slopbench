@@ -1,5 +1,6 @@
 /// <reference types="bun-types" />
 import { Markdown } from '@/lib/tiptap/extensions/markdown'
+import { copyCollapsedText } from '@/lib/tiptap/paste'
 import {
   serializeBlocksToMarkdown,
   serializeDocumentToMarkdown,
@@ -143,6 +144,34 @@ describe('editor markdown block spacing', () => {
   })
 })
 
+describe('editor interpreter directives', () => {
+  test('an eval block round-trips as plain text', () => {
+    const source = ['#eval', "return getVar('x')", '#end'].join('\n')
+    expect(roundTrip(source)).toBe(source)
+  })
+
+  test('preserves indentation inside an eval block', () => {
+    const source = ['#eval', 'if (x) {', '    return 1', '}', '#end'].join('\n')
+    expect(roundTrip(source)).toBe(source)
+  })
+
+  test('a multiline condition and its body stay one flow', () => {
+    const source = [
+      '#if',
+      'return userCount > 1',
+      '#then',
+      'Additional instructions',
+      '#endif',
+    ].join('\n')
+    expect(roundTrip(source)).toBe(source)
+  })
+
+  test('single-line directives round-trip without blank lines', () => {
+    const source = ['#if userCount > 1', 'Be concise.', '#endif'].join('\n')
+    expect(roundTrip(source)).toBe(source)
+  })
+})
+
 describe('editor markdown trailing whitespace', () => {
   test('strips whitespace left at the end of a line', () => {
     expect(roundTrip('lorem ipsum   \n\ndolor')).toBe('lorem ipsum\n\ndolor')
@@ -179,5 +208,14 @@ describe('editor markdown trailing whitespace', () => {
     expect(roundTrip('```\ntrailing  \n```\n\ntext  ')).toBe(
       '```\ntrailing  \n```\n\ntext',
     )
+  })
+})
+
+describe('clipboard text', () => {
+  test('copies blocks as single newlines, hard breaks included', () => {
+    const e = open('first\n\nsecond')
+    e.commands.setTextSelection({ from: 0, to: e.state.doc.content.size })
+    const slice = e.state.selection.content()
+    expect(copyCollapsedText(slice)).toBe('first\nsecond')
   })
 })

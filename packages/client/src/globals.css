@@ -853,6 +853,17 @@ html::-webkit-scrollbar {
   @apply text-m3-primary font-medium;
 }
 
+/* Interpreter directives (#if, #eval, {{ }}) rendered inline as monospace,
+   with Shiki colors layered on the code spans via inline styles. */
+.ProseMirror .interp {
+  @apply font-mono;
+  white-space: pre-wrap;
+}
+
+.ProseMirror .interp-kw {
+  @apply text-muted-foreground;
+}
+
 .ProseMirror .math-source {
   display: none;
 }
