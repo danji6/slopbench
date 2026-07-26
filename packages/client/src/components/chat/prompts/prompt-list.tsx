@@ -2,6 +2,7 @@ import { ConfirmDialog, RippleButton } from '@/components/ui'
 import { DropdownMenu } from '@/components/ui/dropdown-menu'
 import type { SortableHandleProps } from '@/components/ui/sortable-list'
 import { SortableList } from '@/components/ui/sortable-list'
+import { usePromptEditorView } from '@/hooks/chat/prompt-editor'
 import type { OrderedItem, Prompt } from '@/lib/chat'
 import type { MergedPromptItem } from '@/lib/chat/prompts'
 import { cn } from '@/lib/utils'
@@ -166,7 +167,9 @@ function PromptListItem({
   showVisibleSwitch: boolean
 }) {
   const { item, isGlobal, isLibrary } = merged
-  const [editOpen, setEditOpen] = useState(false)
+  const view = usePromptEditorView()
+  const itemKey = promptItemKey(item)
+  const editOpen = view.value === itemKey
   const isMarker = isPromptMarker(item)
   const isEditable = !isMarker && !isGlobal && !isLibrary
   const hasMenu = isEditable || isLibrary
@@ -213,7 +216,7 @@ function PromptListItem({
             />
             <DropdownMenu.Content>
               {isEditable && (
-                <DropdownMenu.Item onClick={() => setEditOpen(true)}>
+                <DropdownMenu.Item onClick={() => view.open(itemKey)}>
                   <PencilIcon />
                   Edit
                 </DropdownMenu.Item>
@@ -255,7 +258,7 @@ function PromptListItem({
               prompt={item as Prompt}
               onSave={onEdit!}
               open={editOpen}
-              onOpenChange={setEditOpen}
+              onOpenChange={(o) => !o && view.close()}
               showVisibleSwitch={showVisibleSwitch}
             />
           )}

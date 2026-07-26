@@ -11,10 +11,11 @@ import {
   Switch,
 } from '@/components/ui'
 import type { Prompt } from '@/lib/chat'
+import { promptDraftKey, useEditorDraft } from '@/lib/chat/editor-draft-store'
 import { formatMarkdown } from '@/lib/markdown/format'
 import { PROMPT_CONTENT_GUIDE } from '@sb/core/interpreter/guide'
 import { capitalize } from '@sb/core/utils/strings'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 
 import { PromptContentEditor } from './prompt-content-editor'
@@ -23,6 +24,16 @@ type FormValues = Pick<
   Prompt,
   'name' | 'role' | 'content' | 'visible' | 'starter'
 >
+
+function toFormValues(prompt: Prompt): FormValues {
+  return {
+    name: prompt.name,
+    role: prompt.role,
+    content: prompt.content,
+    visible: prompt.visible,
+    starter: prompt.starter ?? false,
+  }
+}
 
 export type PromptEditDialogProps = {
   prompt: Prompt
@@ -49,36 +60,40 @@ export function PromptEditor({
     handleSubmit,
     reset,
     formState: { isDirty },
-  } = useForm<FormValues>({
-    defaultValues: {
-      name: prompt.name,
-      role: prompt.role,
-      content: prompt.content,
-      visible: prompt.visible,
-      starter: prompt.starter ?? false,
-    },
-  })
+  } = useForm<FormValues>({ defaultValues: toFormValues(prompt) })
   const starter = useWatch({ control, name: 'starter' })
 
+  const draft = useEditorDraft<FormValues>(promptDraftKey(prompt.id))
+  const restoredId = useRef<string | null>(null)
+
+  // Recover an unsaved draft, keeping the stored prompt as the dirty baseline
   useEffect(() => {
-    if (!open) {
-      reset({
-        name: prompt.name,
-        role: prompt.role,
-        content: prompt.content,
-        visible: prompt.visible,
-        starter: prompt.starter ?? false,
-      })
-    }
-  }, [prompt, open, reset])
+    if (restoredId.current === prompt.id) return
+    restoredId.current = prompt.id
+    const saved = draft.read()
+    if (saved) reset(saved, { keepDefaultValues: true })
+  }, [prompt.id, draft, reset])
+
+  const watched = useWatch({ control })
+  useEffect(() => {
+    if (isDirty) draft.save(watched as FormValues)
+    else draft.clear()
+  }, [watched, isDirty, draft])
+
+  useEffect(() => {
+    if (open || draft.read()) return
+    reset(toFormValues(prompt))
+  }, [prompt, open, reset, draft])
 
   function handleSave(values: FormValues) {
     onSave({ ...values, content: formatMarkdown(values.content) })
+    draft.clear()
     onOpenChange(false)
   }
 
   function handleDiscard() {
     reset()
+    draft.clear()
     onOpenChange(false)
   }
 

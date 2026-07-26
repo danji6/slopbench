@@ -8,11 +8,13 @@ import {
 } from '@/components/ui'
 import { useAgentUpdate, useEditingAgent, useSettings } from '@/hooks/chat'
 import {
-  openAgentEditor,
-  setAgentEditorOpen,
-  useAgentEditorOpen,
+  AGENT_EDITOR_DEFAULT_TAB,
+  AGENT_EDITOR_VIEW,
+  useAgentEditorView,
+  useOpenAgentEditor,
 } from '@/hooks/chat/agent-editor'
 import { useHttpAction } from '@/hooks/http'
+import { useViewCloseGuard } from '@/hooks/view'
 import { setThemePreview } from '@/hooks/theme'
 import { type AvatarUploadResult, avatarUploadForm } from '@/lib/chat/avatar'
 import { cn } from '@/lib/utils'
@@ -67,7 +69,9 @@ const EMPTY_FORM: AgentFormValues = {
 }
 
 export function AgentSettings() {
-  const open = useAgentEditorOpen()
+  const view = useAgentEditorView()
+  const open = view.active
+  const activeTab = view.value ?? AGENT_EDITOR_DEFAULT_TAB
   const editingAgent = useEditingAgent()
   const agentId = editingAgent?._id
 
@@ -121,7 +125,7 @@ export function AgentSettings() {
     form.formState.isDirty || pendingAvatar !== null || avatarCleared
 
   function close() {
-    setAgentEditorOpen(false)
+    view.close()
   }
 
   function discard() {
@@ -129,6 +133,12 @@ export function AgentSettings() {
     setPendingAvatar(null)
     setAvatarCleared(false)
   }
+
+  // Back must not silently drop unsaved agent settings
+  const closeGuard = useViewCloseGuard(AGENT_EDITOR_VIEW, {
+    isDirty,
+    onDiscard: discard,
+  })
 
   function guard(action: () => void) {
     if (!isDirty) return action()
@@ -170,7 +180,7 @@ export function AgentSettings() {
   return (
     <Dialog
       open={open}
-      onOpenChange={(next) => (next ? setAgentEditorOpen(true) : guard(close))}
+      onOpenChange={(next) => !next && guard(close)}
       onOpenChangeComplete={(nextOpen) => {
         if (!nextOpen) clearThemePreview()
       }}
@@ -198,7 +208,11 @@ export function AgentSettings() {
           </p>
         ) : (
           <form className="flex min-h-0 flex-1 flex-col" onSubmit={apply}>
-            <SettingsTabs defaultValue="profile" className="min-h-0 flex-1">
+            <SettingsTabs
+              value={activeTab}
+              onValueChange={(tab: string) => view.setValue(tab)}
+              className="min-h-0 flex-1"
+            >
               <SettingsTabs.List className="border-border">
                 <SettingsTabs.Trigger value="profile" icon={<UserIcon />}>
                   Profile
@@ -270,14 +284,18 @@ export function AgentSettings() {
       </Dialog.Content>
 
       <ConfirmDialog
-        open={pendingAction !== null}
-        onOpenChange={(o) => !o && setPendingAction(null)}
+        open={pendingAction !== null || closeGuard.pending}
+        onOpenChange={(o) => {
+          if (o) return
+          setPendingAction(null)
+          closeGuard.cancel()
+        }}
         variant="destructive"
         title="Discard changes?"
         description="Your unsaved changes will be lost."
         confirmText="Discard"
         cancelText="Keep editing"
-        onConfirm={confirmPending}
+        onConfirm={closeGuard.pending ? closeGuard.confirm : confirmPending}
       />
     </Dialog>
   )
@@ -290,6 +308,8 @@ export function ManageAgentsButton({
 }: RippleButtonProps & {
   collapsed?: boolean
 }) {
+  const openAgentEditor = useOpenAgentEditor()
+
   return (
     <RippleButton
       {...props}

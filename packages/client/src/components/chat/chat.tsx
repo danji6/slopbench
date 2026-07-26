@@ -8,6 +8,7 @@ import { ChatSidebars } from './chat-sidebars'
 import type { ChatProps } from './chat-types'
 import { EmptyChat } from './empty-chat'
 import { AgentSettings } from './entities/agent/agent-settings'
+import { ScriptManager } from './messages/editor/menu/script-manager'
 import { ChatSearchProvider } from './search'
 
 export type { ChatProps } from './chat-types'
@@ -45,6 +46,7 @@ export function Chat(props: ChatProps) {
           />
         )}
         <AgentSettings />
+        <ScriptManager />
       </ChatSidebars>
     </ChatSearchProvider>
   )

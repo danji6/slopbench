@@ -1,4 +1,5 @@
 import {
+  ConfirmDialog,
   Dialog,
   RippleButton,
   type RippleButtonProps,
@@ -13,6 +14,7 @@ import {
 } from '@/hooks/chat'
 import { FONT_OVERRIDE_KEYS, setFontPreview } from '@/hooks/font'
 import { setThemePreview } from '@/hooks/theme'
+import { useView, useViewCloseGuard } from '@/hooks/view'
 import {
   type SettingsOverride,
   getSettingsOverride,
@@ -57,6 +59,10 @@ import type {
 } from './settings-schema'
 import { WebSearchSettings } from './web-search-settings'
 
+/** `?view=` segment owned by user settings; its value is the active tab. */
+const USER_SETTINGS_VIEW = 'settings'
+const USER_SETTINGS_DEFAULT_TAB = 'user'
+
 export type ChatSettingsProps = RippleButtonProps & {
   collapsed?: boolean
 }
@@ -91,8 +97,9 @@ function ChatSettingsDialog({
 }: {
   trigger: React.ReactElement<Record<string, unknown>>
 }) {
-  const [open, setOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState('user')
+  const view = useView(USER_SETTINGS_VIEW)
+  const open = view.active
+  const activeTab = view.value ?? USER_SETTINGS_DEFAULT_TAB
 
   const settings = useSettings()
   const updateSettings = useSettingsUpdate()
@@ -269,20 +276,34 @@ function ChatSettingsDialog({
     form.formState.isDirty || pendingAvatar !== null || avatarCleared
 
   function handleOpenChange(next: boolean) {
-    if (!next && isDirty) return
-    setOpen(next)
+    if (next) {
+      view.open(USER_SETTINGS_DEFAULT_TAB)
+      return
+    }
+    if (isDirty) return
+    view.close()
   }
 
   function handleClose() {
-    setOpen(false)
+    view.close()
   }
 
-  function handleDiscard() {
+  function discard() {
     form.reset()
     setPendingAvatar(null)
     setAvatarCleared(false)
+  }
+
+  function handleDiscard() {
+    discard()
     handleClose()
   }
+
+  // Back must not silently drop unsaved settings
+  const closeGuard = useViewCloseGuard(USER_SETTINGS_VIEW, {
+    isDirty,
+    onDiscard: discard,
+  })
 
   async function persist(values: SettingsFormValues) {
     if (pendingAvatar) {
@@ -361,7 +382,7 @@ function ChatSettingsDialog({
           </Dialog.Header>
           <SettingsTabs
             value={activeTab}
-            onValueChange={setActiveTab}
+            onValueChange={(tab: string) => view.setValue(tab)}
             className="border-border min-h-0 flex-1 border-t"
           >
             <SettingsTabs.List className="border-border">
@@ -422,6 +443,17 @@ function ChatSettingsDialog({
           />
         </form>
       </Dialog.Content>
+
+      <ConfirmDialog
+        open={closeGuard.pending}
+        onOpenChange={(o) => !o && closeGuard.cancel()}
+        variant="destructive"
+        title="Discard changes?"
+        description="Your unsaved changes will be lost."
+        confirmText="Discard"
+        cancelText="Keep editing"
+        onConfirm={closeGuard.confirm}
+      />
     </Dialog>
   )
 }

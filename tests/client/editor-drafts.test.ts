@@ -1,0 +1,99 @@
+/// <reference types="bun-types" />
+import {
+  SCRIPTS_DRAFT_KEY,
+  clearEditorDraft,
+  getEditorDraft,
+  promptDraftKey,
+  reminderDraftKey,
+  setEditorDraft,
+} from '@/lib/chat/editor-draft-store'
+import { beforeEach, describe, expect, test } from 'bun:test'
+
+import { setupDom } from '../setup/dom'
+
+setupDom()
+
+/** Mirrors the store's own cap; exceeding it must evict the oldest entries. */
+const MAX_ENTRIES = 50
+
+type PromptDraft = { name: string; content?: string }
+
+function keysInStorage(): string[] {
+  const raw = localStorage.getItem('chat-editor-drafts')
+  return raw ? Object.keys(JSON.parse(raw)) : []
+}
+
+beforeEach(() => {
+  for (const key of keysInStorage()) clearEditorDraft(key)
+})
+
+describe('draft keys', () => {
+  test('namespace prompts, reminders and scripts apart', () => {
+    expect(promptDraftKey('abc')).toBe('prompt:abc')
+    expect(reminderDraftKey('abc')).toBe('reminder:abc')
+    expect(SCRIPTS_DRAFT_KEY).toBe('scripts')
+    expect(promptDraftKey('abc')).not.toBe(reminderDraftKey('abc'))
+  })
+})
+
+describe('get/set/clear', () => {
+  test('round-trips an arbitrary draft value', () => {
+    const draft: PromptDraft = { name: 'Rewrite', content: '# hello' }
+    setEditorDraft(promptDraftKey('p1'), draft)
+    expect(getEditorDraft<PromptDraft>(promptDraftKey('p1'))).toEqual(draft)
+  })
+
+  test('returns undefined for an unknown key', () => {
+    expect(getEditorDraft(promptDraftKey('missing'))).toBeUndefined()
+  })
+
+  test('overwrites rather than merging', () => {
+    setEditorDraft(promptDraftKey('p1'), { name: 'a', content: 'x' })
+    setEditorDraft(promptDraftKey('p1'), { name: 'b' })
+    expect(getEditorDraft<PromptDraft>(promptDraftKey('p1'))).toEqual({ name: 'b' })
+  })
+
+  test('clear removes only its own key', () => {
+    setEditorDraft(promptDraftKey('p1'), { name: 'a' })
+    setEditorDraft(promptDraftKey('p2'), { name: 'b' })
+    clearEditorDraft(promptDraftKey('p1'))
+
+    expect(getEditorDraft(promptDraftKey('p1'))).toBeUndefined()
+    expect(getEditorDraft<PromptDraft>(promptDraftKey('p2'))).toEqual({ name: 'b' })
+  })
+
+  test('clearing an absent key does not write', () => {
+    setEditorDraft(promptDraftKey('p1'), { name: 'a' })
+    const before = localStorage.getItem('chat-editor-drafts')
+    clearEditorDraft(promptDraftKey('never-stored'))
+    expect(localStorage.getItem('chat-editor-drafts')).toBe(before)
+  })
+
+  test('survives a reload, which is the point of the feature', () => {
+    setEditorDraft(SCRIPTS_DRAFT_KEY, { scripts: [{ id: 's1', code: 'x' }] })
+    const persisted = JSON.parse(localStorage.getItem('chat-editor-drafts')!)
+    expect(persisted[SCRIPTS_DRAFT_KEY].value).toEqual({
+      scripts: [{ id: 's1', code: 'x' }],
+    })
+  })
+})
+
+describe('eviction', () => {
+  test('keeps the cap and drops the least recently touched', () => {
+    for (let index = 0; index < MAX_ENTRIES; index++) {
+      setEditorDraft(promptDraftKey(`p${index}`), { name: `n${index}` })
+    }
+    expect(keysInStorage()).toHaveLength(MAX_ENTRIES)
+
+    setEditorDraft(promptDraftKey('newest'), { name: 'newest' })
+
+    expect(keysInStorage()).toHaveLength(MAX_ENTRIES)
+    expect(getEditorDraft<PromptDraft>(promptDraftKey('newest'))).toEqual({
+      name: 'newest',
+    })
+    expect(getEditorDraft(promptDraftKey('p0'))).toBeUndefined()
+    expect(getEditorDraft<PromptDraft>(promptDraftKey(`p${MAX_ENTRIES - 1}`))).toEqual({
+      name: `n${MAX_ENTRIES - 1}`,
+    })
+  })
+})

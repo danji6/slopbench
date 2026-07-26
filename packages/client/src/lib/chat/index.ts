@@ -5,6 +5,7 @@
 export * from './avatar'
 export * from './combine'
 export * from './composer-draft-store'
+export * from './editor-draft-store'
 export * from './errors'
 export * from './file-mentions'
 export * from './io'

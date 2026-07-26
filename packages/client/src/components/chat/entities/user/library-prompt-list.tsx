@@ -5,8 +5,13 @@ import {
   SearchableList,
   TooltipButton,
 } from '@/components/ui'
+import { useLibraryPromptEditorView } from '@/hooks/chat/prompt-editor'
 import { newPrompt } from '@/lib/chat'
 import type { Prompt } from '@/lib/chat'
+import {
+  getEditorDraft,
+  promptDraftKey,
+} from '@/lib/chat/editor-draft-store'
 import { CopyIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
@@ -17,11 +22,25 @@ type LibraryPromptListProps = {
   onChange: (prompts: LibraryPrompt[]) => void
 }
 
+/** Rebuilds a prompt from its local draft. */
+function restoreFromDraft(id: string): LibraryPrompt | null {
+  const saved = getEditorDraft<Partial<Prompt>>(promptDraftKey(id))
+  if (!saved) return null
+  return {
+    ...newPrompt({ name: 'New Prompt' }),
+    ...saved,
+    id,
+    createdAt: Date.now(),
+  }
+}
+
 export function LibraryPromptList({
   prompts,
   onChange,
 }: LibraryPromptListProps) {
-  const [editing, setEditing] = useState<LibraryPrompt | null>(null)
+  const view = useLibraryPromptEditorView()
+  const editingId = view.value ?? null
+  const [added, setAdded] = useState<LibraryPrompt | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
   const sorted = useMemo(
@@ -29,10 +48,23 @@ export function LibraryPromptList({
     [prompts],
   )
 
-  const isExisting = !!editing && prompts.some((p) => p.id === editing.id)
+  const isExisting = prompts.some((p) => p.id === editingId)
+
+  const editing = useMemo<LibraryPrompt | null>(() => {
+    if (!editingId) return null
+    const stored = prompts.find((p) => p.id === editingId)
+    if (stored) return stored
+    if (added?.id === editingId) return added
+    return restoreFromDraft(editingId)
+  }, [editingId, prompts, added])
 
   function handleAdd() {
-    setEditing({ ...newPrompt({ name: 'New Prompt' }), createdAt: Date.now() })
+    const created = {
+      ...newPrompt({ name: 'New Prompt' }),
+      createdAt: Date.now(),
+    }
+    setAdded(created)
+    view.open(created.id)
   }
 
   function handleSave(data: Partial<Prompt>) {
@@ -106,7 +138,7 @@ export function LibraryPromptList({
               size="icon"
               variant="stealth"
               className="text-muted-foreground hover:text-foreground"
-              onClick={() => setEditing(p)}
+              onClick={() => view.open(p.id)}
             >
               <PencilIcon />
             </RippleButton>
@@ -126,7 +158,7 @@ export function LibraryPromptList({
           key={editing.id}
           prompt={editing}
           open
-          onOpenChange={(o) => !o && setEditing(null)}
+          onOpenChange={(o) => !o && view.close()}
           onSave={handleSave}
           title={isExisting ? 'Edit Prompt' : 'New Prompt'}
         />

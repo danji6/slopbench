@@ -5,8 +5,13 @@ import {
   Switch,
   TooltipButton,
 } from '@/components/ui'
+import { useReminderEditorView } from '@/hooks/chat/prompt-editor'
 import { newReminderPrompt } from '@/lib/chat'
 import type { ReminderPrompt } from '@/lib/chat'
+import {
+  getEditorDraft,
+  reminderDraftKey,
+} from '@/lib/chat/editor-draft-store'
 import { cn } from '@/lib/utils'
 import {
   BookmarkIcon,
@@ -17,12 +22,19 @@ import {
   Trash2Icon,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { useReminderClipboard } from './reminder-clipboard'
 import { ReminderEditor } from './reminder-editor'
 
 type ReminderListItem = ReminderPrompt & { isLibrary?: boolean }
+
+/** Rebuilds a reminder from its local draft. */
+function restoreFromDraft(id: string): ReminderPrompt | null {
+  const saved = getEditorDraft<Partial<ReminderPrompt>>(reminderDraftKey(id))
+  if (!saved) return null
+  return { ...newReminderPrompt({ name: 'New Reminder' }), ...saved, id }
+}
 
 type ReminderPromptListProps = {
   reminders: ReminderPrompt[]
@@ -43,11 +55,23 @@ export function ReminderPromptList({
   extraButtons,
   showEnabledSwitch = true,
 }: ReminderPromptListProps) {
-  const [editing, setEditing] = useState<ReminderPrompt | null>(null)
+  const view = useReminderEditorView()
+  const editingId = view.value ?? null
+  const [added, setAdded] = useState<ReminderPrompt | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const { copy, pasteData } = useReminderClipboard()
 
-  const isExisting = !!editing && reminders.some((r) => r.id === editing.id)
+  const isExisting = reminders.some((r) => r.id === editingId)
+
+  const editing = useMemo<ReminderPrompt | null>(() => {
+    if (!editingId) return null
+    const stored = reminders.find((r) => r.id === editingId)
+    if (stored) return stored
+    if (added?.id === editingId) return added
+    // Library reminders are read-only here; never resurrect one from a draft
+    if (libraryItems.some((r) => r.id === editingId)) return null
+    return restoreFromDraft(editingId)
+  }, [editingId, reminders, added, libraryItems])
 
   const items: ReminderListItem[] = [
     ...libraryItems.map((r) => ({ ...r, isLibrary: true })),
@@ -55,7 +79,9 @@ export function ReminderPromptList({
   ]
 
   function handleAdd() {
-    setEditing(newReminderPrompt({ name: 'New Reminder' }))
+    const created = newReminderPrompt({ name: 'New Reminder' })
+    setAdded(created)
+    view.open(created.id)
   }
 
   function handlePaste() {
@@ -163,7 +189,7 @@ export function ReminderPromptList({
                   size="icon"
                   variant="stealth"
                   className="text-muted-foreground hover:text-foreground"
-                  onClick={() => setEditing(r)}
+                  onClick={() => view.open(r.id)}
                 >
                   <PencilIcon />
                 </RippleButton>
@@ -185,7 +211,7 @@ export function ReminderPromptList({
           key={editing.id}
           reminder={editing}
           open
-          onOpenChange={(o) => !o && setEditing(null)}
+          onOpenChange={(o) => !o && view.close()}
           onSave={handleSave}
           title={isExisting ? 'Edit Reminder' : 'New Reminder'}
         />

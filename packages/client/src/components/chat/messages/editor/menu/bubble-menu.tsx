@@ -1,3 +1,4 @@
+import { useOpenScriptManager } from '@/hooks/chat/script-manager'
 import { cn, isTouchDevice } from '@/lib/utils'
 import type { Editor } from '@tiptap/react'
 import { PencilIcon } from 'lucide-react'
@@ -9,7 +10,6 @@ import { useMessage } from '../../message-context'
 import { applyScript } from '../apply-script'
 import { useMessageEdit } from '../message-edit-context'
 import { MenuButton } from './menu-button'
-import { ScriptManager } from './script-manager'
 import { ScriptToolbarContent } from './script-toolbar'
 
 type SelectionState = {
@@ -43,7 +43,7 @@ export function BubbleMenu({
   const [menuVisible, setMenuVisible] = useState(true)
   const editCtx = useMessageEdit()
   const msgCtx = useMessage()
-  const [scriptManagerOpen, setScriptManagerOpen] = useState(false)
+  const openScriptManager = useOpenScriptManager()
 
   useEffect(() => {
     let debounceTimer: ReturnType<typeof setTimeout>
@@ -198,7 +198,7 @@ export function BubbleMenu({
     // Drop the underlying selection to avoid overlaps on mobile
     window.getSelection()?.removeAllRanges()
     setSelection(null)
-    setScriptManagerOpen(true)
+    openScriptManager()
   }
 
   const onScript = editor
@@ -227,10 +227,6 @@ export function BubbleMenu({
   return (
     <div data-slot="bubble-menu-wrapper" ref={containerRef}>
       {children}
-      <ScriptManager
-        open={scriptManagerOpen}
-        onOpenChange={setScriptManagerOpen}
-      />
       {typeof document !== 'undefined' &&
         createPortal(
           <AnimatePresence>

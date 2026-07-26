@@ -12,11 +12,12 @@ import {
   Switch,
 } from '@/components/ui'
 import type { ReminderPrompt } from '@/lib/chat'
+import { reminderDraftKey, useEditorDraft } from '@/lib/chat/editor-draft-store'
 import { formatMarkdown } from '@/lib/markdown/format'
 import { PROMPT_CONTENT_GUIDE } from '@sb/core/interpreter/guide'
 import { capitalize } from '@sb/core/utils/strings'
-import { useEffect } from 'react'
-import { Controller, useForm } from 'react-hook-form'
+import { useEffect, useRef } from 'react'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 
 import { PromptContentEditor } from './prompt-content-editor'
 
@@ -24,6 +25,16 @@ type FormValues = Pick<
   ReminderPrompt,
   'name' | 'role' | 'interval' | 'eager' | 'content'
 >
+
+function toFormValues(reminder: ReminderPrompt): FormValues {
+  return {
+    name: reminder.name,
+    role: reminder.role,
+    interval: reminder.interval,
+    eager: reminder.eager ?? false,
+    content: reminder.content,
+  }
+}
 
 export type ReminderEditorProps = {
   reminder: ReminderPrompt
@@ -48,27 +59,29 @@ export function ReminderEditor({
     handleSubmit,
     reset,
     formState: { isDirty },
-  } = useForm<FormValues>({
-    defaultValues: {
-      name: reminder.name,
-      role: reminder.role,
-      interval: reminder.interval,
-      eager: reminder.eager ?? false,
-      content: reminder.content,
-    },
-  })
+  } = useForm<FormValues>({ defaultValues: toFormValues(reminder) })
+
+  const draft = useEditorDraft<FormValues>(reminderDraftKey(reminder.id))
+  const restoredId = useRef<string | null>(null)
+
+  // Recover an unsaved draft, keeping the stored reminder as the dirty baseline
+  useEffect(() => {
+    if (restoredId.current === reminder.id) return
+    restoredId.current = reminder.id
+    const saved = draft.read()
+    if (saved) reset(saved, { keepDefaultValues: true })
+  }, [reminder.id, draft, reset])
+
+  const watched = useWatch({ control })
+  useEffect(() => {
+    if (isDirty) draft.save(watched as FormValues)
+    else draft.clear()
+  }, [watched, isDirty, draft])
 
   useEffect(() => {
-    if (!open) {
-      reset({
-        name: reminder.name,
-        role: reminder.role,
-        interval: reminder.interval,
-        eager: reminder.eager ?? false,
-        content: reminder.content,
-      })
-    }
-  }, [reminder, open, reset])
+    if (open || draft.read()) return
+    reset(toFormValues(reminder))
+  }, [reminder, open, reset, draft])
 
   function handleSave(values: FormValues) {
     onSave({
@@ -76,11 +89,13 @@ export function ReminderEditor({
       content: formatMarkdown(values.content),
       interval: Math.max(1, Math.round(values.interval)),
     })
+    draft.clear()
     onOpenChange(false)
   }
 
   function handleDiscard() {
     reset()
+    draft.clear()
     onOpenChange(false)
   }
 

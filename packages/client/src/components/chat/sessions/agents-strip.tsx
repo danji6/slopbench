@@ -1,8 +1,8 @@
 import { Button, ContextMenu } from '@/components/ui'
 import {
-  openAgentEditor,
   useActiveSession,
   useLinkedAgents,
+  useOpenAgentEditor,
   useSelectAgent,
 } from '@/hooks/chat'
 import {
@@ -25,6 +25,7 @@ export function AgentsStrip({
   const continueAgent = useContinueAgent()
   const unlink = useUnlinkAgent()
   const selectAgent = useSelectAgent()
+  const openAgentEditor = useOpenAgentEditor()
 
   return (
     <div className={cn('flex flex-col gap-4', className)} {...props}>

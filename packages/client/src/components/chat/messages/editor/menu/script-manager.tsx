@@ -14,7 +14,12 @@ import {
 import type { SortableHandleProps } from '@/components/ui/sortable-list'
 import { SortableList } from '@/components/ui/sortable-list'
 import { useBreakpoint } from '@/hooks'
+import { useScriptManagerView } from '@/hooks/chat/script-manager'
 import { useScripts } from '@/hooks/chat/scripts'
+import {
+  SCRIPTS_DRAFT_KEY,
+  useEditorDraft,
+} from '@/lib/chat/editor-draft-store'
 import { cn, generateId } from '@/lib/utils'
 import {
   GripVerticalIcon,
@@ -23,15 +28,10 @@ import {
   PlusIcon,
   Trash2Icon,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 
 import { SCRIPT_COMPLETIONS } from '../script-completions'
-
-type ScriptManagerProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}
 
 type ScriptItem = {
   id: string
@@ -58,14 +58,18 @@ function scriptChanged(a: ScriptItem, b: ScriptItem) {
   )
 }
 
-export function ScriptManager({ open, onOpenChange }: ScriptManagerProps) {
+export function ScriptManager() {
   const { scripts, loaded, createScript, updateScript, deleteScript } =
     useScripts()
 
-  const form = useForm<ScriptFormValues>({ defaultValues: { scripts: [] } })
-  const items = useWatch({ control: form.control, name: 'scripts' }) ?? []
+  const view = useScriptManagerView()
+  const open = view.active
+  const selectedId = view.value ?? null
 
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const form = useForm<ScriptFormValues>({ defaultValues: { scripts: [] } })
+  const watched = useWatch({ control: form.control, name: 'scripts' })
+  const items = useMemo(() => watched ?? [], [watched])
+
   const selectedIndex = items.findIndex((s) => s.id === selectedId)
   const selected = selectedIndex >= 0 ? items[selectedIndex] : null
 
@@ -75,6 +79,8 @@ export function ScriptManager({ open, onOpenChange }: ScriptManagerProps) {
   // Snapshot of the persisted scripts at init time, used to diff on save
   const [initial, setInitial] = useState<ScriptItem[]>([])
   const initialized = useRef(false)
+
+  const draft = useEditorDraft<ScriptFormValues>(SCRIPTS_DRAFT_KEY)
 
   useEffect(() => {
     if (!open) {
@@ -91,11 +97,21 @@ export function ScriptManager({ open, onOpenChange }: ScriptManagerProps) {
     }))
     form.reset({ scripts: mapped })
     setInitial(mapped)
+    // Recover an unsaved draft, keeping the stored scripts as the dirty baseline
+    const saved = draft.read()
+    if (saved) form.reset(saved, { keepDefaultValues: true })
     initialized.current = true
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, loaded, scripts])
 
   const isDirty = form.formState.isDirty
+
+  // Live form reads, because this runs in the same commit as the reset above
+  useEffect(() => {
+    if (!initialized.current) return
+    if (form.formState.isDirty) draft.save({ scripts: form.getValues('scripts') })
+    else draft.clear()
+  }, [items, isDirty, draft, form])
 
   function setItem(index: number, patch: Partial<ScriptItem>) {
     const current = form.getValues('scripts')
@@ -118,7 +134,7 @@ export function ScriptManager({ open, onOpenChange }: ScriptManagerProps) {
   }
 
   function handleSelect(id: string) {
-    setSelectedId(id)
+    view.setValue(id)
     setDrawerOpen(false)
   }
 
@@ -128,7 +144,7 @@ export function ScriptManager({ open, onOpenChange }: ScriptManagerProps) {
       form.getValues('scripts').filter((s) => s.id !== id),
       { shouldDirty: true },
     )
-    if (selectedId === id) setSelectedId(null)
+    if (selectedId === id) view.setValue(undefined)
   }
 
   function handleReorder(reordered: ScriptItem[]) {
@@ -157,7 +173,7 @@ export function ScriptManager({ open, onOpenChange }: ScriptManagerProps) {
           order: index,
         })
         resolved.push({ ...s, id: created.id })
-        if (selectedId === s.id) setSelectedId(created.id)
+        if (selectedId === s.id) view.setValue(created.id)
       } else {
         const moved = originalIndexById.get(s.id) !== index
         if (scriptChanged(orig, s) || moved) {
@@ -175,21 +191,22 @@ export function ScriptManager({ open, onOpenChange }: ScriptManagerProps) {
 
     setInitial(resolved)
     form.reset({ scripts: resolved })
+    draft.clear()
   }
 
   function handleClose() {
-    onOpenChange(false)
+    view.close()
   }
 
   function handleDiscard() {
     form.reset()
-    setSelectedId(null)
+    draft.clear()
     handleClose()
   }
 
   function handleOpenChange(next: boolean) {
-    if (!next && isDirty) return
-    onOpenChange(next)
+    if (next || isDirty) return
+    handleClose()
   }
 
   const apply = form.handleSubmit(persist)

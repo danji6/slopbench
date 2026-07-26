@@ -1,29 +1,20 @@
-import { useSyncExternalStore } from 'react'
+import { type ViewHandle, useView } from '@/hooks/view'
+import { useCallback } from 'react'
 
-let isOpen = false
-const listeners = new Set<() => void>()
+/** `?view=` segment owned by the agent editor; its value is the active tab. */
+export const AGENT_EDITOR_VIEW = 'agent'
 
-function emit() {
-  listeners.forEach((listener) => listener())
-}
+export const AGENT_EDITOR_DEFAULT_TAB = 'profile'
 
-export function setAgentEditorOpen(open: boolean) {
-  if (isOpen === open) return
-  isOpen = open
-  emit()
-}
-
-export function openAgentEditor() {
-  setAgentEditorOpen(true)
+export function useAgentEditorView(): ViewHandle {
+  return useView(AGENT_EDITOR_VIEW)
 }
 
 export function useAgentEditorOpen(): boolean {
-  return useSyncExternalStore(
-    (listener) => {
-      listeners.add(listener)
-      return () => listeners.delete(listener)
-    },
-    () => isOpen,
-    () => false,
-  )
+  return useAgentEditorView().active
+}
+
+export function useOpenAgentEditor(): () => void {
+  const view = useAgentEditorView()
+  return useCallback(() => view.open(AGENT_EDITOR_DEFAULT_TAB), [view])
 }
