@@ -63,19 +63,21 @@ export function ReminderEditor({
 
   const draft = useEditorDraft<FormValues>(reminderDraftKey(reminder.id))
   const restoredId = useRef<string | null>(null)
+  const restored = useRef(false)
 
   // Recover an unsaved draft, keeping the stored reminder as the dirty baseline
   useEffect(() => {
     if (restoredId.current === reminder.id) return
     restoredId.current = reminder.id
     const saved = draft.read()
+    restored.current = saved !== undefined
     if (saved) reset(saved, { keepDefaultValues: true })
   }, [reminder.id, draft, reset])
 
   const watched = useWatch({ control })
   useEffect(() => {
-    if (isDirty) draft.save(watched as FormValues)
-    else draft.clear()
+    if (isDirty) return draft.save(watched as FormValues)
+    if (!restored.current) draft.clear()
   }, [watched, isDirty, draft])
 
   useEffect(() => {
@@ -84,16 +86,20 @@ export function ReminderEditor({
   }, [reminder, open, reset, draft])
 
   function handleSave(values: FormValues) {
-    onSave({
+    const saved = {
       ...values,
       content: formatMarkdown(values.content),
       interval: Math.max(1, Math.round(values.interval)),
-    })
+    }
+    onSave(saved)
+    restored.current = false
+    reset(saved)
     draft.clear()
     onOpenChange(false)
   }
 
   function handleDiscard() {
+    restored.current = false
     reset()
     draft.clear()
     onOpenChange(false)
@@ -233,7 +239,9 @@ export function ReminderEditor({
               Cancel
             </RippleButton>
           </ConfirmDialog>
-          <RippleButton onClick={handleSubmit(handleSave)}>Save</RippleButton>
+          <RippleButton onClick={(e) => void handleSubmit(handleSave)(e)}>
+            Save
+          </RippleButton>
         </Dialog.Footer>
       </Dialog.Content>
     </Dialog>

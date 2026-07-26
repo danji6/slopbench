@@ -1,4 +1,4 @@
-import type { ViewSegment, SegmentOptions } from '@/lib/view'
+import type { SegmentOptions, ViewSegment } from '@/lib/view'
 import {
   findViewSegment,
   parseViewPath,
@@ -90,7 +90,11 @@ export function useViewCloseGuard(
 
   useEffect(() => {
     function handlePopState() {
-      const { active: wasActive, isDirty: wasDirty, restorePath } = latest.current
+      const {
+        active: wasActive,
+        isDirty: wasDirty,
+        restorePath,
+      } = latest.current
       if (!wasActive || !wasDirty) return
       if (findViewSegment(parseViewPath(window.location.search), name)) return
 

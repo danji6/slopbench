@@ -7,21 +7,19 @@ import {
   createDefaultCompactionPrompts,
   createDefaultImpersonationPrompts,
 } from '@sb/convex/model/defaults'
-import type { Control, UseFormSetValue } from 'react-hook-form'
+import type { Control } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
 
+import { promptHelp } from '../prompt-help'
 import type { AgentFormValues } from './agent-form'
 import { AgentPromptList } from './agent-prompt-list'
 import { AgentReminderList } from './agent-reminder-list'
 import { OverrideLabel, OverrideSection } from './override-section'
-import { promptHelp } from '../prompt-help'
 
 export function BehaviorSettings({
   control,
-  setValue,
 }: {
   control: Control<AgentFormValues>
-  setValue: UseFormSetValue<AgentFormValues>
 }) {
   const settings = useSettings()
 
@@ -85,7 +83,7 @@ export function BehaviorSettings({
         label="Prompts"
         help={promptHelp()}
       >
-        <AgentPromptList control={control} setValue={setValue} />
+        <AgentPromptList control={control} />
       </SettingsList.Item>
 
       <Controller

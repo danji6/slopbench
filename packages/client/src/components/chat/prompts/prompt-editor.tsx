@@ -65,19 +65,21 @@ export function PromptEditor({
 
   const draft = useEditorDraft<FormValues>(promptDraftKey(prompt.id))
   const restoredId = useRef<string | null>(null)
+  const restored = useRef(false)
 
   // Recover an unsaved draft, keeping the stored prompt as the dirty baseline
   useEffect(() => {
     if (restoredId.current === prompt.id) return
     restoredId.current = prompt.id
     const saved = draft.read()
+    restored.current = saved !== undefined
     if (saved) reset(saved, { keepDefaultValues: true })
   }, [prompt.id, draft, reset])
 
   const watched = useWatch({ control })
   useEffect(() => {
-    if (isDirty) draft.save(watched as FormValues)
-    else draft.clear()
+    if (isDirty) return draft.save(watched as FormValues)
+    if (!restored.current) draft.clear()
   }, [watched, isDirty, draft])
 
   useEffect(() => {
@@ -86,12 +88,16 @@ export function PromptEditor({
   }, [prompt, open, reset, draft])
 
   function handleSave(values: FormValues) {
-    onSave({ ...values, content: formatMarkdown(values.content) })
+    const saved = { ...values, content: formatMarkdown(values.content) }
+    onSave(saved)
+    restored.current = false
+    reset(saved)
     draft.clear()
     onOpenChange(false)
   }
 
   function handleDiscard() {
+    restored.current = false
     reset()
     draft.clear()
     onOpenChange(false)
@@ -233,7 +239,9 @@ export function PromptEditor({
               Cancel
             </RippleButton>
           </ConfirmDialog>
-          <RippleButton onClick={handleSubmit(handleSave)}>Save</RippleButton>
+          <RippleButton onClick={(e) => void handleSubmit(handleSave)(e)}>
+            Save
+          </RippleButton>
         </Dialog.Footer>
       </Dialog.Content>
     </Dialog>

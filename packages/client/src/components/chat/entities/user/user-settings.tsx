@@ -12,9 +12,11 @@ import {
   useSettingsUpdate,
   useUploadProfileAvatar,
 } from '@/hooks/chat'
+import { useFormDraft } from '@/hooks/chat/form-draft'
 import { FONT_OVERRIDE_KEYS, setFontPreview } from '@/hooks/font'
 import { setThemePreview } from '@/hooks/theme'
 import { useView, useViewCloseGuard } from '@/hooks/view'
+import { USER_SETTINGS_DRAFT_KEY } from '@/lib/chat/editor-draft-store'
 import {
   type SettingsOverride,
   getSettingsOverride,
@@ -152,6 +154,8 @@ function ChatSettingsDialog({
     },
   })
 
+  const draft = useFormDraft(USER_SETTINGS_DRAFT_KEY, form)
+
   // Initialize after settings load, so staged profile fields are not reset
   // to empty mid-edit.
   const initialized = useRef(false)
@@ -229,6 +233,7 @@ function ChatSettingsDialog({
         }),
       ),
     })
+    draft.restore()
     initialized.current = true
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, settings])
@@ -290,6 +295,7 @@ function ChatSettingsDialog({
 
   function discard() {
     form.reset()
+    draft.clear()
     setPendingAvatar(null)
     setAvatarCleared(false)
   }
@@ -353,6 +359,7 @@ function ChatSettingsDialog({
       setSettingsOverride(cleared)
     }
     form.reset(values)
+    draft.clear()
   }
 
   const apply = form.handleSubmit(persist)

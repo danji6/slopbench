@@ -2,6 +2,7 @@ import type {
   MathMode,
   OrderedItem,
   PromptItem,
+  PromptMarkerType,
   ReasoningEffort,
   ReminderPrompt,
   ScrollMode,
@@ -10,7 +11,14 @@ import type {
 } from '@/lib/chat'
 import { snapshotTheme } from '@/lib/theme-worker'
 import type { Doc, Id } from '@sb/convex/_generated/dataModel'
+import { ensurePromptMarkers } from '@sb/convex/model/prompt/markers'
 import type { AgentSubAgentsMode } from '@sb/core/types'
+
+/** Structural markers every agent prompt list carries. */
+export const AGENT_PROMPT_MARKERS: PromptMarkerType[] = [
+  'message-history',
+  'system-boundary',
+]
 
 // All tools are off by default
 export type AgentToolSelection = string[]
@@ -98,7 +106,10 @@ export function agentToFormValues(agent: Doc<'agents'>): AgentFormValues {
   return {
     name: agent.name,
     description: agent.description ?? '',
-    prompts: agent.prompts as PromptItem[],
+    prompts: ensurePromptMarkers(
+      agent.prompts as PromptItem[],
+      AGENT_PROMPT_MARKERS,
+    ),
     promptOrder: agent.promptOrder as OrderedItem[] | undefined,
     globalPromptsEnabled: agent.globalPromptsEnabled ?? true,
     reminderPrompts: (agent.reminderPrompts as ReminderPrompt[]) ?? [],

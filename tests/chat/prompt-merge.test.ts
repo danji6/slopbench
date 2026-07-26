@@ -1,5 +1,8 @@
 /// <reference types="bun-types" />
-import { mergePrompts as mergeClientPrompts } from '@/lib/chat/prompts'
+import {
+  mergePrompts as mergeClientPrompts,
+  upsertPrompt,
+} from '@/lib/chat/prompts'
 import { promptItemKey } from '@sb/convex/model/prompt/markers'
 import {
   buildPrompts,
@@ -315,5 +318,75 @@ describe('library prompts', () => {
     expect(byId.get(globalSystem.id)?.isGlobal).toBe(true)
     expect(byId.get(globalSystem.id)?.isLibrary).toBe(false)
     expect(byId.get(firstSystem.id)?.isLibrary).toBe(false)
+  })
+})
+
+describe('upsertPrompt', () => {
+  test('edits the prompt matching the key', () => {
+    const result = upsertPrompt([firstSystem, secondSystem], firstSystem.id, {
+      content: 'Edited.',
+    })
+
+    expect(result).toHaveLength(2)
+    expect(result[0].content).toBe('Edited.')
+    expect(result[1]).toEqual(secondSystem)
+  })
+
+  test('appends when the key is absent, keeping the id', () => {
+    // A prompt recovered from its draft is saved for the first time here.
+    const result = upsertPrompt([firstSystem], 'never-saved', {
+      name: 'Recovered',
+      content: 'Typed but never saved.',
+    })
+
+    expect(result).toHaveLength(2)
+    expect(result[1]).toMatchObject({
+      id: 'never-saved',
+      name: 'Recovered',
+      content: 'Typed but never saved.',
+    })
+  })
+
+  test('leaves markers alone and never drops them', () => {
+    const items: PromptItem[] = [{ type: 'message-history' }, firstSystem]
+    const result = upsertPrompt(items, firstSystem.id, { content: 'Edited.' })
+
+    expect(result[0]).toEqual({ type: 'message-history' })
+    expect(result).toHaveLength(2)
+  })
+})
+
+describe('merge order integrity', () => {
+  // Regression: the agent prompt list once wrote marker normalisation back into
+  // a form that hadn't been populated yet. That left `prompts` holding only
+  // markers while `promptOrder` still held the real refs, and the cleanup below
+  // deleted the user's prompt. Nothing may write a cleaned order derived from a
+  // prompt list that isn't the one the order belongs to.
+  test('own refs read as stale when the item list is empty', () => {
+    const merged = mergeClientPrompts(
+      {
+        prompts: [],
+        promptOrder: [{ kind: 'own', id: firstSystem.id }],
+      },
+      [],
+      [],
+    )
+
+    expect(merged.items).toHaveLength(0)
+    expect(merged.cleanedOrder).toEqual([])
+  })
+
+  test('keeps own refs when the item list is populated', () => {
+    const merged = mergeClientPrompts(
+      {
+        prompts: [firstSystem],
+        promptOrder: [{ kind: 'own', id: firstSystem.id }],
+      },
+      [],
+      [],
+    )
+
+    expect(merged.items).toHaveLength(1)
+    expect(merged.cleanedOrder).toBeNull()
   })
 })

@@ -1,6 +1,7 @@
 import { PromptList } from '@/components/chat/prompts'
 import { newPrompt } from '@/lib/chat'
 import type { OrderedItem, Prompt } from '@/lib/chat'
+import { upsertPrompt } from '@/lib/chat/prompts'
 import { promptItemKey } from '@sb/convex/model/prompt/markers'
 
 type GlobalPromptListProps = {
@@ -30,7 +31,7 @@ export function GlobalPromptList({ prompts, onChange }: GlobalPromptListProps) {
   }
 
   function handleEdit(id: string, data: Partial<Prompt>) {
-    onChange(prompts.map((p) => (p.id === id ? { ...p, ...data } : p)))
+    onChange(upsertPrompt(prompts, id, data))
   }
 
   function handleDelete(id: string) {

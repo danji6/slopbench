@@ -57,6 +57,23 @@ export function newReminderPrompt(
   }
 }
 
+/**
+ * Applies an edit to the prompt matching `key`, appending it when the list
+ * doesn't have it yet.
+ */
+export function upsertPrompt<T extends PromptItem>(
+  items: readonly T[],
+  key: string,
+  data: Partial<Prompt>,
+): T[] {
+  if (!items.some((item) => promptItemKey(item) === key)) {
+    return [...items, { ...newPrompt(), ...data, id: key } as unknown as T]
+  }
+  return items.map((item) =>
+    promptItemKey(item) === key ? ({ ...item, ...data } as T) : item,
+  )
+}
+
 export function mergePrompts(
   source: PromptSource,
   globalPrompts: Prompt[],

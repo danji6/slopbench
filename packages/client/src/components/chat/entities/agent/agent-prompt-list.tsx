@@ -1,29 +1,20 @@
 import { AddFromLibrary, PromptList } from '@/components/chat/prompts'
 import { useSettings } from '@/hooks/chat'
-import type {
-  OrderedItem,
-  Prompt,
-  PromptItem,
-  PromptMarkerType,
-} from '@/lib/chat'
-import { mergePrompts, newPrompt } from '@/lib/chat/prompts'
+import type { OrderedItem, Prompt, PromptItem } from '@/lib/chat'
+import { mergePrompts, newPrompt, upsertPrompt } from '@/lib/chat/prompts'
 import type { MergedPromptItem } from '@/lib/chat/prompts'
 import {
   ensurePromptMarkers,
   promptItemKey,
 } from '@sb/convex/model/prompt/markers'
-import { useEffect } from 'react'
-import type { Control, UseFormSetValue } from 'react-hook-form'
+import type { Control } from 'react-hook-form'
 import { useController, useWatch } from 'react-hook-form'
 
-import type { AgentFormValues } from './agent-form'
+import { AGENT_PROMPT_MARKERS, type AgentFormValues } from './agent-form'
 
 type AgentPromptListProps = {
   control: Control<AgentFormValues>
-  setValue: UseFormSetValue<AgentFormValues>
 }
-
-const MARKERS: PromptMarkerType[] = ['message-history', 'system-boundary']
 
 function toOrderedItem(m: MergedPromptItem): OrderedItem {
   const id = promptItemKey(m.item)
@@ -32,7 +23,7 @@ function toOrderedItem(m: MergedPromptItem): OrderedItem {
   return { kind: 'own', id }
 }
 
-export function AgentPromptList({ control, setValue }: AgentPromptListProps) {
+export function AgentPromptList({ control }: AgentPromptListProps) {
   const settings = useSettings()
   const globalPrompts = settings?.globalPrompts ?? []
   const libraryPrompts = (settings?.libraryPrompts ?? []) as Prompt[]
@@ -44,7 +35,8 @@ export function AgentPromptList({ control, setValue }: AgentPromptListProps) {
     name: 'globalPromptsEnabled',
   })
 
-  const prompts = ensurePromptMarkers(promptsField.value, MARKERS)
+  // Display-only normalisation
+  const prompts = ensurePromptMarkers(promptsField.value, AGENT_PROMPT_MARKERS)
   const promptOrder = orderField.value
 
   const mergeResult = mergePrompts(
@@ -52,23 +44,6 @@ export function AgentPromptList({ control, setValue }: AgentPromptListProps) {
     globalPrompts,
     libraryPrompts,
   )
-
-  useEffect(() => {
-    // Keep the field in sync with the markers, or reorders reference items the
-    // stored list doesn't have. Adding a structural marker isn't a user edit.
-    if (prompts !== promptsField.value) {
-      setValue('prompts', prompts, { shouldDirty: false })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prompts])
-
-  useEffect(() => {
-    if (mergeResult.cleanedOrder) {
-      // Prompt merge operations don't count as user edits
-      setValue('promptOrder', mergeResult.cleanedOrder, { shouldDirty: false })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mergeResult.cleanedOrder])
 
   const referencedLibraryIds = new Set(
     (promptOrder ?? [])
@@ -107,9 +82,11 @@ export function AgentPromptList({ control, setValue }: AgentPromptListProps) {
   }
 
   function handleEdit(key: string, data: Partial<Prompt>) {
-    promptsField.onChange(
-      prompts.map((p) => (promptItemKey(p) === key ? { ...p, ...data } : p)),
-    )
+    const isNew = !prompts.some((p) => promptItemKey(p) === key)
+    promptsField.onChange(upsertPrompt(prompts, key, data))
+    if (isNew && promptOrder) {
+      orderField.onChange([...promptOrder, { kind: 'own' as const, id: key }])
+    }
   }
 
   function handleDelete(key: string) {

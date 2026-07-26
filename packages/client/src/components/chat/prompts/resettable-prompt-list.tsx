@@ -6,6 +6,7 @@ import type {
   PromptItem,
   PromptMarkerType,
 } from '@/lib/chat'
+import { upsertPrompt } from '@/lib/chat/prompts'
 import {
   ensurePromptMarkers,
   promptItemKey,
@@ -56,13 +57,7 @@ export function ResettablePromptList({
   }
 
   function handleEdit(key: string, data: Partial<Prompt>) {
-    onChange(
-      items.map((item) =>
-        promptItemKey(item) === key && !('type' in item)
-          ? { ...item, ...data }
-          : item,
-      ),
-    )
+    onChange(upsertPrompt(items, key, data))
   }
 
   function handleDelete(key: string) {

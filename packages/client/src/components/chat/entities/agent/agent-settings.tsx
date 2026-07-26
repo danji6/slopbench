@@ -13,12 +13,15 @@ import {
   useAgentEditorView,
   useOpenAgentEditor,
 } from '@/hooks/chat/agent-editor'
+import { useFormDraft } from '@/hooks/chat/form-draft'
 import { useHttpAction } from '@/hooks/http'
-import { useViewCloseGuard } from '@/hooks/view'
 import { setThemePreview } from '@/hooks/theme'
+import { useViewCloseGuard } from '@/hooks/view'
 import { type AvatarUploadResult, avatarUploadForm } from '@/lib/chat/avatar'
+import { agentSettingsDraftKey } from '@/lib/chat/editor-draft-store'
 import { cn } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
+import { ensurePromptMarkers } from '@sb/convex/model/prompt/markers'
 import { useMutation } from 'convex/react'
 import {
   ActivityIcon,
@@ -33,6 +36,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 
 import {
+  AGENT_PROMPT_MARKERS,
   type AgentFormValues,
   agentToFormValues,
   formValuesToPatch,
@@ -49,7 +53,7 @@ import { ToolSettings } from './tool-settings'
 const EMPTY_FORM: AgentFormValues = {
   name: '',
   description: '',
-  prompts: [],
+  prompts: ensurePromptMarkers([], AGENT_PROMPT_MARKERS),
   promptOrder: undefined,
   globalPromptsEnabled: true,
   reminderPrompts: [],
@@ -94,9 +98,15 @@ export function AgentSettings() {
     setAvatarCleared(false)
   }
 
+  const draft = useFormDraft(
+    agentId ? agentSettingsDraftKey(agentId) : undefined,
+    form,
+  )
+
   useEffect(() => {
     if (!open) return
     form.reset(editingAgent ? agentToFormValues(editingAgent) : EMPTY_FORM)
+    if (editingAgent) draft.restore()
     // Sync from the live doc on agent switch or when (re)opening the editor
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentId, open])
@@ -130,6 +140,7 @@ export function AgentSettings() {
 
   function discard() {
     form.reset()
+    draft.clear()
     setPendingAvatar(null)
     setAvatarCleared(false)
   }
@@ -168,6 +179,7 @@ export function AgentSettings() {
     }
     await updateAgent(await formValuesToPatch(agentId, values))
     form.reset(values)
+    draft.clear()
   }
 
   // Apply persists but keeps the editor open; Save persists then closes.
@@ -260,10 +272,7 @@ export function AgentSettings() {
                 <SubagentSettings control={form.control} />
               </SettingsTabs.Content>
               <SettingsTabs.Content value="behavior" title="Behavior">
-                <BehaviorSettings
-                  control={form.control}
-                  setValue={form.setValue}
-                />
+                <BehaviorSettings control={form.control} />
               </SettingsTabs.Content>
               <SettingsTabs.Content value="appearance" title="Appearance">
                 <AppearanceSettings control={form.control} />

@@ -1,6 +1,8 @@
 /// <reference types="bun-types" />
 import {
   SCRIPTS_DRAFT_KEY,
+  USER_SETTINGS_DRAFT_KEY,
+  agentSettingsDraftKey,
   clearEditorDraft,
   getEditorDraft,
   promptDraftKey,
@@ -34,6 +36,46 @@ describe('draft keys', () => {
     expect(SCRIPTS_DRAFT_KEY).toBe('scripts')
     expect(promptDraftKey('abc')).not.toBe(reminderDraftKey('abc'))
   })
+
+  test('give each agent its own settings draft', () => {
+    expect(agentSettingsDraftKey('a1')).toBe('agent-settings:a1')
+    expect(agentSettingsDraftKey('a1')).not.toBe(agentSettingsDraftKey('a2'))
+    expect(USER_SETTINGS_DRAFT_KEY).toBe('user-settings')
+  })
+
+  test('never collide a settings form with an editor on the same id', () => {
+    // A prompt editor and a settings form can be open at once, each holding a
+    // different slice of the same unsaved work.
+    expect(agentSettingsDraftKey('x')).not.toBe(promptDraftKey('x'))
+    expect(agentSettingsDraftKey('x')).not.toBe(reminderDraftKey('x'))
+  })
+})
+
+describe('settings form drafts', () => {
+  test('round-trip a form draft with an unapplied prompt', () => {
+    // The case that motivated form drafting: a prompt that was added but never
+    // applied exists nowhere but the form.
+    const values = {
+      name: 'Agent',
+      prompts: [{ id: 'p-new', name: 'Added', content: 'Typed.' }],
+    }
+    setEditorDraft(agentSettingsDraftKey('a1'), values)
+
+    expect(getEditorDraft<typeof values>(agentSettingsDraftKey('a1'))).toEqual(
+      values,
+    )
+  })
+
+  test('keep each agent draft independent', () => {
+    setEditorDraft(agentSettingsDraftKey('a1'), { name: 'One' })
+    setEditorDraft(agentSettingsDraftKey('a2'), { name: 'Two' })
+    clearEditorDraft(agentSettingsDraftKey('a1'))
+
+    expect(getEditorDraft(agentSettingsDraftKey('a1'))).toBeUndefined()
+    expect(
+      getEditorDraft<{ name: string }>(agentSettingsDraftKey('a2')),
+    ).toEqual({ name: 'Two' })
+  })
 })
 
 describe('get/set/clear', () => {
@@ -50,7 +92,9 @@ describe('get/set/clear', () => {
   test('overwrites rather than merging', () => {
     setEditorDraft(promptDraftKey('p1'), { name: 'a', content: 'x' })
     setEditorDraft(promptDraftKey('p1'), { name: 'b' })
-    expect(getEditorDraft<PromptDraft>(promptDraftKey('p1'))).toEqual({ name: 'b' })
+    expect(getEditorDraft<PromptDraft>(promptDraftKey('p1'))).toEqual({
+      name: 'b',
+    })
   })
 
   test('clear removes only its own key', () => {
@@ -59,7 +103,9 @@ describe('get/set/clear', () => {
     clearEditorDraft(promptDraftKey('p1'))
 
     expect(getEditorDraft(promptDraftKey('p1'))).toBeUndefined()
-    expect(getEditorDraft<PromptDraft>(promptDraftKey('p2'))).toEqual({ name: 'b' })
+    expect(getEditorDraft<PromptDraft>(promptDraftKey('p2'))).toEqual({
+      name: 'b',
+    })
   })
 
   test('clearing an absent key does not write', () => {
@@ -92,7 +138,9 @@ describe('eviction', () => {
       name: 'newest',
     })
     expect(getEditorDraft(promptDraftKey('p0'))).toBeUndefined()
-    expect(getEditorDraft<PromptDraft>(promptDraftKey(`p${MAX_ENTRIES - 1}`))).toEqual({
+    expect(
+      getEditorDraft<PromptDraft>(promptDraftKey(`p${MAX_ENTRIES - 1}`)),
+    ).toEqual({
       name: `n${MAX_ENTRIES - 1}`,
     })
   })

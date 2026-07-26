@@ -30,6 +30,14 @@ export function reminderDraftKey(reminderId: string): string {
 /** Draft key for the script manager, which edits one list at a time. */
 export const SCRIPTS_DRAFT_KEY = 'scripts'
 
+/** Draft key for one agent's settings form. */
+export function agentSettingsDraftKey(agentId: string): string {
+  return `agent-settings:${agentId}`
+}
+
+/** Draft key for the user settings form, of which there is only one. */
+export const USER_SETTINGS_DRAFT_KEY = 'user-settings'
+
 export function getEditorDraft<T>(key: string): T | undefined {
   return store.get()[key]?.value as T | undefined
 }
