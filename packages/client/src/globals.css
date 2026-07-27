@@ -1,7 +1,8 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
-@custom-variant dark (&:is(.dark *));
+/* Keep light subtrees scoped. */
+@custom-variant dark (&:is(.dark, .dark *):not(:is(.light, .light *)));
 
 @theme inline {
   /* Material You variables */
@@ -127,7 +128,6 @@
 
 :root {
   --radius: 0.625rem;
-  --harmony: 30%;
 
   --source-color: #8a771d;
   --primary-palette-key-color: #89761c;
@@ -188,7 +188,10 @@
   --tertiary-fixed-dim: #aed285;
   --on-tertiary-fixed: #0f2000;
   --on-tertiary-fixed-variant: #324f11;
+}
 
+:root,
+.theme-scope {
   --base-background: var(--surface);
   --base-foreground: var(--on-surface);
   --base-sidebar-ring: var(--outline);
@@ -229,6 +232,17 @@
   --base-card-foreground: var(--on-surface);
   --base-card: var(--surface-container-low);
 
+  --radial: radial-gradient(
+    at bottom left,
+    var(--base-secondary),
+    var(--base-background)
+  );
+}
+
+:root,
+.theme-scope.light {
+  --harmony: 30%;
+
   --chart-1: color-mix(
     in oklch,
     oklch(0.646 0.222 41.116),
@@ -253,12 +267,6 @@
     in oklch,
     oklch(0.769 0.188 70.08),
     var(--primary) var(--harmony)
-  );
-
-  --radial: radial-gradient(
-    at bottom left,
-    var(--base-secondary),
-    var(--base-background)
   );
 
   --shiki-fg: var(--on-surface);

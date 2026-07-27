@@ -56,14 +56,23 @@ function safeDecode(value: string): string {
   }
 }
 
-export function parseViewPath(search: string): ViewSegment[] {
-  const raw = readRawParam(search, VIEW_PARAM)
+/** The `?view=` value of a search string, still encoded. */
+export function readViewParam(search: string): string {
+  return readRawParam(search, VIEW_PARAM) ?? ''
+}
+
+/** Parses a `?view=` value, as returned by {@link readViewParam}. */
+export function parseViewSegments(raw: string): ViewSegment[] {
   if (!raw) return []
 
   return raw
     .split(SEGMENT_SEPARATOR)
     .map(parseSegment)
     .filter((segment): segment is ViewSegment => segment !== null)
+}
+
+export function parseViewPath(search: string): ViewSegment[] {
+  return parseViewSegments(readViewParam(search))
 }
 
 /** Serializes a path into the `?view=` value. Empty for an empty path. */

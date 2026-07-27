@@ -11,8 +11,6 @@ import {
 } from '@sb/convex/model/defaults'
 import { useEffect, useSyncExternalStore } from 'react'
 
-export type FontPreview = { uiFont?: string | null }
-
 export type ResolvedFonts = {
   uiFont: string
   monoFont: string
@@ -56,25 +54,6 @@ export function resolveFonts(
 
 export function useResolvedFonts(): ResolvedFonts {
   return resolveFonts(useSettings(), useSettingsOverride())
-}
-
-let fontPreview: FontPreview = {}
-const previewListeners = new Set<() => void>()
-
-export function useFontPreview(): FontPreview {
-  return useSyncExternalStore(
-    (listener) => {
-      previewListeners.add(listener)
-      return () => previewListeners.delete(listener)
-    },
-    () => fontPreview,
-    () => fontPreview,
-  )
-}
-
-export function setFontPreview(next: FontPreview | null) {
-  fontPreview = next ?? {}
-  previewListeners.forEach((listener) => listener())
 }
 
 export function useFont(font: string) {

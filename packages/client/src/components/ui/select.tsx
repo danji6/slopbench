@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { useThemeScope } from '@/providers/theme-scope'
 import { Select as SelectPrimitive } from '@base-ui/react/select'
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from 'lucide-react'
 
@@ -74,6 +75,8 @@ function SelectContent({
     SelectPrimitive.Positioner.Props,
     'align' | 'alignOffset' | 'side' | 'sideOffset' | 'alignItemWithTrigger'
   >) {
+  const themeScope = useThemeScope()
+
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Positioner
@@ -82,7 +85,7 @@ function SelectContent({
         align={align}
         alignOffset={alignOffset}
         alignItemWithTrigger={alignItemWithTrigger}
-        className="isolate z-60"
+        className={cn('isolate z-60', themeScope)}
       >
         <SelectPrimitive.Popup
           data-slot="select-content"

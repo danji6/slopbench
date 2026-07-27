@@ -15,11 +15,12 @@ import {
 } from '@/hooks/chat/agent-editor'
 import { useFormDraft } from '@/hooks/chat/form-draft'
 import { useHttpAction } from '@/hooks/http'
-import { setThemePreview } from '@/hooks/theme'
+import { useScopedTheme } from '@/hooks/theme'
 import { useViewCloseGuard } from '@/hooks/view'
 import { type AvatarUploadResult, avatarUploadForm } from '@/lib/chat/avatar'
 import { agentSettingsDraftKey } from '@/lib/chat/editor-draft-store'
 import { cn } from '@/lib/utils'
+import { ThemeScope } from '@/providers/theme-scope'
 import { api } from '@sb/convex/_generated/api'
 import { ensurePromptMarkers } from '@sb/convex/model/prompt/markers'
 import { useMutation } from 'convex/react'
@@ -32,7 +33,7 @@ import {
   UserIcon,
   WrenchIcon,
 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 
 import {
@@ -112,25 +113,17 @@ export function AgentSettings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentId, open])
 
-  // Live preview theme
+  // The theme is previewed inside the dialog, while its tab is open
   const settings = useSettings()
   const globalThemeColor = settings?.theme?.source ?? null
-  const themePreviewActive = useRef(false)
-  const clearThemePreview = useCallback(() => {
-    if (!themePreviewActive.current) return
-    themePreviewActive.current = false
-    setThemePreview(null)
-  }, [])
   const previewThemeColor = useWatch({
     control: form.control,
     name: 'themeColor',
   })
-  useEffect(() => {
-    if (!open) return
-    themePreviewActive.current = true
-    setThemePreview({ themeColor: previewThemeColor || globalThemeColor })
-  }, [open, previewThemeColor, globalThemeColor])
-  useEffect(() => clearThemePreview, [clearThemePreview])
+  const previewing = open && activeTab === 'appearance'
+  const themeScope = useScopedTheme(
+    previewing ? previewThemeColor || globalThemeColor : null,
+  )
 
   const isDirty =
     form.formState.isDirty || pendingAvatar !== null || avatarCleared
@@ -191,107 +184,115 @@ export function AgentSettings() {
   })
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => !next && guard(close)}
-      onOpenChangeComplete={(nextOpen) => {
-        if (!nextOpen) clearThemePreview()
-      }}
-    >
-      <Dialog.Content
-        showCloseButton={false}
-        className="flex h-[min(95svh,900px)] max-w-3xl flex-col gap-0 p-0"
-      >
-        <Dialog.Header className="flex flex-col justify-between border-b px-6 py-4 text-left sm:flex-row sm:items-center">
-          <div className="flex flex-col gap-2 text-left">
-            <Dialog.Title>Agents</Dialog.Title>
-            <Dialog.Description className="text-muted-foreground">
-              Manage your agents.
-            </Dialog.Description>
-          </div>
-          <AgentPicker
-            className="mt-2 w-fit max-w-full min-w-80"
-            confirmSwitch={guard}
-          />
-        </Dialog.Header>
-
-        {!editingAgent ? (
-          <p className="text-muted-foreground mt-8 px-4 text-center text-sm">
-            Select or create an agent to edit its settings.
-          </p>
-        ) : (
-          <form className="flex min-h-0 flex-1 flex-col" onSubmit={apply}>
-            <SettingsTabs
-              value={activeTab}
-              onValueChange={(tab: string) => view.setValue(tab)}
-              className="min-h-0 flex-1"
-            >
-              <SettingsTabs.List className="border-border">
-                <SettingsTabs.Trigger value="profile" icon={<UserIcon />}>
-                  Profile
-                </SettingsTabs.Trigger>
-                <SettingsTabs.Trigger value="behavior" icon={<ActivityIcon />}>
-                  Behavior
-                </SettingsTabs.Trigger>
-                <SettingsTabs.Trigger value="context" icon={<LayersIcon />}>
-                  Context
-                </SettingsTabs.Trigger>
-                <SettingsTabs.Trigger value="model" icon={<BotIcon />}>
-                  Model
-                </SettingsTabs.Trigger>
-                <SettingsTabs.Trigger value="tools" icon={<WrenchIcon />}>
-                  Tools
-                </SettingsTabs.Trigger>
-                <SettingsTabs.Trigger value="subagents" icon={<NetworkIcon />}>
-                  Sub-agents
-                </SettingsTabs.Trigger>
-                <SettingsTabs.Trigger value="appearance" icon={<PaletteIcon />}>
-                  Appearance
-                </SettingsTabs.Trigger>
-              </SettingsTabs.List>
-
-              <SettingsTabs.Content value="profile" title="Profile">
-                <ProfileSettings
-                  control={form.control}
-                  avatarId={editingAgent.avatarId}
-                  pendingAvatar={pendingAvatar}
-                  avatarCleared={avatarCleared}
-                  onStageAvatar={handleStageAvatar}
-                  onClearAvatar={() => setAvatarCleared(true)}
-                />
-              </SettingsTabs.Content>
-              <SettingsTabs.Content value="model" title="Model">
-                <ModelSettings control={form.control} />
-              </SettingsTabs.Content>
-              <SettingsTabs.Content value="context" title="Context">
-                <ContextSettings control={form.control} />
-              </SettingsTabs.Content>
-              <SettingsTabs.Content value="tools" title="Tools">
-                <ToolSettings control={form.control} />
-              </SettingsTabs.Content>
-              <SettingsTabs.Content value="subagents" title="Sub-agents">
-                <SubagentSettings control={form.control} />
-              </SettingsTabs.Content>
-              <SettingsTabs.Content value="behavior" title="Behavior">
-                <BehaviorSettings control={form.control} />
-              </SettingsTabs.Content>
-              <SettingsTabs.Content value="appearance" title="Appearance">
-                <AppearanceSettings control={form.control} />
-              </SettingsTabs.Content>
-            </SettingsTabs>
-
-            <SettingsFooter
-              isDirty={isDirty}
-              onClose={close}
-              onDiscard={() => {
-                discard()
-                close()
-              }}
-              onSave={save}
+    <Dialog open={open} onOpenChange={(next) => !next && guard(close)}>
+      <ThemeScope className={themeScope}>
+        <Dialog.Content
+          showCloseButton={false}
+          className={cn(
+            'flex h-[min(95svh,900px)] max-w-3xl flex-col gap-0 p-0',
+            themeScope,
+          )}
+        >
+          <Dialog.Header className="flex flex-col justify-between border-b px-6 py-4 text-left sm:flex-row sm:items-center">
+            <div className="flex flex-col gap-2 text-left">
+              <Dialog.Title>Agents</Dialog.Title>
+              <Dialog.Description className="text-muted-foreground">
+                Manage your agents.
+              </Dialog.Description>
+            </div>
+            <AgentPicker
+              className="mt-2 w-fit max-w-full min-w-80"
+              confirmSwitch={guard}
             />
-          </form>
-        )}
-      </Dialog.Content>
+          </Dialog.Header>
+
+          {!editingAgent ? (
+            <p className="text-muted-foreground mt-8 px-4 text-center text-sm">
+              Select or create an agent to edit its settings.
+            </p>
+          ) : (
+            <form className="flex min-h-0 flex-1 flex-col" onSubmit={apply}>
+              <SettingsTabs
+                value={activeTab}
+                onValueChange={(tab: string) => view.setValue(tab)}
+                className="min-h-0 flex-1"
+              >
+                <SettingsTabs.List className="border-border">
+                  <SettingsTabs.Trigger value="profile" icon={<UserIcon />}>
+                    Profile
+                  </SettingsTabs.Trigger>
+                  <SettingsTabs.Trigger
+                    value="behavior"
+                    icon={<ActivityIcon />}
+                  >
+                    Behavior
+                  </SettingsTabs.Trigger>
+                  <SettingsTabs.Trigger value="context" icon={<LayersIcon />}>
+                    Context
+                  </SettingsTabs.Trigger>
+                  <SettingsTabs.Trigger value="model" icon={<BotIcon />}>
+                    Model
+                  </SettingsTabs.Trigger>
+                  <SettingsTabs.Trigger value="tools" icon={<WrenchIcon />}>
+                    Tools
+                  </SettingsTabs.Trigger>
+                  <SettingsTabs.Trigger
+                    value="subagents"
+                    icon={<NetworkIcon />}
+                  >
+                    Sub-agents
+                  </SettingsTabs.Trigger>
+                  <SettingsTabs.Trigger
+                    value="appearance"
+                    icon={<PaletteIcon />}
+                  >
+                    Appearance
+                  </SettingsTabs.Trigger>
+                </SettingsTabs.List>
+
+                <SettingsTabs.Content value="profile" title="Profile">
+                  <ProfileSettings
+                    control={form.control}
+                    avatarId={editingAgent.avatarId}
+                    pendingAvatar={pendingAvatar}
+                    avatarCleared={avatarCleared}
+                    onStageAvatar={handleStageAvatar}
+                    onClearAvatar={() => setAvatarCleared(true)}
+                  />
+                </SettingsTabs.Content>
+                <SettingsTabs.Content value="model" title="Model">
+                  <ModelSettings control={form.control} />
+                </SettingsTabs.Content>
+                <SettingsTabs.Content value="context" title="Context">
+                  <ContextSettings control={form.control} />
+                </SettingsTabs.Content>
+                <SettingsTabs.Content value="tools" title="Tools">
+                  <ToolSettings control={form.control} />
+                </SettingsTabs.Content>
+                <SettingsTabs.Content value="subagents" title="Sub-agents">
+                  <SubagentSettings control={form.control} />
+                </SettingsTabs.Content>
+                <SettingsTabs.Content value="behavior" title="Behavior">
+                  <BehaviorSettings control={form.control} />
+                </SettingsTabs.Content>
+                <SettingsTabs.Content value="appearance" title="Appearance">
+                  <AppearanceSettings control={form.control} />
+                </SettingsTabs.Content>
+              </SettingsTabs>
+
+              <SettingsFooter
+                isDirty={isDirty}
+                onClose={close}
+                onDiscard={() => {
+                  discard()
+                  close()
+                }}
+                onSave={save}
+              />
+            </form>
+          )}
+        </Dialog.Content>
+      </ThemeScope>
 
       <ConfirmDialog
         open={pendingAction !== null || closeGuard.pending}

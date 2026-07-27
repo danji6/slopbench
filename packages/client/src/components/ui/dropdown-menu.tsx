@@ -1,5 +1,5 @@
-
 import { cn } from '@/lib/utils'
+import { useThemeScope } from '@/providers/theme-scope'
 import { Menu as MenuPrimitive } from '@base-ui/react/menu'
 import { CheckIcon, ChevronRightIcon } from 'lucide-react'
 
@@ -29,10 +29,12 @@ function DropdownMenuContent({
     MenuPrimitive.Positioner.Props,
     'align' | 'alignOffset' | 'side' | 'sideOffset'
   >) {
+  const themeScope = useThemeScope()
+
   return (
     <MenuPrimitive.Portal>
       <MenuPrimitive.Positioner
-        className="isolate z-60 outline-none"
+        className={cn('isolate z-60 outline-none', themeScope)}
         align={align}
         alignOffset={alignOffset}
         side={side}

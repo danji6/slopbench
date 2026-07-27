@@ -4,3 +4,4 @@
 
 export * from './convex'
 export * from './font'
+export * from './theme-scope'

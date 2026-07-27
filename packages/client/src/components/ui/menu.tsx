@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { useThemeScope } from '@/providers/theme-scope'
 import { Menu as MenuPrimitive } from '@base-ui/react/menu'
 import { CheckIcon, ChevronRightIcon, CircleIcon } from 'lucide-react'
 
@@ -19,12 +20,14 @@ function MenuPositioner({
   className,
   ...props
 }: MenuPrimitive.Positioner.Props) {
+  const themeScope = useThemeScope()
+
   return (
     <MenuPrimitive.Portal>
       <MenuPrimitive.Positioner
         data-slot="menu-positioner"
         sideOffset={sideOffset}
-        className={cn('z-50', className)}
+        className={cn('z-50', themeScope, className)}
         {...props}
       />
     </MenuPrimitive.Portal>

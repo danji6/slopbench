@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { useThemeScope } from '@/providers/theme-scope'
 import { Tooltip as TooltipPrimitive } from '@base-ui/react/tooltip'
 
 function TooltipProvider({
@@ -35,6 +36,8 @@ function TooltipContent({
     TooltipPrimitive.Positioner.Props,
     'align' | 'alignOffset' | 'side' | 'sideOffset'
   >) {
+  const themeScope = useThemeScope()
+
   return (
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Positioner
@@ -42,7 +45,7 @@ function TooltipContent({
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
-        className="z-55"
+        className={cn('z-55', themeScope)}
       >
         <TooltipPrimitive.Popup
           data-slot="tooltip-content"

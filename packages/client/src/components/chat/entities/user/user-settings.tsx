@@ -6,6 +6,7 @@ import {
   SettingsFooter,
   SettingsTabs,
 } from '@/components/ui'
+import { getFontFamily } from '@/fonts'
 import {
   useClearProfileAvatar,
   useSettings,
@@ -13,8 +14,8 @@ import {
   useUploadProfileAvatar,
 } from '@/hooks/chat'
 import { useFormDraft } from '@/hooks/chat/form-draft'
-import { FONT_OVERRIDE_KEYS, setFontPreview } from '@/hooks/font'
-import { setThemePreview } from '@/hooks/theme'
+import { FONT_OVERRIDE_KEYS } from '@/hooks/font'
+import { useScopedTheme } from '@/hooks/theme'
 import { useView, useViewCloseGuard } from '@/hooks/view'
 import { USER_SETTINGS_DRAFT_KEY } from '@/lib/chat/editor-draft-store'
 import {
@@ -24,6 +25,7 @@ import {
 } from '@/lib/settings-override'
 import { snapshotTheme } from '@/lib/theme-worker'
 import { cn, generateId } from '@/lib/utils'
+import { ThemeScope } from '@/providers/theme-scope'
 import { api } from '@sb/convex/_generated/api'
 import {
   DEFAULT_SETTINGS,
@@ -45,7 +47,7 @@ import {
   UserIcon,
   WrenchIcon,
 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 
 import { AppearanceSettings } from './appearance-settings'
@@ -159,25 +161,6 @@ function ChatSettingsDialog({
   // Initialize after settings load, so staged profile fields are not reset
   // to empty mid-edit.
   const initialized = useRef(false)
-  const themePreviewActive = useRef(false)
-  const fontPreviewActive = useRef(false)
-
-  const clearThemePreview = useCallback(() => {
-    if (!themePreviewActive.current) return
-    themePreviewActive.current = false
-    setThemePreview(null)
-  }, [])
-
-  const clearFontPreview = useCallback(() => {
-    if (!fontPreviewActive.current) return
-    fontPreviewActive.current = false
-    setFontPreview(null)
-  }, [])
-
-  const clearPreviews = useCallback(() => {
-    clearThemePreview()
-    clearFontPreview()
-  }, [clearFontPreview, clearThemePreview])
 
   useEffect(() => {
     if (!open) {
@@ -238,7 +221,8 @@ function ChatSettingsDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, settings])
 
-  // Preview appearance changes live while the dialog is open
+  // Appearance is previewed inside the dialog, while its tab is open
+  const previewing = open && activeTab === 'appearance'
   const previewColor = useWatch({
     control: form.control,
     name: 'themeColor',
@@ -261,21 +245,17 @@ function ChatSettingsDialog({
   })
   const previewUiFont = overrideFonts ? localUiFont : syncedUiFont
 
-  // Theme preview
-  useEffect(() => {
-    if (!open || !initialized.current) return
-    themePreviewActive.current = true
-    setThemePreview({ themeColor: previewColor, themeMode: previewMode })
-  }, [open, previewColor, previewMode])
-
-  // UI Font preview
-  useEffect(() => {
-    if (!open || !initialized.current) return
-    fontPreviewActive.current = true
-    setFontPreview({ uiFont: previewUiFont })
-  }, [open, previewUiFont])
-
-  useEffect(() => clearPreviews, [clearPreviews])
+  const themeScope = useScopedTheme(
+    previewing ? previewColor : null,
+    previewing ? previewMode : null,
+  )
+  const fontScope = useMemo<CSSProperties | undefined>(
+    () =>
+      previewing && previewUiFont
+        ? ({ '--font-sans': getFontFamily(previewUiFont) } as CSSProperties)
+        : undefined,
+    [previewing, previewUiFont],
+  )
 
   const isDirty =
     form.formState.isDirty || pendingAvatar !== null || avatarCleared
@@ -371,85 +351,85 @@ function ChatSettingsDialog({
   if (!settings) return null
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={handleOpenChange}
-      onOpenChangeComplete={(nextOpen) => {
-        if (!nextOpen) clearPreviews()
-      }}
-    >
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <Dialog.Trigger render={trigger} />
-      <Dialog.Content
-        showCloseButton={false}
-        className="flex h-[min(95svh,800px)] flex-col p-0 sm:max-w-2xl"
-      >
-        <form className="flex min-h-0 flex-1 flex-col" onSubmit={apply}>
-          <Dialog.Header className="px-6 py-4">
-            <Dialog.Title>Settings</Dialog.Title>
-          </Dialog.Header>
-          <SettingsTabs
-            value={activeTab}
-            onValueChange={(tab: string) => view.setValue(tab)}
-            className="border-border min-h-0 flex-1 border-t"
-          >
-            <SettingsTabs.List className="border-border">
-              <SettingsTabs.Trigger value="user" icon={<UserIcon />}>
-                Profile
-              </SettingsTabs.Trigger>
-              <SettingsTabs.Trigger value="behavior" icon={<ActivityIcon />}>
-                Behavior
-              </SettingsTabs.Trigger>
-              <SettingsTabs.Trigger value="models" icon={<BotIcon />}>
-                Models
-              </SettingsTabs.Trigger>
-              <SettingsTabs.Trigger value="tools" icon={<WrenchIcon />}>
-                Tools
-              </SettingsTabs.Trigger>
-              <SettingsTabs.Trigger value="appearance" icon={<PaletteIcon />}>
-                Appearance
-              </SettingsTabs.Trigger>
-            </SettingsTabs.List>
+      <ThemeScope className={themeScope}>
+        <Dialog.Content
+          showCloseButton={false}
+          style={fontScope}
+          className={cn(
+            'flex h-[min(95svh,800px)] flex-col p-0 sm:max-w-2xl',
+            themeScope,
+          )}
+        >
+          <form className="flex min-h-0 flex-1 flex-col" onSubmit={apply}>
+            <Dialog.Header className="px-6 py-4">
+              <Dialog.Title>Settings</Dialog.Title>
+            </Dialog.Header>
+            <SettingsTabs
+              value={activeTab}
+              onValueChange={(tab: string) => view.setValue(tab)}
+              className="border-border min-h-0 flex-1 border-t"
+            >
+              <SettingsTabs.List className="border-border">
+                <SettingsTabs.Trigger value="user" icon={<UserIcon />}>
+                  Profile
+                </SettingsTabs.Trigger>
+                <SettingsTabs.Trigger value="behavior" icon={<ActivityIcon />}>
+                  Behavior
+                </SettingsTabs.Trigger>
+                <SettingsTabs.Trigger value="models" icon={<BotIcon />}>
+                  Models
+                </SettingsTabs.Trigger>
+                <SettingsTabs.Trigger value="tools" icon={<WrenchIcon />}>
+                  Tools
+                </SettingsTabs.Trigger>
+                <SettingsTabs.Trigger value="appearance" icon={<PaletteIcon />}>
+                  Appearance
+                </SettingsTabs.Trigger>
+              </SettingsTabs.List>
 
-            <SettingsTabs.Content value="user" title="User">
-              <ProfileSettings
-                control={form.control}
-                avatarId={settings.avatarId}
-                pendingAvatar={pendingAvatar}
-                avatarCleared={avatarCleared}
-                onStageAvatar={handleStageAvatar}
-                onClearAvatar={() => setAvatarCleared(true)}
-              />
-            </SettingsTabs.Content>
+              <SettingsTabs.Content value="user" title="User">
+                <ProfileSettings
+                  control={form.control}
+                  avatarId={settings.avatarId}
+                  pendingAvatar={pendingAvatar}
+                  avatarCleared={avatarCleared}
+                  onStageAvatar={handleStageAvatar}
+                  onClearAvatar={() => setAvatarCleared(true)}
+                />
+              </SettingsTabs.Content>
 
-            <SettingsTabs.Content value="behavior" title="Behavior">
-              <BehaviorSettings control={form.control} />
-            </SettingsTabs.Content>
+              <SettingsTabs.Content value="behavior" title="Behavior">
+                <BehaviorSettings control={form.control} />
+              </SettingsTabs.Content>
 
-            <SettingsTabs.Content value="appearance" title="Appearance">
-              <AppearanceSettings
-                control={form.control}
-                setValue={form.setValue}
-              />
-            </SettingsTabs.Content>
+              <SettingsTabs.Content value="appearance" title="Appearance">
+                <AppearanceSettings
+                  control={form.control}
+                  setValue={form.setValue}
+                />
+              </SettingsTabs.Content>
 
-            <SettingsTabs.Content value="models" title="Models">
-              <ModelSettings control={form.control} providers={providerIds} />
-            </SettingsTabs.Content>
+              <SettingsTabs.Content value="models" title="Models">
+                <ModelSettings control={form.control} providers={providerIds} />
+              </SettingsTabs.Content>
 
-            <SettingsTabs.Content value="tools" title="Tools">
-              <WebSearchSettings control={form.control} />
-              <McpSettings control={form.control} />
-            </SettingsTabs.Content>
-          </SettingsTabs>
+              <SettingsTabs.Content value="tools" title="Tools">
+                <WebSearchSettings control={form.control} />
+                <McpSettings control={form.control} />
+              </SettingsTabs.Content>
+            </SettingsTabs>
 
-          <SettingsFooter
-            isDirty={isDirty}
-            onClose={handleClose}
-            onDiscard={handleDiscard}
-            onSave={save}
-          />
-        </form>
-      </Dialog.Content>
+            <SettingsFooter
+              isDirty={isDirty}
+              onClose={handleClose}
+              onDiscard={handleDiscard}
+              onSave={save}
+            />
+          </form>
+        </Dialog.Content>
+      </ThemeScope>
 
       <ConfirmDialog
         open={closeGuard.pending}

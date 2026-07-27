@@ -1,7 +1,6 @@
-import { matchesViewSegment } from '@/lib/view'
 import { useMemo } from 'react'
 
-import { useView, useViewPath } from './view'
+import { useView } from './view'
 
 /**
  * `?view=` segment carrying the id of the editor currently expanded to fill the
@@ -18,9 +17,8 @@ export type FullscreenHandle = {
 
 /** Expanded state for the editor known as `id`. */
 export function useFullscreenView(id: string): FullscreenHandle {
-  const path = useViewPath()
   const view = useView(FULLSCREEN_VIEW)
-  const active = matchesViewSegment(path, FULLSCREEN_VIEW, id)
+  const active = view.value === id
 
   const { open, close } = view
   return useMemo(

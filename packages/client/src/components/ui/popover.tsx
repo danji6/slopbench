@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { useThemeScope } from '@/providers/theme-scope'
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover'
 import { createContext, useContext, useEffect, useRef } from 'react'
 
@@ -39,6 +40,7 @@ function PopoverContent({
     'align' | 'alignOffset' | 'positionMethod' | 'side' | 'sideOffset'
   >) {
   const actionsRef = useContext(PopoverActionsContext)
+  const themeScope = useThemeScope()
 
   return (
     <PopoverPrimitive.Portal>
@@ -51,6 +53,7 @@ function PopoverContent({
         className={(state) =>
           cn(
             'isolate z-55',
+            themeScope,
             state.anchorHidden && 'pointer-events-none opacity-0',
           )
         }

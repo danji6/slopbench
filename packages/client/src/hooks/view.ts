@@ -1,13 +1,16 @@
 import type { SegmentOptions, ViewSegment } from '@/lib/view'
 import {
   findViewSegment,
+  formatViewPath,
   parseViewPath,
+  parseViewSegments,
   viewSearch,
   withViewSegment,
   withoutViewSegment,
 } from '@/lib/view'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useSearch } from 'wouter'
+import { useLocationProperty } from 'wouter/use-browser-location'
 
 export type ViewHandle = {
   /** Whether this view's segment is present in the current path. */
@@ -21,40 +24,57 @@ export type ViewHandle = {
   close: () => void
 }
 
+/** The whole view path. Re-renders whenever any part of it changes. */
 export function useViewPath(): ViewSegment[] {
   const search = useSearch()
   return useMemo(() => parseViewPath(search), [search])
 }
 
-/** Navigates to a view path, preserving the pathname and other parameters. */
+const noSegment = () => ''
+
+/** Granular subscription for a segment of the current path. */
+function useViewSegment(name: string): ViewSegment | undefined {
+  const formatted = useLocationProperty(
+    useCallback(() => {
+      const segment = findViewSegment(parseViewPath(location.search), name)
+      return segment ? formatViewPath([segment]) : ''
+    }, [name]),
+    noSegment,
+  )
+
+  return useMemo(() => parseViewSegments(formatted)[0], [formatted])
+}
+
+/** Rewrites the current path, keeping the pathname and other parameters. */
 function useViewNavigate() {
   const [location, navigate] = useLocation()
-  const search = useSearch()
 
   return useCallback(
-    (path: readonly ViewSegment[], replace: boolean) => {
-      const next = viewSearch(search, path)
+    (update: (path: ViewSegment[]) => ViewSegment[], replace: boolean) => {
+      // Read at the last moment: nothing here subscribes to the path
+      const search = window.location.search
+      const next = viewSearch(search, update(parseViewPath(search)))
       navigate(next ? `${location}?${next}` : location, { replace })
     },
-    [location, navigate, search],
+    [location, navigate],
   )
 }
 
 export function useView(name: string): ViewHandle {
-  const path = useViewPath()
+  const segment = useViewSegment(name)
   const go = useViewNavigate()
-  const segment = findViewSegment(path, name)
 
   return useMemo<ViewHandle>(
     () => ({
       active: segment !== undefined,
       value: segment?.value,
-      open: (value) => go(withViewSegment(path, { name, value }), false),
+      open: (value) =>
+        go((path) => withViewSegment(path, { name, value }), false),
       setValue: (value, options) =>
-        go(withViewSegment(path, { name, value }, options), true),
-      close: () => go(withoutViewSegment(path, name), false),
+        go((path) => withViewSegment(path, { name, value }, options), true),
+      close: () => go((path) => withoutViewSegment(path, name), false),
     }),
-    [go, name, path, segment],
+    [go, name, segment],
   )
 }
 
@@ -98,7 +118,7 @@ export function useViewCloseGuard(
       if (!wasActive || !wasDirty) return
       if (findViewSegment(parseViewPath(window.location.search), name)) return
 
-      go(restorePath, true)
+      go(() => restorePath, true)
       setPending(true)
     }
 
@@ -109,7 +129,7 @@ export function useViewCloseGuard(
   const confirm = useCallback(() => {
     setPending(false)
     onDiscard()
-    go(withoutViewSegment(latest.current.restorePath, name), false)
+    go((path) => withoutViewSegment(path, name), false)
   }, [go, name, onDiscard])
 
   const cancel = useCallback(() => setPending(false), [])

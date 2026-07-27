@@ -9,7 +9,8 @@ import type { Doc, Id } from '@sb/convex/_generated/dataModel'
 import type { OptimisticLocalStore } from 'convex/browser'
 import { useMutation, useQuery } from 'convex/react'
 import { useCallback, useEffect, useMemo } from 'react'
-import { useLocation, useSearch } from 'wouter'
+import { useLocation } from 'wouter'
+import { useLocationProperty } from 'wouter/use-browser-location'
 
 type OptimisticSessionPatch = Pick<
   Partial<Doc<'sessions'>>,
@@ -32,9 +33,12 @@ function mergePatch<T extends { settings?: Doc<'sessions'>['settings'] }>(
   }
 }
 
+const currentSessionId = () => new URLSearchParams(location.search).get('id')
+const noSession = () => null
+
+/** Subscribes to `?id` alone to prevent unecessary re-renders. */
 export function useActiveSessionId(): string | null {
-  const search = useSearch()
-  return new URLSearchParams(search).get('id')
+  return useLocationProperty(currentSessionId, noSession)
 }
 
 export function useActiveSessionQuery() {

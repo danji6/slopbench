@@ -15,18 +15,11 @@ import { ThemeWorker, type ThemeWorkerApi, type WorkerApi } from '@/workers'
 import {
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
   useSyncExternalStore,
 } from 'react'
-
-export type ThemePreview = {
-  themeColor?: string | null
-  themeMode?: ThemeMode | null
-}
-
-let themePreview: ThemePreview = {}
-const previewListeners = new Set<() => void>()
 
 const classRegistry = new Map<
   string,
@@ -168,21 +161,50 @@ export function useDefaultTheme() {
   }, [])
 }
 
-export function useThemePreview(): ThemePreview {
-  return useSyncExternalStore(
-    (listener) => {
-      previewListeners.add(listener)
-      return () => previewListeners.delete(listener)
-    },
-    () => themePreview,
-    () => themePreview,
-  )
-}
+/**
+ * A theme for one subtree, returned as the class to put on its root.
+ *
+ * @param `mode` overrides the document's light/dark.
+ */
+export function useScopedTheme(
+  color?: string | null,
+  mode?: ThemeMode | null,
+): string | undefined {
+  const id = useId().replace(/[^a-zA-Z0-9_-]/g, '')
+  const className = `theme-${id}`
+  const sourceColor = hexColorOrNull(color)
+  const documentIsDark = useIsDarkMode()
+  const isDark = mode ? actualThemeMode(mode) === 'dark' : documentIsDark
 
-export function setThemePreview(next: ThemePreview | null) {
-  themePreview = next ?? {}
-  suppressNextThemeAnimation()
-  previewListeners.forEach((listener) => listener())
+  // Asynchronous guard while the worker generates the theme
+  const [installed, setInstalled] = useState<'light' | 'dark'>()
+  if (!sourceColor && installed) setInstalled(undefined)
+
+  useEffect(() => {
+    if (!sourceColor) {
+      removeTheme(className)
+      return
+    }
+
+    let cancelled = false
+    const scopeMode = isDark ? 'dark' : 'light'
+
+    generateThemeCss(sourceColor, isDark).then(({ css }) => {
+      if (cancelled) return
+      suppressNextThemeAnimation() // a scope repaints on its own
+      applyTheme({ sourceColor, mode: scopeMode, contrast: 0, css }, className)
+      setInstalled(scopeMode)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [className, sourceColor, isDark])
+
+  useEffect(() => () => removeTheme(className), [className])
+
+  if (!sourceColor || !installed) return undefined
+  return `theme-scope ${className} ${installed}`
 }
 
 export function useClassName(className: string | null | undefined) {
