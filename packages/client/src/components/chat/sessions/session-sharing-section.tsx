@@ -1,4 +1,4 @@
-import { Button, CopyButton, Input, SettingsList } from '@/components/ui'
+import { CopyButton, Input, RippleButton, SettingsList } from '@/components/ui'
 import {
   useCreateOrRotateToken,
   useRevokeToken,
@@ -41,15 +41,15 @@ export function SessionSharingSection() {
           </div>
         )}
         <div className="flex gap-2">
-          <Button
+          <RippleButton
             variant="input"
             size="sm"
             onClick={() => void handleCreate()}
           >
             {active ? 'Rotate token' : 'Create token'}
-          </Button>
+          </RippleButton>
           {active && (
-            <Button
+            <RippleButton
               variant="destructive"
               size="sm"
               onClick={() => {
@@ -58,7 +58,7 @@ export function SessionSharingSection() {
               }}
             >
               Revoke
-            </Button>
+            </RippleButton>
           )}
         </div>
       </SettingsList.Item>

@@ -3,6 +3,7 @@
  */
 
 export * from './code-pairs'
+export * from './handle'
 export * from './interpreter-doc'
 export * from './interpreter-syntax'
 export * from './paste'

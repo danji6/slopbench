@@ -1,6 +1,7 @@
 import { AvatarPicker } from '@/components/chat/entities/avatar-picker'
 import { Input, Label, SettingsList } from '@/components/ui'
 import type { Id } from '@sb/convex/_generated/dataModel'
+import { FALLBACK_DISPLAY_NAME } from '@sb/core/const'
 import { type Control, Controller } from 'react-hook-form'
 
 import type { SettingsFormValues } from './settings-schema'
@@ -47,7 +48,7 @@ export function ProfileSettings({
                 value={field.value}
                 onChange={(e) => field.onChange(e.currentTarget.value)}
                 onBlur={field.onBlur}
-                placeholder="Your name"
+                placeholder={FALLBACK_DISPLAY_NAME}
                 variant="outline"
                 className="h-10 max-w-70 text-sm"
               />

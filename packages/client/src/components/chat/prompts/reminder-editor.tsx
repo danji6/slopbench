@@ -11,13 +11,15 @@ import {
   Select,
   Switch,
 } from '@/components/ui'
+import { usePromptDraft } from '@/hooks/chat/prompt-draft'
 import type { ReminderPrompt } from '@/lib/chat'
-import { reminderDraftKey, useEditorDraft } from '@/lib/chat/editor-draft-store'
+import { reminderDraftKey } from '@/lib/chat/editor-draft-store'
 import { formatMarkdown } from '@/lib/markdown/format'
+import type { EditorDocumentHandle } from '@/lib/tiptap/handle'
 import { PROMPT_CONTENT_GUIDE } from '@sb/core/interpreter/guide'
 import { capitalize } from '@sb/core/utils/strings'
-import { useEffect, useRef } from 'react'
-import { Controller, useForm, useWatch } from 'react-hook-form'
+import { useCallback, useRef } from 'react'
+import { Controller, useForm } from 'react-hook-form'
 
 import { PromptContentEditor } from './prompt-content-editor'
 
@@ -53,37 +55,25 @@ export function ReminderEditor({
   onOpenChange,
   title = 'Edit Reminder',
 }: ReminderEditorProps) {
+  const form = useForm<FormValues>({ defaultValues: toFormValues(reminder) })
   const {
     register,
     control,
     handleSubmit,
     reset,
     formState: { isDirty },
-  } = useForm<FormValues>({ defaultValues: toFormValues(reminder) })
+  } = form
 
-  const draft = useEditorDraft<FormValues>(reminderDraftKey(reminder.id))
-  const restoredId = useRef<string | null>(null)
-  const restored = useRef(false)
-
-  // Recover an unsaved draft, keeping the stored reminder as the dirty baseline
-  useEffect(() => {
-    if (restoredId.current === reminder.id) return
-    restoredId.current = reminder.id
-    const saved = draft.read()
-    restored.current = saved !== undefined
-    if (saved) reset(saved, { keepDefaultValues: true })
-  }, [reminder.id, draft, reset])
-
-  const watched = useWatch({ control })
-  useEffect(() => {
-    if (isDirty) return draft.save(watched as FormValues)
-    if (!restored.current) draft.clear()
-  }, [watched, isDirty, draft])
-
-  useEffect(() => {
-    if (open || draft.read()) return
-    reset(toFormValues(reminder))
-  }, [reminder, open, reset, draft])
+  const content = useRef<EditorDocumentHandle>(null)
+  const draft = usePromptDraft({
+    key: reminderDraftKey(reminder.id),
+    label: 'this reminder',
+    form,
+    content,
+    stored: reminder.content,
+    open,
+    initial: useCallback(() => toFormValues(reminder), [reminder]),
+  })
 
   function handleSave(values: FormValues) {
     const saved = {
@@ -92,14 +82,12 @@ export function ReminderEditor({
       interval: Math.max(1, Math.round(values.interval)),
     }
     onSave(saved)
-    restored.current = false
     reset(saved)
     draft.clear()
     onOpenChange(false)
   }
 
   function handleDiscard() {
-    restored.current = false
     reset()
     draft.clear()
     onOpenChange(false)
@@ -215,8 +203,11 @@ export function ReminderEditor({
               control={control}
               render={({ field }) => (
                 <PromptContentEditor
+                  ref={content}
                   value={field.value}
                   onChange={field.onChange}
+                  doc={draft.doc}
+                  onBaseline={draft.onBaseline}
                   fullscreenId="reminder"
                   placeholder="Write your reminder…"
                 />
@@ -234,7 +225,8 @@ export function ReminderEditor({
             confirmText="Discard"
             cancelText="Keep editing"
             onConfirm={handleDiscard}
-            className="z-55"
+            // Above the fullscreen editor this is confirmed from
+            layer={55}
           >
             <RippleButton variant="input" onClick={handleCancel}>
               Cancel

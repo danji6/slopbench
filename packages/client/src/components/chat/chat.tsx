@@ -6,6 +6,7 @@ import { ChatSession } from './chat-session'
 import { useChatShellState } from './chat-shell-state'
 import { ChatSidebars } from './chat-sidebars'
 import type { ChatProps } from './chat-types'
+import { DraftRestoreDialog } from './draft-restore-dialog'
 import { EmptyChat } from './empty-chat'
 import { AgentSettings } from './entities/agent/agent-settings'
 import { ScriptManager } from './messages/editor/menu/script-manager'
@@ -47,6 +48,7 @@ export function Chat(props: ChatProps) {
         )}
         <AgentSettings />
         <ScriptManager />
+        <DraftRestoreDialog />
       </ChatSidebars>
     </ChatSearchProvider>
   )

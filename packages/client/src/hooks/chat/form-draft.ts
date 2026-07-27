@@ -3,7 +3,7 @@ import { useEffect, useMemo } from 'react'
 import type { FieldValues, UseFormReturn } from 'react-hook-form'
 
 export type FormDraft = {
-  /** Layers any stored draft over the form, right after it is populated. */
+  /** Offers any stored draft, layering it over the form once accepted. */
   restore: () => void
   /** Drops the draft once its values are persisted or explicitly discarded. */
   clear: () => void
@@ -13,8 +13,10 @@ export type FormDraft = {
 export function useFormDraft<T extends FieldValues>(
   key: string | undefined,
   form: UseFormReturn<T>,
+  /** Names the draft in the confirmation: "unsaved changes to <label>". */
+  label: string,
 ): FormDraft {
-  const draft = useEditorDraft<T>(key)
+  const draft = useEditorDraft<T>(key, label)
 
   useEffect(() => {
     return form.subscribe({
@@ -27,10 +29,10 @@ export function useFormDraft<T extends FieldValues>(
 
   return useMemo(
     () => ({
-      restore: () => {
-        const saved = draft.read()
-        if (saved) form.reset(saved, { keepDefaultValues: true })
-      },
+      restore: () =>
+        draft.restore((saved) =>
+          form.reset(saved, { keepDefaultValues: true }),
+        ),
       clear: draft.clear,
     }),
     [draft, form],

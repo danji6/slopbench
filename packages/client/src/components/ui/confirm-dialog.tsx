@@ -1,4 +1,3 @@
-
 import type { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog'
 import { useState } from 'react'
 
@@ -24,6 +23,8 @@ export type ConfirmDialogProps = Omit<
   onCancel?: () => void
   /** Optional second action rendered between Cancel and the primary action. */
   extraAction?: ConfirmDialogAction
+  /** Stacking order of the dialog and its backdrop. */
+  layer?: number
   open?: boolean
   onOpenChange?: (open: boolean) => void
   disabled?: boolean
@@ -79,7 +80,9 @@ export function ConfirmDialog({
             )}
           </AlertDialog.Header>
         )}
-        <AlertDialog.Footer className={extraAction ? undefined : 'grid grid-cols-2'}>
+        <AlertDialog.Footer
+          className={extraAction ? undefined : 'grid grid-cols-2'}
+        >
           <AlertDialog.Cancel onClick={handleCancel}>
             {cancelText}
           </AlertDialog.Cancel>

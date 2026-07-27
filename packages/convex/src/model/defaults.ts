@@ -143,25 +143,19 @@ export const DEFAULT_CONTEXT_OPTIONS: ContextOptions = {
 
 export const DEFAULT_SYSTEM_PROMPT = `
 You are a helpful assistant.
-$\`\`\`
-if (ai && ai.toLowerCase() !== 'assistant') {
-  return \`Your name is \${ai}.\`
-}
-\`\`\`
-$\`\`\`
-if (user) {
-  return \`You refer to the user as \${user}.\`
-}
-\`\`\`
-\`\`\`
-const agentsMd = file('AGENTS.md')
-if (agentsMd) {
-  return \`
+
+#if agent && agent.toLowerCase() !== 'assistant'
+Your name is {{agent}}.
+#endif
+
+#if user
+You refer to the user as {{user}}
+#endif
+
+#if fileExists('AGENTS.md')
 The AGENTS.md file contains important project-specific instructions:
-\${agentsMd}
-\`.trim()
-}
-\`\`\`
+{{readFile('AGENTS.md')}}
+#endif
 `.trim()
 
 export function createDefaultAgent() {

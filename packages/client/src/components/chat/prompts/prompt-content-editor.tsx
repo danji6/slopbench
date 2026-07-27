@@ -5,6 +5,7 @@ import {
 } from '@/components/ui'
 import { CodeBlockShiki } from '@/components/ui/code-block-shiki'
 import { useCodeCompletion } from '@/components/ui/code-completion'
+import { useEditorBaseline } from '@/hooks/editor-baseline'
 import { handleSelectAllDelete } from '@/lib/editor-clear'
 import { getHighlighter } from '@/lib/shiki/core'
 import { theme, themeName } from '@/lib/shiki/theme'
@@ -15,38 +16,55 @@ import { LineBreaks } from '@/lib/tiptap/extensions/line-breaks'
 import { Markdown } from '@/lib/tiptap/extensions/markdown'
 import { RevealInsert } from '@/lib/tiptap/extensions/reveal-insert'
 import { SnippetStops } from '@/lib/tiptap/extensions/snippet-stops'
+import type { EditorDocumentHandle } from '@/lib/tiptap/handle'
 import { copyBlockText, pasteTextLines } from '@/lib/tiptap/paste'
 import { serializeDocumentToMarkdown } from '@/lib/tiptap/serialize'
 import { cn } from '@/lib/utils'
+import type { JSONContent } from '@tiptap/core'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { EditorContent, useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 import { StarterKit } from '@tiptap/starter-kit'
-import { useEffect, useRef } from 'react'
+import { useEffect, useImperativeHandle, useRef } from 'react'
 
 import { sessionCompletionSource } from './session-completions'
 
 export type PromptContentEditorProps = {
   value: string
   onChange: (value: string) => void
+  /**
+   * Document to open on in place of parsing `value`, for content restored from
+   * a draft.
+   */
+  doc?: JSONContent
+  /**
+   * Receives `value` as the editor itself serializes it, always before the
+   * first `onChange`. See {@link useEditorBaseline}.
+   */
+  onBaseline?: (markdown: string) => void
   /** Stable id identifying this editor while in fullscreen. */
   fullscreenId: string
   placeholder?: string
   autoFocus?: boolean
   className?: string
+  ref?: React.Ref<EditorDocumentHandle>
 }
 
 /** Markdown editor for agent prompts. */
 export function PromptContentEditor({
   value,
   onChange,
+  doc,
+  onBaseline,
   fullscreenId,
   placeholder,
   autoFocus = false,
   className,
+  ref,
 }: PromptContentEditorProps) {
   const onChangeRef = useRef(onChange)
   const editorRef = useRef<Editor | null>(null)
+  const baseline = useEditorBaseline(onBaseline)
   useEffect(() => {
     onChangeRef.current = onChange
   })
@@ -70,10 +88,16 @@ export function PromptContentEditor({
       InterpreterHighlight,
       ...(placeholder ? [Placeholder.configure({ placeholder })] : []),
     ],
-    content: value,
+    content: doc ?? value,
     contentType: 'markdown',
     immediatelyRender: false,
     autofocus: autoFocus ? 'end' : false,
+    onTransaction({ editor: e, transaction }) {
+      baseline(e, transaction.before)
+    },
+    onCreate({ editor: e }) {
+      baseline(e)
+    },
     onUpdate({ editor: e }) {
       onChangeRef.current(serializeDocumentToMarkdown(e))
     },
@@ -92,6 +116,16 @@ export function PromptContentEditor({
   useEffect(() => {
     editorRef.current = editor
   }, [editor])
+
+  useImperativeHandle(ref, () => ({ read: () => editor?.getJSON() }), [editor])
+
+  // A document that arrives after the editor did, restored into it
+  const opened = useRef(doc)
+  useEffect(() => {
+    if (!editor || !doc || opened.current === doc) return
+    opened.current = doc
+    editor.commands.setContent(doc, { emitUpdate: false })
+  }, [editor, doc])
 
   // Resync when the value changes from outside while unfocused
   useEffect(() => {

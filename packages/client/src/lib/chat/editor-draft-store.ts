@@ -2,6 +2,12 @@ import { useEffect, useMemo } from 'react'
 
 import { createLocalStorageStore } from '../local-storage-store'
 import { debounce } from '../utils'
+import {
+  isDraftPending,
+  keepDraftRestore,
+  releaseDraftRestore,
+  requestDraftRestore,
+} from './draft-restore'
 
 const STORAGE_KEY = 'chat-editor-drafts'
 
@@ -78,9 +84,20 @@ export type EditorDraft<T> = {
   flush: (value: T) => void
   /** Drop the draft and cancel any pending autosave. */
   clear: () => void
+  /**
+   * Drop the draft because the editor has come back to what is stored.
+   * Ignored while the draft confirmation is still pending.
+   */
+  clearUnchanged: () => void
+  /** Asks the user before handing a stored draft to `apply`. */
+  restore: (apply: (value: T) => void) => void
 }
 
-export function useEditorDraft<T>(key: string | undefined): EditorDraft<T> {
+export function useEditorDraft<T>(
+  key: string | undefined,
+  /** Names the draft in the confirmation: "unsaved changes to <label>". */
+  label: string,
+): EditorDraft<T> {
   const debouncedSave = useMemo(
     () =>
       debounce(
@@ -90,7 +107,13 @@ export function useEditorDraft<T>(key: string | undefined): EditorDraft<T> {
     [],
   )
 
-  useEffect(() => () => debouncedSave.cancel(), [debouncedSave])
+  useEffect(() => {
+    if (key) keepDraftRestore(key)
+    return () => {
+      debouncedSave.cancel()
+      if (key) releaseDraftRestore(key)
+    }
+  }, [key, debouncedSave])
 
   return useMemo(
     () => ({
@@ -106,7 +129,25 @@ export function useEditorDraft<T>(key: string | undefined): EditorDraft<T> {
         debouncedSave.cancel()
         if (key) clearEditorDraft(key)
       },
+      clearUnchanged: () => {
+        if (!key || isDraftPending(key)) return
+        debouncedSave.cancel()
+        clearEditorDraft(key)
+      },
+      restore: (apply) => {
+        const saved = key ? getEditorDraft<T>(key) : undefined
+        if (!key || saved === undefined) return
+        requestDraftRestore({
+          key,
+          label,
+          apply: () => apply(saved),
+          discard: () => {
+            debouncedSave.cancel()
+            clearEditorDraft(key)
+          },
+        })
+      },
     }),
-    [key, debouncedSave],
+    [key, label, debouncedSave],
   )
 }

@@ -1,6 +1,5 @@
 import { MarkdownRenderer } from '@/components/markdown/renderer'
 import {
-  Button,
   ConfirmDialog,
   Dialog,
   RippleButton,
@@ -20,7 +19,9 @@ import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { useMutation, useQuery } from 'convex/react'
 import { EyeIcon, Trash2Icon } from 'lucide-react'
-import { Suspense, lazy, useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef } from 'react'
+
+import type { PlanEditorHandle, PlanSnapshot } from './plan-editor'
 
 const PlanEditor = lazy(() =>
   import('./plan-editor').then((module) => ({ default: module.PlanEditor })),
@@ -65,10 +66,10 @@ export function SessionPlanSection() {
           description={plan.status === 'approved' ? 'Approved' : 'Drafting'}
         >
           <div className="flex flex-wrap gap-2">
-            <Button variant="input" size="sm" onClick={() => view.open()}>
+            <RippleButton variant="input" size="sm" onClick={() => view.open()}>
               <EyeIcon />
               Inspect
-            </Button>
+            </RippleButton>
             <ConfirmDialog
               variant="destructive"
               title="Delete the plan?"
@@ -76,10 +77,10 @@ export function SessionPlanSection() {
               confirmText="Delete"
               onConfirm={() => void handleDelete()}
             >
-              <Button variant="input" size="sm">
+              <RippleButton variant="input" size="sm">
                 <Trash2Icon />
                 Delete
-              </Button>
+              </RippleButton>
             </ConfirmDialog>
           </div>
         </SettingsList.Item>
@@ -143,6 +144,15 @@ function PlanDialog({
   )
 }
 
+/** Drafts written before the document was kept beside the markdown. */
+type StoredPlanDraft = PlanSnapshot | string
+
+function asSnapshot(
+  stored: StoredPlanDraft,
+): { markdown: string } & Partial<PlanSnapshot> {
+  return typeof stored === 'string' ? { markdown: stored } : stored
+}
+
 /** The plan editor, backed by a draft that outlives the dialog and the page. */
 function PlanDraftEditor({
   sessionId,
@@ -154,13 +164,38 @@ function PlanDraftEditor({
   onDone: () => void
 }) {
   const update = useMutation(api.plans.update)
-  const draft = useEditorDraft<string>(planDraftKey(sessionId))
+  const draft = useEditorDraft<StoredPlanDraft>(
+    planDraftKey(sessionId),
+    'this plan',
+  )
 
-  // Editing resumes where it left off, whether that was this tab or a past one
-  const [initialMarkdown] = useState(() => draft.read() ?? content)
-  const markdown = useRef(initialMarkdown)
-  // Markdown that still differs from the saved plan, null once it matches
-  const unsaved = useRef(initialMarkdown === content ? null : initialMarkdown)
+  const editor = useRef<PlanEditorHandle>(null)
+  const markdown = useRef(content)
+  // What the editor holds while it still differs from the saved plan
+  const unsaved = useRef<StoredPlanDraft | null>(null)
+  // The saved plan as the editor writes it back
+  const baseline = useRef<string | null>(null)
+
+  // Records what the editor holds, keeping the draft in step with it
+  function track(snapshot: PlanSnapshot) {
+    markdown.current = snapshot.markdown
+    const saved = snapshot.markdown === (baseline.current ?? content)
+    unsaved.current = saved ? null : snapshot
+    if (saved) draft.clearUnchanged()
+    else draft.save(snapshot)
+  }
+
+  // Editing resumes where it left off
+  useEffect(() => {
+    draft.restore((stored) => {
+      const saved = asSnapshot(stored)
+      markdown.current = saved.markdown
+      unsaved.current = stored
+      // Written into the editor, which reports it back through `track`
+      editor.current?.write(saved.doc ?? saved.markdown)
+    })
+    // Asked once when the editor mounts
+  }, [draft])
 
   // Editing ends by unmounting, which would drop a pending autosave
   useEffect(() => {
@@ -168,13 +203,6 @@ function PlanDraftEditor({
       if (unsaved.current !== null) draft.flush(unsaved.current)
     }
   }, [draft])
-
-  function handleChange(next: string) {
-    markdown.current = next
-    unsaved.current = next === content ? null : next
-    if (unsaved.current === null) draft.clear()
-    else draft.save(next)
-  }
 
   function stopEditing() {
     unsaved.current = null
@@ -193,9 +221,13 @@ function PlanDraftEditor({
 
   return (
     <PlanEditor
-      initialMarkdown={initialMarkdown}
+      ref={editor}
+      initialContent={content}
       fullscreenId={PLAN_FULLSCREEN_ID}
-      onChange={handleChange}
+      onChange={track}
+      onBaseline={(markdown) => {
+        baseline.current ??= markdown
+      }}
       onSave={() => void save()}
       toolbar={
         <>
@@ -206,7 +238,8 @@ function PlanDraftEditor({
             confirmText="Discard"
             cancelText="Keep editing"
             onConfirm={stopEditing}
-            className="z-55"
+            // Above the fullscreen editor this is confirmed from
+            layer={55}
           >
             <RippleButton variant="input" size="sm">
               Discard

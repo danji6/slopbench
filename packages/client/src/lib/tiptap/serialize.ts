@@ -8,10 +8,15 @@ export const leafText = (node: Node) =>
 
 /**
  * Serializes the editor to markdown, preserving the blank lines that separate
- * blocks.
+ * blocks. Pass `doc` to serialize a document the editor no longer holds.
  */
-export function serializeDocumentToMarkdown(editor: Editor): string {
-  return formatMarkdown(editor.getMarkdown())
+export function serializeDocumentToMarkdown(
+  editor: Editor,
+  doc?: Node,
+): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const manager = (editor.storage.markdown as any).manager
+  return formatMarkdown(manager.serialize((doc ?? editor.state.doc).toJSON()))
 }
 
 /**

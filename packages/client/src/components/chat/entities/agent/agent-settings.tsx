@@ -101,6 +101,7 @@ export function AgentSettings() {
   const draft = useFormDraft(
     agentId ? agentSettingsDraftKey(agentId) : undefined,
     form,
+    'these agent settings',
   )
 
   useEffect(() => {

@@ -154,7 +154,7 @@ function ChatSettingsDialog({
     },
   })
 
-  const draft = useFormDraft(USER_SETTINGS_DRAFT_KEY, form)
+  const draft = useFormDraft(USER_SETTINGS_DRAFT_KEY, form, 'your settings')
 
   // Initialize after settings load, so staged profile fields are not reset
   // to empty mid-edit.

@@ -10,12 +10,14 @@ import {
   Select,
   Switch,
 } from '@/components/ui'
+import { usePromptDraft } from '@/hooks/chat/prompt-draft'
 import type { Prompt } from '@/lib/chat'
-import { promptDraftKey, useEditorDraft } from '@/lib/chat/editor-draft-store'
+import { promptDraftKey } from '@/lib/chat/editor-draft-store'
 import { formatMarkdown } from '@/lib/markdown/format'
+import type { EditorDocumentHandle } from '@/lib/tiptap/handle'
 import { PROMPT_CONTENT_GUIDE } from '@sb/core/interpreter/guide'
 import { capitalize } from '@sb/core/utils/strings'
-import { useEffect, useRef } from 'react'
+import { useCallback, useRef } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 
 import { PromptContentEditor } from './prompt-content-editor'
@@ -54,50 +56,36 @@ export function PromptEditor({
   showVisibleSwitch = true,
   title = 'Edit Prompt',
 }: PromptEditDialogProps) {
+  const form = useForm<FormValues>({ defaultValues: toFormValues(prompt) })
   const {
     register,
     control,
     handleSubmit,
     reset,
     formState: { isDirty },
-  } = useForm<FormValues>({ defaultValues: toFormValues(prompt) })
+  } = form
   const starter = useWatch({ control, name: 'starter' })
 
-  const draft = useEditorDraft<FormValues>(promptDraftKey(prompt.id))
-  const restoredId = useRef<string | null>(null)
-  const restored = useRef(false)
-
-  // Recover an unsaved draft, keeping the stored prompt as the dirty baseline
-  useEffect(() => {
-    if (restoredId.current === prompt.id) return
-    restoredId.current = prompt.id
-    const saved = draft.read()
-    restored.current = saved !== undefined
-    if (saved) reset(saved, { keepDefaultValues: true })
-  }, [prompt.id, draft, reset])
-
-  const watched = useWatch({ control })
-  useEffect(() => {
-    if (isDirty) return draft.save(watched as FormValues)
-    if (!restored.current) draft.clear()
-  }, [watched, isDirty, draft])
-
-  useEffect(() => {
-    if (open || draft.read()) return
-    reset(toFormValues(prompt))
-  }, [prompt, open, reset, draft])
+  const content = useRef<EditorDocumentHandle>(null)
+  const draft = usePromptDraft({
+    key: promptDraftKey(prompt.id),
+    label: 'this prompt',
+    form,
+    content,
+    stored: prompt.content,
+    open,
+    initial: useCallback(() => toFormValues(prompt), [prompt]),
+  })
 
   function handleSave(values: FormValues) {
     const saved = { ...values, content: formatMarkdown(values.content) }
     onSave(saved)
-    restored.current = false
     reset(saved)
     draft.clear()
     onOpenChange(false)
   }
 
   function handleDiscard() {
-    restored.current = false
     reset()
     draft.clear()
     onOpenChange(false)
@@ -216,8 +204,11 @@ export function PromptEditor({
               control={control}
               render={({ field }) => (
                 <PromptContentEditor
+                  ref={content}
                   value={field.value}
                   onChange={field.onChange}
+                  doc={draft.doc}
+                  onBaseline={draft.onBaseline}
                   fullscreenId="prompt"
                   placeholder="Write your prompt…"
                 />
@@ -234,7 +225,8 @@ export function PromptEditor({
             confirmText="Discard"
             cancelText="Keep editing"
             onConfirm={handleDiscard}
-            className="z-55"
+            // Above the fullscreen editor this is confirmed from
+            layer={55}
           >
             <RippleButton variant="input" onClick={handleCancel}>
               Cancel

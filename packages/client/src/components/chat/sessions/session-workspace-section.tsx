@@ -1,4 +1,4 @@
-import { Button, SettingsList } from '@/components/ui'
+import { RippleButton, SettingsList } from '@/components/ui'
 import { useActiveSession, useRecentWorkspaces } from '@/hooks/chat'
 import { toast } from '@/lib/notifications'
 import { api } from '@sb/convex/_generated/api'
@@ -65,7 +65,7 @@ export function SessionWorkspaceSection() {
         }
       >
         <div className="flex flex-wrap gap-2">
-          <Button
+          <RippleButton
             variant="input"
             size="sm"
             disabled={busy}
@@ -73,15 +73,15 @@ export function SessionWorkspaceSection() {
           >
             <FolderIcon />
             {session?.workspace ? 'Change' : 'Configure'}
-          </Button>
-          <Button
+          </RippleButton>
+          <RippleButton
             variant="input"
             size="sm"
             disabled={busy || !session?.workspace}
             onClick={() => void clearCurrent()}
           >
             Clear
-          </Button>
+          </RippleButton>
         </div>
       </SettingsList.Item>
       <WorkspacePickerDialog

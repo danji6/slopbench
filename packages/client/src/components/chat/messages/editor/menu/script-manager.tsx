@@ -80,8 +80,10 @@ export function ScriptManager() {
   const [initial, setInitial] = useState<ScriptItem[]>([])
   const initialized = useRef(false)
 
-  const draft = useEditorDraft<ScriptFormValues>(SCRIPTS_DRAFT_KEY)
-
+  const draft = useEditorDraft<ScriptFormValues>(
+    SCRIPTS_DRAFT_KEY,
+    'your scripts',
+  )
   useEffect(() => {
     if (!open) {
       initialized.current = false
@@ -97,20 +99,19 @@ export function ScriptManager() {
     }))
     form.reset({ scripts: mapped })
     setInitial(mapped)
-    // Recover an unsaved draft, keeping the stored scripts as the dirty baseline
-    const saved = draft.read()
-    if (saved) form.reset(saved, { keepDefaultValues: true })
+    // Offer any unsaved draft, keeping the stored scripts as the dirty baseline
+    draft.restore((saved) => form.reset(saved, { keepDefaultValues: true }))
     initialized.current = true
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, loaded, scripts])
 
   const isDirty = form.formState.isDirty
 
-  // Live form reads, because this runs in the same commit as the reset above
   useEffect(() => {
     if (!initialized.current) return
-    if (form.formState.isDirty) draft.save({ scripts: form.getValues('scripts') })
-    else draft.clear()
+    if (form.formState.isDirty)
+      draft.save({ scripts: form.getValues('scripts') })
+    else draft.clearUnchanged()
   }, [items, isDirty, draft, form])
 
   function setItem(index: number, patch: Partial<ScriptItem>) {
