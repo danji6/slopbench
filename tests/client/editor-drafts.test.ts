@@ -5,6 +5,7 @@ import {
   agentSettingsDraftKey,
   clearEditorDraft,
   getEditorDraft,
+  planDraftKey,
   promptDraftKey,
   reminderDraftKey,
   setEditorDraft,
@@ -35,6 +36,12 @@ describe('draft keys', () => {
     expect(reminderDraftKey('abc')).toBe('reminder:abc')
     expect(SCRIPTS_DRAFT_KEY).toBe('scripts')
     expect(promptDraftKey('abc')).not.toBe(reminderDraftKey('abc'))
+  })
+
+  test('give each session its own plan draft', () => {
+    expect(planDraftKey('s1')).toBe('plan:s1')
+    expect(planDraftKey('s1')).not.toBe(planDraftKey('s2'))
+    expect(planDraftKey('x')).not.toBe(promptDraftKey('x'))
   })
 
   test('give each agent its own settings draft', () => {

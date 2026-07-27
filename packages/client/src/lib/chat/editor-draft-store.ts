@@ -27,6 +27,11 @@ export function reminderDraftKey(reminderId: string): string {
   return `reminder:${reminderId}`
 }
 
+/** Draft key for a session's plan editor. */
+export function planDraftKey(sessionId: string): string {
+  return `plan:${sessionId}`
+}
+
 /** Draft key for the script manager, which edits one list at a time. */
 export const SCRIPTS_DRAFT_KEY = 'scripts'
 

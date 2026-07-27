@@ -5,7 +5,10 @@ import type { EditorView } from '@tiptap/pm/view'
 /** Space kept below the revealed position. */
 const MARGIN = 8
 
-const key = new PluginKey<number | null>('revealInsert')
+/** The pending insert, boxed so that each one is its own object. */
+type Insert = { pos: number }
+
+const key = new PluginKey<Insert | null>('revealInsert')
 
 /**
  * Keeps content inserted below the caret on screen to prevent multiline inserts
@@ -16,17 +19,24 @@ export const RevealInsert = Extension.create({
 
   addProseMirrorPlugins() {
     return [
-      new Plugin<number | null>({
+      new Plugin<Insert | null>({
         key,
         state: {
           init: () => null,
-          apply: (tr) => insertedBelowCaret(tr),
+          apply: (tr) => {
+            const pos = insertedBelowCaret(tr)
+            return pos == null ? null : { pos }
+          },
         },
         view: () => ({
-          update: (view) => {
-            const pos = key.getState(view.state)
-            if (pos == null) return
-            requestAnimationFrame(() => reveal(view, pos))
+          update: (view, prevState) => {
+            const insert = key.getState(view.state)
+            // Reveal once on the the insert update, otherwise every update in
+            // between would scroll again
+            if (!insert || insert === key.getState(prevState)) return
+            // Without focus there is no caret on screen to keep in view
+            if (!view.hasFocus()) return
+            requestAnimationFrame(() => reveal(view, insert.pos))
           },
         }),
       }),

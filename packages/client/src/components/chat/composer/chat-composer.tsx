@@ -542,9 +542,6 @@ export function ChatComposer({
             )}
             {...props}
           >
-            {fullscreen.active && (
-              <FullscreenEditor.Toolbar className="w-full" />
-            )}
             <FileStrip files={files} onRemove={handleRemoveFile} />
             <div
               className={cn(
@@ -557,9 +554,7 @@ export function ChatComposer({
                 fontSize: 'var(--chat-font-size)',
               }}
             >
-              {!fullscreen.active && (
-                <FullscreenEditor.Toolbar className="-mr-4" />
-              )}
+              <FullscreenEditor.Toolbar className="-mx-4! group-data-fullscreen/fullscreen:mr-0" />
               <Suspense fallback={null}>
                 <ComposerEditor
                   placeholder={placeholder}
