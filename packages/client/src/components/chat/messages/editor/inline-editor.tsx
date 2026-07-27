@@ -47,7 +47,7 @@ export type RichTextEditorProps = {
   handlePaste?: (view: EditorView, event: ClipboardEvent) => boolean
 }
 
-export function RichTextEditor({
+export function InlineEditor({
   initialMarkdown,
   onChange,
   onSave,

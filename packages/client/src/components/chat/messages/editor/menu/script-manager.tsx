@@ -300,6 +300,7 @@ export function ScriptManager() {
                   <CodeEditor
                     value={selected.code}
                     onChange={(code) => setItem(selectedIndex, { code })}
+                    fullscreenId="script"
                     language="javascript"
                     placeholder="return text.toUpperCase()"
                     completions={SCRIPT_COMPLETIONS}

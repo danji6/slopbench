@@ -682,6 +682,7 @@ html::-webkit-scrollbar {
   outline: none;
   font-family: inherit;
   font-size: inherit;
+  overflow-wrap: anywhere;
 }
 
 .ProseMirror p.is-editor-empty:first-child::before {

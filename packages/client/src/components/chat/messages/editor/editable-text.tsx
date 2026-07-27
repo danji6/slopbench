@@ -9,8 +9,8 @@ import { BubbleMenu } from './menu/bubble-menu'
 import { useMessageEdit, useMessageEditDraft } from './message-edit-context'
 
 const importEditor = () =>
-  import('./rich-text-editor').then((module) => ({
-    default: module.RichTextEditor,
+  import('./inline-editor').then((module) => ({
+    default: module.InlineEditor,
   }))
 
 let editorChunk: ReturnType<typeof importEditor> | null = null

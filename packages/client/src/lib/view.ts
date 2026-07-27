@@ -84,6 +84,15 @@ export function findViewSegment(
   return path.find((segment) => segment.name === name)
 }
 
+/** Whether the given segment exists with `value`. */
+export function matchesViewSegment(
+  path: readonly ViewSegment[],
+  name: string,
+  value: string,
+): boolean {
+  return findViewSegment(path, name)?.value === value
+}
+
 export type SegmentOptions = {
   /** Keep segments nested below the replaced one. Defaults to dropping them. */
   keepChildren?: boolean

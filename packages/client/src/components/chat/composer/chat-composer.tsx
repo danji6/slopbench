@@ -1,5 +1,6 @@
 import { useInvertSend } from '@/hooks/chat'
 import type { WorkspaceFileIndex } from '@/hooks/chat/workspace'
+import { useFullscreenView } from '@/hooks/fullscreen'
 import type { PendingMessage } from '@/lib/chat'
 import { buildFileItemFromPart, processFileForUpload } from '@/lib/chat/'
 import { commandRegistry } from '@/lib/chat/commands'
@@ -41,8 +42,11 @@ import {
   DropZone,
   FilePickerOverlay,
   FileStrip,
+  FullscreenEditor,
   InputGroup,
   RippleButton,
+  fullscreenFill,
+  fullscreenGrow,
 } from '../../ui'
 import { useChatShortcuts } from '../shortcuts'
 import { TokenWidget } from '../widgets/token-widget'
@@ -61,6 +65,9 @@ const ComposerEditor = lazy(() =>
 )
 
 const MENTION_KEYS = new Set(['Enter', 'Tab', 'ArrowUp', 'ArrowDown', 'Escape'])
+
+// Only one composer is ever mounted, so a fixed id is enough to identify it.
+const COMPOSER_FULLSCREEN_ID = 'composer'
 
 /** Imperative handle exposed to parents for focusing the composer. */
 export type ComposerHandle = {
@@ -133,6 +140,7 @@ export function ChatComposer({
   const [dismissedMention, setDismissedMention] = useState<string | null>(null)
   const shortcuts = useChatShortcuts()
   const invertSend = useInvertSend()
+  const fullscreen = useFullscreenView(COMPOSER_FULLSCREEN_ID)
   const dropZoneRef = useRef<DropZoneHandle>(null)
   const editorRef = useRef<Editor | null>(null)
   const [fileParts, setFileParts] = useState<FileUIPart[]>([])
@@ -396,8 +404,8 @@ export function ChatComposer({
       return handleMentionKey(e)
     }
 
-    // Escape stops an in-flight or debouncing agent turn
-    if (e.key === 'Escape' && isStop) {
+    // Escape stops an in-flight or debouncing agent turn if not fullscreen
+    if (e.key === 'Escape' && isStop && !fullscreen.active) {
       onStop?.()
       return true
     }
@@ -494,91 +502,108 @@ export function ChatComposer({
 
   return (
     <ComposerLayoutProvider value={layout}>
-      <DropZone
-        ref={dropZoneRef}
-        onDrop={handleFilePick}
-        noInputEvents
-        noFocus
-        className={cn(
-          'bg-m3-surface-container-low supports-backdrop-filter:bg-m3-surface-container-low/80 relative w-full rounded-3xl supports-backdrop-filter:backdrop-blur-2xl',
-          className,
-        )}
-        style={style}
-      >
-        {isTypingCommandName && (
-          <CommandPicker
-            query={commandName}
-            commands={availableCommands}
-            onSelect={handleCommandSelect}
-            onAutocomplete={handleCommandAutocomplete}
-            onDismiss={clearEditor}
-          />
-        )}
-        {mentionOpen && (
-          <FileMentionPicker
-            matches={mentionMatches}
-            selectedIndex={mentionIndex}
-            onSelectedIndexChange={setMentionIndex}
-            onSelect={handleMentionSelect}
-          />
-        )}
-        <FilePickerOverlay className="rounded-3xl" />
-        <InputGroup
-          data-slot="chat-box"
-          className="w-full overflow-hidden rounded-3xl! bg-transparent pt-1"
-          {...props}
+      <FullscreenEditor id={COMPOSER_FULLSCREEN_ID}>
+        <DropZone
+          ref={dropZoneRef}
+          onDrop={handleFilePick}
+          noInputEvents
+          noFocus
+          className={cn(
+            'bg-m3-surface-container-low supports-backdrop-filter:bg-m3-surface-container-low/80 relative w-full rounded-3xl supports-backdrop-filter:backdrop-blur-2xl',
+            className,
+            fullscreenFill,
+            'group-data-fullscreen/fullscreen:flex group-data-fullscreen/fullscreen:flex-col',
+          )}
+          style={style}
         >
-          <FileStrip files={files} onRemove={handleRemoveFile} />
-          <div
-            className="max-h-60 w-full overflow-y-auto px-5"
-            style={{
-              fontFamily: 'var(--chat-font-family)',
-              fontSize: 'var(--chat-font-size)',
-            }}
+          {isTypingCommandName && (
+            <CommandPicker
+              query={commandName}
+              commands={availableCommands}
+              onSelect={handleCommandSelect}
+              onAutocomplete={handleCommandAutocomplete}
+              onDismiss={clearEditor}
+            />
+          )}
+          {mentionOpen && (
+            <FileMentionPicker
+              matches={mentionMatches}
+              selectedIndex={mentionIndex}
+              onSelectedIndexChange={setMentionIndex}
+              onSelect={handleMentionSelect}
+            />
+          )}
+          <FilePickerOverlay className="rounded-3xl" />
+          <InputGroup
+            data-slot="chat-box"
+            className={cn(
+              'w-full overflow-hidden rounded-3xl! bg-transparent pt-1',
+              fullscreenFill,
+            )}
+            {...props}
           >
-            <Suspense fallback={null}>
-              <ComposerEditor
-                placeholder={placeholder}
-                autoFocus={focusOnMount}
-                editorClassName="pt-2 [&_p]:mt-0!"
-                onReady={handleEditorReady}
-                handleKeyDown={(_view, event) => handleEditorKeyDown(event)}
-                handlePaste={(_view, event) => handleEditorPaste(event)}
-              />
-            </Suspense>
-          </div>
-          <InputGroup.Addon
-            ref={toolbarRef}
-            align="block-end"
-            className="px-3 pt-2 pb-2.5"
-          >
-            <span className="bg-m3-surface-container flex min-w-0 shrink items-center gap-1 rounded-full px-[5.5px] py-1">
-              <FilePicker onClick={() => dropZoneRef.current?.open()} />
-              {startContent && (
-                <>
-                  <div className="bg-border/80 h-7 w-px shrink-0" />
-                  {startContent}
-                </>
+            {fullscreen.active && (
+              <FullscreenEditor.Toolbar className="w-full" />
+            )}
+            <FileStrip files={files} onRemove={handleRemoveFile} />
+            <div
+              className={cn(
+                'max-h-60 w-full overflow-y-auto px-5',
+                fullscreenFill,
+                fullscreenGrow,
               )}
-            </span>
-            <div className="ml-auto flex shrink-0 items-center gap-1">
-              {!hideTokenWidget && <TokenWidget />}
-              <SendButton
-                isStop={isStop}
-                disabled={
-                  (!isStop && !hasContent && !canContinue) ||
-                  (sendDisabled && hasContent)
-                }
-                canSendSilently={hasContent && !isStop}
-                canContinueAgent={canContinue}
-                onSend={handleSubmit}
-                onStop={onStop}
-                onContinueAgent={onContinueAgent}
-              />
+              style={{
+                fontFamily: 'var(--chat-font-family)',
+                fontSize: 'var(--chat-font-size)',
+              }}
+            >
+              {!fullscreen.active && (
+                <FullscreenEditor.Toolbar className="-mr-4" />
+              )}
+              <Suspense fallback={null}>
+                <ComposerEditor
+                  placeholder={placeholder}
+                  autoFocus={focusOnMount}
+                  editorClassName="pt-2 [&_p]:mt-0! pr-6! group-data-[fullscreen]/fullscreen:pr-0!"
+                  onReady={handleEditorReady}
+                  handleKeyDown={(_view, event) => handleEditorKeyDown(event)}
+                  handlePaste={(_view, event) => handleEditorPaste(event)}
+                />
+              </Suspense>
             </div>
-          </InputGroup.Addon>
-        </InputGroup>
-      </DropZone>
+            <InputGroup.Addon
+              ref={toolbarRef}
+              align="block-end"
+              className="px-3 pt-2 pb-2.5"
+            >
+              <span className="bg-m3-surface-container flex min-w-0 shrink items-center gap-1 rounded-full px-[5.5px] py-1">
+                <FilePicker onClick={() => dropZoneRef.current?.open()} />
+                {startContent && (
+                  <>
+                    <div className="bg-border/80 h-7 w-px shrink-0" />
+                    {startContent}
+                  </>
+                )}
+              </span>
+              <div className="ml-auto flex shrink-0 items-center gap-1">
+                {!hideTokenWidget && <TokenWidget />}
+                <SendButton
+                  isStop={isStop}
+                  disabled={
+                    (!isStop && !hasContent && !canContinue) ||
+                    (sendDisabled && hasContent)
+                  }
+                  canSendSilently={hasContent && !isStop}
+                  canContinueAgent={canContinue}
+                  onSend={handleSubmit}
+                  onStop={onStop}
+                  onContinueAgent={onContinueAgent}
+                />
+              </div>
+            </InputGroup.Addon>
+          </InputGroup>
+        </DropZone>
+      </FullscreenEditor>
     </ComposerLayoutProvider>
   )
 }

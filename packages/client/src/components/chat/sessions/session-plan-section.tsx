@@ -8,6 +8,7 @@ import {
   Sidebar,
 } from '@/components/ui'
 import { useActiveSession, useMathMode } from '@/hooks/chat'
+import { useFullscreenView } from '@/hooks/fullscreen'
 import { toast } from '@/lib/notifications'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
@@ -15,11 +16,12 @@ import { useMutation, useQuery } from 'convex/react'
 import { EyeIcon, Trash2Icon } from 'lucide-react'
 import { Suspense, lazy, useRef, useState } from 'react'
 
-const RichTextEditor = lazy(() =>
-  import('../messages/editor/rich-text-editor').then((module) => ({
-    default: module.RichTextEditor,
-  })),
+const PlanEditor = lazy(() =>
+  import('./plan-editor').then((module) => ({ default: module.PlanEditor })),
 )
+
+// Only one plan is inspected at a time, so a fixed id is enough to identify it
+const PLAN_FULLSCREEN_ID = 'plan'
 
 export function SessionPlanSection() {
   const session = useActiveSession()
@@ -95,61 +97,59 @@ function PlanDialog({
 }) {
   const mathMode = useMathMode()
   const update = useMutation(api.plans.update)
-  const [editing, setEditing] = useState(false)
+  const fullscreen = useFullscreenView(PLAN_FULLSCREEN_ID)
   const draftRef = useRef(content)
+  // Always fullscreen while editing a plan
+  const editing = fullscreen.active
 
   function startEditing() {
     draftRef.current = content
-    setEditing(true)
+    fullscreen.enter()
   }
 
   async function saveDraft() {
     try {
       await update({ sessionId, content: draftRef.current })
-      setEditing(false)
+      fullscreen.exit()
     } catch (err) {
       toast(err instanceof Error ? err.message : String(err))
     }
   }
 
   function handleOpenChange(next: boolean) {
-    if (!next) setEditing(false)
+    if (!next) fullscreen.exit()
     onOpenChange(next)
   }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <Dialog.Content className="grid h-[calc(100svh-2rem)] max-h-180 max-w-2xl grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden">
+      <Dialog.Content className="grid h-[calc(100svh-2rem)] max-w-none grid-rows-[auto_minmax(0,1fr)_auto] gap-3 overflow-hidden pb-4">
         <Dialog.Header>
           <Dialog.Title>Session plan</Dialog.Title>
         </Dialog.Header>
-        <div className="bg-m3-surface-container-low min-h-0 overflow-y-auto rounded-lg p-4">
-          {editing ? (
-            <Suspense fallback={null}>
-              <RichTextEditor
-                initialMarkdown={content}
-                onChange={(markdown) => (draftRef.current = markdown)}
-                onSave={() => void saveDraft()}
-                onCancel={() => setEditing(false)}
-              />
-            </Suspense>
-          ) : (
+        {editing ? (
+          <Suspense fallback={null}>
+            <PlanEditor
+              initialMarkdown={content}
+              fullscreenId={PLAN_FULLSCREEN_ID}
+              onChange={(markdown) => (draftRef.current = markdown)}
+              onSave={() => void saveDraft()}
+              toolbar={
+                <RippleButton size="sm" onClick={() => void saveDraft()}>
+                  Save
+                </RippleButton>
+              }
+            />
+          </Suspense>
+        ) : (
+          <div className="bg-m3-surface-container-low min-h-0 overflow-y-auto rounded-lg p-4">
             <MarkdownRenderer mathMode={mathMode}>{content}</MarkdownRenderer>
-          )}
-        </div>
+          </div>
+        )}
         <Dialog.Footer>
-          {editing ? (
-            <>
-              <RippleButton variant="input" onClick={() => setEditing(false)}>
-                Cancel
-              </RippleButton>
-              <RippleButton onClick={() => void saveDraft()}>Save</RippleButton>
-            </>
-          ) : (
-            <RippleButton variant="input" onClick={startEditing}>
-              Edit
-            </RippleButton>
-          )}
+          <RippleButton variant="input" size="sm" onClick={startEditing}>
+            Edit
+          </RippleButton>
         </Dialog.Footer>
       </Dialog.Content>
     </Dialog>

@@ -16,9 +16,10 @@ import { useEffect, useRef } from 'react'
 
 import { CodeBlockShiki } from './code-block-shiki'
 import { type CompletionSource, useCodeCompletion } from './code-completion'
+import { FullscreenEditor, fullscreenFill } from './fullscreen-editor'
 
 export const codeEditorVariants = cva(
-  'border-input bg-m3-surface-container-low flex max-h-full min-h-0 flex-1 cursor-text flex-col overflow-auto rounded-2xl border transition-[color,box-shadow,border]',
+  'border-input bg-m3-surface-container-low relative flex max-h-full min-h-0 min-w-0 flex-1 cursor-text flex-col overflow-auto rounded-2xl border transition-[color,box-shadow,border]',
   {
     variants: {
       variant: {
@@ -37,6 +38,8 @@ export type CodeEditorProps = VariantProps<typeof codeEditorVariants> & {
   /** Current code, treated as the source of truth. External changes resync. */
   value: string
   onChange: (value: string) => void
+  /** Stable id identifying this editor while in fullscreen. */
+  fullscreenId: string
   /** Shiki language used for highlighting. Defaults to `javascript`. */
   language?: string
   /** Placeholder shown while empty. Mutually exclusive with `lineNumbers`. */
@@ -56,6 +59,7 @@ export type CodeEditorProps = VariantProps<typeof codeEditorVariants> & {
 export function CodeEditor({
   value,
   onChange,
+  fullscreenId,
   language = 'javascript',
   placeholder,
   lineNumbers = false,
@@ -106,7 +110,10 @@ export function CodeEditor({
     editorProps: {
       attributes: {
         'data-slot': 'code-editor',
-        class: cn('size-full min-h-16', editorClassName),
+        class: cn(
+          'size-full min-h-16 [&_pre]:pr-10! group-data-[fullscreen]/fullscreen:[&_pre]:pr-4!',
+          editorClassName,
+        ),
         spellcheck: 'false',
       },
       handleKeyDown: (view, event) =>
@@ -126,19 +133,27 @@ export function CodeEditor({
     const target = event.target
     if (!(target instanceof Element)) return
     if (target.closest('[contenteditable="true"]')) return
+    if (target.closest('[data-slot="fullscreen-toolbar"]')) return
 
     editor?.commands.focus('end')
   }
 
   return (
-    <div
-      data-slot="code-editor-wrapper"
-      className={cn(codeEditorVariants({ variant }), className)}
-      onMouseDown={focusEditor}
-    >
-      <EditorContent className="flex min-h-0 flex-1" editor={editor} />
-      {completionPopup}
-    </div>
+    <FullscreenEditor id={fullscreenId}>
+      <div
+        data-slot="code-editor-wrapper"
+        className={cn(
+          codeEditorVariants({ variant }),
+          className,
+          fullscreenFill,
+        )}
+        onMouseDown={focusEditor}
+      >
+        <FullscreenEditor.Toolbar />
+        <EditorContent className="flex min-h-0 flex-1" editor={editor} />
+        {completionPopup}
+      </div>
+    </FullscreenEditor>
   )
 }
 

@@ -217,6 +217,7 @@ export function ReminderEditor({
                 <PromptContentEditor
                   value={field.value}
                   onChange={field.onChange}
+                  fullscreenId="reminder"
                   placeholder="Write your reminder…"
                 />
               )}

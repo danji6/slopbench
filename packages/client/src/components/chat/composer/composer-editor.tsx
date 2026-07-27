@@ -1,3 +1,4 @@
+import { fullscreenGrow } from '@/components/ui'
 import { CodeBlockShiki } from '@/components/ui/code-block-shiki'
 import { getHighlighter } from '@/lib/shiki/core'
 import { theme, themeName } from '@/lib/shiki/theme'
@@ -69,7 +70,10 @@ export function ComposerEditor({
     editorProps: {
       attributes: {
         'data-slot': 'editor',
-        class: cn('min-h-20', editorClassName),
+        class: cn(
+          'min-h-20 group-data-[fullscreen]/fullscreen:min-h-full',
+          editorClassName,
+        ),
       },
       clipboardTextSerializer: copyCollapsedText,
       handleKeyDown: (view, event) =>
@@ -96,8 +100,8 @@ export function ComposerEditor({
   }, [editor])
 
   return (
-    <div data-slot="editor-container">
-      <EditorContent editor={editor} />
+    <div data-slot="editor-container" className={fullscreenGrow}>
+      <EditorContent className={fullscreenGrow} editor={editor} />
     </div>
   )
 }

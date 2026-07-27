@@ -1,4 +1,8 @@
-import { codeEditorVariants } from '@/components/ui'
+import {
+  FullscreenEditor,
+  codeEditorVariants,
+  fullscreenFill,
+} from '@/components/ui'
 import { CodeBlockShiki } from '@/components/ui/code-block-shiki'
 import { useCodeCompletion } from '@/components/ui/code-completion'
 import { handleSelectAllDelete } from '@/lib/editor-clear'
@@ -25,6 +29,8 @@ import { sessionCompletionSource } from './session-completions'
 export type PromptContentEditorProps = {
   value: string
   onChange: (value: string) => void
+  /** Stable id identifying this editor while in fullscreen. */
+  fullscreenId: string
   placeholder?: string
   autoFocus?: boolean
   className?: string
@@ -34,6 +40,7 @@ export type PromptContentEditorProps = {
 export function PromptContentEditor({
   value,
   onChange,
+  fullscreenId,
   placeholder,
   autoFocus = false,
   className,
@@ -73,7 +80,7 @@ export function PromptContentEditor({
     editorProps: {
       attributes: {
         'data-slot': 'editor',
-        class: cn('min-h-0 flex-1 p-4', className),
+        class: cn('min-h-full p-4', className),
       },
       handleKeyDown: handleSelectAllDelete,
       clipboardTextSerializer: copyBlockText,
@@ -101,15 +108,22 @@ export function PromptContentEditor({
   )
 
   return (
-    <div
-      data-slot="editor-container"
-      className={cn(codeEditorVariants({ variant: 'default' }), className)}
-    >
-      <EditorContent
-        className="flex min-h-0 flex-1 [&_p]:mt-0! [&_p+p]:mt-7!"
-        editor={editor}
-      />
-      {completionPopup}
-    </div>
+    <FullscreenEditor id={fullscreenId}>
+      <div
+        data-slot="editor-container"
+        className={cn(
+          codeEditorVariants({ variant: 'default' }),
+          className,
+          fullscreenFill,
+        )}
+      >
+        <FullscreenEditor.Toolbar />
+        <EditorContent
+          className="min-h-0 flex-1 pr-6! [&_p]:mt-0! [&_p+p]:mt-7!"
+          editor={editor}
+        />
+        {completionPopup}
+      </div>
+    </FullscreenEditor>
   )
 }

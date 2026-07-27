@@ -145,6 +145,7 @@ export function AppearanceSettings({
             <CodeEditor
               value={field.value}
               onChange={field.onChange}
+              fullscreenId="user-css"
               language="css"
               placeholder="p { font-style: italic; }"
               className="max-h-60 min-h-36"

@@ -65,6 +65,7 @@ export function AppearanceSettings({
             <CodeEditor
               value={field.value ?? ''}
               onChange={field.onChange}
+              fullscreenId="agent-css"
               language="css"
               placeholder="p { font-style: italic; }"
               className="max-h-60 min-h-36"

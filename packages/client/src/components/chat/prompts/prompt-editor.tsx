@@ -218,6 +218,7 @@ export function PromptEditor({
                 <PromptContentEditor
                   value={field.value}
                   onChange={field.onChange}
+                  fullscreenId="prompt"
                   placeholder="Write your prompt…"
                 />
               )}
