@@ -25,6 +25,12 @@ describe('message rows', () => {
 
     expect(rows).toEqual([
       {
+        kind: 'header',
+        key: 'h:message-1',
+        messageId: 'message-1',
+        reasoningGroupIndex: undefined,
+      },
+      {
         kind: 'group',
         key: 'g:message-1:s0:text:0',
         messageId: 'message-1',
@@ -72,6 +78,7 @@ describe('segment rows', () => {
     )
 
     expect(rows.map((row) => row.key)).toEqual([
+      'h:message-1',
       'g:message-1:s0:text:0',
       'g:message-1:s0:text:1',
       'g:message-1:s1:text:0',
@@ -107,8 +114,10 @@ describe('segment rows', () => {
         ]),
     )
 
-    const beforeKeys = before.map((row) => row.key)
+    // The header stays pinned at the top of the turn in both states
+    const [beforeHeader, ...beforeKeys] = before.map((row) => row.key)
     const afterKeys = after.map((row) => row.key)
+    expect(afterKeys[0]).toBe(beforeHeader)
     // The previously loaded rows keep their identity (heights survive)
     expect(afterKeys.slice(-beforeKeys.length)).toEqual(beforeKeys)
   })
@@ -209,6 +218,17 @@ describe('sender grouping', () => {
     ])
     // Keys differ between the on/off states so `rowKeysEqual` catches toggles
     expect(rows.every((row) => !row.key.endsWith(':grp'))).toBe(true)
+  })
+
+  test('a nameless sender still gets a header', () => {
+    const namelessMeta = {
+      ...agentMeta,
+      senderSnapshot: undefined,
+    } as unknown as MessageRecord
+
+    const rows = rowsFor({ 'message-1': namelessMeta }, false)
+
+    expect(rows.map((row) => row.key)).toContain('h:message-1')
   })
 
   test('a sender change breaks the group', () => {

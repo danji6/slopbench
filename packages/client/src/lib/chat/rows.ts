@@ -122,7 +122,6 @@ export function buildRows(
       continue
     }
 
-    const isSystem = message.role === 'system'
     // Summaries and other typed messages never join a sender group
     const senderKey =
       meta?.sender && !meta.type
@@ -132,8 +131,7 @@ export function buildRows(
       groupBySender && senderKey !== null && senderKey === previousSenderKey
     previousSenderKey = senderKey
 
-    const hasHeader =
-      (meta?.senderSnapshot?.name || isSystem) && !meta?.type && !grouped
+    const hasHeader = !meta?.type && !grouped
 
     const slices = segmentGroupsFor(message, meta)
     const firstGroups = slices[0]?.groups ?? []

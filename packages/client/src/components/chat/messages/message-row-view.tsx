@@ -18,6 +18,7 @@ import type { MessageRecord, PartMetadata } from '@/lib/chat'
 import { type MessageRow, segmentGroupsFor } from '@/lib/chat/rows'
 import { schemeToCssVars } from '@/lib/theme'
 import { cn, formatDuration, isTouchDevice } from '@/lib/utils'
+import { FALLBACK_DISPLAY_NAME } from '@sb/core/const'
 import { type UIMessage, isReasoningUIPart } from 'ai'
 import { memo, useCallback, useMemo } from 'react'
 
@@ -52,8 +53,7 @@ export const MessageRowView = memo(function MessageRowView({
 
   return (
     <RowShell message={message} messageMeta={messageMeta} row={row}>
-      {row.kind === 'header' &&
-      (messageMeta?.senderSnapshot?.name || message.role === 'system') ? (
+      {row.kind === 'header' ? (
         <HeaderRow row={row} message={message} messageMeta={messageMeta} />
       ) : row.kind === 'group' ? (
         <GroupRow
@@ -202,8 +202,11 @@ function HeaderRow({ row, message, messageMeta }: HeaderRowProps) {
     row.reasoningGroupIndex,
   )
 
+  const snapshotName = messageMeta?.senderSnapshot?.name?.trim()
   const sender = {
-    name: messageMeta?.senderSnapshot?.name ?? 'System',
+    name:
+      snapshotName ||
+      (message.role === 'system' ? 'System' : FALLBACK_DISPLAY_NAME),
     avatarId: messageMeta?.senderSnapshot?.avatarId,
   }
 
