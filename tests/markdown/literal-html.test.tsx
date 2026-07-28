@@ -62,6 +62,24 @@ describe('literal html rendering', () => {
     ).toContain('&lt;system-reminder&gt;')
   })
 
+  test('keeps an unknown tag nested inside an allowed element visible', () => {
+    const html = render('<div><system-reminder>hi</system-reminder></div>')
+    expect(html).toContain('<div>')
+    expect(html).toContain('&lt;system-reminder&gt;hi&lt;/system-reminder&gt;')
+  })
+
+  test('keeps text that only looks like a tag', () => {
+    expect(render('<div>Array<number> generic</div>')).toContain(
+      'Array&lt;number&gt; generic',
+    )
+  })
+
+  test('escapes nested markup instead of executing it', () => {
+    const html = render('<div><script>alert(1)</script></div>')
+    expect(html).not.toContain('<script>')
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
+  })
+
   test('renders html wrapped around markdown', () => {
     const html = render('<div class="wrap">\n\n**bold**\n\n</div>')
     expect(html).toContain('<div class="wrap">')

@@ -32,35 +32,30 @@ type Tag = {
   empty: boolean
 }
 
-/** Outermost complete HTML elements in a run of text, in document order. */
+type Token = Tag & { start: number }
+
+/** A text scan, containing tags plus the close each open tag resolves to. */
+type Scan = { tokens: Token[]; closes: number[] }
+
+/** Outermost complete HTML elements, in document order. */
 export function findHtmlSpans(text: string): HtmlSpan[] {
+  const { tokens, closes } = scan(text)
   const spans: HtmlSpan[] = []
   let i = 0
 
-  while (i < text.length) {
-    if (text[i] !== '<') {
+  while (i < tokens.length) {
+    const token = tokens[i]
+    // A void or self-closing tag is its own end
+    const close = token.empty ? i : closes[i]
+
+    if (token.kind !== 'open' || !allowedTags.has(token.name) || close === -1) {
       i++
       continue
     }
 
-    const tag = matchTag(text, i)
-    if (tag?.kind === 'comment') {
-      i = tag.end
-      continue
-    }
-    if (!tag || tag.kind !== 'open' || !allowedTags.has(tag.name)) {
-      i++
-      continue
-    }
-
-    const end = tag.empty ? tag.end : findClose(text, tag.end, tag.name)
-    if (end === -1) {
-      i++
-      continue
-    }
-
-    spans.push({ start: i, end, html: text.slice(i, end) })
-    i = end
+    const end = tokens[close].end
+    spans.push({ start: token.start, end, html: text.slice(token.start, end) })
+    i = close + 1
   }
 
   return spans
@@ -68,30 +63,46 @@ export function findHtmlSpans(text: string): HtmlSpan[] {
 
 /** Whether every top level tag in a run of text is one the sanitizer keeps. */
 export function hasOnlyAllowedTags(text: string): boolean {
+  const { tokens, closes } = scan(text)
   let i = 0
 
-  while (i < text.length) {
-    if (text[i] !== '<') {
+  while (i < tokens.length) {
+    const token = tokens[i]
+    if (token.kind === 'comment') {
       i++
       continue
     }
+    if (!allowedTags.has(token.name)) return false
 
-    const tag = matchTag(text, i)
-    if (!tag) {
-      i++
-      continue
-    }
-    if (tag.kind !== 'comment' && !allowedTags.has(tag.name)) return false
-
-    if (tag.kind === 'open' && !tag.empty) {
-      const close = findClose(text, tag.end, tag.name)
-      i = close === -1 ? tag.end : close
-      continue
-    }
-    i = tag.end
+    // A closed element's content is nested, not top level
+    const closed = token.kind === 'open' && !token.empty && closes[i] !== -1
+    i = closed ? closes[i] + 1 : i + 1
   }
 
   return true
+}
+
+/**
+ * Escapes the tags the sanitizer would strip. Also prevents nested tags from
+ * getting removed.
+ */
+export function escapeUnknownTags(text: string): string {
+  const { tokens } = scan(text)
+  let out = ''
+  let at = 0
+
+  for (const token of tokens) {
+    if (token.kind === 'comment' || allowedTags.has(token.name)) continue
+    const tag = text.slice(token.start, token.end)
+    out += text.slice(at, token.start) + escapeHtml(tag)
+    at = token.end
+  }
+
+  return out + text.slice(at)
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
 /** Whether `text` is exactly one HTML element end to end. */
@@ -134,10 +145,10 @@ function matchTag(text: string, i: number): Tag | null {
   }
 }
 
-/** Index just past the close tag matching `name`, or -1 if not found. */
-function findClose(text: string, from: number, name: string): number {
-  let depth = 1
-  let i = from
+/** Tokenizes text and pairs every open tag with its close. */
+function scan(text: string): Scan {
+  const tokens: Token[] = []
+  let i = 0
 
   while (i < text.length) {
     if (text[i] !== '<') {
@@ -151,12 +162,41 @@ function findClose(text: string, from: number, name: string): number {
       continue
     }
 
-    if (tag.name === name) {
-      if (tag.kind === 'open' && !tag.empty) depth++
-      else if (tag.kind === 'close' && --depth === 0) return tag.end
-    }
+    tokens.push({ ...tag, start: i })
     i = tag.end
   }
 
-  return -1
+  return { tokens, closes: pairTokens(tokens) }
+}
+
+/** The close token index for each open token, or -1 when it never closes. */
+function pairTokens(tokens: Token[]): number[] {
+  const closes = new Array<number>(tokens.length).fill(-1)
+  const stack: number[] = [] // token indexes of the currently open tags
+  const positions = new Map<string, number[]>() // tag name -> stack positions
+
+  const drop = (at: number) => {
+    const open = positions.get(tokens[stack[at]].name)
+    if (open?.at(-1) === at) open.pop()
+  }
+
+  for (const [i, token] of tokens.entries()) {
+    if (token.kind === 'open' && !token.empty) {
+      const open = positions.get(token.name) ?? []
+      open.push(stack.length)
+      positions.set(token.name, open)
+      stack.push(i)
+      continue
+    }
+    if (token.kind !== 'close') continue
+
+    const at = positions.get(token.name)?.pop()
+    if (at === undefined) continue
+
+    closes[stack[at]] = i
+    for (let s = stack.length - 1; s > at; s--) drop(s)
+    stack.length = at
+  }
+
+  return closes
 }

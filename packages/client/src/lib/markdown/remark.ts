@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { hasOnlyAllowedTags } from '@/lib/markdown/html-scan'
+import { escapeUnknownTags, hasOnlyAllowedTags } from '@/lib/markdown/html-scan'
 import { findMentions } from '@sb/core/mentions/parse'
 import type { Components } from 'react-markdown'
 import { SKIP, visit } from 'unist-util-visit'
@@ -430,7 +430,10 @@ export function remarkLiteralHtml() {
   return (tree: any) => {
     visit(tree, 'html', (node: any, index, parent: any) => {
       if (index == null || !parent) return
-      if (hasOnlyAllowedTags(node.value)) return
+      if (hasOnlyAllowedTags(node.value)) {
+        node.value = escapeUnknownTags(node.value)
+        return
+      }
 
       const literal = toLiteralText(node.value)
       const nodes =

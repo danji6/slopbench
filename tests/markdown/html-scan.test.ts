@@ -1,5 +1,6 @@
 /// <reference types="bun-types" />
 import {
+  escapeUnknownTags,
   findHtmlSpans,
   hasOnlyAllowedTags,
   isWholeHtml,
@@ -81,6 +82,45 @@ describe('top-level tag allowance', () => {
     expect(hasOnlyAllowedTags('<system-reminder>')).toBe(false)
     expect(hasOnlyAllowedTags('</system-reminder>')).toBe(false)
     expect(hasOnlyAllowedTags('<div>a</div>\n<example>b</example>')).toBe(false)
+  })
+})
+
+describe('escaping unknown tags', () => {
+  test('escapes tags the sanitizer would strip', () => {
+    expect(escapeUnknownTags('<div><example>x</example></div>')).toBe(
+      '<div>&lt;example&gt;x&lt;/example&gt;</div>',
+    )
+  })
+
+  test('escapes the attributes of an escaped tag too', () => {
+    expect(escapeUnknownTags('<example a="x&y">')).toBe(
+      '&lt;example a="x&amp;y"&gt;',
+    )
+  })
+
+  test('leaves allowed tags, comments and plain text alone', () => {
+    const source = '<div class="a">\n<!-- note -->\ntext 1 < 2\n</div>'
+    expect(escapeUnknownTags(source)).toBe(source)
+  })
+
+  test('escapes text that only looks like a tag', () => {
+    expect(escapeUnknownTags('Array<number> generic')).toBe(
+      'Array&lt;number&gt; generic',
+    )
+  })
+})
+
+describe('scan scaling', () => {
+  // Pairing open tags by rescanning the text was quadratic here: a 64KB run
+  // of unclosed siblings took over a second, and the streaming renderer
+  // reparses its tail every frame.
+  const unclosed = `<ul>\n${'<li>item of a list\n'.repeat(4_000)}`
+
+  test('stays linear on unclosed siblings', () => {
+    const start = performance.now()
+    expect(hasOnlyAllowedTags(unclosed)).toBe(true)
+    expect(findHtmlSpans(unclosed)).toEqual([])
+    expect(performance.now() - start).toBeLessThan(100)
   })
 })
 
