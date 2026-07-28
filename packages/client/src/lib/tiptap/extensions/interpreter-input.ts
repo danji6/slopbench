@@ -5,9 +5,11 @@ import {
   backspaceIndent,
   deletePair,
 } from '@/lib/tiptap/code-pairs'
+import { opensBlock } from '@/lib/tiptap/extensions/block-openers'
 import { applyIndentRules } from '@/lib/tiptap/extensions/code-edit'
 import { collectDocText, offsetAt } from '@/lib/tiptap/interpreter-doc'
 import { isInCodeContext } from '@/lib/tiptap/interpreter-syntax'
+import { blockLines, caretLine } from '@/lib/tiptap/lines'
 import { Extension } from '@tiptap/core'
 import { Fragment, type Node } from '@tiptap/pm/model'
 import {
@@ -57,6 +59,7 @@ export const InterpreterInput = Extension.create({
             backspaceIndent(view, event, inCode),
           handleTextInput: (view, from, to, text) =>
             scaffoldEvalBlock(view, from, to, text) ||
+            keepOpenerLiteral(view, from, to, text) ||
             autoClosePairs(view, from, to, text, inCode),
         },
       }),
@@ -73,30 +76,6 @@ function inInterpreterCode(
   if (!parent.isTextblock || parent.type.name === 'codeBlock') return false
   const map = collectDocText(state.doc)
   return isInCodeContext(map.text, offsetAt(map, pos))
-}
-
-/** A single visual line within a text block. */
-type BlockLine = { start: number; text: string }
-
-/** Splits a text block into BlockLines delimited by hard breaks. */
-function blockLines(parent: Node, parentStart: number): BlockLine[] {
-  const lines: BlockLine[] = []
-  let lineStartOffset = 0
-  let text = ''
-
-  parent.forEach((child, offset) => {
-    if (child.type.name === 'hardBreak') {
-      lines.push({ start: parentStart + lineStartOffset, text })
-      text = ''
-      lineStartOffset = offset + child.nodeSize
-    } else if (child.isText && child.text) {
-      text += child.text
-    } else {
-      text += ' '
-    }
-  })
-  lines.push({ start: parentStart + lineStartOffset, text })
-  return lines
 }
 
 /** Count of leading spaces on `text`, capped at `max`. */
@@ -157,17 +136,6 @@ function handleEnter(editor: Editor, event: KeyboardEvent): boolean {
   return handled
 }
 
-/** The current BlockLine the caret sits on, if any. */
-function caretLine(state: EditorState): BlockLine | null {
-  const { from } = state.selection
-  const $from = state.doc.resolve(from)
-  const lines = blockLines($from.parent, $from.start())
-  return (
-    lines.find((l) => from >= l.start && from <= l.start + l.text.length) ??
-    null
-  )
-}
-
 /** Preserves indentation when pressing Enter inside an interpreter code region. */
 function newlineKeepIndent(editor: Editor): boolean {
   const { state } = editor
@@ -177,9 +145,7 @@ function newlineKeepIndent(editor: Editor): boolean {
   const line = caretLine(state)
   if (!line) return false
 
-  const col = from - line.start
-  const before = line.text.slice(0, col)
-  const after = line.text.slice(col)
+  const { before, after } = line
   const indent = before.match(/^[ \t]*/)![0]
   const result = applyIndentRules({ before, after, indent })
 
@@ -259,6 +225,19 @@ function scaffoldThenBlock(editor: Editor): boolean {
 /** Enter on an inline `#if <expr>` scaffolds its `#endif`. */
 function scaffoldEndifBlock(editor: Editor): boolean {
   return scaffoldCloserAtLine(editor, RE_INLINE_IF, '#endif')
+}
+
+/** Types a markdown block opener as plain text inside a code region. */
+function keepOpenerLiteral(
+  view: EditorView,
+  from: number,
+  to: number,
+  text: string,
+): boolean {
+  const { state } = view
+  if (!inInterpreterCode(state) || !opensBlock(state, text)) return false
+  view.dispatch(state.tr.insertText(text, from, to))
+  return true
 }
 
 /** Turns a completed `#eval` line into an `#eval`/body/`#end` block. */

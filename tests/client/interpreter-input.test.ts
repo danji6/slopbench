@@ -1,4 +1,5 @@
 /// <reference types="bun-types" />
+import { BlockOpeners } from '@/lib/tiptap/extensions/block-openers'
 import { InterpreterInput } from '@/lib/tiptap/extensions/interpreter-input'
 import { Markdown } from '@/lib/tiptap/extensions/markdown'
 import { serializeDocumentToMarkdown } from '@/lib/tiptap/serialize'
@@ -304,6 +305,31 @@ describe('#eval scaffolding', () => {
     e.commands.focus()
     type(e, 'x#eval')
     expect(serializeDocumentToMarkdown(e)).toBe('x#eval')
+    e.destroy()
+  })
+})
+
+describe('block openers in code regions', () => {
+  test('a markdown opener stays literal in an eval body', () => {
+    const e = new Editor({
+      extensions: [...extensions, BlockOpeners],
+      content: paragraphs('#eval', 'x', '#end') as never,
+    })
+    caretAtLineStart(e, 'x')
+    type(e, '- ')
+    expect(e.state.doc.child(1).type.name).toBe('paragraph')
+    expect(e.state.doc.child(1).textContent).toBe('- x')
+    e.destroy()
+  })
+
+  test('a markdown opener below the body still opens its block', () => {
+    const e = new Editor({
+      extensions: [...extensions, BlockOpeners],
+      content: paragraphs('#eval', 'x', '#end', 'after') as never,
+    })
+    caretAtLineStart(e, 'after')
+    type(e, '- ')
+    expect(serializeDocumentToMarkdown(e)).toContain('- after')
     e.destroy()
   })
 })

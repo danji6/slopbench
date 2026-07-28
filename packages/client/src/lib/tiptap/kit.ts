@@ -4,7 +4,9 @@ import { getHighlighter } from '@/lib/shiki/core'
 import { theme, themeName } from '@/lib/shiki/theme'
 import { HtmlDecoration } from '@/lib/tiptap/decorations/html'
 import { MathDecoration } from '@/lib/tiptap/decorations/math'
+import { BlockOpeners } from '@/lib/tiptap/extensions/block-openers'
 import { CodeEdit } from '@/lib/tiptap/extensions/code-edit'
+import { LineBreaks } from '@/lib/tiptap/extensions/line-breaks'
 import { Markdown } from '@/lib/tiptap/extensions/markdown'
 import { MarkdownMath } from '@/lib/tiptap/extensions/markdown-math'
 import { RevealInsert } from '@/lib/tiptap/extensions/reveal-insert'
@@ -61,6 +63,8 @@ export function editorKit({
       : []),
     HtmlDecoration,
     CodeEdit,
+    LineBreaks,
+    BlockOpeners,
     RevealInsert,
     ...(placeholder ? [Placeholder.configure({ placeholder })] : []),
   ]

@@ -1,10 +1,12 @@
+import { openLineBlock } from '@/lib/tiptap/extensions/block-openers'
+import { inTopLevelParagraph } from '@/lib/tiptap/lines'
 import { Extension } from '@tiptap/core'
-import type { ResolvedPos } from '@tiptap/pm/model'
 import { TextSelection } from '@tiptap/pm/state'
 
 /**
  * Makes a single Enter insert a line break rather than split the paragraph.
- * Pressing Enter twice still creates a paragraph break.
+ * Pressing Enter twice still creates a paragraph break, and a line that opens
+ * a block becomes that block instead (see {@link BlockOpeners}).
  */
 export const LineBreaks = Extension.create({
   name: 'lineBreaks',
@@ -14,8 +16,12 @@ export const LineBreaks = Extension.create({
   addKeyboardShortcuts() {
     return {
       Enter: ({ editor }) => {
-        const { $from, empty } = editor.state.selection
+        const { state } = editor
+        const { $from, empty } = state.selection
         if (!empty || !inTopLevelParagraph($from)) return false
+
+        if (openLineBlock(editor)) return true
+
         return editor.commands.setHardBreak()
       },
 
@@ -49,8 +55,3 @@ export const LineBreaks = Extension.create({
     }
   },
 })
-
-/** Whether the caret sits in a paragraph the document holds directly. */
-function inTopLevelParagraph($pos: ResolvedPos): boolean {
-  return $pos.depth === 1 && $pos.parent.type.name === 'paragraph'
-}

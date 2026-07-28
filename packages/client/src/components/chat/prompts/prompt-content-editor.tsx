@@ -8,7 +8,6 @@ import { useEditorBaseline } from '@/hooks/editor-baseline'
 import { handleSelectAllDelete } from '@/lib/editor-clear'
 import { InterpreterHighlight } from '@/lib/tiptap/decorations'
 import { InterpreterInput } from '@/lib/tiptap/extensions/interpreter-input'
-import { LineBreaks } from '@/lib/tiptap/extensions/line-breaks'
 import { SnippetStops } from '@/lib/tiptap/extensions/snippet-stops'
 import type { EditorDocumentHandle } from '@/lib/tiptap/handle'
 import { editorKit } from '@/lib/tiptap/kit'
@@ -65,7 +64,6 @@ export function PromptContentEditor({
   const editor = useEditor({
     extensions: [
       ...editorKit({ placeholder, debounce: 60 }),
-      LineBreaks,
       SnippetStops,
       InterpreterInput,
       InterpreterHighlight,
