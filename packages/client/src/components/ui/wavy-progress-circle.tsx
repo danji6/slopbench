@@ -9,9 +9,7 @@ const SAMPLE_STEP = Math.PI / 120
 const RAMP_DURATION = 2.4
 const HOLD_DURATION = 0.5
 const COMPLETE_DURATION = 0.35
-const DONE_DURATION = 0.6
-const CYCLE_DURATION =
-  RAMP_DURATION + HOLD_DURATION + COMPLETE_DURATION + DONE_DURATION
+const FAKE_DURATION = RAMP_DURATION + HOLD_DURATION + COMPLETE_DURATION
 const STALL_PROGRESS = 0.95
 
 function clamp01(value: number) {
@@ -29,13 +27,11 @@ function rampProgress(time: number) {
 }
 
 function fakeProgress(elapsed: number) {
-  const t = elapsed % CYCLE_DURATION
-  if (t < RAMP_DURATION + HOLD_DURATION) return rampProgress(t)
+  if (elapsed < RAMP_DURATION + HOLD_DURATION) return rampProgress(elapsed)
   const stalled = rampProgress(RAMP_DURATION)
-  const completing = (t - RAMP_DURATION - HOLD_DURATION) / COMPLETE_DURATION
-  if (completing < 1)
-    return stalled + (1 - stalled) * smoothstep(0, 1, completing)
-  return 1
+  const completing =
+    (elapsed - RAMP_DURATION - HOLD_DURATION) / COMPLETE_DURATION
+  return stalled + (1 - stalled) * smoothstep(0, 1, completing)
 }
 
 function waveEnvelope(progress: number) {
@@ -64,7 +60,7 @@ function arcPath(
 }
 
 type WavyProgressCircleProps = {
-  /** Progress from 0 to 1. Omit to play the fake loading loop. */
+  /** Progress from 0 to 1. Omit to play fake loading. */
   value?: number
   size?: number
   strokeWidth?: number
@@ -93,16 +89,30 @@ function WavyProgressCircle({
   const fillRef = useRef<SVGPathElement>(null)
   const trackRef = useRef<SVGPathElement>(null)
   const startTimeRef = useRef<number | null>(null)
+  const fakeStartRef = useRef<number | null>(null)
+  const settledRef = useRef(false)
 
   const center = size / 2
   const radius = (size - strokeWidth) / 2 - amplitude
   const gapAngle = (strokeWidth * 2) / radius
 
   useAnimationFrame((time) => {
+    if (settledRef.current && value === undefined) return
+
     startTimeRef.current ??= time
     const elapsed = (time - startTimeRef.current) / 1000
-    const progress =
-      value !== undefined ? clamp01(value) : fakeProgress(elapsed)
+
+    let fakeElapsed = 0
+    let progress: number
+    if (value !== undefined) {
+      // Replay from the start if control is handed back
+      fakeStartRef.current = null
+      progress = clamp01(value)
+    } else {
+      fakeStartRef.current ??= time
+      fakeElapsed = (time - fakeStartRef.current) / 1000
+      progress = fakeProgress(fakeElapsed)
+    }
 
     const amp = amplitude * waveEnvelope(progress)
     const phase = -elapsed * speed
@@ -120,6 +130,8 @@ function WavyProgressCircle({
         ? arcPath(center, radius, 0, waves, phase, trackFrom, trackTo)
         : '',
     )
+
+    settledRef.current = value === undefined && fakeElapsed >= FAKE_DURATION
   })
 
   return (
