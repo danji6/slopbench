@@ -145,7 +145,9 @@ function RowShell({ message, messageMeta, row, children }: RowShellProps) {
         data-role={message.role}
         data-message-id={message.id}
         className={cn(
-          'relative z-10 flex w-full min-w-0 flex-col items-start',
+          'relative z-10 flex min-w-0 flex-col items-start',
+          // Grow leftwards into the gutter when there is one
+          '-ml-(--message-gutter,0px) w-[calc(100%+var(--message-gutter,0px))] pl-(--message-gutter,0px)',
           // On mobile, long press will open the context menu instead
           isTouchDevice() && 'select-none [-webkit-touch-callout:none]',
           roleClass,
@@ -214,7 +216,7 @@ function HeaderRow({ row, message, messageMeta }: HeaderRowProps) {
     <div
       ref={highlightRef}
       data-slot="message-highlight-target"
-      className="mb-4 w-fit max-w-full min-w-0"
+      className="mb-2 w-fit max-w-full min-w-0"
     >
       {reasoning ? (
         <ReasoningHeader
@@ -226,7 +228,7 @@ function HeaderRow({ row, message, messageMeta }: HeaderRowProps) {
           groupIndex={reasoning.groupIndex}
         />
       ) : (
-        <MessageHeader sender={sender} role={message.role} />
+        <MessageHeader sender={sender} role={message.role} gutter />
       )}
     </div>
   )

@@ -127,6 +127,7 @@ function ChatSettingsDialog({
       autoTitle: DEFAULT_SETTINGS.autoTitle,
       invertSend: DEFAULT_SETTINGS.invertSend,
       groupBySender: DEFAULT_SETTINGS.groupBySender,
+      avatarSize: DEFAULT_SETTINGS.avatarSize,
       titleModel: null,
       webSearchInstances: DEFAULT_SETTINGS.webSearchInstances,
       mcpServers: DEFAULT_SETTINGS.mcpServers,
@@ -179,6 +180,7 @@ function ChatSettingsDialog({
       autoTitle: settings.autoTitle,
       invertSend: settings.invertSend,
       groupBySender: settings.groupBySender,
+      avatarSize: settings.avatarSize,
       titleModel: settings.titleModel ?? null,
       webSearchInstances: settings.webSearchInstances.map((i) => ({
         ...i,
@@ -307,6 +309,7 @@ function ChatSettingsDialog({
         autoTitle: values.autoTitle,
         invertSend: values.invertSend,
         groupBySender: values.groupBySender,
+        avatarSize: values.avatarSize,
         titleModel: values.titleModel ?? undefined,
         webSearchInstances: normalizeWebSearchInstances(
           values.webSearchInstances,

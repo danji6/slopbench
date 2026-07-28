@@ -3,6 +3,7 @@ import { ThemeColorSetting } from '@/components/theme'
 import { CodeEditor, SettingsList } from '@/components/ui'
 import { FONT_NAMES, MONO_FONT_NAMES } from '@/fonts'
 import type { ResolvedFonts } from '@/hooks/font'
+import { AVATAR_MAX, AVATAR_MIN } from '@/lib/chat/message-geometry'
 import { DEFAULT_SETTINGS, SOURCE_COLOR } from '@sb/convex/model/defaults'
 import { capitalize } from '@sb/core/utils/strings'
 import type { Control, UseFormSetValue } from 'react-hook-form'
@@ -102,6 +103,21 @@ export function AppearanceSettings({
             minValue={600}
             maxValue={1400}
             step={20}
+            onChange={field.onChange}
+          />
+        )}
+      />
+      <Controller
+        control={control}
+        name="avatarSize"
+        render={({ field }) => (
+          <SettingsList.Slider
+            label="Avatar size"
+            value={field.value}
+            defaultValue={DEFAULT_SETTINGS.avatarSize}
+            minValue={AVATAR_MIN}
+            maxValue={AVATAR_MAX}
+            step={2}
             onChange={field.onChange}
           />
         )}

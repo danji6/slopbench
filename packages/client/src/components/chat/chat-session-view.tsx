@@ -2,6 +2,7 @@ import { useKeyboardInset } from '@/hooks'
 import {
   useActiveSession,
   useAgentPrompts,
+  useAvatarSize,
   useChatWidth,
   useIsAdmin,
   useSendCooldownUntil,
@@ -16,6 +17,11 @@ import { useAtBottomSticky } from '@/hooks/scroll'
 import { Result } from '@/lib'
 import type { PendingMessage } from '@/lib/chat'
 import { getDraft } from '@/lib/chat/composer-draft-store'
+import {
+  avatarGutter,
+  avatarVars,
+  columnWidth,
+} from '@/lib/chat/message-geometry'
 import { isOngoingStream } from '@/lib/chat/stream'
 import { cn } from '@/lib/utils'
 import { AnimatePresence } from 'motion/react'
@@ -119,7 +125,12 @@ export function ChatSessionView({
   const [alertHeight, setAlertHeight] = useState(0)
   const keyboardInset = useKeyboardInset()
   const chatWidth = useChatWidth()
-  const messageWidth = `min(95%, ${chatWidth}px - var(--spacing)*36)`
+  const avatarSize = useAvatarSize()
+  const messageStyle = {
+    width: columnWidth(chatWidth, '%'),
+    '--message-gutter': avatarGutter(chatWidth, avatarSize),
+    ...avatarVars(avatarSize),
+  } as React.CSSProperties
 
   const hasPrompts = useAgentPrompts().messages.length > 0
 
@@ -230,7 +241,7 @@ export function ChatSessionView({
             <MessageList
               ref={messageListRef}
               className="mx-auto w-full flex-1"
-              innerStyle={{ width: `calc(${messageWidth} - var(--spacing)*6)` }}
+              innerStyle={messageStyle}
               topPadding={topPadding}
               bottomPadding={bottomPadding}
               header={hasPrompts && <ChatPrompts className="h-fit" />}

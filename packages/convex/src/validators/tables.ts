@@ -65,6 +65,7 @@ export const settingsSchema = v.object({
   titleModel: v.optional(v.string()),
   invertSend: v.optional(v.boolean()),
   groupBySender: v.optional(v.boolean()),
+  avatarSize: v.optional(v.number()),
   globalPrompts: v.optional(v.array(V.promptValidator)),
   libraryPrompts: v.optional(v.array(V.libraryPromptValidator)),
   libraryReminders: v.optional(v.array(V.reminderPromptValidator)),

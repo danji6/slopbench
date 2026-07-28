@@ -101,6 +101,7 @@ export const DEFAULT_SETTINGS = {
   autoTitle: true,
   invertSend: true,
   groupBySender: true,
+  avatarSize: 48,
   webSearchInstances: [] as WebSearchInstance[],
   mcpServers: [] as McpServer[],
   compactionPrompts: createDefaultCompactionPrompts(),

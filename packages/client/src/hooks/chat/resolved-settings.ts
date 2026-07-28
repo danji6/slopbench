@@ -41,6 +41,11 @@ export function useInvertSend(): boolean {
   return settings?.invertSend ?? DEFAULT_SETTINGS.invertSend
 }
 
+export function useAvatarSize(): number {
+  const settings = useSettings()
+  return settings?.avatarSize ?? DEFAULT_SETTINGS.avatarSize
+}
+
 export function useScrollMode(): ScrollMode {
   return useResolvedSettings().scrollMode
 }

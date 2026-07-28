@@ -72,6 +72,7 @@ export function ReasoningHeader({
       <MessageHeader
         sender={sender}
         role={role}
+        gutter
         extra={
           <Button
             ref={showBody ? undefined : highlightRef}

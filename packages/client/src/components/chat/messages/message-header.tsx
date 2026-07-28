@@ -2,6 +2,7 @@ import { Avatar } from '@/components/ui'
 import { useLightbox } from '@/components/ui/lightbox'
 import { useAvatarUrls } from '@/hooks/chat'
 import type { MessageRole, UIAvatar } from '@/lib/chat'
+import { cn } from '@/lib/utils'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { BotIcon, CogIcon, UserIcon } from 'lucide-react'
 import { useCallback } from 'react'
@@ -13,9 +14,23 @@ export type MessageHeaderProps = {
   role: MessageRole
   /** Content rendered inline after the name. */
   extra?: React.ReactNode
+  /** Pulls the avatar into the row's left gutter if there's space. */
+  gutter?: boolean
 }
 
-export function MessageHeader({ sender, role, extra }: MessageHeaderProps) {
+const GUTTER_AVATAR = [
+  'size-[var(--avatar-size,40px)]',
+  'ml-[calc(var(--message-gutter,0px)*-1)]',
+  'mb-[calc(var(--message-gutter,0px)*var(--avatar-lift,0)*-1)]',
+  'translate-y-[calc(var(--message-gutter,0px)*var(--avatar-drop,0))]',
+].join(' ')
+
+export function MessageHeader({
+  sender,
+  role,
+  extra,
+  gutter,
+}: MessageHeaderProps) {
   const avatarUrls = useAvatarUrls(sender.avatarId)
 
   const name = (
@@ -35,6 +50,7 @@ export function MessageHeader({ sender, role, extra }: MessageHeaderProps) {
         alt={sender.name}
         size="md"
         fallbackIcon={<RoleIcon role={role} />}
+        className={gutter ? GUTTER_AVATAR : undefined}
       />
       {extra ? (
         <div className="flex min-w-0 items-baseline gap-x-2">
@@ -60,10 +76,12 @@ function AvatarWithLightbox({
   alt,
   size = 'md',
   fallbackIcon,
+  className,
 }: UIAvatar & {
   alt?: string
   size?: 'sm' | 'md' | 'lg'
   fallbackIcon?: React.ReactNode
+  className?: string
 }) {
   const lightbox = useLightbox()
   const handleClick = useCallback(() => {
@@ -77,7 +95,7 @@ function AvatarWithLightbox({
       size={size}
       fallbackIcon={fallbackIcon}
       onClick={original ? handleClick : undefined}
-      className={original ? 'cursor-pointer' : undefined}
+      className={cn(original && 'cursor-pointer', className)}
     />
   )
 }

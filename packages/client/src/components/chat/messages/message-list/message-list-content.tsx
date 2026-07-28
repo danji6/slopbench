@@ -53,7 +53,8 @@ export function MessageListContent({
   return (
     <>
       <motion.div
-        className="w-full"
+        // Query container for the avatar gutter
+        className="@container w-full"
         initial={{ opacity: 0 }}
         animate={{ opacity: revealed ? 1 : 0 }}
         transition={CONTENT_FADE_TRANSITION}
@@ -247,6 +248,11 @@ function VirtualizedItem({
     row.kind !== 'footer' &&
     previousRow?.messageId !== row.messageId
 
+  // The gutter avatar overhangs its header row into the band of the row below.
+  // Without this, Virtua would make the avatar unclickable because it uses
+  // `contain: layout` on every item.
+  const overhang = row?.kind === 'header' ? { ...style, zIndex: 1 } : style
+
   return (
     <div
       ref={ref}
@@ -255,7 +261,7 @@ function VirtualizedItem({
       data-message-id={row?.messageId}
       data-row-key={row?.key}
       data-segment-index={row?.kind === 'group' ? row.segmentIndex : undefined}
-      style={style}
+      style={overhang}
     >
       {spacing && <div aria-hidden className={row.grouped ? 'h-3' : 'h-10'} />}
       {children}

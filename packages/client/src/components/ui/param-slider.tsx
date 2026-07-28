@@ -1,4 +1,4 @@
-import { clamp } from '@/lib/math'
+import { clamp, snapToStep } from '@/lib/math'
 import { cn } from '@/lib/utils'
 import { RotateCcwIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -90,12 +90,22 @@ export function ParamSlider({
     }
   }
 
+  // Turns the value into a valid one when the field is left
   function handleInputBlur() {
-    const newValue = Number(rawInput ?? internalValue)
+    const typed = rawInput?.trim()
+    const newValue = Number(typed ? typed : internalValue)
     setRawInput(null)
+    if (Number.isNaN(newValue)) return
 
-    if (!Number.isNaN(newValue)) {
-      setInternalValue(newValue)
+    const snapped = clamp(
+      snapToStep(newValue, step, minValue),
+      minValue,
+      maxValue,
+    )
+    setInternalValue(snapped)
+
+    if (enabled && snapped !== value) {
+      commitNumber(snapped)
     }
   }
 
