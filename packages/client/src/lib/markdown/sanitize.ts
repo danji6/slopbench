@@ -1,10 +1,12 @@
-import { defaultSchema } from 'rehype-sanitize'
+import { type Options as SanitizeSchema, defaultSchema } from 'rehype-sanitize'
 
 /** Sanitizer schema extended with the custom nodes our remark plugins emit. */
-export const sanitizeSchema = {
+export const sanitizeSchema: SanitizeSchema = {
   ...defaultSchema,
   tagNames: [
     ...(defaultSchema.tagNames ?? []),
+    'label',
+    'button',
     'md-group',
     'md-meta',
     'md-quoted',
@@ -33,5 +35,5 @@ export const sanitizeSchema = {
 
 /** Tags the sanitizer keeps; anything else renders as literal text. */
 export const allowedTags = new Set(
-  sanitizeSchema.tagNames.map((tag) => tag.toLowerCase()),
+  (sanitizeSchema.tagNames ?? []).map((tag) => tag.toLowerCase()),
 )

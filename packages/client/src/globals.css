@@ -885,6 +885,37 @@ html::-webkit-scrollbar {
   margin: 0;
 }
 
+.ProseMirror .html-source {
+  display: none;
+}
+
+.ProseMirror .html-preview {
+  cursor: pointer;
+}
+
+.ProseMirror .html-preview-block {
+  display: block;
+}
+
+/* The paragraph the preview sits in already carries the block spacing. */
+.ProseMirror .html-preview > :first-child {
+  margin-top: 0;
+}
+
+.ProseMirror .html-preview > :last-child {
+  margin-bottom: 0;
+}
+
+/* Raw HTML the sanitizer would strip, shown by `remarkLiteralHtml`. */
+.md-literal-html {
+  white-space: pre-wrap;
+}
+
+/* Line indentation `remarkPreserveIndent` puts back. */
+.md-indent {
+  white-space: pre;
+}
+
 /* On touch devices the message rows disable text selection,
    but the editor must stay selectable. */
 @media (hover: none) and (pointer: coarse) {

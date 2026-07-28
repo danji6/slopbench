@@ -1,17 +1,11 @@
 import { fullscreenGrow } from '@/components/ui'
-import { CodeBlockShiki } from '@/components/ui/code-block-shiki'
-import { getHighlighter } from '@/lib/shiki/core'
-import { theme, themeName } from '@/lib/shiki/theme'
 import { MentionDecoration } from '@/lib/tiptap/decorations/mention'
-import { CodeEdit } from '@/lib/tiptap/extensions/code-edit'
-import { Markdown } from '@/lib/tiptap/extensions/markdown'
-import { RevealInsert } from '@/lib/tiptap/extensions/reveal-insert'
+import { editorKit } from '@/lib/tiptap/kit'
 import { copyCollapsedText } from '@/lib/tiptap/paste'
 import { cn } from '@/lib/utils'
 import type { EditorView } from '@tiptap/pm/view'
 import { EditorContent, useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
-import { StarterKit } from '@tiptap/starter-kit'
 import { useEffect, useMemo, useRef } from 'react'
 
 import { usePlaceholder } from './use-placeholder'
@@ -47,18 +41,8 @@ export function ComposerEditor({
 
   const extensions = useMemo(
     () => [
-      StarterKit.configure({ codeBlock: false }),
-      CodeBlockShiki.configure({
-        themes: { light: themeName, dark: themeName },
-        customThemes: [theme],
-        highlighter: getHighlighter(),
-        lineNumbers: true,
-        debounce: 60,
-      }),
-      Markdown,
+      ...editorKit({ debounce: 60 }),
       MentionDecoration,
-      CodeEdit,
-      RevealInsert,
       placeholderExtension,
     ],
     [placeholderExtension],

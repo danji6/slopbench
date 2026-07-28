@@ -4,5 +4,7 @@
 
 export * from './format'
 export * from './helpers'
+export * from './html-scan'
+export * from './html'
 export * from './remark'
 export * from './sanitize'

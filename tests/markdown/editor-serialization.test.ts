@@ -84,7 +84,7 @@ describe('editor markdown serialization', () => {
   })
 })
 
-describe('editor markdown custom elements', () => {
+describe('editor markdown html', () => {
   test('keeps undeclared custom elements and their content', () => {
     const source = '<example>\nLorem ipsum\n</example>'
     expect(roundTrip(source)).toBe(source)
@@ -96,8 +96,33 @@ describe('editor markdown custom elements', () => {
     )
   })
 
-  test('still parses standard html into the schema', () => {
-    expect(roundTrip('a <strong>bold</strong> word')).toBe('a **bold** word')
+  // Standard html used to be absorbed into the schema, which dropped every
+  // attribute with it. `HtmlDecoration` renders it instead, so the source is
+  // what gets stored.
+  test('keeps standard html literal', () => {
+    expect(roundTrip('a <strong>bold</strong> word')).toBe(
+      'a <strong>bold</strong> word',
+    )
+  })
+
+  test('keeps styled block html literal', () => {
+    const source = '<div style="background:green">🎉 Cool 🎉</div>'
+    expect(roundTrip(source)).toBe(source)
+  })
+
+  test('keeps a multi-line html block literal', () => {
+    const source = '<div>\n<b>x</b>\n</div>'
+    expect(roundTrip(source)).toBe(source)
+    expect(serializeDocumentToMarkdown(reopenFromDom(open(source)))).toBe(
+      source,
+    )
+  })
+
+  test('keeps void tags literal', () => {
+    expect(roundTrip('line<br>break')).toBe('line<br>break')
+    expect(roundTrip('an <img src="a.png"> image')).toBe(
+      'an <img src="a.png"> image',
+    )
   })
 })
 

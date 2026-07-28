@@ -3,30 +3,19 @@ import {
   codeEditorVariants,
   fullscreenFill,
 } from '@/components/ui'
-import { CodeBlockShiki } from '@/components/ui/code-block-shiki'
 import { useMathMode } from '@/hooks/chat'
 import { useEditorBaseline } from '@/hooks/editor-baseline'
 import type { MathMode } from '@/lib/chat'
 import { normalizeMathDelimiters } from '@/lib/markdown/helpers'
-import { getHighlighter } from '@/lib/shiki/core'
-import { theme, themeName } from '@/lib/shiki/theme'
-import { MathDecoration, setEditorMathMode } from '@/lib/tiptap/decorations'
-import { CodeEdit } from '@/lib/tiptap/extensions/code-edit'
-import { Markdown } from '@/lib/tiptap/extensions/markdown'
-import { MarkdownMath } from '@/lib/tiptap/extensions/markdown-math'
-import { RevealInsert } from '@/lib/tiptap/extensions/reveal-insert'
+import { setEditorMathMode } from '@/lib/tiptap/decorations'
+import { editorKit } from '@/lib/tiptap/kit'
 import {
   serializeDocumentToMarkdown,
   setEditorMarkdown,
 } from '@/lib/tiptap/serialize'
 import { cn } from '@/lib/utils'
 import type { JSONContent } from '@tiptap/core'
-import { Table } from '@tiptap/extension-table'
-import { TableCell } from '@tiptap/extension-table-cell'
-import { TableHeader } from '@tiptap/extension-table-header'
-import { TableRow } from '@tiptap/extension-table-row'
 import { EditorContent, useEditor } from '@tiptap/react'
-import { StarterKit } from '@tiptap/starter-kit'
 import { useEffect, useImperativeHandle, useRef } from 'react'
 
 /**
@@ -83,24 +72,7 @@ export function PlanEditor({
   })
 
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({ codeBlock: false }),
-      CodeBlockShiki.configure({
-        themes: { light: themeName, dark: themeName },
-        customThemes: [theme],
-        highlighter: getHighlighter(),
-        lineNumbers: true,
-      }),
-      Markdown,
-      MarkdownMath,
-      Table.configure({ resizable: false }),
-      TableRow,
-      TableCell,
-      TableHeader,
-      MathDecoration.configure({ mathMode }),
-      CodeEdit,
-      RevealInsert,
-    ],
+    extensions: editorKit({ math: mathMode, tables: true }),
     content: forEditor(initialContent, mathMode),
     contentType: 'markdown',
     immediatelyRender: false,

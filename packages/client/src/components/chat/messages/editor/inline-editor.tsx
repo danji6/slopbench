@@ -1,29 +1,16 @@
-import { CodeBlockShiki } from '@/components/ui/code-block-shiki'
 import { useMathMode } from '@/hooks/chat'
 import { normalizeMathDelimiters } from '@/lib/markdown/helpers'
-import { getHighlighter } from '@/lib/shiki/core'
-import { theme, themeName } from '@/lib/shiki/theme'
 import {
-  MathDecoration,
   MentionDecoration,
   QuotedTextDecoration,
   setEditorMathMode,
 } from '@/lib/tiptap/decorations'
-import { CodeEdit } from '@/lib/tiptap/extensions/code-edit'
-import { Markdown } from '@/lib/tiptap/extensions/markdown'
-import { MarkdownMath } from '@/lib/tiptap/extensions/markdown-math'
-import { RevealInsert } from '@/lib/tiptap/extensions/reveal-insert'
+import { editorKit } from '@/lib/tiptap/kit'
 import { serializeDocumentToMarkdown } from '@/lib/tiptap/serialize'
 import { cn } from '@/lib/utils'
-import { Placeholder } from '@tiptap/extension-placeholder'
-import { Table } from '@tiptap/extension-table'
-import { TableCell } from '@tiptap/extension-table-cell'
-import { TableHeader } from '@tiptap/extension-table-header'
-import { TableRow } from '@tiptap/extension-table-row'
 import type { EditorView } from '@tiptap/pm/view'
 import { EditorContent, useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
-import { StarterKit } from '@tiptap/starter-kit'
 import { useEffect, useRef } from 'react'
 
 import type { EditCaret, PendingSelection } from './message-edit-context'
@@ -80,25 +67,9 @@ export function InlineEditor({
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ codeBlock: false }),
-      CodeBlockShiki.configure({
-        themes: { light: themeName, dark: themeName },
-        customThemes: [theme],
-        highlighter: getHighlighter(),
-        lineNumbers: true,
-      }),
-      Markdown,
-      MarkdownMath,
-      Table.configure({ resizable: false }),
-      TableRow,
-      TableCell,
-      TableHeader,
+      ...editorKit({ math: mathMode, tables: true, placeholder }),
       QuotedTextDecoration,
       MentionDecoration,
-      MathDecoration.configure({ mathMode }),
-      CodeEdit,
-      RevealInsert,
-      ...(placeholder ? [Placeholder.configure({ placeholder })] : []),
     ],
     content,
     contentType: 'markdown',

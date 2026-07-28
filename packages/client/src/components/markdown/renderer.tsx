@@ -8,10 +8,11 @@ import {
   remarkLiteralHtml,
   remarkMention,
   remarkMeta,
+  remarkPreserveIndent,
   remarkPromoteDisplayMath,
   remarkSplitImages,
 } from '@/lib/markdown/remark'
-import { allowedTags, sanitizeSchema } from '@/lib/markdown/sanitize'
+import { sanitizeSchema } from '@/lib/markdown/sanitize'
 import { cn } from '@/lib/utils'
 import { dedent } from '@sb/core/utils/strings'
 import type React from 'react'
@@ -73,7 +74,8 @@ export function MarkdownRenderer({
       ? [remarkMath, { singleDollarTextMath: false }]
       : remarkMath
   const remarkPlugins = [
-    [remarkLiteralHtml, { allowed: allowedTags }] as RemarkPlugin,
+    [remarkPreserveIndent, { softBreaks: !!enableBreaks }] as RemarkPlugin, // runs first
+    remarkLiteralHtml as RemarkPlugin,
     remarkToc,
     remarkSplitImages,
     remarkCodeMeta,

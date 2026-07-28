@@ -1,6 +1,6 @@
 /// <reference types="bun-types" />
 import { remarkLiteralHtml } from '@/lib/markdown/remark'
-import { allowedTags, sanitizeSchema } from '@/lib/markdown/sanitize'
+import { sanitizeSchema } from '@/lib/markdown/sanitize'
 import { describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 import Markdown from 'react-markdown'
@@ -11,7 +11,7 @@ import rehypeSanitize from 'rehype-sanitize'
 const render = (markdown: string) =>
   renderToStaticMarkup(
     <Markdown
-      remarkPlugins={[[remarkLiteralHtml, { allowed: allowedTags }]]}
+      remarkPlugins={[remarkLiteralHtml]}
       rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
     >
       {markdown}
@@ -42,5 +42,29 @@ describe('literal html rendering', () => {
     expect(render('```\n<system-reminder>\n```')).toContain(
       '&lt;system-reminder&gt;',
     )
+  })
+
+  test('keeps the indentation of a literal block', () => {
+    const html = render('<system-reminder>\n  be brief\n</system-reminder>')
+    expect(html).toContain('class="md-literal-html"')
+    expect(html).toContain('\n  be brief\n')
+  })
+
+  test('renders an element whose only unknown tags are nested', () => {
+    const html = render('<div style="color:red">\n<label>x</label>\n</div>')
+    expect(html).toContain('<div style="color:red">')
+    expect(html).toContain('<label>x</label>')
+  })
+
+  test('still hides an unknown tag beside an allowed one', () => {
+    expect(
+      render('<div>a</div>\n<system-reminder>b</system-reminder>'),
+    ).toContain('&lt;system-reminder&gt;')
+  })
+
+  test('renders html wrapped around markdown', () => {
+    const html = render('<div class="wrap">\n\n**bold**\n\n</div>')
+    expect(html).toContain('<div class="wrap">')
+    expect(html).toContain('<strong>bold</strong>')
   })
 })

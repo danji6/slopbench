@@ -3,28 +3,21 @@ import {
   codeEditorVariants,
   fullscreenFill,
 } from '@/components/ui'
-import { CodeBlockShiki } from '@/components/ui/code-block-shiki'
 import { useCodeCompletion } from '@/components/ui/code-completion'
 import { useEditorBaseline } from '@/hooks/editor-baseline'
 import { handleSelectAllDelete } from '@/lib/editor-clear'
-import { getHighlighter } from '@/lib/shiki/core'
-import { theme, themeName } from '@/lib/shiki/theme'
 import { InterpreterHighlight } from '@/lib/tiptap/decorations'
-import { CodeEdit } from '@/lib/tiptap/extensions/code-edit'
 import { InterpreterInput } from '@/lib/tiptap/extensions/interpreter-input'
 import { LineBreaks } from '@/lib/tiptap/extensions/line-breaks'
-import { Markdown } from '@/lib/tiptap/extensions/markdown'
-import { RevealInsert } from '@/lib/tiptap/extensions/reveal-insert'
 import { SnippetStops } from '@/lib/tiptap/extensions/snippet-stops'
 import type { EditorDocumentHandle } from '@/lib/tiptap/handle'
+import { editorKit } from '@/lib/tiptap/kit'
 import { copyBlockText, pasteTextLines } from '@/lib/tiptap/paste'
 import { serializeDocumentToMarkdown } from '@/lib/tiptap/serialize'
 import { cn } from '@/lib/utils'
 import type { JSONContent } from '@tiptap/core'
-import { Placeholder } from '@tiptap/extension-placeholder'
 import { EditorContent, useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
-import { StarterKit } from '@tiptap/starter-kit'
 import { useEffect, useImperativeHandle, useRef } from 'react'
 
 import { sessionCompletionSource } from './session-completions'
@@ -71,22 +64,11 @@ export function PromptContentEditor({
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ codeBlock: false }),
-      CodeBlockShiki.configure({
-        themes: { light: themeName, dark: themeName },
-        customThemes: [theme],
-        highlighter: getHighlighter(),
-        lineNumbers: true,
-        debounce: 60,
-      }),
-      Markdown,
-      CodeEdit,
-      RevealInsert,
+      ...editorKit({ placeholder, debounce: 60 }),
       LineBreaks,
       SnippetStops,
       InterpreterInput,
       InterpreterHighlight,
-      ...(placeholder ? [Placeholder.configure({ placeholder })] : []),
     ],
     content: doc ?? value,
     contentType: 'markdown',
