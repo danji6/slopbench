@@ -3,13 +3,13 @@ import {
   useActiveSession,
   useLinkedAgents,
   useOpenAgentEditor,
-  useSelectAgent,
 } from '@/hooks/chat'
 import {
   useActivateAgent,
   useContinueAgent,
   useUnlinkAgent,
 } from '@/hooks/chat/participants'
+import { setEditingAgentId } from '@/lib/chat/agent-editor-store'
 import { cn } from '@/lib/utils'
 import { PencilIcon, ReplyIcon, Unlink2Icon } from 'lucide-react'
 
@@ -24,7 +24,6 @@ export function AgentsStrip({
   const activate = useActivateAgent()
   const continueAgent = useContinueAgent()
   const unlink = useUnlinkAgent()
-  const selectAgent = useSelectAgent()
   const openAgentEditor = useOpenAgentEditor()
 
   return (
@@ -57,7 +56,7 @@ export function AgentsStrip({
             </ContextMenu.Item>
             <ContextMenu.Item
               onSelect={() => {
-                selectAgent(agent._id)
+                setEditingAgentId(agent._id)
                 openAgentEditor()
               }}
             >

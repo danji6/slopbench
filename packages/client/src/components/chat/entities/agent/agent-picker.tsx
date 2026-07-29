@@ -4,8 +4,9 @@ import {
   AgentItemLabel,
 } from '@/components/chat/sessions/agent-combobox'
 import { Combobox } from '@/components/ui'
-import { useEditingAgent, useSelectAgent } from '@/hooks/chat'
+import { useEditingAgent } from '@/hooks/chat'
 import type { CreateAgentArgs } from '@/lib/chat'
+import { setEditingAgentId } from '@/lib/chat/agent-editor-store'
 import { triggerAgentDownload, uploadAgentFile } from '@/lib/chat/io'
 import { cn } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
@@ -25,9 +26,6 @@ export type AgentPickerProps = {
 
 export function AgentPicker({ className, confirmSwitch }: AgentPickerProps) {
   const editingAgent = useEditingAgent()
-  const selectAgent = useSelectAgent()
-  const select = (id: string | null) =>
-    confirmSwitch ? confirmSwitch(() => selectAgent(id)) : selectAgent(id)
   const docs = useQuery(api.agents.list) ?? []
   const createAgent = useMutation(api.agents.create)
   const removeAgent = useMutation(api.agents.remove)
@@ -41,6 +39,11 @@ export function AgentPicker({ className, confirmSwitch }: AgentPickerProps) {
     name: d.name,
     avatarId: d.avatarId,
   }))
+
+  const select = (id: string | null) =>
+    confirmSwitch
+      ? confirmSwitch(() => setEditingAgentId(id))
+      : setEditingAgentId(id)
 
   const create = async () => {
     const id = await createAgent({ name: 'New agent' })

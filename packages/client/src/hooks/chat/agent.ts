@@ -5,12 +5,16 @@ import type {
   ThemeSnapshot,
   UpdateAgentArgs,
 } from '@/lib/chat'
+import {
+  getEditingAgentId,
+  subscribeEditingAgent,
+} from '@/lib/chat/agent-editor-store'
 import { evaluatePromptPreview, mergePrompts } from '@/lib/chat/prompts'
 import { api } from '@sb/convex/_generated/api'
 import type { Doc, Id } from '@sb/convex/_generated/dataModel'
 import type { EvalContext } from '@sb/core/interpreter/types'
 import { useMutation, useQuery } from 'convex/react'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useSyncExternalStore } from 'react'
 
 import { useActiveSession, useActiveSessionId } from './session'
 import { useSettings, useSettingsUpdate } from './settings'
@@ -135,10 +139,10 @@ export function useAgentPrompts(workDir?: string) {
   ])
 }
 
+/** The picked agent that's being edited. */
 export function useEditingAgent(): Doc<'agents'> | null {
-  const settings = useSettings()
   const owned = useOwnedAgents()
-  const id = settings?.recentAgentId
+  const id = useSyncExternalStore(subscribeEditingAgent, getEditingAgentId)
   if (!id) return null
   return owned?.find((agent) => agent._id === id) ?? null
 }
@@ -163,6 +167,7 @@ export function useAgentUpdate() {
   )
 }
 
+/** Picks the agent outside of a session. */
 export function useSelectAgent() {
   const update = useSettingsUpdate()
   const remove = useMutation(api.settings.remove)

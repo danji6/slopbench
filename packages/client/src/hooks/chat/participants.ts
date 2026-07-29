@@ -69,7 +69,7 @@ export function useActivateAgent() {
   return useCallback(
     (agentId: Id<'agents'>) => {
       if (!session) return
-      // Synchronize with the Agents tab
+      // Carry the choice over to the next new chat
       const isActivating = session.activeAgentId !== agentId
       if (isActivating && ownedAgents?.some((agent) => agent._id === agentId)) {
         select(agentId)
