@@ -107,8 +107,7 @@ export function AgentSettings() {
 
   useEffect(() => {
     if (!open) return
-    form.reset(editingAgent ? agentToFormValues(editingAgent) : EMPTY_FORM)
-    if (editingAgent) draft.restore()
+    draft.sync(editingAgent ? agentToFormValues(editingAgent) : EMPTY_FORM)
     // Sync from the live doc on agent switch or when (re)opening the editor
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentId, open])

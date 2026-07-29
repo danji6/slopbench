@@ -2,9 +2,14 @@ import { useEditorDraft } from '@/lib/chat/editor-draft-store'
 import { useEffect, useMemo } from 'react'
 import type { FieldValues, UseFormReturn } from 'react-hook-form'
 
-export type FormDraft = {
-  /** Offers any stored draft, layering it over the form once accepted. */
-  restore: () => void
+/** What the form itself accepts as a full reset. */
+type StoredValues<T extends FieldValues> = Parameters<
+  UseFormReturn<T>['reset']
+>[0]
+
+export type FormDraft<T extends FieldValues> = {
+  /** Loads the stored values, offering a draft if present. */
+  sync: (values: StoredValues<T>) => void
   /** Drops the draft once its values are persisted or explicitly discarded. */
   clear: () => void
 }
@@ -15,7 +20,7 @@ export function useFormDraft<T extends FieldValues>(
   form: UseFormReturn<T>,
   /** Names the draft in the confirmation: "unsaved changes to <label>". */
   label: string,
-): FormDraft {
+): FormDraft<T> {
   const draft = useEditorDraft<T>(key, label)
 
   useEffect(() => {
@@ -23,16 +28,19 @@ export function useFormDraft<T extends FieldValues>(
       formState: { values: true, isDirty: true },
       callback: ({ values, isDirty }) => {
         if (isDirty) draft.save(values)
+        else draft.clearUnchanged()
       },
     })
   }, [form, draft])
 
   return useMemo(
     () => ({
-      restore: () =>
-        draft.restore((saved) =>
-          form.reset(saved, { keepDefaultValues: true }),
-        ),
+      sync: (values: StoredValues<T>) => {
+        // Ask to restore before a reset, since a reset reports the form as clean
+        // and a clean form is otherwise read as the user reverting their edits
+        draft.restore((saved) => form.reset(saved, { keepDefaultValues: true }))
+        form.reset(values)
+      },
       clear: draft.clear,
     }),
     [draft, form],

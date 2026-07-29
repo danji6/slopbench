@@ -173,7 +173,7 @@ function ChatSettingsDialog({
     const fontsEnabled = FONT_OVERRIDE_KEYS.some(
       (key) => override[key] !== undefined,
     )
-    form.reset({
+    draft.sync({
       displayName: settings.displayName ?? '',
       scrollMode: settings.scrollMode,
       mathMode: settings.mathMode,
@@ -218,7 +218,6 @@ function ChatSettingsDialog({
         }),
       ),
     })
-    draft.restore()
     initialized.current = true
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, settings])
