@@ -1,4 +1,4 @@
-
+import { FocusLayer } from '@/lib/focus-return'
 import { cn } from '@/lib/utils'
 import type * as React from 'react'
 import { Drawer as DrawerPrimitive } from 'vaul-base'
@@ -50,6 +50,7 @@ function DrawerContent({
 }: React.ComponentProps<typeof DrawerPrimitive.Content>) {
   return (
     <DrawerPortal data-slot="drawer-portal">
+      <FocusLayer />
       <DrawerOverlay />
       <DrawerPrimitive.Content
         data-slot="drawer-content"

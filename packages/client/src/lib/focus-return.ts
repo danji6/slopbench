@@ -54,6 +54,11 @@ export function getFocusReturnTarget(): HTMLElement | null {
   return openLayers > 1 ? null : findTarget(INERT)
 }
 
+/** Whether an open floating layer covers the element. */
+export function isCovered(element: HTMLElement | null): boolean {
+  return Boolean(element?.closest(COVERED))
+}
+
 function isEditable(node: Element | null): boolean {
   if (!(node instanceof HTMLElement)) return false
   return (

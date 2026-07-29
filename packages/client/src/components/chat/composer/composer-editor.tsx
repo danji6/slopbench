@@ -1,4 +1,5 @@
 import { fullscreenGrow } from '@/components/ui'
+import { isCovered } from '@/lib/focus-return'
 import { MentionDecoration } from '@/lib/tiptap/decorations/mention'
 import { editorKit } from '@/lib/tiptap/kit'
 import { copyCollapsedText } from '@/lib/tiptap/paste'
@@ -74,7 +75,8 @@ export function ComposerEditor({
 
   useEffect(() => {
     if (!editor) return
-    if (autoFocus) {
+    // Focus only if not covered by a modal
+    if (autoFocus && !isCovered(editor.view.dom)) {
       editor.view.dom.focus({ preventScroll: true })
       editor.commands.focus('end', { scrollIntoView: false })
     }
