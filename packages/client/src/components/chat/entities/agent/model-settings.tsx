@@ -26,7 +26,7 @@ export function ModelSettings({
             <ModelPicker
               variant="input"
               value={field.value ?? ''}
-              onValueChange={(v) => field.onChange(v || undefined)}
+              onValueChange={(v) => field.onChange(v || null)}
             />
           )}
         />

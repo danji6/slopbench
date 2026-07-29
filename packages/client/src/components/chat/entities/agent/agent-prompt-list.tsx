@@ -40,7 +40,7 @@ export function AgentPromptList({ control }: AgentPromptListProps) {
   const promptOrder = orderField.value
 
   const mergeResult = mergePrompts(
-    { globalPromptsEnabled, prompts, promptOrder },
+    { globalPromptsEnabled, prompts, promptOrder: promptOrder ?? undefined },
     globalPrompts,
     libraryPrompts,
   )

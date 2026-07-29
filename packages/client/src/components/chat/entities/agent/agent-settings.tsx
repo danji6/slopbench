@@ -22,7 +22,6 @@ import { agentSettingsDraftKey } from '@/lib/chat/editor-draft-store'
 import { cn } from '@/lib/utils'
 import { ThemeScope } from '@/providers/theme-scope'
 import { api } from '@sb/convex/_generated/api'
-import { ensurePromptMarkers } from '@sb/convex/model/prompt/markers'
 import { useMutation } from 'convex/react'
 import {
   ActivityIcon,
@@ -37,8 +36,8 @@ import { useEffect, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 
 import {
-  AGENT_PROMPT_MARKERS,
   type AgentFormValues,
+  EMPTY_AGENT_FORM,
   agentToFormValues,
   formValuesToPatch,
 } from './agent-form'
@@ -50,28 +49,6 @@ import { ModelSettings } from './model-settings'
 import { ProfileSettings } from './profile-settings'
 import { SubagentSettings } from './subagent-settings'
 import { ToolSettings } from './tool-settings'
-
-const EMPTY_FORM: AgentFormValues = {
-  name: '',
-  description: '',
-  prompts: ensurePromptMarkers([], AGENT_PROMPT_MARKERS),
-  promptOrder: undefined,
-  globalPromptsEnabled: true,
-  reminderPrompts: [],
-  libraryReminderIds: [],
-  modelId: null,
-  reasoningEffort: null,
-  tools: [],
-  autoApproveTools: [],
-  autoApproveShell: [],
-  subAgentsMode: 'allow',
-  subAgentIds: [],
-  trimContext: false,
-  contextWindow: -1,
-  outputTokens: -1,
-  customCss: '',
-  themeColor: '',
-}
 
 export function AgentSettings() {
   const view = useAgentEditorView()
@@ -86,7 +63,7 @@ export function AgentSettings() {
     '/io/avatar/upload',
   )
 
-  const form = useForm<AgentFormValues>({ defaultValues: EMPTY_FORM })
+  const form = useForm<AgentFormValues>({ defaultValues: EMPTY_AGENT_FORM })
 
   const [pendingAvatar, setPendingAvatar] = useState<File | null>(null)
   const [avatarCleared, setAvatarCleared] = useState(false)
@@ -107,7 +84,9 @@ export function AgentSettings() {
 
   useEffect(() => {
     if (!open) return
-    draft.sync(editingAgent ? agentToFormValues(editingAgent) : EMPTY_FORM)
+    draft.sync(
+      editingAgent ? agentToFormValues(editingAgent) : EMPTY_AGENT_FORM,
+    )
     // Sync from the live doc on agent switch or when (re)opening the editor
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentId, open])

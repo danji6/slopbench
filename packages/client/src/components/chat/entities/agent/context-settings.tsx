@@ -25,7 +25,7 @@ export function ContextSettings({
               When enabled, each user message is prefixed with the sender's display
               name so this agent can tell different users apart.
             `}
-            checked={field.value ?? false}
+            checked={field.value}
             onCheckedChange={field.onChange}
           />
         )}
@@ -42,7 +42,7 @@ export function ContextSettings({
               When enabled, messages from other agents are prefixed with their
               display name so this agent can tell them apart.
             `}
-            checked={field.value ?? false}
+            checked={field.value}
             onCheckedChange={field.onChange}
           />
         )}
@@ -60,7 +60,7 @@ export function ContextSettings({
               assistant, while every other agent's messages are masked as user
               turns before the request is sent to the provider.
             `}
-            checked={field.value ?? false}
+            checked={field.value}
             onCheckedChange={field.onChange}
           />
         )}

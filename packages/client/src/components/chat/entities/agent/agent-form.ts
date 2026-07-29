@@ -23,54 +23,79 @@ export const AGENT_PROMPT_MARKERS: PromptMarkerType[] = [
 // All tools are off by default
 export type AgentToolSelection = string[]
 
+/** Agent settings form shape. */
 export type AgentFormValues = {
   name: string
   description: string
   prompts: PromptItem[]
-  promptOrder?: OrderedItem[]
+  promptOrder: OrderedItem[] | null
   globalPromptsEnabled: boolean
   reminderPrompts: ReminderPrompt[]
   libraryReminderIds: string[]
-  modelId?: string | null
-  reasoningEffort?: ReasoningEffort | null
+  modelId: string | null
+  reasoningEffort: ReasoningEffort | null
   tools: AgentToolSelection
   autoApproveTools: string[]
   autoApproveShell: string[]
   subAgentsMode: AgentSubAgentsMode
   subAgentIds: Id<'agents'>[]
   // Inference
-  temperature?: number
-  topP?: number
-  frequencyPenalty?: number
-  presencePenalty?: number
-  repeatPenalty?: number
+  temperature: number | null
+  topP: number | null
+  frequencyPenalty: number | null
+  presencePenalty: number | null
+  repeatPenalty: number | null
   // Context
   trimContext: boolean
   contextWindow: number
   outputTokens: number
-  shareUserDisplayNames?: boolean
-  shareAgentDisplayNames?: boolean
-  maskOtherAgents?: boolean
-  customCss?: string
-  scrollMode?: ScrollMode | null
-  themeColor?: string
-  mathMode?: MathMode | null
-  chatWidth?: number | null
-  compactionPrompts?: PromptItem[] | null
-  impersonationPrompts?: PromptItem[] | null
+  shareUserDisplayNames: boolean
+  shareAgentDisplayNames: boolean
+  maskOtherAgents: boolean
+  customCss: string
+  scrollMode: ScrollMode | null
+  themeColor: string
+  mathMode: MathMode | null
+  chatWidth: number | null
+  compactionPrompts: PromptItem[] | null
+  impersonationPrompts: PromptItem[] | null
 }
 
-/** Overridable doc fields, mapped from their form representation. Any entry
- * that resolves to `undefined` is cleared (inherited) rather than patched. */
-const OVERRIDABLE_FORM_KEYS = [
-  'customCss',
-  'scrollMode',
-  'theme',
-  'mathMode',
-  'chatWidth',
-  'compactionPrompts',
-  'impersonationPrompts',
-] as const
+/** The form's shape for an agent that does not exist yet. */
+export const EMPTY_AGENT_FORM: AgentFormValues = {
+  name: '',
+  description: '',
+  prompts: ensurePromptMarkers([], AGENT_PROMPT_MARKERS),
+  promptOrder: null,
+  globalPromptsEnabled: true,
+  reminderPrompts: [],
+  libraryReminderIds: [],
+  modelId: null,
+  reasoningEffort: null,
+  tools: [],
+  autoApproveTools: [],
+  autoApproveShell: [],
+  subAgentsMode: 'allow',
+  subAgentIds: [],
+  temperature: null,
+  topP: null,
+  frequencyPenalty: null,
+  presencePenalty: null,
+  repeatPenalty: null,
+  trimContext: false,
+  contextWindow: -1,
+  outputTokens: -1,
+  shareUserDisplayNames: false,
+  shareAgentDisplayNames: false,
+  maskOtherAgents: false,
+  customCss: '',
+  scrollMode: null,
+  themeColor: '',
+  mathMode: null,
+  chatWidth: null,
+  compactionPrompts: null,
+  impersonationPrompts: null,
+}
 
 /** Orders a set of tool names by their position in the available list. */
 function orderToolNames(
@@ -101,6 +126,7 @@ export function toToolSelection(
  * leak the previous agent's values. Use null to clear values,
  * otherwise react-hook-form will fall back to the field's captured
  * default.
+ * Update: `AgentFormValues` has no optional fields anymore.
  */
 export function agentToFormValues(agent: Doc<'agents'>): AgentFormValues {
   return {
@@ -110,7 +136,7 @@ export function agentToFormValues(agent: Doc<'agents'>): AgentFormValues {
       agent.prompts as PromptItem[],
       AGENT_PROMPT_MARKERS,
     ),
-    promptOrder: agent.promptOrder as OrderedItem[] | undefined,
+    promptOrder: (agent.promptOrder as OrderedItem[] | undefined) ?? null,
     globalPromptsEnabled: agent.globalPromptsEnabled ?? true,
     reminderPrompts: (agent.reminderPrompts as ReminderPrompt[]) ?? [],
     libraryReminderIds: agent.libraryReminderIds ?? [],
@@ -121,29 +147,42 @@ export function agentToFormValues(agent: Doc<'agents'>): AgentFormValues {
     autoApproveShell: agent.autoApprove?.shell ?? [],
     subAgentsMode: agent.subAgents?.mode ?? 'allow',
     subAgentIds: agent.subAgents?.agentIds ?? [],
-    temperature: agent.temperature,
-    topP: agent.topP,
-    frequencyPenalty: agent.frequencyPenalty,
-    presencePenalty: agent.presencePenalty,
-    repeatPenalty: agent.repeatPenalty,
+    temperature: agent.temperature ?? null,
+    topP: agent.topP ?? null,
+    frequencyPenalty: agent.frequencyPenalty ?? null,
+    presencePenalty: agent.presencePenalty ?? null,
+    repeatPenalty: agent.repeatPenalty ?? null,
     trimContext: agent.trimContext ?? false,
     contextWindow: agent.contextWindow ?? -1,
     outputTokens: agent.outputTokens ?? -1,
-    shareUserDisplayNames: agent.shareUserDisplayNames,
-    shareAgentDisplayNames: agent.shareAgentDisplayNames,
-    maskOtherAgents: agent.maskOtherAgents,
+    shareUserDisplayNames: agent.shareUserDisplayNames ?? false,
+    shareAgentDisplayNames: agent.shareAgentDisplayNames ?? false,
+    maskOtherAgents: agent.maskOtherAgents ?? false,
     customCss: agent.customCss ?? '',
-    scrollMode: agent.scrollMode,
+    scrollMode: agent.scrollMode ?? null,
     themeColor: agent.theme?.source ?? '',
-    mathMode: agent.mathMode,
-    chatWidth: agent.chatWidth,
-    compactionPrompts: agent.compactionPrompts as PromptItem[] | undefined,
-    impersonationPrompts: agent.impersonationPrompts as
-      PromptItem[] | undefined,
+    mathMode: agent.mathMode ?? null,
+    chatWidth: agent.chatWidth ?? null,
+    compactionPrompts: (agent.compactionPrompts as PromptItem[] | undefined) ?? null, // prettier-ignore
+    impersonationPrompts: (agent.impersonationPrompts as PromptItem[] | undefined) ?? null, // prettier-ignore
   }
 }
 
-/** Maps form values into an agent update mutation payload. */
+type Clearable<T> = { [K in keyof T]: T[K] | null }
+type PatchFields = Clearable<Omit<UpdateAgentArgs, 'agentId' | 'unset'>>
+type Absent<T> = { [K in keyof T]: Exclude<T[K], null> | undefined }
+
+/** Drops what the form holds as `null`. */
+function omitNulls<T extends object>(values: T): Absent<T> {
+  return Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [key, value ?? undefined]),
+  ) as Absent<T>
+}
+
+/**
+ * Maps form values into an agent update mutation payload. `null` fields are
+ * cleared from the doc.
+ */
 export async function formValuesToPatch(
   agentId: Doc<'agents'>['_id'],
   values: AgentFormValues,
@@ -151,11 +190,6 @@ export async function formValuesToPatch(
   const {
     themeColor,
     customCss,
-    scrollMode,
-    mathMode,
-    chatWidth,
-    compactionPrompts,
-    impersonationPrompts,
     description,
     autoApproveTools,
     autoApproveShell,
@@ -166,46 +200,32 @@ export async function formValuesToPatch(
     ...rest
   } = values
 
-  const overrides = {
-    customCss: customCss || undefined,
-    scrollMode: scrollMode || undefined,
-    theme: themeColor ? await snapshotTheme(themeColor) : undefined,
-    mathMode: mathMode || undefined,
-    chatWidth: chatWidth ?? undefined,
-    compactionPrompts: compactionPrompts ?? undefined,
-    impersonationPrompts: impersonationPrompts ?? undefined,
-  }
-
-  const patch: UpdateAgentArgs = {
-    agentId,
+  const fields: PatchFields = {
     ...rest,
-    modelId: modelId || undefined,
-    reasoningEffort: reasoningEffort || undefined,
+    modelId: modelId || null,
+    reasoningEffort: reasoningEffort || null,
+    description: description.trim() || null,
+    customCss: customCss || null,
+    theme: themeColor ? await snapshotTheme(themeColor) : null,
+    autoApprove:
+      autoApproveTools.length || autoApproveShell.length
+        ? {
+            ...(autoApproveTools.length && { tools: autoApproveTools }),
+            ...(autoApproveShell.length && { shell: autoApproveShell }),
+          }
+        : null,
+    // allow + empty means "nothing spawnable", the unset default
+    subAgents:
+      subAgentsMode === 'deny' || subAgentIds.length
+        ? { mode: subAgentsMode, agentIds: subAgentIds }
+        : null,
   }
-  const unset: string[] = []
-  for (const key of OVERRIDABLE_FORM_KEYS) {
-    const value = overrides[key]
-    if (value === undefined) unset.push(key)
-    else (patch as Record<string, unknown>)[key] = value
+
+  return {
+    agentId,
+    ...omitNulls(fields),
+    unset: Object.entries(fields)
+      .filter(([, value]) => value === null)
+      .map(([key]) => key),
   }
-
-  const trimmedDescription = description.trim()
-  if (trimmedDescription) patch.description = trimmedDescription
-  else unset.push('description')
-
-  if (autoApproveTools.length || autoApproveShell.length) {
-    patch.autoApprove = {
-      ...(autoApproveTools.length && { tools: autoApproveTools }),
-      ...(autoApproveShell.length && { shell: autoApproveShell }),
-    }
-  } else unset.push('autoApprove')
-
-  // allow + empty means "nothing spawnable", the unset default
-  if (subAgentsMode === 'deny' || subAgentIds.length) {
-    patch.subAgents = { mode: subAgentsMode, agentIds: subAgentIds }
-  } else unset.push('subAgents')
-
-  patch.unset = unset
-
-  return patch
 }
