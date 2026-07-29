@@ -187,6 +187,23 @@ export class Scroller {
     }
   }
 
+  /** Resumes following once the user scrolls back to the bottom. */
+  private _resumeAtBottom() {
+    const target = this.target
+    if (!target || !this._enabled) return
+    if (this.isFollowing || this._stopCondition !== null) return
+
+    const distanceFromBottom =
+      target.getScrollHeight() -
+      target.getScrollTop() -
+      target.getClientHeight()
+    if (distanceFromBottom >= FOLLOW_RESUME_DISTANCE) return
+
+    this._userScrollIntent = null
+    this.scrollLock = false
+    this.lockScroll()
+  }
+
   private _stopFollowing(lock: boolean) {
     dbg(`stopFollowing lock=${lock}`)
     this.isFollowing = false
@@ -734,9 +751,9 @@ export class Scroller {
         return
       }
 
-      if (this.isFollowing || !this.scrollLock) return
+      if (this.isFollowing) return
       if (nearBottom && scrollingDown && this._userScrollIntent !== 'up') {
-        this.scrollLock = false
+        this._resumeAtBottom()
       }
     }
 
@@ -755,13 +772,7 @@ export class Scroller {
     const stopManualScroll = (event: Event) => {
       if (isTouch(event) || !this._manualScrollActive) return
       this._manualScrollActive = false
-      const t = this.target
-      if (!t || !this._enabled) return
-      const distanceFromBottom =
-        t.getScrollHeight() - t.getScrollTop() - t.getClientHeight()
-      if (distanceFromBottom < FOLLOW_RESUME_DISTANCE) {
-        this.scrollLock = false
-      }
+      this._resumeAtBottom()
     }
 
     let touchY = 0
