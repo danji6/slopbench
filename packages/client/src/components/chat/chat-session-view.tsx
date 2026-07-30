@@ -44,9 +44,7 @@ import { HistorySearchDialog, useChatSearch, useChatSearchHost } from './search'
 import type { AgentItem } from './sessions/agent-combobox'
 import { ChatShortcutsProvider } from './shortcuts'
 import { SubagentBanner } from './subagents/subagent-banner'
-import { SubagentsWidget } from './widgets/subagents-widget'
-import { TerminalsWidget } from './widgets/terminals-widget'
-import { TodosWidget } from './widgets/todos-widget'
+import { DockWidgets } from './widgets/dock-widgets'
 import { ToolApprovalPicker } from './workspace/tool-approval-picker'
 
 const DOCK_HIDE_DISTANCE = 160
@@ -203,8 +201,8 @@ export function ChatSessionView({
   const handleContentChange = useCallback(
     (has: boolean) => {
       setHasContent(has)
-      // Emptying the composer cancels a pending heartbeat or
-      // clears the indicator after a short grace window
+      // Emptying the composer cancels a pending heartbeat or clears the
+      // indicator after a short grace window
       if (!has) stopTyping()
     },
     [stopTyping],
@@ -325,16 +323,7 @@ export function ChatSessionView({
               )}
               {!subagentParent && (
                 <>
-                  <div
-                    className={cn(
-                      'mb-1.5 flex items-center justify-end gap-2 px-1 empty:hidden',
-                      showApproval && 'hidden',
-                    )}
-                  >
-                    <TerminalsWidget className="bg-background/80 h-9 px-3 backdrop-blur-md" />
-                    <TodosWidget className="bg-background/80 h-9 px-3 backdrop-blur-md" />
-                    <SubagentsWidget className="bg-background/80 h-9 px-3 backdrop-blur-md" />
-                  </div>
+                  <DockWidgets className={cn(showApproval && 'hidden')} />
                   <ChatComposer
                     onSubmit={handleSubmit}
                     onTyping={notify}
