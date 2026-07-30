@@ -19,8 +19,10 @@ export type MessageHeaderProps = {
 }
 
 const GUTTER_AVATAR = [
+  '[--gutter-pull:min(var(--gutter-inset,0px),var(--message-gutter,0px))]',
   'size-[var(--avatar-size,40px)]',
-  'ml-[calc(var(--message-gutter,0px)*-1)]',
+  'ml-[calc((var(--message-gutter,0px)+var(--gutter-pull,0px))*-1)]',
+  'mr-(--gutter-pull,0px)',
   'mb-[calc(var(--message-gutter,0px)*var(--avatar-lift,0)*-1)]',
   'translate-y-[calc(var(--message-gutter,0px)*var(--avatar-drop,0))]',
 ].join(' ')

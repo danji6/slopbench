@@ -298,6 +298,7 @@ function GroupRow({ row, message, messageMeta, partMeta }: GroupRowProps) {
           type={messageMeta?.type}
           group={group}
           segmentIndex={row.segmentIndex}
+          groupIndex={row.groupIndex}
           attachmentIds={attachmentIds}
           partMeta={partMeta}
         />

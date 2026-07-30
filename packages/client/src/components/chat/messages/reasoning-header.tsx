@@ -2,12 +2,13 @@ import { Accordion, Button } from '@/components/ui'
 import type { MessageRole } from '@/lib/chat'
 import { cn } from '@/lib/utils'
 import type { ReasoningPart } from '@sb/convex/types'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { useGrowOnly } from './grow-only'
 import { MessageHeader, type MessageSender } from './message-header'
 import { useMessageHighlight } from './message-highlight-context'
 import { useMessageList } from './message-list/message-list-context'
+import { useReasoningOpen } from './reasoning-collapsible'
 import { useReasoningLabel } from './reasoning-label'
 import { SmoothText } from './smooth-text'
 
@@ -29,7 +30,7 @@ export function ReasoningHeader({
   groupIndex,
 }: ReasoningHeaderProps) {
   const { label, isStreaming } = useReasoningLabel(part)
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useReasoningOpen(messageId, segmentIndex, groupIndex)
   const messageList = useMessageList()
 
   const registerElement = useMessageHighlight()?.registerElement
@@ -58,16 +59,16 @@ export function ReasoningHeader({
   }, [showBody, release])
 
   const toggle = useCallback(() => {
-    setOpen((value) => !value)
+    setOpen(!open)
     messageList?.onLayoutChange()
-  }, [messageList])
+  }, [open, setOpen, messageList])
 
   return (
     <div
       ref={showBody ? highlightRef : undefined}
       data-slot="reasoning-surface"
       data-open={showBody}
-      className="data-[open=true]:bg-m3-surface-container-low data-[open=true]:border-border w-full border border-transparent transition-all data-[open=true]:rounded-2xl data-[open=true]:px-3 data-[open=true]:py-2"
+      className="data-[open=true]:bg-m3-surface-container-low data-[open=true]:border-border w-full border border-transparent transition-all data-[open=true]:rounded-2xl data-[open=true]:px-3 data-[open=true]:py-2 data-[open=true]:[--gutter-inset:--spacing(3)]"
     >
       <MessageHeader
         sender={sender}

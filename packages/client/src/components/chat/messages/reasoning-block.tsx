@@ -1,11 +1,29 @@
 import type { ReasoningPart } from '@sb/convex/types'
 
 import { CollapsibleBlock } from './collapsible-block'
+import { useReasoningOpen } from './reasoning-collapsible'
 import { useReasoningLabel } from './reasoning-label'
 import { SmoothText } from './smooth-text'
 
-export function ReasoningBlock({ part }: { part: ReasoningPart }) {
+export type ReasoningBlockProps = {
+  part: ReasoningPart
+  messageId: string
+  segmentIndex: number
+  groupIndex: number
+}
+
+export function ReasoningBlock({
+  part,
+  messageId,
+  segmentIndex,
+  groupIndex,
+}: ReasoningBlockProps) {
   const { label, isStreaming } = useReasoningLabel(part)
+  const [open, onOpenChange] = useReasoningOpen(
+    messageId,
+    segmentIndex,
+    groupIndex,
+  )
 
   if (!part.text) return null
 
@@ -14,6 +32,8 @@ export function ReasoningBlock({ part }: { part: ReasoningPart }) {
       data-slot="reasoning-block"
       label={label}
       shimmer={isStreaming}
+      open={open}
+      onOpenChange={onOpenChange}
       surface
     >
       <div

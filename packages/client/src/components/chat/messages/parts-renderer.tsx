@@ -22,12 +22,13 @@ export function PartsRenderer({
 
   return (
     <>
-      {groups.map((group) => (
+      {groups.map((group, groupIndex) => (
         <RenderGroup
           key={groupKey(group)}
           message={message}
           type={type}
           group={group}
+          groupIndex={groupIndex}
           attachmentIds={attachmentIds}
           partMeta={partMeta}
         />

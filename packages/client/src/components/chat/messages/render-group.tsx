@@ -35,6 +35,8 @@ export type RenderGroupProps = {
   group: PartGroup
   /** The segment holding this group (part indices are intra-segment). */
   segmentIndex?: number
+  /** Position of this group within its segment, which addresses the block. */
+  groupIndex: number
   type?: UIMessageType
   attachmentIds?: Record<string, string>
   partMeta?: PartMetadata
@@ -86,7 +88,14 @@ export const RenderGroup = memo(function RenderGroup(props: RenderGroupProps) {
   }
 
   if (isReasoningUIPart(part)) {
-    return <ReasoningBlock part={part} />
+    return (
+      <ReasoningBlock
+        part={part}
+        messageId={props.message.id}
+        segmentIndex={props.segmentIndex ?? 0}
+        groupIndex={props.groupIndex}
+      />
+    )
   }
 
   if (isToolUIPart(part) && part.type !== 'dynamic-tool') {
