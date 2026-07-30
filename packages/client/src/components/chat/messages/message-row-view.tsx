@@ -18,7 +18,7 @@ import type { MessageRecord, PartMetadata } from '@/lib/chat'
 import { type MessageRow, segmentGroupsFor } from '@/lib/chat/rows'
 import { schemeToCssVars } from '@/lib/theme'
 import { cn, formatDuration, isTouchDevice } from '@/lib/utils'
-import { FALLBACK_DISPLAY_NAME } from '@sb/core/const'
+import { toDisplayName } from '@sb/core/utils/names'
 import { type UIMessage, isReasoningUIPart } from 'ai'
 import { memo, useCallback, useMemo } from 'react'
 
@@ -204,11 +204,11 @@ function HeaderRow({ row, message, messageMeta }: HeaderRowProps) {
     row.reasoningGroupIndex,
   )
 
-  const snapshotName = messageMeta?.senderSnapshot?.name?.trim()
   const sender = {
-    name:
-      snapshotName ||
-      (message.role === 'system' ? 'System' : FALLBACK_DISPLAY_NAME),
+    name: toDisplayName(
+      messageMeta?.senderSnapshot?.name,
+      message.role === 'system' ? 'System' : undefined,
+    ),
     avatarId: messageMeta?.senderSnapshot?.avatarId,
   }
 

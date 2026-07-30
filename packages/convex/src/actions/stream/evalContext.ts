@@ -1,6 +1,7 @@
 'use node'
 
 import type { EvalContext } from '@sb/core/interpreter/types'
+import { toDisplayName, toOptionalName } from '@sb/core/utils/names'
 
 import type { Doc } from '../../_generated/dataModel'
 import { minRole } from '../../lib/roles'
@@ -33,8 +34,8 @@ export function buildEvalContext({
 }: EvalContextInput): EvalContext {
   return {
     assistant: agent.name,
-    user: invokerSettings?.displayName,
-    owner: ownerSettings?.displayName ?? 'User',
+    user: toOptionalName(invokerSettings?.displayName),
+    owner: toDisplayName(ownerSettings?.displayName, 'User'),
     tools: toolNames,
     isAdmin: minRole(invoker.role, 'admin'),
     userCount,

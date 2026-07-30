@@ -1,6 +1,7 @@
 import { PulsingDots } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { FALLBACK_DISPLAY_NAME } from '@sb/core/const'
+import { toDisplayName } from '@sb/core/utils/names'
 import { AnimatePresence, motion } from 'motion/react'
 
 /** Character budget for user names before collapsing into "N more". */
@@ -29,7 +30,7 @@ function truncateNames(text: string): string {
 }
 
 function buildLabel(rawNames: string[]): string | null {
-  const names = dedupeAnonymous(rawNames)
+  const names = dedupeAnonymous(rawNames.map((name) => toDisplayName(name)))
   const total = names.length
   if (total === 0) return null
 

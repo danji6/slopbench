@@ -1,3 +1,5 @@
+import { toDisplayName } from '@sb/core/utils/names'
+
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import { error } from '../../errors'
@@ -83,7 +85,7 @@ function userSenderSnapshot(
   } | null,
 ) {
   return {
-    name: settings?.displayName ?? 'User',
+    name: toDisplayName(settings?.displayName, 'User'),
     avatarId: settings?.avatarId,
     css: settings?.customCss,
     theme: settings?.theme,

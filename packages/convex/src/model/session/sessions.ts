@@ -1,4 +1,4 @@
-import { FALLBACK_DISPLAY_NAME } from '@sb/core/const'
+import { toDisplayName } from '@sb/core/utils/names'
 import type { PaginationOptions } from 'convex/server'
 
 import type { Doc, Id } from '../../_generated/dataModel'
@@ -134,7 +134,7 @@ async function toListItem(
       return {
         id: member.userId,
         kind: 'user',
-        name: settings?.displayName ?? FALLBACK_DISPLAY_NAME,
+        name: toDisplayName(settings?.displayName),
         avatarId: settings?.avatarId,
       }
     }),

@@ -11,6 +11,7 @@ import type { Doc, Id } from '@sb/convex/_generated/dataModel'
 import type { ResolvedSettings } from '@sb/convex/model/defaults'
 import { parseFileMentions } from '@sb/core/mentions/parse'
 import type { WorkspaceLinkSnapshot } from '@sb/core/types/workspace'
+import { toDisplayName } from '@sb/core/utils/names'
 import type { FileUIPart } from 'ai'
 import type { OptimisticLocalStore } from 'convex/browser'
 import { useAction, useMutation } from 'convex/react'
@@ -276,7 +277,7 @@ function optimisticSender(
   return {
     sender,
     senderSnapshot: {
-      name: settings?.displayName ?? 'User',
+      name: toDisplayName(settings?.displayName, 'User'),
       avatarId: settings?.avatarId,
       css: settings?.customCss,
       theme: settings?.theme,

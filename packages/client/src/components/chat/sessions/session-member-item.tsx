@@ -1,6 +1,6 @@
 import { RippleButton } from '@/components/ui'
 import type { SessionMember } from '@/lib/chat'
-import { FALLBACK_DISPLAY_NAME } from '@sb/core/const'
+import { toDisplayName } from '@sb/core/utils/names'
 import { capitalize } from '@sb/core/utils/strings'
 import { UserIcon, XIcon } from 'lucide-react'
 
@@ -20,7 +20,7 @@ export function SessionMemberItem({
   const { membership, settings } = member
   return (
     <ParticipantRow
-      name={settings?.displayName ?? FALLBACK_DISPLAY_NAME}
+      name={toDisplayName(settings?.displayName)}
       avatarId={settings?.avatarId}
       fallbackIcon={<UserIcon className="size-full" />}
       badge={

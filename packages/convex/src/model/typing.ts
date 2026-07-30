@@ -1,4 +1,4 @@
-import { FALLBACK_DISPLAY_NAME } from '@sb/core/const'
+import { toDisplayName } from '@sb/core/utils/names'
 
 import type { Id } from '../_generated/dataModel'
 import type { MutationCtx } from '../_generated/server'
@@ -67,7 +67,7 @@ export async function list(
       const settings = await getSettings(ctx, row.userId)
       return {
         userId: row.userId,
-        name: settings?.displayName ?? FALLBACK_DISPLAY_NAME,
+        name: toDisplayName(settings?.displayName),
         expiresAt: row.expiresAt,
       }
     }),

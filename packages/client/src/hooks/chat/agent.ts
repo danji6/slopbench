@@ -13,6 +13,7 @@ import { evaluatePromptPreview, mergePrompts } from '@/lib/chat/prompts'
 import { api } from '@sb/convex/_generated/api'
 import type { Doc, Id } from '@sb/convex/_generated/dataModel'
 import type { EvalContext } from '@sb/core/interpreter/types'
+import { toDisplayName, toOptionalName } from '@sb/core/utils/names'
 import { useMutation, useQuery } from 'convex/react'
 import { useCallback, useMemo, useSyncExternalStore } from 'react'
 
@@ -94,8 +95,8 @@ export function useAgentPrompts(workDir?: string) {
 
     const context: EvalContext = {
       assistant: agent?.name,
-      user: settings?.displayName,
-      owner: settings?.displayName ?? 'User',
+      user: toOptionalName(settings?.displayName),
+      owner: toDisplayName(settings?.displayName, 'User'),
       tools: agent?.tools ?? [],
       isAdmin,
       userCount: 1,
