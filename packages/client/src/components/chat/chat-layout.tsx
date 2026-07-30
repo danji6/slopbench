@@ -80,7 +80,9 @@ export function ChatLayout({
               className="overflow-hidden"
               style={dockFooterWidth ? { width: dockFooterWidth } : undefined}
             >
-              <div className="flex px-1 pt-1.5">{dockFooter}</div>
+              <div className="flex min-h-6 items-center px-1 pt-1.5 pb-0.5">
+                {dockFooter}
+              </div>
             </motion.div>
           )}
         </div>

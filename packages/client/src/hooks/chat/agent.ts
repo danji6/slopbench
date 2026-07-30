@@ -96,7 +96,7 @@ export function useAgentPrompts(workDir?: string) {
     const context: EvalContext = {
       assistant: agent?.name,
       user: toOptionalName(settings?.displayName),
-      owner: toDisplayName(settings?.displayName, 'User'),
+      owner: toDisplayName(settings?.displayName),
       tools: agent?.tools ?? [],
       isAdmin,
       userCount: 1,

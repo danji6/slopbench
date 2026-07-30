@@ -111,7 +111,7 @@ export function EmptyChat({
       )}
       dock={
         <ChatDock width={chatBoxWidth}>
-          <div className="mb-1.5 flex items-center px-1">
+          <div className="pointer-events-auto mb-1.5 flex items-center px-1">
             <ChatWorkspacePicker
               value={workspaceRoot}
               onChange={handleWorkspaceChange}

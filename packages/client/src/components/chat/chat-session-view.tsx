@@ -1,4 +1,4 @@
-import { useKeyboardInset } from '@/hooks'
+import { useElementHeight, useKeyboardInset } from '@/hooks'
 import {
   useActiveSession,
   useAgentPrompts,
@@ -50,6 +50,19 @@ import { ToolApprovalPicker } from './workspace/tool-approval-picker'
 const DOCK_HIDE_DISTANCE = 160
 /** Gap between the dock and the toolbar sitting above it. */
 const DOCK_HEADER_GAP = 16
+
+/** Bottom offset that keeps the toolbar just above the dock's contents. */
+function toolbarBottom(
+  docked: boolean,
+  dockHeight: number,
+  widgetsHeight: number,
+  alertHeight: number,
+) {
+  if (!docked) return DOCK_HEADER_GAP
+  // The toolbar shares the widgets' row, which already clears the alert
+  if (widgetsHeight) return dockHeight - widgetsHeight
+  return dockHeight + alertHeight + DOCK_HEADER_GAP
+}
 
 type ChatSessionViewProps = {
   dockWidth: string
@@ -121,6 +134,7 @@ export function ChatSessionView({
 
   // Layout
   const [alertHeight, setAlertHeight] = useState(0)
+  const [widgetsRef, widgetsHeight] = useElementHeight<HTMLDivElement>()
   const keyboardInset = useKeyboardInset()
   const chatWidth = useChatWidth()
   const avatarSize = useAvatarSize()
@@ -249,45 +263,44 @@ export function ChatSessionView({
             />
           )}
           dockHeader={(bottomPadding) => {
-            const dockTop =
-              DOCK_HEADER_GAP + (showDock ? bottomPadding + alertHeight : 0)
+            const dockTop = toolbarBottom(
+              showDock,
+              bottomPadding,
+              widgetsHeight,
+              alertHeight,
+            )
             return (
-              <>
-                <div
-                  className="pointer-events-none absolute inset-x-0 mx-auto flex px-2"
-                  style={{ width: dockWidth, bottom: dockTop }}
-                >
-                  <TypingIndicator
-                    names={typingUsers.map((user) => user.name)}
-                    className="pointer-events-auto"
+              <AnimatePresence>
+                {(!isAtBottom || isEditing) && (
+                  <ChatToolbar
+                    key="chat-toolbar"
+                    bottom={dockTop}
+                    showScroll={!isAtBottom}
+                    activity={hasActivity}
+                    onScrollToBottom={pinToBottom}
+                    pinnable={!isEditing}
+                    pinned={isPinned}
+                    onPinChange={setPinned}
+                    editing={isEditing}
+                    onEditSave={editCtx?.onSave}
+                    onEditCancel={editCtx?.onCancel}
+                    className="pointer-events-auto absolute"
+                    style={{
+                      // Mirrors the widgets' inset on the other end of the row
+                      right: `calc((100% - (${dockWidth})) / 2 + var(--spacing))`,
+                    }}
                   />
-                </div>
-                <AnimatePresence>
-                  {(!isAtBottom || isEditing) && (
-                    <ChatToolbar
-                      key="chat-toolbar"
-                      bottom={dockTop}
-                      showScroll={!isAtBottom}
-                      activity={hasActivity}
-                      onScrollToBottom={pinToBottom}
-                      pinnable={!isEditing}
-                      pinned={isPinned}
-                      onPinChange={setPinned}
-                      editing={isEditing}
-                      onEditSave={editCtx?.onSave}
-                      onEditCancel={editCtx?.onCancel}
-                      className="pointer-events-auto absolute"
-                      style={{
-                        right: `calc((100% - (${dockWidth})) / 2 + var(--spacing)*4)`,
-                      }}
-                    />
-                  )}
-                </AnimatePresence>
-              </>
+                )}
+              </AnimatePresence>
             )
           }}
-          dockFooter={<SlowModeLabel className="ml-auto" />}
-          showDockFooter={sendDisabled}
+          dockFooter={
+            <div className="flex w-full">
+              <TypingIndicator names={typingUsers.map((user) => user.name)} />
+              <SlowModeLabel className="ml-auto" />
+            </div>
+          }
+          showDockFooter
           dockFooterWidth={dockWidth}
           dock={
             <ChatDock
@@ -318,12 +331,15 @@ export function ChatSessionView({
                 <ToolApprovalPicker
                   restoreFocusRef={composerRef}
                   onAbort={handleAbort}
-                  className="w-full"
+                  className="pointer-events-auto w-full"
                 />
               )}
               {!subagentParent && (
                 <>
-                  <DockWidgets className={cn(showApproval && 'hidden')} />
+                  <DockWidgets
+                    ref={widgetsRef}
+                    className={cn(showApproval && 'hidden')}
+                  />
                   <ChatComposer
                     onSubmit={handleSubmit}
                     onTyping={notify}

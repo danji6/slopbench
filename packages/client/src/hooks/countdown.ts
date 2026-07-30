@@ -10,7 +10,17 @@ export function useCountdown(until: number | null | undefined): number {
   useEffect(() => {
     if (!until) return
     const interval = setInterval(() => setNow(Date.now()), 250)
-    return () => clearInterval(interval)
+    const timeout = setTimeout(
+      () => {
+        clearInterval(interval)
+        setNow(Date.now())
+      },
+      Math.max(0, until - Date.now()),
+    )
+    return () => {
+      clearInterval(interval)
+      clearTimeout(timeout)
+    }
   }, [until])
 
   return until ? Math.max(0, until - now) : 0

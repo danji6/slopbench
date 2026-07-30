@@ -246,7 +246,7 @@ export function ToolApprovalPicker({
             fontSize: 'var(--chat-font-size)',
           }}
         >
-          <Suspense fallback={null}>
+          <Suspense fallback={<div aria-hidden className="h-8" />}>
             <ComposerEditor
               placeholder="Add a note (optional)…"
               autoFocus={false}

@@ -277,7 +277,7 @@ function optimisticSender(
   return {
     sender,
     senderSnapshot: {
-      name: toDisplayName(settings?.displayName, 'User'),
+      name: toDisplayName(settings?.displayName),
       avatarId: settings?.avatarId,
       css: settings?.customCss,
       theme: settings?.theme,

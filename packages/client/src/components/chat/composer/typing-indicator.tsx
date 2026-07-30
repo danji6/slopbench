@@ -78,7 +78,7 @@ export function TypingIndicator({
           exit={{ opacity: 0, y: 6 }}
           transition={{ type: 'spring', stiffness: 500, damping: 40 }}
           className={cn(
-            'text-muted-foreground bg-background/80 supports-backdrop-filter:bg-background/60 flex items-center gap-2 rounded-full px-3 py-2 text-xs shadow-sm backdrop-blur-md',
+            'text-muted-foreground flex items-center gap-2 text-xs',
             className,
           )}
         >

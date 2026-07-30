@@ -1,6 +1,31 @@
 import { cn } from '@/lib/utils'
 import { motion } from 'motion/react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+
+/** Extra travel for shadows and blur to clear the edge too. */
+const HIDE_OVERSHOOT = 24
+
+/** How far the dock has to travel to fully slide out. */
+function useHideDistance(ref: React.RefObject<HTMLElement | null>) {
+  const [distance, setDistance] = useState(0)
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    const stack = el?.offsetParent
+    if (!el || !(stack instanceof HTMLElement)) return
+
+    const measure = () => setDistance(stack.clientHeight - el.offsetTop)
+    measure()
+
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    observer.observe(stack)
+
+    return () => observer.disconnect()
+  }, [ref])
+
+  return distance
+}
 
 export type ChatDockProps = {
   width: string
@@ -19,7 +44,9 @@ export function ChatDock({
   inert = false,
   children,
 }: ChatDockProps) {
+  const dockRef = useRef<HTMLDivElement>(null)
   const alertRef = useRef<HTMLDivElement>(null)
+  const hideDistance = useHideDistance(dockRef)
 
   useEffect(() => {
     const el = alertRef.current
@@ -35,7 +62,8 @@ export function ChatDock({
 
   return (
     <motion.div
-      animate={hidden ? { y: '115%' } : { y: 0 }}
+      ref={dockRef}
+      animate={{ y: hidden ? hideDistance + HIDE_OVERSHOOT : 0 }}
       transition={{ type: 'spring', stiffness: 400, damping: 38 }}
       className="relative"
       style={{ width }}
@@ -53,10 +81,8 @@ export function ChatDock({
         {alert}
       </motion.div>
       <div
-        className={cn(
-          'pointer-events-auto relative mx-auto w-full',
-          (hidden || inert) && 'pointer-events-none',
-        )}
+        // Click-through. Whatever needs interactivity must opt in.
+        className="pointer-events-none relative mx-auto w-full"
         inert={inert}
       >
         {children}

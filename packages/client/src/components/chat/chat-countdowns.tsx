@@ -18,23 +18,43 @@ const COUNTDOWN_SPRING = {
 } as const
 
 function seconds(ms: number): number {
-  return Math.ceil(ms / 1000)
+  return Math.floor(ms / 1000)
 }
 
 export function SlowModeLabel({ className }: { className?: string }) {
   const until = useSendCooldownUntil()
+  return (
+    <SlowModeCountdown key={until ?? 0} until={until} className={className} />
+  )
+}
+
+function SlowModeCountdown({
+  until,
+  className,
+}: {
+  until: number | null
+  className?: string
+}) {
   const remaining = useCountdown(until)
 
   return (
-    <div
-      className={cn(
-        'text-muted-foreground flex items-center gap-1 px-2 text-xs whitespace-nowrap',
-        className,
+    <AnimatePresence>
+      {remaining > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 6 }}
+          transition={COUNTDOWN_SPRING}
+          className={cn(
+            'text-muted-foreground flex items-center gap-1 px-2 text-xs whitespace-nowrap',
+            className,
+          )}
+        >
+          <TimerIcon className="size-3.5 shrink-0" />
+          <span>Slow mode • {seconds(remaining)}s</span>
+        </motion.div>
       )}
-    >
-      <TimerIcon className="size-3.5 shrink-0" />
-      <span>Slow mode • {seconds(remaining)}s</span>
-    </div>
+    </AnimatePresence>
   )
 }
 

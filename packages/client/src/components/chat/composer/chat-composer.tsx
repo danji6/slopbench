@@ -66,6 +66,9 @@ const ComposerEditor = lazy(() =>
 
 const MENTION_KEYS = new Set(['Enter', 'Tab', 'ArrowUp', 'ArrowDown', 'Escape'])
 
+// Elements the editor shouldn't steal clicks from
+const INTERACTIVE = 'a,button,img,input,select,textarea,[contenteditable]'
+
 // Only one composer is ever mounted, so a fixed id is enough to identify it.
 const COMPOSER_FULLSCREEN_ID = 'composer'
 
@@ -241,6 +244,16 @@ export function ChatComposer({
     },
     [syncFromEditor, restoreDraft],
   )
+
+  function handleSurfaceMouseDown(e: React.MouseEvent) {
+    const target = e.target as HTMLElement
+    if (e.button !== 0 || target.closest(INTERACTIVE)) return
+    e.preventDefault()
+    const editor = editorRef.current
+    if (!editor) return
+    editor.view.dom.focus({ preventScroll: true })
+    editor.commands.focus(null, { scrollIntoView: false })
+  }
 
   function clearEditor() {
     editorRef.current?.commands.clearContent(true)
@@ -509,7 +522,7 @@ export function ChatComposer({
           noInputEvents
           noFocus
           className={cn(
-            'bg-m3-surface-container-low supports-backdrop-filter:bg-m3-surface-container-low/80 relative w-full rounded-3xl supports-backdrop-filter:backdrop-blur-2xl',
+            'bg-m3-surface-container-low supports-backdrop-filter:bg-m3-surface-container-low/80 pointer-events-auto relative w-full rounded-3xl supports-backdrop-filter:backdrop-blur-2xl',
             className,
             fullscreenFill,
             'group-data-fullscreen/fullscreen:flex group-data-fullscreen/fullscreen:flex-col',
@@ -541,11 +554,13 @@ export function ChatComposer({
               fullscreenFill,
             )}
             {...props}
+            onMouseDown={handleSurfaceMouseDown}
           >
             <FileStrip files={files} onRemove={handleRemoveFile} />
+            <FullscreenEditor.Toolbar className="mr-1 self-stretch group-data-fullscreen/fullscreen:mr-0" />
             <div
               className={cn(
-                'max-h-60 w-full overflow-y-auto px-5',
+                'max-h-60 min-h-9 w-full overflow-y-auto px-5',
                 fullscreenFill,
                 fullscreenGrow,
               )}
@@ -554,7 +569,6 @@ export function ChatComposer({
                 fontSize: 'var(--chat-font-size)',
               }}
             >
-              <FullscreenEditor.Toolbar className="-mx-4! group-data-fullscreen/fullscreen:mr-0" />
               <Suspense fallback={null}>
                 <ComposerEditor
                   placeholder={placeholder}
@@ -569,7 +583,7 @@ export function ChatComposer({
             <InputGroup.Addon
               ref={toolbarRef}
               align="block-end"
-              className="px-3 pt-2 pb-2.5"
+              className="px-3 pt-4 pb-2.5"
             >
               <span className="bg-m3-surface-container flex min-w-0 shrink items-center gap-1 rounded-full px-[5.5px] py-1">
                 <FilePicker onClick={() => dropZoneRef.current?.open()} />

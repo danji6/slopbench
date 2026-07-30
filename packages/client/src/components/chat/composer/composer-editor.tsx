@@ -56,7 +56,7 @@ export function ComposerEditor({
       attributes: {
         'data-slot': 'editor',
         class: cn(
-          'min-h-20 group-data-[fullscreen]/fullscreen:min-h-full',
+          'min-h-9 group-data-[fullscreen]/fullscreen:min-h-full',
           editorClassName,
         ),
       },

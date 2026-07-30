@@ -26,7 +26,7 @@ export function SubagentBanner({
   return (
     <div
       data-slot="subagent-banner"
-      className="bg-m3-surface-container-low flex w-full items-center gap-3 rounded-xl border px-4 py-3 shadow-lg"
+      className="bg-m3-surface-container-low pointer-events-auto flex w-full items-center gap-3 rounded-xl border px-4 py-3 shadow-lg"
     >
       <span className="text-muted-foreground pointer-events-none truncate text-xs">
         {title ?? 'Sub-agent session'}

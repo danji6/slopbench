@@ -755,7 +755,7 @@ html::-webkit-scrollbar {
 }
 
 .ProseMirror pre {
-  @apply bg-m3-surface-container-low! mt-4 min-h-17 overflow-x-auto rounded-2xl border p-4 font-mono text-sm;
+  @apply bg-m3-surface-container-low! mt-4 overflow-x-auto rounded-2xl border p-4 font-mono text-sm;
   line-height: calc(var(--spacing) * 4.5) !important;
 }
 

@@ -35,7 +35,7 @@ export function buildEvalContext({
   return {
     assistant: agent.name,
     user: toOptionalName(invokerSettings?.displayName),
-    owner: toDisplayName(ownerSettings?.displayName, 'User'),
+    owner: toDisplayName(ownerSettings?.displayName),
     tools: toolNames,
     isAdmin: minRole(invoker.role, 'admin'),
     userCount,
