@@ -376,10 +376,12 @@ export function MessageList({
       initialSettleRef.current = trackHeightSettle(
         () => scrollToBottom(true),
         document.documentElement,
-        () => setImmediate(false),
+        () => {
+          setImmediate(false)
+          // Reveal the list only after the height settles
+          markRevealed()
+        },
       )
-      // Reveal on the next frame
-      requestAnimationFrame(markRevealed)
     }
   }, [
     isLoading,

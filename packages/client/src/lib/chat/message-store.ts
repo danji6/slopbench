@@ -100,6 +100,7 @@ export function createMessageStore() {
       ids,
       (id) => messagesById.get(id) ?? null,
       (id) => messageMetaByMessage.get(id),
+      (id) => partMetaByMessage.get(id),
       { groupBySender },
     )
     if (rowKeysEqual(rows, nextRows)) return false

@@ -5,6 +5,8 @@ import { Terminal as XTerm } from '@xterm/xterm'
 import '@xterm/xterm/css/xterm.css'
 import { type Ref, useEffect, useImperativeHandle, useRef } from 'react'
 
+import { TERMINAL_BOX } from './terminal'
+
 const SCROLLBACK_LINES = 5000
 
 export type TerminalHandle = {
@@ -137,7 +139,7 @@ export function TerminalView({
     <div
       ref={containerRef}
       data-slot="terminal"
-      className={cn('h-72 overflow-hidden', className)}
+      className={cn(TERMINAL_BOX, className)}
     />
   )
 }

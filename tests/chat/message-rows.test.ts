@@ -44,7 +44,61 @@ describe('message rows', () => {
         segmentIndex: 0,
         groupIndex: 2,
       },
-      { kind: 'footer', key: 'f:message-1', messageId: 'message-1' },
+    ])
+  })
+
+  test('omits the footer row when it would render nothing', () => {
+    const rows = buildRows(
+      ['message-1'],
+      () => message([textPart]),
+      () => undefined,
+    )
+
+    expect(rows.some((row) => row.kind === 'footer')).toBe(false)
+  })
+
+  test.each([
+    ['a duration', () => undefined, () => ({ duration: 1200 })],
+    [
+      'an error',
+      () => ({ metadata: { error: 'boom' } }) as unknown as MessageRecord,
+      () => undefined,
+    ],
+    [
+      'multiple versions',
+      () => ({ versionCount: 2 }) as unknown as MessageRecord,
+      () => undefined,
+    ],
+  ])('keeps the footer row for %s', (_label, meta, partMeta) => {
+    const rows = buildRows(
+      ['message-1'],
+      () => message([textPart]),
+      meta,
+      partMeta,
+    )
+
+    expect(rows.map((row) => row.key)).toContain('f:message-1')
+  })
+
+  test('a headerless message with nothing to render keeps its footer row', () => {
+    // Grouped, so no header stands in for it — every message must keep at
+    // least one row or seek/reveal can no longer address it
+    const sender = {
+      sender: { type: 'agent', id: 'agent_1' },
+      versionCount: 1,
+    } as unknown as MessageRecord
+
+    const rows = buildRows(
+      ['message-1', 'message-2'],
+      (id) => ({ ...message([stepPart]), id }),
+      () => sender,
+      () => undefined,
+      { groupBySender: true },
+    )
+
+    expect(rows.map((row) => row.key)).toEqual([
+      'h:message-1',
+      'f:message-2:grp',
     ])
   })
 })
@@ -82,7 +136,6 @@ describe('segment rows', () => {
       'g:message-1:s0:text:0',
       'g:message-1:s0:text:1',
       'g:message-1:s1:text:0',
-      'f:message-1',
     ])
   })
 
@@ -181,9 +234,13 @@ describe('sender grouping', () => {
     metaById: Record<string, MessageRecord>,
     groupBySender: boolean,
   ) {
-    return buildRows(Object.keys(metaById), getMessage, (id) => metaById[id], {
-      groupBySender,
-    })
+    return buildRows(
+      Object.keys(metaById),
+      getMessage,
+      (id) => metaById[id],
+      () => ({ duration: 1 }),
+      { groupBySender },
+    )
   }
 
   test('suppresses the header of consecutive same-sender messages', () => {

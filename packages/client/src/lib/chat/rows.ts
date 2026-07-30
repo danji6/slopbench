@@ -6,7 +6,7 @@ import {
   groupPartsCached,
   isRenderablePartGroup,
 } from './parts'
-import type { MessageRecord } from './types'
+import type { MessageRecord, PartMetadata } from './types'
 
 function isReasoningGroup(group: PartGroup): boolean {
   return group.type === 'single' && isReasoningUIPart(group.part)
@@ -95,10 +95,24 @@ export type BuildRowsOptions = {
   groupBySender?: boolean
 }
 
+/** Whether a footer row would render anything. */
+function hasFooterContent(
+  message: UIMessage,
+  meta: MessageRecord | undefined,
+  partMeta: PartMetadata | undefined,
+): boolean {
+  // A processing turn can surface the waiting indicator at any moment
+  if ((message as { status?: string }).status === 'processing') return true
+  if (meta?.metadata?.error) return true
+  if ((meta?.versionCount ?? 1) > 1) return true
+  return (partMeta?.duration ?? 0) > 0
+}
+
 export function buildRows(
   ids: string[],
   getMessage: (id: string) => UIMessage | null,
   getMessageMetadata: (id: string) => MessageRecord | undefined,
+  getPartMetadata: (id: string) => PartMetadata | undefined = () => undefined,
   { groupBySender = false }: BuildRowsOptions = {},
 ): MessageRow[] {
   const rows: MessageRow[] = []
@@ -182,12 +196,15 @@ export function buildRows(
       }
     }
 
-    rows.push({
-      kind: 'footer',
-      key: firstKey(`f:${id}`),
-      messageId: id,
-      ...(first && grouped && { grouped }),
-    })
+    // Only render a footer if it has something to show or is the first row
+    if (first || hasFooterContent(message, meta, getPartMetadata(id))) {
+      rows.push({
+        kind: 'footer',
+        key: firstKey(`f:${id}`),
+        messageId: id,
+        ...(first && grouped && { grouped }),
+      })
+    }
   }
 
   return rows
