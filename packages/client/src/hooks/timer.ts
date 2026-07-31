@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react'
 
 export function useTimer(run: boolean, intervalMs = 100): number {

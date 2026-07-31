@@ -2,14 +2,14 @@
 import { settleAbandonedTaskParts } from '@sb/convex/lib/subagent'
 import { _fail, stopChildSessions } from '@sb/convex/model/stream/lifecycle'
 import {
-  list as listSubagents,
-  stop as stopSubagent,
-  stopAll as stopAllSubagents,
-} from '@sb/convex/model/subagent/manage'
-import {
   _suspendStep,
   deliverChildReport,
 } from '@sb/convex/model/stream/subagents'
+import {
+  list as listSubagents,
+  stopAll as stopAllSubagents,
+  stop as stopSubagent,
+} from '@sb/convex/model/subagent/manage'
 import { describe, expect, test } from 'bun:test'
 
 type Row = Record<string, unknown> & { _id: string }
@@ -556,7 +556,9 @@ describe('deliverChildReport', () => {
     await deliverChildReport(ctx, childStream1, { kind: 'stopped' })
 
     const content = inserts.find(({ table }) => table === 'messageContents')
-    const part = (content?.fields.parts as { status: string; text: string }[])[0]!
+    const part = (
+      content?.fields.parts as { status: string; text: string }[]
+    )[0]!
     expect(part.status).toBe('stopped')
     expect(part.text.includes('Partial findings')).toBe(true)
     expect(part.text.includes('stopped before finishing')).toBe(true)

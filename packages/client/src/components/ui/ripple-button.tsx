@@ -1,4 +1,3 @@
-
 import { type RippleOptions, useRipples } from '@/hooks/ripples'
 import { cn } from '@/lib/utils'
 import { mergeProps } from '@base-ui/react/merge-props'

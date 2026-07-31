@@ -24,8 +24,7 @@ function useModelSettingsFor(agent: Doc<'agents'> | null): ModelSettingsState {
 
   const modelId = agent?.modelId ?? null
   const reasoningEffort = (agent?.reasoningEffort ?? undefined) as
-    | ReasoningEffort
-    | undefined
+    ReasoningEffort | undefined
 
   const model = useMemo(() => {
     if (isLoading) return null

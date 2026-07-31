@@ -8,8 +8,7 @@ export class AsyncResult<T, E> implements PromiseLike<Result<T, E>> {
   // biome-ignore lint/suspicious/noThenProperty: override
   then<Fullfilled = Result<T, E>, Rejected = never>(
     onfulfilled?:
-      | ((value: Result<T, E>) => Fullfilled | PromiseLike<Fullfilled>)
-      | null,
+      ((value: Result<T, E>) => Fullfilled | PromiseLike<Fullfilled>) | null,
     onrejected?: ((reason: unknown) => Rejected | PromiseLike<Rejected>) | null,
   ): PromiseLike<Fullfilled | Rejected> {
     return this._promise.then(onfulfilled, onrejected)

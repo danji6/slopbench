@@ -1,4 +1,3 @@
-
 import { type RippleOptions, useRipples } from '@/hooks'
 import { useEffect, useRef, useState } from 'react'
 

@@ -1,6 +1,6 @@
+import { api } from '@sb/convex/_generated/api'
 import { useMutation } from 'convex/react'
 import { useEffect, useState } from 'react'
-import { api } from '@sb/convex/_generated/api'
 
 /**
  * Ensures the authenticated user's Convex `users` row exists before any

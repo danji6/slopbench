@@ -26,6 +26,7 @@ import { ReasoningBlock } from './reasoning-block'
 import { SummaryBlock } from './summary-block'
 import { TextBlock } from './text-block'
 import { ReadFileBlock } from './tools/read-file-block'
+import { ShellBlock } from './tools/shell-block'
 import { ShellGroupBlock } from './tools/shell-group-block'
 import { SubagentGroupBlock } from './tools/subagent-group-block'
 import { ToolPartBlock } from './tools/tool-part-block'
@@ -51,6 +52,18 @@ export const RenderGroup = memo(function RenderGroup(props: RenderGroupProps) {
 
   if (group.type === 'tools') {
     if (group.toolName === 'shell') {
+      // No "Ran N commands" framing for user commands
+      if (props.message.role === 'user') {
+        return group.parts.map((part) => (
+          <ShellBlock
+            key={part.toolCallId}
+            part={part}
+            messageId={props.message.id}
+            forceError={partMeta?.toolErrors?.includes(part.toolCallId)}
+            alwaysExpand
+          />
+        ))
+      }
       return (
         <ShellGroupBlock
           parts={group.parts}

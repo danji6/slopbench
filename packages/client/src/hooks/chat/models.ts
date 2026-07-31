@@ -1,7 +1,7 @@
 import type { UIModel, UIModelConfig } from '@/lib/chat'
+import { api } from '@sb/convex/_generated/api'
 import { useQuery } from 'convex/react'
 import { useMemo } from 'react'
-import { api } from '@sb/convex/_generated/api'
 
 import { useActiveAgent } from './agent'
 import { useActiveSession } from './session'

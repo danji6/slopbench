@@ -48,8 +48,7 @@ type IconData = {
 }
 
 type Row =
-  | { type: 'category'; name: string }
-  | { type: 'icons'; items: IconData[] }
+  { type: 'category'; name: string } | { type: 'icons'; items: IconData[] }
 
 const COLS = 8
 const PAGE_ROWS = 30

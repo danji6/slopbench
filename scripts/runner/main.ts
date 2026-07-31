@@ -1,3 +1,4 @@
+import { buildSidecar } from '../sidecar'
 import { ensureConvexBinaries } from './binaries'
 import { buildFrontendIfNeeded } from './build-cache'
 import {
@@ -16,7 +17,6 @@ import {
 import { loadEnvFile } from './env-file'
 import { freePorts } from './ports'
 import { type ManagedProcess, ProcessManager, commandExists } from './processes'
-import { buildSidecar } from '../sidecar'
 
 export async function run(args: string[]) {
   if (args.includes('--help') || args.includes('-h')) {
@@ -108,16 +108,20 @@ async function start(
   await deployConvex(manager, config)
   await buildFrontendIfNeeded(manager, config, { force: options.forceBuild })
 
-  const preview = await manager.spawn('vite-preview', [
-    'bun',
-    'run',
-    'preview',
-    '--',
-    '--host',
-    config.frontendHost,
-    '--port',
-    String(config.frontendPort),
-  ], { cwd: config.clientRoot })
+  const preview = await manager.spawn(
+    'vite-preview',
+    [
+      'bun',
+      'run',
+      'preview',
+      '--',
+      '--host',
+      config.frontendHost,
+      '--port',
+      String(config.frontendPort),
+    ],
+    { cwd: config.clientRoot },
+  )
   await manager.waitForAnyExit([sidecar, backend, preview])
 }
 

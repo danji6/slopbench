@@ -1,7 +1,7 @@
-import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { useMutation } from 'convex/react'
 import { api } from '@sb/convex/_generated/api'
 import type { ResolvedSettings } from '@sb/convex/model/defaults'
+import { useQuery } from 'convex-helpers/react/cache/hooks'
+import { useMutation } from 'convex/react'
 
 export function useSettings(): ResolvedSettings | undefined {
   return useQuery(api.settings.get, {})

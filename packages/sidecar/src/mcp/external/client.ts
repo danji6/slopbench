@@ -1,4 +1,3 @@
-import type { McpConnection, McpToolMeta } from '@sb/core/types'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import {
   SSEClientTransport,
@@ -7,6 +6,7 @@ import {
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { WebSocketClientTransport } from '@modelcontextprotocol/sdk/client/websocket.js'
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
+import type { McpConnection, McpToolMeta } from '@sb/core/types'
 
 function authHeaders(apiKey?: string): Record<string, string> | undefined {
   return apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined

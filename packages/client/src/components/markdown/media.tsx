@@ -1,4 +1,3 @@
-
 import { type AltMetadata, useAltMetadata } from '@/hooks'
 import { cn, isVideo } from '@/lib/utils'
 import { useEffect, useMemo } from 'react'

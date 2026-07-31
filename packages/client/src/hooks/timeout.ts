@@ -1,4 +1,3 @@
-
 import { useRef, useState } from 'react'
 
 export function useTimeoutState<T>(resetValue: T, defaultDelay: number) {

@@ -1,8 +1,8 @@
 /// <reference types="bun-types" />
 import { injectDueReminders } from '@sb/convex/model/chat/reminders'
 import { _edit, _write, applyTodoEdits } from '@sb/convex/model/todos'
-import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
 import { getEnabledTools } from '@sb/convex/model/tool/build'
+import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
 import type { TodoItem } from '@sb/convex/types'
 import { TODO_NUDGE_INTERVAL_TURNS, TODO_TOOL_TOGGLE } from '@sb/core/const'
 import { describe, expect, test } from 'bun:test'

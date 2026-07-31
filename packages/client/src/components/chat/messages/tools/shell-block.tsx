@@ -29,11 +29,14 @@ export function ShellBlock({
   messageId,
   forceError,
   dense,
+  alwaysExpand,
 }: {
   part: ToolUIPart
   messageId: string
   forceError?: boolean
   dense?: boolean
+  /** Opens the block as soon as it has a body. */
+  alwaysExpand?: boolean
 }) {
   const input = part.input as
     | { command?: string; jobId?: string; run_in_background?: boolean }
@@ -128,7 +131,7 @@ export function ShellBlock({
       part={part}
       messageId={messageId}
       forceError={forceError}
-      autoExpand={interactive}
+      autoExpand={interactive || Boolean(alwaysExpand)}
       reveal={revealTerminal}
       revealOnOpen={false}
       fullWidth={hasTerminal}

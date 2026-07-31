@@ -18,9 +18,7 @@ export const _write = internalMutation({
 export const _edit = internalMutation({
   args: {
     sessionId: v.id('sessions'),
-    edits: v.array(
-      v.object({ task: v.string(), status: todoStatusValidator }),
-    ),
+    edits: v.array(v.object({ task: v.string(), status: todoStatusValidator })),
   },
   handler: Todos._edit,
 })

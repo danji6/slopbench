@@ -44,11 +44,23 @@ export type OpenStream = (
 
 export type ShellJobOptions = {
   abortSignal?: AbortSignal
+  /**
+   * Stops watching a job at this timestamp, yielding one last `running` output.
+   * Lets a caller hand the job to another watcher before it runs out of time.
+   */
+  windowDeadline?: number
   /** Injectable for tests. */
   post?: PostSidecar
   openStream?: OpenStream
   pollIntervalMs?: number
   heartbeatMs?: number
+}
+
+/** Picks up a job another watcher left running, continuing its scrollback. */
+export type ShellJobResume = {
+  jobId: string
+  term: string
+  termOffset: number
 }
 
 type StartResponse = { jobId: string; mode: string }
@@ -87,6 +99,23 @@ export async function* executeShellJob(
     ...options,
     post,
     detachOnBackground: true,
+  })
+}
+
+/**
+ * Resumes watching a job that outlived its previous watcher. The scrollback
+ * carries over and `term`/`termOffset` stay continuous for the reader.
+ */
+export async function* resumeShellJob(
+  context: ShellJobContext,
+  resume: ShellJobResume,
+  options: ShellJobOptions = {},
+): AsyncGenerator<ShellToolOutput> {
+  yield* watchJob(context, resume.jobId, {
+    ...options,
+    post: options.post ?? postSidecar,
+    detachOnBackground: true,
+    seed: resume,
   })
 }
 
@@ -156,6 +185,7 @@ type WatchOptions = ShellJobOptions & {
   post: PostSidecar
   waitDeadline?: number
   detachOnBackground?: boolean
+  seed?: ShellJobResume
 }
 
 type WatchState = {
@@ -175,15 +205,20 @@ async function* watchJob(
   options: WatchOptions,
 ): AsyncGenerator<ShellToolOutput> {
   const interval = options.pollIntervalMs ?? POLL_INTERVAL_MS
+  const output = new TermOutputAccumulator(options.seed)
   const state: WatchState = {
-    output: new TermOutputAccumulator(),
-    offset: 0,
+    output,
+    offset: output.termEnd,
     lastYield: Date.now(),
     waiting: false,
   }
   let failures = 0
 
   while (true) {
+    if (windowElapsed(options)) {
+      yield runningPart(jobId, state)
+      return
+    }
     if (options.abortSignal?.aborted) {
       await killQuietly(context, jobId, options.post)
       yield finalOutput(jobId, 'killed', null, state.output)
@@ -244,6 +279,7 @@ async function* consumeConnection(
     // The first event is processed without a deadline race to make sure
     // the current output is always included
     const heartbeatMs = options.heartbeatMs ?? HEARTBEAT_MS
+    const deadline = earliest(options.waitDeadline, options.windowDeadline)
     let pending = events.next()
     let step = await pending
     while (true) {
@@ -258,7 +294,7 @@ async function* consumeConnection(
       let raced = await raceNextEvent(
         pending,
         state.lastYield,
-        options.waitDeadline,
+        deadline,
         heartbeatMs,
       )
       while (raced === 'heartbeat') {
@@ -267,12 +303,15 @@ async function* consumeConnection(
         raced = await raceNextEvent(
           pending,
           state.lastYield,
-          options.waitDeadline,
+          deadline,
           heartbeatMs,
         )
       }
       if (raced === 'deadline') {
-        yield stillRunningOutput(jobId, state.output)
+        // Leave it for the next watcher
+        yield windowElapsed(options)
+          ? runningPart(jobId, state)
+          : stillRunningOutput(jobId, state.output)
         return 'ended'
       }
       step = raced.result
@@ -322,6 +361,15 @@ async function raceNextEvent(
   } finally {
     timers.forEach(clearTimeout)
   }
+}
+
+function windowElapsed({ windowDeadline }: ShellJobOptions): boolean {
+  return windowDeadline !== undefined && Date.now() >= windowDeadline
+}
+
+function earliest(...deadlines: (number | undefined)[]): number | undefined {
+  const set = deadlines.filter((deadline) => deadline !== undefined)
+  return set.length ? Math.min(...set) : undefined
 }
 
 type EventOutcome = { part?: ShellToolOutput; done?: boolean }
@@ -387,17 +435,32 @@ class TermOutputAccumulator {
   private head = ''
   private tail = ''
   private truncated = false
+  private headClosed = false
   private total = 0
+
+  /** Seeding continues a previous watcher's scrollback and offsets. */
+  constructor(seed?: ShellJobResume) {
+    if (!seed) return
+    this.total = seed.termOffset
+    this.truncated = seed.termOffset > 0
+    this.headClosed = this.truncated
+    this.append(seed.term)
+  }
 
   get termOffset(): number {
     return this.total - this.term.length
+  }
+
+  /** Absolute offset just past the scrollback, where a reader resumes. */
+  get termEnd(): number {
+    return this.total
   }
 
   append(chunk: string) {
     this.total += chunk.length
     this.term = (this.term + chunk).slice(-TERM_TAIL_CHARS)
 
-    if (this.head.length < TEXT_HEAD_CHARS) {
+    if (!this.headClosed && this.head.length < TEXT_HEAD_CHARS) {
       const room = TEXT_HEAD_CHARS - this.head.length
       this.head += chunk.slice(0, room)
       chunk = chunk.slice(room)
@@ -412,9 +475,8 @@ class TermOutputAccumulator {
   toText(): string {
     const head = stripTerminalCodes(this.head)
     const tail = stripTerminalCodes(this.tail)
-    return this.truncated
-      ? `${head}\n[... output truncated ...]\n${tail}`
-      : head + tail
+    if (!this.truncated) return head + tail
+    return [head, '[... output truncated ...]', tail].filter(Boolean).join('\n')
   }
 }
 

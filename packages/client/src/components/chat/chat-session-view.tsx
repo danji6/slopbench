@@ -125,7 +125,7 @@ export function ChatSessionView({
   const awaitingApproval = useStreamAwaitingApproval()
   const canApproveTools = useIsAdmin()
   const { mode, cycleMode } = useSessionMode()
-  const canCycleMode = canApproveTools && workspaceAvailable
+  const canUseWorkspace = canApproveTools && workspaceAvailable
   const showApproval = awaitingApproval && canApproveTools
 
   // Search
@@ -345,7 +345,7 @@ export function ChatSessionView({
                     onTyping={notify}
                     onStop={onStop}
                     onRunCommand={onRunCommand}
-                    onCycleMode={canCycleMode ? handleCycleMode : undefined}
+                    onCycleMode={canUseWorkspace ? handleCycleMode : undefined}
                     onContinueAgent={onContinueAgent}
                     canContinueAgent={hasActiveAgent && status === 'ready'}
                     commandAvailability={{
@@ -370,6 +370,7 @@ export function ChatSessionView({
                     fileIndex={fileIndex}
                     passiveSend={passiveSend}
                     sendDisabled={sendDisabled}
+                    shellAvailable={canUseWorkspace}
                     draftKey={session?._id}
                     className={cn('w-full', showApproval && 'hidden')}
                     inert={!showDock || showApproval}

@@ -1,6 +1,6 @@
+import { pngImage, thumbnailImage } from '@sb/sidecar/io/image'
 import { afterEach, describe, expect, test } from 'bun:test'
 import sharp from 'sharp'
-import { pngImage, thumbnailImage } from '@sb/sidecar/io/image'
 
 const originalFetch = globalThis.fetch
 const pngBytes = new Uint8Array([

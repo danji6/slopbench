@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
-import { TODO_EDIT_STATUSES, type TodoEditStatus } from '@sb/core/const'
 import type { TodoItem, TodoStatus } from '@sb/convex/types'
+import { TODO_EDIT_STATUSES, type TodoEditStatus } from '@sb/core/const'
 import type { ToolUIPart } from 'ai'
 import type { LucideIcon } from 'lucide-react'
 import { CircleCheckIcon, CircleDotIcon, CircleIcon } from 'lucide-react'

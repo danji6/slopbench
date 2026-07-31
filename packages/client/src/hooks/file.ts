@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react'
 
 export function useTextFile(url: string): string | undefined {

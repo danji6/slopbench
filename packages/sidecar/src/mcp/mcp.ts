@@ -1,3 +1,5 @@
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 import {
   TOOL_DESCRIPTIONS,
   editFileFields,
@@ -6,8 +8,6 @@ import {
   webSearchSchema,
   writeFileFields,
 } from '@sb/core/types'
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 import type { Context } from 'hono'
 import { z } from 'zod'
 

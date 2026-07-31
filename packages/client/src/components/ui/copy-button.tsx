@@ -1,4 +1,3 @@
-
 import { useTimeoutState } from '@/hooks'
 import { Result } from '@/lib/result'
 import { isTouchDevice } from '@/lib/utils'
@@ -14,12 +13,7 @@ import type { RippleButtonProps } from './ripple-button'
 export type CopyButtonProps = {
   tooltip?: string
   tooltipSide?:
-    | 'top'
-    | 'bottom'
-    | 'left'
-    | 'right'
-    | 'inline-end'
-    | 'inline-start'
+    'top' | 'bottom' | 'left' | 'right' | 'inline-end' | 'inline-start'
   value: string | (() => string)
   onChange?: (isCopied: boolean) => void
   variant?: RippleButtonProps['variant']

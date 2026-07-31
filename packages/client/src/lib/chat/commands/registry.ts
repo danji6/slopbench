@@ -1,7 +1,4 @@
-import type {
-  CommandAvailabilityContext,
-  CommandDefinition,
-} from './types'
+import type { CommandAvailabilityContext, CommandDefinition } from './types'
 
 class CommandRegistry {
   private commands = new Map<string, CommandDefinition>()

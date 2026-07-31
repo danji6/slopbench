@@ -1,8 +1,5 @@
 /// <reference types="bun-types" />
-import {
-  TERMINAL_GAP_MARKER,
-  computeTerminalFeed,
-} from '@/lib/terminal-feed'
+import { TERMINAL_GAP_MARKER, computeTerminalFeed } from '@/lib/terminal-feed'
 import { describe, expect, test } from 'bun:test'
 
 describe('computeTerminalFeed', () => {

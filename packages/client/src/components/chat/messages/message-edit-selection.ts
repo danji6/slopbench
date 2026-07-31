@@ -186,15 +186,15 @@ function messageRowFromPoint(
   return row.dataset.messageId === messageId ? row : null
 }
 
-function selectedTextBlock(
-  row: HTMLElement,
-  range: Range,
-): HTMLElement | null {
+function selectedTextBlock(row: HTMLElement, range: Range): HTMLElement | null {
   const startBlock = closestElement(
     range.startContainer,
     '[data-slot="text-block"]',
   )
-  const endBlock = closestElement(range.endContainer, '[data-slot="text-block"]')
+  const endBlock = closestElement(
+    range.endContainer,
+    '[data-slot="text-block"]',
+  )
   if (!startBlock || startBlock !== endBlock) return null
   if (!row.contains(startBlock)) return null
   return startBlock

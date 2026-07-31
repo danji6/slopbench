@@ -1,4 +1,3 @@
-
 import { useCallback, useState } from 'react'
 
 export function useLoadingState(initialValue = false) {

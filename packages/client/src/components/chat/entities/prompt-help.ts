@@ -12,8 +12,7 @@ const start = inline`
   the last message in the history. Available markers:
 `
 
-const messageHistory =
-  '- **Message History**: the entire conversation so far.'
+const messageHistory = '- **Message History**: the entire conversation so far.'
 
 const systemBoundary = inline`
 - **System Boundary**: ends the system instructions block. System prompts

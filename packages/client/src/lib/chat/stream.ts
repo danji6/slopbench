@@ -1,5 +1,5 @@
-import type { ChatStatus } from 'ai'
 import type { Doc } from '@sb/convex/_generated/dataModel'
+import type { ChatStatus } from 'ai'
 
 export function isOngoingStream(status: ChatStatus): boolean {
   return status !== 'ready' && status !== 'error'

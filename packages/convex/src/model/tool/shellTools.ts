@@ -25,7 +25,7 @@ export async function createShellTool(context: WorkspaceToolContext) {
     description: TOOL_DESCRIPTIONS.shell,
     inputSchema: z.object({
       command: z.string().describe('Shell command to execute'),
-      timeout: z.number().optional().describe('Timeout in seconds'),
+      timeout: z.number().min(1).optional().describe('Timeout in seconds'),
       run_in_background: z
         .boolean()
         .optional()

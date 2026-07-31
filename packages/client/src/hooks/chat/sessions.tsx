@@ -53,7 +53,9 @@ export function SessionStoreProvider({ children }: { children: ReactNode }) {
   return (
     <SessionStoreContext.Provider value={store}>
       <SessionSearchContext.Provider value={setSearch}>
-        <SessionShowHiddenContext.Provider value={{ showHidden, setShowHidden }}>
+        <SessionShowHiddenContext.Provider
+          value={{ showHidden, setShowHidden }}
+        >
           {children}
         </SessionShowHiddenContext.Provider>
       </SessionSearchContext.Provider>

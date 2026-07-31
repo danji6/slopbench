@@ -21,10 +21,11 @@ import {
 } from '@/lib/tiptap/serialize'
 import { cn } from '@/lib/utils'
 import { getActiveMention, mentionToken } from '@sb/core/mentions/parse'
+import { parseShellCommand } from '@sb/core/shell/command'
 import { truncate } from '@sb/core/utils/strings'
 import type { Editor } from '@tiptap/react'
 import type { ChatStatus, FileUIPart } from 'ai'
-import { PlusIcon } from 'lucide-react'
+import { MessageSquareWarningIcon, PlusIcon } from 'lucide-react'
 import {
   Suspense,
   lazy,
@@ -110,6 +111,8 @@ export type ChatComposerProps = Omit<InputGroupProps, 'onSubmit'> & {
   passiveSend?: boolean
   /** Whether sending messages should be disabled. */
   sendDisabled?: boolean
+  /** Whether shell commands can run (admin with a bound workspace). */
+  shellAvailable?: boolean
   /**
    * Draft key: a session id, or `NO_SESSION_DRAFT_KEY` outside of a session.
    * Omit to disable persistence.
@@ -136,6 +139,7 @@ export function ChatComposer({
   fileIndex,
   passiveSend = false,
   sendDisabled = false,
+  shellAvailable = false,
   draftKey,
   className,
   style,
@@ -144,6 +148,7 @@ export function ChatComposer({
   const draft = useComposerDraft(draftKey)
   const [message, setMessage] = useState('')
   const [caret, setCaret] = useState(0)
+  const [shellCommand, setShellCommand] = useState<string | null>(null)
   const [dismissedMention, setDismissedMention] = useState<string | null>(null)
   const shortcuts = useChatShortcuts()
   const invertSend = useInvertSend()
@@ -207,6 +212,7 @@ export function ChatComposer({
     const { doc, selection } = editor.state
     setMessage(doc.textBetween(0, doc.content.size, '\n'))
     setCaret(doc.textBetween(0, selection.from, '\n').length)
+    setShellCommand(editorShellCommand(editor))
   }, [])
 
   const draftRef = useRef(draft)
@@ -265,6 +271,7 @@ export function ChatComposer({
     editorRef.current?.commands.clearContent(true)
     setMessage('')
     setCaret(0)
+    setShellCommand(null)
     draft.clear()
   }
 
@@ -289,6 +296,10 @@ export function ChatComposer({
   const commandArgument = isCommandMode
     ? message.slice(1).slice(commandName.length).trim()
     : ''
+
+  // Shell command runs in the workspace instead of being sent as a message
+  const isShellMode = shellCommand !== null
+  const shellBlocked = isShellMode && (!shellAvailable || fileParts.length > 0)
 
   const mentionsEnabled = Boolean(fileIndex?.enabled) && !isCommandMode
   const activeMention = useMemo(
@@ -374,7 +385,7 @@ export function ChatComposer({
       handleCommandSelect(matchedCommand, silent)
       return
     }
-    if (sendDisabled) return
+    if (sendDisabled || shellBlocked) return
 
     onSubmit({
       content: editorRef.current
@@ -519,6 +530,12 @@ export function ChatComposer({
       ? `Send a message to ${truncate(activeAgentName, PLACEHOLDER_NAME_MAX)}`
       : 'Send a message') + (compact ? '' : ' (or type / for commands)')
 
+  const shellHint = shellBlocked
+    ? fileParts.length > 0
+      ? 'Shell commands cannot carry attachments'
+      : 'Shell commands require admin access and a bound workspace'
+    : null
+
   return (
     <ComposerLayoutProvider value={layout}>
       <FullscreenEditor id={COMPOSER_FULLSCREEN_ID}>
@@ -552,6 +569,7 @@ export function ChatComposer({
               onSelect={handleMentionSelect}
             />
           )}
+          {shellHint && <Hint>{shellHint}</Hint>}
           <FilePickerOverlay className="rounded-3xl" />
           <InputGroup
             data-slot="chat-box"
@@ -606,7 +624,8 @@ export function ChatComposer({
                   isStop={isStop}
                   disabled={
                     (!isStop && !hasContent && !canContinue) ||
-                    (sendDisabled && hasContent)
+                    (sendDisabled && hasContent) ||
+                    shellBlocked
                   }
                   canSendSilently={hasContent && !isStop}
                   canContinueAgent={canContinue}
@@ -621,6 +640,25 @@ export function ChatComposer({
       </FullscreenEditor>
     </ComposerLayoutProvider>
   )
+}
+
+function Hint({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      data-slot="shell-hint"
+      className="bg-m3-surface-container-low text-muted-foreground absolute right-2 bottom-full left-2 mb-1.5 flex items-center gap-2 rounded-xl border px-3 py-2 text-xs shadow-lg"
+    >
+      <MessageSquareWarningIcon className="size-4 shrink-0" />
+      {children}
+    </div>
+  )
+}
+
+/** The shell command that would be run, only if in a leading paragraph. */
+function editorShellCommand(editor: Editor): string | null {
+  const { doc } = editor.state
+  if (doc.firstChild?.type.name !== 'paragraph') return null
+  return parseShellCommand(doc.textBetween(0, doc.content.size, '\n'))
 }
 
 function FilePicker({ onClick }: { onClick: () => void }) {

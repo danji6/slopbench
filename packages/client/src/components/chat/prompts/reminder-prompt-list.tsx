@@ -8,10 +8,7 @@ import {
 import { useReminderEditorView } from '@/hooks/chat/prompt-editor'
 import { newReminderPrompt } from '@/lib/chat'
 import type { ReminderPrompt } from '@/lib/chat'
-import {
-  getEditorDraft,
-  reminderDraftKey,
-} from '@/lib/chat/editor-draft-store'
+import { getEditorDraft, reminderDraftKey } from '@/lib/chat/editor-draft-store'
 import { cn } from '@/lib/utils'
 import {
   BookmarkIcon,

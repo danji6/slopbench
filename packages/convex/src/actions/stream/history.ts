@@ -27,6 +27,7 @@ import {
   sharedSessionId,
   toSubagentReportBlock,
 } from '../../lib/subagent'
+import { isShellToolPart, toUserShellBlock } from '../../lib/userShell'
 import { trimContextToThreshold } from '../../model/context'
 import { encodeBase64 } from '../../model/io/base64'
 import type { PlanLinkPart } from '../../model/plans'
@@ -73,7 +74,7 @@ export async function buildProviderHistory(
     const { role, parts } = representMessage(
       message,
       data.agent,
-      await resolveParts(ctx, message.parts, data.session),
+      await resolveParts(ctx, message.parts, data.session, message.role),
     )
     messages.push({
       id: message._id,
@@ -307,9 +308,10 @@ async function resolveParts(
   ctx: ActionCtx,
   parts: unknown[],
   session: Doc<'sessions'>,
+  role: MessageRole,
 ) {
   const resolved = await Promise.all(
-    parts.map((part) => resolvePart(ctx, part, session)),
+    parts.map((part) => resolvePart(ctx, part, session, role)),
   )
   return resolved as UIMessage['parts']
 }
@@ -318,7 +320,12 @@ async function resolvePart(
   ctx: ActionCtx,
   part: unknown,
   session: Doc<'sessions'>,
+  role: MessageRole,
 ) {
+  if (role === 'user' && isShellToolPart(part)) {
+    // Tool parts are stripped off user messages, so this becomes a text part
+    return { type: 'text' as const, text: toUserShellBlock(part) }
+  }
   if (hasOutputRef(part)) return resolveOffloadedOutput(ctx, part)
   if (isPlanLinkPart(part)) {
     return { type: 'text' as const, text: toPlanBlock(part.snapshot) }

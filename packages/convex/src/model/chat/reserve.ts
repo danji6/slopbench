@@ -1,9 +1,9 @@
 import { internal } from '../../_generated/api'
-import type { Id } from '../../_generated/dataModel'
+import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import { addVersion, getActiveSegmentRow } from '../messageContents'
-import { stripMessageError } from '../messages'
+import { scheduleTitle, stripMessageError } from '../messages'
 import { findModelEntry } from '../provider/providers'
 import * as Memberships from '../session/memberships'
 import { setMetadataModel } from '../session/metadata'
@@ -78,6 +78,54 @@ export async function reserveStream(
 
   await ctx.db.patch(streamId, { jobId })
   return streamId
+}
+
+type TurnReservation = {
+  session: Doc<'sessions'>
+  /** The message the turn should read up to. */
+  messageId: Id<'messages'>
+  invokedBy: Id<'users'>
+  silent: boolean
+  activeStream: Doc<'streams'> | null
+}
+
+/**
+ * Reserves the agent turn a completed user message should trigger, extending
+ * the debounce of an already pending one instead. Falls back to scheduling
+ * title generation when no turn is expected.
+ */
+export async function reserveOrDebounceTurn(
+  ctx: MutationCtx,
+  { session, messageId, invokedBy, silent, activeStream }: TurnReservation,
+) {
+  const debounceMs = (session.settings?.agentDebounceSeconds ?? 0) * 1000
+  const willStream =
+    Boolean(activeStream) || (!silent && Boolean(session.activeAgentId))
+
+  if (!silent && session.activeAgentId && !activeStream) {
+    await reserveStream(ctx, {
+      sessionId: session._id,
+      agentId: session.activeAgentId,
+      invokedBy,
+      boundaryId: messageId,
+      operation: 'invoke',
+      delayMs: debounceMs,
+    })
+  } else if (
+    debounceMs > 0 &&
+    activeStream &&
+    activeStream.status === 'pending' &&
+    activeStream.operation === 'invoke' &&
+    activeStream.fireAt
+  ) {
+    // New messages reschedule the pending turn
+    await rescheduleStream(ctx, activeStream, {
+      boundaryId: messageId,
+      delayMs: debounceMs,
+    })
+  }
+
+  if (!willStream) await scheduleTitle(ctx, session._id)
 }
 
 /** Reschedules a pending stream invocation (debounce). */

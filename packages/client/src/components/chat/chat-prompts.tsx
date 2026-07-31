@@ -9,7 +9,10 @@ export function ChatPrompts({
   showEmptyState,
   workDir,
   ...props
-}: React.ComponentProps<'div'> & { showEmptyState?: boolean; workDir?: string }) {
+}: React.ComponentProps<'div'> & {
+  showEmptyState?: boolean
+  workDir?: string
+}) {
   const { messages, sender, css } = useDeferredValue(useAgentPrompts(workDir))
 
   if (messages.length === 0) {

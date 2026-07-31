@@ -1,6 +1,6 @@
 import { DropdownMenu, RippleButton } from '@/components/ui'
 import { useRecentWorkspaces, useTools } from '@/hooks/chat'
-import { collapsePath } from "@/lib/utils"
+import { collapsePath } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { FolderIcon, HistoryIcon, Trash2Icon, XIcon } from 'lucide-react'
 import { useState } from 'react'

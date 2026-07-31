@@ -1,4 +1,3 @@
-
 import type { MorpherOptions, RoundedPolygon } from '@/lib/shapes'
 import { Morpher } from '@/lib/shapes'
 import { useEffect, useRef } from 'react'

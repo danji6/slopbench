@@ -61,7 +61,10 @@ function mergeTurn<T extends UIMessage>(group: T[]): T {
   } as T
 }
 
-function withSourceMessageId(part: AnyPart, messageId: string): SourceMessagePart {
+function withSourceMessageId(
+  part: AnyPart,
+  messageId: string,
+): SourceMessagePart {
   return { ...part, sourceMessageId: messageId }
 }
 

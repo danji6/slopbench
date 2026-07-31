@@ -3,10 +3,10 @@ import {
   type AvatarUploadResult,
   profileAvatarUploadForm,
 } from '@/lib/chat/avatar'
-import { useMutation, useQuery } from 'convex/react'
-import { useCallback } from 'react'
 import { api } from '@sb/convex/_generated/api'
 import type { Doc, Id } from '@sb/convex/_generated/dataModel'
+import { useMutation, useQuery } from 'convex/react'
+import { useCallback } from 'react'
 
 import { useAvatarThumbnail } from './avatars'
 

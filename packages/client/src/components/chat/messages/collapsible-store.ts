@@ -21,9 +21,6 @@ export function useCollapsible(key: string, defaultOpen = false) {
     () => openByKey.get(key) ?? defaultOpen,
     () => defaultOpen,
   )
-  const onOpenChange = useCallback(
-    (next: boolean) => setOpen(key, next),
-    [key],
-  )
+  const onOpenChange = useCallback((next: boolean) => setOpen(key, next), [key])
   return [open, onOpenChange] as const
 }

@@ -1,5 +1,5 @@
-import type { WebFetchQuery } from '@sb/core/types'
 import { Readability } from '@mozilla/readability'
+import type { WebFetchQuery } from '@sb/core/types'
 import { parseHTML } from 'linkedom'
 import TurndownService from 'turndown'
 

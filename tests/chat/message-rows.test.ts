@@ -80,6 +80,26 @@ describe('message rows', () => {
     expect(rows.map((row) => row.key)).toContain('f:message-1')
   })
 
+  test('a user-invoked shell command is one renderable group row', () => {
+    const shellPart = {
+      type: 'tool-shell',
+      toolCallId: 'call-1',
+      state: 'input-available',
+      input: { command: 'ls -la' },
+    } as unknown as UIMessage['parts'][number]
+
+    const rows = buildRows(
+      ['message-1'],
+      () => ({ ...message([shellPart]), role: 'user' }),
+      () => undefined,
+    )
+
+    expect(rows.map((row) => row.key)).toEqual([
+      'h:message-1',
+      'g:message-1:s0:tools:call-1',
+    ])
+  })
+
   test('a headerless message with nothing to render keeps its footer row', () => {
     // Grouped, so no header stands in for it — every message must keep at
     // least one row or seek/reveal can no longer address it

@@ -31,7 +31,9 @@ export const editFileFields = {
               error:
                 'oldText is required inside each edits[] entry, not as a top-level field.',
             })
-            .describe('Exact text to replace. Must be unique in the original file and must not overlap any other edit.'),
+            .describe(
+              'Exact text to replace. Must be unique in the original file and must not overlap any other edit.',
+            ),
           newText: z
             .string({
               error:

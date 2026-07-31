@@ -8,10 +8,7 @@ import {
 import { useLibraryPromptEditorView } from '@/hooks/chat/prompt-editor'
 import { newPrompt } from '@/lib/chat'
 import type { Prompt } from '@/lib/chat'
-import {
-  getEditorDraft,
-  promptDraftKey,
-} from '@/lib/chat/editor-draft-store'
+import { getEditorDraft, promptDraftKey } from '@/lib/chat/editor-draft-store'
 import { CopyIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 

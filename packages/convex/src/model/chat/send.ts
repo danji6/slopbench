@@ -1,4 +1,5 @@
 import { parseFileMentions } from '@sb/core/mentions/parse'
+import { parseShellCommand, unescapeShellPrefix } from '@sb/core/shell/command'
 import type { WorkspaceLinkSnapshot } from '@sb/core/types/workspace'
 
 import type { Doc, Id } from '../../_generated/dataModel'
@@ -7,7 +8,7 @@ import { error } from '../../errors'
 import type { AuthMutationCtx } from '../../functions'
 import type { SendMessageArgs } from '../../types'
 import { insertMessage } from '../messageContents'
-import { scheduleMessageEval, scheduleTitle, syncActivity } from '../messages'
+import { scheduleMessageEval, syncActivity } from '../messages'
 import {
   type PlanLinkPart,
   createPlanLinkPart,
@@ -19,10 +20,11 @@ import { resolveSender } from './identities'
 import { bumpTurnCount, injectDueReminders } from './reminders'
 import {
   latestMessageId,
-  rescheduleStream,
+  reserveOrDebounceTurn,
   reserveResumableStream,
   reserveStream,
 } from './reserve'
+import { runShellCommand } from './shell'
 import { maybeInsertStarters } from './starters'
 
 export async function sendMessage(ctx: AuthMutationCtx, args: SendMessageArgs) {
@@ -66,8 +68,22 @@ export async function sendMessage(ctx: AuthMutationCtx, args: SendMessageArgs) {
 
   const silent = args.silent ?? false
 
+  const command = role === 'user' ? parseShellCommand(args.content) : null
+  if (command !== null) {
+    return runShellCommand(ctx, {
+      session,
+      membership,
+      settings,
+      command,
+      silent,
+      hasAttachments: attachments.length > 0,
+    })
+  }
+
+  const content = unescapeShellPrefix(args.content)
+
   const fileLinkParts = session.workspace
-    ? snapshotFileLinkParts(parseFileMentions(args.content), args.fileLinks)
+    ? snapshotFileLinkParts(parseFileMentions(content), args.fileLinks)
     : []
 
   const parts = [
@@ -80,9 +96,7 @@ export async function sendMessage(ctx: AuthMutationCtx, args: SendMessageArgs) {
       filename: attachment.filename,
     })),
     ...fileLinkParts,
-    ...(args.content.trim()
-      ? [{ type: 'text', text: args.content.trim() }]
-      : []),
+    ...(content.trim() ? [{ type: 'text', text: content.trim() }] : []),
   ]
 
   const { sender, senderSnapshot } = await resolveSender(ctx, {
@@ -122,33 +136,13 @@ export async function sendMessage(ctx: AuthMutationCtx, args: SendMessageArgs) {
     await ctx.db.patch(membership._id, { lastSendAt: now })
   }
 
-  const debounceMs = (session.settings?.agentDebounceSeconds ?? 0) * 1000
-  const willStream = activeStream || (!silent && !!session.activeAgentId)
-
-  if (!silent && session.activeAgentId && !activeStream) {
-    await reserveStream(ctx, {
-      sessionId: args.sessionId,
-      agentId: session.activeAgentId,
-      invokedBy: ctx.userId,
-      boundaryId: messageId,
-      operation: 'invoke',
-      delayMs: debounceMs,
-    })
-  } else if (
-    debounceMs > 0 &&
-    activeStream &&
-    activeStream.status === 'pending' &&
-    activeStream.operation === 'invoke' &&
-    activeStream.fireAt
-  ) {
-    // Debounce: new messages reschedule the pending turn
-    await rescheduleStream(ctx, activeStream, {
-      boundaryId: messageId,
-      delayMs: debounceMs,
-    })
-  }
-
-  if (!willStream) await scheduleTitle(ctx, args.sessionId)
+  await reserveOrDebounceTurn(ctx, {
+    session,
+    messageId,
+    invokedBy: ctx.userId,
+    silent,
+    activeStream,
+  })
 
   return messageId
 }

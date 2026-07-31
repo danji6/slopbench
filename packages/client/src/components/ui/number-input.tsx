@@ -1,4 +1,3 @@
-
 import { useStep } from '@/hooks/step'
 import { clamp, roundDecimals } from '@/lib/math'
 import { MinusIcon, PlusIcon } from 'lucide-react'

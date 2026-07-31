@@ -7,9 +7,9 @@ import {
   RippleButton,
 } from '@/components/ui'
 import { signIn, signUp } from '@/lib/auth/client'
+import { api } from '@sb/convex/_generated/api'
 import { useQuery } from 'convex/react'
 import { useState } from 'react'
-import { api } from '@sb/convex/_generated/api'
 
 export function LoginForm() {
   const canSignUp = useQuery(api.auth.canSignUp)

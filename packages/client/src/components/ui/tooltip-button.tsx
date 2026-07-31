@@ -12,12 +12,7 @@ export type TooltipButtonProps = RippleButtonProps &
   > & {
     tooltip?: string
     tooltipSide?:
-      | 'top'
-      | 'bottom'
-      | 'left'
-      | 'right'
-      | 'inline-end'
-      | 'inline-start'
+      'top' | 'bottom' | 'left' | 'right' | 'inline-end' | 'inline-start'
     onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void
   }
 

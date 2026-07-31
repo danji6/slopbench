@@ -1,6 +1,5 @@
-import type { MessageStore } from '@/lib/chat/message-store'
-
 import { useVersionChange } from '@/hooks/chat/message-version'
+import type { MessageStore } from '@/lib/chat/message-store'
 
 /** Re-triggers the one-shot fade on a content block. */
 const fade = (el: HTMLElement) => {

@@ -1,4 +1,3 @@
-
 import { useRender } from '@base-ui/react/use-render'
 import { animate, motion, useMotionValue } from 'framer-motion'
 import { RefreshCwIcon } from 'lucide-react'

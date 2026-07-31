@@ -1,6 +1,5 @@
-import { useLayoutEffect, useRef, useSyncExternalStore } from 'react'
-
 import type { MessageStore } from '@/lib/chat/message-store'
+import { useLayoutEffect, useRef, useSyncExternalStore } from 'react'
 
 const versionOf = (store: MessageStore, id: string): number =>
   store.getMessageMetadata(id)?.selectedVersion ?? 1

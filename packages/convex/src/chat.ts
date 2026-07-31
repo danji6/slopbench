@@ -152,3 +152,23 @@ export const _applyMessageEval = internalMutation({
   },
   handler: Chat._applyMessageEval,
 })
+
+export const _beginUserShellWindow = internalMutation({
+  args: { messageId: v.id('messages') },
+  handler: Chat._beginUserShellWindow,
+})
+
+export const _patchUserShell = internalMutation({
+  args: V.userShellPatchArgsValidator.fields,
+  handler: Chat._patchUserShell,
+})
+
+export const _finishUserShell = internalMutation({
+  args: V.userShellFinishArgsValidator.fields,
+  handler: Chat._finishUserShell,
+})
+
+export const _reapUserShell = internalMutation({
+  args: { messageId: v.id('messages') },
+  handler: Chat._reapUserShell,
+})

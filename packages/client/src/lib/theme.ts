@@ -1,4 +1,3 @@
-import { camelToDashCase, dashToCamelCase } from '@sb/core/utils/strings'
 import {
   type DynamicScheme,
   Hct,
@@ -9,6 +8,7 @@ import {
   argbFromRgb,
   hexFromArgb,
 } from '@material/material-color-utilities'
+import { camelToDashCase, dashToCamelCase } from '@sb/core/utils/strings'
 import { getFormat } from 'colord'
 
 const MAX_QUANTIZER_SIZE = 256

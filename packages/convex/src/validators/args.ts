@@ -12,6 +12,7 @@ import {
   sessionArchiveValidator,
   sessionModeValidator,
   sessionSettingsValidator,
+  shellJobStatusValidator,
   toolManifestValidator,
 } from './sub'
 
@@ -209,6 +210,33 @@ export const terminalPollArgsValidator = v.object({
   sessionId: v.id('sessions'),
   jobId: v.string(),
   offset: v.number(),
+})
+
+/** Mirrors `ShellToolOutput` from `@sb/core/types/tools`. */
+export const shellToolOutputValidator = v.object({
+  jobId: v.string(),
+  status: shellJobStatusValidator,
+  exitCode: v.union(v.number(), v.null()),
+  text: v.string(),
+  term: v.string(),
+  termOffset: v.number(),
+  waiting: v.optional(v.boolean()),
+})
+
+export const userShellPatchArgsValidator = v.object({
+  messageId: v.id('messages'),
+  toolCallId: v.string(),
+  output: shellToolOutputValidator,
+})
+
+export const userShellFinishArgsValidator = v.object({
+  messageId: v.id('messages'),
+  toolCallId: v.string(),
+  invokedBy: v.id('users'),
+  silent: v.boolean(),
+  duration: v.number(),
+  output: v.optional(shellToolOutputValidator),
+  errorText: v.optional(v.string()),
 })
 
 export const messagesWindowArgsValidator = v.object({

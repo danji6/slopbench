@@ -63,18 +63,22 @@ export async function startBackend(
   }
 
   await mkdir(join(config.dataDir, 'storage'), { recursive: true })
-  return manager.spawn('convex-backend', [
-    config.convexBinary,
-    '--instance-name',
-    config.convexInstanceName,
-    '--instance-secret',
-    config.instanceSecret,
-    '--local-storage',
-    join(config.dataDir, 'storage'),
-    join(config.dataDir, 'convex.sqlite3'),
-  ], {
-    env: { DOCUMENT_RETENTION_DELAY: config.convexDocumentRetentionDelay },
-  })
+  return manager.spawn(
+    'convex-backend',
+    [
+      config.convexBinary,
+      '--instance-name',
+      config.convexInstanceName,
+      '--instance-secret',
+      config.instanceSecret,
+      '--local-storage',
+      join(config.dataDir, 'storage'),
+      join(config.dataDir, 'convex.sqlite3'),
+    ],
+    {
+      env: { DOCUMENT_RETENTION_DELAY: config.convexDocumentRetentionDelay },
+    },
+  )
 }
 
 export async function setConvexEnvironment(
@@ -128,32 +132,40 @@ export async function deployConvex(
   manager: ProcessManager,
   config: RunnerConfig,
 ) {
-  await manager.run('convex-deploy', [
-    'bunx',
-    'convex',
-    'deploy',
-    '--url',
-    config.convexSelfHostedUrl,
-    '--admin-key',
-    config.convexSelfHostedAdminKey ?? '',
-    '--typecheck',
-    'disable',
-  ], { cwd: config.convexRoot })
+  await manager.run(
+    'convex-deploy',
+    [
+      'bunx',
+      'convex',
+      'deploy',
+      '--url',
+      config.convexSelfHostedUrl,
+      '--admin-key',
+      config.convexSelfHostedAdminKey ?? '',
+      '--typecheck',
+      'disable',
+    ],
+    { cwd: config.convexRoot },
+  )
 }
 
 export async function startConvexDev(
   manager: ProcessManager,
   config: RunnerConfig,
 ) {
-  const convexDev = await manager.spawn('convex-dev', [
-    'bunx',
-    'convex',
-    'dev',
-    '--url',
-    config.convexSelfHostedUrl,
-    '--admin-key',
-    config.convexSelfHostedAdminKey ?? '',
-  ], { cwd: config.convexRoot })
+  const convexDev = await manager.spawn(
+    'convex-dev',
+    [
+      'bunx',
+      'convex',
+      'dev',
+      '--url',
+      config.convexSelfHostedUrl,
+      '--admin-key',
+      config.convexSelfHostedAdminKey ?? '',
+    ],
+    { cwd: config.convexRoot },
+  )
   await convexDev.waitForLine('functions ready', 120_000)
   return convexDev
 }
@@ -164,16 +176,20 @@ async function convexEnv(
   key: string,
   value: string,
 ) {
-  await manager.run('convex-env', [
-    'bunx',
-    'convex',
-    'env',
-    'set',
-    '--url',
-    config.convexSelfHostedUrl,
-    '--admin-key',
-    config.convexSelfHostedAdminKey ?? '',
-    key,
-    value,
-  ], { cwd: config.convexRoot })
+  await manager.run(
+    'convex-env',
+    [
+      'bunx',
+      'convex',
+      'env',
+      'set',
+      '--url',
+      config.convexSelfHostedUrl,
+      '--admin-key',
+      config.convexSelfHostedAdminKey ?? '',
+      key,
+      value,
+    ],
+    { cwd: config.convexRoot },
+  )
 }

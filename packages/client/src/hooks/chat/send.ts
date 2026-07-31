@@ -10,6 +10,7 @@ import { api } from '@sb/convex/_generated/api'
 import type { Doc, Id } from '@sb/convex/_generated/dataModel'
 import type { ResolvedSettings } from '@sb/convex/model/defaults'
 import { parseFileMentions } from '@sb/core/mentions/parse'
+import { parseShellCommand, unescapeShellPrefix } from '@sb/core/shell/command'
 import type { WorkspaceLinkSnapshot } from '@sb/core/types/workspace'
 import { toDisplayName } from '@sb/core/utils/names'
 import type { FileUIPart } from 'ai'
@@ -92,7 +93,12 @@ export function useSendMessage() {
         return storageId
       }
 
-      const canResolveLinks = Boolean(session.workspace) && isWorkspaceAdmin
+      const canResolveLinks =
+        Boolean(session.workspace) &&
+        isWorkspaceAdmin &&
+        // Don't resolve `@path` links if this is a shell command
+        parseShellCommand(content) === null
+
       const [attachments, fileLinks] = await Promise.all([
         uploadFiles(pending.files, pending.originalFiles, storeBlob, (args) =>
           confirmAttachment({ ...args, sessionId: session._id }),
@@ -193,7 +199,7 @@ function optimisticallyInsertMessage(
   settings: ResolvedSettings | undefined,
   agent: ActiveAgent | null,
 ) {
-  const content = args.content.trim()
+  const content = unescapeShellPrefix(args.content).trim()
   const fileParts = (args.attachments ?? []).flatMap((attachment) =>
     attachment.data
       ? [
@@ -211,17 +217,25 @@ function optimisticallyInsertMessage(
 
   const role = args.role ?? 'user'
   const id = generateId() as unknown as Id<'messages'>
-  const parts = [
-    ...fileParts,
-    ...(content ? [{ type: 'text', text: content }] : []),
-  ]
+  // `$ <command>` renders as a shell block
+  const command = role === 'user' ? parseShellCommand(args.content) : null
+  const parts = command
+    ? [
+        {
+          type: 'tool-shell',
+          toolCallId: generateId(),
+          state: 'input-available',
+          input: { command },
+        },
+      ]
+    : [...fileParts, ...(content ? [{ type: 'text', text: content }] : [])]
   const item = {
     _id: id,
     _creationTime: Date.now(),
     sessionId: args.sessionId,
     role,
     ...optimisticSender(role, profile, settings, agent, id),
-    status: 'done',
+    status: command ? 'processing' : 'done',
     selectedVersion: 1,
     versionCount: 1,
     segments: [{ segmentIndex: 0, parts, sizeBytes: 0 }],

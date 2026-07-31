@@ -52,6 +52,16 @@ export const messageStatusValidator = v.union(
   v.literal('done'),
 )
 
+/** Mirrors `ShellJobStatus` from `@sb/core/types/tools`. */
+export const shellJobStatusValidator = v.union(
+  v.literal('running'),
+  v.literal('done'),
+  v.literal('killed'),
+  v.literal('timeout'),
+  v.literal('background'),
+  v.literal('lost'),
+)
+
 export const modelEntryValidator = v.object({
   id: v.string(),
   label: v.optional(v.string()),

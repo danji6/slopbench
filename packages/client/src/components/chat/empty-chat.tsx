@@ -1,5 +1,9 @@
 import { useKeyboardInset, useNavPadding } from '@/hooks'
-import { useSettings, useWorkspaceFileIndexByRoot } from '@/hooks/chat'
+import {
+  useIsAdmin,
+  useSettings,
+  useWorkspaceFileIndexByRoot,
+} from '@/hooks/chat'
 import { NO_SESSION_DRAFT_KEY, type PendingMessage } from '@/lib/chat'
 import type { SessionMode } from '@/lib/chat/modes'
 import { nextSessionMode } from '@/lib/chat/modes'
@@ -36,6 +40,7 @@ export function EmptyChat({
   const [, navigate] = useLocation()
   const createSession = useAction(api.actions.sessions.createWithWorkspace)
   const settings = useSettings()
+  const isAdmin = useIsAdmin()
   const topPadding = useNavPadding()
   const keyboardInset = useKeyboardInset()
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null)
@@ -125,6 +130,7 @@ export function EmptyChat({
             onCycleMode={workspaceRoot ? cycleMode : undefined}
             status="ready"
             draftKey={NO_SESSION_DRAFT_KEY}
+            shellAvailable={isAdmin && Boolean(workspaceRoot)}
             hideTokenWidget
             commandAvailability={{
               hasActiveSession: false,

@@ -3,6 +3,7 @@ import {
   executeShellJob,
   executeShellOutput,
   killShell,
+  resumeShellJob,
   shellFailure,
   shellHistoryTools,
   shellToModelOutput,
@@ -89,6 +90,7 @@ function waitForAbort(signal?: AbortSignal): Promise<void> {
  */
 function mockSidecar(frames: Frame[]) {
   const calls: Call[] = []
+  const queries: Record<string, string>[] = []
   let streamCount = 0
 
   const post = async <T>(path: string, body: unknown): Promise<T> => {
@@ -100,10 +102,11 @@ function mockSidecar(frames: Frame[]) {
 
   async function* openStream(
     _path: string,
-    _query: Record<string, string>,
+    query: Record<string, string>,
     signal?: AbortSignal,
   ): AsyncGenerator<SseEvent> {
     streamCount += 1
+    queries.push(query)
     const events = framesToEvents(frames)
     for (const event of events) {
       if (event.delayMs) await sleep(event.delayMs)
@@ -117,7 +120,7 @@ function mockSidecar(frames: Frame[]) {
     }
   }
 
-  return { post, openStream, calls, streams: () => streamCount }
+  return { post, openStream, calls, queries, streams: () => streamCount }
 }
 
 async function collect(generator: AsyncGenerator<ShellToolOutput>) {
@@ -340,6 +343,74 @@ describe('executeShellJob', () => {
       ),
     )
     expect(outputs.at(-1)?.status).toBe('lost')
+  })
+})
+
+describe('slices', () => {
+  test('leaves a running job alive when the slice deadline passes', async () => {
+    const { post, openStream, calls } = mockSidecar([{ chunk: 'tick\n' }])
+
+    const outputs = await collect(
+      executeShellJob(
+        context,
+        { command: 'sleep 100' },
+        {
+          ...fast,
+          post,
+          openStream,
+          heartbeatMs: 1000,
+          windowDeadline: Date.now() + 30,
+        },
+      ),
+    )
+
+    // Still running: the next slice picks the job back up
+    const final = outputs.at(-1)
+    expect(final?.status).toBe('running')
+    expect(final?.term).toBe('tick\n')
+    expect(calls.some((call) => call.path === '/shell/kill')).toBe(false)
+  })
+
+  test('resumes a job where the previous slice left off', async () => {
+    const { post, openStream, calls, queries } = mockSidecar([
+      { chunk: 'more\n', status: 'done', exitCode: 0 },
+    ])
+
+    const outputs = await collect(
+      resumeShellJob(
+        context,
+        { jobId: 'job-1', term: 'before\n', termOffset: 0 },
+        { ...fast, post, openStream },
+      ),
+    )
+
+    // Reads from just past the scrollback it was handed, without restarting
+    expect(queries[0]).toMatchObject({ jobId: 'job-1', offset: '7' })
+    expect(calls.every((call) => call.path !== '/shell/start')).toBe(true)
+
+    const final = outputs.at(-1)
+    expect(final?.status).toBe('done')
+    expect(final?.term).toBe('before\nmore\n')
+    expect(final?.termOffset).toBe(0)
+    expect(final?.text).toBe('before\nmore')
+  })
+
+  test('marks output dropped before the resumed window as truncated', async () => {
+    const { post, openStream } = mockSidecar([
+      { chunk: '', status: 'done', exitCode: 0 },
+    ])
+
+    const outputs = await collect(
+      resumeShellJob(
+        context,
+        { jobId: 'job-1', term: 'tail\n', termOffset: 4000 },
+        { ...fast, post, openStream },
+      ),
+    )
+
+    const final = outputs.at(-1)
+    expect(final?.termOffset).toBe(4000)
+    expect(final?.text).toBe('[... output truncated ...]\ntail')
   })
 })
 

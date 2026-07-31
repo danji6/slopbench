@@ -144,8 +144,8 @@ function ImageInner({
             shouldFill && 'absolute inset-0 size-full object-cover',
           )}
           style={{
-            width: shouldFill ? '100%' : (!finalWidth ? '100%' : undefined),
-            height: shouldFill ? '100%' : (!finalHeight ? 'auto' : undefined),
+            width: shouldFill ? '100%' : !finalWidth ? '100%' : undefined,
+            height: shouldFill ? '100%' : !finalHeight ? 'auto' : undefined,
             ...style,
           }}
           onLoad={() => setLoaded(true)}

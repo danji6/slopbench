@@ -8,8 +8,7 @@ const EPHEMERAL = { type: 'ephemeral' }
 function cacheControlOf(message: ModelMessage) {
   return (
     message.providerOptions as
-      | { anthropic?: { cacheControl?: unknown } }
-      | undefined
+      { anthropic?: { cacheControl?: unknown } } | undefined
   )?.anthropic?.cacheControl
 }
 
@@ -79,9 +78,9 @@ describe('applyPromptCaching', () => {
 
       expect(result).toBe(request)
       expect(result.systemPrompt).toBe('be helpful')
-      expect(result.messages.every((m) => cacheControlOf(m) === undefined)).toBe(
-        true,
-      )
+      expect(
+        result.messages.every((m) => cacheControlOf(m) === undefined),
+      ).toBe(true)
     }
   })
 })
