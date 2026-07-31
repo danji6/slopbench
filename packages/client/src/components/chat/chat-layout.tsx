@@ -1,3 +1,4 @@
+import { FadingGradient } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { motion } from 'motion/react'
 import { useLayoutEffect, useRef, useState } from 'react'
@@ -65,25 +66,28 @@ export function ChatLayout({
           ref={bottomRef}
           className={cn(
             'pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center',
-            dockFooter ? 'pb-1' : 'pb-4',
+            !dockFooter && 'pb-4',
           )}
         >
           {dock}
           {dockFooter && (
-            <motion.div
-              initial={false}
-              animate={{
-                height: showDockFooter ? 'auto' : FOOTER_BASELINE,
-                opacity: showDockFooter ? 1 : 0,
-              }}
-              transition={FOOTER_SPRING}
-              className="overflow-hidden"
-              style={dockFooterWidth ? { width: dockFooterWidth } : undefined}
-            >
-              <div className="flex min-h-6 items-center px-1 pt-1.5 pb-0.5">
-                {dockFooter}
-              </div>
-            </motion.div>
+            <div className="relative -z-10 flex w-full justify-center pb-1">
+              <FadingGradient className="-top-8 h-auto rounded-none" />
+              <motion.div
+                initial={false}
+                animate={{
+                  height: showDockFooter ? 'auto' : FOOTER_BASELINE,
+                  opacity: showDockFooter ? 1 : 0,
+                }}
+                transition={FOOTER_SPRING}
+                className="overflow-hidden"
+                style={dockFooterWidth ? { width: dockFooterWidth } : undefined}
+              >
+                <div className="flex min-h-6 items-center px-1 pt-1.5 pb-0.5">
+                  {dockFooter}
+                </div>
+              </motion.div>
+            </div>
           )}
         </div>
       </div>

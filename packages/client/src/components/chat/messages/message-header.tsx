@@ -36,7 +36,10 @@ export function MessageHeader({
   const avatarUrls = useAvatarUrls(sender.avatarId)
 
   const name = (
-    <span className="text-foreground/70 text-md shrink-0 font-semibold tracking-wide">
+    <span
+      title={sender.name}
+      className="text-foreground/70 text-md min-w-0 truncate font-semibold tracking-wide"
+    >
       {sender.name}
     </span>
   )
@@ -44,7 +47,7 @@ export function MessageHeader({
   return (
     <div
       data-slot="message-header"
-      className="flex items-center justify-start gap-4 px-1"
+      className="flex min-w-0 items-center justify-start gap-4 px-1"
     >
       <AvatarWithLightbox
         thumbnail={avatarUrls.thumbnail ?? avatarUrls.original}

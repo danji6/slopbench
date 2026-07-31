@@ -693,8 +693,13 @@ html::-webkit-scrollbar {
   overflow-wrap: anywhere;
 }
 
+.ProseMirror p.is-editor-empty:first-child {
+  position: relative;
+}
+
 .ProseMirror p.is-editor-empty:first-child::before {
-  @apply text-muted-foreground pointer-events-none float-left h-0;
+  /* `absolute` is needed to elide the placeholder. */
+  @apply text-muted-foreground pointer-events-none absolute inset-x-0 top-0 overflow-hidden text-ellipsis whitespace-nowrap;
   content: attr(data-placeholder);
 }
 

@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils'
 import { mergeProps } from '@base-ui/react'
 import { CircleHelpIcon } from 'lucide-react'
 import * as React from 'react'
@@ -60,17 +61,28 @@ export function HelpDialogLabel({
 export function HelpPopoverLabel({
   children,
   help,
+  className,
   ...props
 }: {
   children: React.ReactNode
   help?: React.ReactNode
   variant?: 'default' | 'settings'
 } & React.ComponentProps<typeof Label>) {
-  if (!help) return <Label {...props}>{children}</Label>
+  if (!help)
+    return (
+      <Label className={className} {...props}>
+        {children}
+      </Label>
+    )
 
   return (
-    <div data-slot="help-label" className="flex items-center gap-1.5">
-      <Label {...props}>{children}</Label>
+    <div
+      data-slot="help-label"
+      className={cn('flex items-center gap-1.5', className)}
+    >
+      <Label className="min-w-0" {...props}>
+        {children}
+      </Label>
       <HelpButton>{help}</HelpButton>
     </div>
   )
@@ -80,7 +92,7 @@ function HelpTrigger(props: React.ComponentProps<'button'>) {
   return (
     <button
       type="button"
-      className="text-muted-foreground hover:text-foreground focus-visible:border-ring pointer-events-auto flex size-4 cursor-pointer items-center justify-center rounded-full border border-transparent transition-colors outline-none"
+      className="text-muted-foreground hover:text-foreground focus-visible:border-ring pointer-events-auto flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-full border border-transparent transition-colors outline-none"
       {...mergeProps(
         { onClick: (e: React.SyntheticEvent) => e.stopPropagation() },
         props,

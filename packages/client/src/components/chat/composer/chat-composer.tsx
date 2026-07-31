@@ -21,6 +21,7 @@ import {
 } from '@/lib/tiptap/serialize'
 import { cn } from '@/lib/utils'
 import { getActiveMention, mentionToken } from '@sb/core/mentions/parse'
+import { truncate } from '@sb/core/utils/strings'
 import type { Editor } from '@tiptap/react'
 import type { ChatStatus, FileUIPart } from 'ai'
 import { PlusIcon } from 'lucide-react'
@@ -65,6 +66,9 @@ const ComposerEditor = lazy(() =>
 )
 
 const MENTION_KEYS = new Set(['Enter', 'Tab', 'ArrowUp', 'ArrowDown', 'Escape'])
+
+/** Keeps the slash hint intact when the agent name is long. */
+const PLACEHOLDER_NAME_MAX = 24
 
 // Elements the editor shouldn't steal clicks from
 const INTERACTIVE = 'a,button,img,input,select,textarea,[contenteditable]'
@@ -247,6 +251,8 @@ export function ChatComposer({
 
   function handleSurfaceMouseDown(e: React.MouseEvent) {
     const target = e.target as HTMLElement
+    // Don't steal clicks from portaled layers (popovers, menus, etc)
+    if (!e.currentTarget.contains(target)) return
     if (e.button !== 0 || target.closest(INTERACTIVE)) return
     e.preventDefault()
     const editor = editorRef.current
@@ -510,8 +516,8 @@ export function ChatComposer({
 
   const placeholder =
     (activeAgentName
-      ? `Send a message to ${activeAgentName}`
-      : 'Send a message') + ' (or type / for commands)'
+      ? `Send a message to ${truncate(activeAgentName, PLACEHOLDER_NAME_MAX)}`
+      : 'Send a message') + (compact ? '' : ' (or type / for commands)')
 
   return (
     <ComposerLayoutProvider value={layout}>

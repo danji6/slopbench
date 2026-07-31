@@ -87,8 +87,10 @@ function SettingsListItem({
     >
       {!unclickable && !disabled && ripples}
       {label && (
-        <div className="pointer-events-none flex flex-col gap-0.5">
-          <HelpPopoverLabel help={help}>{label}</HelpPopoverLabel>
+        <div className="pointer-events-none flex min-w-0 flex-col gap-0.5">
+          <HelpPopoverLabel help={help} className="min-w-0">
+            {label}
+          </HelpPopoverLabel>
           {description && (
             <div className="text-muted-foreground text-sm leading-normal">
               {description}

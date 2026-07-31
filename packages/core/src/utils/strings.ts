@@ -34,6 +34,10 @@ export function inline(strings: TemplateStringsArray, ...values: unknown[]) {
     .trim()
 }
 
+export function truncate(str: string, maxLength: number): string {
+  return str.length <= maxLength ? str : `${str.slice(0, maxLength - 1)}…`
+}
+
 export function truncateToExtension(str: string, maxLength: number): string {
   if (str.length <= maxLength) {
     return str

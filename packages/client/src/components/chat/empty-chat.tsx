@@ -1,4 +1,4 @@
-import { useNavPadding } from '@/hooks'
+import { useKeyboardInset, useNavPadding } from '@/hooks'
 import { useSettings, useWorkspaceFileIndexByRoot } from '@/hooks/chat'
 import { NO_SESSION_DRAFT_KEY, type PendingMessage } from '@/lib/chat'
 import type { SessionMode } from '@/lib/chat/modes'
@@ -37,6 +37,7 @@ export function EmptyChat({
   const createSession = useAction(api.actions.sessions.createWithWorkspace)
   const settings = useSettings()
   const topPadding = useNavPadding()
+  const keyboardInset = useKeyboardInset()
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null)
   const fileIndex = useWorkspaceFileIndexByRoot(workspaceRoot)
 
@@ -89,6 +90,7 @@ export function EmptyChat({
 
   return (
     <ChatLayout
+      bottomInset={keyboardInset}
       mainContent={(bottomPadding) => (
         <ChatScrollArea className="mx-auto w-full flex-1">
           <div
