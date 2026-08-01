@@ -4,7 +4,7 @@ import { v } from 'convex/values'
 
 import { action } from '../_generated/server'
 import { error } from '../errors'
-import type { McpToolMeta } from '../types'
+import type { McpDialedTransport, McpToolMeta } from '../types'
 import { mcpTransportValidator } from '../validators/sub'
 
 const DEFAULT_SIDECAR_URL = 'http://localhost:3212'
@@ -16,7 +16,10 @@ export const discoverMcpTools = action({
     transport: mcpTransportValidator,
     apiKey: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<{ tools: McpToolMeta[] }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ tools: McpToolMeta[]; transport?: McpDialedTransport }> => {
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) error('Unauthorized', 401)
 
@@ -29,11 +32,12 @@ export const discoverMcpTools = action({
 
     const data = (await response.json()) as {
       tools?: McpToolMeta[]
+      transport?: McpDialedTransport
       error?: string
     }
     if (!response.ok || data.error) {
       error(data.error ?? `Discovery failed with HTTP ${response.status}`, 502)
     }
-    return { tools: data.tools ?? [] }
+    return { tools: data.tools ?? [], transport: data.transport }
   },
 })

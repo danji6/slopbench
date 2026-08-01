@@ -62,7 +62,8 @@ const mcpCallSchema = mcpConnectionSchema.extend({
 app.post('/mcp-ext/list', async (c) => {
   try {
     const input = mcpListSchema.parse(await c.req.json())
-    return c.json({ tools: await listExternalTools(input) })
+    const { value: tools, transport } = await listExternalTools(input)
+    return c.json({ tools, transport })
   } catch (err: unknown) {
     return ioError(c, err)
   }

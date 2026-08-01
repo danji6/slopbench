@@ -1,16 +1,36 @@
 import { z } from 'zod'
 
-export const MCP_TRANSPORTS = ['sse', 'ws', 'http'] as const
+export const MCP_TRANSPORTS = ['auto', 'http', 'sse', 'ws'] as const
 
 export type McpTransport = (typeof MCP_TRANSPORTS)[number]
+
+/** A transport that can be dialed when using `auto`. */
+export type McpDialedTransport = Exclude<McpTransport, 'auto'>
 
 export const mcpTransportSchema = z.enum(MCP_TRANSPORTS)
 
 export const SUPPORTED_MCP_TRANSPORTS = [
+  { id: 'auto', label: 'Auto' },
+  { id: 'http', label: 'HTTP' },
   { id: 'sse', label: 'SSE' },
   { id: 'ws', label: 'WebSocket' },
-  { id: 'http', label: 'HTTP' },
 ] as const satisfies readonly { id: McpTransport; label: string }[]
+
+/**
+ * Streamable HTTP first since SSE is getting deprecated. WebSocket stays a
+ * deliberate user choice.
+ */
+const AUTO_TRANSPORTS = [
+  'http',
+  'sse',
+] as const satisfies readonly McpDialedTransport[]
+
+/** Transports to try in order for a configured transport preference. */
+export function mcpTransportCandidates(
+  transport: McpTransport,
+): readonly McpDialedTransport[] {
+  return transport === 'auto' ? AUTO_TRANSPORTS : [transport]
+}
 
 /** A tool discovered from an external MCP server. */
 export const mcpToolMetaSchema = z.object({

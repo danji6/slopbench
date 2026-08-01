@@ -14,6 +14,7 @@ import { useTools } from '@/hooks/chat'
 import { cn, generateId } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import {
+  type McpDialedTransport,
   type McpTransport,
   SUPPORTED_MCP_TRANSPORTS,
   mcpToolName,
@@ -110,7 +111,7 @@ function McpServerList({ servers, onChange }: McpServerListProps) {
         id: generateId(),
         label: '',
         url: '',
-        transport: 'sse',
+        transport: 'auto',
         enabled: true,
       },
       ...servers,
@@ -180,6 +181,21 @@ function McpServerList({ servers, onChange }: McpServerListProps) {
   )
 }
 
+/** Names the picked transport, revealing what `auto` negotiated once known. */
+function transportLabel(
+  transport: string | undefined,
+  dialed: McpDialedTransport | null,
+): string {
+  const label =
+    SUPPORTED_MCP_TRANSPORTS.find((t) => t.id === transport)?.label ??
+    transport ??
+    ''
+  if (transport !== 'auto' || !dialed) return label
+  const dialedLabel =
+    SUPPORTED_MCP_TRANSPORTS.find((t) => t.id === dialed)?.label ?? dialed
+  return `${label} (${dialedLabel})`
+}
+
 type McpServerCardProps = {
   item: McpServerItem
   count: number
@@ -201,17 +217,19 @@ function McpServerCard({
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
+  const [dialed, setDialed] = useState<McpDialedTransport | null>(null)
 
   async function handleRefresh() {
     setRefreshing(true)
     setError(null)
     try {
-      const { tools } = await discover({
+      const { tools, transport } = await discover({
         url: item.url,
         transport: item.transport,
         apiKey: item.apiKey || undefined,
       })
-      // Preserve user-authored description overrides across rediscovery
+      setDialed(transport ?? null)
+      // Preserve description overrides across re-discovery
       const overrides = new Map(
         (item.tools ?? []).map((t) => [t.name, t.descriptionOverride]),
       )
@@ -222,6 +240,7 @@ function McpServerCard({
         })),
       })
     } catch (err) {
+      setDialed(null)
       setError(err instanceof Error ? err.message : 'Failed to discover tools')
     } finally {
       setRefreshing(false)
@@ -270,9 +289,10 @@ function McpServerCard({
         {expanded && (
           <Combobox
             value={item.transport}
-            onValueChange={(transport) =>
+            onValueChange={(transport) => {
+              setDialed(null)
               onChange(item.index, { transport: transport as McpTransport })
-            }
+            }}
             noDeselect
           >
             <Combobox.Trigger
@@ -281,10 +301,7 @@ function McpServerCard({
               className="h-8 w-32 shrink-0"
             >
               <Combobox.DisplayValue>
-                {(transport) =>
-                  SUPPORTED_MCP_TRANSPORTS.find((t) => t.id === transport)
-                    ?.label ?? transport
-                }
+                {(transport) => transportLabel(transport, dialed)}
               </Combobox.DisplayValue>
             </Combobox.Trigger>
             <Combobox.Content align="start" className="w-36">
@@ -335,8 +352,11 @@ function McpServerCard({
         <div className="flex w-full items-center gap-2 px-1">
           <Input
             value={item.url}
-            placeholder="http://localhost:11235/mcp/sse"
-            onValueChange={(url) => onChange(item.index, { url })}
+            placeholder="http://localhost:11235/mcp"
+            onValueChange={(url) => {
+              setDialed(null)
+              onChange(item.index, { url })
+            }}
             className="h-9 flex-1"
           />
         </div>

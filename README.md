@@ -1,19 +1,32 @@
 # Slopbench (temporary name)
 
-A self-hosted AI workspace for agentic work, creative writing, and
-collaborative sessions.
+A self-hosted, collaborative AI workspace for agentic work, creative writing and
+general AI use.
+
+## Disclaimer
+
+This application is still in early development, lacks some features and may
+contain dangerous bugs. Use at your own risk. Always keep copies of your local
+files if you're giving AI access to them.
 
 ## What it does
 
-- One tool for both coding/agentic workflows and creative writing.
-- Invite anyone to participate in your sessions, be it agents or other humans.
-- Create agents with their own behavior, prompts, tools and appearance.
-- Work with files in the same way you would with any harness.
-- Bring your own model providers.
+This application aims to give you full control over your models. Some features:
+
+- Create agents with their own behavior, prompts, tools and appearance
+- Work with files like you would in a coding harness
+- Let your agents spawn sub-agents for side tasks
+- Connect to external MCP servers
+- Invite anyone to participate in your sessions, be it agents or other humans
 
 ## Requirements
 
 - [Bun](https://bun.sh/)
+
+Other requirements are downloaded automatically on launch. These include:
+
+- [Convex](https://github.com/get-convex/convex-backend)
+- [Node.js (pinned to v24)](https://nodejs.org)
 
 ## Run locally
 
@@ -68,8 +81,11 @@ The app automatically trusts local-network origins for auth.
 
 ### Access from outside your network
 
+Before you try this, keep in mind that everything that gets sent outside of your
+local network is **unencrypted** unless you're using HTTPS.
+
 To let someone connect over the internet, forward these ports from your router
-or tunnel to the machine running `chat`:
+or tunnel to the machine running Slopbench:
 
 - `4173`
 - `3210`
@@ -89,7 +105,7 @@ testing.
 
 ### Maintenance
 
-Run `bun run prune` if your data folder ever grows too large.
+Run `bun run prune` if your `.data` folder ever grows too large.
 
 ## Development
 
