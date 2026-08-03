@@ -36,8 +36,13 @@ export type OrderedItem =
   | { kind: 'global'; id: string }
   | { kind: 'library'; id: string }
 
-export type PromptSource = {
+/** How an agent interleaves its prompts. */
+export type PromptOrdering = {
   globalPromptsEnabled?: boolean
-  prompts: PromptItem[]
   promptOrder?: OrderedItem[]
+}
+
+/** An ordering with its prompts resolved, which is what merging consumes. */
+export type PromptSource = PromptOrdering & {
+  prompts: PromptItem[]
 }

@@ -80,6 +80,7 @@ export const settingsSchema = v.object({
   ...V.settingsMutableFields,
 })
 
+/** A prompt of any kind, kept in a separate table due to its unbounded nature. */
 export const promptSchema = v.object({
   ownerId: v.id('users'),
   /** Absent if this prompt lives in the owner's settings. */
@@ -91,6 +92,7 @@ export const promptSchema = v.object({
   item: V.promptItemValidator,
 })
 
+/** Similar to prompts, but injected at configured intervals. */
 export const reminderSchema = v.object({
   ownerId: v.id('users'),
   /** Absent if this prompt lives in the owner's settings. */

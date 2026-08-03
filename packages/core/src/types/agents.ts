@@ -1,4 +1,4 @@
-import type { PromptItem, PromptSource } from './prompts'
+import type { PromptItem, PromptOrdering, ReminderPrompt } from './prompts'
 import type { ContextOptions, InferenceParameters } from './providers'
 import type { ThemeSnapshot } from './theme'
 
@@ -12,8 +12,6 @@ export type OverridableFields = {
   theme?: ThemeSnapshot
   mathMode?: MathMode
   chatWidth?: number
-  compactionPrompts?: PromptItem[]
-  impersonationPrompts?: PromptItem[]
 }
 
 /** Per-agent approvals merged into every session's approvals. */
@@ -30,23 +28,31 @@ export type AgentSubAgents<AgentId extends string = string> = {
   agentIds: AgentId[]
 }
 
-export type AgentMutableFields<AgentId extends string = string> = PromptSource &
-  InferenceParameters &
-  ContextOptions &
-  OverridableFields & {
-    /** Names of the tools the agent may call. */
-    tools?: string[]
-    modelId?: string
-    reasoningEffort?: string
-    description?: string
-    autoApprove?: AgentAutoApprove
-    subAgents?: AgentSubAgents<AgentId>
-  }
+/**
+ * Everything an agent stores on its own document. Prompts and reminders live in
+ * separate tables.
+ */
+export type AgentMutableFields<AgentId extends string = string> =
+  PromptOrdering &
+    InferenceParameters &
+    ContextOptions &
+    OverridableFields & {
+      /** Names of the tools the agent may call. */
+      tools?: string[]
+      modelId?: string
+      reasoningEffort?: string
+      description?: string
+      libraryReminderIds?: string[]
+      autoApprove?: AgentAutoApprove
+      subAgents?: AgentSubAgents<AgentId>
+    }
 
 export type CreateAgentArgs<AgentId extends string = string> = Partial<
   AgentMutableFields<AgentId>
 > & {
   name: string
+  prompts?: PromptItem[]
+  reminderPrompts?: ReminderPrompt[]
 }
 
 export type UpdateAgentArgs<AgentId extends string = string> = Partial<
@@ -54,6 +60,6 @@ export type UpdateAgentArgs<AgentId extends string = string> = Partial<
 > & {
   agentId: AgentId
   name?: string
-  /** Overridable field names to clear back to inherit. */
-  unset?: string[]
+  /** Field names to clear and inherit. */
+  unset?: (keyof AgentMutableFields<AgentId>)[]
 }

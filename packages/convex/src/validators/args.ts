@@ -119,11 +119,23 @@ export const createAgentArgsValidator = v.object({
   ...agentMutableFieldsValidator,
 })
 
+/**
+ * The agent field that was requested to be cleared. Needed because Convex
+ * drops `undefined` from a patch.
+ */
+export const agentKeyValidator = v.union(
+  ...(
+    Object.keys(
+      agentMutableFieldsValidator,
+    ) as (keyof typeof agentMutableFieldsValidator)[]
+  ).map((key) => v.literal(key)),
+)
+
 export const updateAgentArgsValidator = v.object({
   agentId: v.id('agents'),
   name: v.optional(v.string()),
   /** Field names whose values should be cleared. */
-  unset: v.optional(v.array(v.string())),
+  unset: v.optional(v.array(agentKeyValidator)),
   ...agentMutableFieldsValidator,
 })
 

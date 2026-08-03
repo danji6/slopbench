@@ -16,10 +16,10 @@ export async function list(
   ctx: AuthQueryCtx,
   { scope, agentId }: { scope: ReminderScope; agentId?: Id<'agents'> },
 ) {
-  await requireScopeOwner(ctx, scope, agentId)
-  return agentId
-    ? listForAgent(ctx, agentId)
-    : listOwned(ctx, ctx.userId, scope)
+  assertScopeShape(scope, agentId)
+  if (!agentId) return listOwned(ctx, ctx.userId, scope)
+
+  return (await ownsAgent(ctx, agentId)) ? listForAgent(ctx, agentId) : []
 }
 
 export async function listOwned(
@@ -232,13 +232,25 @@ async function requireScopeOwner(
   scope: ReminderScope,
   agentId: Id<'agents'> | undefined,
 ) {
+  assertScopeShape(scope, agentId)
+  if (agentId && !(await ownsAgent(ctx, agentId))) error('Not found', 404)
+}
+
+function assertScopeShape(
+  scope: ReminderScope,
+  agentId: Id<'agents'> | undefined,
+) {
   if (scope === 'own' && !agentId) error('Own reminders need an agent', 400)
   if (scope === 'library' && agentId)
     error('Library reminders are user-owned', 400)
-  if (!agentId) return
+}
 
+async function ownsAgent(
+  ctx: AuthQueryCtx | AuthMutationCtx,
+  agentId: Id<'agents'>,
+) {
   const agent = await ctx.db.get(agentId)
-  if (!agent || agent.ownerId !== ctx.userId) error('Not found', 404)
+  return agent?.ownerId === ctx.userId
 }
 
 function assertItemWithinCaps(item: ReminderPrompt) {

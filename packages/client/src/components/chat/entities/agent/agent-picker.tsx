@@ -59,6 +59,10 @@ export function AgentPicker({ className, confirmSwitch }: AgentPickerProps) {
 
   const del = async (id: string) => {
     await removeAgent({ agentId: id as Id<'agents'> })
+    if (id === editingAgentId) {
+      // Point to a different agent after delete
+      setEditingAgentId(records.find((r) => r.id !== id)?.id ?? null)
+    }
   }
 
   const duplicate = async (id: string) => {

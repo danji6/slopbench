@@ -1,13 +1,16 @@
 /// <reference types="bun-types" />
 import { promptItemKey } from '@sb/convex/model/prompt/markers'
 import { mergePrompts } from '@sb/convex/model/prompt/prompts'
-import { replaceScope, resolveSets } from '@sb/convex/model/prompts'
+import { list, replaceScope, resolveSets } from '@sb/convex/model/prompts'
+import { list as listReminders } from '@sb/convex/model/reminders'
 import type { Prompt, PromptItem, PromptScope } from '@sb/convex/types'
 import { MAX_PROMPT_CONTENT_CHARS, MAX_SCOPE_PROMPTS } from '@sb/core/limits'
 import { describe, expect, test } from 'bun:test'
 
 const OWNER = 'user_1'
 const AGENT = 'agent_1'
+/** An id the client still holds after the agent behind it was deleted. */
+const DELETED = 'agent_gone' as never
 
 function prompt(overrides: Partial<Prompt> = {}): Prompt {
   return {
@@ -166,6 +169,38 @@ describe('prompt rows', () => {
     const sets = await resolveSets(ctx, { _id: AGENT, ownerId: OWNER } as never)
 
     expect(sets.compaction).toEqual([agentPrompt])
+  })
+})
+
+describe('a stale agent reference', () => {
+  test('reads resolve to nothing rather than throwing', async () => {
+    // A throwing reactive query takes down every subscriber to it
+    const { ctx } = makeCtx([row('own', prompt(), 0, true)])
+
+    await expect(
+      list(ctx, { scope: 'own', agentId: DELETED }),
+    ).resolves.toEqual([])
+    await expect(
+      listReminders(ctx, { scope: 'own', agentId: DELETED }),
+    ).resolves.toEqual([])
+  })
+
+  test('writes still reject', async () => {
+    const { ctx } = makeCtx()
+
+    await expect(
+      replaceScope(ctx, { scope: 'own', agentId: DELETED, items: [prompt()] }),
+    ).rejects.toThrow(/Not found/)
+  })
+
+  test('a malformed scope still throws on a read', async () => {
+    // Fixed by the call site, so it can't be reached by holding a stale id
+    const { ctx } = makeCtx()
+
+    await expect(list(ctx, { scope: 'own' })).rejects.toThrow(/need an agent/)
+    await expect(
+      list(ctx, { scope: 'global', agentId: AGENT as never }),
+    ).rejects.toThrow(/user-owned/)
   })
 })
 

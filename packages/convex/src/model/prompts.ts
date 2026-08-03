@@ -27,10 +27,12 @@ export async function list(
   ctx: AuthQueryCtx,
   { scope, agentId }: { scope: PromptScope; agentId?: Id<'agents'> },
 ) {
-  await requireScopeOwner(ctx, scope, agentId)
-  return agentId
+  assertScopeShape(scope, agentId)
+  if (!agentId) return listOwned(ctx, ctx.userId, scope)
+
+  return (await ownsAgent(ctx, agentId))
     ? listForAgent(ctx, agentId, scope)
-    : listOwned(ctx, ctx.userId, scope)
+    : []
 }
 
 export async function listOwned(
@@ -316,13 +318,25 @@ async function requireScopeOwner(
   scope: PromptScope,
   agentId: Id<'agents'> | undefined,
 ) {
+  assertScopeShape(scope, agentId)
+  if (agentId && !(await ownsAgent(ctx, agentId))) error('Not found', 404)
+}
+
+function assertScopeShape(
+  scope: PromptScope,
+  agentId: Id<'agents'> | undefined,
+) {
   const agentScope = (AGENT_SCOPES as readonly string[]).includes(scope)
   if (scope === 'own' && !agentId) error('Own prompts need an agent', 400)
   if (agentId && !agentScope) error(`${scope} prompts are user-owned`, 400)
-  if (!agentId) return
+}
 
+async function ownsAgent(
+  ctx: AuthQueryCtx | AuthMutationCtx,
+  agentId: Id<'agents'>,
+) {
   const agent = await ctx.db.get(agentId)
-  if (!agent || agent.ownerId !== ctx.userId) error('Not found', 404)
+  return agent?.ownerId === ctx.userId
 }
 
 function assertItemWithinCaps(item: PromptItem) {

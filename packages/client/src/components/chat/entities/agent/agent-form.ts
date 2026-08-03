@@ -39,14 +39,12 @@ export const AGENT_PROMPT_MARKERS: PromptMarkerType[] = [
 // All tools are off by default
 export type AgentToolSelection = string[]
 
-/** Agent settings form shape. */
-export type AgentFormValues = {
+/** The half of the form stored as fields on the agent document. */
+export type AgentDocValues = {
   name: string
   description: string
-  prompts: PromptItem[]
   promptOrder: OrderedItem[] | null
   globalPromptsEnabled: boolean
-  reminderPrompts: ReminderPrompt[]
   libraryReminderIds: string[]
   modelId: string | null
   reasoningEffort: ReasoningEffort | null
@@ -73,9 +71,10 @@ export type AgentFormValues = {
   themeColor: string
   mathMode: MathMode | null
   chatWidth: number | null
-  compactionPrompts: PromptItem[] | null
-  impersonationPrompts: PromptItem[] | null
 }
+
+/** The full agent settings form shape. */
+export type AgentFormValues = AgentDocValues & AgentPromptSets
 
 /** The form's shape for an agent that does not exist yet. */
 export const EMPTY_AGENT_FORM: AgentFormValues = {
@@ -184,8 +183,31 @@ export function agentToFormValues(
   }
 }
 
+/**
+ * Separates the two places the form persists to: the agent document, and the
+ * prompt and reminder rows.
+ */
+export function splitAgentForm(values: AgentFormValues): {
+  doc: AgentDocValues
+  sets: AgentPromptSets
+} {
+  const {
+    prompts,
+    reminderPrompts,
+    compactionPrompts,
+    impersonationPrompts,
+    ...doc
+  } = values
+
+  return {
+    doc,
+    sets: { prompts, reminderPrompts, compactionPrompts, impersonationPrompts },
+  }
+}
+
 type Clearable<T> = { [K in keyof T]: T[K] | null }
 type PatchFields = Clearable<Omit<UpdateAgentArgs, 'agentId' | 'unset'>>
+type ClearableKey = keyof Omit<PatchFields, 'name'>
 type Absent<T> = { [K in keyof T]: Exclude<T[K], null> | undefined }
 
 /** Drops what the form holds as `null`. */
@@ -196,12 +218,12 @@ function omitNulls<T extends object>(values: T): Absent<T> {
 }
 
 /**
- * Maps form values into an agent update mutation payload. `null` fields are
- * cleared from the doc.
+ * Maps the document half of the form into an update mutation payload. `null`
+ * fields are cleared from the doc.
  */
 export async function formValuesToPatch(
   agentId: Doc<'agents'>['_id'],
-  values: AgentFormValues,
+  values: AgentDocValues,
 ): Promise<UpdateAgentArgs> {
   const {
     themeColor,
@@ -240,8 +262,14 @@ export async function formValuesToPatch(
   return {
     agentId,
     ...omitNulls(fields),
-    unset: Object.entries(fields)
-      .filter(([, value]) => value === null)
-      .map(([key]) => key),
+    unset: clearedFields(fields),
   }
+}
+
+/** The field names the form is asking to clear. */
+function clearedFields(fields: PatchFields): ClearableKey[] {
+  const { name: _name, ...clearable } = fields
+  return (Object.keys(clearable) as ClearableKey[]).filter(
+    (key) => clearable[key] === null,
+  )
 }

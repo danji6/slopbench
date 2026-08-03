@@ -48,6 +48,7 @@ import {
   EMPTY_AGENT_PROMPT_SETS,
   agentToFormValues,
   formValuesToPatch,
+  splitAgentForm,
 } from './agent-form'
 import { AgentPicker } from './agent-picker'
 import { AppearanceSettings } from './appearance-settings'
@@ -165,13 +166,9 @@ export function AgentSettings() {
       await clearAvatar({ agentId })
       setAvatarCleared(false)
     }
-    await updateAgent(await formValuesToPatch(agentId, values))
-    await savePromptSets(agentId, {
-      prompts: values.prompts,
-      reminderPrompts: values.reminderPrompts,
-      compactionPrompts: values.compactionPrompts,
-      impersonationPrompts: values.impersonationPrompts,
-    })
+    const { doc, sets } = splitAgentForm(values)
+    await updateAgent(await formValuesToPatch(agentId, doc))
+    await savePromptSets(agentId, sets)
 
     form.reset(values)
     draft.clear()

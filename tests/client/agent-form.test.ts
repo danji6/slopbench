@@ -4,12 +4,25 @@ import {
   EMPTY_AGENT_PROMPT_SETS,
   agentToFormValues,
   formValuesToPatch,
+  splitAgentForm,
 } from '@/components/chat/entities/agent/agent-form'
 import type { Doc, Id } from '@sb/convex/_generated/dataModel'
+import { agentMutableFieldsValidator } from '@sb/convex/validators/args'
+import type { Prompt } from '@sb/core/types'
 import { describe, expect, test } from 'bun:test'
 import { createFormControl } from 'react-hook-form'
 
 const AGENT_ID = 'a1' as Id<'agents'>
+
+const PROMPT: Prompt = {
+  id: 'p1',
+  name: 'System',
+  role: 'system',
+  content: 'be helpful',
+  enabled: true,
+  visible: false,
+  starter: false,
+}
 
 /** An agent that overrides nothing: every optional field is absent. */
 function bareAgent(overrides: Partial<Doc<'agents'>> = {}): Doc<'agents'> {
@@ -81,6 +94,36 @@ describe('agent form values', () => {
     expect(values.chatWidth).toBe(1200)
     expect(values.temperature).toBe(0.4)
     expect(values.mathMode).toBe('double')
+  })
+})
+
+describe('the two halves of the form', () => {
+  test('prompt sets go to their rows, never into the agent patch', async () => {
+    // The regression: the whole form was patched onto the agent, and the
+    // mutation rejected `prompts` as a field it no longer has.
+    const { doc, sets } = splitAgentForm({
+      ...EMPTY_AGENT_FORM,
+      prompts: [PROMPT],
+      compactionPrompts: [PROMPT],
+    })
+
+    expect(sets.prompts).toEqual([PROMPT])
+    expect(sets.compactionPrompts).toEqual([PROMPT])
+    expect(Object.keys(doc)).not.toContain('prompts')
+
+    const patch = await formValuesToPatch(AGENT_ID, doc)
+    expect(Object.keys(patch)).not.toContain('prompts')
+  })
+
+  test('sends only fields the mutation accepts', async () => {
+    // Pinned to the validator itself, so the form can't drift from it again
+    const fields = new Set(Object.keys(agentMutableFieldsValidator))
+    const { doc } = splitAgentForm(EMPTY_AGENT_FORM)
+    const patch = await formValuesToPatch(AGENT_ID, doc)
+
+    const { agentId: _id, name: _name, unset, ...rest } = patch
+    expect(Object.keys(rest).filter((key) => !fields.has(key))).toEqual([])
+    expect((unset ?? []).filter((key) => !fields.has(key))).toEqual([])
   })
 })
 
