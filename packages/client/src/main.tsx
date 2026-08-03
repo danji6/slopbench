@@ -1,3 +1,4 @@
+import { AppErrorFallback, ErrorBoundary } from '@/components/ui/error-boundary'
 import { installFonts } from '@/fonts'
 import { installCloseGuard } from '@/lib/close-guard'
 import { ConvexClientProvider } from '@/providers/convex'
@@ -14,7 +15,9 @@ installCloseGuard()
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ConvexClientProvider>
-      <App />
+      <ErrorBoundary fallback={(props) => <AppErrorFallback {...props} />}>
+        <App />
+      </ErrorBoundary>
     </ConvexClientProvider>
   </StrictMode>,
 )

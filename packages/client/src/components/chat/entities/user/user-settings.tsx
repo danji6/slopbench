@@ -1,6 +1,9 @@
 import {
+  AlertMessage,
   ConfirmDialog,
   Dialog,
+  ErrorBoundary,
+  type FallbackProps,
   RippleButton,
   type RippleButtonProps,
   SettingsFooter,
@@ -25,6 +28,7 @@ import { FONT_OVERRIDE_KEYS } from '@/hooks/font'
 import { useScopedTheme } from '@/hooks/theme'
 import { useView, useViewCloseGuard } from '@/hooks/view'
 import { USER_SETTINGS_DRAFT_KEY } from '@/lib/chat/editor-draft-store'
+import { extractErrorMessage } from '@/lib/errors'
 import {
   type SettingsOverride,
   getSettingsOverride,
@@ -76,24 +80,54 @@ export function ChatSettingsButton({
   collapsed = false,
   ...props
 }: ChatSettingsProps) {
+  const trigger = (
+    <RippleButton
+      {...props}
+      variant="stealth"
+      size={!collapsed ? 'default' : 'icon'}
+      className={cn(
+        'text-muted-foreground rounded-full',
+        !collapsed &&
+          'focus-visible:border-ring h-11 w-full justify-center rounded-md font-bold focus-visible:border focus-visible:ring-0',
+      )}
+    >
+      <SettingsIcon />
+      {!collapsed && <span>Settings</span>}
+    </RippleButton>
+  )
+
   return (
-    <ChatSettingsDialog
-      trigger={
-        <RippleButton
-          {...props}
-          variant="stealth"
-          size={!collapsed ? 'default' : 'icon'}
-          className={cn(
-            'text-muted-foreground rounded-full',
-            !collapsed &&
-              'focus-visible:border-ring h-11 w-full justify-center rounded-md font-bold focus-visible:border focus-visible:ring-0',
-          )}
-        >
-          <SettingsIcon />
-          {!collapsed && <span>Settings</span>}
-        </RippleButton>
-      }
-    />
+    <ErrorBoundary
+      fallback={(fallback) => (
+        <ChatSettingsFallback {...fallback} trigger={trigger} />
+      )}
+    >
+      <ChatSettingsDialog trigger={trigger} />
+    </ErrorBoundary>
+  )
+}
+
+function ChatSettingsFallback({
+  error,
+  trigger,
+}: FallbackProps & { trigger: React.ReactElement<Record<string, unknown>> }) {
+  const view = useView(USER_SETTINGS_VIEW)
+
+  return (
+    <Dialog open={view.active} onOpenChange={(next) => !next && view.close()}>
+      <Dialog.Trigger render={trigger} />
+      <Dialog.Content className="max-w-md">
+        <Dialog.Header>
+          <Dialog.Title>Settings</Dialog.Title>
+          <Dialog.Description>
+            Your settings could not be loaded.
+          </Dialog.Description>
+        </Dialog.Header>
+        <AlertMessage dismissible={false}>
+          {extractErrorMessage(error)}
+        </AlertMessage>
+      </Dialog.Content>
+    </Dialog>
   )
 }
 

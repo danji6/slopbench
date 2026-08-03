@@ -1,3 +1,4 @@
+import { DialogErrorBoundary } from '@/components/ui'
 import type { PendingMessage } from '@/lib/chat'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
@@ -47,8 +48,12 @@ export function Chat(props: ChatProps) {
           />
         )}
         <AgentSettings />
-        <ScriptManager />
-        <DraftRestoreDialog />
+        <DialogErrorBoundary>
+          <ScriptManager />
+        </DialogErrorBoundary>
+        <DialogErrorBoundary>
+          <DraftRestoreDialog />
+        </DialogErrorBoundary>
       </ChatSidebars>
     </ChatSearchProvider>
   )

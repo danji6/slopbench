@@ -1,6 +1,9 @@
 import {
+  AlertMessage,
   ConfirmDialog,
   Dialog,
+  ErrorBoundary,
+  type FallbackProps,
   RippleButton,
   type RippleButtonProps,
   SettingsFooter,
@@ -24,8 +27,10 @@ import { useFormDraft } from '@/hooks/chat/form-draft'
 import { useHttpAction } from '@/hooks/http'
 import { useScopedTheme } from '@/hooks/theme'
 import { useViewCloseGuard } from '@/hooks/view'
+import { setEditingAgentId } from '@/lib/chat/agent-editor-store'
 import { type AvatarUploadResult, avatarUploadForm } from '@/lib/chat/avatar'
 import { agentSettingsDraftKey } from '@/lib/chat/editor-draft-store'
+import { extractErrorMessage } from '@/lib/errors'
 import { cn } from '@/lib/utils'
 import { ThemeScope } from '@/providers/theme-scope'
 import { api } from '@sb/convex/_generated/api'
@@ -60,6 +65,47 @@ import { SubagentSettings } from './subagent-settings'
 import { ToolSettings } from './tool-settings'
 
 export function AgentSettings() {
+  const agentId = useEditingAgentId()
+
+  return (
+    <ErrorBoundary
+      resetKeys={[agentId]}
+      fallback={(props) => <AgentSettingsFallback {...props} />}
+    >
+      <AgentSettingsDialog />
+    </ErrorBoundary>
+  )
+}
+
+function AgentSettingsFallback({ error }: FallbackProps) {
+  const view = useAgentEditorView()
+
+  return (
+    <Dialog open={view.active} onOpenChange={(next) => !next && view.close()}>
+      <Dialog.Content className="max-w-md">
+        <Dialog.Header>
+          <Dialog.Title>Agents</Dialog.Title>
+          <Dialog.Description>
+            This agent&apos;s settings could not be loaded.
+          </Dialog.Description>
+        </Dialog.Header>
+        <AlertMessage dismissible={false}>
+          {extractErrorMessage(error)}
+        </AlertMessage>
+        <Dialog.Footer>
+          <RippleButton
+            variant="secondary"
+            onClick={() => setEditingAgentId(null)}
+          >
+            Choose another agent
+          </RippleButton>
+        </Dialog.Footer>
+      </Dialog.Content>
+    </Dialog>
+  )
+}
+
+function AgentSettingsDialog() {
   const view = useAgentEditorView()
   const open = view.active
   const activeTab = view.value ?? AGENT_EDITOR_DEFAULT_TAB
