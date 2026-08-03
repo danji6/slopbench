@@ -26,6 +26,7 @@
     "\\/lib\\/tiptap\\/kit\\.ts$",
     "\\/lib\\/code-block-editing\\.ts$",
     "\\/lib\\/dynamic-block\\.ts$",
-    "\\/lib\\/editor-clear\\.ts$"
+    "\\/lib\\/editor-clear\\.ts$",
+    "\\/lib\\/command-filter\\.ts$"
   ]
 }

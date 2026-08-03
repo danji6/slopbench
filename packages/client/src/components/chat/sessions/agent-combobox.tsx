@@ -54,7 +54,11 @@ export function AgentCombobox({
           <Combobox.Empty>{emptyLabel}</Combobox.Empty>
           <Combobox.Group>
             {agents.map((agent) => (
-              <Combobox.Item key={agent.id} value={agent.id}>
+              <Combobox.Item
+                key={agent.id}
+                value={agent.id}
+                searchText={agent.name}
+              >
                 <AgentItemLabel agent={agent} />
               </Combobox.Item>
             ))}

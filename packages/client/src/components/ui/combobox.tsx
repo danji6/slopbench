@@ -282,13 +282,18 @@ function ComboboxGroup(
 }
 
 type ComboboxItemProps = React.ComponentProps<typeof Command.CommandItem> & {
-  keywords?: string[]
+  /**
+   * Text the search field matches against. Defaults to the value plus string
+   * children.
+   */
+  searchText?: string
 }
 
 function ComboboxItem({
   children,
   value: valueProp,
-  keywords = [],
+  searchText,
+  keywords,
   onSelect,
   className,
   ...props
@@ -310,18 +315,20 @@ function ComboboxItem({
     }
   }, [valueProp, children, registerLabel])
 
-  const searchableValue = useMemo(() => {
-    if (!valueProp) return undefined
-    const parts = [valueProp]
-    if (typeof children === 'string') parts.push(children)
-    parts.push(...keywords)
-    return parts.filter(Boolean).join(' ')
-  }, [valueProp, children, keywords])
+  const searchKeywords = useMemo(() => {
+    const base =
+      searchText ??
+      [valueProp, typeof children === 'string' ? children : undefined]
+        .filter(Boolean)
+        .join(' ')
+    return [base, ...(keywords ?? [])].filter(Boolean)
+  }, [searchText, valueProp, children, keywords])
 
   return (
     <Command.CommandItem
       {...props}
-      value={searchableValue}
+      value={valueProp}
+      keywords={searchKeywords}
       onSelect={() => {
         if (valueProp) {
           const newValue =

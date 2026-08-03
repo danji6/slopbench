@@ -1,3 +1,4 @@
+import { commandFilter } from '@/lib/command-filter'
 import { cn } from '@/lib/utils'
 import { Command as CommandPrimitive } from 'cmdk'
 import { CheckIcon, SearchIcon } from 'lucide-react'
@@ -12,6 +13,7 @@ function CommandRoot({
   return (
     <CommandPrimitive
       data-slot="command"
+      filter={commandFilter}
       className={cn(
         'bg-popover text-popover-foreground flex size-full flex-col overflow-hidden rounded-xl! p-1',
         className,
