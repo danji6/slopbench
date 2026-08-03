@@ -3,6 +3,7 @@ import type {
   WorkspaceFileListing,
 } from '@sb/core/types/workspace'
 import {
+  MAX_DIR_ENTRIES,
   MAX_TEXT_SNAPSHOT_CHARS,
   detectWorkspaceMediaType,
   isKnownTextMediaType,
@@ -18,7 +19,6 @@ import { requireWorkspace, resolveExistingPath } from './workspace'
 
 const MAX_INDEX_FILES = 10_000
 const MAX_LINK_BINARY_BYTES = 5_000_000
-const MAX_DIR_ENTRIES = 1_000
 const GLOB_IGNORES = ['**/.git/**', '**/node_modules/**']
 
 export const listWorkspaceFilesSchema = z.object({

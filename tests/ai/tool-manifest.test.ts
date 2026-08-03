@@ -20,15 +20,17 @@ const mcpServer = {
   ],
 }
 
-const manifestFor = (over: Record<string, unknown> = {}) =>
-  resolveToolManifest({
+const manifestFor = (over: Record<string, unknown> = {}) => {
+  const { settings = null, mcpServers = [], ...rest } = over
+  return resolveToolManifest({
     agent: { tools: ['web_fetch', 'web_search', 'docs_search'] } as never,
     invoker: { role: 'admin' } as never,
     session,
-    settings: null,
+    resources: { settings, mcpServers },
     spawnableAgents: [],
-    ...over,
+    ...rest,
   } as never)
+}
 
 describe('tool manifest', () => {
   test('web_search needs a configured instance', () => {
@@ -45,7 +47,7 @@ describe('tool manifest', () => {
   })
 
   test('external MCP tools are captured with their wire metadata', () => {
-    const manifest = manifestFor({ settings: { mcpServers: [mcpServer] } })
+    const manifest = manifestFor({ mcpServers: [mcpServer] })
 
     expect(manifest.names).toContain('docs_search')
     expect(manifest.mcp).toEqual([
@@ -61,7 +63,7 @@ describe('tool manifest', () => {
 
   test('a disabled server drops out of the manifest', () => {
     const manifest = manifestFor({
-      settings: { mcpServers: [{ ...mcpServer, enabled: false }] },
+      mcpServers: [{ ...mcpServer, enabled: false }],
     })
 
     expect(manifest.names).not.toContain('docs_search')
@@ -78,7 +80,7 @@ describe('tool manifest', () => {
       agent: { tools: ['read_file'] } as never,
       invoker: { role: 'admin' } as never,
       session,
-      settings: { mcpServers: [shadowing] },
+      resources: { settings: null, mcpServers: [shadowing] },
       spawnableAgents: [],
     } as never)
 
@@ -94,7 +96,7 @@ describe('tool manifest', () => {
         agent: { tools } as never,
         invoker: { role: 'user' } as never,
         session,
-        settings: null,
+        resources: { settings: null, mcpServers: [] },
         spawnableAgents: [],
       } as never).names,
     ).toEqual([])
@@ -104,14 +106,14 @@ describe('tool manifest', () => {
         agent: { tools } as never,
         invoker: { role: 'admin' } as never,
         session: { _id: 'session_1' } as never,
-        settings: null,
+        resources: { settings: null, mcpServers: [] },
         spawnableAgents: [],
       } as never).names,
     ).toEqual([])
   })
 
   test('a frozen manifest still builds when its MCP server is gone', async () => {
-    const manifest = manifestFor({ settings: { mcpServers: [mcpServer] } })
+    const manifest = manifestFor({ mcpServers: [mcpServer] })
 
     // Settings no longer list the server; the tool stays on the wire
     const tools = await getEnabledTools(manifest, session, null, {

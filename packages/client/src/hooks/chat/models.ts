@@ -27,8 +27,7 @@ export function useActiveModel(): UIModel | null {
   const modelId = agent?.modelId
 
   return useMemo(() => {
-    const metadataModel = session?.metadata?.model
-    if (metadataModel) return metadataModel
+    if (session?.model) return session.model
     if (isLoading || !modelId) return null
     return models.find((m) => m.id === modelId) ?? { id: modelId }
   }, [session, modelId, models, isLoading])

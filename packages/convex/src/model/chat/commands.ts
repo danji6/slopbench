@@ -10,6 +10,7 @@ import type {
 } from '../../types'
 import { insertMessage } from '../messageContents'
 import * as Memberships from '../session/memberships'
+import { getState, patchState } from '../session/state'
 import { executeEval } from './controls'
 import { executeCompact, executeImpersonate, executeResume } from './send'
 
@@ -74,7 +75,7 @@ async function invokeCommand(
   )
   Memberships.requireEnabled(session)
 
-  const queue = session.commandQueue ?? []
+  const queue = (await getState(ctx, sessionId))?.commandQueue ?? []
   const defer = Boolean(await Memberships.getActiveStream(ctx, sessionId))
   if (defer && queue.length >= MAX_QUEUED_COMMANDS) {
     error('Too many commands are already waiting', 409)
@@ -90,7 +91,7 @@ async function invokeCommand(
   const entry: QueuedCommand = { ...command, invokedBy: ctx.userId, messageId }
 
   if (defer) {
-    await ctx.db.patch(sessionId, { commandQueue: [...queue, entry] })
+    await patchState(ctx, sessionId, { commandQueue: [...queue, entry] })
     return { queued: true }
   }
 
@@ -104,16 +105,16 @@ export async function drainCommandQueue(
   { sessionId }: { sessionId: Id<'sessions'> },
 ) {
   const session = await ctx.db.get(sessionId)
-  if (!session?.commandQueue?.length) return
+  if (!session) return
 
-  let queue = session.commandQueue
+  let queue = (await getState(ctx, sessionId))?.commandQueue ?? []
   while (queue.length > 0) {
     if (await Memberships.getActiveStream(ctx, sessionId)) break
 
     const [entry, ...rest] = queue
     queue = rest
     // A command that fails is not retried forever
-    await ctx.db.patch(sessionId, { commandQueue: queue })
+    await patchState(ctx, sessionId, { commandQueue: queue })
     await runQueuedCommand(ctx, session, entry)
   }
 }

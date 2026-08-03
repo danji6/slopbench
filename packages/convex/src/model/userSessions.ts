@@ -1,7 +1,10 @@
+import { toDisplayName } from '@sb/core/utils/names'
+
 import type { Id } from '../_generated/dataModel'
 import type { MutationCtx } from '../_generated/server'
 import { error } from '../errors'
 import type { AuthMutationCtx, AuthQueryCtx } from '../functions'
+import type { SessionMember } from '../types'
 import { getMember, getMembership, requireOwner } from './session/memberships'
 import { getByOwnerId as getSettings } from './settings'
 import { stopForUser } from './stream/lifecycle'
@@ -34,11 +37,14 @@ export async function list(
     .collect()
 
   return Promise.all(
-    userSessions.map(async (membership) => ({
-      membership,
-      user: await ctx.db.get(membership.userId),
-      settings: await getSettings(ctx, membership.userId),
-    })),
+    userSessions.map(async (membership): Promise<SessionMember> => {
+      const settings = await getSettings(ctx, membership.userId)
+      return {
+        membership,
+        name: toDisplayName(settings?.displayName),
+        avatarId: settings?.avatarId,
+      }
+    }),
   )
 }
 

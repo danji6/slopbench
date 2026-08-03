@@ -118,7 +118,7 @@ function HistorySearchResultRow({
   term,
   onSelect,
 }: HistorySearchResultRowProps) {
-  const avatarUrls = useAvatarUrls(result.senderSnapshot?.avatarId)
+  const avatarUrls = useAvatarUrls(result.senderAvatarId)
 
   return (
     <li>
@@ -131,14 +131,14 @@ function HistorySearchResultRow({
       >
         <Avatar
           src={avatarUrls.thumbnail ?? avatarUrls.original}
-          alt={result.senderSnapshot?.name}
+          alt={result.senderName}
           size="sm"
           fallbackIcon={<RoleIcon role={result.role} />}
         />
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex items-baseline justify-between gap-2">
             <span className="text-foreground/80 truncate text-sm font-semibold">
-              {result.senderSnapshot?.name ?? roleLabel(result.role)}
+              {result.senderName ?? roleLabel(result.role)}
             </span>
             <span className="text-muted-foreground shrink-0 text-xs">
               {formatRelativeTime(result._creationTime)}

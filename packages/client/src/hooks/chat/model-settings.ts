@@ -18,7 +18,10 @@ export type ActiveModelSettingsState = ModelSettingsState & {
   editable: boolean
 }
 
-function useModelSettingsFor(agent: Doc<'agents'> | null): ModelSettingsState {
+function useModelSettingsFor(
+  /** `undefined` while the picked agent loads. */
+  agent: Doc<'agents'> | null | undefined,
+): ModelSettingsState {
   const { models, isLoading } = useModels()
   const updateAgent = useAgentUpdate()
 
@@ -64,7 +67,7 @@ export function useModelSettings(): ModelSettingsState {
 
 /** Only owned agents are full documents that can be edited in place. */
 function ownedAgent(agent: ActiveAgent | null): Doc<'agents'> | null {
-  return agent && 'prompts' in agent ? agent : null
+  return agent && 'ownerId' in agent ? agent : null
 }
 
 export function useActiveModelSettings(): ActiveModelSettingsState {

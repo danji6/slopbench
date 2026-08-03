@@ -23,7 +23,8 @@ import {
   type ToolManifest,
   resolveToolManifest,
 } from '../../model/tool/manifest'
-import type { Prompt, StreamContext } from '../../types'
+import type { ToolResources } from '../../model/tool/settings'
+import type { StreamContext } from '../../types'
 import { buildProviderHistory } from './history'
 
 export type PromptEvalResult = {
@@ -53,12 +54,17 @@ type OperationPlan = {
 
 type CachePatch = SnapshotPatch & { tools?: ToolManifest }
 
+/** The web and MCP resources the tool builders read. */
+export function toolResources(data: StreamContext): ToolResources {
+  return { settings: data.settings, mcpServers: data.mcpServers }
+}
+
 export function createOperationPlan(data: StreamContext): OperationPlan {
   const prompts = removeStarterPrompts(
     mergePrompts(
-      data.agent,
-      (data.settings?.globalPrompts ?? []) as Prompt[],
-      (data.settings?.libraryPrompts ?? []) as Prompt[],
+      { ...data.agent, prompts: data.prompts.own },
+      data.prompts.global,
+      data.prompts.library,
     ),
   )
 
@@ -81,7 +87,9 @@ function createInvokePlan(
 
   // Cached on first invoke, then reused for the rest of the session
   const frozenTools = data.sessionCache?.tools
-  const manifest = frozenTools ?? resolveToolManifest(data)
+  const manifest =
+    frozenTools ??
+    resolveToolManifest({ ...data, resources: toolResources(data) })
 
   return {
     evalItems: plan.evalItems,
@@ -105,9 +113,7 @@ function createCompactPlan(
   data: StreamContext,
   prompts: PromptItem[],
 ): OperationPlan {
-  const compactionPrompts = resolveCompactionPrompts(
-    data.agent.compactionPrompts ?? data.settings?.compactionPrompts,
-  )
+  const compactionPrompts = resolveCompactionPrompts(data.prompts.compaction)
 
   return {
     evalItems: spliceAgentPrompts(compactionPrompts, prompts),
@@ -123,7 +129,7 @@ function createImpersonatePlan(
   prompts: PromptItem[],
 ): OperationPlan {
   const impersonationPrompts = resolveImpersonationPrompts(
-    data.agent.impersonationPrompts ?? data.settings?.impersonationPrompts,
+    data.prompts.impersonation,
   )
 
   return {
@@ -153,10 +159,12 @@ async function buildInvokeRequest(
   return {
     systemPrompt,
     messages,
-    tools: await getEnabledTools(manifest, data.session, data.settings, {
-      ctx,
-      autoApprove: data.agent.autoApprove,
-    }),
+    tools: await getEnabledTools(
+      manifest,
+      { ...data.session, toolApprovals: data.toolApprovals },
+      toolResources(data),
+      { ctx, autoApprove: data.agent.autoApprove },
+    ),
   }
 }
 

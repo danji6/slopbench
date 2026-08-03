@@ -2,6 +2,7 @@ import type { Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 import type { AuthQueryCtx } from '../functions'
 import type { TodoItem, TodoStatus } from '../types'
+import { assertTodoItemsCap } from './caps'
 import { getMember } from './session/memberships'
 
 export type TodoEdit = { task: string; status: TodoStatus }
@@ -122,6 +123,7 @@ async function upsertItems(
   existing: { _id: Id<'todos'> } | null,
   items: TodoItem[],
 ) {
+  assertTodoItemsCap(items)
   const session = await ctx.db.get(sessionId)
   const patch = {
     items,

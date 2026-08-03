@@ -14,6 +14,11 @@ export const get = authQuery({
   handler: Agents.get,
 })
 
+export const exportData = authQuery({
+  args: { agentId: v.id('agents') },
+  handler: Agents.exportData,
+})
+
 export const create = authMutation({
   args: V.createAgentArgsValidator.fields,
   handler: Agents.create,

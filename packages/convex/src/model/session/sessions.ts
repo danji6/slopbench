@@ -20,7 +20,6 @@ import * as Avatars from '../avatars'
 import { injectModeNote, injectWorkspaceNote } from '../chat/notes'
 import { deleteVersions } from '../messageContents'
 import { demoteToDraft } from '../plans'
-import { findModelEntry } from '../provider/providers'
 import { getByOwnerId as getSettings } from '../settings'
 import { remove as removeStream, stopForSession } from '../stream/lifecycle'
 import { syncTitle } from '../userSessions'
@@ -30,7 +29,8 @@ import {
   requireNonBlockingStream,
   requireOwner,
 } from './memberships'
-import { setMetadataModel } from './metadata'
+import { resolveAgentModel } from './models'
+import { appendApprovals, getApprovals, getState, patchState } from './state'
 
 export async function create(
   ctx: AuthMutationCtx,
@@ -45,7 +45,7 @@ export async function create(
     ownerId: ctx.userId,
     title: args.title,
     activeAgentId: args.activeAgentId,
-    metadata: await metadataForAgent(ctx, args.activeAgentId),
+    model: await modelForAgent(ctx, args.activeAgentId),
     lastMessageAt: now,
     mode: args.mode === 'plan' ? args.mode : undefined,
   })
@@ -164,7 +164,17 @@ async function toListItem(
     ...agents.filter((agent): agent is SessionParticipant => agent !== null),
   ]
 
-  return { ...session, participants, hidden: userHidden || undefined }
+  return {
+    _id: session._id,
+    _creationTime: session._creationTime,
+    title: session.title,
+    activeAgentId: session.activeAgentId,
+    lastMessageAt: session.lastMessageAt,
+    lastMessagePreview: session.lastMessagePreview,
+    firstMessagePreview: session.firstMessagePreview,
+    participants,
+    hidden: userHidden || undefined,
+  }
 }
 
 // Left intentionally unwired for now
@@ -195,11 +205,24 @@ export async function getLogUrls(
   const member = await getMember(ctx, sessionId, ctx.userId)
   if (!member) return null
 
-  const logUrl = member.session.metadata?.log
-    ? await ctx.storage.getUrl(member.session.metadata.log)
-    : null
+  const log = (await getState(ctx, sessionId))?.log
+  return { logUrl: log ? await ctx.storage.getUrl(log) : null }
+}
 
-  return { logUrl }
+/** The slice of a session's hot state the UI renders. */
+export async function getStateView(
+  ctx: AuthQueryCtx,
+  { sessionId }: { sessionId: Id<'sessions'> },
+) {
+  const member = await getMember(ctx, sessionId, ctx.userId)
+  if (!member) return null
+
+  const state = await getState(ctx, sessionId)
+  return {
+    toolApprovals: state?.toolApprovals,
+    usage: state?.usage,
+    hasLog: Boolean(state?.log),
+  }
 }
 
 export async function update(
@@ -223,14 +246,7 @@ export async function update(
       ? { activeAgentId: patch.activeAgentId ?? undefined }
       : {}),
     ...('activeAgentId' in patch
-      ? {
-          metadata: setMetadataModel(
-            await getSessionMetadata(ctx, sessionId),
-            patch.activeAgentId === null
-              ? undefined
-              : await modelForAgent(ctx, patch.activeAgentId),
-          ),
-        }
+      ? { model: await modelForAgent(ctx, patch.activeAgentId) }
       : {}),
     ...(patch.settings
       ? { settings: { ...session?.settings, ...patch.settings } }
@@ -293,6 +309,9 @@ export async function remove(
   await requireOwner(ctx, sessionId, ctx.userId)
   await stopForSession(ctx, sessionId)
 
+  // Read before the state row is deleted below
+  const log = (await getState(ctx, sessionId))?.log
+
   const children = await ctx.db
     .query('sessions')
     .withIndex('by_parentSessionId', (q) => q.eq('parent.sessionId', sessionId))
@@ -309,6 +328,7 @@ export async function remove(
     'plans',
     'todos',
     'sessionCache',
+    'sessionState',
   ] as const
 
   for (const table of sessionTables) {
@@ -341,8 +361,7 @@ export async function remove(
     await ctx.db.delete(attachment._id)
   }
 
-  const metadata = await getSessionMetadata(ctx, sessionId)
-  await deleteStorageIfPresent(ctx, metadata.log)
+  await deleteStorageIfPresent(ctx, log)
 
   const messages = await ctx.db
     .query('messages')
@@ -351,7 +370,7 @@ export async function remove(
 
   const avatarIds = new Set(
     messages.flatMap((message) =>
-      message.senderSnapshot?.avatarId ? [message.senderSnapshot.avatarId] : [],
+      message.senderAvatarId ? [message.senderAvatarId] : [],
     ),
   )
 
@@ -371,7 +390,7 @@ export async function _patchEnvironment(
   ctx: MutationCtx,
   args: { sessionId: Id<'sessions'>; environment: Record<string, unknown> },
 ) {
-  await ctx.db.patch(args.sessionId, { environment: args.environment })
+  await patchState(ctx, args.sessionId, { environment: args.environment })
 }
 
 export async function _getWorkspaceContext(
@@ -409,18 +428,17 @@ export async function _patchWorkspace(
   await ctx.db.patch(args.sessionId, { workspace })
 }
 
-export async function _patchLastRequestBody(
+/** Points the session at a freshly stored provider log, dropping the old one. */
+export async function _patchSessionLog(
   ctx: MutationCtx,
   args: { sessionId: Id<'sessions'>; storageId: Id<'_storage'> },
 ) {
-  const metadata = await getSessionMetadata(ctx, args.sessionId)
-  const next = { ...metadata, log: args.storageId }
+  const previous = (await getState(ctx, args.sessionId))?.log
 
-  await ctx.db.patch(args.sessionId, {
-    metadata: next,
-  })
-  if (metadata.log !== args.storageId) {
-    await deleteStorageIfPresent(ctx, metadata.log)
+  await patchState(ctx, args.sessionId, { log: args.storageId })
+
+  if (previous !== args.storageId) {
+    await deleteStorageIfPresent(ctx, previous)
   }
 }
 
@@ -428,46 +446,18 @@ export async function _allowToolPaths(
   ctx: MutationCtx,
   args: { sessionId: Id<'sessions'>; paths: string[] },
 ) {
-  const session = await ctx.db.get(args.sessionId)
-  if (!session) return
-
-  const approvals = session.toolApprovals ?? {}
+  const approvals = await getApprovals(ctx, args.sessionId)
   const existing = approvals.paths ?? []
   const additions = args.paths.filter((path) => !isPathAllowed(path, existing))
   if (additions.length === 0) return
 
-  await ctx.db.patch(args.sessionId, {
-    toolApprovals: { ...approvals, paths: [...existing, ...additions] },
-  })
-}
-
-export async function _patchLastResponseBody(
-  ctx: MutationCtx,
-  args: { sessionId: Id<'sessions'>; storageId: Id<'_storage'> },
-) {
-  const metadata = await getSessionMetadata(ctx, args.sessionId)
-  const next = { ...metadata, log: args.storageId }
-
-  await ctx.db.patch(args.sessionId, {
-    metadata: next,
-  })
-  if (metadata.log !== args.storageId) {
-    await deleteStorageIfPresent(ctx, metadata.log)
-  }
+  await appendApprovals(ctx, args.sessionId, 'paths', additions)
 }
 
 async function requireOwnedAgent(ctx: AuthMutationCtx, agentId: Id<'agents'>) {
   const agent = await ctx.db.get(agentId)
   if (!agent || agent.ownerId !== ctx.userId) error('Not found', 404)
   return agent
-}
-
-async function metadataForAgent(
-  ctx: AuthMutationCtx,
-  agentId: Id<'agents'> | undefined,
-) {
-  const model = await modelForAgent(ctx, agentId)
-  return model ? { model } : undefined
 }
 
 async function modelForAgent(
@@ -479,17 +469,7 @@ async function modelForAgent(
   const agent = await ctx.db.get(agentId)
   if (!agent?.modelId) return undefined
 
-  const settings = await getSettings(ctx, agent.ownerId)
-
-  return (
-    findModelEntry(settings?.modelProviders, agent.modelId) ?? {
-      id: agent.modelId,
-    }
-  )
-}
-
-async function getSessionMetadata(ctx: MutationCtx, sessionId: Id<'sessions'>) {
-  return (await ctx.db.get(sessionId))?.metadata ?? {}
+  return resolveAgentModel(ctx, agent)
 }
 
 async function deleteStorageIfPresent(

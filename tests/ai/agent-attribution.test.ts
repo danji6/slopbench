@@ -31,7 +31,7 @@ function stored(
   role: Doc<'messages'>['role'],
   name: string,
 ): Doc<'messages'> {
-  return { sender, role, senderSnapshot: { name } } as Doc<'messages'>
+  return { sender, role, senderName: name } as Doc<'messages'>
 }
 
 function providerData() {
@@ -81,7 +81,7 @@ function userMessage(parts: unknown[]): Doc<'messages'> {
     _id: 'message_1',
     role: 'user',
     sender: { type: 'user', id: USER },
-    senderSnapshot: { name: 'Alice' },
+    senderName: 'Alice',
     parts,
   } as unknown as Doc<'messages'>
 }
@@ -625,7 +625,7 @@ describe('buildProviderHistory', () => {
       _id: 'message_1',
       role: 'assistant',
       sender: { type: 'agent', id: SELF },
-      senderSnapshot: { name: 'Assistant' },
+      senderName: 'Assistant',
       parts: [
         { type: 'text', text: 'Let me check.' },
         {
@@ -681,7 +681,7 @@ describe('buildProviderHistory', () => {
       _id: 'message_1',
       role: 'assistant',
       sender: { type: 'agent', id: SELF },
-      senderSnapshot: { name: 'Assistant' },
+      senderName: 'Assistant',
       parts: [
         { type: 'text', text: 'Let me check.' },
         {
@@ -719,7 +719,7 @@ describe('buildProviderHistory', () => {
       _id: 'message_1',
       role: 'assistant',
       sender: { type: 'agent', id: SELF },
-      senderSnapshot: { name: 'Assistant' },
+      senderName: 'Assistant',
       parts: [
         { type: 'text', text: 'I need approval.' },
         {
@@ -758,7 +758,7 @@ describe('buildProviderHistory', () => {
       _id: 'message_1',
       role: 'assistant',
       sender: { type: 'agent', id: SELF },
-      senderSnapshot: { name: 'Assistant' },
+      senderName: 'Assistant',
       parts: [
         { type: 'text', text: 'Running shell.' },
         {
@@ -820,7 +820,7 @@ describe('buildProviderHistory', () => {
       _id: 'message_1',
       role: 'assistant',
       sender: { type: 'agent', id: SELF },
-      senderSnapshot: { name: 'Assistant' },
+      senderName: 'Assistant',
       parts: [
         {
           type: 'tool-shell',

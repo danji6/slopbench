@@ -6,15 +6,14 @@ import { type Role, minRole } from '../../lib/roles'
 import { TASK_TOOL_NAME } from '../../lib/subagent'
 import type { SpawnableAgent } from '../agent/subagents'
 import {
-  type WebToolSettings,
+  type ToolResources,
   enabledMcpServers,
   normalizeWebSearchInstances,
 } from './settings'
 
 /**
- * The cached shape of a session's tool set: everything the provider actually
- * sees. Captured once and reused for the rest of the session. Deliberately
- * excludes anything behavioral.
+ * The cached shape of a session's tool set the provider sees.
+ * Deliberately excludes anything behavioral.
  */
 export type ToolManifest = {
   /** Exact tool names, in the order they are sent. */
@@ -42,7 +41,7 @@ type ManifestInput = {
   agent: Pick<Doc<'agents'>, 'tools'>
   invoker: Pick<Doc<'users'>, 'role'>
   session: Pick<Doc<'sessions'>, 'workspace' | 'parent'>
-  settings: WebToolSettings
+  resources: ToolResources
   spawnableAgents: SpawnableAgent[]
 }
 
@@ -64,9 +63,7 @@ export function buildTaskRoster(spawnable: SpawnableAgent[]): string {
 export function resolveToolManifest(data: ManifestInput): ToolManifest {
   const admin = minRole(data.invoker.role as Role | undefined, 'admin')
   const subagent = !!data.session.parent
-  const selected = new Set(
-    Array.isArray(data.agent.tools) ? (data.agent.tools as string[]) : [],
-  )
+  const selected = new Set(data.agent.tools ?? [])
 
   const workspaceTools =
     admin && data.session.workspace
@@ -84,12 +81,13 @@ export function resolveToolManifest(data: ManifestInput): ToolManifest {
   }
 
   take('web_fetch')
-  if (normalizeWebSearchInstances(data.settings?.webSearchInstances).length) {
+  const instances = data.resources.settings?.webSearchInstances
+  if (normalizeWebSearchInstances(instances).length) {
     take('web_search')
   }
 
   const seenMcp = new Set<string>()
-  for (const server of enabledMcpServers(data.settings)) {
+  for (const server of enabledMcpServers(data.resources.mcpServers)) {
     for (const meta of server.tools ?? []) {
       const name = mcpToolName(server, meta.name)
       // Built-ins and earlier servers win the name

@@ -28,6 +28,7 @@ function fakeCtx({
   sessionsByParent = {},
   streamsBySession = {},
   membershipsBySession = {},
+  sessionStates = [],
 }: {
   docs?: Row[]
   /** Rows returned by the owner's agents index scan. */
@@ -43,6 +44,8 @@ function fakeCtx({
   streamsBySession?: Record<string, Row[]>
   /** userSessions rows keyed by sessionId. */
   membershipsBySession?: Record<string, Row[]>
+  /** sessionState rows, matched on their `sessionId`. */
+  sessionStates?: Row[]
 }) {
   const patches: Array<{ id: string; patch: Record<string, unknown> }> = []
   const inserts: Array<{ table: string; fields: Record<string, unknown> }> = []
@@ -97,6 +100,10 @@ function fakeCtx({
           return sessionId
             ? (membershipsBySession[String(sessionId[1])] ?? [])
             : []
+        }
+        if (table === 'sessionState') {
+          const sessionId = captured.find(([field]) => field === 'sessionId')
+          return sessionStates.filter((row) => row.sessionId === sessionId?.[1])
         }
         return []
       },
@@ -166,7 +173,6 @@ function parentDocs(
       _id: 'session_1',
       ownerId: owner,
       workspace: { workspaceId: 'ws_1', label: 'ws' },
-      toolApprovals: { shell: ['git checkout'] },
     },
     { _id: 'message_1', selectedVersion: 1 },
     { _id: 'content_1', segmentIndex: 0, version: 1, parts },
@@ -174,6 +180,8 @@ function parentDocs(
     explorer,
   ]
 }
+
+const parentApprovals = { shell: ['git checkout'] }
 
 function taskPart(overrides: Record<string, unknown> = {}) {
   return {
@@ -190,6 +198,13 @@ describe('_suspendStep', () => {
     const { ctx, patches, inserts, scheduled } = fakeCtx({
       docs: parentDocs([taskPart()]),
       agents: [parentAgent, explorer],
+      sessionStates: [
+        {
+          _id: 'state_1',
+          sessionId: 'session_1',
+          toolApprovals: parentApprovals,
+        },
+      ],
     })
 
     const result = await _suspendStep(ctx, { streamId: 'stream_1' as never })
@@ -201,7 +216,6 @@ describe('_suspendStep', () => {
       ownerId: owner,
       activeAgentId: 'agent_explorer',
       workspace: { workspaceId: 'ws_1', label: 'ws' },
-      toolApprovals: { shell: ['git checkout'] },
       parent: {
         sessionId: 'session_1',
         streamId: 'stream_1',
@@ -210,11 +224,16 @@ describe('_suspendStep', () => {
       },
     })
 
-    // Owner membership + agent link + prompt turn + child stream
+    // The parent's approvals are copied onto the child's own state row
+    const state = inserts.find(({ table }) => table === 'sessionState')
+    expect(state?.fields).toMatchObject({ toolApprovals: parentApprovals })
+
+    // Owner membership + agent link + approvals + prompt turn + child stream
     expect(inserts.map(({ table }) => table)).toEqual([
       'sessions',
       'userSessions',
       'sessionAgents',
+      'sessionState',
       'messages',
       'messageContents',
       'streams',

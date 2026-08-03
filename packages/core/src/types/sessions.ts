@@ -19,8 +19,9 @@ export type SessionListItem<
   hidden?: boolean // the current user hid this session from their sidebar
 }
 
-export type SessionMember<Membership, User, Settings> = {
+/** A member as the participant list renders it. */
+export type SessionMember<Membership, AvatarId extends string = string> = {
   membership: Membership
-  user: User | null
-  settings: Settings | null
+  name: string
+  avatarId?: AvatarId
 }

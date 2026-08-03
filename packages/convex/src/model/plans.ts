@@ -4,6 +4,7 @@ import type { Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 import type { AuthMutationCtx, AuthQueryCtx } from '../functions'
 import type { PlanStatus } from '../types'
+import { assertPlanContentCap, planContentCapError } from './caps'
 import { getMember, requireMember } from './session/memberships'
 
 export type PlanEdit = { oldText: string; newText: string }
@@ -41,6 +42,7 @@ export async function upsert(
   content: string,
   patch?: { status?: PlanStatus; dirty?: boolean },
 ) {
+  assertPlanContentCap(content)
   const existing = await getBySession(ctx, sessionId)
   const updatedAt = Date.now()
 
@@ -142,6 +144,11 @@ export async function _edit(
 
   try {
     const content = applyEdits(existing.content, edits, 'the plan')
+    const capError = planContentCapError(content)
+    if (capError) {
+      return { ok: false, error: capError, content: existing.content }
+    }
+
     await ctx.db.patch(existing._id, { content, updatedAt: Date.now() })
     return { ok: true, content }
   } catch (error) {

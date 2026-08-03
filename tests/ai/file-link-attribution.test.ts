@@ -18,7 +18,7 @@ function agent(overrides: Partial<Doc<'agents'>> = {}): Doc<'agents'> {
 
 const stored = {
   sender: { type: 'user', id: USER },
-  senderSnapshot: { name: 'Alice' },
+  senderName: 'Alice',
 } as Doc<'messages'>
 
 describe('prefixSenderName with injected file blocks', () => {

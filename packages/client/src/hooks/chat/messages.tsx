@@ -71,9 +71,7 @@ export function ChatMessagesProvider({ children }: { children: ReactNode }) {
 
   // Eagerly start the avatar cache
   useLayoutEffect(() => {
-    const ids = [...converted.byId.values()].map(
-      (m) => m.senderSnapshot?.avatarId,
-    )
+    const ids = [...converted.byId.values()].map((m) => m.senderAvatarId)
     registerAvatarIds([...ids, settings?.avatarId])
   }, [converted, settings?.avatarId])
 

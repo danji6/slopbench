@@ -20,6 +20,8 @@ export function useFormDraft<T extends FieldValues>(
   form: UseFormReturn<T>,
   /** Names the draft in the confirmation: "unsaved changes to <label>". */
   label: string,
+  /** Strips what must not reach local storage. Must be referentially stable. */
+  sanitize?: (values: T) => T,
 ): FormDraft<T> {
   const draft = useEditorDraft<T>(key, label)
 
@@ -27,11 +29,11 @@ export function useFormDraft<T extends FieldValues>(
     return form.subscribe({
       formState: { values: true, isDirty: true },
       callback: ({ values, isDirty }) => {
-        if (isDirty) draft.save(values)
+        if (isDirty) draft.save(sanitize ? sanitize(values as T) : values)
         else draft.clearUnchanged()
       },
     })
-  }, [form, draft])
+  }, [form, draft, sanitize])
 
   return useMemo(
     () => ({

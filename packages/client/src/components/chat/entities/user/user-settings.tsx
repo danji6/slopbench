@@ -9,9 +9,16 @@ import {
 import { getFontFamily } from '@/fonts'
 import {
   useClearProfileAvatar,
+  useMcpServers,
+  useMcpServersSave,
+  useModelProviders,
+  useModelProvidersSave,
+  usePromptItems,
+  useReminderItems,
   useSettings,
   useSettingsUpdate,
   useUploadProfileAvatar,
+  useUserPromptSetsSave,
 } from '@/hooks/chat'
 import { useFormDraft } from '@/hooks/chat/form-draft'
 import { FONT_OVERRIDE_KEYS } from '@/hooks/font'
@@ -33,11 +40,7 @@ import {
   createDefaultCompactionPrompts,
   createDefaultImpersonationPrompts,
 } from '@sb/convex/model/defaults'
-import {
-  type McpServer,
-  type WebSearchInstance,
-  isSearchEngineId,
-} from '@sb/core/types'
+import { type WebSearchInstance, isSearchEngineId } from '@sb/core/types'
 import { useQuery } from 'convex/react'
 import {
   ActivityIcon,
@@ -56,8 +59,6 @@ import { McpSettings } from './mcp-settings'
 import { ModelSettings } from './model-settings'
 import { ProfileSettings } from './profile-settings'
 import type {
-  McpServerFormValues,
-  ProviderFormValues,
   SettingsFormValues,
   WebSearchInstanceFormValues,
 } from './settings-schema'
@@ -110,6 +111,16 @@ function ChatSettingsDialog({
   const uploadAvatar = useUploadProfileAvatar()
   const clearAvatar = useClearProfileAvatar()
   const providerIds = useQuery(api.models.providerIds)
+  const providers = useModelProviders()
+  const saveProviders = useModelProvidersSave()
+  const mcpServers = useMcpServers()
+  const saveMcpServers = useMcpServersSave()
+  const savePromptSets = useUserPromptSetsSave()
+  const globalPrompts = usePromptItems('global')
+  const libraryPrompts = usePromptItems('library')
+  const libraryReminders = useReminderItems('library')
+  const compactionPrompts = usePromptItems('compaction')
+  const impersonationPrompts = usePromptItems('impersonation')
 
   const [pendingAvatar, setPendingAvatar] = useState<File | null>(null)
   const [avatarCleared, setAvatarCleared] = useState(false)
@@ -130,7 +141,7 @@ function ChatSettingsDialog({
       avatarSize: DEFAULT_SETTINGS.avatarSize,
       titleModel: null,
       webSearchInstances: DEFAULT_SETTINGS.webSearchInstances,
-      mcpServers: DEFAULT_SETTINGS.mcpServers,
+      mcpServers: [],
       uiFont: DEFAULT_SETTINGS.uiFont,
       chatFont: DEFAULT_SETTINGS.chatFont,
       monoFont: DEFAULT_SETTINGS.monoFont,
@@ -157,7 +168,12 @@ function ChatSettingsDialog({
     },
   })
 
-  const draft = useFormDraft(USER_SETTINGS_DRAFT_KEY, form, 'your settings')
+  const draft = useFormDraft(
+    USER_SETTINGS_DRAFT_KEY,
+    form,
+    'your settings',
+    withoutSecrets,
+  )
 
   // Initialize after settings load, so staged profile fields are not reset
   // to empty mid-edit.
@@ -168,11 +184,14 @@ function ChatSettingsDialog({
       initialized.current = false
       return
     }
-    if (initialized.current || !settings) return
+    // Every source needs to be available since the form owns the whole payload
+    if (initialized.current || !settings || !providers || !mcpServers) return
+
     const override = getSettingsOverride()
     const fontsEnabled = FONT_OVERRIDE_KEYS.some(
       (key) => override[key] !== undefined,
     )
+
     draft.sync({
       displayName: settings.displayName ?? '',
       scrollMode: settings.scrollMode,
@@ -186,7 +205,17 @@ function ChatSettingsDialog({
         ...i,
         _clientId: generateId(),
       })),
-      mcpServers: settings.mcpServers ?? [],
+      mcpServers: (mcpServers ?? []).map((server) => ({
+        id: server.id,
+        serverId: server._id,
+        label: server.label,
+        url: server.url,
+        transport: server.transport,
+        enabled: server.enabled,
+        hasKey: server.hasKey,
+        tools: server.tools,
+        _clientId: generateId(),
+      })),
       uiFont: settings.uiFont,
       chatFont: settings.chatFont,
       monoFont: settings.monoFont,
@@ -204,23 +233,27 @@ function ChatSettingsDialog({
       customCss: settings.customCss,
       themeColor: settings.theme?.source ?? SOURCE_COLOR,
       themeMode: settings.themeMode,
-      globalPrompts: settings.globalPrompts ?? [],
-      libraryPrompts: settings.libraryPrompts ?? [],
-      libraryReminders: settings.libraryReminders ?? [],
-      compactionPrompts:
-        settings.compactionPrompts ?? createDefaultCompactionPrompts(),
-      impersonationPrompts:
-        settings.impersonationPrompts ?? createDefaultImpersonationPrompts(),
-      providers: ((settings.modelProviders as ProviderFormValues[]) ?? []).map(
-        (p) => ({
-          ...p,
-          _clientId: p._clientId ?? generateId(),
-        }),
-      ),
+      globalPrompts: globalPrompts as SettingsFormValues['globalPrompts'],
+      libraryPrompts: libraryPrompts as SettingsFormValues['libraryPrompts'],
+      libraryReminders: libraryReminders,
+      compactionPrompts: compactionPrompts.length
+        ? compactionPrompts
+        : createDefaultCompactionPrompts(),
+      impersonationPrompts: impersonationPrompts.length
+        ? impersonationPrompts
+        : createDefaultImpersonationPrompts(),
+      providers: (providers ?? []).map((p) => ({
+        id: p.id,
+        baseURL: p.baseURL,
+        enabled: p.enabled,
+        models: p.models,
+        hasKey: p.hasKey,
+        _clientId: generateId(),
+      })),
     })
     initialized.current = true
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, settings])
+  }, [open, settings, providers, mcpServers])
 
   // Appearance is previewed inside the dialog, while its tab is open
   const previewing = open && activeTab === 'appearance'
@@ -313,7 +346,6 @@ function ChatSettingsDialog({
         webSearchInstances: normalizeWebSearchInstances(
           values.webSearchInstances,
         ),
-        mcpServers: normalizeMcpServers(values.mcpServers),
         uiFont: values.uiFont,
         chatFont: values.chatFont,
         monoFont: values.monoFont,
@@ -324,13 +356,43 @@ function ChatSettingsDialog({
           ? await snapshotTheme(values.themeColor)
           : undefined,
         themeMode: values.themeMode,
-        globalPrompts: values.globalPrompts,
-        libraryPrompts: values.libraryPrompts,
-        libraryReminders: values.libraryReminders,
-        compactionPrompts: values.compactionPrompts,
-        impersonationPrompts: values.impersonationPrompts,
-        modelProviders: values.providers.map(({ _clientId: _, ...p }) => p),
       },
+    })
+    await savePromptSets({
+      globalPrompts: values.globalPrompts,
+      libraryPrompts: values.libraryPrompts,
+      libraryReminders: values.libraryReminders,
+      compactionPrompts: values.compactionPrompts,
+      impersonationPrompts: values.impersonationPrompts,
+    })
+    await saveProviders({
+      providers: values.providers.map((p) => ({
+        key: p.id,
+        baseURL: p.baseURL,
+        enabled: p.enabled,
+        models: p.models.map((model) => ({
+          id: model.id,
+          label: model.label,
+          contextWindow: model.contextWindow,
+        })),
+        apiKey: p.apiKey,
+      })),
+    })
+    await saveMcpServers({
+      servers: values.mcpServers.map((server) => ({
+        key: server.id,
+        label: server.label,
+        url: server.url,
+        transport: server.transport,
+        enabled: server.enabled,
+        apiKey: server.apiKey,
+        tools: server.tools?.map((tool) => ({
+          name: tool.name,
+          description: tool.description,
+          descriptionOverride: tool.descriptionOverride,
+          inputSchema: tool.inputSchema,
+        })),
+      })),
     })
     const { enabled, ...fontOverride } = values.override.fonts
     if (enabled) {
@@ -447,6 +509,15 @@ function ChatSettingsDialog({
   )
 }
 
+/** Drops API keys before the draft is written to local storage. */
+function withoutSecrets(values: SettingsFormValues): SettingsFormValues {
+  return {
+    ...values,
+    providers: values.providers.map(({ apiKey: _, ...p }) => p),
+    mcpServers: values.mcpServers.map(({ apiKey: _, ...server }) => server),
+  }
+}
+
 function normalizeWebSearchInstances(
   instances: WebSearchInstanceFormValues[],
 ): WebSearchInstance[] {
@@ -461,34 +532,6 @@ function normalizeWebSearchInstances(
     if (seen.has(key)) continue
     seen.add(key)
     normalized.push({ engine: instance.engine, url })
-  }
-
-  return normalized
-}
-
-function normalizeMcpServers(servers: McpServerFormValues[]): McpServer[] {
-  const normalized: McpServer[] = []
-
-  for (const server of servers) {
-    const url = server.url.trim()
-    const label = server.label.trim()
-    if (!url && !label) continue
-
-    const apiKey = server.apiKey?.trim()
-    const tools = server.tools?.map((tool) => {
-      const override = tool.descriptionOverride?.trim()
-      const { descriptionOverride: _omit, ...rest } = tool
-      return override ? { ...rest, descriptionOverride: override } : rest
-    })
-    normalized.push({
-      id: server.id,
-      label,
-      url,
-      transport: server.transport,
-      enabled: server.enabled,
-      ...(apiKey ? { apiKey } : {}),
-      ...(tools ? { tools } : {}),
-    })
   }
 
   return normalized

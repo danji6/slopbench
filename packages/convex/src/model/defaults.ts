@@ -6,7 +6,7 @@ import type { PromptItem } from '../types'
 import type { ContextOptions } from '../types'
 import type { InferenceParameters } from '../types'
 import type { MathMode } from '../types'
-import type { McpServer, WebSearchInstance } from '../types'
+import type { WebSearchInstance } from '../types'
 
 // sourceColor copied from globals.css :root --md-source
 export const SOURCE_COLOR = '#8a771d'
@@ -103,9 +103,6 @@ export const DEFAULT_SETTINGS = {
   groupBySender: true,
   avatarSize: 48,
   webSearchInstances: [] as WebSearchInstance[],
-  mcpServers: [] as McpServer[],
-  compactionPrompts: createDefaultCompactionPrompts(),
-  impersonationPrompts: createDefaultImpersonationPrompts(),
   uiFont: 'Roboto',
   chatFont: 'Roboto',
   monoFont: 'Maple Mono',

@@ -55,7 +55,9 @@ function convertDoc(doc: MessageDoc): ConvertedEntry {
     record: {
       _creationTime: doc._creationTime,
       sender: doc.sender,
-      senderSnapshot: doc.senderSnapshot,
+      senderName: doc.senderName,
+      senderAvatarId: doc.senderAvatarId,
+      appearanceId: doc.appearanceId,
       type: doc.type,
       hidden: doc.hidden,
       extra: doc.extra,

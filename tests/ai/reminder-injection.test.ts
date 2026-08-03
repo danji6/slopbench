@@ -7,6 +7,8 @@ import {
 import type { ReminderPrompt } from '@sb/core/types'
 import { describe, expect, test } from 'bun:test'
 
+import { fakeSessionState } from '../setup/session-state'
+
 function reminder(overrides: Partial<ReminderPrompt> = {}): ReminderPrompt {
   return {
     id: 'r1',
@@ -23,9 +25,22 @@ type InjectCtxArgs = {
   agent?: Record<string, unknown> | null
   settings?: Record<string, unknown> | null
   session?: Record<string, unknown>
+  /** Rows in the `reminders` table, by scope. */
+  reminders?: ReminderPrompt[]
+  libraryReminders?: ReminderPrompt[]
+  /** Baselines, which live on the session's state row. */
+  reminderState?: Record<string, number>
 }
 
-function makeCtx({ agent, settings = null, session }: InjectCtxArgs = {}) {
+function makeCtx({
+  agent,
+  settings = null,
+  session,
+  reminders = [],
+  libraryReminders = [],
+  reminderState,
+}: InjectCtxArgs = {}) {
+  const state = fakeSessionState(reminderState ? { reminderState } : null)
   const inserts: Array<{ table: string; doc: Record<string, unknown> }> = []
   const patches: Array<{ id: string; patch: Record<string, unknown> }> = []
   const scheduled: Array<Record<string, unknown>> = []
@@ -38,15 +53,36 @@ function makeCtx({ agent, settings = null, session }: InjectCtxArgs = {}) {
     db: {
       get: async (id: string) => docs.get(id) ?? null,
       insert: async (table: string, doc: Record<string, unknown>) => {
+        if (table === 'sessionState') return state.insert(doc)
         inserts.push({ table, doc })
         return `${table}_${inserts.length}`
       },
       patch: async (id: string, patch: Record<string, unknown>) => {
+        if (state.owns(id)) return void state.patch(patch)
         patches.push({ id, patch })
       },
       query: (table: string) => ({
-        withIndex: () => ({
-          unique: async () => (table === 'settings' ? settings : null),
+        withIndex: (index: string) => ({
+          unique: async () =>
+            table === 'sessionState'
+              ? state.row
+              : table === 'settings'
+                ? settings
+                : null,
+          // Reminder rows are keyed by scope; the index names them apart
+          order: () => ({
+            collect: async () =>
+              (index === 'by_agentId_scope_order'
+                ? reminders
+                : libraryReminders
+              ).map((item, order) => ({
+                _id: `reminders_${item.id}`,
+                ownerId: 'user_1',
+                order,
+                key: item.id,
+                item,
+              })),
+          }),
         }),
       }),
     },
@@ -58,7 +94,7 @@ function makeCtx({ agent, settings = null, session }: InjectCtxArgs = {}) {
     },
   } as never
 
-  return { ctx, inserts, patches, scheduled }
+  return { ctx, inserts, patches, scheduled, state }
 }
 
 const baseAgent = { _id: 'agent_1', name: 'Agent', ownerId: 'user_1' }
@@ -73,14 +109,16 @@ function baseSession(overrides: Record<string, unknown> = {}) {
 
 describe('injectDueReminders', () => {
   test('inserts a due reminder as a hidden done message without search text', async () => {
-    const { ctx, inserts, patches } = makeCtx({
-      agent: { ...baseAgent, reminderPrompts: [reminder()] },
-      session: baseSession({ turnCount: 6, reminderState: { r1: 4 } }),
+    const { ctx, inserts, state } = makeCtx({
+      agent: baseAgent,
+      reminders: [reminder()],
+      session: baseSession({ turnCount: 6 }),
+      reminderState: { r1: 4 },
     })
 
     await injectDueReminders(
       ctx,
-      baseSession({ turnCount: 6, reminderState: { r1: 4 } }) as never,
+      baseSession({ turnCount: 6 }) as never,
       'user_1' as never,
     )
 
@@ -100,64 +138,61 @@ describe('injectDueReminders', () => {
     expect(content?.doc.parts).toEqual([{ type: 'text', text: 'stay focused' }])
     expect(content?.doc.searchText).toBeUndefined()
 
-    expect(patches.find((entry) => entry.id === 'session_1')?.patch).toEqual({
-      reminderState: { r1: 6 },
-    })
+    expect(state.patches).toEqual([{ reminderState: { r1: 6 } }])
   })
 
   test('seeds a baseline for unseen reminders without inserting', async () => {
     const session = baseSession({ turnCount: 6 })
-    const { ctx, inserts, patches } = makeCtx({
-      agent: { ...baseAgent, reminderPrompts: [reminder()] },
+    const { ctx, inserts, state } = makeCtx({
+      agent: baseAgent,
+      reminders: [reminder()],
       session,
     })
 
     await injectDueReminders(ctx, session as never, 'user_1' as never)
 
     expect(inserts).toEqual([])
-    expect(patches.find((entry) => entry.id === 'session_1')?.patch).toEqual({
-      reminderState: { r1: 6 },
-    })
+    expect(state.patches).toEqual([{ reminderState: { r1: 6 } }])
   })
 
   test('does nothing before the interval elapses', async () => {
-    const session = baseSession({ turnCount: 5, reminderState: { r1: 4 } })
-    const { ctx, inserts, patches } = makeCtx({
-      agent: { ...baseAgent, reminderPrompts: [reminder()] },
+    const session = baseSession({ turnCount: 5 })
+    const { ctx, inserts, state } = makeCtx({
+      agent: baseAgent,
+      reminders: [reminder()],
       session,
+      reminderState: { r1: 4 },
     })
 
     await injectDueReminders(ctx, session as never, 'user_1' as never)
 
     expect(inserts).toEqual([])
-    expect(patches).toEqual([])
+    expect(state.patches).toEqual([])
   })
 
   test('ignores library reminders the agent does not reference', async () => {
-    const session = baseSession({ turnCount: 10, reminderState: { g1: 2 } })
-    const { ctx, inserts, patches } = makeCtx({
+    const session = baseSession({ turnCount: 10 })
+    const { ctx, inserts, state } = makeCtx({
       agent: baseAgent,
-      settings: { libraryReminders: [reminder({ id: 'g1' })] },
+      libraryReminders: [reminder({ id: 'g1' })],
       session,
+      reminderState: { g1: 2 },
     })
 
     await injectDueReminders(ctx, session as never, 'user_1' as never)
 
     expect(inserts).toEqual([])
     // The unreferenced reminder's stale state entry is pruned
-    expect(patches.find((entry) => entry.id === 'session_1')?.patch).toEqual({
-      reminderState: {},
-    })
+    expect(state.patches).toEqual([{ reminderState: {} }])
   })
 
   test('injects referenced library reminders from the agent owner settings', async () => {
-    const session = baseSession({ turnCount: 8, reminderState: { g1: 5 } })
+    const session = baseSession({ turnCount: 8 })
     const { ctx, inserts } = makeCtx({
       agent: { ...baseAgent, libraryReminderIds: ['g1'] },
-      settings: {
-        libraryReminders: [reminder({ id: 'g1', role: 'user', interval: 3 })],
-      },
+      libraryReminders: [reminder({ id: 'g1', role: 'user', interval: 3 })],
       session,
+      reminderState: { g1: 5 },
     })
 
     await injectDueReminders(ctx, session as never, 'user_1' as never)
@@ -167,13 +202,12 @@ describe('injectDueReminders', () => {
   })
 
   test('schedules an eval for dynamic reminder content', async () => {
-    const session = baseSession({ turnCount: 4, reminderState: { r1: 2 } })
+    const session = baseSession({ turnCount: 4 })
     const { ctx, scheduled } = makeCtx({
-      agent: {
-        ...baseAgent,
-        reminderPrompts: [reminder({ content: 'hello {{user}}' })],
-      },
+      agent: baseAgent,
+      reminders: [reminder({ content: 'hello {{user}}' })],
       session,
+      reminderState: { r1: 2 },
     })
 
     await injectDueReminders(ctx, session as never, 'user_1' as never)
@@ -205,30 +239,27 @@ describe('bumpTurnCount', () => {
 
 describe('noteDeletedTurns', () => {
   test('rewinds the counter and keeps baselines below it untouched', async () => {
-    const { ctx, patches } = makeCtx({
-      session: baseSession({ turnCount: 12, reminderState: { r1: 4 } }),
+    const { ctx, patches, state } = makeCtx({
+      session: baseSession({ turnCount: 12 }),
+      reminderState: { r1: 4 },
     })
 
     await rewindTurnCount(ctx, 'session_1' as never, 5)
 
-    expect(patches).toEqual([
-      { id: 'session_1', patch: { turnCount: 7, reminderState: { r1: 4 } } },
-    ])
+    expect(patches).toEqual([{ id: 'session_1', patch: { turnCount: 7 } }])
+    expect(state.patches).toEqual([{ reminderState: { r1: 4 } }])
   })
 
   test('clamps baselines above the rewound counter', async () => {
-    const { ctx, patches } = makeCtx({
-      session: baseSession({ turnCount: 12, reminderState: { r1: 10, r2: 3 } }),
+    const { ctx, patches, state } = makeCtx({
+      session: baseSession({ turnCount: 12 }),
+      reminderState: { r1: 10, r2: 3 },
     })
 
     await rewindTurnCount(ctx, 'session_1' as never, 6)
 
-    expect(patches).toEqual([
-      {
-        id: 'session_1',
-        patch: { turnCount: 6, reminderState: { r1: 6, r2: 3 } },
-      },
-    ])
+    expect(patches).toEqual([{ id: 'session_1', patch: { turnCount: 6 } }])
+    expect(state.patches).toEqual([{ reminderState: { r1: 6, r2: 3 } }])
   })
 
   test('floors the counter at zero', async () => {

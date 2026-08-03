@@ -34,7 +34,8 @@ export type AgentMutableFields<AgentId extends string = string> = PromptSource &
   InferenceParameters &
   ContextOptions &
   OverridableFields & {
-    tools?: unknown
+    /** Names of the tools the agent may call. */
+    tools?: string[]
     modelId?: string
     reasoningEffort?: string
     description?: string

@@ -45,8 +45,10 @@ export async function _evalMessage(
     invokerSettings,
     owner,
     ownerSettings,
+    mcpServers,
     userCount,
     agentCount,
+    environment,
   } = data
   if (!partsHaveScript(message.parts)) return
 
@@ -64,7 +66,7 @@ export async function _evalMessage(
       agent,
       invoker,
       session,
-      settings: ownerSettings,
+      resources: { settings: ownerSettings, mcpServers },
       spawnableAgents: [],
     }).names,
   })
@@ -72,7 +74,7 @@ export async function _evalMessage(
   const result = await postSidecar<MessageEvalResult>('/eval/message', {
     parts: message.parts,
     context,
-    environment: (session.environment as Record<string, unknown>) ?? {},
+    environment,
   })
 
   await ctx.runMutation(internal.chat._applyMessageEval, {

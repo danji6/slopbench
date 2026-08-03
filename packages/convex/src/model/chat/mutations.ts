@@ -217,7 +217,7 @@ async function deleteMessageDoc(
   await deleteVersions(ctx, message._id)
   await ctx.db.delete(message._id)
 
-  const avatarId = message.senderSnapshot?.avatarId
+  const avatarId = message.senderAvatarId
   if (!avatarId) return
   if (deferredAvatarIds) {
     deferredAvatarIds.add(avatarId)

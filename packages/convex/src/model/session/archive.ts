@@ -9,6 +9,8 @@ import type {
   importSessionArgsValidator,
   sessionArchiveValidator,
 } from '../../validators'
+import * as Appearances from '../appearances'
+import type { SenderIdentity } from '../chat/identities'
 import {
   type MessageWithParts,
   insertMessage,
@@ -61,6 +63,7 @@ export async function exportOne(
     .collect()
 
   const avatars = await collectAvatars(ctx, messages)
+  const looks = await collectAppearances(ctx, messages)
   const messagesWithParts = await withPartsMany(ctx, messages)
 
   return {
@@ -69,7 +72,9 @@ export async function exportOne(
       exportedAt: Date.now(),
       session: {
         title: resolveTitle(member.session.title, messagesWithParts),
-        messages: messagesWithParts.map(exportMessage),
+        messages: messagesWithParts.map((message) =>
+          exportMessage(message, looks),
+        ),
       },
     },
     avatars,
@@ -86,9 +91,10 @@ export async function importOne(
   const avatarIds = await createAvatars(ctx, avatars)
   const now = Date.now()
   const title = payload.session.title.trim() || 'Imported chat'
-  const imported = payload.session.messages.map(
-    importMessage(user._id, avatarIds),
-  )
+  const imported = []
+  for (const message of payload.session.messages) {
+    imported.push(await importMessage(ctx, user._id, avatarIds, message))
+  }
   const lastMessage = imported.at(-1)
   const preview = lastMessage ? textFromParts(lastMessage.parts).trim() : ''
 
@@ -138,9 +144,7 @@ async function collectAvatars(
   const avatarIds = [
     ...new Set(
       messages.flatMap((message) =>
-        message.senderSnapshot?.avatarId
-          ? [message.senderSnapshot.avatarId]
-          : [],
+        message.senderAvatarId ? [message.senderAvatarId] : [],
       ),
     ),
   ]
@@ -157,64 +161,89 @@ async function collectAvatars(
   )
 }
 
-function exportMessage(message: MessageWithParts): SessionArchiveMessage {
+async function collectAppearances(
+  ctx: QueryCtx,
+  messages: Doc<'messages'>[],
+): Promise<Record<string, Appearances.Appearance | null>> {
+  const ids = [
+    ...new Set(
+      messages.flatMap((message) =>
+        message.appearanceId ? [message.appearanceId] : [],
+      ),
+    ),
+  ]
+  return Appearances.getMap(ctx, { ids })
+}
+
+function exportMessage(
+  message: MessageWithParts,
+  looks: Record<string, Appearances.Appearance | null>,
+): SessionArchiveMessage {
   return {
     role: message.role,
     type: message.type,
     hidden: message.hidden,
     extra: message.extra,
     parts: sanitizeParts(finalizeMessageParts(message.parts)),
-    senderSnapshot: sanitizeSnapshot(message.senderSnapshot),
+    senderSnapshot: exportSnapshot(message, looks),
     metadata: message.metadata,
   }
 }
 
-function importMessage(
+async function importMessage(
+  ctx: MutationCtx,
   userId: Id<'users'>,
   avatars: Record<string, Id<'avatars'>>,
+  message: SessionArchiveMessage,
 ) {
-  return (message: SessionArchiveMessage) => {
-    const parts = sanitizeParts(finalizeMessageParts(message.parts))
+  const parts = sanitizeParts(finalizeMessageParts(message.parts))
 
-    return {
-      fields: {
-        sender: { type: 'user' as const, id: userId },
-        role: message.role as MessageRole,
-        senderSnapshot:
-          message.role === 'system'
-            ? undefined
-            : importSnapshot(message.senderSnapshot, avatars),
-        type: message.type,
-        hidden: message.hidden,
-        extra: message.extra,
-        status: 'done' as const,
-        metadata: message.metadata,
-      },
-      parts,
-    }
-  }
-}
-
-function sanitizeSnapshot(snapshot: Doc<'messages'>['senderSnapshot']) {
-  if (!snapshot) return undefined
   return {
-    name: snapshot.name,
-    avatarKey: snapshot.avatarId,
-    css: snapshot.css,
-    theme: snapshot.theme,
+    fields: {
+      sender: { type: 'user' as const, id: userId },
+      role: message.role as MessageRole,
+      ...(message.role === 'system'
+        ? {}
+        : await importIdentity(ctx, message.senderSnapshot, avatars)),
+      type: message.type,
+      hidden: message.hidden,
+      extra: message.extra,
+      status: 'done' as const,
+      metadata: message.metadata,
+    },
+    parts,
   }
 }
 
-function importSnapshot(
+function exportSnapshot(
+  message: Doc<'messages'>,
+  looks: Record<string, Appearances.Appearance | null>,
+) {
+  if (!message.senderName) return undefined
+  const look = message.appearanceId ? looks[message.appearanceId] : undefined
+  return {
+    name: message.senderName,
+    avatarKey: message.senderAvatarId,
+    css: look?.css,
+    theme: look?.theme,
+  }
+}
+
+async function importIdentity(
+  ctx: MutationCtx,
   snapshot: SessionArchiveMessage['senderSnapshot'],
   avatars: Record<string, Id<'avatars'>>,
-) {
-  if (!snapshot) return undefined
+): Promise<SenderIdentity> {
+  if (!snapshot) return {}
   return {
-    name: snapshot.name,
-    avatarId: snapshot.avatarKey ? avatars[snapshot.avatarKey] : undefined,
-    css: snapshot.css,
-    theme: snapshot.theme,
+    senderName: snapshot.name,
+    senderAvatarId: snapshot.avatarKey
+      ? avatars[snapshot.avatarKey]
+      : undefined,
+    appearanceId: await Appearances.resolve(ctx, {
+      css: snapshot.css,
+      theme: snapshot.theme,
+    }),
   }
 }
 

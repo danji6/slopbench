@@ -1,3 +1,4 @@
+import { MAX_PLAN_CONTENT_CHARS } from '@sb/core/limits'
 import { TOOL_DESCRIPTIONS, editFileFields } from '@sb/core/types'
 import { systemReminder } from '@sb/core/utils/blocks'
 import type { ToolSet } from 'ai'
@@ -15,7 +16,10 @@ export async function createWritePlanTool(context: PlanToolContext) {
   return tool({
     description: TOOL_DESCRIPTIONS.write_plan,
     inputSchema: z.object({
-      content: z.string().describe('Complete plan content (markdown)'),
+      content: z
+        .string()
+        .max(MAX_PLAN_CONTENT_CHARS)
+        .describe('Complete plan content (markdown)'),
     }),
     execute: async ({ content }) => {
       await context.ctx.runMutation(internal.plans._write, {

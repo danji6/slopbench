@@ -1,5 +1,5 @@
 import { AddFromLibrary, PromptList } from '@/components/chat/prompts'
-import { useSettings } from '@/hooks/chat'
+import { useGlobalPrompts, useLibraryPrompts } from '@/hooks/chat'
 import type { OrderedItem, Prompt, PromptItem } from '@/lib/chat'
 import { mergePrompts, newPrompt, upsertPrompt } from '@/lib/chat/prompts'
 import type { MergedPromptItem } from '@/lib/chat/prompts'
@@ -24,9 +24,8 @@ function toOrderedItem(m: MergedPromptItem): OrderedItem {
 }
 
 export function AgentPromptList({ control }: AgentPromptListProps) {
-  const settings = useSettings()
-  const globalPrompts = settings?.globalPrompts ?? []
-  const libraryPrompts = (settings?.libraryPrompts ?? []) as Prompt[]
+  const globalPrompts = useGlobalPrompts()
+  const libraryPrompts = useLibraryPrompts()
 
   const { field: promptsField } = useController({ control, name: 'prompts' })
   const { field: orderField } = useController({ control, name: 'promptOrder' })

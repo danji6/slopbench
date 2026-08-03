@@ -23,7 +23,7 @@ describe('.git access requires approval instead of failing', () => {
         agent: { tools: agentTools } as never,
         invoker: { role: 'admin' } as never,
         session,
-        settings: null,
+        resources: { settings: null, mcpServers: [] },
         spawnableAgents: [],
       } as never),
       session,

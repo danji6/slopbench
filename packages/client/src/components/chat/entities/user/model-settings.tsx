@@ -57,7 +57,13 @@ export function ModelSettings({ control, providers }: ModelSettingsProps) {
   function addProvider() {
     const clientId = generateId()
     setNewProviderClientId(clientId)
-    append({ id: '', enabled: true, models: [], _clientId: clientId })
+    append({
+      id: '',
+      enabled: true,
+      hasKey: false,
+      models: [],
+      _clientId: clientId,
+    })
   }
 
   return (
@@ -270,11 +276,12 @@ function ProviderCard({
             <Input
               type={showKey ? 'text' : 'password'}
               className="flex-1 font-mono text-sm"
-              placeholder="sk-..."
-              value={provider.apiKey ?? ''}
-              onChange={(e) =>
-                onChange({ apiKey: e.target.value || undefined })
+              placeholder={
+                provider.hasKey ? 'Saved — type to replace' : 'sk-...'
               }
+              // Undefined keeps the stored key, while an empty string clears it
+              value={provider.apiKey ?? ''}
+              onChange={(e) => onChange({ apiKey: e.target.value })}
             />
             <RippleButton
               variant="surface"

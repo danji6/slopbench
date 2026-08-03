@@ -7,6 +7,12 @@ export const MAX_TEXT_SNAPSHOT_CHARS = 50_000
  */
 export const MAX_BINARY_LINK_BYTES = 2_000_000
 
+/** Max entries of an inlined directory listing. */
+export const MAX_DIR_ENTRIES = 1_000
+
+/** Max characters of a snapshot's free text fields (path, filename, reason). */
+export const MAX_SNAPSHOT_LABEL_CHARS = 1_000
+
 const TEXT_FILE_EXTENSIONS = new Set([
   'astro',
   'bash',

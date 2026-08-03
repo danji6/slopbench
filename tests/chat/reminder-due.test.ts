@@ -97,10 +97,8 @@ describe('mergeReminders', () => {
 
   test('appends agent reminders after the referenced library ones', () => {
     const merged = mergeReminders(
-      {
-        reminderPrompts: [reminder({ id: 'own' })],
-        libraryReminderIds: ['g1', 'g2'],
-      },
+      { libraryReminderIds: ['g1', 'g2'] },
+      [reminder({ id: 'own' })],
       library,
     )
 
@@ -108,16 +106,17 @@ describe('mergeReminders', () => {
   })
 
   test('resolves library reminders in reference order', () => {
-    const merged = mergeReminders({ libraryReminderIds: ['g2', 'g1'] }, library)
+    const merged = mergeReminders(
+      { libraryReminderIds: ['g2', 'g1'] },
+      [],
+      library,
+    )
 
     expect(merged.map((r) => r.id)).toEqual(['g2', 'g1'])
   })
 
   test('skips library reminders the agent does not reference', () => {
-    const merged = mergeReminders(
-      { reminderPrompts: [reminder({ id: 'own' })] },
-      library,
-    )
+    const merged = mergeReminders({}, [reminder({ id: 'own' })], library)
 
     expect(merged.map((r) => r.id)).toEqual(['own'])
   })
@@ -125,6 +124,7 @@ describe('mergeReminders', () => {
   test('skips references to reminders that no longer exist', () => {
     const merged = mergeReminders(
       { libraryReminderIds: ['g1', 'deleted'] },
+      [],
       library,
     )
 
@@ -133,10 +133,8 @@ describe('mergeReminders', () => {
 
   test('an agent reminder overrides a library one with the same id', () => {
     const merged = mergeReminders(
-      {
-        reminderPrompts: [reminder({ id: 'g1', content: 'agent version' })],
-        libraryReminderIds: ['g1', 'g2'],
-      },
+      { libraryReminderIds: ['g1', 'g2'] },
+      [reminder({ id: 'g1', content: 'agent version' })],
       library,
     )
 

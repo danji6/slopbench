@@ -26,9 +26,7 @@ export async function removeIfUnreferenced(
       .first(),
     ctx.db
       .query('messages')
-      .withIndex('by_snapshotAvatarId', (q) =>
-        q.eq('senderSnapshot.avatarId', avatarId),
-      )
+      .withIndex('by_senderAvatarId', (q) => q.eq('senderAvatarId', avatarId))
       .first(),
   ])
   if (agent || settings || message) return

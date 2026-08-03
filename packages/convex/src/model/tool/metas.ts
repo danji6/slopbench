@@ -3,7 +3,7 @@ import { mcpToolDescription, mcpToolName } from '@sb/core/types'
 
 import type { AuthQueryCtx } from '../../functions'
 import { minRole } from '../../lib/roles'
-import { getOrDefault as getSettings } from '../settings'
+import { resolve as resolveMcpServers } from '../mcp'
 import type { ToolMeta } from './context'
 import { enabledMcpServers } from './settings'
 
@@ -66,9 +66,9 @@ export async function listTools(ctx: AuthQueryCtx): Promise<ToolMeta[]> {
     ? [...TOOL_METAS]
     : TOOL_METAS.filter((t) => !('requiresAdmin' in t && t.requiresAdmin))
 
-  const settings = await getSettings(ctx)
+  const servers = await resolveMcpServers(ctx, ctx.userId)
   const external: ToolMeta[] = []
-  for (const server of enabledMcpServers(settings)) {
+  for (const server of enabledMcpServers(servers)) {
     for (const meta of server.tools ?? []) {
       external.push({
         name: mcpToolName(server, meta.name),

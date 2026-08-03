@@ -6,10 +6,18 @@ import {
 
 import type { Doc } from '../../_generated/dataModel'
 
-export type WebToolSettings = Pick<
-  Doc<'settings'>,
-  'webSearchInstances' | 'mcpServers'
-> | null
+export type WebToolSettings = Pick<Doc<'settings'>, 'webSearchInstances'> | null
+
+/** Everything outside the agent that the web and MCP tools need to build. */
+export type ToolResources = {
+  settings: WebToolSettings
+  mcpServers: McpServer[]
+}
+
+export const EMPTY_TOOL_RESOURCES: ToolResources = {
+  settings: null,
+  mcpServers: [],
+}
 
 export function normalizeWebSearchInstances(
   instances: unknown,
@@ -36,9 +44,7 @@ export function normalizeWebSearchInstances(
 }
 
 /** Configured MCP servers that are enabled and reachable over http(s). */
-export function enabledMcpServers(settings?: WebToolSettings): McpServer[] {
-  const servers = settings?.mcpServers
-  if (!Array.isArray(servers)) return []
+export function enabledMcpServers(servers: McpServer[]): McpServer[] {
   return servers.filter((server) => server.enabled && isHttpUrl(server.url))
 }
 

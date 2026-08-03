@@ -1,5 +1,6 @@
 import {
   useActiveSession,
+  useActiveSessionState,
   useChatMessage,
   useIsAdmin,
   useStreamAwaitingApproval,
@@ -85,6 +86,7 @@ export function ToolApprovalPicker({
   onAbort?: () => void
 }) {
   const session = useActiveSession()
+  const approvals = useActiveSessionState()?.toolApprovals
   const isAdmin = useIsAdmin()
   const processingMessageId = useStreamProcessingMessageId()
   const awaitingApproval = useStreamAwaitingApproval()
@@ -103,11 +105,11 @@ export function ToolApprovalPicker({
   const planApproval = PLAN_APPROVALS[toolName]
   const hold =
     session && part && !planApproval
-      ? approvalHold(toolName, part.input, session)
+      ? approvalHold(toolName, part.input, session.mode, approvals)
       : null
   const rememberLabel =
     session && part && !planApproval && hold !== 'forbidden'
-      ? alwaysLabel(toolName, part.input, session.toolApprovals)
+      ? alwaysLabel(toolName, part.input, approvals)
       : null
   const visible =
     isAdmin && awaitingApproval && Boolean(session && message && part)
@@ -588,7 +590,8 @@ const HOLD_HINTS: Record<NonNullable<ApprovalHold>, string> = {
 function approvalHold(
   toolName: string,
   input: unknown,
-  session: { mode?: string; toolApprovals?: ToolApprovals },
+  mode: string | undefined,
+  approvals: ToolApprovals | undefined,
 ): ApprovalHold {
   if (toolName !== 'shell') {
     const path = (input as { path?: string } | undefined)?.path
@@ -600,11 +603,11 @@ function approvalHold(
   const command = getCommand(input)
   if (command === null) return null
   if (commandReferencesForbiddenPath(command)) return 'forbidden'
-  if (session.mode === 'plan' && !isReadOnlyShellCommand(command)) return 'plan'
+  if (mode === 'plan' && !isReadOnlyShellCommand(command)) return 'plan'
 
   const { patterns, unapproved, unsafe } = analyzeShellCommand(
     command,
-    session.toolApprovals?.shell ?? [],
+    approvals?.shell ?? [],
   )
   return !unsafe && patterns.length > 0 && unapproved.length === 0
     ? 'paths'

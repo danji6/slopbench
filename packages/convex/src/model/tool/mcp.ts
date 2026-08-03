@@ -2,7 +2,7 @@ import type { McpServer } from '@sb/core/types'
 
 import { ToolError, extractErrorMessage, toolFailure } from '../../errors'
 import type { McpManifestEntry } from './manifest'
-import { type WebToolSettings, enabledMcpServers } from './settings'
+import { enabledMcpServers } from './settings'
 
 const DEFAULT_SIDECAR_URL = 'http://localhost:3212'
 
@@ -112,7 +112,7 @@ async function callExternalMcpTool(
 
 export async function createExternalMcpTool(
   entry: McpManifestEntry,
-  settings?: WebToolSettings,
+  servers: McpServer[],
 ) {
   const { tool, jsonSchema } = await import('ai')
   const schema = parseInputSchema(entry.inputSchema) as Parameters<
@@ -122,7 +122,7 @@ export async function createExternalMcpTool(
     description: entry.description,
     inputSchema: jsonSchema(schema),
     execute: async (args, { abortSignal }) => {
-      const server = enabledMcpServers(settings).find(
+      const server = enabledMcpServers(servers).find(
         (candidate) => candidate.id === entry.serverId,
       )
       if (!server) {

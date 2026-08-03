@@ -5,7 +5,24 @@ import type { MutationCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import type { AuthMutationCtx } from '../../functions'
 import type { MessageRole, ThemeSnapshot } from '../../types'
+import * as Appearances from '../appearances'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
+
+/** The denormalized sender fields every message and segment 0 carries. */
+export type SenderIdentity = {
+  senderName?: string
+  senderAvatarId?: Id<'avatars'>
+  appearanceId?: Id<'appearances'>
+}
+
+/** Picks just the identity fields off any row that carries them. */
+export function senderIdentity(source: SenderIdentity): SenderIdentity {
+  return {
+    senderName: source.senderName,
+    senderAvatarId: source.senderAvatarId,
+    appearanceId: source.appearanceId,
+  }
+}
 
 export async function resolveSender(
   ctx: AuthMutationCtx,
@@ -28,14 +45,13 @@ export async function resolveSender(
 
     return {
       sender: { type: 'agent' as const, id: agent._id },
-      senderSnapshot: agentSenderSnapshot(agent, agentSettings),
+      identity: await agentIdentity(ctx, agent, agentSettings),
     }
   }
 
   return {
     sender: { type: 'user' as const, id: ctx.userId },
-    senderSnapshot:
-      role === 'system' ? undefined : userSenderSnapshot(settings),
+    identity: role === 'system' ? {} : await userIdentity(ctx, settings),
   }
 }
 
@@ -48,7 +64,7 @@ export async function userOutputIdentity(
   return {
     sender: { type: 'user' as const, id: userId },
     role: 'user' as const,
-    senderSnapshot: userSenderSnapshot(settings),
+    identity: await userIdentity(ctx, settings),
   }
 }
 
@@ -72,27 +88,31 @@ export async function streamOutputIdentity(
   return {
     sender: { type: 'agent' as const, id: stream.agentId },
     role: 'assistant' as const,
-    senderSnapshot: agentSenderSnapshot(agent, agentSettings),
+    identity: await agentIdentity(ctx, agent, agentSettings),
   }
 }
 
-function userSenderSnapshot(
+export async function userIdentity(
+  ctx: MutationCtx,
   settings: {
     displayName?: string
     avatarId?: Id<'avatars'>
     customCss?: string
     theme?: ThemeSnapshot
   } | null,
-) {
+): Promise<SenderIdentity> {
   return {
-    name: toDisplayName(settings?.displayName),
-    avatarId: settings?.avatarId,
-    css: settings?.customCss,
-    theme: settings?.theme,
+    senderName: toDisplayName(settings?.displayName),
+    senderAvatarId: settings?.avatarId,
+    appearanceId: await Appearances.resolve(ctx, {
+      css: settings?.customCss,
+      theme: settings?.theme,
+    }),
   }
 }
 
-export function agentSenderSnapshot(
+export async function agentIdentity(
+  ctx: MutationCtx,
   agent: {
     name: string
     avatarId?: Id<'avatars'>
@@ -100,11 +120,13 @@ export function agentSenderSnapshot(
     theme?: ThemeSnapshot
   },
   settings: { theme?: ThemeSnapshot } | null,
-) {
+): Promise<SenderIdentity> {
   return {
-    name: agent.name,
-    avatarId: agent.avatarId,
-    css: agent.customCss,
-    theme: agent.theme ?? settings?.theme,
+    senderName: agent.name,
+    senderAvatarId: agent.avatarId,
+    appearanceId: await Appearances.resolve(ctx, {
+      css: agent.customCss,
+      theme: agent.theme ?? settings?.theme,
+    }),
   }
 }

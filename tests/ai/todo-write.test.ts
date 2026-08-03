@@ -49,6 +49,8 @@ function makeCtx({
             if (table === 'todos') return todo
             return null
           },
+          // These tests configure no reminder rows, only todo nudges
+          order: () => ({ collect: async () => [] }),
         }),
       }),
     },
@@ -303,7 +305,7 @@ describe('todo tool toggle', () => {
       agent: { tools } as never,
       invoker: {} as never,
       session: toolSession,
-      settings: null,
+      resources: { settings: null, mcpServers: [] },
       spawnableAgents: [],
     } as never)
 

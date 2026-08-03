@@ -4,12 +4,11 @@ import type { MutationCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import { addVersion, getActiveSegmentRow } from '../messageContents'
 import { scheduleTitle, stripMessageError } from '../messages'
-import { findModelEntry } from '../provider/providers'
 import * as Memberships from '../session/memberships'
-import { setMetadataModel } from '../session/metadata'
+import { resolveAgentModel } from '../session/models'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 import { STREAM_LEASE_MS } from '../stream/lifecycle'
-import { agentSenderSnapshot } from './identities'
+import { agentIdentity } from './identities'
 
 export async function reserveStream(
   ctx: MutationCtx,
@@ -36,17 +35,10 @@ export async function reserveStream(
   const agent = await ctx.db.get(args.agentId)
   if (!agent) error('Agent not found', 404)
 
-  const agentSettings = await getSettingsByOwnerId(ctx, agent.ownerId)
   const session = await ctx.db.get(args.sessionId)
-  const model = agent.modelId
-    ? (findModelEntry(agentSettings?.modelProviders, agent.modelId) ?? {
-        id: agent.modelId,
-      })
-    : undefined
+  const model = await resolveAgentModel(ctx, agent)
 
-  await ctx.db.patch(args.sessionId, {
-    metadata: setMetadataModel(session?.metadata, model),
-  })
+  await ctx.db.patch(args.sessionId, { model })
 
   const boundary = args.boundaryId ? await ctx.db.get(args.boundaryId) : null
   const delayMs = args.delayMs ?? 0
@@ -175,19 +167,11 @@ export async function reserveResumableStream(
   const agent = await ctx.db.get(args.agentId)
   if (!agent) error('Agent not found', 404)
 
-  const agentSettings = await getSettingsByOwnerId(ctx, agent.ownerId)
-
   const session = await ctx.db.get(args.sessionId)
 
-  const model = agent.modelId
-    ? (findModelEntry(agentSettings?.modelProviders, agent.modelId) ?? {
-        id: agent.modelId,
-      })
-    : undefined
+  const model = await resolveAgentModel(ctx, agent)
 
-  await ctx.db.patch(args.sessionId, {
-    metadata: setMetadataModel(session?.metadata, model),
-  })
+  await ctx.db.patch(args.sessionId, { model })
 
   const [boundary, message] = await Promise.all([
     args.boundaryId ? ctx.db.get(args.boundaryId) : null,
@@ -259,17 +243,10 @@ export async function reserveRetryStream(
   if (!agent) error('Agent not found', 404)
 
   const agentSettings = await getSettingsByOwnerId(ctx, agent.ownerId)
-  const session = await ctx.db.get(args.sessionId)
 
-  const model = agent.modelId
-    ? (findModelEntry(agentSettings?.modelProviders, agent.modelId) ?? {
-        id: agent.modelId,
-      })
-    : undefined
+  const model = await resolveAgentModel(ctx, agent)
 
-  await ctx.db.patch(args.sessionId, {
-    metadata: setMetadataModel(session?.metadata, model),
-  })
+  await ctx.db.patch(args.sessionId, { model })
 
   const [boundary, message] = await Promise.all([
     args.boundaryId ? ctx.db.get(args.boundaryId) : null,
@@ -280,7 +257,7 @@ export async function reserveRetryStream(
   // Append a fresh version to regenerate into
   const { contentId } = await addVersion(ctx, {
     message,
-    senderSnapshot: agentSenderSnapshot(agent, agentSettings),
+    identity: await agentIdentity(ctx, agent, agentSettings),
   })
   await ctx.db.patch(args.messageId, { status: 'processing' })
 

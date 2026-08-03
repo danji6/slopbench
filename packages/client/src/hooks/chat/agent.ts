@@ -14,9 +14,11 @@ import { api } from '@sb/convex/_generated/api'
 import type { Doc, Id } from '@sb/convex/_generated/dataModel'
 import type { EvalContext } from '@sb/core/interpreter/types'
 import { toDisplayName, toOptionalName } from '@sb/core/utils/names'
+import { useQuery as useCachedQuery } from 'convex-helpers/react/cache/hooks'
 import { useMutation, useQuery } from 'convex/react'
 import { useCallback, useMemo, useSyncExternalStore } from 'react'
 
+import { useGlobalPrompts, useLibraryPrompts, usePromptItems } from './prompts'
 import { useActiveSession, useActiveSessionId } from './session'
 import { useSettings, useSettingsUpdate } from './settings'
 import { useIsAdmin } from './tools'
@@ -35,8 +37,29 @@ export type LinkedAgent = {
 
 export type ActiveAgent = Doc<'agents'> | LinkedAgent
 
-export function useOwnedAgents(): Doc<'agents'>[] | undefined {
+/** The projection `api.agents.list` returns. */
+export type AgentSummary = {
+  _id: Id<'agents'>
+  name: string
+  description?: string
+  avatarId?: Id<'avatars'>
+}
+
+export function useOwnedAgents(): AgentSummary[] | undefined {
   return useQuery(api.agents.list)
+}
+
+/**
+ * The full document for one of the current user's agents.
+ *
+ * @returns `null` when the id is absent or refers to an agent they don't own,
+ * `undefined` while one loads.
+ */
+export function useOwnedAgent(
+  agentId: Id<'agents'> | null | undefined,
+): Doc<'agents'> | null | undefined {
+  const agent = useCachedQuery(api.agents.get, agentId ? { agentId } : 'skip')
+  return agentId ? agent : null
 }
 
 export function useLinkedAgents(): LinkedAgent[] {
@@ -55,18 +78,14 @@ export function useLinkedAgents(): LinkedAgent[] {
 export function useActiveAgent(): ActiveAgent | null {
   const sessionId = useActiveSessionId()
   const session = useActiveSession()
-  const owned = useOwnedAgents()
   const linked = useLinkedAgents()
   const settings = useSettings()
 
   const activeId = sessionId ? session?.activeAgentId : settings?.recentAgentId
+  const owned = useOwnedAgent(activeId)
   if (!activeId) return null
 
-  return (
-    owned?.find((agent) => agent._id === activeId) ??
-    linked.find((agent) => agent._id === activeId) ??
-    null
-  )
+  return owned ?? linked.find((agent) => agent._id === activeId) ?? null
 }
 
 /**
@@ -78,18 +97,21 @@ export function useAgentPrompts(workDir?: string) {
   const session = useActiveSession()
   const settings = useSettings()
   const isAdmin = useIsAdmin()
-  const agent = activeAgent && 'prompts' in activeAgent ? activeAgent : null
+  const agent = activeAgent && 'ownerId' in activeAgent ? activeAgent : null
+  const ownPrompts = usePromptItems('own', agent?._id)
+  const globalPrompts = useGlobalPrompts()
+  const libraryPrompts = useLibraryPrompts()
 
   return useMemo(() => {
     const merged = agent
       ? mergePrompts(
           {
             globalPromptsEnabled: agent.globalPromptsEnabled,
-            prompts: agent.prompts,
+            prompts: ownPrompts,
             promptOrder: agent.promptOrder,
           },
-          settings?.globalPrompts ?? [],
-          settings?.libraryPrompts ?? [],
+          globalPrompts,
+          libraryPrompts,
         ).items.map((m) => m.item)
       : []
 
@@ -132,37 +154,46 @@ export function useAgentPrompts(workDir?: string) {
     agent,
     sessionId,
     settings?.displayName,
-    settings?.globalPrompts,
-    settings?.libraryPrompts,
+    ownPrompts,
+    globalPrompts,
+    libraryPrompts,
     isAdmin,
     workDir,
     session?.workspace?.path,
   ])
 }
 
-/** The picked agent that's being edited. */
-export function useEditingAgent(): Doc<'agents'> | null {
-  const owned = useOwnedAgents()
+/** The id of the agent being edited. */
+export function useEditingAgentId(): Id<'agents'> | null {
   const id = useSyncExternalStore(subscribeEditingAgent, getEditingAgentId)
-  if (!id) return null
-  return owned?.find((agent) => agent._id === id) ?? null
+  return id as Id<'agents'> | null
+}
+
+/** The picked agent that's being edited, `undefined` while it loads. */
+export function useEditingAgent(): Doc<'agents'> | null | undefined {
+  return useOwnedAgent(useEditingAgentId())
 }
 
 export function useAgentUpdate() {
   return useMutation(api.agents.update).withOptimisticUpdate(
     (localStore, { agentId, unset, ...patch }: UpdateAgentArgs) => {
+      const apply = <T extends object>(agent: T): T => {
+        const next = { ...agent, ...patch } as Record<string, unknown>
+        for (const key of unset ?? []) delete next[key]
+        return next as T
+      }
+
+      // The editor reads the document, the pickers read the list
+      const agent = localStore.getQuery(api.agents.get, { agentId })
+      if (agent) localStore.setQuery(api.agents.get, { agentId }, apply(agent))
+
       const agents = localStore.getQuery(api.agents.list, {})
       if (agents === undefined) return
 
       localStore.setQuery(
         api.agents.list,
         {},
-        agents.map((agent) => {
-          if (agent._id !== agentId) return agent
-          const next = { ...agent, ...patch } as Record<string, unknown>
-          for (const key of unset ?? []) delete next[key]
-          return next as (typeof agents)[number]
-        }),
+        agents.map((entry) => (entry._id === agentId ? apply(entry) : entry)),
       )
     },
   )

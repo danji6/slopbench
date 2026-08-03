@@ -1,5 +1,11 @@
 import { z } from 'zod'
 
+import {
+  MAX_MCP_DESCRIPTION_CHARS,
+  MAX_MCP_SCHEMA_CHARS,
+  MAX_SERVER_MCP_TOOLS,
+} from '../limits'
+
 export const MCP_TRANSPORTS = ['auto', 'http', 'sse', 'ws'] as const
 
 export type McpTransport = (typeof MCP_TRANSPORTS)[number]
@@ -60,6 +66,19 @@ export type McpConnection = {
   apiKey?: string
 }
 
+/** Trims discovered metadata to the storage caps. */
+export function clampMcpTools(tools: McpToolMeta[]): McpToolMeta[] {
+  return tools.slice(0, MAX_SERVER_MCP_TOOLS).map((tool) => ({
+    name: tool.name.slice(0, MAX_MCP_DESCRIPTION_CHARS),
+    description: clamp(tool.description, MAX_MCP_DESCRIPTION_CHARS),
+    descriptionOverride: clamp(
+      tool.descriptionOverride,
+      MAX_MCP_DESCRIPTION_CHARS,
+    ),
+    inputSchema: clamp(tool.inputSchema, MAX_MCP_SCHEMA_CHARS),
+  }))
+}
+
 export function isMcpTransport(value: unknown): value is McpTransport {
   return (
     typeof value === 'string' && MCP_TRANSPORTS.includes(value as McpTransport)
@@ -79,6 +98,10 @@ export function mcpToolDescription(tool: {
 }): string | undefined {
   const override = tool.descriptionOverride?.trim()
   return override || tool.description
+}
+
+function clamp(value: string | undefined, max: number) {
+  return value === undefined ? undefined : value.slice(0, max)
 }
 
 function slugify(value: string): string {

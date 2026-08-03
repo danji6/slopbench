@@ -2,11 +2,14 @@
 import { _applyMessageEval } from '@sb/convex/model/chat'
 import { describe, expect, test } from 'bun:test'
 
+import { fakeSessionState } from '../setup/session-state'
+
 type Row = Record<string, unknown> & { _id: string }
 
 /** Fakes enough of the db for `getSegmentRow` + `setSegmentParts`. */
 function mutationCtx({ message, segments }: { message: Row; segments: Row[] }) {
   const patches: Array<{ id: string; patch: Record<string, unknown> }> = []
+  const state = fakeSessionState()
   const byId = new Map<string, Row>([
     [message._id, message],
     ...segments.map((row) => [row._id, row] as const),
@@ -16,11 +19,14 @@ function mutationCtx({ message, segments }: { message: Row; segments: Row[] }) {
     db: {
       get: async (id: string) => byId.get(id) ?? null,
       patch: async (id: string, patch: Record<string, unknown>) => {
+        if (state.owns(id)) return void state.patch(patch)
         patches.push({ id, patch })
         const doc = byId.get(id)
         if (doc) Object.assign(doc, patch)
       },
-      query: () => {
+      insert: async (_table: string, doc: Record<string, unknown>) =>
+        state.insert(doc),
+      query: (table: string) => {
         const captured: Record<string, unknown> = {}
         const q = {
           eq: (field: string, value: unknown) => {
@@ -39,6 +45,7 @@ function mutationCtx({ message, segments }: { message: Row; segments: Row[] }) {
         return {
           withIndex: (_index: string, fn: (query: typeof q) => typeof q) => {
             fn(q)
+            if (table === 'sessionState') return state.query()
             return {
               unique: async () => matches()[0] ?? null,
               collect: async () => matches(),
@@ -49,7 +56,7 @@ function mutationCtx({ message, segments }: { message: Row; segments: Row[] }) {
     },
   } as never
 
-  return { ctx, patches }
+  return { ctx, patches, state }
 }
 
 const text = (value: string) => ({ type: 'text', text: value })
@@ -82,7 +89,7 @@ function fixture() {
 describe('_applyMessageEval', () => {
   test('writes only the target segment row', async () => {
     const { message, segments } = fixture()
-    const { ctx, patches } = mutationCtx({ message, segments })
+    const { ctx, patches, state } = mutationCtx({ message, segments })
 
     await _applyMessageEval(ctx, {
       messageId: 'm_1' as never,
@@ -97,9 +104,7 @@ describe('_applyMessageEval', () => {
     expect(segments[1].parts).toEqual([text('evaluated')])
     // Only the segment row and the doc's eligibility are touched
     expect(patches.map((p) => p.id).filter((id) => id === 'c_0')).toEqual([])
-    expect(patches.map((p) => p.id).filter((id) => id === 'session_1')).toEqual(
-      [],
-    )
+    expect(state.patches).toEqual([])
   })
 
   test('does nothing when the segment row is missing', async () => {
@@ -140,8 +145,8 @@ describe('_applyMessageEval', () => {
     expect(patches.map((p) => p.id)).toEqual(['c_v2'])
   })
 
-  test('patches the session environment when dirty', async () => {
-    const { ctx, patches } = mutationCtx(fixture())
+  test('writes the environment to the session state row when dirty', async () => {
+    const { ctx, state } = mutationCtx(fixture())
 
     await _applyMessageEval(ctx, {
       messageId: 'm_1' as never,
@@ -152,9 +157,6 @@ describe('_applyMessageEval', () => {
       dirty: true,
     })
 
-    expect(patches.at(-1)).toEqual({
-      id: 'session_1',
-      patch: { environment: { counter: 1 } },
-    })
+    expect(state.patches).toEqual([{ environment: { counter: 1 } }])
   })
 })

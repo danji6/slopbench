@@ -6,7 +6,7 @@ export const senderValidator = v.union(
   v.object({ type: v.literal('agent'), id: v.id('agents') }),
 )
 
-// Resolved theme variables as their hex values
+/** Resolved theme variables as their hex values. */
 export const schemeColorsValidator = v.record(v.string(), v.string())
 
 export const themeSnapshotValidator = v.object({
@@ -15,12 +15,12 @@ export const themeSnapshotValidator = v.object({
   dark: schemeColorsValidator,
 })
 
-export const senderSnapshotValidator = v.object({
-  name: v.string(),
-  avatarId: v.optional(v.id('avatars')),
-  css: v.optional(v.string()),
-  theme: v.optional(themeSnapshotValidator),
-})
+/** Who a message was sent as, at send time. */
+export const senderIdentityFields = {
+  senderName: v.optional(v.string()),
+  senderAvatarId: v.optional(v.id('avatars')),
+  appearanceId: v.optional(v.id('appearances')),
+}
 
 export const messageTypeValidator = v.union(
   v.literal('summary'),
@@ -68,6 +68,7 @@ export const modelEntryValidator = v.object({
   contextWindow: v.optional(v.number()),
 })
 
+/** A model provider joined with its credential. */
 export const modelProviderValidator = v.object({
   id: v.string(),
   apiKey: v.optional(v.string()),
@@ -96,6 +97,7 @@ export const mcpToolMetaValidator = v.object({
   inputSchema: v.optional(v.string()),
 })
 
+/** An MCP server joined with its tools and credential. */
 export const mcpServerValidator = v.object({
   id: v.string(),
   label: v.string(),
@@ -105,6 +107,27 @@ export const mcpServerValidator = v.object({
   enabled: v.boolean(),
   tools: v.optional(v.array(mcpToolMetaValidator)),
 })
+
+/** Which set a prompt row belongs to. */
+export const promptScopeValidator = v.union(
+  v.literal('own'), // an agent's own prompts
+  v.literal('global'), // injected into every agent
+  v.literal('library'), // referenced by id from `promptOrder`
+  v.literal('compaction'),
+  v.literal('impersonation'),
+)
+
+/** Which set a reminder row belongs to. */
+export const reminderScopeValidator = v.union(
+  v.literal('own'),
+  v.literal('library'),
+)
+
+/** Which integration a stored API key belongs to. */
+export const credentialScopeValidator = v.union(
+  v.literal('provider'),
+  v.literal('mcp'),
+)
 
 /** Cached metadata for one external MCP tool. */
 export const mcpManifestEntryValidator = v.object({
@@ -128,18 +151,15 @@ export const tokenUsageValidator = v.object({
   totalTokens: v.number(),
 })
 
-export const sessionMetadataValidator = v.object({
-  usage: v.optional(tokenUsageValidator),
-  model: v.optional(modelEntryValidator),
-  log: v.optional(v.id('_storage')),
-})
-
 export const sessionSettingsValidator = v.object({
   disabled: v.optional(v.boolean()),
   slowModeSeconds: v.optional(v.number()), // TODO use milliseconds
   agentDebounceSeconds: v.optional(v.number()), // TODO use milliseconds
   passiveSend: v.optional(v.boolean()), // invoking the agent requires a modifier
 })
+
+/** Prompt interpreter variables for one session. */
+export const environmentValidator = v.record(v.string(), v.any())
 
 export const workspaceRefValidator = v.object({
   workspaceId: v.string(),
@@ -169,7 +189,7 @@ export const messageMetaValidator = v.object({
   duration: v.optional(v.number()),
   toolErrors: v.optional(v.array(v.string())),
   warnings: v.optional(v.array(v.string())),
-  usage: v.optional(v.any()),
+  usage: v.optional(tokenUsageValidator),
   error: v.optional(v.string()),
 })
 
@@ -224,17 +244,6 @@ export const reminderPromptValidator = v.object({
   eager: v.optional(v.boolean()), // fire on first sight instead of waiting a full interval
 })
 
-export const libraryPromptValidator = v.object({
-  id: v.string(),
-  name: v.string(),
-  role: roleValidator,
-  content: v.string(),
-  enabled: v.boolean(),
-  visible: v.boolean(),
-  starter: v.optional(v.boolean()),
-  createdAt: v.optional(v.number()),
-})
-
 export const filePartValidator = v.object({
   attachmentId: v.id('attachments'),
   mediaType: v.string(),
@@ -278,6 +287,41 @@ export const sessionModeValidator = v.union(
   v.literal('normal'),
   v.literal('plan'),
   // TODO 'ask'
+)
+
+/** How far a queued command got, rendered by its chip. */
+export const commandStatusValidator = v.union(
+  v.literal('queued'),
+  v.literal('ran'),
+  v.literal('failed'),
+)
+
+export const reminderExtraValidator = v.object({
+  id: v.string(),
+  name: v.string(),
+})
+
+export const workspaceExtraValidator = v.object({
+  label: v.optional(v.string()), // absent when the workspace was unbound
+})
+
+export const modeExtraValidator = v.object({
+  from: sessionModeValidator,
+  to: sessionModeValidator,
+})
+
+export const commandExtraValidator = v.object({
+  name: commandNameValidator,
+  argument: v.optional(v.string()),
+  status: commandStatusValidator,
+  error: v.optional(v.string()),
+})
+
+export const messageExtraValidator = v.union(
+  reminderExtraValidator,
+  workspaceExtraValidator,
+  modeExtraValidator,
+  commandExtraValidator,
 )
 
 export const planStatusValidator = v.union(
@@ -348,7 +392,7 @@ export const sessionArchiveMessageValidator = v.object({
   role: roleValidator,
   type: v.optional(messageTypeValidator),
   hidden: v.optional(v.boolean()),
-  extra: v.optional(v.any()),
+  extra: v.optional(messageExtraValidator),
   parts: v.array(v.any()),
   senderSnapshot: v.optional(sessionArchiveSenderSnapshotValidator),
   metadata: v.optional(messageMetaValidator),
@@ -371,8 +415,30 @@ export const overridableFields = {
   theme: v.optional(themeSnapshotValidator),
   mathMode: v.optional(mathModeValidator),
   chatWidth: v.optional(v.number()),
-  compactionPrompts: v.optional(v.array(promptItemValidator)),
-  impersonationPrompts: v.optional(v.array(promptItemValidator)),
 }
 
 export const overridableFieldsValidator = v.object(overridableFields)
+
+/**
+ * Everything a user may patch on their own settings row.
+ * Prompt, reminder, provider and MCP sets live in their own tables.
+ */
+export const settingsMutableFields = {
+  displayName: v.optional(v.string()),
+  autoTitle: v.optional(v.boolean()),
+  titleModel: v.optional(v.string()),
+  invertSend: v.optional(v.boolean()),
+  groupBySender: v.optional(v.boolean()),
+  avatarSize: v.optional(v.number()),
+  webSearchInstances: v.optional(v.array(webSearchInstanceValidator)),
+  uiFont: v.optional(v.string()),
+  chatFont: v.optional(v.string()),
+  monoFont: v.optional(v.string()),
+  chatFontSize: v.optional(v.number()),
+  ...overridableFields,
+  themeMode: v.optional(themeValidator),
+  recentModel: v.optional(v.string()),
+  recentAgentId: v.optional(v.id('agents')),
+  recentReasoning: v.optional(v.string()),
+  recentWorkspaces: v.optional(v.array(v.string())),
+}

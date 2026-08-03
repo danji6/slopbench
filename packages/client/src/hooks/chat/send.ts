@@ -271,12 +271,8 @@ function optimisticSender(
   if (role === 'assistant' && agent) {
     return {
       sender: { type: 'agent', id: agent._id },
-      senderSnapshot: {
-        name: agent.name,
-        avatarId: agent.avatarId,
-        css: agent.customCss,
-        theme: agent.theme ?? settings?.theme,
-      },
+      senderName: agent.name,
+      senderAvatarId: agent.avatarId,
     }
   }
 
@@ -290,11 +286,7 @@ function optimisticSender(
 
   return {
     sender,
-    senderSnapshot: {
-      name: toDisplayName(settings?.displayName),
-      avatarId: settings?.avatarId,
-      css: settings?.customCss,
-      theme: settings?.theme,
-    },
+    senderName: toDisplayName(settings?.displayName),
+    senderAvatarId: settings?.avatarId,
   }
 }

@@ -74,7 +74,7 @@ describe('plan-link parts', () => {
     }
     const stored = {
       sender: { type: 'user' },
-      senderSnapshot: { name: 'Null' },
+      senderName: 'Null',
     } as never
     const agent = { shareUserDisplayNames: true } as never
 
@@ -228,7 +228,7 @@ describe('frozen tool manifest', () => {
       agent: { tools } as never,
       invoker: { role: 'admin' } as never,
       session,
-      settings: null,
+      resources: { settings: null, mcpServers: [] },
       spawnableAgents: [],
       ...over,
     } as never)
@@ -446,7 +446,7 @@ describe('plan mode reminders', () => {
         agent: { tools: [PLAN_TOOL_TOGGLE] } as never,
         invoker: { role: 'admin' } as never,
         session,
-        settings: null,
+        resources: { settings: null, mcpServers: [] },
         spawnableAgents: [],
       } as never),
       session,
@@ -477,7 +477,7 @@ describe('plan mode transition tools', () => {
         agent: { tools: ['read_file', PLAN_TOOL_TOGGLE] } as never,
         invoker: { role: 'admin' } as never,
         session,
-        settings: null,
+        resources: { settings: null, mcpServers: [] },
         spawnableAgents: [],
       } as never),
       session,

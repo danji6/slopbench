@@ -3,14 +3,18 @@ import type { QueryCtx } from '../../_generated/server'
 import type { AuthQueryCtx } from '../../functions'
 import { sharedSessionId } from '../../lib/subagent'
 import { resolveSpawnableAgents } from '../agent/subagents'
+import { resolve as resolveMcpServers } from '../mcp'
 import {
   getProcessingSegmentRow,
   withParts,
   withPartsMany,
 } from '../messageContents'
 import { getBySession as getPlan } from '../plans'
+import { resolveSets as resolvePromptSets } from '../prompts'
+import { resolve as resolveProviders } from '../providers'
 import { getBySessionAgent as getSessionCache } from '../session/cache'
 import { countParticipants, getMembership } from '../session/memberships'
+import { getState } from '../session/state'
 import { getByOwnerId as getSettings } from '../settings'
 
 /** Returns a list of session ids that have ongoing streams. */
@@ -50,12 +54,23 @@ export async function _getContext(
   // The engine loop only ever sees the active segment's parts
   const outputRow = await getProcessingSegmentRow(ctx, stream)
 
-  const [settings, invokerSettings, participants, plan] = await Promise.all([
+  const [
+    settings,
+    invokerSettings,
+    participants,
+    plan,
+    prompts,
+    mcpServers,
+    modelProviders,
+  ] = await Promise.all([
     getSettings(ctx, agent.ownerId),
     getSettings(ctx, invoker._id),
     countParticipants(ctx, stream.sessionId),
     // Sub-agents can see and edit the parent's plan
     getPlan(ctx, sharedSessionId(session)),
+    resolvePromptSets(ctx, agent),
+    resolveMcpServers(ctx, agent.ownerId, { withCredentials: true }),
+    resolveProviders(ctx, agent.ownerId),
   ])
 
   // Sub-agent sessions never spawn further sub-agents (flat only)
@@ -70,8 +85,12 @@ export async function _getContext(
     ? await getSessionCache(ctx, stream.sessionId, stream.agentId)
     : null
 
+  const state = await getState(ctx, stream.sessionId)
+
   return {
     sessionCache,
+    environment: state?.environment ?? {},
+    toolApprovals: state?.toolApprovals,
     spawnableAgents,
     stream,
     session,
@@ -82,6 +101,9 @@ export async function _getContext(
     ownerSettings: settings,
     output: { ...output, parts: outputRow?.parts ?? [] },
     settings,
+    prompts,
+    mcpServers,
+    modelProviders,
     plan,
     ...participants,
   }

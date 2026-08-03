@@ -1,21 +1,36 @@
-import type { Id } from '../_generated/dataModel'
+import type { Doc, Id } from '../_generated/dataModel'
 import { error } from '../errors'
 import type { AuthMutationCtx, AuthQueryCtx } from '../functions'
-import type { CreateAgentArgs, UpdateAgentArgs } from '../types'
+import type { CreateAgentArgs, Prompt, UpdateAgentArgs } from '../types'
 import { sanitizeSubAgents } from './agent/subagents'
 import * as Avatars from './avatars'
+import { assertCustomCssCap } from './caps'
 import { DEFAULT_CONTEXT_OPTIONS, createDefaultAgent } from './defaults'
-import { findModelEntry } from './provider/providers'
-import { setMetadataModel } from './session/metadata'
-import { get as getSettings } from './settings'
+import * as Prompts from './prompts'
+import * as Reminders from './reminders'
+import { refreshForAgent } from './session/models'
 import { stopForSession } from './stream/lifecycle'
 
-export async function list(ctx: AuthQueryCtx) {
-  return ctx.db
+/** What the agent pickers and lists render. */
+export type AgentSummary = Pick<
+  Doc<'agents'>,
+  '_id' | 'name' | 'description' | 'avatarId'
+>
+
+/** All agents the user owns, as subsets of the docs for cheap read. */
+export async function list(ctx: AuthQueryCtx): Promise<AgentSummary[]> {
+  const agents = await ctx.db
     .query('agents')
     .withIndex('by_ownerId_name', (q) => q.eq('ownerId', ctx.userId))
     .order('asc')
     .collect()
+
+  return agents.map(({ _id, name, description, avatarId }) => ({
+    _id,
+    name,
+    description,
+    avatarId,
+  }))
 }
 
 export async function get(
@@ -26,16 +41,64 @@ export async function get(
   return agent?.ownerId === ctx.userId ? agent : null
 }
 
+/**
+ * An agent flattened back into the shape the archive format expects, with its
+ * prompt and reminder rows inlined alongside the owner's prompt library.
+ */
+export async function exportData(
+  ctx: AuthQueryCtx,
+  { agentId }: { agentId: Id<'agents'> },
+) {
+  const agent = await get(ctx, { agentId })
+  if (!agent) return null
+
+  const { _id, _creationTime, ownerId, avatarId, ...rest } = agent
+  const [prompts, reminders, library] = await Promise.all([
+    Prompts.listForAgent(ctx, agentId, 'own'),
+    Reminders.listForAgent(ctx, agentId),
+    Prompts.listOwned(ctx, ownerId, 'library'),
+  ])
+
+  return {
+    name: agent.name,
+    avatarId,
+    data: {
+      ...rest,
+      prompts: Prompts.toItems(prompts),
+      reminderPrompts: Reminders.toItems(reminders),
+    } as Record<string, unknown>,
+    libraryPrompts: Prompts.toItems(library) as Prompt[],
+  }
+}
+
 export async function create(ctx: AuthMutationCtx, args: CreateAgentArgs) {
-  const defaults = createDefaultAgent()
-  return ctx.db.insert('agents', {
+  const { prompts, reminderPrompts, ...rest } = args
+  assertCustomCssCap(rest.customCss)
+
+  const agentId = await ctx.db.insert('agents', {
     ownerId: ctx.userId,
-    prompts: defaults.prompts,
     tools: [],
     ...DEFAULT_CONTEXT_OPTIONS,
-    ...args,
+    ...rest,
     subAgents: await sanitizeSubAgents(ctx, ctx.userId, args.subAgents),
   })
+
+  await Prompts.seed(ctx, {
+    ownerId: ctx.userId,
+    agentId,
+    scope: 'own',
+    items: prompts ?? createDefaultAgent().prompts,
+  })
+  if (reminderPrompts?.length) {
+    await Reminders.seed(ctx, {
+      ownerId: ctx.userId,
+      agentId,
+      scope: 'own',
+      items: reminderPrompts,
+    })
+  }
+
+  return agentId
 }
 
 export async function update(
@@ -43,6 +106,7 @@ export async function update(
   { agentId, unset, ...patch }: UpdateAgentArgs,
 ) {
   const agent = await requireOwned(ctx, agentId)
+  assertCustomCssCap(patch.customCss)
   if (patch.subAgents) {
     patch.subAgents = await sanitizeSubAgents(ctx, ctx.userId, patch.subAgents)
   }
@@ -53,10 +117,7 @@ export async function update(
   await ctx.db.patch(agentId, { ...patch, ...cleared })
 
   if ('modelId' in patch) {
-    await refreshActiveSessionModelMetadata(ctx, {
-      ...agent,
-      modelId: patch.modelId,
-    })
+    await refreshForAgent(ctx, { ...agent, modelId: patch.modelId })
   }
 }
 
@@ -77,14 +138,27 @@ export async function remove(
     if (session?.activeAgentId === agentId) {
       await ctx.db.patch(session._id, {
         activeAgentId: undefined,
-        metadata: setMetadataModel(session.metadata, undefined),
+        model: undefined,
       })
     }
     await ctx.db.delete(link._id)
   }
 
+  await Prompts.removeForAgent(ctx, agentId)
+  await Reminders.removeForAgent(ctx, agentId)
+  await removeSessionCache(ctx, agentId)
+
   await ctx.db.delete(agentId)
   if (agent.avatarId) await Avatars.removeIfUnreferenced(ctx, agent.avatarId)
+}
+
+async function removeSessionCache(ctx: AuthMutationCtx, agentId: Id<'agents'>) {
+  const rows = await ctx.db
+    .query('sessionCache')
+    .withIndex('by_agentId', (q) => q.eq('agentId', agentId))
+    .collect()
+
+  for (const row of rows) await ctx.db.delete(row._id)
 }
 
 export async function duplicate(
@@ -93,7 +167,15 @@ export async function duplicate(
 ) {
   const agent = await requireOwned(ctx, agentId)
   const { _id, _creationTime, avatarId: _avatarId, ...copy } = agent
-  return ctx.db.insert('agents', { ...copy, name: `${copy.name} (copy)` })
+
+  const duplicateId = await ctx.db.insert('agents', {
+    ...copy,
+    name: `${copy.name} (copy)`,
+  })
+  await Prompts.copyForAgent(ctx, agentId, duplicateId, ctx.userId)
+  await Reminders.copyForAgent(ctx, agentId, duplicateId, ctx.userId)
+
+  return duplicateId
 }
 
 export async function clearAvatar(
@@ -122,31 +204,4 @@ async function requireOwned(ctx: AuthMutationCtx, agentId: Id<'agents'>) {
   const agent = await ctx.db.get(agentId)
   if (!agent || agent.ownerId !== ctx.userId) error('Not found', 404)
   return agent
-}
-
-async function refreshActiveSessionModelMetadata(
-  ctx: AuthMutationCtx,
-  agent: { _id: Id<'agents'>; ownerId: Id<'users'>; modelId?: string },
-) {
-  const links = await ctx.db
-    .query('sessionAgents')
-    .withIndex('by_agentId', (q) => q.eq('agentId', agent._id))
-    .collect()
-
-  const settings = await getSettings(ctx)
-
-  const model = agent.modelId
-    ? (findModelEntry(settings?.modelProviders, agent.modelId) ?? {
-        id: agent.modelId,
-      })
-    : undefined
-
-  for (const link of links) {
-    const session = await ctx.db.get(link.sessionId)
-    if (session?.activeAgentId !== agent._id) continue
-
-    await ctx.db.patch(session._id, {
-      metadata: setMetadataModel(session.metadata, model),
-    })
-  }
 }

@@ -37,6 +37,11 @@ export const getLogUrls = authQuery({
   handler: Sessions.getLogUrls,
 })
 
+export const getState = authQuery({
+  args: { sessionId: v.id('sessions') },
+  handler: Sessions.getStateView,
+})
+
 export const update = authMutation({
   args: V.updateSessionArgsValidator.fields,
   handler: Sessions.update,
@@ -93,7 +98,7 @@ export const _patchTitle = internalMutation({
 })
 
 export const _patchEnvironment = internalMutation({
-  args: { sessionId: v.id('sessions'), environment: v.any() },
+  args: { sessionId: v.id('sessions'), environment: Sub.environmentValidator },
   handler: Sessions._patchEnvironment,
 })
 
@@ -120,12 +125,7 @@ export const _allowToolPaths = internalMutation({
   handler: Sessions._allowToolPaths,
 })
 
-export const _patchLastRequestBody = internalMutation({
+export const _patchSessionLog = internalMutation({
   args: { sessionId: v.id('sessions'), storageId: v.id('_storage') },
-  handler: Sessions._patchLastRequestBody,
-})
-
-export const _patchLastResponseBody = internalMutation({
-  args: { sessionId: v.id('sessions'), storageId: v.id('_storage') },
-  handler: Sessions._patchLastResponseBody,
+  handler: Sessions._patchSessionLog,
 })

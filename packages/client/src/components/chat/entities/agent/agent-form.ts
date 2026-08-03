@@ -14,6 +14,22 @@ import type { Doc, Id } from '@sb/convex/_generated/dataModel'
 import { ensurePromptMarkers } from '@sb/convex/model/prompt/markers'
 import type { AgentSubAgentsMode } from '@sb/core/types'
 
+/** The agent's prompt rows, grouped by scope. */
+export type AgentPromptSets = {
+  prompts: PromptItem[]
+  reminderPrompts: ReminderPrompt[]
+  // `null` means "inherit the user's set"
+  compactionPrompts: PromptItem[] | null
+  impersonationPrompts: PromptItem[] | null
+}
+
+export const EMPTY_AGENT_PROMPT_SETS: AgentPromptSets = {
+  prompts: [],
+  reminderPrompts: [],
+  compactionPrompts: null,
+  impersonationPrompts: null,
+}
+
 /** Structural markers every agent prompt list carries. */
 export const AGENT_PROMPT_MARKERS: PromptMarkerType[] = [
   'message-history',
@@ -107,10 +123,10 @@ function orderToolNames(
 
 /** Resolves the enabled tool names from a stored selection. */
 export function getEnabledToolNames(
-  tools: unknown,
+  tools: string[] | undefined,
   available: readonly ToolMetadata[],
 ): AgentToolSelection {
-  return orderToolNames(new Set(Array.isArray(tools) ? tools : []), available)
+  return orderToolNames(new Set(tools), available)
 }
 
 /** Normalizes an explicit set of enabled names into a stored selection. */
@@ -128,21 +144,21 @@ export function toToolSelection(
  * default.
  * Update: `AgentFormValues` has no optional fields anymore.
  */
-export function agentToFormValues(agent: Doc<'agents'>): AgentFormValues {
+export function agentToFormValues(
+  agent: Doc<'agents'>,
+  sets: AgentPromptSets,
+): AgentFormValues {
   return {
     name: agent.name,
     description: agent.description ?? '',
-    prompts: ensurePromptMarkers(
-      agent.prompts as PromptItem[],
-      AGENT_PROMPT_MARKERS,
-    ),
+    prompts: ensurePromptMarkers(sets.prompts, AGENT_PROMPT_MARKERS),
     promptOrder: (agent.promptOrder as OrderedItem[] | undefined) ?? null,
     globalPromptsEnabled: agent.globalPromptsEnabled ?? true,
-    reminderPrompts: (agent.reminderPrompts as ReminderPrompt[]) ?? [],
+    reminderPrompts: sets.reminderPrompts,
     libraryReminderIds: agent.libraryReminderIds ?? [],
     modelId: agent.modelId ?? null,
     reasoningEffort: (agent.reasoningEffort as ReasoningEffort | undefined) ?? null, // prettier-ignore
-    tools: Array.isArray(agent.tools) ? (agent.tools as string[]) : [],
+    tools: agent.tools ?? [],
     autoApproveTools: agent.autoApprove?.tools ?? [],
     autoApproveShell: agent.autoApprove?.shell ?? [],
     subAgentsMode: agent.subAgents?.mode ?? 'allow',
@@ -163,8 +179,8 @@ export function agentToFormValues(agent: Doc<'agents'>): AgentFormValues {
     themeColor: agent.theme?.source ?? '',
     mathMode: agent.mathMode ?? null,
     chatWidth: agent.chatWidth ?? null,
-    compactionPrompts: (agent.compactionPrompts as PromptItem[] | undefined) ?? null, // prettier-ignore
-    impersonationPrompts: (agent.impersonationPrompts as PromptItem[] | undefined) ?? null, // prettier-ignore
+    compactionPrompts: sets.compactionPrompts,
+    impersonationPrompts: sets.impersonationPrompts,
   }
 }
 

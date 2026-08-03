@@ -5,8 +5,13 @@ import { internal } from '../../_generated/api'
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import { settleAbandonedTaskParts } from '../../lib/subagent'
+import type { TokenUsage } from '../../types'
 import { cleanUpGeneratedAttachments } from '../attachments'
-import { streamOutputIdentity } from '../chat/identities'
+import {
+  agentIdentity,
+  senderIdentity,
+  streamOutputIdentity,
+} from '../chat/identities'
 import { clearAnnouncedMode, injectModeNote } from '../chat/notes'
 import { bumpTurnCount, injectDueReminders } from '../chat/reminders'
 import {
@@ -27,6 +32,7 @@ import {
   syncActivity,
 } from '../messages'
 import { createPlanLinkPart, getBySession as getPlan } from '../plans'
+import { getState, patchState } from '../session/state'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 import { deliverChildReport } from './subagents'
 import { collectToolOutputStorageIds } from './toolOutput'
@@ -112,7 +118,7 @@ async function claimFreshTurn(ctx: MutationCtx, stream: Doc<'streams'>) {
       sessionId: stream.sessionId,
       sender: output.sender,
       role: output.role,
-      senderSnapshot: output.senderSnapshot,
+      ...output.identity,
       type: stream.operation === 'compact' ? 'summary' : undefined,
       status: 'processing',
     },
@@ -324,7 +330,7 @@ async function rolloverProcessingMessage(
       sessionId: stream.sessionId,
       sender: current.sender,
       role: 'assistant',
-      senderSnapshot: current.senderSnapshot,
+      ...senderIdentity(current),
       status: 'processing',
     },
     [],
@@ -355,7 +361,7 @@ export async function _saveMeta(
     duration: number
     toolErrors: string[]
     warnings: string[]
-    usage: unknown
+    usage: TokenUsage
   },
 ) {
   const stream = await ctx.db.get(streamId)
@@ -381,7 +387,7 @@ type MetaDelta = {
   duration: number
   toolErrors: string[]
   warnings: string[]
-  usage: unknown
+  usage: TokenUsage
 }
 
 function accumulateMeta(
@@ -399,39 +405,22 @@ function accumulateMeta(
   }
 }
 
-type UsageDelta = {
-  inputTokens?: number
-  outputTokens?: number
-  totalTokens?: number
-}
-
 async function accumulateSessionUsage(
   ctx: MutationCtx,
   sessionId: Id<'sessions'>,
-  usage: unknown,
+  delta: TokenUsage,
 ) {
-  const delta = usage as UsageDelta | null | undefined
-  if (!delta) return
-
-  const session = await ctx.db.get(sessionId)
-  if (!session) return
-
-  const metadata = session.metadata ?? {}
-  const prev = metadata.usage ?? {
+  const prev = (await getState(ctx, sessionId))?.usage ?? {
     inputTokens: 0,
     outputTokens: 0,
     totalTokens: 0,
   }
 
-  await ctx.db.patch(sessionId, {
-    metadata: {
-      ...metadata,
-      usage: {
-        ...prev,
-        inputTokens: prev.inputTokens + (delta.inputTokens ?? 0),
-        outputTokens: prev.outputTokens + (delta.outputTokens ?? 0),
-        totalTokens: prev.totalTokens + (delta.totalTokens ?? 0),
-      },
+  await patchState(ctx, sessionId, {
+    usage: {
+      inputTokens: prev.inputTokens + delta.inputTokens,
+      outputTokens: prev.outputTokens + delta.outputTokens,
+      totalTokens: prev.totalTokens + delta.totalTokens,
     },
   })
 }
@@ -856,12 +845,7 @@ export async function reserveInvokeTurn(
       sessionId: session._id,
       sender: { type: 'agent', id: agent._id },
       role: 'assistant',
-      senderSnapshot: {
-        name: agent.name,
-        avatarId: agent.avatarId,
-        css: agent.customCss,
-        theme: agent.theme ?? agentSettings?.theme,
-      },
+      ...(await agentIdentity(ctx, agent, agentSettings)),
       status: 'processing',
     },
     [],

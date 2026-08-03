@@ -4,7 +4,7 @@ import type { Doc } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { TASK_TOOL_NAME, sharedSessionId } from '../../lib/subagent'
 import { mergeToolApprovals } from '../../lib/tool/approval'
-import type { AgentAutoApprove } from '../../types'
+import type { AgentAutoApprove, ToolApprovals } from '../../types'
 import type { PlanToolContext, WorkspaceToolContext } from './context'
 import {
   createEditFileTool,
@@ -21,7 +21,7 @@ import {
   isPlanMode,
   withPlanModeReminders,
 } from './plan'
-import type { WebToolSettings } from './settings'
+import { EMPTY_TOOL_RESOURCES, type ToolResources } from './settings'
 import {
   createKillShellTool,
   createShellOutputTool,
@@ -30,6 +30,12 @@ import {
 import { createTaskTool } from './task'
 import { createEditTodoTool, createWriteTodoTool } from './todo'
 import { createWebFetchTool, createWebSearchTool } from './web'
+
+/** Session data the tool builder needs. */
+export type ToolSession = Pick<
+  Doc<'sessions'>,
+  '_id' | 'workspace' | 'parent'
+> & { toolApprovals?: ToolApprovals }
 
 export type ToolBuildOptions = {
   ctx?: ActionCtx
@@ -43,11 +49,8 @@ export type ToolBuildOptions = {
  */
 export async function getEnabledTools(
   manifest: ToolManifest,
-  session?: Pick<
-    Doc<'sessions'>,
-    '_id' | 'workspace' | 'toolApprovals' | 'parent'
-  >,
-  settings?: WebToolSettings,
+  session?: ToolSession,
+  resources?: ToolResources | null,
   options?: ToolBuildOptions,
 ): Promise<ToolSet> {
   const ctx = options?.ctx
@@ -77,7 +80,7 @@ export async function getEnabledTools(
     const built = await createManifestTool(name, {
       manifest,
       mcpByName,
-      settings,
+      resources: resources ?? EMPTY_TOOL_RESOURCES,
       workspace,
       planContext,
     })
@@ -92,7 +95,7 @@ type AnyTool = ToolSet[string]
 type BuildContext = {
   manifest: ToolManifest
   mcpByName: Map<string, McpManifestEntry>
-  settings?: WebToolSettings
+  resources: ToolResources
   workspace?: WorkspaceToolContext
   planContext?: PlanToolContext
 }
@@ -108,7 +111,7 @@ async function createManifestTool(
     case 'web_fetch':
       return createWebFetchTool()
     case 'web_search':
-      return createWebSearchTool(build.settings)
+      return createWebSearchTool(build.resources.settings)
     case 'read_file':
       return workspace && createReadFileTool(workspace)
     case 'write_file':
@@ -140,5 +143,5 @@ async function createManifestTool(
 
   const entry = build.mcpByName.get(name)
   if (!entry) return undefined
-  return createExternalMcpTool(entry, build.settings)
+  return createExternalMcpTool(entry, build.resources.mcpServers)
 }

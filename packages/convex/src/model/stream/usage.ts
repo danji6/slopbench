@@ -1,17 +1,12 @@
 import type { LanguageModelUsage } from 'ai'
 
+import type { TokenUsage } from '../../types'
 import { estimateTokens } from '../context'
-
-export type ResolvedUsage = {
-  inputTokens: number
-  outputTokens: number
-  totalTokens: number
-}
 
 export async function resolveUsage(args: {
   usage: LanguageModelUsage | undefined
   outputText: string
-}): Promise<ResolvedUsage> {
+}): Promise<TokenUsage> {
   const inputTokens = args.usage?.inputTokens ?? 0
   const outputTokens = args.usage?.outputTokens ?? 0
 

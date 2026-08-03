@@ -53,6 +53,19 @@ export function useActiveSession() {
   return useActiveSessionQuery() ?? null
 }
 
+/** The active session's mutable state. */
+export function useActiveSessionState() {
+  const activeSessionId = useActiveSessionId()
+  return (
+    useQuery(
+      api.sessions.getState,
+      activeSessionId
+        ? { sessionId: activeSessionId as Id<'sessions'> }
+        : 'skip',
+    ) ?? null
+  )
+}
+
 /** The active session's composer mode, with setters cycling/toggling it. */
 export function useSessionMode() {
   const session = useActiveSession()
@@ -153,12 +166,18 @@ export function optimisticallyPatchSession(
     store.setQuery(api.sessions.get, { sessionId }, mergePatch(session, patch))
   }
 
+  const listPatch = {
+    ...('title' in patch ? { title: patch.title } : {}),
+    ...('activeAgentId' in patch ? { activeAgentId: patch.activeAgentId } : {}),
+  }
+  if (Object.keys(listPatch).length === 0) return
+
   for (const { args, value } of store.getAllQueries(api.sessions.list)) {
     if (!value) continue
     store.setQuery(api.sessions.list, args, {
       ...value,
       page: value.page.map((item) =>
-        item._id === sessionId ? mergePatch(item, patch) : item,
+        item._id === sessionId ? { ...item, ...listPatch } : item,
       ),
     })
   }

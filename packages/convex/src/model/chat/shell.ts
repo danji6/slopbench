@@ -79,7 +79,7 @@ export async function runShellCommand(
     input: { command },
   }
 
-  const { sender, senderSnapshot } = await resolveSender(ctx, {
+  const { sender, identity } = await resolveSender(ctx, {
     role: 'user',
     session,
     settings,
@@ -91,7 +91,7 @@ export async function runShellCommand(
       sessionId: session._id,
       sender,
       role: 'user',
-      senderSnapshot,
+      ...identity,
       status: 'processing',
     },
     [part],

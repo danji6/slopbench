@@ -1,6 +1,7 @@
 import { parseFileMentions } from '@sb/core/mentions/parse'
 import { parseShellCommand, unescapeShellPrefix } from '@sb/core/shell/command'
 import type { WorkspaceLinkSnapshot } from '@sb/core/types/workspace'
+import { clampLinkSnapshot } from '@sb/core/workspace/snapshot'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
@@ -99,19 +100,19 @@ export async function sendMessage(ctx: AuthMutationCtx, args: SendMessageArgs) {
     ...(content.trim() ? [{ type: 'text', text: content.trim() }] : []),
   ]
 
-  const { sender, senderSnapshot } = await resolveSender(ctx, {
+  const { sender, identity } = await resolveSender(ctx, {
     role,
     session,
     settings,
   })
 
-  const { messageId } = await insertMessage(
+  const { messageId, segments } = await insertMessage(
     ctx,
     {
       sessionId: args.sessionId,
       sender,
       role,
-      senderSnapshot,
+      ...identity,
       status: 'done',
     },
     parts,
@@ -123,13 +124,16 @@ export async function sendMessage(ctx: AuthMutationCtx, args: SendMessageArgs) {
 
   await bumpTurnCount(ctx, args.sessionId)
 
-  await scheduleMessageEval(ctx, {
-    messageId,
-    invokerId: ctx.userId,
-    parts,
-    version: 1,
-    segmentIndex: 0,
-  })
+  // A long send may comprise several segments, each evaluated on its own row
+  for (const [segmentIndex, segmentParts] of segments.entries()) {
+    await scheduleMessageEval(ctx, {
+      messageId,
+      invokerId: ctx.userId,
+      parts: segmentParts,
+      version: 1,
+      segmentIndex,
+    })
+  }
   await syncActivity(ctx, args.sessionId, parts)
 
   if (role === 'user') {
@@ -286,7 +290,9 @@ function snapshotFileLinkParts(
 function resolvedFileLinkParts(resolved: ResolvedFileLink[]): FileLinkPart[] {
   const seen = new Set<string>()
   const parts: FileLinkPart[] = []
-  for (const { path, snapshot } of resolved) {
+  for (const { path, snapshot: raw } of resolved) {
+    // Reapply the cap instead of trusting the client
+    const snapshot = raw ? clampLinkSnapshot(raw) : undefined
     const canonical = snapshot?.path ?? path
     if (seen.has(canonical)) continue
     seen.add(canonical)

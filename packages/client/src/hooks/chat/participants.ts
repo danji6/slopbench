@@ -1,12 +1,13 @@
 import { useStableValue } from '@/hooks/stable-value'
 import type { SessionMember } from '@/lib/chat'
 import { api } from '@sb/convex/_generated/api'
-import type { Doc, Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@sb/convex/_generated/dataModel'
 import type { OptimisticLocalStore } from 'convex/browser'
 import { useMutation, useQuery } from 'convex/react'
 import { useCallback, useMemo } from 'react'
 
 import { useLinkedAgents, useOwnedAgents, useSelectAgent } from './agent'
+import type { AgentSummary } from './agent'
 import { useUserProfile } from './profile'
 import {
   optimisticallyPatchSession,
@@ -224,7 +225,7 @@ function optimisticallyLinkAgent(
   store: OptimisticLocalStore,
   sessionId: Id<'sessions'>,
   agentId: Id<'agents'>,
-  ownedAgents: Doc<'agents'>[] | undefined,
+  ownedAgents: AgentSummary[] | undefined,
 ) {
   const linked = store.getQuery(api.sessionAgents.list, { sessionId })
   if (linked === undefined || linked.some((agent) => agent?._id === agentId)) {
@@ -240,12 +241,13 @@ function optimisticallyLinkAgent(
       _id: owned._id,
       name: owned.name,
       avatarId: owned.avatarId,
-      modelId: owned.modelId,
-      customCss: owned.customCss,
-      scrollMode: owned.scrollMode,
-      mathMode: owned.mathMode,
-      chatWidth: owned.chatWidth,
-      theme: owned.theme,
+      // The agent's appearance arrives with the server's next result
+      modelId: undefined,
+      customCss: undefined,
+      scrollMode: undefined,
+      mathMode: undefined,
+      chatWidth: undefined,
+      theme: undefined,
     },
   ])
 }

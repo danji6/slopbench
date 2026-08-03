@@ -10,16 +10,16 @@ import {
   Textarea,
   TooltipButton,
 } from '@/components/ui'
-import { useTools } from '@/hooks/chat'
+import { useMcpToolDiscovery, useTools } from '@/hooks/chat'
 import { cn, generateId } from '@/lib/utils'
-import { api } from '@sb/convex/_generated/api'
+import type { Id } from '@sb/convex/_generated/dataModel'
 import {
   type McpDialedTransport,
+  type McpToolMeta,
   type McpTransport,
   SUPPORTED_MCP_TRANSPORTS,
   mcpToolName,
 } from '@sb/core/types'
-import { useAction } from 'convex/react'
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -30,7 +30,7 @@ import {
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { Control } from 'react-hook-form'
-import { Controller } from 'react-hook-form'
+import { useFieldArray } from 'react-hook-form'
 
 import type {
   McpServerFormValues,
@@ -38,38 +38,86 @@ import type {
   SettingsFormValues,
 } from './settings-schema'
 
-type McpSettingsProps = {
+export function McpSettings({
+  control,
+}: {
   control: Control<SettingsFormValues>
-}
+}) {
+  const { fields, append, update, remove, move } = useFieldArray<
+    SettingsFormValues,
+    'mcpServers',
+    'rhfKey'
+  >({ control, name: 'mcpServers', keyName: 'rhfKey' })
 
-export function McpSettings({ control }: McpSettingsProps) {
+  const conflicts = useToolConflicts(fields)
+  const items = fields.map((field, index) => ({ ...field, index }))
+
+  function addServer() {
+    append({
+      id: generateId(),
+      label: '',
+      url: '',
+      transport: 'auto',
+      enabled: true,
+      hasKey: false,
+      _clientId: generateId(),
+    })
+  }
+
   return (
     <SettingsList className="pb-4">
-      <Controller
-        control={control}
-        name="mcpServers"
-        render={({ field }) => (
-          <SettingsList.Item
-            label="MCP servers"
-            description="Connect external Model Context Protocol servers."
-            unclickable
-            unhoverable
-            orientation="vertical"
-          >
-            <McpServerList servers={field.value} onChange={field.onChange} />
-          </SettingsList.Item>
-        )}
-      />
+      <SettingsList.Item
+        label="MCP servers"
+        description="Connect external Model Context Protocol servers."
+        unclickable
+        unhoverable
+        orientation="vertical"
+      >
+        <SearchableList<McpServerItem>
+          items={items}
+          keys={(item) => item._clientId ?? item.id}
+          fields={['label', 'url']}
+          pageSize={10}
+          searchThreshold={5}
+          searchPlaceholder="Search servers..."
+          actions={
+            <RippleButton
+              type="button"
+              size="sm"
+              variant="input"
+              onClick={addServer}
+            >
+              <PlusIcon />
+              Add
+            </RippleButton>
+          }
+          empty={() => (
+            <div className="text-muted-foreground p-2 text-center text-xs">
+              No MCP servers configured
+            </div>
+          )}
+          className="flex flex-col gap-2"
+          itemProps={{ className: 'w-full' }}
+          render={(item) => (
+            <McpServerCard
+              item={item}
+              count={fields.length}
+              conflicts={conflicts}
+              onChange={(patch) => {
+                const { rhfKey: _, index: __, ...data } = item
+                update(item.index, { ...data, ...patch })
+              }}
+              onMove={(direction) => move(item.index, item.index + direction)}
+              onRemove={() => remove(item.index)}
+            />
+          )}
+        />
+      </SettingsList.Item>
     </SettingsList>
   )
 }
 
-type McpServerListProps = {
-  servers: McpServerFormValues[]
-  onChange: (servers: McpServerFormValues[]) => void
-}
-
-type McpServerItem = McpServerFormValues & { index: number }
+type McpServerItem = McpServerFormValues & { rhfKey: string; index: number }
 
 /** Tool names that collide across enabled servers or with a built-in tool. */
 function useToolConflicts(servers: McpServerFormValues[]): Set<string> {
@@ -101,86 +149,6 @@ function useToolConflicts(servers: McpServerFormValues[]): Set<string> {
   }, [servers, reserved])
 }
 
-function McpServerList({ servers, onChange }: McpServerListProps) {
-  const items = servers.map((server, index) => ({ ...server, index }))
-  const conflicts = useToolConflicts(servers)
-
-  function handleAdd() {
-    onChange([
-      {
-        id: generateId(),
-        label: '',
-        url: '',
-        transport: 'auto',
-        enabled: true,
-      },
-      ...servers,
-    ])
-  }
-
-  function handleChange(index: number, patch: Partial<McpServerFormValues>) {
-    onChange(
-      servers.map((server, i) =>
-        i === index ? { ...server, ...patch } : server,
-      ),
-    )
-  }
-
-  function handleDelete(index: number) {
-    onChange(servers.filter((_, i) => i !== index))
-  }
-
-  function handleMove(index: number, direction: -1 | 1) {
-    const nextIndex = index + direction
-    if (nextIndex < 0 || nextIndex >= servers.length) return
-    const next = [...servers]
-    const current = next[index]
-    if (!current || !next[nextIndex]) return
-    next[index] = next[nextIndex]
-    next[nextIndex] = current
-    onChange(next)
-  }
-
-  return (
-    <SearchableList<McpServerItem>
-      items={items}
-      keys={(item) => item.id}
-      fields={['label', 'url']}
-      pageSize={10}
-      searchThreshold={5}
-      searchPlaceholder="Search servers..."
-      actions={
-        <RippleButton
-          type="button"
-          size="sm"
-          variant="input"
-          onClick={handleAdd}
-        >
-          <PlusIcon />
-          Add
-        </RippleButton>
-      }
-      empty={() => (
-        <div className="text-muted-foreground p-2 text-center text-xs">
-          No MCP servers configured
-        </div>
-      )}
-      className="flex flex-col gap-2"
-      itemProps={{ className: 'w-full' }}
-      render={(item) => (
-        <McpServerCard
-          item={item}
-          count={servers.length}
-          conflicts={conflicts}
-          onChange={handleChange}
-          onDelete={handleDelete}
-          onMove={handleMove}
-        />
-      )}
-    />
-  )
-}
-
 /** Names the picked transport, revealing what `auto` negotiated once known. */
 function transportLabel(
   transport: string | undefined,
@@ -200,9 +168,9 @@ type McpServerCardProps = {
   item: McpServerItem
   count: number
   conflicts: Set<string>
-  onChange: (index: number, patch: Partial<McpServerFormValues>) => void
-  onDelete: (index: number) => void
-  onMove: (index: number, direction: -1 | 1) => void
+  onChange: (patch: Partial<McpServerFormValues>) => void
+  onMove: (direction: -1 | 1) => void
+  onRemove: () => void
 }
 
 function McpServerCard({
@@ -210,10 +178,11 @@ function McpServerCard({
   count,
   conflicts,
   onChange,
-  onDelete,
   onMove,
+  onRemove,
 }: McpServerCardProps) {
-  const discover = useAction(api.actions.mcp.discoverMcpTools)
+  const discover = useMcpToolDiscovery()
+
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
@@ -226,33 +195,17 @@ function McpServerCard({
       const { tools, transport } = await discover({
         url: item.url,
         transport: item.transport,
-        apiKey: item.apiKey || undefined,
+        apiKey: item.apiKey,
+        serverId: item.serverId as Id<'mcpServers'> | undefined,
       })
       setDialed(transport ?? null)
-      // Preserve description overrides across re-discovery
-      const overrides = new Map(
-        (item.tools ?? []).map((t) => [t.name, t.descriptionOverride]),
-      )
-      onChange(item.index, {
-        tools: tools.map((t) => ({
-          ...t,
-          descriptionOverride: overrides.get(t.name),
-        })),
-      })
+      onChange({ tools: mergeOverrides(item.tools, tools) })
     } catch (err) {
       setDialed(null)
       setError(err instanceof Error ? err.message : 'Failed to discover tools')
     } finally {
       setRefreshing(false)
     }
-  }
-
-  function updateTool(name: string, patch: Partial<McpToolMetaFormValues>) {
-    onChange(item.index, {
-      tools: (item.tools ?? []).map((tool) =>
-        tool.name === name ? { ...tool, ...patch } : tool,
-      ),
-    })
   }
 
   const isClashing = (tool: McpToolMetaFormValues) =>
@@ -278,12 +231,12 @@ function McpServerCard({
         <Switch
           size="sm"
           checked={item.enabled}
-          onCheckedChange={(enabled) => onChange(item.index, { enabled })}
+          onCheckedChange={(enabled) => onChange({ enabled })}
         />
         <Input
           value={item.label}
           placeholder="Label"
-          onValueChange={(label) => onChange(item.index, { label })}
+          onValueChange={(label) => onChange({ label })}
           className="h-8 flex-1"
         />
         {expanded && (
@@ -291,7 +244,7 @@ function McpServerCard({
             value={item.transport}
             onValueChange={(transport) => {
               setDialed(null)
-              onChange(item.index, { transport: transport as McpTransport })
+              onChange({ transport: transport as McpTransport })
             }}
             noDeselect
           >
@@ -322,7 +275,7 @@ function McpServerCard({
           variant="stealth"
           disabled={item.index === 0}
           className="text-muted-foreground hover:text-foreground"
-          onClick={() => onMove(item.index, -1)}
+          onClick={() => onMove(-1)}
         >
           <ArrowUpIcon />
         </TooltipButton>
@@ -333,7 +286,7 @@ function McpServerCard({
           variant="stealth"
           disabled={item.index === count - 1}
           className="text-muted-foreground hover:text-foreground"
-          onClick={() => onMove(item.index, 1)}
+          onClick={() => onMove(1)}
         >
           <ArrowDownIcon />
         </TooltipButton>
@@ -343,7 +296,7 @@ function McpServerCard({
           size="icon"
           variant="stealth"
           className="text-muted-foreground hover:text-destructive"
-          onClick={() => onDelete(item.index)}
+          onClick={onRemove}
         >
           <Trash2Icon />
         </TooltipButton>
@@ -355,7 +308,7 @@ function McpServerCard({
             placeholder="http://localhost:11235/mcp"
             onValueChange={(url) => {
               setDialed(null)
-              onChange(item.index, { url })
+              onChange({ url })
             }}
             className="h-9 flex-1"
           />
@@ -363,9 +316,10 @@ function McpServerCard({
         <div className="flex w-full items-center gap-2 px-1">
           <Input
             type="password"
+            // Undefined keeps the stored key, while an empty string clears it
             value={item.apiKey ?? ''}
-            placeholder="API key (optional)"
-            onValueChange={(apiKey) => onChange(item.index, { apiKey })}
+            placeholder={`API key (${item.hasKey ? 'already set' : 'optional'})`}
+            onValueChange={(apiKey) => onChange({ apiKey })}
             className="h-9 flex-1"
           />
           <RippleButton
@@ -386,13 +340,19 @@ function McpServerCard({
           <div className="text-destructive px-3 text-xs">{error}</div>
         ) : item.tools && item.tools.length > 0 ? (
           <Accordion>
-            {item.tools.map((tool) => (
+            {item.tools.map((tool, index) => (
               <McpToolRow
                 key={tool.name}
                 value={tool.name}
                 tool={tool}
                 clashing={isClashing(tool)}
-                onChange={(patch) => updateTool(tool.name, patch)}
+                onChange={(descriptionOverride) =>
+                  onChange({
+                    tools: item.tools?.map((row, i) =>
+                      i === index ? { ...row, descriptionOverride } : row,
+                    ),
+                  })
+                }
               />
             ))}
           </Accordion>
@@ -406,15 +366,30 @@ function McpServerCard({
   )
 }
 
+/** Keeps the user's descriptions across a re-discovery, matched by tool name. */
+function mergeOverrides(
+  previous: McpToolMetaFormValues[] | undefined,
+  discovered: McpToolMeta[],
+): McpToolMetaFormValues[] {
+  const overrides = new Map(
+    (previous ?? []).map((tool) => [tool.name, tool.descriptionOverride]),
+  )
+  return discovered.map((tool) => ({
+    ...tool,
+    descriptionOverride: overrides.get(tool.name),
+  }))
+}
+
 type McpToolRowProps = {
   value: string
   tool: McpToolMetaFormValues
   clashing: boolean
-  onChange: (patch: Partial<McpToolMetaFormValues>) => void
+  onChange: (descriptionOverride?: string) => void
 }
 
 function McpToolRow({ value, tool, clashing, onChange }: McpToolRowProps) {
   const overridden = tool.descriptionOverride !== undefined
+  const description = tool.descriptionOverride ?? tool.description ?? ''
 
   return (
     <Accordion.Item value={value}>
@@ -442,16 +417,16 @@ function McpToolRow({ value, tool, clashing, onChange }: McpToolRowProps) {
             variant="stealth"
             disabled={!overridden}
             className="text-muted-foreground hover:text-foreground h-6 px-2 text-xs"
-            onClick={() => onChange({ descriptionOverride: undefined })}
+            onClick={() => onChange(undefined)}
           >
             <RotateCcwIcon className="size-3.5" />
             Reset
           </RippleButton>
         </div>
         <Textarea
-          value={tool.descriptionOverride ?? tool.description ?? ''}
+          value={description}
           placeholder="No description provided"
-          onChange={(e) => onChange({ descriptionOverride: e.target.value })}
+          onChange={(e) => onChange(e.target.value)}
           className="max-h-48 min-h-20 text-sm"
         />
       </Accordion.Content>

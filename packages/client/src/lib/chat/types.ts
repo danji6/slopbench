@@ -1,4 +1,5 @@
 import type { Doc, Id } from '@sb/convex/_generated/dataModel'
+import type { SessionSummary } from '@sb/convex/types'
 import type {
   ApproveToolArgs as CoreApproveToolArgs,
   CreateAgentArgs as CoreCreateAgentArgs,
@@ -15,8 +16,7 @@ export type * from '@sb/core/types'
 
 export type SessionMember = CoreSessionMember<
   Doc<'userSessions'>,
-  Doc<'users'>,
-  Doc<'settings'>
+  Id<'avatars'>
 >
 
 export type SessionParticipant = CoreSessionParticipant<
@@ -26,7 +26,7 @@ export type SessionParticipant = CoreSessionParticipant<
 >
 
 export type SessionListItem = CoreSessionListItem<
-  Doc<'sessions'>,
+  SessionSummary,
   Id<'users'>,
   Id<'agents'>,
   Id<'avatars'>
@@ -70,7 +70,9 @@ export type MessageSegmentInfo = {
 export type MessageRecord = Pick<
   Doc<'messages'>,
   | 'sender'
-  | 'senderSnapshot'
+  | 'senderName'
+  | 'senderAvatarId'
+  | 'appearanceId'
   | 'type'
   | 'hidden'
   | 'extra'

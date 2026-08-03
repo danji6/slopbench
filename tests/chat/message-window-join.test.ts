@@ -48,6 +48,8 @@ const doc = (id: string) =>
 
 const text = (value: string) => ({ type: 'text', text: value })
 const partSize = serializedSize([text('xxxx')])
+/** The message doc rides along with its parts and spends budget too. */
+const docSize = serializedSize(doc('m_1'))
 
 function segment(messageId: string, segmentIndex: number): Row {
   return { messageId, version: 1, segmentIndex, parts: [text('xxxx')] }
@@ -82,7 +84,7 @@ describe('joinSegmentsWithinBudget', () => {
     const { messages, trimmed } = await joinSegmentsWithinBudget(
       ctx,
       [doc('m_1')],
-      partSize * 2,
+      docSize + partSize * 2,
       { direction: 'older' },
     )
 
@@ -102,7 +104,7 @@ describe('joinSegmentsWithinBudget', () => {
     const { messages, trimmed } = await joinSegmentsWithinBudget(
       ctx,
       [doc('m_1')],
-      partSize * 2,
+      docSize + partSize * 2,
       { direction: 'newer' },
     )
 

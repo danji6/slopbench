@@ -1,4 +1,5 @@
 import { TODO_EDIT_STATUSES } from '@sb/core/const'
+import { MAX_TODO_CONTENT_CHARS, MAX_TODO_ITEMS } from '@sb/core/limits'
 import { TOOL_DESCRIPTIONS } from '@sb/core/types'
 
 import { internal } from '../../_generated/api'
@@ -11,7 +12,8 @@ export async function createWriteTodoTool(context: PlanToolContext) {
     description: TOOL_DESCRIPTIONS.write_todo,
     inputSchema: z.object({
       todos: z
-        .array(z.string().min(1))
+        .array(z.string().min(1).max(MAX_TODO_CONTENT_CHARS))
+        .max(MAX_TODO_ITEMS)
         .describe('Every task as a short string; replaces the previous list'),
     }),
     execute: async ({ todos }) => {

@@ -3,16 +3,23 @@ import { v } from 'convex/values'
 import {
   agentAutoApproveValidator,
   agentSubAgentsValidator,
+  mcpToolMetaValidator,
+  mcpTransportValidator,
+  modelEntryValidator,
   overridableFields,
   promptItemValidator,
   promptOrderRefValidator,
+  promptScopeValidator,
   rememberScopeValidator,
   reminderPromptValidator,
+  reminderScopeValidator,
   roleValidator,
   sessionArchiveValidator,
   sessionModeValidator,
   sessionSettingsValidator,
+  settingsMutableFields,
   shellJobStatusValidator,
+  tokenUsageValidator,
   toolManifestValidator,
 } from './sub'
 
@@ -83,10 +90,8 @@ export const sendMessageArgsValidator = v.object({
 
 export const agentMutableFieldsValidator = {
   description: v.optional(v.string()),
-  prompts: v.optional(v.array(promptItemValidator)),
-  tools: v.optional(v.any()),
+  tools: v.optional(v.array(v.string())),
   globalPromptsEnabled: v.optional(v.boolean()),
-  reminderPrompts: v.optional(v.array(reminderPromptValidator)),
   libraryReminderIds: v.optional(v.array(v.string())),
   promptOrder: v.optional(v.array(promptOrderRefValidator)),
   modelId: v.optional(v.string()),
@@ -109,22 +114,125 @@ export const agentMutableFieldsValidator = {
 
 export const createAgentArgsValidator = v.object({
   name: v.string(),
+  prompts: v.optional(v.array(promptItemValidator)),
+  reminderPrompts: v.optional(v.array(reminderPromptValidator)),
   ...agentMutableFieldsValidator,
 })
 
 export const updateAgentArgsValidator = v.object({
   agentId: v.id('agents'),
   name: v.optional(v.string()),
-  // Field names whose values should be cleared.
-  // Passing `undefined` wouldn't work because Convex drops them.
+  /** Field names whose values should be cleared. */
   unset: v.optional(v.array(v.string())),
   ...agentMutableFieldsValidator,
+})
+
+export const settingsPatchArgsValidator = v.object(settingsMutableFields)
+
+/**
+ * The settings field that was requested to be cleared. Needed because Convex
+ * drops `undefined` from a patch.
+ */
+export const settingsKeyValidator = v.union(
+  ...(
+    Object.keys(settingsMutableFields) as (keyof typeof settingsMutableFields)[]
+  ).map((key) => v.literal(key)),
+)
+
+export const createPromptArgsValidator = v.object({
+  scope: promptScopeValidator,
+  agentId: v.optional(v.id('agents')),
+  item: promptItemValidator,
+  index: v.optional(v.number()),
+})
+
+export const updatePromptArgsValidator = v.object({
+  promptId: v.id('prompts'),
+  item: promptItemValidator,
+})
+
+export const reorderPromptsArgsValidator = v.object({
+  scope: promptScopeValidator,
+  agentId: v.optional(v.id('agents')),
+  promptIds: v.array(v.id('prompts')),
+})
+
+export const replacePromptScopeArgsValidator = v.object({
+  scope: promptScopeValidator,
+  agentId: v.optional(v.id('agents')),
+  items: v.array(promptItemValidator),
+})
+
+export const replaceReminderScopeArgsValidator = v.object({
+  scope: reminderScopeValidator,
+  agentId: v.optional(v.id('agents')),
+  items: v.array(reminderPromptValidator),
+})
+
+export const createReminderArgsValidator = v.object({
+  scope: reminderScopeValidator,
+  agentId: v.optional(v.id('agents')),
+  item: reminderPromptValidator,
+})
+
+export const updateReminderArgsValidator = v.object({
+  reminderId: v.id('reminders'),
+  item: reminderPromptValidator,
+})
+
+export const replaceMcpServersArgsValidator = v.object({
+  servers: v.array(
+    v.object({
+      key: v.string(),
+      label: v.string(),
+      url: v.string(),
+      transport: mcpTransportValidator,
+      enabled: v.boolean(),
+      /** Absent leaves the stored credential alone; empty clears it. */
+      apiKey: v.optional(v.string()),
+      /** Absent keeps the tools already discovered for this server. */
+      tools: v.optional(v.array(mcpToolMetaValidator)),
+    }),
+  ),
+})
+
+export const discoverMcpToolsArgsValidator = v.object({
+  url: v.string(),
+  transport: mcpTransportValidator,
+  apiKey: v.optional(v.string()),
+  serverId: v.optional(v.id('mcpServers')),
+})
+
+export const replaceModelProvidersArgsValidator = v.object({
+  providers: v.array(
+    v.object({
+      key: v.string(),
+      baseURL: v.optional(v.string()),
+      enabled: v.boolean(),
+      models: v.array(modelEntryValidator),
+      apiKey: v.optional(v.string()),
+    }),
+  ),
+})
+
+export const createModelProviderArgsValidator = v.object({
+  key: v.string(),
+  baseURL: v.optional(v.string()),
+  enabled: v.boolean(),
+  models: v.array(modelEntryValidator),
+})
+
+export const updateModelProviderArgsValidator = v.object({
+  providerId: v.id('modelProviders'),
+  baseURL: v.optional(v.string()),
+  enabled: v.optional(v.boolean()),
+  models: v.optional(v.array(modelEntryValidator)),
 })
 
 export const createSessionArgsValidator = v.object({
   activeAgentId: v.optional(v.id('agents')),
   workspaceRoot: v.optional(v.string()),
-  // Only meaningful together with workspaceRoot (plan mode needs a workspace)
+  /** Only meaningful together with workspaceRoot. */
   mode: v.optional(sessionModeValidator),
 })
 
@@ -158,7 +266,7 @@ export const saveStreamMetaArgsValidator = v.object({
   duration: v.number(),
   toolErrors: v.array(v.string()),
   warnings: v.array(v.string()),
-  usage: v.any(),
+  usage: tokenUsageValidator,
 })
 
 export const scheduleStreamRetryArgsValidator = v.object({
@@ -241,14 +349,19 @@ export const userShellFinishArgsValidator = v.object({
 
 export const messagesWindowArgsValidator = v.object({
   sessionId: v.id('sessions'),
-  // When null, it anchors at the newest message (see `WindowAnchor` for the type)
-  anchor: v.union(v.array(v.any()), v.null()),
+  /**
+   * A `by_sessionId` index key (sessionId, _creationTime, _id).
+   * When null, it anchors at the newest message (see `WindowAnchor` for the type).
+   */
+  anchor: v.union(v.array(v.union(v.string(), v.number())), v.null()),
   direction: v.union(v.literal('older'), v.literal('newer')),
   limit: v.number(),
-  // Content budget for the page. A message count fallback is used when absent.
+  /** Content budget for the page. A message count fallback is used when absent. */
   budgetBytes: v.optional(v.number()),
-  // Bounds the anchor message's segments: older pages include segments up to
-  // it, newer pages from it. Absent means the whole message.
+  /**
+   * Bounds the anchor message's segments. Older pages include segments up to
+   * it, newer pages from it. Absent means the whole message.
+   */
   anchorSegment: v.optional(v.number()),
 })
 
@@ -268,8 +381,6 @@ export const editMessagePartArgsValidator = v.object({
 export const deleteMessagePartsArgsValidator = v.object({
   messageId: v.id('messages'),
   addresses: v.array(partAddressValidator),
-  // Expanded server-side across all later parts and segments, so that
-  // range deletion works even when newer segments aren't loaded on the client.
   from: v.optional(partAddressValidator),
 })
 
@@ -279,7 +390,7 @@ export const approveToolArgsValidator = v.object({
   approved: v.boolean(),
   reason: v.optional(v.string()),
   remember: v.optional(rememberScopeValidator),
-  // Note from the user, delivered to the agent alongside the response.
+  /** Note from the user, delivered to the agent alongside the response. */
   note: v.optional(v.string()),
 })
 

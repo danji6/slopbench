@@ -8,6 +8,7 @@ import type { ApproveToolArgs, RememberScope } from '../../types'
 import { getProcessingSegmentRow, patchSegmentParts } from '../messageContents'
 import { demoteToDraft, setStatus as setPlanStatus } from '../plans'
 import * as Memberships from '../session/memberships'
+import { appendApprovals, getApprovals } from '../session/state'
 import { APPROVAL_LEASE_MS } from '../stream/lifecycle'
 import { resumeIfSettled } from '../stream/subagents'
 
@@ -152,7 +153,7 @@ async function rememberApproval(
   matched: { toolName: string; input: unknown },
   scope: RememberScope,
 ) {
-  const approvals = session.toolApprovals ?? {}
+  const approvals = await getApprovals(ctx, session._id)
 
   if (scope === 'paths') {
     const command = (matched.input as { command?: string } | undefined)?.command
@@ -173,25 +174,19 @@ async function rememberApproval(
 
   if (matched.toolName === 'shell') {
     const command = (matched.input as { command?: string } | undefined)?.command
-    const shell = approvals.shell ?? []
     const additions = command
-      ? analyzeShellCommand(command, shell).unapproved
+      ? analyzeShellCommand(command, approvals.shell ?? []).unapproved
       : []
     if (additions.length === 0) return
 
-    await ctx.db.patch(session._id, {
-      toolApprovals: { ...approvals, shell: [...shell, ...additions] },
-    })
-
+    await appendApprovals(ctx, session._id, 'shell', additions)
     return
   }
 
   const tools = approvals.tools ?? []
   if (!matched.toolName || tools.includes(matched.toolName)) return
 
-  await ctx.db.patch(session._id, {
-    toolApprovals: { ...approvals, tools: [...tools, matched.toolName] },
-  })
+  await appendApprovals(ctx, session._id, 'tools', [matched.toolName])
 }
 
 export function hasPendingToolApprovals(parts: unknown[]) {

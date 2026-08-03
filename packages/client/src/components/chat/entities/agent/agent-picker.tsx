@@ -4,7 +4,8 @@ import {
   AgentItemLabel,
 } from '@/components/chat/sessions/agent-combobox'
 import { Combobox } from '@/components/ui'
-import { useEditingAgent } from '@/hooks/chat'
+import { useStableValue } from '@/hooks'
+import { useEditingAgentId } from '@/hooks/chat'
 import type { CreateAgentArgs } from '@/lib/chat'
 import { setEditingAgentId } from '@/lib/chat/agent-editor-store'
 import { triggerAgentDownload, uploadAgentFile } from '@/lib/chat/io'
@@ -12,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { useAction, useMutation, useQuery } from 'convex/react'
+import { useMemo } from 'react'
 
 import {
   EntityActionsMenu,
@@ -25,8 +27,8 @@ export type AgentPickerProps = {
 }
 
 export function AgentPicker({ className, confirmSwitch }: AgentPickerProps) {
-  const editingAgent = useEditingAgent()
-  const docs = useQuery(api.agents.list) ?? []
+  const editingAgentId = useEditingAgentId()
+  const docs = useQuery(api.agents.list)
   const createAgent = useMutation(api.agents.create)
   const removeAgent = useMutation(api.agents.remove)
   const duplicateAgent = useMutation(api.agents.duplicate)
@@ -34,11 +36,15 @@ export function AgentPicker({ className, confirmSwitch }: AgentPickerProps) {
   const importFromImage = useAction(api.actions.agents.importFromImage)
   const generateUploadUrl = useMutation(api.agents.generateAvatarUploadUrl)
 
-  const records: AgentItem[] = docs.map((d) => ({
-    id: d._id,
-    name: d.name,
-    avatarId: d.avatarId,
-  }))
+  const records: AgentItem[] = useMemo(
+    () =>
+      (docs ?? []).map((d) => ({
+        id: d._id,
+        name: d.name,
+        avatarId: d.avatarId,
+      })),
+    [docs],
+  )
 
   const select = (id: string | null) =>
     confirmSwitch
@@ -59,7 +65,7 @@ export function AgentPicker({ className, confirmSwitch }: AgentPickerProps) {
     const newId = await duplicateAgent({ agentId: id as Id<'agents'> })
     return {
       id: newId,
-      name: `${docs.find((d) => d._id === id)?.name ?? ''} (copy)`,
+      name: `${records.find((r) => r.id === id)?.name ?? ''} (copy)`,
     }
   }
 
@@ -88,15 +94,12 @@ export function AgentPicker({ className, confirmSwitch }: AgentPickerProps) {
     return { id, name }
   }
 
+  const match = records.find((r) => r.id === editingAgentId)
+  const selected = useStableValue(match, Boolean(editingAgentId && !match))
+
   const ctx: EntityPickerContext<AgentItem> = {
     records,
-    active: editingAgent
-      ? {
-          id: editingAgent._id,
-          name: editingAgent.name,
-          avatarId: editingAgent.avatarId,
-        }
-      : null,
+    active: selected ?? null,
     select,
     create,
     delete: del,
@@ -104,8 +107,6 @@ export function AgentPicker({ className, confirmSwitch }: AgentPickerProps) {
     export: exportAgent,
     import: importAgent,
   }
-
-  const selected = records.find((r) => r.id === ctx.active?.id)
 
   return (
     <div className={cn('flex items-center gap-1.5', className)}>

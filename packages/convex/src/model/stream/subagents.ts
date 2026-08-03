@@ -11,7 +11,7 @@ import {
 } from '../../lib/subagent'
 import { resolveSpawnableAgents } from '../agent/subagents'
 import { hasPendingToolApprovals } from '../chat/approvals'
-import { agentSenderSnapshot } from '../chat/identities'
+import { agentIdentity } from '../chat/identities'
 import {
   getProcessingSegmentRow,
   insertMessage,
@@ -20,8 +20,9 @@ import {
 } from '../messageContents'
 import { syncActivity } from '../messages'
 import { createPlanLinkPart, getBySession as getPlan } from '../plans'
-import { findModelEntry } from '../provider/providers'
 import { getActiveStream } from '../session/memberships'
+import { resolveAgentModel } from '../session/models'
+import { cloneApprovals } from '../session/state'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 import {
   APPROVAL_LEASE_MS,
@@ -211,12 +212,7 @@ async function spawnChild(
   { stream, session, agent, input, toolCallId }: SpawnChildArgs,
 ): Promise<Id<'sessions'>> {
   const now = Date.now()
-  const agentSettings = await getSettingsByOwnerId(ctx, agent.ownerId)
-  const model = agent.modelId
-    ? (findModelEntry(agentSettings?.modelProviders, agent.modelId) ?? {
-        id: agent.modelId,
-      })
-    : undefined
+  const model = await resolveAgentModel(ctx, agent)
 
   // A preset title keeps scheduleTitle from running for hidden sessions
   const title = input.title ?? input.prompt.trim().slice(0, 80)
@@ -229,8 +225,7 @@ async function spawnChild(
     title,
     activeAgentId: agent._id,
     workspace: session.workspace,
-    toolApprovals: cloneApprovals(session.toolApprovals),
-    metadata: model ? { model } : undefined,
+    model,
     mode,
     parent: {
       sessionId: session._id,
@@ -256,6 +251,8 @@ async function spawnChild(
     addedBy: session.ownerId,
   })
 
+  await cloneApprovals(ctx, { from: session._id, to: childSessionId })
+
   const parentAgent = await ctx.db.get(stream.agentId)
   const parentSettings = parentAgent
     ? await getSettingsByOwnerId(ctx, parentAgent.ownerId)
@@ -274,9 +271,9 @@ async function spawnChild(
       sessionId: childSessionId,
       sender: { type: 'agent', id: stream.agentId },
       role: 'user',
-      senderSnapshot: parentAgent
-        ? agentSenderSnapshot(parentAgent, parentSettings)
-        : undefined,
+      ...(parentAgent
+        ? await agentIdentity(ctx, parentAgent, parentSettings)
+        : {}),
       status: 'done',
     },
     parts,
@@ -308,15 +305,6 @@ async function spawnChild(
   await ctx.db.patch(childStreamId, { jobId })
 
   return childSessionId
-}
-
-function cloneApprovals(approvals: Doc<'sessions'>['toolApprovals']) {
-  if (!approvals) return undefined
-  return {
-    tools: approvals.tools?.slice(),
-    shell: approvals.shell?.slice(),
-    paths: approvals.paths?.slice(),
-  }
 }
 
 export type ChildOutcome =
@@ -362,7 +350,7 @@ export async function deliverChildReport(
       sessionId: parent.sessionId,
       sender: { type: 'agent', id: childStream.agentId },
       role: 'user',
-      senderSnapshot: agent ? agentSenderSnapshot(agent, settings) : undefined,
+      ...(agent ? await agentIdentity(ctx, agent, settings) : {}),
       status: 'done',
     },
     [part],

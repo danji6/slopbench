@@ -21,10 +21,14 @@ export const mcpToolMetaSchema = z.object({
 
 export const mcpServerSchema = z.object({
   id: z.string(),
+  /** Set once the server exists in the database. */
+  serverId: z.string().optional(),
   label: z.string(),
   url: z.url(),
   transport: mcpTransportSchema,
   apiKey: z.string().optional(),
+  /** Whether a key is already set in the database. */
+  hasKey: z.boolean().default(false),
   enabled: z.boolean(),
   tools: z.array(mcpToolMetaSchema).optional(),
   _clientId: z.string().optional(),
@@ -39,6 +43,7 @@ export const modelEntrySchema = z.object({
 export const providerSchema = z.object({
   id: z.string(),
   apiKey: z.string().optional(),
+  hasKey: z.boolean().default(false),
   baseURL: z.string().optional(),
   enabled: z.boolean(),
   models: z.array(modelEntrySchema),
@@ -60,10 +65,6 @@ export const promptMarkerSchema = z.object({
 })
 
 export const promptItemSchema = z.union([promptSchema, promptMarkerSchema])
-
-export const libraryPromptSchema = promptSchema.extend({
-  createdAt: z.number().optional(),
-})
 
 export const reminderPromptSchema = z.object({
   id: z.string(),
@@ -106,7 +107,7 @@ export const settingsFormSchema = z.object({
   themeColor: z.string(),
   themeMode: z.enum(['system', 'light', 'dark']),
   globalPrompts: z.array(promptSchema),
-  libraryPrompts: z.array(libraryPromptSchema),
+  libraryPrompts: z.array(promptSchema),
   libraryReminders: z.array(reminderPromptSchema),
   compactionPrompts: z.array(promptItemSchema),
   impersonationPrompts: z.array(promptItemSchema),
@@ -116,7 +117,7 @@ export const settingsFormSchema = z.object({
 export type SettingsFormValues = z.infer<typeof settingsFormSchema>
 export type ProviderFormValues = z.infer<typeof providerSchema>
 export type ModelEntryFormValues = z.infer<typeof modelEntrySchema>
-export type LibraryPrompt = z.infer<typeof libraryPromptSchema>
+export type LibraryPrompt = z.infer<typeof promptSchema>
 export type WebSearchInstanceFormValues = z.infer<typeof webSearchInstanceSchema> // prettier-ignore
 export type McpServerFormValues = z.infer<typeof mcpServerSchema>
 export type McpToolMetaFormValues = z.infer<typeof mcpToolMetaSchema>

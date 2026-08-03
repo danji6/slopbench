@@ -1,6 +1,13 @@
+import { MESSAGE_SPLIT_BUDGET_BYTES } from '@sb/core/const'
+import { splitParts } from '@sb/core/utils/size'
+
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 import { error } from '../errors'
+import type { TokenUsage } from '../types'
+import { assertPartsCap, assertSegmentFits } from './caps'
+import type { SenderIdentity } from './chat/identities'
+import { senderIdentity } from './chat/identities'
 import { isContextEligible, searchTextFromParts } from './messages'
 import { collectToolOutputStorageIds } from './stream/toolOutput'
 
@@ -11,13 +18,12 @@ type InsertMessageFields = {
   sessionId: Id<'sessions'>
   sender: Doc<'messages'>['sender']
   role: Doc<'messages'>['role']
-  senderSnapshot?: Doc<'messages'>['senderSnapshot']
   type?: Doc<'messages'>['type']
   status: Doc<'messages'>['status']
   metadata?: Doc<'messages'>['metadata']
   hidden?: boolean
   extra?: Doc<'messages'>['extra']
-}
+} & SenderIdentity
 
 /** Point read of a single segment row. */
 export function getSegmentRow(
@@ -129,12 +135,20 @@ export async function allVersionParts(
   return rows.flatMap((row) => row.parts)
 }
 
-/** Inserts a message doc plus its (version 1, segment 0) content row. */
+/**
+ * Inserts a message doc plus the content rows for version 1. Messages that grow
+ * too large get split into segments.
+ *
+ * The returned `contentId` is the last segment, which is where streaming continues.
+ */
 export async function insertMessage(
   ctx: MutationCtx,
   fields: InsertMessageFields,
   parts: unknown[],
 ) {
+  assertPartsCap(parts)
+  const segments = splitParts(parts, MESSAGE_SPLIT_BUDGET_BYTES)
+
   const messageId = await ctx.db.insert('messages', {
     ...fields,
     selectedVersion: 1,
@@ -142,32 +156,52 @@ export async function insertMessage(
     contextEligible: isContextEligible(parts),
   })
 
-  const contentId = await ctx.db.insert('messageContents', {
+  let contentId = await insertSegment(ctx, messageId, fields, segments[0], 0)
+  for (const [index, segmentParts] of segments.slice(1).entries()) {
+    contentId = await insertSegment(
+      ctx,
+      messageId,
+      fields,
+      segmentParts,
+      index + 1,
+    )
+  }
+
+  return { messageId, contentId, segments }
+}
+
+function insertSegment(
+  ctx: MutationCtx,
+  messageId: Id<'messages'>,
+  fields: InsertMessageFields,
+  parts: unknown[],
+  segmentIndex: number,
+) {
+  return ctx.db.insert('messageContents', {
     messageId,
     sessionId: fields.sessionId,
     version: 1,
-    segmentIndex: 0,
+    segmentIndex,
     parts,
-    metadata: fields.metadata,
-    senderSnapshot: fields.senderSnapshot,
+    metadata: segmentIndex === 0 ? fields.metadata : undefined,
+    ...senderIdentity(fields),
     // Hidden messages must not surface in message search
     searchText: fields.hidden ? undefined : searchTextFromParts(parts),
   })
-
-  return { messageId, contentId }
 }
 
 type AddVersionArgs = {
   message: Doc<'messages'>
   parts?: unknown[]
-  senderSnapshot?: Doc<'messages'>['senderSnapshot']
+  identity?: SenderIdentity
 }
 
 /** Appends a fresh version and selects it (used by Retry). */
 export async function addVersion(
   ctx: MutationCtx,
-  { message, parts = [], senderSnapshot }: AddVersionArgs,
+  { message, parts = [], identity }: AddVersionArgs,
 ) {
+  assertSegmentFits(parts)
   const version = message.versionCount + 1
 
   const contentId = await ctx.db.insert('messageContents', {
@@ -176,14 +210,14 @@ export async function addVersion(
     version,
     segmentIndex: 0,
     parts,
-    senderSnapshot,
+    ...senderIdentity(identity ?? message),
     searchText: searchTextFromParts(parts),
   })
 
   await ctx.db.patch(message._id, {
     selectedVersion: version,
     versionCount: version,
-    senderSnapshot: senderSnapshot ?? message.senderSnapshot,
+    ...senderIdentity(identity ?? message),
     contextEligible: isContextEligible(parts),
     metadata: undefined,
   })
@@ -280,6 +314,9 @@ export async function replaceSelectedContent(
   message: Doc<'messages'>,
   parts: unknown[],
 ) {
+  // The whole edit has to fit the collapsed segments
+  assertSegmentFits(parts)
+
   const segments = await listSelectedSegments(ctx, message)
   const head = segments[0]
   if (!head) error('Version not found', 404)
@@ -305,6 +342,7 @@ export async function setSegmentParts(
   row: Doc<'messageContents'>,
   parts: unknown[],
 ) {
+  assertSegmentFits(parts)
   await ctx.db.patch(row._id, {
     parts,
     searchText: searchTextFromParts(parts),
@@ -331,7 +369,7 @@ export async function setSelectedVersion(
     selectedVersion: version,
     contextEligible: segments.some((segment) => segment.parts.length > 0),
     metadata: mergeSegmentMetadata(segments),
-    senderSnapshot: head.senderSnapshot ?? message.senderSnapshot,
+    ...senderIdentity(head.senderName ? head : message),
   })
 }
 
@@ -356,7 +394,7 @@ export function mergeSegmentMetadata(
   let duration: number | undefined
   let toolErrors: string[] | undefined
   let warnings: string[] | undefined
-  let usage: unknown
+  let usage: TokenUsage | undefined
   let errorMessage: string | undefined
 
   for (const { metadata } of rows) {

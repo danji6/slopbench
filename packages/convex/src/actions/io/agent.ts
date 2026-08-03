@@ -17,17 +17,11 @@ export async function exportAsImage(
   ctx: ActionCtx,
   { agentId }: { agentId: Id<'agents'> },
 ): Promise<{ type: 'png' | 'json'; data: string; name: string }> {
-  const agent = await ctx.runQuery(api.agents.get, { agentId })
-  if (!agent) error('Agent not found', 404)
+  const exported = await ctx.runQuery(api.agents.exportData, { agentId })
+  if (!exported) error('Agent not found', 404)
 
-  const { _id, _creationTime, ownerId: _ownerId, avatarId, ...data } = agent
-
-  const settings = await ctx.runQuery(api.settings.get, {})
-
-  const archive = createAgentArchive(
-    data,
-    (settings?.libraryPrompts ?? []) as Prompt[],
-  )
+  const { name, avatarId, data, libraryPrompts } = exported
+  const archive = createAgentArchive(data, libraryPrompts as Prompt[])
 
   const urls = avatarId
     ? await ctx.runQuery(api.avatars.getUrls, { avatarId })
@@ -38,7 +32,7 @@ export async function exportAsImage(
     { avatarUrl: urls?.original ?? undefined, data: archive },
   )
 
-  return { ...result, name: agent.name }
+  return { ...result, name }
 }
 
 export async function importFromImage(

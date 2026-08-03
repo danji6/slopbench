@@ -1,6 +1,7 @@
 /// <reference types="bun-types" />
 import {
   EMPTY_AGENT_FORM,
+  EMPTY_AGENT_PROMPT_SETS,
   agentToFormValues,
   formValuesToPatch,
 } from '@/components/chat/entities/agent/agent-form'
@@ -17,7 +18,6 @@ function bareAgent(overrides: Partial<Doc<'agents'>> = {}): Doc<'agents'> {
     _creationTime: 0,
     userId: 'u1',
     name: 'Agent',
-    prompts: [],
     ...overrides,
   } as Doc<'agents'>
 }
@@ -47,7 +47,7 @@ describe('agent form values', () => {
   test('maps every absent field to null, never undefined', () => {
     // The regression: `chatWidth` was mapped straight from the document, so an
     // agent without one showed — and kept editing — the previous agent's width.
-    const values = agentToFormValues(bareAgent())
+    const values = agentToFormValues(bareAgent(), EMPTY_AGENT_PROMPT_SETS)
 
     const undefinedKeys = Object.entries(values)
       .filter(([, value]) => value === undefined)
@@ -58,9 +58,11 @@ describe('agent form values', () => {
 
   test('covers every field the form holds', () => {
     // A field missing here is a field that keeps the previous agent's value
-    expect(Object.keys(agentToFormValues(bareAgent())).sort()).toEqual(
-      Object.keys(EMPTY_AGENT_FORM).sort(),
-    )
+    expect(
+      Object.keys(
+        agentToFormValues(bareAgent(), EMPTY_AGENT_PROMPT_SETS),
+      ).sort(),
+    ).toEqual(Object.keys(EMPTY_AGENT_FORM).sort())
   })
 
   test('the empty form holds no undefined either', () => {
@@ -73,6 +75,7 @@ describe('agent form values', () => {
   test('reads the values an agent does carry', () => {
     const values = agentToFormValues(
       bareAgent({ chatWidth: 1200, temperature: 0.4, mathMode: 'double' }),
+      EMPTY_AGENT_PROMPT_SETS,
     )
 
     expect(values.chatWidth).toBe(1200)
@@ -117,7 +120,10 @@ describe('agent update payload', () => {
 
   test('round-trips an agent without touching what it holds', async () => {
     const agent = bareAgent({ chatWidth: 1200, temperature: 0.4 })
-    const patch = await formValuesToPatch(AGENT_ID, agentToFormValues(agent))
+    const patch = await formValuesToPatch(
+      AGENT_ID,
+      agentToFormValues(agent, EMPTY_AGENT_PROMPT_SETS),
+    )
 
     expect(patch.chatWidth).toBe(agent.chatWidth)
     expect(patch.temperature).toBe(agent.temperature)

@@ -17,9 +17,10 @@ describe('getEnabledToolNames', () => {
     expect(getEnabledToolNames([], TOOLS)).toEqual([])
   })
 
-  test('legacy non-array selections (undefined, "off") select no tools', () => {
+  // Legacy non-array selections are normalized away by the `typedFields`
+  // migration, so only the unset case reaches here now
+  test('an unset selection selects no tools', () => {
     expect(getEnabledToolNames(undefined, TOOLS)).toEqual([])
-    expect(getEnabledToolNames('off', TOOLS)).toEqual([])
   })
 
   test('selects exactly the available tools, in available order', () => {

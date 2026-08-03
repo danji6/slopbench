@@ -1,5 +1,5 @@
 import { Code, Dialog, RippleButton, SettingsList } from '@/components/ui'
-import { useActiveSession } from '@/hooks/chat'
+import { useActiveSession, useActiveSessionState } from '@/hooks/chat'
 import { normalizeBrowserUrl } from '@/lib/auth/site-url'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
@@ -10,6 +10,7 @@ type OpenedLog = { sessionId: Id<'sessions'>; hasStoredLog: boolean }
 
 export function SessionRequestLogSection() {
   const session = useActiveSession()
+  const state = useActiveSessionState()
   const [opened, setOpened] = useState<OpenedLog | null>(null)
   const open = Boolean(opened)
   const hasStoredLog = opened?.hasStoredLog ?? false
@@ -66,7 +67,7 @@ export function SessionRequestLogSection() {
             session &&
             setOpened({
               sessionId: session._id,
-              hasStoredLog: Boolean(session.metadata?.log),
+              hasStoredLog: Boolean(state?.hasLog),
             })
           }
           className="w-32"

@@ -7,20 +7,38 @@ export const sessionSchema = v.object({
   title: v.optional(v.string()),
   activeAgentId: v.optional(v.id('agents')),
   mode: v.optional(V.sessionModeValidator),
-  announcedMode: v.optional(V.sessionModeValidator), // mode the transcript states
-  environment: v.optional(v.any()),
+  /** Mode the transcript states. */
+  announcedMode: v.optional(V.sessionModeValidator),
   settings: v.optional(V.sessionSettingsValidator),
-  metadata: v.optional(V.sessionMetadataValidator),
+  /** Resolved model of the active agent. */
+  model: v.optional(V.modelEntryValidator),
   workspace: v.optional(V.workspaceRefValidator),
-  toolApprovals: v.optional(V.toolApprovalsValidator),
   parent: v.optional(V.sessionParentValidator),
   lastMessageAt: v.optional(v.number()),
   lastMessagePreview: v.optional(v.string()),
-  firstMessagePreview: v.optional(v.string()), // title fallback
-  turnCount: v.optional(v.number()), // logical turn counter
-  commandQueue: v.optional(v.array(V.queuedCommandValidator)), // deferred commands
-  // (reminderId, turnCount) at last injection, or baseline when first seen
+  /** Title fallback. */
+  firstMessagePreview: v.optional(v.string()),
+  /** Logical turn counter. */
+  turnCount: v.optional(v.number()),
+})
+
+/**
+ * A session's frequently changing state. It lives outside the session doc
+ * because every one of these fields is rewritten during stream turns and would
+ * otherwise make client session subscriptions unstable.
+ */
+export const sessionStateSchema = v.object({
+  sessionId: v.id('sessions'),
+  environment: v.optional(V.environmentValidator),
+  toolApprovals: v.optional(V.toolApprovalsValidator),
+  /** (reminderId, turnCount) at last injection, or baseline when first seen. */
   reminderState: v.optional(v.record(v.string(), v.number())),
+  /** Deferred (slash) commands. */
+  commandQueue: v.optional(v.array(V.queuedCommandValidator)),
+  usage: v.optional(V.tokenUsageValidator),
+  /** Last provider request/response body. */
+  log: v.optional(v.id('_storage')),
+  updatedAt: v.number(),
 })
 
 export const agentSchema = v.object({
@@ -28,14 +46,13 @@ export const agentSchema = v.object({
   name: v.string(),
   description: v.optional(v.string()),
   avatarId: v.optional(v.id('avatars')),
-  prompts: v.array(V.promptItemValidator),
   promptOrder: v.optional(v.array(V.promptOrderRefValidator)),
   globalPromptsEnabled: v.optional(v.boolean()),
-  reminderPrompts: v.optional(v.array(V.reminderPromptValidator)),
   libraryReminderIds: v.optional(v.array(v.string())),
   modelId: v.optional(v.string()),
   reasoningEffort: v.optional(v.string()),
-  tools: v.optional(v.any()),
+  /** Names of the selected tools. */
+  tools: v.optional(v.array(v.string())),
   temperature: v.optional(v.number()),
   topP: v.optional(v.number()),
   frequencyPenalty: v.optional(v.number()),
@@ -59,31 +76,75 @@ export const userSchema = v.object({
 
 export const settingsSchema = v.object({
   ownerId: v.id('users'),
-  displayName: v.optional(v.string()),
   avatarId: v.optional(v.id('avatars')),
-  autoTitle: v.optional(v.boolean()),
-  titleModel: v.optional(v.string()),
-  invertSend: v.optional(v.boolean()),
-  groupBySender: v.optional(v.boolean()),
-  avatarSize: v.optional(v.number()),
-  globalPrompts: v.optional(v.array(V.promptValidator)),
-  libraryPrompts: v.optional(v.array(V.libraryPromptValidator)),
-  libraryReminders: v.optional(v.array(V.reminderPromptValidator)),
-  modelProviders: v.optional(v.array(V.modelProviderValidator)),
-  webSearchInstances: v.optional(v.array(V.webSearchInstanceValidator)),
-  mcpServers: v.optional(v.array(V.mcpServerValidator)),
-  uiFont: v.optional(v.string()),
-  chatFont: v.optional(v.string()),
-  monoFont: v.optional(v.string()),
-  chatFontSize: v.optional(v.number()),
-  ...V.overridableFields,
-  themeMode: v.optional(V.themeValidator),
-  recentModel: v.optional(v.string()),
-  recentAgentId: v.optional(v.id('agents')),
-  recentReasoning: v.optional(v.string()),
-  recentWorkspaces: v.optional(v.array(v.string())),
+  ...V.settingsMutableFields,
 })
 
+export const promptSchema = v.object({
+  ownerId: v.id('users'),
+  /** Absent if this prompt lives in the owner's settings. */
+  agentId: v.optional(v.id('agents')),
+  scope: V.promptScopeValidator,
+  order: v.number(),
+  /** Corresponds to the id for prompts, and the type for markers. */
+  key: v.string(),
+  item: V.promptItemValidator,
+})
+
+export const reminderSchema = v.object({
+  ownerId: v.id('users'),
+  /** Absent if this prompt lives in the owner's settings. */
+  agentId: v.optional(v.id('agents')),
+  scope: V.reminderScopeValidator,
+  order: v.number(),
+  key: v.string(),
+  item: V.reminderPromptValidator,
+})
+
+/** An external MCP server, without its credential or discovered tools. */
+export const mcpServerSchema = v.object({
+  ownerId: v.id('users'),
+  /** Client-generated key, stable across renames. */
+  key: v.string(),
+  label: v.string(),
+  url: v.string(),
+  transport: V.mcpTransportValidator,
+  enabled: v.boolean(),
+  order: v.number(),
+})
+
+/** One tool discovered from an external MCP server. */
+export const mcpToolSchema = v.object({
+  serverId: v.id('mcpServers'),
+  name: v.string(),
+  description: v.optional(v.string()),
+  descriptionOverride: v.optional(v.string()),
+  /** The tool's JSON schema, kept as a string to avoid Convex rejections. */
+  inputSchema: v.optional(v.string()),
+  order: v.number(),
+})
+
+/** A model provider, without its credential. */
+export const modelProviderSchema = v.object({
+  ownerId: v.id('users'),
+  /** The provider id, e.g. 'ollama'. */
+  key: v.string(),
+  baseURL: v.optional(v.string()),
+  enabled: v.boolean(),
+  models: v.array(V.modelEntryValidator),
+  order: v.number(),
+})
+
+/** An API key, never exposed to clients. */
+export const credentialSchema = v.object({
+  ownerId: v.id('users'),
+  scope: V.credentialScopeValidator,
+  /** The provider/server `key` it belongs to. */
+  ref: v.string(),
+  apiKey: v.string(),
+})
+
+/** A message editor script. */
 export const editorScriptSchema = v.object({
   name: v.string(),
   ownerId: v.id('users'),
@@ -97,27 +158,41 @@ export const messageSchema = v.object({
   sessionId: v.id('sessions'),
   sender: V.senderValidator,
   role: V.roleValidator,
-  senderSnapshot: v.optional(V.senderSnapshotValidator),
+  ...V.senderIdentityFields,
   type: v.optional(V.messageTypeValidator),
   status: V.messageStatusValidator,
   contextEligible: v.optional(v.boolean()),
-  hidden: v.optional(v.boolean()), // excluded from search
-  extra: v.optional(v.any()), // extra payload, see MessageExtra in types.ts
+  /** Excluded from search when true. */
+  hidden: v.optional(v.boolean()),
+  /** Extra payload keyed by `type` (see MessageExtra). */
+  extra: v.optional(V.messageExtraValidator),
   selectedVersion: v.number(),
   versionCount: v.number(),
-  metadata: v.optional(V.messageMetaValidator), // whole-turn accumulation for the selected version
+  /** Metadata accumulated in a full turn for the selected version. */
+  metadata: v.optional(V.messageMetaValidator),
 })
 
 /** One segment of a message version's content (split by the byte cap). */
 export const messageContentSchema = v.object({
   messageId: v.id('messages'),
-  sessionId: v.id('sessions'), // denormalized for the search index filter
-  version: v.number(), // 1-based
-  segmentIndex: v.number(), // 0-based; gaps allowed after part deletion
+  /** Denormalized for the search index filter. */
+  sessionId: v.id('sessions'),
+  /** The version of this message, starting from 1. */
+  version: v.number(),
+  /** This segment's index, starting from 0. Gaps allowed after part deletion. */
+  segmentIndex: v.number(),
   parts: v.array(v.any()),
-  metadata: v.optional(V.messageMetaValidator), // this segment's slice of the turn metadata
-  senderSnapshot: v.optional(V.senderSnapshotValidator), // segment 0 only
+  /** This segment's slice of the turn metadata. */
+  metadata: v.optional(V.messageMetaValidator),
+  ...V.senderIdentityFields, // segment 0 only
   searchText: v.optional(v.string()),
+})
+
+/** A message's appearance, identified by the hash of its theme + CSS. */
+export const appearanceSchema = v.object({
+  hash: v.string(),
+  css: v.optional(v.string()),
+  theme: v.optional(V.themeSnapshotValidator),
 })
 
 export const attachmentSchema = v.object({
@@ -126,7 +201,8 @@ export const attachmentSchema = v.object({
   uploaderId: v.id('users'),
   sessionId: v.id('sessions'),
   messageId: v.optional(v.id('messages')),
-  streamId: v.optional(v.id('streams')), // for resolving generated images
+  /** Present when it's a generated image. */
+  streamId: v.optional(v.id('streams')),
   filename: v.string(),
   mediaType: v.string(),
 })
@@ -136,10 +212,14 @@ export const userSessionSchema = v.object({
   userId: v.id('users'),
   role: v.union(v.literal('owner'), v.literal('member')),
   lastMessageAt: v.optional(v.number()),
-  lastSendAt: v.optional(v.number()), // this user's last send, for slow mode
-  title: v.optional(v.string()), // denormalized for search
-  hidden: v.optional(v.boolean()), // true for sub-agent child sessions
-  userHidden: v.optional(v.boolean()), // user manually hid this session
+  /** This user's last send, for slow mode. */
+  lastSendAt: v.optional(v.number()),
+  /** Session title denormalized for search. */
+  title: v.optional(v.string()),
+  /** Always excluded from listing (e.g. sub-agent child sessions). */
+  hidden: v.optional(v.boolean()),
+  /** True when the user manually hid this session. */
+  userHidden: v.optional(v.boolean()),
 })
 
 export const typingSchema = v.object({
@@ -166,7 +246,8 @@ export const streamSchema = v.object({
   agentId: v.id('agents'),
   invokedBy: v.id('users'),
   processingMessageId: v.optional(v.id('messages')),
-  processingContentId: v.optional(v.id('messageContents')), // the active segment row
+  /** The active segment row. */
+  processingContentId: v.optional(v.id('messageContents')),
   contextBoundaryMessageId: v.optional(v.id('messages')),
   contextBoundaryCreationTime: v.optional(v.number()),
   operation: V.streamOperationValidator,
@@ -176,11 +257,13 @@ export const streamSchema = v.object({
   attempt: v.number(),
   leaseExpiresAt: v.number(),
   jobId: v.optional(v.id('_scheduled_functions')),
-  fireAt: v.optional(v.number()), // debounce: when a pending stream should claim
+  /** When a pending stream should claim. */
+  fireAt: v.optional(v.number()),
   retryAt: v.optional(v.number()),
   retryError: v.optional(v.string()),
   suppressFollowUp: v.optional(v.boolean()),
-  suppressReport: v.optional(v.boolean()), // cascade-stopped child: no report
+  /** True for child (sub-agent) streams stopped from above. */
+  suppressReport: v.optional(v.boolean()),
   instructions: v.optional(v.string()),
 })
 
@@ -188,16 +271,17 @@ export const planSchema = v.object({
   sessionId: v.id('sessions'),
   content: v.string(),
   status: V.planStatusValidator,
-  dirty: v.optional(v.boolean()), // marks user manual edits
+  /** Marks the user's edits. */
+  dirty: v.optional(v.boolean()),
   updatedAt: v.number(),
 })
 
 export const sessionCacheSchema = v.object({
   sessionId: v.id('sessions'),
   agentId: v.id('agents'),
-  /** Evaluated invoke prompts, frozen for this (session, agent). */
+  /** Evaluated invoke prompts for this (session, agent). */
   items: v.array(V.promptItemValidator),
-  /** Cached shape of the tool set. Behavior is rebuilt live each step. */
+  /** Tool set shape. Their behavior is kept volatile. */
   tools: v.optional(V.toolManifestValidator),
   capturedAt: v.number(),
 })
@@ -205,7 +289,8 @@ export const sessionCacheSchema = v.object({
 export const todoSchema = v.object({
   sessionId: v.id('sessions'),
   items: v.array(V.todoItemValidator),
-  turnCount: v.number(), // session turnCount at last write or nudge
+  /** Session turnCount at last write or nudge reminder. */
+  turnCount: v.number(),
   updatedAt: v.number(),
 })
 

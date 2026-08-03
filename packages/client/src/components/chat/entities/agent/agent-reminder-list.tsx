@@ -1,5 +1,5 @@
 import { AddFromLibrary, ReminderPromptList } from '@/components/chat/prompts'
-import { useSettings } from '@/hooks/chat'
+import { useReminderItems } from '@/hooks/chat'
 import type { ReminderPrompt } from '@/lib/chat'
 import type { Control } from 'react-hook-form'
 import { useController } from 'react-hook-form'
@@ -11,8 +11,7 @@ type AgentReminderListProps = {
 }
 
 export function AgentReminderList({ control }: AgentReminderListProps) {
-  const settings = useSettings()
-  const library = (settings?.libraryReminders ?? []) as ReminderPrompt[]
+  const library = useReminderItems('library')
 
   const { field: remindersField } = useController({
     control,

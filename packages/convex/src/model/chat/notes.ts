@@ -9,18 +9,20 @@ import type { MessageExtra, SessionMode } from '../../types'
 import { deleteVersions, insertMessage } from '../messageContents'
 import { scheduleMessageEval } from '../messages'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
-import { agentSenderSnapshot } from './identities'
+import type { SenderIdentity } from './identities'
+import { agentIdentity } from './identities'
 
 export type NoteSender = {
   agent: Doc<'agents'>
-  senderSnapshot: ReturnType<typeof agentSenderSnapshot>
+  identity: SenderIdentity
 }
 
 export type HiddenNote = {
   type: NonNullable<Doc<'messages'>['type']>
   role: MessageRole
   content: string
-  extra?: unknown
+  /** The payload for `type`. */
+  extra?: Doc<'messages'>['extra']
 }
 
 /** Resolves the session's active agent as the sender of injected notes. */
@@ -34,7 +36,7 @@ export async function resolveNoteSender(
   if (!agent) return null
 
   const settings = await getSettingsByOwnerId(ctx, agent.ownerId)
-  return { agent, senderSnapshot: agentSenderSnapshot(agent, settings) }
+  return { agent, identity: await agentIdentity(ctx, agent, settings) }
 }
 
 /**
@@ -55,7 +57,7 @@ export async function insertHiddenNote(
       sessionId: session._id,
       sender: { type: 'agent', id: sender.agent._id },
       role: note.role,
-      senderSnapshot: sender.senderSnapshot,
+      ...sender.identity,
       status: 'done',
       type: note.type,
       hidden: true,

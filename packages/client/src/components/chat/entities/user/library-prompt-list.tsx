@@ -27,7 +27,6 @@ function restoreFromDraft(id: string): LibraryPrompt | null {
     ...newPrompt({ name: 'New Prompt' }),
     ...saved,
     id,
-    createdAt: Date.now(),
   }
 }
 
@@ -40,11 +39,6 @@ export function LibraryPromptList({
   const [added, setAdded] = useState<LibraryPrompt | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
-  const sorted = useMemo(
-    () => [...prompts].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0)),
-    [prompts],
-  )
-
   const isExisting = prompts.some((p) => p.id === editingId)
 
   const editing = useMemo<LibraryPrompt | null>(() => {
@@ -56,10 +50,7 @@ export function LibraryPromptList({
   }, [editingId, prompts, added])
 
   function handleAdd() {
-    const created = {
-      ...newPrompt({ name: 'New Prompt' }),
-      createdAt: Date.now(),
-    }
+    const created = newPrompt({ name: 'New Prompt' })
     setAdded(created)
     view.open(created.id)
   }
@@ -80,17 +71,14 @@ export function LibraryPromptList({
 
   function handleDuplicate(prompt: LibraryPrompt) {
     onChange([
-      {
-        ...newPrompt({
-          name: getDuplicateName(prompt.name, prompts),
-          role: prompt.role,
-          content: prompt.content,
-          enabled: prompt.enabled,
-          visible: prompt.visible,
-          starter: prompt.starter,
-        }),
-        createdAt: getNextCreatedAt(prompts),
-      },
+      newPrompt({
+        name: getDuplicateName(prompt.name, prompts),
+        role: prompt.role,
+        content: prompt.content,
+        enabled: prompt.enabled,
+        visible: prompt.visible,
+        starter: prompt.starter,
+      }),
       ...prompts,
     ])
   }
@@ -98,7 +86,7 @@ export function LibraryPromptList({
   return (
     <>
       <SearchableList<LibraryPrompt>
-        items={sorted}
+        items={prompts}
         keys={(p) => p.id}
         fields={['name', 'content']}
         pageSize={10}
@@ -185,8 +173,4 @@ function getDuplicateName(name: string, prompts: LibraryPrompt[]) {
     .map(Number)
 
   return `${name} ${Math.max(0, ...indexes) + 1}`
-}
-
-function getNextCreatedAt(prompts: LibraryPrompt[]) {
-  return Math.max(0, ...prompts.map((p) => p.createdAt ?? 0)) + 1
 }

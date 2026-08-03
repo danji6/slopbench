@@ -5,7 +5,6 @@ import {
   useSessionMembers,
 } from '@/hooks/chat'
 import type { Id } from '@sb/convex/_generated/dataModel'
-import { toDisplayName } from '@sb/core/utils/names'
 import { useState } from 'react'
 
 import { ParticipantList } from './participant-list'
@@ -22,7 +21,7 @@ export function SessionMemberList() {
       <ParticipantList
         items={members}
         getKey={({ membership }) => membership._id}
-        getSearchText={({ settings }) => toDisplayName(settings?.displayName)}
+        getSearchText={({ name }) => name}
         emptyLabel="No members."
         renderItem={(member) => (
           <SessionMemberItem

@@ -3,7 +3,11 @@ import { ProfileGate } from '@/components/auth/profile-gate'
 import { Chat } from '@/components/chat'
 import { LightboxProvider } from '@/components/ui/lightbox'
 import { Toaster } from '@/components/ui/sonner'
-import { AttachmentUrlProvider, AvatarUrlProvider } from '@/hooks/chat'
+import {
+  AppearanceProvider,
+  AttachmentUrlProvider,
+  AvatarUrlProvider,
+} from '@/hooks/chat'
 import { FontProvider } from '@/providers/font'
 import { Route, Router, Switch } from 'wouter'
 
@@ -20,6 +24,7 @@ function ChatApp() {
     <>
       <AvatarUrlProvider />
       <AttachmentUrlProvider />
+      <AppearanceProvider />
       <Chat />
     </>
   )

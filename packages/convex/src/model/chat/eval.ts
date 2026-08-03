@@ -1,7 +1,9 @@
 import type { Id } from '../../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../../_generated/server'
+import { resolve as resolveMcpServers } from '../mcp'
 import { getSegmentRow, setSegmentParts } from '../messageContents'
 import { countParticipants } from '../session/memberships'
+import { getState, patchState } from '../session/state'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 
 type EvalTarget = {
@@ -39,20 +41,24 @@ export async function _getMessageEvalContext(
   const owner = await ctx.db.get(agent.ownerId)
   if (!owner) return null
 
-  const [invokerSettings, ownerSettings, participants] = await Promise.all([
-    getSettingsByOwnerId(ctx, invoker._id),
-    getSettingsByOwnerId(ctx, owner._id),
-    countParticipants(ctx, message.sessionId),
-  ])
+  const [invokerSettings, ownerSettings, participants, mcpServers] =
+    await Promise.all([
+      getSettingsByOwnerId(ctx, invoker._id),
+      getSettingsByOwnerId(ctx, owner._id),
+      countParticipants(ctx, message.sessionId),
+      resolveMcpServers(ctx, owner._id),
+    ])
 
   return {
     message: { ...message, parts: row.parts },
     session,
+    environment: (await getState(ctx, message.sessionId))?.environment ?? {},
     agent,
     invoker,
     invokerSettings,
     owner,
     ownerSettings,
+    mcpServers,
     ...participants,
   }
 }
@@ -81,6 +87,6 @@ export async function _applyMessageEval(
   await setSegmentParts(ctx, message, row, parts)
 
   if (dirty) {
-    await ctx.db.patch(message.sessionId, { environment })
+    await patchState(ctx, message.sessionId, { environment })
   }
 }

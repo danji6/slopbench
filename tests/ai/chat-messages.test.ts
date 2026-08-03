@@ -78,7 +78,7 @@ describe('chat message visibility', () => {
         sessionId: 'session',
         role: 'assistant',
         sender: { type: 'agent', id: 'agent' },
-        senderSnapshot: { name: 'Assistant' },
+        senderName: 'Assistant',
         status: 'done',
         segments: [
           {
@@ -131,7 +131,7 @@ describe('chat message visibility', () => {
     })
   })
 
-  test('projects shared sender appearance metadata', () => {
+  test('projects the sender identity and its interned appearance id', () => {
     const { byId } = convertMessages([
       {
         _id: 'user',
@@ -139,11 +139,8 @@ describe('chat message visibility', () => {
         sessionId: 'session',
         role: 'user',
         sender: { type: 'user', id: 'user' },
-        senderSnapshot: {
-          name: 'User',
-          css: '.usr { opacity: 0.9; }',
-          theme: { source: '#123456', light: {}, dark: {} },
-        },
+        senderName: 'User',
+        appearanceId: 'appearance_1',
         status: 'done',
         segments: [
           { segmentIndex: 0, parts: [{ type: 'text', text: 'hello' }] },
@@ -155,10 +152,8 @@ describe('chat message visibility', () => {
 
     expect(byId.get('user')).toMatchObject({
       sender: { type: 'user', id: 'user' },
-      senderSnapshot: {
-        css: '.usr { opacity: 0.9; }',
-        theme: { source: '#123456', light: {}, dark: {} },
-      },
+      senderName: 'User',
+      appearanceId: 'appearance_1',
     })
   })
 

@@ -296,7 +296,7 @@ describe('_continue', () => {
       sessionId: 'session_1',
       status: 'processing',
       sender: { type: 'agent', id: 'agent_1' },
-      senderSnapshot: { name: 'Agent' },
+      senderName: 'Agent',
     }
     const { ctx, patches, inserts } = fakeCtx({
       docs: [stream, message],

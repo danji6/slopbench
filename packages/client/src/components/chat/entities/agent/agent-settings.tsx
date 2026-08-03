@@ -6,7 +6,14 @@ import {
   SettingsFooter,
   SettingsTabs,
 } from '@/components/ui'
-import { useAgentUpdate, useEditingAgent, useSettings } from '@/hooks/chat'
+import {
+  useAgentPromptSets,
+  useAgentPromptSetsSave,
+  useAgentUpdate,
+  useEditingAgentId,
+  useOwnedAgent,
+  useSettings,
+} from '@/hooks/chat'
 import {
   AGENT_EDITOR_DEFAULT_TAB,
   AGENT_EDITOR_VIEW,
@@ -38,6 +45,7 @@ import { useForm, useWatch } from 'react-hook-form'
 import {
   type AgentFormValues,
   EMPTY_AGENT_FORM,
+  EMPTY_AGENT_PROMPT_SETS,
   agentToFormValues,
   formValuesToPatch,
 } from './agent-form'
@@ -54,14 +62,15 @@ export function AgentSettings() {
   const view = useAgentEditorView()
   const open = view.active
   const activeTab = view.value ?? AGENT_EDITOR_DEFAULT_TAB
-  const editingAgent = useEditingAgent()
-  const agentId = editingAgent?._id
+  // The id leads the local state while the document is fetched
+  const agentId = useEditingAgentId()
+  const editingAgent = useOwnedAgent(agentId)
 
   const updateAgent = useAgentUpdate()
+  const promptSets = useAgentPromptSets(agentId ?? undefined)
+  const savePromptSets = useAgentPromptSetsSave()
   const clearAvatar = useMutation(api.agents.clearAvatar)
-  const uploadAvatar = useHttpAction<FormData, AvatarUploadResult>(
-    '/io/avatar/upload',
-  )
+  const uploadAvatar = useHttpAction<FormData, AvatarUploadResult>('/io/avatar/upload') // prettier-ignore
 
   const form = useForm<AgentFormValues>({ defaultValues: EMPTY_AGENT_FORM })
 
@@ -82,14 +91,20 @@ export function AgentSettings() {
     'these agent settings',
   )
 
+  // Keep the previous while loading to avoid empty flashing
+  const loaded =
+    !agentId || (editingAgent !== undefined && promptSets !== undefined)
+
   useEffect(() => {
-    if (!open) return
+    if (!open || !loaded) return
     draft.sync(
-      editingAgent ? agentToFormValues(editingAgent) : EMPTY_AGENT_FORM,
+      editingAgent
+        ? agentToFormValues(editingAgent, promptSets ?? EMPTY_AGENT_PROMPT_SETS)
+        : EMPTY_AGENT_FORM,
     )
     // Sync from the live doc on agent switch or when (re)opening the editor
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agentId, open])
+  }, [agentId, open, loaded])
 
   // The theme is previewed inside the dialog, while its tab is open
   const settings = useSettings()
@@ -141,7 +156,8 @@ export function AgentSettings() {
   }
 
   async function persist(values: AgentFormValues) {
-    if (!agentId) return
+    if (!agentId || !loaded) return
+
     if (pendingAvatar) {
       await uploadAvatar.call(avatarUploadForm(agentId, pendingAvatar))
       setPendingAvatar(null)
@@ -150,6 +166,13 @@ export function AgentSettings() {
       setAvatarCleared(false)
     }
     await updateAgent(await formValuesToPatch(agentId, values))
+    await savePromptSets(agentId, {
+      prompts: values.prompts,
+      reminderPrompts: values.reminderPrompts,
+      compactionPrompts: values.compactionPrompts,
+      impersonationPrompts: values.impersonationPrompts,
+    })
+
     form.reset(values)
     draft.clear()
   }

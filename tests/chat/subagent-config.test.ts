@@ -137,7 +137,7 @@ describe('task tool', () => {
       agent: { tools: [] } as never,
       invoker: {} as never,
       session: {} as never,
-      settings: null,
+      resources: { settings: null, mcpServers: [] },
       spawnableAgents,
     } as never)
 

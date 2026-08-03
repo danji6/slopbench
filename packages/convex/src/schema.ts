@@ -2,17 +2,25 @@ import { defineSchema, defineTable } from 'convex/server'
 
 import {
   agentSchema,
+  appearanceSchema,
   attachmentSchema,
   avatarSchema,
+  credentialSchema,
   editorScriptSchema,
+  mcpServerSchema,
+  mcpToolSchema,
   messageContentSchema,
   messageSchema,
+  modelProviderSchema,
   offloadedOutputSchema,
   planSchema,
+  promptSchema,
+  reminderSchema,
   sessionAgentSchema,
   sessionCacheSchema,
   sessionSchema,
   sessionShareSchema,
+  sessionStateSchema,
   settingsSchema,
   streamSchema,
   todoSchema,
@@ -27,6 +35,9 @@ export default defineSchema({
     .index('by_ownerId', ['ownerId'])
     .index('by_parentSessionId', ['parent.sessionId']),
 
+  sessionState: defineTable(sessionStateSchema)
+    .index('by_sessionId', ['sessionId']),
+
   plans: defineTable(planSchema)
     .index('by_sessionId', ['sessionId']),
 
@@ -35,7 +46,8 @@ export default defineSchema({
 
   sessionCache: defineTable(sessionCacheSchema)
     .index('by_sessionId', ['sessionId'])
-    .index('by_sessionId_agentId', ['sessionId', 'agentId']),
+    .index('by_sessionId_agentId', ['sessionId', 'agentId'])
+    .index('by_agentId', ['agentId']),
 
   agents: defineTable(agentSchema)
     .index('by_ownerId_name', ['ownerId', 'name'])
@@ -51,6 +63,29 @@ export default defineSchema({
     .index('by_ownerId', ['ownerId'])
     .index('by_avatarId', ['avatarId']),
 
+  prompts: defineTable(promptSchema)
+    .index('by_ownerId_scope_order', ['ownerId', 'scope', 'order'])
+    .index('by_agentId_scope_order', ['agentId', 'scope', 'order'])
+    .index('by_ownerId_scope_key', ['ownerId', 'scope', 'key']),
+
+  reminders: defineTable(reminderSchema)
+    .index('by_ownerId_scope_order', ['ownerId', 'scope', 'order'])
+    .index('by_agentId_scope_order', ['agentId', 'scope', 'order']),
+
+  mcpServers: defineTable(mcpServerSchema)
+    .index('by_ownerId_order', ['ownerId', 'order'])
+    .index('by_ownerId_key', ['ownerId', 'key']),
+
+  mcpTools: defineTable(mcpToolSchema)
+    .index('by_serverId_order', ['serverId', 'order']),
+
+  modelProviders: defineTable(modelProviderSchema)
+    .index('by_ownerId_order', ['ownerId', 'order'])
+    .index('by_ownerId_key', ['ownerId', 'key']),
+
+  credentials: defineTable(credentialSchema)
+    .index('by_ownerId_scope_ref', ['ownerId', 'scope', 'ref']),
+
   editorScripts: defineTable(editorScriptSchema)
     .index('by_ownerId_order', ['ownerId', 'order']),
 
@@ -59,7 +94,10 @@ export default defineSchema({
     .index('by_sessionId_senderType', ['sessionId', 'sender.type'])
     .index('by_sessionId_status_contextEligible', ['sessionId', 'status', 'contextEligible'])
     .index('by_sessionId_type_status', ['sessionId', 'type', 'status'])
-    .index('by_snapshotAvatarId', ['senderSnapshot.avatarId']),
+    .index('by_senderAvatarId', ['senderAvatarId']),
+
+  appearances: defineTable(appearanceSchema)
+    .index('by_hash', ['hash']),
 
   messageContents: defineTable(messageContentSchema)
     .index('by_messageId_version_segment', ['messageId', 'version', 'segmentIndex'])

@@ -503,7 +503,7 @@ export function prefixSenderName(
   stored: Doc<'messages'>,
   agent: Doc<'agents'>,
 ) {
-  const senderName = stored.senderSnapshot?.name
+  const senderName = stored.senderName
   if (!senderName) return message.parts
 
   const shouldPrefix =

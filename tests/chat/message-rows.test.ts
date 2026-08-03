@@ -203,7 +203,7 @@ describe('segment rows', () => {
     const named = (hasOlder: boolean) =>
       ({
         ...meta([{ index: hasOlder ? 1 : 0, partCount: 2 }], hasOlder),
-        senderSnapshot: { name: 'Agent' },
+        senderName: 'Agent',
       }) as unknown as MessageRecord
 
     const complete = buildRows(
@@ -231,7 +231,7 @@ describe('segment rows', () => {
 describe('sender grouping', () => {
   const agentMeta = {
     sender: { type: 'agent', id: 'agent_1' },
-    senderSnapshot: { name: 'Agent' },
+    senderName: 'Agent',
     selectedVersion: 1,
     versionCount: 1,
   } as unknown as MessageRecord
@@ -300,7 +300,7 @@ describe('sender grouping', () => {
   test('a nameless sender still gets a header', () => {
     const namelessMeta = {
       ...agentMeta,
-      senderSnapshot: undefined,
+      senderName: undefined,
     } as unknown as MessageRecord
 
     const rows = rowsFor({ 'message-1': namelessMeta }, false)

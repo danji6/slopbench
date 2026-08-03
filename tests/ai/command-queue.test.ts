@@ -2,6 +2,8 @@
 import { drainCommandQueue } from '@sb/convex/model/chat/commands'
 import { describe, expect, test } from 'bun:test'
 
+import { fakeSessionState } from '../setup/session-state'
+
 type Doc = Record<string, unknown>
 type Entry = { name: string; invokedBy: string; messageId: string }
 
@@ -28,14 +30,11 @@ function drainCtx({
   activeAgentId?: string | null
 }) {
   const patches: Array<{ id: string; patch: Doc }> = []
+  const state = fakeSessionState({ commandQueue: queue })
   const docs = new Map<string, Doc>([
     [
       'session_1',
-      {
-        _id: 'session_1',
-        commandQueue: queue,
-        activeAgentId: activeAgentId ?? undefined,
-      },
+      { _id: 'session_1', activeAgentId: activeAgentId ?? undefined },
     ],
   ])
 
@@ -54,13 +53,16 @@ function drainCtx({
     db: {
       get: async (id: string) => docs.get(id) ?? null,
       patch: async (id: string, patch: Doc) => {
+        if (state.owns(id)) return void state.patch(patch)
         patches.push({ id, patch })
         docs.set(id, { ...docs.get(id), ...patch })
       },
+      insert: async (table: string, doc: Doc) => state.insert(doc),
       delete: async () => {},
       query: (table: string) => ({
         withIndex: (_index: string, cb: (query: typeof q) => typeof q) => {
           cb(q)
+          if (table === 'sessionState') return state.query()
           if (table === 'streams') {
             return { first: async () => streams[streamCall++] ?? null }
           }
@@ -72,26 +74,24 @@ function drainCtx({
     scheduler: { runAfter: async () => 'job_1' },
   } as never
 
-  return { ctx, patches }
+  return { ctx, patches, state }
 }
 
 const chipPatches = (patches: Array<{ id: string; patch: Doc }>) =>
   patches.filter(({ id }) => id.startsWith('msg_'))
 
-const queuePatches = (patches: Array<{ id: string; patch: Doc }>) =>
-  patches
-    .filter(({ id }) => id === 'session_1')
-    .map(({ patch }) => patch.commandQueue)
+const queuePatches = (state: { patches: Doc[] }) =>
+  state.patches.map((patch) => patch.commandQueue)
 
 describe('drainCommandQueue', () => {
   test('runs every waiting command in order and marks its chip', async () => {
     const first = entry('eval', 'msg_1')
     const second = entry('eval', 'msg_2')
-    const { ctx, patches } = drainCtx({ queue: [first, second] })
+    const { ctx, patches, state } = drainCtx({ queue: [first, second] })
 
     await drainCommandQueue(ctx, { sessionId: 'session_1' as never })
 
-    expect(queuePatches(patches)).toEqual([[second], []])
+    expect(queuePatches(state)).toEqual([[second], []])
     expect(chipPatches(patches)).toEqual([
       { id: 'msg_1', patch: { extra: { name: 'eval', status: 'ran' } } },
       { id: 'msg_2', patch: { extra: { name: 'eval', status: 'ran' } } },
@@ -101,38 +101,38 @@ describe('drainCommandQueue', () => {
   test('leaves the rest queued once the session is busy again', async () => {
     const first = entry('eval', 'msg_1')
     const second = entry('eval', 'msg_2')
-    const { ctx, patches } = drainCtx({
+    const { ctx, patches, state } = drainCtx({
       queue: [first, second],
       streams: [null, activeStream()],
     })
 
     await drainCommandQueue(ctx, { sessionId: 'session_1' as never })
 
-    expect(queuePatches(patches)).toEqual([[second]])
+    expect(queuePatches(state)).toEqual([[second]])
     expect(chipPatches(patches).map(({ id }) => id)).toEqual(['msg_1'])
   })
 
   test('drops a command whose chip the user deleted', async () => {
-    const { ctx, patches } = drainCtx({
+    const { ctx, patches, state } = drainCtx({
       queue: [entry('eval', 'msg_1')],
       deletedChips: ['msg_1'],
     })
 
     await drainCommandQueue(ctx, { sessionId: 'session_1' as never })
 
-    expect(queuePatches(patches)).toEqual([[]])
+    expect(queuePatches(state)).toEqual([[]])
     expect(chipPatches(patches)).toEqual([])
   })
 
   test('marks a failing command on its chip instead of retrying it', async () => {
-    const { ctx, patches } = drainCtx({
+    const { ctx, patches, state } = drainCtx({
       queue: [entry('compact', 'msg_1')],
       activeAgentId: null,
     })
 
     await drainCommandQueue(ctx, { sessionId: 'session_1' as never })
 
-    expect(queuePatches(patches)).toEqual([[]])
+    expect(queuePatches(state)).toEqual([[]])
     expect(chipPatches(patches)).toEqual([
       {
         id: 'msg_1',
@@ -148,10 +148,11 @@ describe('drainCommandQueue', () => {
   })
 
   test('does nothing when the queue is empty', async () => {
-    const { ctx, patches } = drainCtx({ queue: [] })
+    const { ctx, patches, state } = drainCtx({ queue: [] })
 
     await drainCommandQueue(ctx, { sessionId: 'session_1' as never })
 
     expect(patches).toEqual([])
+    expect(state.patches).toEqual([])
   })
 })

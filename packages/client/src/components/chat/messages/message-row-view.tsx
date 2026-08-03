@@ -1,5 +1,6 @@
 import {
   useActiveSession,
+  useAppearance,
   useAttachmentIds,
   useChatMessage,
   useIsMessageStreaming,
@@ -117,14 +118,14 @@ function RowShell({ message, messageMeta, row, children }: RowShellProps) {
   )
 
   const settings = useSettings()
-  const customCss =
-    messageMeta?.senderSnapshot?.css ?? settings?.customCss ?? undefined
+  const appearance = useAppearance(messageMeta?.appearanceId)
+  const customCss = appearance?.css ?? settings?.customCss ?? undefined
   const customCssClass = customCss
     ? `custom-css-${message.id.replace(/[^a-zA-Z0-9_-]/g, '-')}`
     : undefined
 
   const isDark = useIsDarkMode()
-  const theme = messageMeta?.senderSnapshot?.theme ?? settings?.theme ?? null
+  const theme = appearance?.theme ?? settings?.theme ?? null
   const themeVars = useMemo(() => {
     if (!customCssClass || !theme) return ''
     return schemeToCssVars(isDark ? theme.dark : theme.light)
@@ -206,10 +207,10 @@ function HeaderRow({ row, message, messageMeta }: HeaderRowProps) {
 
   const sender = {
     name: toDisplayName(
-      messageMeta?.senderSnapshot?.name,
+      messageMeta?.senderName,
       message.role === 'system' ? 'System' : undefined,
     ),
-    avatarId: messageMeta?.senderSnapshot?.avatarId,
+    avatarId: messageMeta?.senderAvatarId,
   }
 
   return (

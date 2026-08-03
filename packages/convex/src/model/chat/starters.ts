@@ -1,12 +1,12 @@
 import type { Id } from '../../_generated/dataModel'
 import { error } from '../../errors'
 import type { AuthMutationCtx } from '../../functions'
-import type { Prompt } from '../../types'
 import { insertMessage } from '../messageContents'
 import { scheduleMessageEval } from '../messages'
 import { collectStarterPrompts, mergePrompts } from '../prompt/prompts'
+import { resolveSets as resolvePromptSets } from '../prompts'
 import { get as getSettings } from '../settings'
-import { agentSenderSnapshot } from './identities'
+import { agentIdentity } from './identities'
 
 export async function maybeInsertStarters(
   ctx: AuthMutationCtx,
@@ -27,16 +27,17 @@ export async function maybeInsertStarters(
   if (!agent) error('Agent not found', 404)
 
   const settings = await getSettings(ctx)
+  const sets = await resolvePromptSets(ctx, agent)
 
   const prompts = mergePrompts(
-    agent,
-    (settings?.globalPrompts ?? []) as Prompt[],
-    (settings?.libraryPrompts ?? []) as Prompt[],
+    { ...agent, prompts: sets.own },
+    sets.global,
+    sets.library,
   )
   const starters = collectStarterPrompts(prompts)
   if (starters.length === 0) return
 
-  const senderSnapshot = agentSenderSnapshot(agent, settings)
+  const identity = await agentIdentity(ctx, agent, settings)
 
   for (const prompt of starters) {
     const parts = [{ type: 'text', text: prompt.content }]
@@ -46,7 +47,7 @@ export async function maybeInsertStarters(
         sessionId: session._id,
         sender: { type: 'agent', id: agent._id },
         role: prompt.role,
-        senderSnapshot,
+        ...identity,
         status: 'done',
       },
       parts,

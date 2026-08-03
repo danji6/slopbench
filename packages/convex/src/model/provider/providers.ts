@@ -2,7 +2,7 @@ import type { Id } from '../../_generated/dataModel'
 import type { QueryCtx } from '../../_generated/server'
 import type { AuthQueryCtx } from '../../functions'
 import type { ModelEntry, ModelProviderConfig } from '../../types'
-import { getOrDefault as getSettings } from '../settings'
+import { resolve as resolveProviders } from '../providers'
 
 export type ProviderCredentials = {
   providerId?: string
@@ -23,8 +23,7 @@ export type UIModelConfig = {
 
 export async function list(ctx: AuthQueryCtx): Promise<UIModelConfig> {
   try {
-    const settings = await getSettings(ctx)
-    const providers: ModelProviderConfig[] = settings.modelProviders ?? []
+    const providers = await resolveProviders(ctx, ctx.userId)
 
     const models: UIModel[] = providers
       .filter((p) => p.enabled)
@@ -49,12 +48,7 @@ export async function _getProviderForModel(
   ctx: QueryCtx,
   { ownerId, modelId }: { ownerId: Id<'users'>; modelId: string },
 ) {
-  const doc = await ctx.db
-    .query('settings')
-    .withIndex('by_ownerId', (q) => q.eq('ownerId', ownerId))
-    .unique()
-
-  return findCredentialsForModel(doc?.modelProviders, modelId)
+  return findCredentialsForModel(await resolveProviders(ctx, ownerId), modelId)
 }
 
 export function findCredentialsForModel(

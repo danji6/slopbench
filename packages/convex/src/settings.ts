@@ -1,8 +1,6 @@
-import { v } from 'convex/values'
-
-import type { AuthMutationCtx } from './functions'
 import { authMutation, authQuery } from './functions'
 import * as Settings from './model/settings'
+import * as V from './validators/args'
 
 export const get = authQuery({
   args: {},
@@ -10,17 +8,11 @@ export const get = authQuery({
 })
 
 export const update = authMutation({
-  args: { patch: v.record(v.string(), v.any()) },
-  handler: (ctx: AuthMutationCtx, { patch }) =>
-    Settings.update(ctx, {
-      patch: patch as Parameters<typeof Settings.update>[1]['patch'],
-    }),
+  args: { patch: V.settingsPatchArgsValidator },
+  handler: Settings.update,
 })
 
 export const remove = authMutation({
-  args: { key: v.string() },
-  handler: (ctx: AuthMutationCtx, { key }) =>
-    Settings.remove(ctx, {
-      key: key as Parameters<typeof Settings.remove>[1]['key'],
-    }),
+  args: { key: V.settingsKeyValidator },
+  handler: Settings.remove,
 })

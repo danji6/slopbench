@@ -1,6 +1,10 @@
 import { Popover } from '@/components/ui/popover'
 import { ProgressCircle } from '@/components/ui/progress-circle'
-import { useActiveModel, useActiveSession, useChatMetadata } from '@/hooks/chat'
+import {
+  useActiveModel,
+  useActiveSessionState,
+  useChatMetadata,
+} from '@/hooks/chat'
 import type { UsageTotals } from '@/lib/chat/types'
 import { abbreviateNumber, cn } from '@/lib/utils'
 import { useMemo } from 'react'
@@ -106,12 +110,12 @@ function Row({
 
 function useTokenData() {
   const metadata = useChatMetadata()
-  const session = useActiveSession()
+  const state = useActiveSessionState()
   const model = useActiveModel()
 
   return useMemo(() => {
     const lastRequest = metadata?.usage
-    const sessionUsage = session?.metadata?.usage
+    const sessionUsage = state?.usage
     const max = model?.contextWindow
     const value = lastRequest?.totalTokens ?? 0
     const percentage = Math.round(max ? (value / max) * 100 : 0)
@@ -126,5 +130,5 @@ function useTokenData() {
         modelLabel: model?.label ?? model?.id,
       },
     }
-  }, [metadata, session, model])
+  }, [metadata, state, model])
 }

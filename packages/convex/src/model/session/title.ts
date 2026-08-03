@@ -3,6 +3,7 @@ import type { MutationCtx, QueryCtx } from '../../_generated/server'
 import { withParts } from '../messageContents'
 import { textFromParts } from '../messages'
 import { findCredentialsForModel } from '../provider/providers'
+import { resolve as resolveProviders } from '../providers'
 import { syncTitle } from '../userSessions'
 
 export async function _getTitleContext(
@@ -24,7 +25,10 @@ export async function _getTitleContext(
     autoTitle: settings?.autoTitle ?? true,
     modelId,
     credentials: modelId
-      ? findCredentialsForModel(settings?.modelProviders, modelId)
+      ? findCredentialsForModel(
+          await resolveProviders(ctx, session.ownerId),
+          modelId,
+        )
       : undefined,
   }
 }

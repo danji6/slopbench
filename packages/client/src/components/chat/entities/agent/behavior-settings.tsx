@@ -1,7 +1,7 @@
 import { ResettablePromptList } from '@/components/chat/prompts'
 import { md } from '@/components/markdown'
 import { SettingsList } from '@/components/ui'
-import { useSettings } from '@/hooks/chat'
+import { usePromptItems } from '@/hooks/chat'
 import type { MathMode, ScrollMode } from '@/lib/chat'
 import {
   createDefaultCompactionPrompts,
@@ -21,7 +21,8 @@ export function BehaviorSettings({
 }: {
   control: Control<AgentFormValues>
 }) {
-  const settings = useSettings()
+  const userCompaction = usePromptItems('compaction')
+  const userImpersonation = usePromptItems('impersonation')
 
   return (
     <SettingsList>
@@ -117,7 +118,9 @@ export function BehaviorSettings({
         name="compactionPrompts"
         label="Compaction prompts"
         seed={() =>
-          settings?.compactionPrompts ?? createDefaultCompactionPrompts()
+          userCompaction.length
+            ? userCompaction
+            : createDefaultCompactionPrompts()
         }
       >
         {(value, onChange) => (
@@ -135,7 +138,9 @@ export function BehaviorSettings({
         name="impersonationPrompts"
         label="Impersonation prompts"
         seed={() =>
-          settings?.impersonationPrompts ?? createDefaultImpersonationPrompts()
+          userImpersonation.length
+            ? userImpersonation
+            : createDefaultImpersonationPrompts()
         }
       >
         {(value, onChange) => (

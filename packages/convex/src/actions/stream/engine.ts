@@ -153,7 +153,7 @@ async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
   // Frozen prompts skip evaluation (see snapshots.ts)
   let evalResult: PromptEvalResult = {
     items: [],
-    environment: (data.session.environment as Record<string, unknown>) ?? {},
+    environment: data.environment,
     dirty: false,
   }
 
@@ -194,7 +194,7 @@ async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
   )
 
   const credentials = findCredentialsForModel(
-    data.settings?.modelProviders,
+    data.modelProviders,
     data.agent.modelId,
   )
 
@@ -302,7 +302,6 @@ async function consumeProviderStep(
           await patchSessionLogBody(ctx, {
             body: buildSessionLogBody({ requestBody: body }),
             sessionId: setup.stream.sessionId,
-            mutation: internal.sessions._patchLastRequestBody,
           })
         },
       ),
@@ -412,7 +411,6 @@ async function consumeProviderStep(
         responseBody: lastResponseBody,
       }),
       sessionId: setup.stream.sessionId,
-      mutation: internal.sessions._patchLastResponseBody,
     })
 
     const steps = await result.steps
@@ -586,19 +584,18 @@ async function patchSessionLogBody(
   ctx: ActionCtx,
   {
     body,
-    mutation,
     sessionId,
   }: {
     body: string
-    mutation:
-      | typeof internal.sessions._patchLastRequestBody
-      | typeof internal.sessions._patchLastResponseBody
     sessionId: Id<'sessions'>
   },
 ) {
   const storageId = await storeSessionLogBody(ctx, body)
   try {
-    await ctx.runMutation(mutation, { sessionId, storageId })
+    await ctx.runMutation(internal.sessions._patchSessionLog, {
+      sessionId,
+      storageId,
+    })
   } catch (err) {
     await ctx.storage.delete(storageId).catch(() => {})
     throw err

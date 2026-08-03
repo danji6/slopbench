@@ -92,6 +92,7 @@ export async function messagesWindow(
         ? await messagesExistBeyond(ctx, sessionPrefix, anchor, 'newer')
         : false) ||
       (page.at(-1)?.hasNewerSegments ?? false)
+
     return {
       page,
       hasOlder:
@@ -125,6 +126,7 @@ export async function messagesWindow(
     (messages[0]?.hasOlderSegments ?? false)
   const hasNewer =
     result.hasMore || trimmed || (messages.at(-1)?.hasNewerSegments ?? false)
+
   return {
     page: messages,
     hasOlder,
@@ -133,20 +135,20 @@ export async function messagesWindow(
   }
 }
 
+type SegmentJoinOptions = {
+  direction: 'older' | 'newer'
+  anchorSegment?: number
+}
+
 /**
- * Joins rows with their selected segments anchor-outward, stopping once the
- * accumulated serialized size passes the budget. May stop mid-message: the
- * message then keeps the anchor-side slice of its segments and flags the
- * missing side. Always yields at least one segment.
+ * Joins rows with their selected segments, stopping once the accumulated size
+ * passes the budget. Always yields at least one segment.
  */
 export async function joinSegmentsWithinBudget(
   ctx: AuthQueryCtx,
   rows: Doc<'messages'>[],
   budget: number | undefined,
-  {
-    direction,
-    anchorSegment,
-  }: { direction: 'older' | 'newer'; anchorSegment?: number },
+  { direction, anchorSegment }: SegmentJoinOptions,
 ): Promise<{ messages: WindowMessage[]; trimmed: boolean }> {
   const messages: WindowMessage[] = []
   let total = 0
@@ -159,7 +161,8 @@ export async function joinSegmentsWithinBudget(
     if (exhausted()) return { messages, trimmed: true }
 
     const allSegments = await listSelectedSegments(ctx, row)
-    // The anchor message may enter the page from a mid-message seam
+
+    // The anchor message may enter the page mid message
     const sliced =
       index === 0 && anchorSegment !== undefined
         ? allSegments.filter((segment) =>
@@ -169,9 +172,10 @@ export async function joinSegmentsWithinBudget(
           )
         : allSegments
 
-    // Walk segments closest-to-anchor first so a budget stop keeps the
-    // anchor-side slice
     const ordered = direction === 'older' ? [...sliced].reverse() : sliced
+
+    // The message doc itself also counts towards the budget
+    total += serializedSize(row)
 
     const loaded: WindowSegment[] = []
     let partial = false
@@ -293,7 +297,8 @@ export type MessageSearchResult = {
   segmentIndex: number
   role: Doc<'messages'>['role']
   sender: Doc<'messages'>['sender']
-  senderSnapshot: Doc<'messages'>['senderSnapshot']
+  senderName?: string
+  senderAvatarId?: Id<'avatars'>
   text: string
 }
 
@@ -346,7 +351,8 @@ function toSearchResult(
     segmentIndex: row.segmentIndex,
     role: message.role,
     sender: message.sender,
-    senderSnapshot: message.senderSnapshot,
+    senderName: message.senderName,
+    senderAvatarId: message.senderAvatarId,
     text: row.searchText ?? '',
   }
 }

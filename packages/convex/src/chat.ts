@@ -5,6 +5,7 @@ import { internalMutation, internalQuery } from './_generated/server'
 import { authMutation, authQuery } from './functions'
 import * as Chat from './model/chat'
 import * as V from './validators/args'
+import { environmentValidator } from './validators/sub'
 
 export const messagesWindow = authQuery({
   args: V.messagesWindowArgsValidator.fields,
@@ -147,7 +148,7 @@ export const _applyMessageEval = internalMutation({
     version: v.number(),
     segmentIndex: v.number(),
     parts: v.array(v.any()),
-    environment: v.any(),
+    environment: environmentValidator,
     dirty: v.boolean(),
   },
   handler: Chat._applyMessageEval,

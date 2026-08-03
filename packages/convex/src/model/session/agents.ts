@@ -2,8 +2,6 @@ import type { Id } from '../../_generated/dataModel'
 import { error } from '../../errors'
 import type { AuthMutationCtx, AuthQueryCtx } from '../../functions'
 import type { ThemeSnapshot } from '../../types'
-import { findModelEntry } from '../provider/providers'
-import { get as getSettings } from '../settings'
 import { stopForSession } from '../stream/lifecycle'
 import {
   getMember,
@@ -11,7 +9,7 @@ import {
   requireMember,
   requireNonBlockingStream,
 } from './memberships'
-import { setMetadataModel } from './metadata'
+import { resolveAgentModel } from './models'
 
 type Args = {
   sessionId: Id<'sessions'>
@@ -90,7 +88,7 @@ export async function unlink(ctx: AuthMutationCtx, args: Args) {
   if (session.activeAgentId === args.agentId) {
     await ctx.db.patch(session._id, {
       activeAgentId: undefined,
-      metadata: setMetadataModel(session.metadata, undefined),
+      model: undefined,
     })
     await stopForSession(ctx, args.sessionId)
   }
@@ -115,7 +113,7 @@ export async function activate(ctx: AuthMutationCtx, args: Args) {
 
   await ctx.db.patch(args.sessionId, {
     activeAgentId: isActive ? undefined : args.agentId,
-    metadata: setMetadataModel(session.metadata, model),
+    model,
   })
   if (isActive) await stopForSession(ctx, args.sessionId)
 }
@@ -152,11 +150,5 @@ async function modelForAgent(
 ) {
   if (!agent.modelId) return undefined
 
-  const settings = await getSettings(ctx)
-
-  return (
-    findModelEntry(settings?.modelProviders, agent.modelId) ?? {
-      id: agent.modelId,
-    }
-  )
+  return resolveAgentModel(ctx, agent)
 }
