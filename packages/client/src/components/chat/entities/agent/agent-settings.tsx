@@ -4,11 +4,13 @@ import {
   Dialog,
   ErrorBoundary,
   type FallbackProps,
+  LoadingOverlay,
   RippleButton,
   type RippleButtonProps,
   SettingsFooter,
   SettingsTabs,
 } from '@/components/ui'
+import { useStableValue } from '@/hooks'
 import {
   useAgentPromptSets,
   useAgentPromptSetsSave,
@@ -24,6 +26,7 @@ import {
   useOpenAgentEditor,
 } from '@/hooks/chat/agent-editor'
 import { useFormDraft } from '@/hooks/chat/form-draft'
+import { useSettingsSave } from '@/hooks/chat/settings-save'
 import { useHttpAction } from '@/hooks/http'
 import { useScopedTheme } from '@/hooks/theme'
 import { useViewCloseGuard } from '@/hooks/view'
@@ -111,7 +114,7 @@ function AgentSettingsDialog() {
   const activeTab = view.value ?? AGENT_EDITOR_DEFAULT_TAB
   // The id leads the local state while the document is fetched
   const agentId = useEditingAgentId()
-  const editingAgent = useOwnedAgent(agentId)
+  const liveAgent = useOwnedAgent(agentId)
 
   const updateAgent = useAgentUpdate()
   const promptSets = useAgentPromptSets(agentId ?? undefined)
@@ -139,11 +142,12 @@ function AgentSettingsDialog() {
   )
 
   // Keep the previous while loading to avoid empty flashing
-  const loaded =
-    !agentId || (editingAgent !== undefined && promptSets !== undefined)
+  const loading =
+    !!agentId && (liveAgent === undefined || promptSets === undefined)
+  const editingAgent = useStableValue(liveAgent, loading)
 
   useEffect(() => {
-    if (!open || !loaded) return
+    if (!open || loading) return
     draft.sync(
       editingAgent
         ? agentToFormValues(editingAgent, promptSets ?? EMPTY_AGENT_PROMPT_SETS)
@@ -151,7 +155,7 @@ function AgentSettingsDialog() {
     )
     // Sync from the live doc on agent switch or when (re)opening the editor
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agentId, open, loaded])
+  }, [agentId, open, loading])
 
   // The theme is previewed inside the dialog, while its tab is open
   const settings = useSettings()
@@ -203,7 +207,7 @@ function AgentSettingsDialog() {
   }
 
   async function persist(values: AgentFormValues) {
-    if (!agentId || !loaded) return
+    if (!agentId || loading) return
 
     if (pendingAvatar) {
       await uploadAvatar.call(avatarUploadForm(agentId, pendingAvatar))
@@ -221,14 +225,13 @@ function AgentSettingsDialog() {
   }
 
   // Apply persists but keeps the editor open; Save persists then closes.
-  const apply = form.handleSubmit(persist)
-  const save = form.handleSubmit(async (values) => {
-    await persist(values)
-    close()
-  })
+  const { saving, apply, save } = useSettingsSave(form, persist, close)
 
   return (
-    <Dialog open={open} onOpenChange={(next) => !next && guard(close)}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => !next && !saving && guard(close)}
+    >
       <ThemeScope className={themeScope}>
         <Dialog.Content
           showCloseButton={false}
@@ -237,6 +240,8 @@ function AgentSettingsDialog() {
             themeScope,
           )}
         >
+          <LoadingOverlay show={saving} className="rounded-lg" />
+
           <Dialog.Header className="flex flex-col justify-between border-b px-6 py-4 text-left sm:flex-row sm:items-center">
             <div className="flex flex-col gap-2 text-left">
               <Dialog.Title>Agents</Dialog.Title>
@@ -250,11 +255,13 @@ function AgentSettingsDialog() {
             />
           </Dialog.Header>
 
-          {!editingAgent ? (
+          {!editingAgent && !loading && (
             <p className="text-muted-foreground mt-8 px-4 text-center text-sm">
               Select or create an agent to edit its settings.
             </p>
-          ) : (
+          )}
+
+          {editingAgent && (
             <form className="flex min-h-0 flex-1 flex-col" onSubmit={apply}>
               <SettingsTabs
                 value={activeTab}
@@ -326,6 +333,7 @@ function AgentSettingsDialog() {
 
               <SettingsFooter
                 isDirty={isDirty}
+                busy={saving}
                 onClose={close}
                 onDiscard={() => {
                   discard()

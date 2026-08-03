@@ -4,6 +4,7 @@ import {
   Dialog,
   ErrorBoundary,
   type FallbackProps,
+  LoadingOverlay,
   RippleButton,
   type RippleButtonProps,
   SettingsFooter,
@@ -24,6 +25,7 @@ import {
   useUserPromptSetsSave,
 } from '@/hooks/chat'
 import { useFormDraft } from '@/hooks/chat/form-draft'
+import { useSettingsSave } from '@/hooks/chat/settings-save'
 import { FONT_OVERRIDE_KEYS } from '@/hooks/font'
 import { useScopedTheme } from '@/hooks/theme'
 import { useView, useViewCloseGuard } from '@/hooks/view'
@@ -333,7 +335,7 @@ function ChatSettingsDialog({
       view.open(USER_SETTINGS_DEFAULT_TAB)
       return
     }
-    if (isDirty) return
+    if (isDirty || saving) return
     view.close()
   }
 
@@ -440,11 +442,7 @@ function ChatSettingsDialog({
     draft.clear()
   }
 
-  const apply = form.handleSubmit(persist)
-  const save = form.handleSubmit(async (values) => {
-    await persist(values)
-    handleClose()
-  })
+  const { saving, apply, save } = useSettingsSave(form, persist, handleClose)
 
   if (!settings) return null
 
@@ -460,6 +458,8 @@ function ChatSettingsDialog({
             themeScope,
           )}
         >
+          <LoadingOverlay show={saving} className="rounded-lg" />
+
           <form className="flex min-h-0 flex-1 flex-col" onSubmit={apply}>
             <Dialog.Header className="px-6 py-4">
               <Dialog.Title>Settings</Dialog.Title>
@@ -521,6 +521,7 @@ function ChatSettingsDialog({
 
             <SettingsFooter
               isDirty={isDirty}
+              busy={saving}
               onClose={handleClose}
               onDiscard={handleDiscard}
               onSave={save}

@@ -12,6 +12,8 @@ export type SettingsFooterProps = {
   onDiscard: () => void
   /** Persist and close. Apply (persist only) is the enclosing form's submit. */
   onSave: () => void
+  /** Whether a save is in flight. */
+  busy?: boolean
   className?: string
 }
 
@@ -24,6 +26,7 @@ export function SettingsFooter({
   onClose,
   onDiscard,
   onSave,
+  busy = false,
   className,
 }: SettingsFooterProps) {
   return (
@@ -33,7 +36,7 @@ export function SettingsFooter({
         className,
       )}
     >
-      {isDirty ? (
+      {isDirty && !busy ? (
         <ConfirmDialog
           variant="destructive"
           title="Discard changes?"
@@ -49,6 +52,7 @@ export function SettingsFooter({
           variant="input"
           type="button"
           onClick={onClose}
+          disabled={busy}
           className="max-w-32 min-w-0 flex-1"
         >
           Cancel
@@ -57,7 +61,7 @@ export function SettingsFooter({
       <FooterButton
         variant={isDirty ? 'outline' : 'surface'}
         type="submit"
-        disabled={!isDirty}
+        disabled={!isDirty || busy}
         className="max-w-32 min-w-0 flex-1"
       >
         Apply
@@ -66,7 +70,7 @@ export function SettingsFooter({
         variant={isDirty ? 'primary' : 'surface'}
         type="button"
         onClick={onSave}
-        disabled={!isDirty}
+        disabled={!isDirty || busy}
         className="max-w-32 min-w-0 flex-1"
       >
         Save

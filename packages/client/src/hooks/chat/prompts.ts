@@ -70,23 +70,25 @@ export function useAgentPromptSetsSave() {
 
   return useCallback(
     async (agentId: Id<'agents'>, sets: AgentPromptSets) => {
-      await replacePrompts({ scope: 'own', agentId, items: sets.prompts })
-      await replaceReminders({
-        scope: 'own',
-        agentId,
-        items: sets.reminderPrompts,
-      })
-      // Clearing an override empties the scope, restoring the user's set
-      await replacePrompts({
-        scope: 'compaction',
-        agentId,
-        items: sets.compactionPrompts ?? [],
-      })
-      await replacePrompts({
-        scope: 'impersonation',
-        agentId,
-        items: sets.impersonationPrompts ?? [],
-      })
+      await Promise.all([
+        replacePrompts({ scope: 'own', agentId, items: sets.prompts }),
+        replaceReminders({
+          scope: 'own',
+          agentId,
+          items: sets.reminderPrompts,
+        }),
+        // Clearing an override empties the scope, restoring the user's set
+        replacePrompts({
+          scope: 'compaction',
+          agentId,
+          items: sets.compactionPrompts ?? [],
+        }),
+        replacePrompts({
+          scope: 'impersonation',
+          agentId,
+          items: sets.impersonationPrompts ?? [],
+        }),
+      ])
     },
     [replacePrompts, replaceReminders],
   )
@@ -108,20 +110,22 @@ export function useUserPromptSetsSave() {
 
   return useCallback(
     async (sets: UserPromptSets) => {
-      await replacePrompts({ scope: 'global', items: sets.globalPrompts })
-      await replacePrompts({ scope: 'library', items: sets.libraryPrompts })
-      await replaceReminders({
-        scope: 'library',
-        items: sets.libraryReminders,
-      })
-      await replacePrompts({
-        scope: 'compaction',
-        items: sets.compactionPrompts,
-      })
-      await replacePrompts({
-        scope: 'impersonation',
-        items: sets.impersonationPrompts,
-      })
+      await Promise.all([
+        replacePrompts({ scope: 'global', items: sets.globalPrompts }),
+        replacePrompts({ scope: 'library', items: sets.libraryPrompts }),
+        replaceReminders({
+          scope: 'library',
+          items: sets.libraryReminders,
+        }),
+        replacePrompts({
+          scope: 'compaction',
+          items: sets.compactionPrompts,
+        }),
+        replacePrompts({
+          scope: 'impersonation',
+          items: sets.impersonationPrompts,
+        }),
+      ])
     },
     [replacePrompts, replaceReminders],
   )
