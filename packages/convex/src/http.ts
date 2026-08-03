@@ -9,31 +9,48 @@ import { createAuth } from './auth'
 import type { ErrorPayload } from './errors'
 import { authorizeAdmin } from './functions'
 import { SIDECAR_URL } from './model/sidecar'
+import { isAllowedOrigin, siteUrl } from './origins'
 
 const http = httpRouter()
-
-const ALLOWED_ORIGIN = process.env.SITE_URL ?? 'http://localhost:5173'
 
 // httpActions cap a response body at 20 MiB, so we recycle the connection
 // once it goes above this limit
 const STREAM_BYTE_BUDGET = 8 * 1024 * 1024
 
-const corsHeaders = (origin: string) => ({
-  'Access-Control-Allow-Origin': origin,
+/**
+ * The origin to answer with, or `null` when the caller is not allowed one.
+ * A same-origin request carries no `Origin` header and needs no CORS headers.
+ */
+function allowedOrigin(req: Request): string | null {
+  const origin = req.headers.get('Origin')
+  if (!origin) return null
+
+  return isAllowedOrigin(origin, req.url) ? origin : null
+}
+
+const corsHeaders = (origin: string | null) => ({
+  ...(origin
+    ? {
+        'Access-Control-Allow-Origin': origin,
+        'Access-Control-Allow-Credentials': 'true',
+      }
+    : {}),
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Credentials': 'true',
+  Vary: 'Origin',
 })
 
 const authHandler = httpAction(async (ctx, req) => {
-  const origin = req.headers.get('Origin') ?? ALLOWED_ORIGIN
-  const siteUrl = new URL(req.url).origin
+  const origin = allowedOrigin(req)
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: corsHeaders(origin) })
   }
 
-  const auth = createAuth(ctx, { siteUrl, trustedOrigin: origin })
+  const auth = createAuth(ctx, {
+    siteUrl: siteUrl(req.url),
+    trustedOrigin: origin,
+  })
   const response = await auth.handler(req)
 
   const headers = new Headers(response.headers)
@@ -48,14 +65,14 @@ const authHandler = httpAction(async (ctx, req) => {
 // The actual endpoint is at /api/auth/convex/.well-known/openid-configuration,
 // so we proxy the standard path to it.
 const oidcDiscoveryHandler = httpAction(async (ctx, req) => {
-  const auth = createAuth(ctx, { siteUrl: new URL(req.url).origin })
+  const auth = createAuth(ctx, { siteUrl: siteUrl(req.url) })
   const url = new URL(req.url)
   url.pathname = '/api/auth/convex/.well-known/openid-configuration'
   return auth.handler(new Request(url.toString(), req))
 })
 
 const avatarUploadHandler = httpAction(async (ctx, req) => {
-  const origin = req.headers.get('Origin') ?? ALLOWED_ORIGIN
+  const origin = allowedOrigin(req)
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: corsHeaders(origin) })
@@ -102,7 +119,7 @@ const avatarUploadHandler = httpAction(async (ctx, req) => {
  * sidecar SSE endpoint. The client reconnects with its last offset.
  */
 const termStreamHandler = httpAction(async (ctx, req) => {
-  const origin = req.headers.get('Origin') ?? ALLOWED_ORIGIN
+  const origin = allowedOrigin(req)
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: corsHeaders(origin) })
@@ -162,7 +179,7 @@ const termStreamHandler = httpAction(async (ctx, req) => {
   })
 })
 
-function jsonResponse(body: unknown, status: number, origin: string) {
+function jsonResponse(body: unknown, status: number, origin: string | null) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {

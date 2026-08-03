@@ -40,7 +40,11 @@ export async function run(args: string[]) {
     )
     console.log(
       `Ensure these ports are reachable from the visitor (firewall/NAT): ` +
-        `${config.frontendPort} (frontend), 3210 (convex), 3211 (http actions).`,
+        `${config.frontendPort} (frontend), ${config.convexPort} (convex), ` +
+        `${config.convexSitePort} (http actions).`,
+    )
+    console.log(
+      'Traffic is unencrypted unless using a TLS proxy. See docs/https.md.',
     )
   }
 
@@ -90,10 +94,18 @@ async function start(
   manager: ProcessManager,
   options: { forceBuild: boolean; killPorts: boolean },
 ) {
-  await freePorts([3210, 3211, config.sidecarPort, config.frontendPort], {
-    cwd: config.projectRoot,
-    enabled: options.killPorts,
-  })
+  await freePorts(
+    [
+      config.convexPort,
+      config.convexSitePort,
+      config.sidecarPort,
+      config.frontendPort,
+    ],
+    {
+      cwd: config.projectRoot,
+      enabled: options.killPorts,
+    },
+  )
 
   const sidecar = await startSidecar(manager, config)
   await waitForHttp(`http://localhost:${config.sidecarPort}/mcp`, 30_000, false)
@@ -101,7 +113,7 @@ async function start(
 
   const backend = await startBackend(manager, config)
   console.log(`Started Convex backend (pid ${backend.pid})`)
-  await waitForHttp('http://localhost:3210/version', 30_000, true)
+  await waitForHttp(`${config.convexInternalUrl}/version`, 30_000, true)
   console.log('Backend ready.')
 
   await setConvexEnvironment(manager, config, 'start')
@@ -131,7 +143,12 @@ async function dev(
   killPorts: boolean,
 ) {
   await freePorts(
-    [3210, 3211, config.convexDashboardPort, config.sidecarPort],
+    [
+      config.convexPort,
+      config.convexSitePort,
+      config.convexDashboardPort,
+      config.sidecarPort,
+    ],
     {
       cwd: config.projectRoot,
       enabled: killPorts,
@@ -145,7 +162,7 @@ async function dev(
 
   const backend = await startBackend(manager, config)
   console.log(`Started Convex backend (pid ${backend.pid})`)
-  await waitForHttp('http://localhost:3210/version', 60_000, true)
+  await waitForHttp(`${config.convexInternalUrl}/version`, 60_000, true)
   console.log('Backend ready.')
 
   const dashboard = await startDashboard(manager, config)
@@ -259,5 +276,14 @@ Options:
   --no-kill-ports     Do not stop existing processes on required ports.
   -h, --help          Show this help.
 
-Raw child-process logs are written to .data/logs.`)
+Reverse proxy / HTTPS (see docs/https.md), set in .env.local:
+  FRONTEND_URL            Public frontend origin, e.g. https://chat.example.com
+  CONVEX_SELF_HOSTED_URL  Public backend origin, e.g. https://convex.example.com
+  CONVEX_SITE_URL         Public HTTP actions origin
+  CONVEX_INTERFACE        Backend bind address (set 127.0.0.1 behind a proxy)
+  CONVEX_PORT             Backend port (default 3210)
+  CONVEX_SITE_PORT        HTTP actions port (default 3211)
+  FRONTEND_HOST           Frontend bind address (default 0.0.0.0)
+
+Logs are written to .data/logs.`)
 }

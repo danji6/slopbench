@@ -132,6 +132,7 @@ import type * as model_typing from "../model/typing.js";
 import type * as model_userSessions from "../model/userSessions.js";
 import type * as model_users from "../model/users.js";
 import type * as models from "../models.js";
+import type * as origins from "../origins.js";
 import type * as plans from "../plans.js";
 import type * as prompts from "../prompts.js";
 import type * as providers from "../providers.js";
@@ -284,6 +285,7 @@ declare const fullApi: ApiFromModules<{
   "model/userSessions": typeof model_userSessions;
   "model/users": typeof model_users;
   models: typeof models;
+  origins: typeof origins;
   plans: typeof plans;
   prompts: typeof prompts;
   providers: typeof providers;

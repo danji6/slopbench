@@ -276,9 +276,7 @@ function ProviderCard({
             <Input
               type={showKey ? 'text' : 'password'}
               className="flex-1 font-mono text-sm"
-              placeholder={
-                provider.hasKey ? 'Saved — type to replace' : 'sk-...'
-              }
+              placeholder={`${`(${provider.hasKey ? 'Already set' : 'Optional'}`})`}
               // Undefined keeps the stored key, while an empty string clears it
               value={provider.apiKey ?? ''}
               onChange={(e) => onChange({ apiKey: e.target.value })}

@@ -54,7 +54,12 @@ After signing in, open Settings and add at least one model provider under
 Models. Then create or edit an agent and select a model for it.
 
 Workspace tools require an admin user and a bound workspace. The first created
-user is automatically made an admin.
+user is automatically made an admin. \
+You can then disable signups if you wish via `.env.local`:
+
+```sh
+DISABLE_SIGNUP=true
+```
 
 ## Access from another device
 
@@ -69,23 +74,23 @@ Make sure the other device can reach these ports on the host:
 
 ### Access from outside your network
 
-Before you try this, keep in mind that everything that gets sent outside of your
-local network is **unencrypted** unless you're using HTTPS.
+**Set up HTTPS first**. See [docs/https.md](docs/https.md). Over plain HTTP your
+password, session, and messages are **unencrypted**, and anyone on the network
+path can spy on you or even hack you.
 
-To let someone connect over the internet, forward these ports from your router:
+With a reverse proxy in place, the public origins go in `.env.local` and you
+start normally with `./start.sh`. The guide covers the whole setup.
 
-- `4173`
-- `3210`
-- `3211`
-
-Then start with the public frontend URL:
+If you accept the risk of an unencrypted deployment, forward ports `4173`,
+`3210`, and `3211` from your router and start with the public frontend URL:
 
 ```sh
 ./start.sh --expose=http://YOUR_PUBLIC_HOST_OR_IP:4173
 ```
 
-The `--expose` URL must be the public frontend origin. You can omit the url to
-trust **any** origin, do this at your own risk.
+The `--expose` URL must be the public frontend origin. Omitting the URL trusts
+**any** origin, which lets any site you visit make authenticated requests to
+your deployment. Don't do that on a public address.
 
 ### Maintenance
 

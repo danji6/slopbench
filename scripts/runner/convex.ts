@@ -71,6 +71,18 @@ export async function startBackend(
       config.convexInstanceName,
       '--instance-secret',
       config.instanceSecret,
+      '--interface',
+      config.convexInterface,
+      '--port',
+      String(config.convexPort),
+      '--site-proxy-port',
+      String(config.convexSitePort),
+      // Public origins for generated links (file storage) to point at.
+      // Necessary when using a proxy.
+      '--convex-origin',
+      config.convexSelfHostedUrl,
+      '--convex-site',
+      config.convexSiteUrl,
       '--local-storage',
       join(config.dataDir, 'storage'),
       join(config.dataDir, 'convex.sqlite3'),
@@ -105,14 +117,18 @@ export async function setConvexEnvironment(
     manager,
     config,
     'SITE_URL',
-    mode === 'dev' ? 'http://localhost:3211' : config.convexSiteUrl,
+    mode === 'dev'
+      ? `http://localhost:${config.convexSitePort}`
+      : config.convexSiteUrl,
   )
   await convexEnv(
     manager,
     config,
     'FRONTEND_URL',
     config.exposeUrl ??
-      (mode === 'dev' ? 'http://localhost:5173' : config.frontendUrl),
+      (mode === 'dev'
+        ? `http://localhost:${config.frontendPort}`
+        : config.frontendUrl),
   )
   await convexEnv(
     manager,
@@ -139,7 +155,7 @@ export async function deployConvex(
       'convex',
       'deploy',
       '--url',
-      config.convexSelfHostedUrl,
+      config.convexInternalUrl,
       '--admin-key',
       config.convexSelfHostedAdminKey ?? '',
       '--typecheck',
@@ -160,7 +176,7 @@ export async function startConvexDev(
       'convex',
       'dev',
       '--url',
-      config.convexSelfHostedUrl,
+      config.convexInternalUrl,
       '--admin-key',
       config.convexSelfHostedAdminKey ?? '',
     ],
@@ -184,7 +200,7 @@ async function convexEnv(
       'env',
       'set',
       '--url',
-      config.convexSelfHostedUrl,
+      config.convexInternalUrl,
       '--admin-key',
       config.convexSelfHostedAdminKey ?? '',
       key,

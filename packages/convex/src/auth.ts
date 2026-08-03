@@ -8,6 +8,7 @@ import { components } from './_generated/api'
 import type { DataModel } from './_generated/dataModel'
 import { query } from './_generated/server'
 import authConfig from './auth.config'
+import { frontendUrl, isAllowedOrigin } from './origins'
 
 export const authComponent = createClient<DataModel>(components.betterAuth)
 
@@ -50,16 +51,14 @@ function getTrustedOrigins(
   siteUrl: string,
   origin: string | null | undefined,
 ): string[] {
-  const trustAll = process.env.TRUST_ALL_ORIGINS === 'true'
   const dynamicOrigin =
-    trustAll || isLocalNetworkUrl(siteUrl) ? origin : undefined
+    origin && isAllowedOrigin(origin, siteUrl) ? origin : undefined
 
   return Array.from(
     new Set(
-      [
-        process.env.FRONTEND_URL ?? 'http://localhost:5173',
-        dynamicOrigin,
-      ].filter((value): value is string => Boolean(value)),
+      [frontendUrl(), dynamicOrigin].filter((value): value is string =>
+        Boolean(value),
+      ),
     ),
   )
 }
@@ -72,30 +71,4 @@ function getAuthConfig(siteUrl: string): typeof authConfig {
       domain: siteUrl,
     })),
   }
-}
-
-function isLocalNetworkUrl(value: string): boolean {
-  const { hostname } = new URL(value)
-
-  if (
-    hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname === '::1'
-  ) {
-    return true
-  }
-
-  if (hostname.endsWith('.local')) {
-    return true
-  }
-
-  const octets = hostname.split('.').map(Number)
-  if (octets.length !== 4 || octets.some((octet) => Number.isNaN(octet))) {
-    return false
-  }
-
-  const [a, b] = octets
-  return (
-    a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168)
-  )
 }
