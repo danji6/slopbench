@@ -78,9 +78,6 @@ Make sure the other device can reach these ports on the host:
 password, session, and messages are **unencrypted**, and anyone on the network
 path can spy on you or even hack you.
 
-With a reverse proxy in place, the public origins go in `.env.local` and you
-start normally with `./start.sh`. The guide covers the whole setup.
-
 If you accept the risk of an unencrypted deployment, forward ports `4173`,
 `3210`, and `3211` from your router and start with the public frontend URL:
 
@@ -91,6 +88,12 @@ If you accept the risk of an unencrypted deployment, forward ports `4173`,
 The `--expose` URL must be the public frontend origin. Omitting the URL trusts
 **any** origin, which lets any site you visit make authenticated requests to
 your deployment. Don't do that on a public address.
+
+### Additional configuration
+
+It's recommended to set up a [SearXNG](https://github.com/searxng/searxng)
+instance if you want to give your models access to the internet, see
+[docs/searxng.md](docs/searxng.md).
 
 ### Maintenance
 

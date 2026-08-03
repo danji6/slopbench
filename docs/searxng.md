@@ -1,10 +1,13 @@
 # SearXNG Setup for Web Search
 
-This guide explains how to set up a local SearXNG instance for the `web_search` tool. It requires having `docker` and `docker-compose` installed and configured.
+This guide explains how to set up a local [SearXNG](https://github.com/searxng/searxng)
+instance for the `web_search` tool. It requires having `docker` and `docker-compose`
+installed and configured.
 
 ## 1. Create `docker-compose.yml`
 
-Create an empty folder (`/path/to/searxng`), then a `docker-compose.yml` file in it with the following contents:
+Create an empty folder (`/path/to/searxng`), then a `docker-compose.yml` file in
+it with the following contents:
 
 ```yaml
 name: searxng-local
@@ -37,7 +40,8 @@ Generate a secret key:
 openssl rand -hex 32
 ```
 
-Create `/path/to/searxng/config/settings.yml` and replace `CHANGE_ME` with the generated value:
+Create `/path/to/searxng/config/settings.yml` and replace `CHANGE_ME` with the
+generated value:
 
 ```yaml
 use_default_settings: true
@@ -78,7 +82,8 @@ search:
     - json
 ```
 
-Without `json`, SearXNG rejects `/search?format=json`, which makes the app's `web_search` tool fail.
+Without `json`, SearXNG rejects `/search?format=json`, which makes the app's
+`web_search` tool fail.
 
 ## 4. Start SearXNG
 
