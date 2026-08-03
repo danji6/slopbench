@@ -482,7 +482,9 @@ export function representMessage(
   parts: UIMessage['parts'],
 ) {
   const isOtherAgent =
-    stored.sender.type === 'agent' && stored.sender.id !== agent._id
+    !stored.hidden &&
+    stored.sender.type === 'agent' &&
+    stored.sender.id !== agent._id
   const role = agent.maskOtherAgents && isOtherAgent ? 'user' : stored.role
 
   if (role === 'user') {
@@ -504,7 +506,7 @@ export function prefixSenderName(
   agent: Doc<'agents'>,
 ) {
   const senderName = stored.senderName
-  if (!senderName) return message.parts
+  if (!senderName || stored.hidden) return message.parts
 
   const shouldPrefix =
     (stored.sender.type === 'user' && agent.shareUserDisplayNames) ||

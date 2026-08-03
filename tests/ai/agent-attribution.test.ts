@@ -34,6 +34,19 @@ function stored(
   return { sender, role, senderName: name } as Doc<'messages'>
 }
 
+/**
+ * An injected note. It carries the sender of whichever agent was active when
+ * it was written, which is not the agent that later reads it.
+ */
+function note(
+  sender: Doc<'messages'>['sender'],
+  role: Doc<'messages'>['role'],
+  name: string,
+  type: NonNullable<Doc<'messages'>['type']> = 'reminder',
+): Doc<'messages'> {
+  return { ...stored(sender, role, name), type, hidden: true }
+}
+
 function providerData() {
   return {
     stream: { _id: 'stream_1' },
@@ -182,6 +195,32 @@ describe('representMessage', () => {
     expect(result.role).toBe('user')
     expect(result.parts).toEqual([{ type: 'text', text: 'hello' }])
   })
+
+  test('keeps an injected note authored by another agent as system', () => {
+    const msg = note({ type: 'agent', id: OTHER }, 'system', 'Other')
+    const result = representMessage(msg, agent({ maskOtherAgents: true }), [
+      {
+        type: 'text',
+        text: '<system-reminder>\nstay on task\n</system-reminder>',
+      },
+    ])
+    expect(result.role).toBe('system')
+    expect(result.parts).toEqual([
+      {
+        type: 'text',
+        text: '<system-reminder>\nstay on task\n</system-reminder>',
+      },
+    ])
+  })
+
+  test('a note authored with the user role still reads as a user turn', () => {
+    const msg = note({ type: 'agent', id: OTHER }, 'user', 'Other')
+    const result = representMessage(msg, agent({ maskOtherAgents: true }), [
+      ...textAndToolParts,
+    ])
+    expect(result.role).toBe('user')
+    expect(result.parts).toEqual([{ type: 'text', text: 'hello' }])
+  })
 })
 
 describe('prefixSenderName', () => {
@@ -232,6 +271,32 @@ describe('prefixSenderName', () => {
           message(),
           msg,
           agent({ shareAgentDisplayNames: true }),
+        ),
+      ),
+    ).toBe('hi')
+  })
+
+  test('never attributes an injected note to the agent that wrote it', () => {
+    const msg = note({ type: 'agent', id: OTHER }, 'system', 'Other')
+    expect(
+      textOf(
+        prefixSenderName(
+          message(),
+          msg,
+          agent({ shareAgentDisplayNames: true }),
+        ),
+      ),
+    ).toBe('hi')
+  })
+
+  test('never attributes a command chip to the user who ran it', () => {
+    const msg = note({ type: 'user', id: USER }, 'user', 'Alice', 'command')
+    expect(
+      textOf(
+        prefixSenderName(
+          message(),
+          msg,
+          agent({ shareUserDisplayNames: true }),
         ),
       ),
     ).toBe('hi')
