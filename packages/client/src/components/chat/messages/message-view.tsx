@@ -4,6 +4,7 @@ import {
   extractTextFromMessage,
   isEditableMessage,
   isMessagePending,
+  useScopedAppearance,
 } from '@/lib/chat'
 import type { PartMetadata, UIMessageType } from '@/lib/chat'
 import { cn } from '@/lib/utils'
@@ -72,11 +73,9 @@ export const MessageView = memo(function MessageView({
 
   const cssSettings = useSettings()
   const globalCustomCss = cssSettings?.customCss ?? null
-  const customCss = css ?? globalCustomCss ?? undefined
-
-  const customCssClass = customCss
-    ? `custom-css-${message.id.replace(/[^a-zA-Z0-9_-]/g, '-')}`
-    : undefined
+  const customCssClass = useScopedAppearance({
+    css: css ?? globalCustomCss ?? undefined,
+  })
 
   const roleClass = isUser ? 'usr' : message.role === 'system' ? 'sys' : 'ai'
 
@@ -105,14 +104,7 @@ export const MessageView = memo(function MessageView({
   return (
     <MessageContext.Provider value={messageCtx}>
       {customCssClass ? (
-        <div className={cn(customCssClass, className)}>
-          <style>{`
-            @scope (.${customCssClass}) {
-              ${customCss}
-            }
-          `}</style>
-          {inner}
-        </div>
+        <div className={cn(customCssClass, className)}>{inner}</div>
       ) : (
         inner
       )}

@@ -1,8 +1,9 @@
 import { MarkdownRenderer } from '@/components/markdown'
 import { Surface } from '@/components/ui'
 import { getFontFamily, getMonoFontFamily } from '@/fonts'
+import { useScopedAppearance } from '@/lib/chat'
 import { cn } from '@/lib/utils'
-import { type CSSProperties, useId } from 'react'
+import type { CSSProperties } from 'react'
 
 const PREVIEW_USER = `What does the quick brown fox do?`
 
@@ -28,7 +29,7 @@ export function MessagePreview({
   chatFontSize,
   className,
 }: MessagePreviewProps) {
-  const scopeClass = `custom-css-preview-${useId().replace(/[^a-zA-Z0-9_-]/g, '-')}`
+  const scopeClass = useScopedAppearance({ css: customCss })
 
   return (
     <div
@@ -45,9 +46,6 @@ export function MessagePreview({
         } as CSSProperties
       }
     >
-      {customCss && (
-        <style>{`@scope (.${scopeClass}) {\n${customCss}\n}`}</style>
-      )}
       <Surface className="usr self-end">
         <MarkdownRenderer>{PREVIEW_USER}</MarkdownRenderer>
       </Surface>

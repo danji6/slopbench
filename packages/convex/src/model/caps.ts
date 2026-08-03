@@ -1,4 +1,5 @@
 import { environmentCapError } from '@sb/core/interpreter/store'
+import { limitError } from '@sb/core/limit-errors'
 import {
   MAX_CUSTOM_CSS_CHARS,
   MAX_MESSAGE_PART_BYTES,
@@ -6,6 +7,7 @@ import {
   MAX_SEGMENT_BYTES,
   MAX_TODO_CONTENT_CHARS,
   MAX_TODO_ITEMS,
+  MAX_WEB_SEARCH_INSTANCES,
 } from '@sb/core/limits'
 import { serializedSize } from '@sb/core/utils/size'
 
@@ -14,7 +16,13 @@ import type { TodoItem } from '../types'
 
 export function assertCustomCssCap(css: string | undefined) {
   if (css && css.length > MAX_CUSTOM_CSS_CHARS) {
-    error(`Custom CSS exceeds ${MAX_CUSTOM_CSS_CHARS} characters`, 400)
+    error(limitError('customCss'), 400)
+  }
+}
+
+export function assertWebSearchInstancesCap(instances: unknown[] | undefined) {
+  if (instances && instances.length > MAX_WEB_SEARCH_INSTANCES) {
+    error(limitError('webSearchInstances'), 400)
   }
 }
 
@@ -25,16 +33,16 @@ export function assertEnvironmentCap(environment: Record<string, unknown>) {
 
 export function assertTodoItemsCap(items: TodoItem[]) {
   if (items.length > MAX_TODO_ITEMS) {
-    error(`At most ${MAX_TODO_ITEMS} todos`, 400)
+    error(limitError('todos'), 400)
   }
   if (items.some((item) => item.content.length > MAX_TODO_CONTENT_CHARS)) {
-    error(`A todo exceeds ${MAX_TODO_CONTENT_CHARS} characters`, 400)
+    error(limitError('todoContent'), 400)
   }
 }
 
 export function planContentCapError(content: string): string | null {
   return content.length > MAX_PLAN_CONTENT_CHARS
-    ? `The plan exceeds ${MAX_PLAN_CONTENT_CHARS} characters. Shorten it.`
+    ? limitError('planContent')
     : null
 }
 
@@ -45,13 +53,13 @@ export function assertPlanContentCap(content: string) {
 
 export function assertPartsCap(parts: unknown[]) {
   if (parts.some((part) => serializedSize(part) > MAX_MESSAGE_PART_BYTES)) {
-    error(`A message part exceeds ${MAX_MESSAGE_PART_BYTES} bytes`, 400)
+    error(limitError('messagePart'), 400)
   }
 }
 
 export function assertSegmentFits(parts: unknown[]) {
   assertPartsCap(parts)
   if (serializedSize(parts) > MAX_SEGMENT_BYTES) {
-    error(`Message content exceeds ${MAX_SEGMENT_BYTES} bytes`, 400)
+    error(limitError('messageContent'), 400)
   }
 }

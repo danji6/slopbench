@@ -14,6 +14,7 @@ import {
   extractTextFromMessage,
   isEditableMessage,
   messageStructureSignature,
+  useScopedAppearance,
 } from '@/lib/chat'
 import type { MessageRecord, PartMetadata } from '@/lib/chat'
 import { type MessageRow, segmentGroupsFor } from '@/lib/chat/rows'
@@ -119,17 +120,21 @@ function RowShell({ message, messageMeta, row, children }: RowShellProps) {
 
   const settings = useSettings()
   const appearance = useAppearance(messageMeta?.appearanceId)
-  const customCss = appearance?.css ?? settings?.customCss ?? undefined
-  const customCssClass = customCss
-    ? `custom-css-${message.id.replace(/[^a-zA-Z0-9_-]/g, '-')}`
-    : undefined
-
   const isDark = useIsDarkMode()
-  const theme = appearance?.theme ?? settings?.theme ?? null
-  const themeVars = useMemo(() => {
-    if (!customCssClass || !theme) return ''
-    return schemeToCssVars(isDark ? theme.dark : theme.light)
-  }, [customCssClass, theme, isDark])
+
+  const customCss = appearance?.css ?? settings?.customCss ?? undefined
+  const theme = appearance?.theme
+  const themeVars = useMemo(
+    () =>
+      theme ? schemeToCssVars(isDark ? theme.dark : theme.light) : undefined,
+    [theme, isDark],
+  )
+
+  const appearanceClass = useScopedAppearance({
+    css: customCss,
+    vars: themeVars,
+    isDark,
+  })
 
   const roleClass =
     message.role === 'user' ? 'usr' : message.role === 'system' ? 'sys' : 'ai'
@@ -161,14 +166,8 @@ function RowShell({ message, messageMeta, row, children }: RowShellProps) {
 
   return (
     <MessageContext.Provider value={messageCtx}>
-      {customCssClass ? (
-        <div data-slot="custom-css-wrapper" className={customCssClass}>
-          <style data-slot="custom-css">{`
-            @scope (.${customCssClass}) {
-              ${themeVars ? `:scope { ${themeVars} }` : ''}
-              ${customCss}
-            }
-          `}</style>
+      {appearanceClass ? (
+        <div data-slot="appearance-scope" className={appearanceClass}>
           {inner}
         </div>
       ) : (

@@ -1,3 +1,4 @@
+import { limitError } from '@sb/core/limit-errors'
 import { MAX_MCP_SERVERS } from '@sb/core/limits'
 import type { McpServer, McpToolMeta, McpTransport } from '@sb/core/types'
 import { clampMcpTools } from '@sb/core/types'
@@ -80,7 +81,7 @@ export async function replaceAll(
   { servers }: { servers: McpServerInput[] },
 ) {
   if (servers.length > MAX_MCP_SERVERS) {
-    error(`MCP servers limit exceeded (max: ${MAX_MCP_SERVERS})`, 400)
+    error(limitError('mcpServers'), 400)
   }
 
   const existing = await listServers(ctx, ctx.userId)

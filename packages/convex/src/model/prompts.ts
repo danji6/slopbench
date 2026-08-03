@@ -1,3 +1,4 @@
+import { limitError } from '@sb/core/limit-errors'
 import {
   MAX_PROMPT_CONTENT_CHARS,
   MAX_PROMPT_NAME_CHARS,
@@ -116,7 +117,7 @@ export async function create(
 
   const rows = await listScope(ctx, ctx.userId, scope, agentId)
   if (rows.length >= MAX_SCOPE_PROMPTS) {
-    error(`Prompts limit exceeded (max: ${MAX_SCOPE_PROMPTS})`, 400)
+    error(limitError('prompts'), 400)
   }
 
   const key = promptItemKey(item)
@@ -198,7 +199,7 @@ export async function replaceScope(
   await requireScopeOwner(ctx, scope, agentId)
 
   if (items.length > MAX_SCOPE_PROMPTS) {
-    error(`Prompts limit exceeded (max: ${MAX_SCOPE_PROMPTS})`, 400)
+    error(limitError('prompts'), 400)
   }
   for (const item of items) assertItemWithinCaps(item)
 
@@ -327,9 +328,9 @@ async function requireScopeOwner(
 function assertItemWithinCaps(item: PromptItem) {
   if ('type' in item) return
   if (item.content.length > MAX_PROMPT_CONTENT_CHARS) {
-    error(`Prompt exceeds ${MAX_PROMPT_CONTENT_CHARS} characters`, 400)
+    error(limitError('promptContent'), 400)
   }
   if (item.name.length > MAX_PROMPT_NAME_CHARS) {
-    error(`Prompt name exceeds ${MAX_PROMPT_NAME_CHARS} characters`, 400)
+    error(limitError('promptName'), 400)
   }
 }

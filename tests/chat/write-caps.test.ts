@@ -111,7 +111,9 @@ describe('environment caps', () => {
     )
     const store = createVariableStore(initial)
 
-    expect(() => store.set('one_too_many', 1)).toThrow(/at most/i)
+    expect(() => store.set('one_too_many', 1)).toThrow(
+      /Session variables limit exceeded/,
+    )
     // The rejected key must not survive in the record that gets persisted
     expect(store.toRecord().one_too_many).toBeUndefined()
     expect(store.isDirty()).toBe(false)
@@ -194,9 +196,9 @@ describe('appendApprovals', () => {
 describe('cap assertions', () => {
   test('custom CSS', () => {
     expect(() => assertCustomCssCap('body{}')).not.toThrow()
-    expect(() => assertCustomCssCap('x'.repeat(MAX_CUSTOM_CSS_CHARS + 1))).toThrow(
-      /Custom CSS/,
-    )
+    expect(() =>
+      assertCustomCssCap('x'.repeat(MAX_CUSTOM_CSS_CHARS + 1)),
+    ).toThrow(/Custom CSS/)
   })
 
   test('todo items', () => {
@@ -205,7 +207,7 @@ describe('cap assertions', () => {
       status: 'pending' as const,
     }))
 
-    expect(() => assertTodoItemsCap(items)).toThrow(/At most/)
+    expect(() => assertTodoItemsCap(items)).toThrow(/Todos limit exceeded/)
     expect(() =>
       assertTodoItemsCap([
         { content: 'x'.repeat(MAX_TODO_CONTENT_CHARS + 1), status: 'pending' },
@@ -217,12 +219,12 @@ describe('cap assertions', () => {
     expect(() => assertPlanContentCap('# Plan')).not.toThrow()
     expect(() =>
       assertPlanContentCap('x'.repeat(MAX_PLAN_CONTENT_CHARS + 1)),
-    ).toThrow(/plan exceeds/i)
+    ).toThrow(/Plan content limit exceeded/)
   })
 
   test('an oversized single part is rejected, not split', () => {
     expect(() => assertPartsCap([text(MAX_MESSAGE_PART_BYTES + 1)])).toThrow(
-      /message part/,
+      /Message part limit exceeded/,
     )
   })
 
@@ -314,8 +316,8 @@ describe('insertMessage', () => {
   test('rejects a part no row could hold', async () => {
     const { ctx } = makeCtx()
 
-    expect(
+    await expect(
       insertMessage(ctx, fields as never, [text(MAX_MESSAGE_PART_BYTES + 1)]),
-    ).rejects.toThrow(/message part/)
+    ).rejects.toThrow(/Message part limit exceeded/)
   })
 })

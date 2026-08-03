@@ -1,3 +1,4 @@
+import { limitError } from '@sb/core/limit-errors'
 import { MAX_PROVIDERS, MAX_PROVIDER_MODELS } from '@sb/core/limits'
 import type { ModelEntry, ModelProviderConfig } from '@sb/core/types'
 
@@ -63,7 +64,7 @@ export async function create(
 ) {
   const providers = await listProviders(ctx, ctx.userId)
   if (providers.length >= MAX_PROVIDERS) {
-    error(`At most ${MAX_PROVIDERS} providers`, 400)
+    error(limitError('providers'), 400)
   }
   if (providers.some((provider) => provider.key === key)) {
     error('Duplicate provider', 409)
@@ -112,7 +113,7 @@ export async function replaceAll(
   { providers }: { providers: ModelProviderInput[] },
 ) {
   if (providers.length > MAX_PROVIDERS) {
-    error(`Providers limit exceeded ${MAX_PROVIDERS} providers`, 400)
+    error(limitError('providers'), 400)
   }
 
   const existing = await listProviders(ctx, ctx.userId)
@@ -215,6 +216,6 @@ async function requireOwned(
 
 function assertModelsWithinCap(models: ModelEntry[]) {
   if (models.length > MAX_PROVIDER_MODELS) {
-    error(`Models limit exceeded (${MAX_PROVIDER_MODELS})`, 400)
+    error(limitError('providerModels'), 400)
   }
 }

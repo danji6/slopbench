@@ -1,3 +1,4 @@
+import { limitError } from '../limit-errors'
 import { MAX_ENVIRONMENT_BYTES, MAX_ENVIRONMENT_KEYS } from '../limits'
 import { serializedSize } from '../utils/size'
 import type { JsonValue, VariableStore } from './types'
@@ -7,10 +8,10 @@ export function environmentCapError(
   environment: Record<string, unknown>,
 ): string | null {
   if (Object.keys(environment).length > MAX_ENVIRONMENT_KEYS) {
-    return `Sesssion variables limit exceeded (max: ${MAX_ENVIRONMENT_KEYS})`
+    return limitError('environmentKeys')
   }
   if (serializedSize(environment) > MAX_ENVIRONMENT_BYTES) {
-    return `Session variables size limit exceeded (max: ${MAX_ENVIRONMENT_BYTES} bytes)`
+    return limitError('environmentBytes')
   }
   return null
 }

@@ -279,7 +279,10 @@
   --shiki-purple: color-mix(in oklch, #6d4ea1, var(--primary) var(--harmony));
   --shiki-cyan: color-mix(in oklch, #006874, var(--primary) var(--harmony));
   --shiki-pink: color-mix(in oklch, #984061, var(--primary) var(--harmony));
+}
 
+/** Fonts stay separated to avoid shadowing a scoped theme's fonts. */
+:root {
   --font-sans:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
     Arial, sans-serif;

@@ -204,8 +204,8 @@ describe('replaceScope', () => {
       prompt({ id: `p${i}` }),
     )
 
-    expect(replaceScope(ctx, { scope: 'global', items })).rejects.toThrow(
-      /At most/,
+    await expect(replaceScope(ctx, { scope: 'global', items })).rejects.toThrow(
+      /Prompts limit exceeded/,
     )
   })
 
@@ -215,8 +215,8 @@ describe('replaceScope', () => {
       prompt({ content: 'x'.repeat(MAX_PROMPT_CONTENT_CHARS + 1) }),
     ]
 
-    expect(replaceScope(ctx, { scope: 'global', items })).rejects.toThrow(
-      /characters/,
+    await expect(replaceScope(ctx, { scope: 'global', items })).rejects.toThrow(
+      /Prompt content limit exceeded/,
     )
   })
 })
