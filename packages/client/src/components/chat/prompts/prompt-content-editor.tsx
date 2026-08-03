@@ -11,8 +11,11 @@ import { InterpreterInput } from '@/lib/tiptap/extensions/interpreter-input'
 import { SnippetStops } from '@/lib/tiptap/extensions/snippet-stops'
 import type { EditorDocumentHandle } from '@/lib/tiptap/handle'
 import { editorKit } from '@/lib/tiptap/kit'
-import { copyBlockText, pasteTextLines } from '@/lib/tiptap/paste'
-import { serializeDocumentToMarkdown } from '@/lib/tiptap/serialize'
+import { pasteTextLines } from '@/lib/tiptap/paste'
+import {
+  parseEditorMarkdown,
+  serializeDocumentToMarkdown,
+} from '@/lib/tiptap/serialize'
 import { cn } from '@/lib/utils'
 import type { JSONContent } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
@@ -87,7 +90,6 @@ export function PromptContentEditor({
         class: cn('min-h-full p-4', className),
       },
       handleKeyDown: handleSelectAllDelete,
-      clipboardTextSerializer: copyBlockText,
       handlePaste: (_view, event) =>
         editorRef.current ? pasteTextLines(editorRef.current, event) : false,
     },
@@ -111,9 +113,9 @@ export function PromptContentEditor({
   useEffect(() => {
     if (!editor || editor.isFocused) return
     if (value === serializeDocumentToMarkdown(editor)) return
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const manager = (editor.storage.markdown as any).manager
-    editor.commands.setContent(manager.parse(value), { emitUpdate: false })
+    editor.commands.setContent(parseEditorMarkdown(editor, value), {
+      emitUpdate: false,
+    })
   }, [editor, value])
 
   const completionPopup = useCodeCompletion(

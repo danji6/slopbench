@@ -2,21 +2,23 @@
 const CODE_FENCE = /^ {0,3}(`{3,}|~{3,})/
 
 /**
- * Formats markdown for storage: normalizes line endings, drops whitespaces at
- * the end of every line (TipTap hard breaks), and trims the document.
+ * Normalizes line endings and drops the whitespace at the end of every line
+ * after a break (TipTap hard breaks serialize as two trailing spaces). Code
+ * fences and the last line stay untouched.
  */
-export function formatMarkdown(markdown: string): string {
+export function trimLineEnds(markdown: string): string {
   let fence: string | null = null
 
-  const formatted = markdown
+  const lines = markdown
     .replace(/\r\n?/g, '\n')
     .split('\n')
-    .map((line) => {
+    .map((line, index, all) => {
       const open = fence
       const delimiter = CODE_FENCE.exec(line)?.[1]
+      const last = index === all.length - 1
       if (!open) {
         fence = delimiter ?? null
-        return line.trimEnd()
+        return last ? line : line.trimEnd()
       }
       if (
         delimiter &&
@@ -24,10 +26,15 @@ export function formatMarkdown(markdown: string): string {
         delimiter.length >= open.length
       ) {
         fence = null
-        return line.trimEnd()
+        return last ? line : line.trimEnd()
       }
       return line
     })
 
-  return formatted.join('\n').trim()
+  return lines.join('\n')
+}
+
+/** Formats markdown for storage. */
+export function formatMarkdown(markdown: string): string {
+  return trimLineEnds(markdown).trim()
 }

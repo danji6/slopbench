@@ -1,23 +1,15 @@
-import { leafText } from '@/lib/tiptap/serialize'
-import type { Slice } from '@tiptap/pm/model'
 import type { Editor } from '@tiptap/react'
 
-/**
- * Clipboard text that matches how an editor stores its content. Hard breaks are
- * newlines, and blocks are separated by whatever that editor writes between them.
- */
-const clipboardText = (blockSeparator: string) => (slice: Slice) =>
-  slice.content.textBetween(0, slice.content.size, blockSeparator, leafText)
-
-/** For editors that store a block break as a newline (chat composer). */
-export const copyCollapsedText = clipboardText('\n')
-
-/** For editors that store a block break as a blank line (prompt editor). */
-export const copyBlockText = clipboardText('\n\n')
+/** Whether the clipboard contains a slice written by an editor. */
+function hasEditorSlice(event: ClipboardEvent): boolean {
+  const html = event.clipboardData?.getData('text/html')
+  return !!html?.includes('data-pm-slice')
+}
 
 /** Pasted plain text, or null when the default paste should run instead. */
 function pastedText(editor: Editor, event: ClipboardEvent): string | null {
   if (editor.state.selection.$from.parent.type.spec.code) return null
+  if (hasEditorSlice(event)) return null
   const text = event.clipboardData?.getData('text/plain')
   if (!text || !/\r|\n/.test(text)) return null
   return text.replace(/\r\n?/g, '\n')

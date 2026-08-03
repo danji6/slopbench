@@ -1,9 +1,10 @@
 /// <reference types="bun-types" />
 import { Markdown } from '@/lib/tiptap/extensions/markdown'
-import { copyCollapsedText } from '@/lib/tiptap/paste'
+import type { SliceSerializeOptions } from '@/lib/tiptap/serialize'
 import {
   serializeBlocksToMarkdown,
   serializeDocumentToMarkdown,
+  serializeSliceToMarkdown,
 } from '@/lib/tiptap/serialize'
 import type { JSONContent } from '@tiptap/core'
 import { DOMParser } from '@tiptap/pm/model'
@@ -236,11 +237,77 @@ describe('editor markdown trailing whitespace', () => {
   })
 })
 
+/** Selects everything, the way Ctrl+A before a copy does. */
+function selectAll(source: Editor): Editor {
+  source.commands.setTextSelection({
+    from: 0,
+    to: source.state.doc.content.size,
+  })
+  return source
+}
+
+/** Serializes the current selection the way a copy writes it out. */
+function copy(source: Editor, options?: SliceSerializeOptions): string {
+  return serializeSliceToMarkdown(
+    source,
+    source.state.selection.content(),
+    options,
+  )
+}
+
 describe('clipboard text', () => {
   test('copies blocks as single newlines, hard breaks included', () => {
-    const e = open('first\n\nsecond')
-    e.commands.setTextSelection({ from: 0, to: e.state.doc.content.size })
-    const slice = e.state.selection.content()
-    expect(copyCollapsedText(slice)).toBe('first\nsecond')
+    const e = selectAll(open('first\n\nsecond'))
+    expect(copy(e, { collapseBlocks: true })).toBe('first\nsecond')
+  })
+
+  test('copies blocks with the blank line between them', () => {
+    expect(copy(selectAll(open('first\n\nsecond')))).toBe('first\n\nsecond')
+  })
+
+  test('keeps the markdown of the selection', () => {
+    expect(copy(selectAll(open('**bold** and *italic*')))).toBe(
+      '**bold** and *italic*',
+    )
+    expect(copy(selectAll(open('# Head\n\n- one\n- two')))).toBe(
+      '# Head\n\n- one\n- two',
+    )
+  })
+
+  test('keeps literal html', () => {
+    expect(copy(selectAll(open('a <strong>bold</strong> word')))).toBe(
+      'a <strong>bold</strong> word',
+    )
+  })
+
+  test('copies a partial selection with its marks', () => {
+    const e = open('one **two three** four')
+    // Within the bold text, stopping halfway through its last word
+    e.commands.setTextSelection({ from: 5, to: 12 })
+    expect(copy(e)).toBe('**two thr**')
+  })
+
+  test('keeps the whitespace at the edges of the selection', () => {
+    const e = open('lorem ipsum dolor')
+    e.commands.setTextSelection({ from: 7, to: 13 })
+    expect(copy(e)).toBe('ipsum ')
+  })
+
+  test('drops a trailing line break rather than the spaces it writes', () => {
+    const e = open('first')
+    e.commands.focus('end')
+    e.commands.setHardBreak()
+    expect(copy(selectAll(e), { collapseBlocks: true })).toBe('first')
+  })
+
+  test('copies code inside a code block verbatim', () => {
+    const e = open('```ts\nconst a = 1\n```')
+    e.commands.setTextSelection({ from: 1, to: e.state.doc.content.size - 1 })
+    expect(copy(e)).toBe('const a = 1')
+  })
+
+  test('copies a code block with its fence alongside other blocks', () => {
+    const source = 'text\n\n```ts\nconst a = 1\n```'
+    expect(copy(selectAll(open(source)))).toBe(source)
   })
 })

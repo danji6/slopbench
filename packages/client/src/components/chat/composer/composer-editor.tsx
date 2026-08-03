@@ -2,7 +2,6 @@ import { fullscreenGrow } from '@/components/ui'
 import { isCovered } from '@/lib/focus-return'
 import { MentionDecoration } from '@/lib/tiptap/decorations/mention'
 import { editorKit } from '@/lib/tiptap/kit'
-import { copyCollapsedText } from '@/lib/tiptap/paste'
 import { cn } from '@/lib/utils'
 import type { EditorView } from '@tiptap/pm/view'
 import { EditorContent, useEditor } from '@tiptap/react'
@@ -42,7 +41,7 @@ export function ComposerEditor({
 
   const extensions = useMemo(
     () => [
-      ...editorKit({ debounce: 60 }),
+      ...editorKit({ debounce: 60, collapseBlocks: true }),
       MentionDecoration,
       placeholderExtension,
     ],
@@ -60,7 +59,6 @@ export function ComposerEditor({
           editorClassName,
         ),
       },
-      clipboardTextSerializer: copyCollapsedText,
       handleKeyDown: (view, event) =>
         handleKeyDownRef.current?.(view, event) ?? false,
       handlePaste: (view, event) =>

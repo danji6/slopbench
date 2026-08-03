@@ -8,6 +8,7 @@ import { BlockOpeners } from '@/lib/tiptap/extensions/block-openers'
 import { CodeEdit } from '@/lib/tiptap/extensions/code-edit'
 import { LineBreaks } from '@/lib/tiptap/extensions/line-breaks'
 import { Markdown } from '@/lib/tiptap/extensions/markdown'
+import { MarkdownClipboard } from '@/lib/tiptap/extensions/markdown-clipboard'
 import { MarkdownMath } from '@/lib/tiptap/extensions/markdown-math'
 import { RevealInsert } from '@/lib/tiptap/extensions/reveal-insert'
 import type { Extensions } from '@tiptap/core'
@@ -31,6 +32,11 @@ export type EditorKitOptions = {
   placeholder?: string
   /** Highlight delay for code blocks while typing. */
   debounce?: number
+  /**
+   * Stores a block break as a single newline rather than a blank line, which
+   * copied text follows (see `serializeBlocksToMarkdown`).
+   */
+  collapseBlocks?: boolean
 }
 
 /** Shared extensions for every markdown editor. */
@@ -39,6 +45,7 @@ export function editorKit({
   tables,
   placeholder,
   debounce,
+  collapseBlocks = false,
 }: EditorKitOptions = {}): Extensions {
   return [
     StarterKit.configure({ codeBlock: false }),
@@ -62,6 +69,7 @@ export function editorKit({
         ]
       : []),
     HtmlDecoration,
+    MarkdownClipboard.configure({ collapseBlocks }),
     CodeEdit,
     LineBreaks,
     BlockOpeners,
