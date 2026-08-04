@@ -2,9 +2,12 @@ import { randomBytes } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import type { RunnerConfig } from './config'
+import { type RunnerConfig, browserOrigins } from './config'
 import { loadEnvFile, readEnvFile, updateEnvFile } from './env-file'
 import { type ProcessManager, output } from './processes'
+
+// The backend gets these from --convex-origin and --convex-site
+const builtInEnvVars = new Set(['CONVEX_CLOUD_URL', 'CONVEX_SITE_URL'])
 
 export async function prepareEnvironment(config: RunnerConfig) {
   await loadEnvFile(config.envFile)
@@ -23,14 +26,15 @@ export async function prepareEnvironment(config: RunnerConfig) {
   config.convexSelfHostedAdminKey = adminKey
   config.betterAuthSecret = betterAuthSecret
 
+  const origins = browserOrigins(config)
   await updateEnvFile(
     config.envFile,
     {
       BETTER_AUTH_SECRET: betterAuthSecret,
       CONVEX_SELF_HOSTED_ADMIN_KEY: adminKey,
       INSTANCE_SECRET: instanceSecret,
-      VITE_CONVEX_SITE_URL: config.convexSiteUrl,
-      VITE_CONVEX_URL: config.convexSelfHostedUrl,
+      VITE_CONVEX_SITE_URL: origins.siteUrl,
+      VITE_CONVEX_URL: origins.convexUrl,
     },
     ['CONVEX_DEPLOYMENT'],
   )
@@ -63,6 +67,7 @@ export async function startBackend(
   }
 
   await mkdir(join(config.dataDir, 'storage'), { recursive: true })
+  const origins = browserOrigins(config)
   return manager.spawn(
     'convex-backend',
     [
@@ -77,12 +82,12 @@ export async function startBackend(
       String(config.convexPort),
       '--site-proxy-port',
       String(config.convexSitePort),
-      // Public origins for generated links (file storage) to point at.
-      // Necessary when using a proxy.
+      // Origins for generated links (file storage) and the JWT issuer to point
+      // at. Necessary when using a proxy.
       '--convex-origin',
-      config.convexSelfHostedUrl,
+      origins.convexUrl,
       '--convex-site',
-      config.convexSiteUrl,
+      origins.siteUrl,
       '--local-storage',
       join(config.dataDir, 'storage'),
       join(config.dataDir, 'convex.sqlite3'),
@@ -96,14 +101,15 @@ export async function startBackend(
 export async function setConvexEnvironment(
   manager: ProcessManager,
   config: RunnerConfig,
-  mode: 'dev' | 'start',
 ) {
   if (!config.convexSelfHostedAdminKey || !config.betterAuthSecret) {
     throw new Error('Convex credentials were not prepared')
   }
 
+  const origins = browserOrigins(config)
   const env = await readEnvFile(config.envFile)
   for (const key of Object.keys(env)) {
+    if (builtInEnvVars.has(key)) continue
     await convexEnv(manager, config, key, process.env[key] ?? env[key])
   }
 
@@ -113,23 +119,8 @@ export async function setConvexEnvironment(
     'BETTER_AUTH_SECRET',
     config.betterAuthSecret,
   )
-  await convexEnv(
-    manager,
-    config,
-    'SITE_URL',
-    mode === 'dev'
-      ? `http://localhost:${config.convexSitePort}`
-      : config.convexSiteUrl,
-  )
-  await convexEnv(
-    manager,
-    config,
-    'FRONTEND_URL',
-    config.exposeUrl ??
-      (mode === 'dev'
-        ? `http://localhost:${config.frontendPort}`
-        : config.frontendUrl),
-  )
+  await convexEnv(manager, config, 'SITE_URL', origins.siteUrl)
+  await convexEnv(manager, config, 'FRONTEND_URL', origins.frontendUrl)
   await convexEnv(
     manager,
     config,

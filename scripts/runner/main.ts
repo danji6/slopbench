@@ -3,6 +3,7 @@ import { ensureConvexBinaries } from './binaries'
 import { buildFrontendIfNeeded } from './build-cache'
 import {
   type RunnerConfig,
+  browserOrigins,
   defaultEnvFile,
   getConfig,
   parseRunnerOptions,
@@ -116,22 +117,13 @@ async function start(
   await waitForHttp(`${config.convexInternalUrl}/version`, 30_000, true)
   console.log('Backend ready.')
 
-  await setConvexEnvironment(manager, config, 'start')
+  await setConvexEnvironment(manager, config)
   await deployConvex(manager, config)
   await buildFrontendIfNeeded(manager, config, { force: options.forceBuild })
 
   const preview = await manager.spawn(
     'vite-preview',
-    [
-      'bun',
-      'run',
-      'preview',
-      '--',
-      '--host',
-      config.frontendHost,
-      '--port',
-      String(config.frontendPort),
-    ],
+    ['bun', 'run', 'preview', ...frontendArgs(config)],
     { cwd: config.clientRoot },
   )
   await manager.waitForAnyExit([sidecar, backend, preview])
@@ -148,6 +140,7 @@ async function dev(
       config.convexSitePort,
       config.convexDashboardPort,
       config.sidecarPort,
+      config.frontendPort,
     ],
     {
       cwd: config.projectRoot,
@@ -166,15 +159,28 @@ async function dev(
   console.log('Backend ready.')
 
   const dashboard = await startDashboard(manager, config)
-  await setConvexEnvironment(manager, config, 'dev')
+  await setConvexEnvironment(manager, config)
 
   const convexDev = await startConvexDev(manager, config)
-  const vite = await manager.spawn('vite-dev', ['bun', 'run', 'dev'], {
-    cwd: config.clientRoot,
-  })
+  const vite = await manager.spawn(
+    'vite-dev',
+    ['bun', 'run', 'dev', ...frontendArgs(config)],
+    { cwd: config.clientRoot },
+  )
   await manager.waitForAnyExit(
     [sidecar, backend, convexDev, vite, dashboard].filter(isManagedProcess),
   )
+}
+
+function frontendArgs(config: RunnerConfig) {
+  return [
+    '--',
+    '--host',
+    config.frontendHost,
+    '--port',
+    String(config.frontendPort),
+    '--strictPort',
+  ]
 }
 
 async function startSidecar(manager: ProcessManager, config: RunnerConfig) {
@@ -201,7 +207,7 @@ async function startDashboard(manager: ProcessManager, config: RunnerConfig) {
     '-p',
     `127.0.0.1:${config.convexDashboardPort}:6791`,
     '-e',
-    `NEXT_PUBLIC_DEPLOYMENT_URL=${config.convexSelfHostedUrl}`,
+    `NEXT_PUBLIC_DEPLOYMENT_URL=${browserOrigins(config).convexUrl}`,
     config.convexDashboardImage,
   ])
   console.log(`Started Convex dashboard (pid ${dashboard.pid})`)

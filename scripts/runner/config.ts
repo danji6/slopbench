@@ -11,6 +11,12 @@ export type RunnerOptions = {
   mode: RunnerMode
 }
 
+export type BrowserOrigins = {
+  convexUrl: string
+  frontendUrl: string
+  siteUrl: string
+}
+
 export type RunnerConfig = {
   betterAuthSecret?: string
   binDir: string
@@ -39,6 +45,7 @@ export type RunnerConfig = {
   frontendUrl: string
   instanceSecret?: string
   logDir: string
+  mode: RunnerMode
   nodeBinary: string
   nodeVersion: string
   projectRoot: string
@@ -141,6 +148,7 @@ export function getConfig(mode: RunnerMode): RunnerConfig {
     frontendUrl,
     instanceSecret: process.env.INSTANCE_SECRET,
     logDir: resolve(dataDir, 'logs'),
+    mode,
     nodeBinary: process.env.NODE_BINARY ?? defaultNodeBinary(binDir),
     nodeVersion: process.env.RUNNER_NODE_VERSION ?? '24.16.0',
     projectRoot,
@@ -153,6 +161,23 @@ export function getConfig(mode: RunnerMode): RunnerConfig {
     sidecarRoot,
     sidecarDataDir,
     sidecarPort,
+  }
+}
+
+export function browserOrigins(config: RunnerConfig): BrowserOrigins {
+  const local = config.mode === 'dev'
+
+  // Dev mode is kept local
+  return {
+    convexUrl: local
+      ? `http://localhost:${config.convexPort}`
+      : config.convexSelfHostedUrl,
+    frontendUrl:
+      config.exposeUrl ??
+      (local ? `http://localhost:${config.frontendPort}` : config.frontendUrl),
+    siteUrl: local
+      ? `http://localhost:${config.convexSitePort}`
+      : config.convexSiteUrl,
   }
 }
 
