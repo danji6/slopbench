@@ -688,6 +688,51 @@ html::-webkit-scrollbar {
   }
 }
 
+/* Open/close motion for popups (Base UI drives the data attributes). */
+@utility popup-fade {
+  transition-property: opacity;
+  transition-duration: var(--tw-duration, 150ms);
+  transition-timing-function: var(
+    --tw-ease,
+    var(--default-transition-timing-function)
+  );
+
+  &:where([data-starting-style], [data-ending-style]) {
+    opacity: 0;
+  }
+}
+
+/* `popup-fade` plus the zoom, and a nudge towards the anchor when placed. */
+@utility popup-motion {
+  transition-property: opacity, scale, translate;
+  transition-duration: var(--tw-duration, 150ms);
+  transition-timing-function: var(
+    --tw-ease,
+    var(--default-transition-timing-function)
+  );
+
+  &:where([data-starting-style], [data-ending-style]) {
+    opacity: 0;
+    scale: 0.95;
+
+    &:where([data-side='top']) {
+      translate: 0 calc(var(--spacing) * 2);
+    }
+
+    &:where([data-side='bottom']) {
+      translate: 0 calc(var(--spacing) * -2);
+    }
+
+    &:where([data-side='left'], [data-side='inline-start']) {
+      translate: calc(var(--spacing) * 2) 0;
+    }
+
+    &:where([data-side='right'], [data-side='inline-end']) {
+      translate: calc(var(--spacing) * -2) 0;
+    }
+  }
+}
+
 /* --- TipTap / ProseMirror editor typography --- */
 .ProseMirror {
   outline: none;

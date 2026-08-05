@@ -50,7 +50,7 @@ function TooltipContent({
         <TooltipPrimitive.Popup
           data-slot="tooltip-content"
           className={cn(
-            'bg-m3-inverse-surface text-m3-inverse-on-surface animate-in fade-in-0 zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-55 w-fit max-w-xs origin-(--transform-origin) rounded-md px-3 py-1.5 text-xs wrap-break-word',
+            'bg-m3-inverse-surface text-m3-inverse-on-surface popup-motion z-55 w-fit max-w-xs origin-(--transform-origin) rounded-md px-3 py-1.5 text-xs wrap-break-word',
             className,
           )}
           {...props}

@@ -370,12 +370,13 @@ function ContextMenuPopup({
         top: currentPlacement?.y ?? 0,
         maxWidth: `calc(100vw - ${VIEWPORT_PAD * 2}px)`,
         transformOrigin: origin,
-        visibility: canAnimate ? undefined : 'hidden',
         zIndex: 50,
       }}
       className={cn(
-        'bg-popover text-popover-foreground ring-foreground/10 min-w-36 overflow-visible rounded-lg p-1 shadow-md ring-1',
-        canAnimate && 'animate-in fade-in-0 zoom-in-95 duration-100',
+        'bg-popover text-popover-foreground ring-foreground/10 min-w-36 overflow-visible rounded-lg p-1 shadow-md ring-1 transition-[opacity,scale] duration-100',
+        canAnimate
+          ? 'scale-100 opacity-100'
+          : 'pointer-events-none scale-95 opacity-0',
         className,
       )}
     >
@@ -601,7 +602,6 @@ function ContextMenuSubContent({
         minWidth: currentPlacement
           ? Math.min(144, currentPlacement.maxWidth)
           : undefined,
-        visibility: canAnimate ? undefined : 'hidden',
         zIndex: 60,
       }}
       onPointerEnter={openNow}
@@ -609,8 +609,10 @@ function ContextMenuSubContent({
         if (event.pointerType === 'mouse') closeSoon()
       }}
       className={cn(
-        'bg-popover text-popover-foreground ring-foreground/10 min-w-36 overflow-hidden rounded-lg p-1 shadow-lg ring-1',
-        canAnimate && 'animate-in fade-in-0 zoom-in-95 duration-100',
+        'bg-popover text-popover-foreground ring-foreground/10 min-w-36 overflow-hidden rounded-lg p-1 shadow-lg ring-1 transition-[opacity,scale] duration-100',
+        canAnimate
+          ? 'scale-100 opacity-100'
+          : 'pointer-events-none scale-95 opacity-0',
         className,
       )}
     >

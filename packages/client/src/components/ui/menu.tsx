@@ -39,7 +39,7 @@ function MenuContent({ className, ...props }: MenuPrimitive.Popup.Props) {
     <MenuPrimitive.Popup
       data-slot="menu-content"
       className={cn(
-        'bg-popover text-popover-foreground data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 max-h-(--available-height) min-w-32 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-md border p-1 shadow-md',
+        'bg-popover text-popover-foreground popup-motion z-50 max-h-(--available-height) min-w-32 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-md border p-1 shadow-md',
         className,
       )}
       {...props}
@@ -204,7 +204,7 @@ function MenuSubContent({ className, ...props }: MenuPrimitive.Popup.Props) {
     <MenuPrimitive.Popup
       data-slot="menu-sub-content"
       className={cn(
-        'bg-popover text-popover-foreground data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 min-w-32 origin-(--transform-origin) overflow-hidden rounded-md border p-1 shadow-lg',
+        'bg-popover text-popover-foreground popup-motion z-50 min-w-32 origin-(--transform-origin) overflow-hidden rounded-md border p-1 shadow-lg',
         className,
       )}
       {...props}
