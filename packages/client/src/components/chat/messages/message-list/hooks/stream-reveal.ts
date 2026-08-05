@@ -1,44 +1,56 @@
 import { getNavPaddingPx } from '@/hooks/nav-padding'
-import type { ChatStatus } from 'ai'
 import { useEffect, useRef } from 'react'
 
-/** Unlocks auto-follow when a locally owned stream starts at the live tail. */
+/** Unlocks auto-follow when locally owned activity starts at the live tail. */
 export function useConditionalFollow(
-  status: ChatStatus,
+  active: boolean,
   shouldFollowStream: boolean,
   unlockScroll: (force?: boolean) => void,
 ) {
-  const prevRef = useRef(status)
+  const prevRef = useRef(active)
   useEffect(() => {
     const prev = prevRef.current
-    prevRef.current = status
-    if (prev === 'ready' && status !== 'ready' && shouldFollowStream) {
+    prevRef.current = active
+    if (!prev && active && shouldFollowStream) {
       unlockScroll(true)
     }
-  }, [status, shouldFollowStream, unlockScroll])
+  }, [active, shouldFollowStream, unlockScroll])
 }
 
-/** Reveals a starting stream when not auto-following, until its head clears the nav. */
-export function useConditionalScroll(
-  autoScroll: boolean,
-  status: ChatStatus,
-  shouldRevealStream: boolean,
-  scrollRef: React.RefObject<HTMLElement | null>,
-  scrollUntilCondition: (condition: () => boolean) => void,
-  topPadding: number,
-  messageIds: string[],
-  processingMessageId: string | null,
-) {
+export type ConditionalScrollArgs = {
+  autoScroll: boolean
+  active: boolean
+  shouldRevealStream: boolean
+  scrollRef: React.RefObject<HTMLElement | null>
+  scrollUntilCondition: (condition: () => boolean) => void
+  topPadding: number
+  messageIds: string[]
+  processingMessageId: string | null
+}
+
+/** Reveals starting activity when not auto-following, until its head clears the nav. */
+export function useConditionalScroll(args: ConditionalScrollArgs) {
+  const {
+    autoScroll,
+    active,
+    shouldRevealStream,
+    scrollRef,
+    scrollUntilCondition,
+    topPadding,
+    messageIds,
+    processingMessageId,
+  } = args
+
   const messageIdsRef = useRef(messageIds)
   const processingMessageIdRef = useRef(processingMessageId)
 
-  const prevStatusRef = useRef(status)
+  const prevActiveRef = useRef(active)
   useEffect(() => {
-    const prev = prevStatusRef.current
-    prevStatusRef.current = status
+    const prev = prevActiveRef.current
+    prevActiveRef.current = active
 
     if (autoScroll) return
-    if (prev !== 'ready' || status === 'ready') return
+    if (prev || !active) return
     if (!shouldRevealStream) return
 
     const topPaddingPx = getNavPaddingPx(topPadding)
@@ -65,7 +77,7 @@ export function useConditionalScroll(
     })
   }, [
     autoScroll,
-    status,
+    active,
     shouldRevealStream,
     scrollRef,
     scrollUntilCondition,

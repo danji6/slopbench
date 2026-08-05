@@ -39,14 +39,17 @@ export async function _run(
   const { executeShellJob, resumeShellJob } =
     await import('../../model/tool/shell')
 
-  const slice = { sliceDeadline: Date.now() + USER_SHELL_WINDOW_MS, ...options }
+  const watch: ShellJobOptions = {
+    windowDeadline: Date.now() + USER_SHELL_WINDOW_MS,
+    ...options,
+  }
   let output: ShellToolOutput | undefined
   let errorText: string | undefined
 
   try {
     const outputs = resume
-      ? resumeShellJob(job, resume, slice)
-      : executeShellJob(job, { command, timeout: USER_SHELL_TIMEOUT_S }, slice)
+      ? resumeShellJob(job, resume, watch)
+      : executeShellJob(job, { command, timeout: USER_SHELL_TIMEOUT_S }, watch)
 
     let lastPatch = 0
     let lastWaiting = false

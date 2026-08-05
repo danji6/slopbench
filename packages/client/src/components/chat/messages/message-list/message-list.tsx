@@ -6,6 +6,7 @@ import {
   useMessageIds,
   useMessageRows,
   useMessageStore,
+  useRunningShellSender,
   useStreamInvokedBy,
   useStreamProcessingMessageId,
   useUserProfile,
@@ -122,7 +123,12 @@ export function MessageList({
     anchorAround,
   } = useWindowControls() // prettier-ignore
 
-  const isLocalStream = !!invokedBy && invokedBy === profile?._id
+  const shellSender = useRunningShellSender()
+  const isActive = status !== 'ready' || shellSender !== null
+
+  const isLocalActivity =
+    (!!invokedBy && invokedBy === profile?._id) ||
+    (!!shellSender && shellSender === profile?._id)
 
   // Whether the stream is happening earlier in the history
   const isMidListStream = useMemo(() => {
@@ -324,22 +330,25 @@ export function MessageList({
   }, [editingId])
 
   useConditionalFollow(
-    status,
+    isActive,
     // Autofollow only for the user's own activity and only when already at the bottom
-    isLocalStream && isAtBottom === true && isAtLiveTail && !isMidListStream,
+    isLocalActivity && isAtBottom === true && isAtLiveTail && !isMidListStream,
     unlockScroll,
   )
 
-  useConditionalScroll(
+  const shouldRevealStream =
+    (isLocalActivity || isAtBottom === true) && isAtLiveTail && !isMidListStream
+
+  useConditionalScroll({
     autoScroll,
-    status,
-    (isLocalStream || isAtBottom === true) && isAtLiveTail && !isMidListStream,
+    active: isActive,
+    shouldRevealStream,
     scrollRef,
     scrollUntilCondition,
-    topPad,
+    topPadding: topPad,
     messageIds,
-    processingMessageId ?? null,
-  )
+    processingMessageId: processingMessageId ?? null,
+  })
 
   const shiftHoldRef = useRef(false)
   useLayoutEffect(() => {

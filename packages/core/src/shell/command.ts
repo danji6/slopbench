@@ -6,15 +6,25 @@ const SHELL_COMMAND = /^\$[ \t]+(?=\S)/
 const ESCAPED_SHELL_COMMAND = /^\\\$[ \t]+(?=\S)/
 
 /**
+ * Where the command sits inside a `$ <command>` message, as `[start, end)`
+ * offsets, or `null` when the content is ordinary text.
+ */
+export function shellCommandRange(content: string): [number, number] | null {
+  const match = SHELL_COMMAND.exec(content)
+  if (!match) return null
+
+  const start = match[0].length
+  const end = start + content.slice(start).trimEnd().length
+  return end > start ? [start, end] : null
+}
+
+/**
  * The command a `$ <command>` message runs, or `null` when the content is
  * ordinary text.
  */
 export function parseShellCommand(content: string): string | null {
-  const match = SHELL_COMMAND.exec(content)
-  if (!match) return null
-
-  const command = content.slice(match[0].length).trimEnd()
-  return command || null
+  const range = shellCommandRange(content)
+  return range && content.slice(range[0], range[1])
 }
 
 /** Turns `\$ ` into just `$ `. */

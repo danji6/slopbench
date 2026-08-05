@@ -1,6 +1,7 @@
 import { fullscreenGrow } from '@/components/ui'
 import { isCovered } from '@/lib/focus-return'
 import { MentionDecoration } from '@/lib/tiptap/decorations/mention'
+import { ShellHighlight } from '@/lib/tiptap/decorations/shell'
 import { editorKit } from '@/lib/tiptap/kit'
 import { cn } from '@/lib/utils'
 import type { EditorView } from '@tiptap/pm/view'
@@ -43,6 +44,7 @@ export function ComposerEditor({
     () => [
       ...editorKit({ debounce: 60, collapseBlocks: true }),
       MentionDecoration,
+      ShellHighlight,
       placeholderExtension,
     ],
     [placeholderExtension],

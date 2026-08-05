@@ -247,26 +247,26 @@ describe('_finishUserShell', () => {
   })
 })
 
-describe('_beginUserShellSlice', () => {
+describe('_beginUserShellWindow', () => {
   test('claims the command and leaves a heartbeat for the reaper', async () => {
     const { ctx, row } = mutationCtx([shellPart()])
 
-    const slice = await _beginUserShellWindow(ctx as never, {
+    const claim = await _beginUserShellWindow(ctx as never, {
       messageId: 'msg-1' as never,
     })
 
-    expect(slice).toMatchObject({
+    expect(claim).toMatchObject({
       sessionId: 'session-1',
       workspaceId: 'ws-1',
       command: 'ls -la',
       toolCallId: TOOL_CALL_ID,
     })
-    // A first slice has no job to pick up
-    expect(slice?.resume).toBeUndefined()
+    // The first window has no job to pick up
+    expect(claim?.resume).toBeUndefined()
     expect(partOf(row).heartbeatAt).toBeNumber()
   })
 
-  test('hands the running job to the next slice', async () => {
+  test('hands the running job to the next window', async () => {
     const { ctx } = mutationCtx([
       shellPart({
         state: 'output-available',
@@ -275,11 +275,11 @@ describe('_beginUserShellSlice', () => {
       }),
     ])
 
-    const slice = await _beginUserShellWindow(ctx as never, {
+    const claim = await _beginUserShellWindow(ctx as never, {
       messageId: 'msg-1' as never,
     })
 
-    expect(slice?.resume).toEqual({
+    expect(claim?.resume).toEqual({
       jobId: 'job-1',
       term: output().term,
       termOffset: 0,
@@ -336,15 +336,15 @@ type RunnerOptions = {
   /** False once the message the command belongs to is gone. */
   alive?: boolean
   /** Null when the command can no longer be claimed. */
-  slice?: Record<string, unknown> | null
-  /** Keeps the scripted stream open so the slice deadline can end it. */
+  claim?: Record<string, unknown> | null
+  /** Keeps the scripted stream open so the window deadline can end it. */
   stayOpen?: boolean
 }
 
 /** Collects the mutations `_run` makes against a scripted shell job. */
 function runnerCtx(
   outputs: ShellToolOutput[],
-  { alive = true, slice, stayOpen }: RunnerOptions = {},
+  { alive = true, claim, stayOpen }: RunnerOptions = {},
 ) {
   const patches: ShellToolOutput[] = []
   const finishes: Record<string, unknown>[] = []
@@ -354,8 +354,8 @@ function runnerCtx(
   const ctx = {
     runMutation: async (ref: unknown, args: Record<string, unknown>) => {
       const name = getFunctionName(ref as never)
-      if (name.endsWith('_beginUserShellSlice')) {
-        return slice === undefined
+      if (name.endsWith('_beginUserShellWindow')) {
+        return claim === undefined
           ? {
               sessionId: 'session-1',
               workspaceId: 'ws-1',
@@ -363,7 +363,7 @@ function runnerCtx(
               toolCallId: TOOL_CALL_ID,
               startedAt: Date.now(),
             }
-          : slice
+          : claim
       }
       if (name.endsWith('_patchUserShell')) {
         patches.push(args.output as ShellToolOutput)
@@ -453,7 +453,7 @@ describe('_run', () => {
     expect(posts).toContain('/shell/kill')
   })
 
-  test('schedules another slice instead of settling a running command', async () => {
+  test('schedules another window instead of settling a running command', async () => {
     const { ctx, patches, finishes, scheduled, post, openStream } = runnerCtx(
       [output({ status: 'running', text: '', term: 'tick\n', exitCode: null })],
       { stayOpen: true },
@@ -469,15 +469,15 @@ describe('_run', () => {
 
     expect(finishes).toHaveLength(0)
     expect(scheduled).toEqual(['actions/userShell:_run'])
-    // The next slice resumes from the scrollback this one persisted
+    // The next window resumes from the scrollback this one persisted
     expect(patches.at(-1)?.term).toBe('tick\n')
   })
 
-  test('resumes the job a previous slice left running', async () => {
+  test('resumes the job a previous window left running', async () => {
     const { ctx, finishes, posts, post, openStream } = runnerCtx(
       [output({ status: 'done', exitCode: 0 })],
       {
-        slice: {
+        claim: {
           sessionId: 'session-1',
           workspaceId: 'ws-1',
           command: 'ls -la',
@@ -496,14 +496,14 @@ describe('_run', () => {
 
     expect(posts).not.toContain('/shell/start')
     expect(finishes).toHaveLength(1)
-    // The duration spans every slice, not just the last one
+    // The duration spans every window, not just the last one
     expect(finishes[0].duration as number).toBeGreaterThanOrEqual(60_000)
     expect((finishes[0].output as ShellToolOutput).term).toBe('earlier\n')
   })
 
   test('does nothing when the message is already gone', async () => {
     const { ctx, patches, finishes, post, openStream } = runnerCtx([], {
-      slice: null,
+      claim: null,
     })
 
     await _run(ctx as never, args, {

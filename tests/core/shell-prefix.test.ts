@@ -1,5 +1,9 @@
 /// <reference types="bun-types" />
-import { parseShellCommand, unescapeShellPrefix } from '@sb/core/shell/command'
+import {
+  parseShellCommand,
+  shellCommandRange,
+  unescapeShellPrefix,
+} from '@sb/core/shell/command'
 import { describe, expect, test } from 'bun:test'
 
 describe('parseShellCommand', () => {
@@ -33,6 +37,20 @@ describe('parseShellCommand', () => {
 
   test('treats an escaped prefix as ordinary text', () => {
     expect(parseShellCommand('\\$ 5 for coffee')).toBeNull()
+  })
+})
+
+describe('shellCommandRange', () => {
+  // The editor decorates the command in place, so the offsets have to line up
+  // with the very text `parseShellCommand` returns
+  test('points at the command inside the message', () => {
+    expect(shellCommandRange('$   git status  ')).toEqual([4, 14])
+    expect('$   git status  '.slice(4, 14)).toBe('git status')
+  })
+
+  test('has no range without a command', () => {
+    expect(shellCommandRange('$ ')).toBeNull()
+    expect(shellCommandRange('plain text')).toBeNull()
   })
 })
 

@@ -24,6 +24,7 @@
     "\\/session-completions\\.ts$",
     "\\/lib\\/tiptap\\.ts$",
     "\\/lib\\/tiptap\\/kit\\.ts$",
+    "\\/lib\\/tiptap\\/highlight\\.ts$",
     "\\/lib\\/code-block-editing\\.ts$",
     "\\/lib\\/dynamic-block\\.ts$",
     "\\/lib\\/editor-clear\\.ts$",

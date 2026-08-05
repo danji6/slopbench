@@ -346,8 +346,8 @@ describe('executeShellJob', () => {
   })
 })
 
-describe('slices', () => {
-  test('leaves a running job alive when the slice deadline passes', async () => {
+describe('windows', () => {
+  test('leaves a running job alive when the window deadline passes', async () => {
     const { post, openStream, calls } = mockSidecar([{ chunk: 'tick\n' }])
 
     const outputs = await collect(
@@ -364,14 +364,14 @@ describe('slices', () => {
       ),
     )
 
-    // Still running: the next slice picks the job back up
+    // Still running: the next window picks the job back up
     const final = outputs.at(-1)
     expect(final?.status).toBe('running')
     expect(final?.term).toBe('tick\n')
     expect(calls.some((call) => call.path === '/shell/kill')).toBe(false)
   })
 
-  test('resumes a job where the previous slice left off', async () => {
+  test('resumes a job where the previous window left off', async () => {
     const { post, openStream, calls, queries } = mockSidecar([
       { chunk: 'more\n', status: 'done', exitCode: 0 },
     ])

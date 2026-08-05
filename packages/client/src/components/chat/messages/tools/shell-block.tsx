@@ -96,9 +96,6 @@ export function ShellBlock({
     !isBackground &&
     isAdmin &&
     sessionId !== null
-  // Reveal an interactive terminal only the first time it goes live
-  const revealTerminal = useRevealOnce(part.toolCallId, interactive)
-
   const displayTerm =
     fullOutput?.term ?? (canTail ? liveTail?.term : undefined) ?? output?.term
   const hasTerminalText =
@@ -107,6 +104,12 @@ export function ShellBlock({
     output !== undefined &&
     typeof output.term === 'string' &&
     (isLive || hasTerminalText)
+
+  // Reveal an interactive terminal only the first time it goes live
+  const revealTerminal = useRevealOnce(
+    part.toolCallId,
+    interactive || (Boolean(alwaysExpand) && hasTerminal),
+  )
 
   const suppressJobText = Boolean(output?.jobId) && output?.status !== 'lost'
   const fallbackText =

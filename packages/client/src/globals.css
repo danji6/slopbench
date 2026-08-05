@@ -870,14 +870,17 @@ html::-webkit-scrollbar {
   @apply text-m3-primary font-medium;
 }
 
-/* Interpreter directives (#if, #eval, {{ }}) rendered inline as monospace,
-   with Shiki colors layered on the code spans via inline styles. */
-.ProseMirror .interp {
+/* Interpreter directives (#if, #eval, {{ }}) and `$ <command>` messages
+   rendered inline as monospace, with Shiki colors layered on the code spans
+   via inline styles. */
+.ProseMirror .interp,
+.ProseMirror .shell-cmd {
   @apply font-mono;
   white-space: pre-wrap;
 }
 
-.ProseMirror .interp-kw {
+.ProseMirror .interp-kw,
+.ProseMirror .shell-cmd-prefix {
   @apply text-muted-foreground;
 }
 

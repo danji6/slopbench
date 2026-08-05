@@ -11,7 +11,11 @@ import {
   type WindowControls,
   createMessageStore,
 } from '@/lib/chat/message-store'
-import { convertMessages, isMessageEmpty } from '@/lib/chat/messages'
+import {
+  convertMessages,
+  isMessageEmpty,
+  runningShellSender,
+} from '@/lib/chat/messages'
 import type { MessageRow } from '@/lib/chat/rows'
 import type { UIMetadata } from '@/lib/chat/types'
 import { DEFAULT_SETTINGS } from '@sb/convex/model/defaults'
@@ -158,6 +162,12 @@ export function useChatMessage(messageId: string) {
   )
 
   return { message, isLast, agentId, messageMeta, partMeta }
+}
+
+/** The user whose `$ <command>` is still running at the tail, if any. */
+export function useRunningShellSender(): string | null {
+  const store = useMessageStore()
+  return useSyncExternalStore(store.subscribe, () => runningShellSender(store))
 }
 
 /** Whether the session has messages newer than the given one. */

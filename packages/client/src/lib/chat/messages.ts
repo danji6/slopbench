@@ -2,10 +2,12 @@ import type { MessageRole } from '@/lib/chat'
 import { generateId } from '@/lib/utils'
 import type { Doc } from '@sb/convex/_generated/dataModel'
 import { minRole } from '@sb/convex/lib/roles'
+import { SHELL_TOOL_PART_TYPE } from '@sb/convex/lib/userShell'
 import type { MessageExtra } from '@sb/convex/types'
 import type { FileUIPart, TextUIPart, ToolUIPart, UIMessage } from 'ai'
 import { isFileUIPart, isReasoningUIPart, isTextUIPart, isToolUIPart } from 'ai'
 
+import type { MessageStore } from './message-store'
 import { isToolInFlight } from './parts'
 import type { MessageRecord, PartMetadata } from './types'
 
@@ -199,6 +201,27 @@ export function hasInFlightTool(message: UIMessage): boolean {
       part.type !== 'dynamic-tool' &&
       isToolInFlight(part),
   )
+}
+
+/** The user whose `$ <command>` is still running at the tail, if any. */
+export function runningShellSender(store: MessageStore): string | null {
+  const ids = store.getIds()
+  const messageId = ids[ids.length - 1]
+  if (!messageId) return null
+
+  const message = store.getMessage(messageId)
+  if (message?.role !== 'user') return null
+
+  const running = message.parts.some(
+    (part) =>
+      isToolUIPart(part) &&
+      part.type === SHELL_TOOL_PART_TYPE &&
+      isToolInFlight(part),
+  )
+  if (!running) return null
+
+  const sender = store.getMessageMetadata(messageId)?.sender
+  return sender?.type === 'user' ? sender.id : null
 }
 
 /** The part currently being streamed, if any. */
