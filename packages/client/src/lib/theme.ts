@@ -431,6 +431,22 @@ export function schemeToCssVars(scheme: Record<string, string>): string {
   return declarations
 }
 
+const sourceVars = new Map<string, string>()
+
+/**
+ * Palette declarations generated from a source color, for a scope that has to
+ * pin its own palette instead of inheriting the document's.
+ */
+export function themeVars(sourceColor: string, isDark: boolean): string {
+  const key = `${sourceColor}:${isDark}`
+  const cached = sourceVars.get(key)
+  if (cached !== undefined) return cached
+
+  const vars = schemeToCssVars(exportSchemeCss(sourceColor, isDark, 0).css)
+  sourceVars.set(key, vars)
+  return vars
+}
+
 export function hexColorOrNull(color: string | null | undefined) {
   if (!color || getFormat(color) !== 'hex') {
     return null

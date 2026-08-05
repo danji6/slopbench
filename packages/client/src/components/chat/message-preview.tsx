@@ -15,6 +15,8 @@ function main() {
 \`\`\``
 
 type MessagePreviewProps = {
+  /** Css `customCss` layers over, for a preview of an agent's own rules. */
+  baseCss?: string
   customCss?: string
   chatFont?: string
   monoFont?: string
@@ -23,13 +25,14 @@ type MessagePreviewProps = {
 }
 
 export function MessagePreview({
+  baseCss,
   customCss,
   chatFont,
   monoFont,
   chatFontSize,
   className,
 }: MessagePreviewProps) {
-  const scopeClass = useScopedAppearance({ css: customCss })
+  const scopeClass = useScopedAppearance({ css: [baseCss, customCss] })
 
   return (
     <div
@@ -46,7 +49,7 @@ export function MessagePreview({
         } as CSSProperties
       }
     >
-      <Surface className="usr self-end">
+      <Surface className="user self-end">
         <MarkdownRenderer>{PREVIEW_USER}</MarkdownRenderer>
       </Surface>
       <div className="ai">

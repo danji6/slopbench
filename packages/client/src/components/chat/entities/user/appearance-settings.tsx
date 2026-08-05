@@ -143,8 +143,9 @@ export function AppearanceSettings({
             help={md`
               CSS rules to apply to messages.
 
-              You can use [Material 3 roles](https://m3.material.io/styles/color/roles) as variables.
-              They follow the same naming conventions, but in kebab-case. For example:
+              You can use [Material 3 roles](https://m3.material.io/styles/color/roles)
+              as variables. They follow the same naming conventions, but in
+              kebab-case. For example:
 
               - Primary: \`var(--primary)\`
               - On Secondary: \`var(--on-secondary)\`
@@ -152,7 +153,7 @@ export function AppearanceSettings({
               Additional selectors:
 
               - AI messages: \`.ai\`
-              - User messages: \`.usr\`
+              - User messages: \`.user\`
               - System messages: \`.sys\`
               - Quoted text: \`.quoted\`
               - File mentions: \`.mention\`

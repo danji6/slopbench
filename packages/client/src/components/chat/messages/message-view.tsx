@@ -72,12 +72,11 @@ export const MessageView = memo(function MessageView({
   )
 
   const cssSettings = useSettings()
-  const globalCustomCss = cssSettings?.customCss ?? null
   const customCssClass = useScopedAppearance({
-    css: css ?? globalCustomCss ?? undefined,
+    css: [cssSettings?.customCss, css],
   })
 
-  const roleClass = isUser ? 'usr' : message.role === 'system' ? 'sys' : 'ai'
+  const roleClass = isUser ? 'user' : message.role === 'system' ? 'sys' : 'ai'
 
   const inner = (
     <div

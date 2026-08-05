@@ -1,14 +1,12 @@
 import {
   useActiveSession,
-  useAppearance,
   useAttachmentIds,
   useChatMessage,
   useIsMessageStreaming,
-  useSettings,
+  useMessageLook,
   useStreamInactivity,
   useUserProfile,
 } from '@/hooks/chat'
-import { useIsDarkMode } from '@/hooks/theme'
 import {
   canMutateMessage,
   extractTextFromMessage,
@@ -18,7 +16,6 @@ import {
 } from '@/lib/chat'
 import type { MessageRecord, PartMetadata } from '@/lib/chat'
 import { type MessageRow, segmentGroupsFor } from '@/lib/chat/rows'
-import { schemeToCssVars } from '@/lib/theme'
 import { cn, formatDuration, isTouchDevice } from '@/lib/utils'
 import { toDisplayName } from '@sb/core/utils/names'
 import { type UIMessage, isReasoningUIPart } from 'ai'
@@ -118,26 +115,11 @@ function RowShell({ message, messageMeta, row, children }: RowShellProps) {
     [message.id, canEdit, content],
   )
 
-  const settings = useSettings()
-  const appearance = useAppearance(messageMeta?.appearanceId)
-  const isDark = useIsDarkMode()
-
-  const customCss = appearance?.css ?? settings?.customCss ?? undefined
-  const theme = appearance?.theme
-  const themeVars = useMemo(
-    () =>
-      theme ? schemeToCssVars(isDark ? theme.dark : theme.light) : undefined,
-    [theme, isDark],
-  )
-
-  const appearanceClass = useScopedAppearance({
-    css: customCss,
-    vars: themeVars,
-    isDark,
-  })
+  const look = useMessageLook(message.role, messageMeta)
+  const appearanceClass = useScopedAppearance(look)
 
   const roleClass =
-    message.role === 'user' ? 'usr' : message.role === 'system' ? 'sys' : 'ai'
+    message.role === 'user' ? 'user' : message.role === 'system' ? 'sys' : 'ai'
 
   const inner = (
     <MessageContextMenu

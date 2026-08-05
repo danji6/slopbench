@@ -1,7 +1,8 @@
 import { useInsertionEffect, useMemo } from 'react'
 
 export type Look = {
-  css?: string
+  /** Custom css blocks, in ascending priority order. */
+  css?: (string | null | undefined)[]
   /** Palette declarations for the scope root, from the sender's theme. */
   vars?: string
   /** Whether `vars` holds a dark theme. */
@@ -16,10 +17,12 @@ export type Scope = {
 }
 
 /** The scope `look` is mounted under, derived from the rule it produces. */
-export function scopedAppearance({ css, vars, isDark }: Look): Scope | null {
+export function scopedAppearance(look: Look): Scope | null {
+  const { vars, isDark } = look
+  const css = joinCss(look.css)
   if (!css && !vars) return null
 
-  const key = `cc-${(css?.length ?? 0).toString(36)}-${hash(`${vars ?? ''}\0${css ?? ''}`)}`
+  const key = `cc-${css.length.toString(36)}-${hash(`${vars ?? ''}\0${css}`)}`
 
   return {
     key,
@@ -62,13 +65,12 @@ function release({ key }: Scope) {
  * Mounts `look` once and returns the scope root classes, or `undefined` when
  * there is nothing to scope.
  */
-export function useScopedAppearance({
-  css,
-  vars,
-  isDark,
-}: Look): string | undefined {
+export function useScopedAppearance(look: Look): string | undefined {
+  const { vars, isDark } = look
+  const css = joinCss(look.css)
+
   const scope = useMemo(
-    () => scopedAppearance({ css, vars, isDark }),
+    () => scopedAppearance({ css: [css], vars, isDark }),
     [css, vars, isDark],
   )
 
@@ -80,6 +82,10 @@ export function useScopedAppearance({
   }, [scope])
 
   return scope?.className
+}
+
+function joinCss(css: Look['css']): string {
+  return css?.filter(Boolean).join('\n') ?? ''
 }
 
 /** FNV-1a. Paired with the length above, collisions are not a concern here. */

@@ -43,7 +43,7 @@ export function AppearanceSettings({
         unclickable
         unhoverable
       >
-        <MessagePreview customCss={customCss} />
+        <MessagePreview baseCss={settings?.customCss} customCss={customCss} />
       </SettingsList.Item>
       <Controller
         control={control}
@@ -55,11 +55,15 @@ export function AppearanceSettings({
             orientation="vertical"
             label="Custom CSS"
             help={md`
-              These override the global CSS rules.
+              These override the global CSS rules, on every message of the
+              conversation:
 
-              Note that to allow every
-              identity to have their own styling, the CSS is snapshotted for each
-              individual message.
+              - AI messages: \`.ai\`
+              - User messages: \`.user\`
+              - System messages: \`.sys\`
+
+              Note that to allow every identity to have their own styling, the
+              CSS is snapshotted on each message this agent sends.
             `}
           >
             <CodeEditor

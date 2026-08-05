@@ -1574,6 +1574,20 @@ variables are declared on a generated scope class, the custom CSS is wrapped in
 opt in through `ThemeScope` — so previewing a theme in a dialog never repaints
 the app.
 
+A row's look is **layered and side-symmetrical** (`useMessageLook`). Every row
+carries the user's custom CSS as the base block and the agent's over it, joined
+into one `@scope` rule so the agent's rules win the ties — an agent styling
+`.user` restyles the other side of the conversation, while the user's `.ai`
+rules still reach agent messages. The palette, in contrast, is never shared:
+a human-sent row pins the sender's snapshot theme (falling back to the viewer's,
+then to the default source color), so a themed agent recolors the app without
+recoloring anyone else's messages, and only agent-sent rows are left to inherit
+the agent-tinted document. Which side a row is on comes from `sender.type`
+rather than the role, since an injected note is a `system` message wearing the
+agent's look. The agent half of a human row comes from the session's live active
+agent, since no agent look is snapshotted there. Message role classes are
+`.user`, `.ai`, and `.sys`.
+
 Focus and viewport handling are centralized:
 
 - `focus-return` registers the composer as the fallback focus target; modal
