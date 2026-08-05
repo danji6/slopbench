@@ -1,17 +1,20 @@
 # Project Analysis
 
-Updated after inspecting the current codebase at commit `960dd83`
-(2026-07-29). The previous revision of this document described the tree as of
-2026-07-10; the history has been squashed since then, so this is a re-derivation
-from source rather than a diff.
+Updated after inspecting the current codebase at commit `0d6092b`
+(2026-08-05), including the uncommitted working tree. The previous revision of
+this document described the tree at `960dd83` (2026-07-29); since then the
+backend has been substantially restructured (`bda987e` and its follow-ups), so
+the data model, settings, and query sections below are re-derived rather than
+patched.
 
-This document describes the project as it exists now.
+This document describes the project as it exists now. The test suite is green
+at this revision (1102 tests across 114 files).
 
 ## Executive Summary
 
-`chat` is a self-hosted AI workspace for agentic coding workflows, creative
-writing, and collaborative chat sessions. It is a Bun workspace with four main
-packages:
+Slopbench (temporary name) is a self-hosted AI workspace for agentic coding
+workflows, creative writing, and collaborative chat sessions. It is a Bun
+workspace with four main packages:
 
 - `packages/client`: React 19 and Vite frontend
 - `packages/convex`: Convex backend, data model, actions, and business logic
@@ -33,9 +36,11 @@ The current runtime loop is:
 1. A user signs in through Better Auth and Convex.
 2. The user creates, joins, or opens a session.
 3. The session may have a bound workspace, a mode, and one active linked agent.
-4. The user submits text, attachments, commands, or `@path` file mentions.
-5. Convex stores the user/system/assistant turn as a `messages` doc plus a
-   version-1 content row in the `messageContents` side table.
+4. The user submits text, attachments, slash commands, `$ <command>` shell
+   invocations, or `@path` file mentions.
+5. Convex stores the user/system/assistant turn as a `messages` doc plus
+   version-1 content rows in the `messageContents` side table (an over-budget
+   send fans out across several segment rows on insert).
 6. If an agent should respond, Convex reserves a durable `streams` row; the
    processing message doc and its active content segment are created on claim
    (deferred, debounced through `fireAt`).
@@ -55,7 +60,7 @@ The current runtime loop is:
     segment-granular message window, and renders stable virtualized message
     rows.
 
-The major architectural themes added since the previous revision are:
+Standing architectural themes (established in earlier revisions, still true):
 
 - **Background sub-agents**: an agent can delegate to another owned agent
   through the `task` tool. The engine spawns a hidden child session, settles
@@ -90,6 +95,46 @@ The major architectural themes added since the previous revision are:
   process blocked in `read(2)` on a pty instead of guessing, driving terminal
   auto-expansion.
 
+The themes added by the recent backend rework are:
+
+- **A table per unbounded domain**: prompts, reminders, external MCP servers
+  and their discovered tools, model providers, and API keys were lifted out of
+  the `settings` and `agents` documents into their own tables (`prompts`,
+  `reminders`, `mcpServers`, `mcpTools`, `modelProviders`, `credentials`), each
+  ordered by an explicit `order` column. Settings and agent docs are now small
+  and stable.
+- **Hot state off the session doc**: environment, tool approvals, reminder
+  state, the command queue, token usage, and the request log moved to a
+  `sessionState` side table, so a session subscription no longer churns on
+  every stream write. The provider request/response log is a storage blob, not
+  an inline field.
+- **Credentials never leave the server**: API keys live in a `credentials`
+  table keyed by `(ownerId, scope, ref)`. No public query returns one; the
+  settings UI writes keys and reads only presence.
+- **Projected queries**: `sessions.list`, `userSessions.list`, and
+  `agents.list` return purpose-built rows instead of whole documents, so the
+  sidebar never ships another member's settings or a session's workspace path,
+  mode, and model to every participant.
+- **Interned appearances**: a message's look (custom CSS + theme snapshot) is
+  hashed and stored once in an `appearances` table. `senderSnapshot` became
+  three denormalized fields — `senderName`, `senderAvatarId`, `appearanceId`.
+- **Caps on everything writable**: `packages/core/src/limits.ts` defines a cap
+  for every field a user, model, or third-party service can grow, and
+  `limitError()` renders every violation the same way. Oversized sends are
+  split across segment rows; oversized single parts are rejected.
+- **Typed to the edges**: the remaining `v.any()` fields (message `extra`,
+  agent tools, token usage, the settings patch) now have real validators.
+- **User shell commands**: a message beginning with `$ ` runs in the bound
+  workspace as a shell tool call on the _user's own_ message, streamed by a
+  self-rescheduling runner action, with the agent turn reserved only once the
+  command settles.
+- **Origin-aware auth and CORS**: a shared `origins.ts` decides trusted origins
+  for both Better Auth and the HTTP-action CORS layer, and the runner passes
+  public origins to the backend, which makes an HTTPS reverse proxy a supported
+  deployment (`docs/https.md`).
+- **MCP transport negotiation**: external MCP servers default to `auto`; the
+  sidecar dials Streamable HTTP then SSE and caches the winner per URL.
+
 ## Runtime Topology
 
 ```mermaid
@@ -110,13 +155,13 @@ flowchart LR
   Sidecar --> IO[Image and agent I/O]
 ```
 
-Default local ports:
+Default local ports (all now configurable):
 
-- `4173`: production preview frontend
+- `4173`: production preview frontend (`FRONTEND_PORT`)
 - `5173`: Vite dev frontend
-- `3210`: self-hosted Convex backend
-- `3211`: Convex HTTP actions and auth site
-- `3212`: sidecar and builtin MCP server
+- `3210`: self-hosted Convex backend (`CONVEX_PORT`)
+- `3211`: Convex HTTP actions and auth site (`CONVEX_SITE_PORT`)
+- `3212`: sidecar and builtin MCP server (`SIDECAR_PORT`)
 - `6791`: optional local Convex dashboard in dev mode
 
 `./start.sh` and `./dev.sh` delegate to `bun scripts/runner.ts`, whose
@@ -126,9 +171,30 @@ processes, Convex orchestration, build cache, logs). The runner loads
 the required ports unless told not to, starts the sidecar, starts the
 self-hosted Convex backend, configures Convex environment variables, deploys or
 starts Convex functions, and starts either Vite dev or Vite preview. Raw
-child-process logs go to `.data/logs`. `--expose[=<origin>]` trusts an external
-frontend origin so a remote browser can complete auth. The sidecar binds to
-`127.0.0.1`.
+child-process logs go to `.data/logs`. The sidecar binds to `127.0.0.1`.
+
+The runner distinguishes **where the backend listens** from **what a browser
+talks to**, which is what makes a TLS-terminating reverse proxy work:
+
+- `browserOrigins(config)` derives the public frontend / backend / site
+  origins. Dev mode is pinned to `localhost`; `start` mode uses the configured
+  `FRONTEND_URL`, `CONVEX_SELF_HOSTED_URL`, and `CONVEX_SITE_URL`.
+- The backend is launched with `--interface`, `--port`, `--site-proxy-port`,
+  plus `--convex-origin` and `--convex-site`, so generated storage links and
+  the JWT issuer point at the public origins rather than the bind address.
+- `CONVEX_INTERFACE` and `FRONTEND_HOST` (both defaulting to `0.0.0.0`) can be
+  pinned to loopback so the proxy is the only way in. Vite is started with
+  `--strictPort`.
+- The Convex CLI and health checks use `convexInternalUrl`
+  (`http://127.0.0.1:<CONVEX_PORT>`), never the public origin.
+- `--expose[=<origin>]` still trusts an external frontend origin for local
+  network use; it is explicitly discouraged on a public address.
+
+`docs/https.md` documents the supported deployment shapes: a Caddy reverse
+proxy with automatic Let's Encrypt certificates (with and without a domain),
+and an SSH-tunnel alternative. `docs/searxng.md` covers the web-search backend.
+`DISABLE_SIGNUP=true` closes registration once the first (admin) account
+exists.
 
 `convex.json` remains at the repository root and points Convex at
 `packages/convex/src`, allowing the backend source to live inside the
@@ -156,6 +222,8 @@ The project is TypeScript-first and Bun-first:
   Shiki, KaTeX, Comlink workers, `virtua` (window-scroll virtualizer), Motion,
   dnd-kit, xterm, and `node-pty` for editing, rendering, highlighting, math,
   virtualization, animation, drag-and-drop, and terminal output
+- React Hook Form for settings forms, `react-error-boundary` for the app-root
+  and per-dialog error boundaries, Zod for the shared schemas in `core`
 - `@convex-dev/migrations` for throwaway local data migrations
 
 ## Source Layout
@@ -182,21 +250,34 @@ Important areas:
   prompts, file mentions, session store, draft stores, scroll-position store,
   and tool output helpers
 - `packages/client/src/lib/tiptap`: the shared editor kit, extensions
-  (markdown, math, code editing, line breaks, block openers, snippet stops,
-  reveal-insert, interpreter input) and decorations (html, math, interpreter,
-  mention, quoted text)
+  (markdown, markdown clipboard, math, code editing, line breaks, block
+  openers, snippet stops, reveal-insert, interpreter input), the two-layer
+  `highlight.ts` plugin factory, and decorations (html, math, interpreter,
+  shell, mention, quoted text)
 - `packages/client/src/lib/markdown`: remark/rehype pipeline, HTML scanning,
   sanitizer schema, and formatting helpers
 - `packages/client/src/lib/scroller.ts` and `scroll-target.ts`: the follow /
   lock / into-view scroll engine over either an element or the window
 - `packages/convex/src`: Convex schema, public functions, internal functions,
-  validators, auth wrappers, crons, actions, and model logic
-- `packages/convex/src/model`: backend business logic split by domain
+  validators, auth wrappers, crons, actions, and model logic. Table-backed
+  domains each get a thin public module: `prompts.ts`, `reminders.ts`,
+  `providers.ts`, `mcp.ts`, `appearances.ts`, alongside `chat.ts`,
+  `sessions.ts`, `agents.ts`, `settings.ts`, and the rest. `origins.ts` holds
+  the origin rules shared by auth and the CORS layer.
+- `packages/convex/src/model`: backend business logic split by domain.
+  Note the two-level split for prompts and providers: `model/prompts.ts` and
+  `model/providers.ts` own the _rows_, while `model/prompt/*` and
+  `model/provider/*` own prompt merging/markers/snapshots and provider
+  construction/options/caching.
 - `packages/convex/src/actions`: Node actions for streams, sessions,
-  workspace I/O, terminals, messages, MCP discovery, and import/export
+  workspace I/O, terminals, messages, MCP discovery, the user-shell runner,
+  and import/export
 - `packages/core/src`: shared types, tool descriptions, file mention parsing,
   prompt interpreter (parse/evaluate/env/guide), context block helpers,
-  byte-budget constants, and workspace edit helpers
+  byte-budget constants (`const.ts`), write caps (`limits.ts`) and their
+  message renderer (`limit-errors.ts`), the `$ <command>` shell prefix parser
+  (`shell/command.ts`), display-name resolution (`utils/names.ts`), and
+  workspace edit plus link-snapshot helpers (`workspace/`)
 - `packages/sidecar/src`: local HTTP server (`main.ts`), builtin MCP tools and
   external MCP bridge (`mcp/`), PTY shell job registry, interactivity probe and
   SSE routes (`shell/`), prompt-eval file helper (`eval/`), and image/agent I/O
@@ -206,23 +287,59 @@ Important areas:
 
 ## Data Model
 
-The Convex schema is compact but central to the architecture:
+The schema is now 23 tables. The organising rule of the recent rework: any
+field that can grow without bound, or that is rewritten on every stream tick,
+gets its own table rather than living inside a document that something
+subscribes to.
+
+**Identity and configuration**
 
 - `users`: Better Auth subject plus application role
-- `settings`: user-owned profile, model providers, web search instances, MCP
-  servers, global/library prompts, the reminder library, fonts, theme, recent
-  selections, behavior settings, and the overridable presentation fields
-- `agents`: user-owned agents with prompts, prompt ordering, reminder prompts
-  and library reminder references, model id, reasoning effort, inference
-  parameters, enabled tools, context settings, sharing behavior, auto-approve
-  rules, spawnable sub-agent policy, and their own copy of the overridable
-  fields (agent overrides user)
-- `sessions`: canonical conversation state — owner, title, active agent, mode
-  and `announcedMode`, environment, settings, metadata, workspace binding
-  (`workspaceId`, `label`, `path`), tool approvals, optional `parent` link
-  marking a sub-agent child, activity previews, a logical `turnCount`, the
-  pending `commandQueue`, and `reminderState` (last injection turn per
-  reminder). Indexed by owner and by `parent.sessionId`.
+- `settings`: user-owned profile and preferences only — display name, avatar,
+  auto-title behavior and title model, send/grouping preferences, avatar size,
+  fonts and layout sizing, web search instances, theme mode, recent
+  model/agent/reasoning/workspace selections, and the overridable presentation
+  fields. Prompts, reminders, providers, MCP servers, and API keys are no
+  longer here.
+- `agents`: user-owned agents with `promptOrder` (refs into the `prompts`
+  table), `globalPromptsEnabled`, `libraryReminderIds`, model id, reasoning
+  effort, inference parameters, enabled tool names, context settings, sharing
+  and masking behavior, auto-approve rules, spawnable sub-agent policy, and
+  their own copy of the overridable fields (agent overrides user)
+- `prompts`: one row per prompt, scoped `own` | `global` | `library` |
+  `compaction` | `impersonation`, owned by a user and optionally attached to an
+  agent, carrying an `order` and the `item` (a prompt or a history marker).
+  Indexed `by_ownerId_scope_order`, `by_agentId_scope_order`, and
+  `by_ownerId_scope_key`.
+- `reminders`: the same shape for interval reminders, scoped `own` | `library`
+- `mcpServers` / `mcpTools`: an external MCP server (client-generated `key`
+  stable across renames, label, URL, transport, enabled flag, order) and its
+  discovered tools as separate rows (name, description, user
+  `descriptionOverride`, raw `inputSchema` string, order)
+- `modelProviders`: a provider (`key` such as `ollama`, optional `baseURL`,
+  enabled flag, model list, order) **without** its API key
+- `credentials`: API keys, keyed `(ownerId, scope, ref)` where scope is
+  `provider` | `mcp` and `ref` is the provider/server `key`. Never returned by
+  any public query.
+- `editorScripts`: user-defined text-editing scripts with icon, pinning, and
+  explicit owner ordering
+- `avatars`: full and thumbnail avatar storage ids
+- `appearances`: an interned message look — the SHA-256 `hash` of its
+  `css` + `theme` snapshot, indexed `by_hash`
+
+**Sessions**
+
+- `sessions`: the stable half of conversation state — owner, title, active
+  agent, `model` (the active agent's resolved model entry, denormalized for
+  the UI), mode and `announcedMode`, session settings, workspace binding
+  (`workspaceId`, `label`, `path`), optional `parent` link marking a sub-agent
+  child, activity previews (`lastMessagePreview` plus `firstMessagePreview` as
+  the title fallback), and a logical `turnCount`. Indexed by owner and by
+  `parent.sessionId`.
+- `sessionState`: the hot half, split off precisely because every field here is
+  rewritten during a turn — `environment`, `toolApprovals`, `reminderState`,
+  `commandQueue`, cumulative `usage`, and `log` (a storage id holding the last
+  provider request/response body). Created lazily on first write.
 - `userSessions`: per-user session membership/list rows for owners and shared
   members; denormalizes title and activity for listing and search, holds the
   user's last send time for slow mode, and carries `hidden` (sub-agent child
@@ -230,40 +347,79 @@ The Convex schema is compact but central to the architecture:
 - `sessionShares`: hashed invite tokens with revocation
 - `sessionAgents`: links agents into sessions
 - `sessionCache`: per-`(session, agent)` frozen request prefix — the evaluated
-  invoke prompt items, the cached tool manifest shape, and a capture timestamp
-- `messages`: one row per logical turn — sender identity, role, status,
-  sender snapshot, optional `type` (`summary`, `reminder`, `todo`,
-  `workspace`, `command`, `mode`), `hidden`, a typed `extra` payload, context
-  eligibility, `selectedVersion`, `versionCount`, and denormalized whole-turn
-  metadata for the selected version. **No content lives here.**
-- `messageContents`: the content side table. One row per
-  `(messageId, version, segmentIndex)` holding UI-message `parts`,
-  a per-segment metadata slice, per-segment `searchText`, denormalized
-  `sessionId` for the search filter, and `senderSnapshot` on segment 0 only.
-  Versions are 1-based; segment indexes are 0-based and may have gaps after
-  part deletion (rows are deleted when emptied, never renumbered). Indexed by
-  `by_messageId_version_segment`; full-text `search_contents` over
-  `searchText` filtered by `sessionId`.
-- `streams`: durable in-flight agent turns with lease, operation
-  (invoke/compact/impersonate/retry), mode, blocking flag, retry state,
-  debounce `fireAt`, follow-up and report suppression, optional instructions,
-  context boundary, `processingMessageId`, and `processingContentId` (the
-  active segment row)
+  invoke prompt items, the cached tool manifest shape, and a capture timestamp.
+  Also indexed `by_agentId` so deleting an agent cleans up its snapshots.
 - `plans`: per-session plan document with draft/approved status, a dirty flag
   for manual user edits, and an update timestamp
 - `todos`: per-session todo list — items with `pending`/`in_progress`/
   `completed` status, plus the session `turnCount` at the last write or nudge
 - `typing`: expiring per-user typing indicator rows
+
+**Messages**
+
+- `messages`: one row per logical turn — sender identity, role, status,
+  the denormalized sender fields `senderName` / `senderAvatarId` /
+  `appearanceId`, optional `type` (`summary`, `reminder`, `todo`, `workspace`,
+  `command`, `mode`), `hidden`, a typed `extra` payload (a discriminated union
+  over the note types, no longer `v.any()`), context eligibility,
+  `selectedVersion`, `versionCount`, and denormalized whole-turn metadata for
+  the selected version. **No content lives here.**
+- `messageContents`: the content side table. One row per
+  `(messageId, version, segmentIndex)` holding UI-message `parts`, a
+  per-segment metadata slice, per-segment `searchText`, denormalized
+  `sessionId` for the search filter, and the same sender identity fields on
+  segment 0 only. Versions are 1-based; segment indexes are 0-based and may
+  have gaps after part deletion (rows are deleted when emptied, never
+  renumbered). Indexed by `by_messageId_version_segment`; full-text
+  `search_contents` over `searchText` filtered by `sessionId`.
+- `streams`: durable in-flight agent turns with lease, operation
+  (invoke/compact/impersonate/retry), mode, blocking flag, retry state,
+  debounce `fireAt`, follow-up and report suppression, optional instructions,
+  context boundary, `processingMessageId`, and `processingContentId` (the
+  active segment row)
 - `attachments`: user-uploaded or AI-generated files in Convex storage
-- `avatars`: full and thumbnail avatar storage ids
-- `editorScripts`: user-defined text-editing scripts with icon, pinning, and
-  explicit owner ordering
 - `offloadedOutputs`: storage tracking rows for large tool outputs
 
 Search indexes exist for message content segments and per-user session titles.
 Important query indexes support session membership, sub-agent children, active
 streams, message windows, content-segment lookup, sender and message-type
-filtering, stream leases, attachments, avatars, and agent links.
+filtering, stream leases, attachments, avatars, agent links, and the
+`(owner, scope, order)` ordering of every configuration table.
+
+Schema validation is on; the ad-hoc migrations written for the restructure were
+run and then deleted, as is the project's habit.
+
+## Write Caps
+
+Convex documents are capped at 1MB, and most of the growing fields in this app
+are filled by a user, a model, or a third-party server. Every such field now has
+an explicit cap.
+
+`packages/core/src/limits.ts` is the single list — prompts and reminders per
+scope and their content/name lengths, MCP servers, tools per server, schema and
+description lengths, providers and models, web search instances, environment
+keys and total bytes, approval patterns and paths, todo items and content, plan
+content, custom CSS, and the two message byte caps (`MAX_SEGMENT_BYTES` at
+768KB per content row, `MAX_MESSAGE_PART_BYTES` at 512KB per part).
+
+`packages/core/src/limit-errors.ts` turns a key into the one message the whole
+app uses: `"<Subject> limit exceeded (max: <n> [unit])"`, plus an optional hint
+for model-facing caps. A `MAX_*` constant with no `limitError` key is an
+unenforced cap, which makes the omission visible.
+
+`packages/convex/src/model/caps.ts` holds the assertions the write paths call.
+The enforcement policy differs by kind:
+
+- **Reject** what cannot be made to fit: an oversized single part, a single-row
+  write that exceeds one segment, an over-cap prompt, plan, or todo.
+- **Split** what can: an over-budget send is fanned across segment rows by
+  `splitParts`, which never splits inside a part.
+- **Clamp** what a third party produced: discovered MCP tool metadata, and
+  workspace file-link snapshots (re-clamped server-side, since the client
+  computed them).
+- **Drop silently** where failing would be worse than truncating: appending to
+  a remembered approval list past its cap, because the user already approved
+  the tool at that point.
 
 ## Auth and Roles
 
@@ -285,6 +441,24 @@ The session access model is separate from global roles:
 - Only session owners can mutate owner-controlled session settings such as
   title, active agent, workspace binding, sharing, disabling, and removal.
 
+`DISABLE_SIGNUP=true` closes registration (both the Better Auth option and the
+public query the login form reads), which is the documented step after the
+first admin account exists.
+
+Origin handling is centralized in `packages/convex/src/origins.ts` and shared
+by the Better Auth handler and the HTTP-action CORS layer:
+
+- `frontendUrl()` and `siteUrl(requestUrl)` resolve the configured public
+  origins, preferring a configured non-loopback `SITE_URL` over the request's
+  own origin — which is what lets auth work behind a proxy.
+- `isAllowedOrigin(origin, requestUrl)` allows the configured frontend origin
+  and site URL, plus another port of the same host when the deployment is on a
+  loopback/`.local`/RFC1918 address, and everything when `TRUST_ALL_ORIGINS`
+  is set (what `--expose` with no URL does).
+- HTTP actions answer with `Access-Control-Allow-Origin` only for an allowed
+  origin, always send `Vary: Origin`, and send no CORS headers at all for a
+  same-origin request that carries no `Origin` header.
+
 ## Sessions and Collaboration
 
 Sessions are owned by one user but can be shared with other authenticated
@@ -298,23 +472,45 @@ contains both owned and shared sessions, and skips rows flagged `hidden`
 both `userSessions` and `sessionAgents`, giving the UI enough data to render
 humans and linked agents without querying each row separately.
 
+Queries that many clients subscribe to are **projected**, not returned whole:
+
+- `sessions.list` yields only `_id`, `_creationTime`, `title`,
+  `activeAgentId`, `lastMessageAt`, `lastMessagePreview`,
+  `firstMessagePreview`, `hidden`, and `participants`. Mode, session settings,
+  the resolved model, the workspace path, and `turnCount` stay out of it.
+- `userSessions.list` (the member list) yields `{ membership, name, avatarId }`
+  per member — never another user's settings document.
+- `agents.list` yields `{ _id, name, description, avatarId }` — no prompts,
+  tools, CSS, theme, or sub-agent policy.
+
+The full session document is fetched per-session by `sessions.get`; the hot
+half is exposed through `sessions.getState`, which returns only the slice the
+UI renders (`toolApprovals`, `usage`, and whether a request log exists).
+`sessions.getLogUrls` resolves the stored log blob to a signed URL on demand.
+
 Each session can have:
 
-- one active agent
+- one active agent, whose resolved model entry is denormalized onto the session
+  and refreshed when the agent or the owner's provider list changes
 - multiple linked agents
 - one optional workspace binding, including its absolute path (exposed to
   prompts as `workDir`)
 - a mode: `normal` or `plan` (an `ask` mode is still a TODO in the validator);
   the mode can be toggled even in an empty chat
 - an `announcedMode`, the mode the transcript has actually stated
-- per-session tool approval state
-- mutable environment variables used by prompt interpolation
-- per-session settings (disabled, slow mode, agent debounce, passive send) and
-  metadata for usage totals, model display data, and request/response logs
+- per-session settings (disabled, slow mode, agent debounce, passive send)
 - a logical `turnCount` driving reminder and todo-nudge intervals
-- a queue of commands deferred while a stream is running
 - expiring typing indicator rows so participants see who is writing
 - a parent link, when the session is a background sub-agent child
+
+and, in its `sessionState` row:
+
+- tool approval state (capped, appended through `appendApprovals`, and cloned
+  onto sub-agent children at spawn)
+- mutable environment variables used by prompt interpolation (capped by key
+  count and total bytes)
+- reminder injection state, the deferred command queue, cumulative token
+  usage, and the storage id of the last provider request/response log
 
 Disabling a session stops active streams and prevents new message sends or
 agent invocations while preserving the data.
@@ -323,8 +519,9 @@ agent invocations while preserving the data.
 
 Agents are user-owned entities with their own behavior and presentation:
 
-- prompt items and prompt ordering across own/global/library sources
-- reminder prompts and referenced library reminders
+- prompt ordering across own/global/library sources (`promptOrder`), with the
+  prompt items themselves living in the `prompts` table
+- own reminders (rows in `reminders`) and referenced library reminders
 - selected model id and reasoning effort
 - temperature, top-p, frequency/presence penalties, repeat penalty, context
   window, output token cap, and context trimming
@@ -334,25 +531,47 @@ Agents are user-owned entities with their own behavior and presentation:
 - a spawnable sub-agent policy (`allow`/`deny` plus an agent id list)
 - display name, avatar, and sharing/masking rules for other participants
 
-Presentation and prompt-frame settings that exist at both the user and agent
-level go through a single shared `overridableFields` validator: scroll mode,
-custom CSS, theme snapshot, math mode, chat width, and
-compaction/impersonation prompt sets. (Plan prompts were dropped from this set
-in favor of injected mode notes.) The effective value is agent-overrides-user
-(not a table merge), and agents can explicitly clear an override through an
-`unset` list.
+Presentation settings that exist at both the user and agent level go through a
+single shared `overridableFields` validator: scroll mode, custom CSS, theme
+snapshot, math mode, and chat width. (Plan prompts were dropped in favor of
+injected mode notes; compaction and impersonation prompt sets left this
+validator when prompts moved to their own table, and are now prompt _scopes_
+that fall back to the owner's set when the agent defines no rows.) The
+effective value is agent-overrides-user (not a table merge), and agents can
+explicitly clear an override through an `unset` list.
 
 User settings additionally hold display name, avatar, auto-title behavior and
 title model, send/grouping preferences, avatar size, fonts and layout sizing,
-global and library prompts, the reminder library, model provider configs, web
-search instances, external MCP servers, theme mode, and recent
-model/agent/reasoning/workspace selections. User-owned editor scripts live in
-the separate `editorScripts` table.
+web search instances, theme mode, and recent model/agent/reasoning/workspace
+selections. Everything else that used to be embedded there is a table:
+prompts, reminders, model providers, MCP servers and their tools, API keys,
+and editor scripts.
+
+`model/prompts.ts` and `model/reminders.ts` own their rows and expose the same
+surface: `list` / `listOwned` / `listForAgent`, `create` / `update` / `remove`,
+`reorder`, `replaceScope` (a diff of an edited list onto existing rows — kept,
+reordered, or dropped), `copyForAgent` for duplication, `removeForAgent` for
+deletion, and `seed` for creation defaults. `resolveSets` resolves every scope a
+stream needs in one pass, including the compaction/impersonation fallback to
+the owner. A stale agent reference resolves to nothing on reads instead of
+throwing, while writes still reject.
+
+`model/providers.ts` and `model/mcp.ts` follow the same shape and return
+**views** (`ModelProviderView`, `McpServerView`) that omit `apiKey` and carry a
+`hasApiKey` flag instead; keys are written separately through
+`credentials.set`, where an empty string clears the credential. Removing a
+server or provider takes its tools and credential with it. MCP tool sets are
+staged in the settings form and clamped on write; an absent tool set leaves the
+discovered one alone, and an unchanged set is not rewritten.
 
 The frontend uses React Hook Form schemas in user and agent settings
 components, then persists normalized settings through Convex mutations. Form
 values never hold `undefined` (which would leak the previously edited entity's
-value); cleared overrides are sent as an explicit `unset` list.
+value); cleared overrides are sent as an explicit `unset` list. The agent form
+has two halves that save separately: the agent patch (only fields the mutation
+accepts) and the prompt/reminder scopes, which go to their own rows and never
+into the agent patch. `useSettingsSave` runs a form's save one at a time and
+distinguishes "apply" (persist, stay open) from "save" (persist, then close).
 
 ## Client Architecture
 
@@ -369,8 +588,14 @@ main.tsx
               -> Router / catch-all route
                 -> ChatApp
                   -> AvatarUrlProvider / AttachmentUrlProvider
-                    -> Chat
+                    -> AppearanceProvider
+                      -> Chat
 ```
+
+The app root and each settings dialog are wrapped in error boundaries
+(`components/ui/error-boundary.tsx`). `ErrorBoundary` resets on auth changes
+and on caller-supplied keys; `DialogErrorBoundary` renders nothing and toasts
+the message, for a dialog with no state worth preserving.
 
 `Chat` is a small shell component. It reads stable shell state, wraps the
 screen in `ChatSearchProvider`, renders the left/right sidebars, and chooses
@@ -432,7 +657,8 @@ segments at its edge.
 Convex backs this with `messagesWindow`, which pages over
 `messages.by_sessionId` and joins each turn with its selected-version segment
 rows from `messageContents` outward from the anchor under the byte budget
-(`joinSegmentsWithinBudget`). The join may stop mid-message, keeping the
+(`joinSegmentsWithinBudget`). The message document itself counts toward the
+budget, not just its segments. The join may stop mid-message, keeping the
 anchor-side segment slice and setting per-message `hasOlderSegments` /
 `hasNewerSegments`. The wire shape carries `segments[]` with per-segment
 sizes; the client concatenates parts in `convertDoc`. Client-side window math
@@ -537,7 +763,8 @@ are the same primitive:
   parts, in which case the client evicts it from the store.
 
 The doc mirrors selected-version state through denormalized fields:
-`contextEligible`, `senderSnapshot`, and `metadata`, where doc metadata is a
+`contextEligible`, the sender identity triple (`senderName`, `senderAvatarId`,
+`appearanceId`), and `metadata`, where doc metadata is a
 whole-turn accumulation over segments (`mergeSegmentMetadata`: summed
 durations, unioned tool errors/warnings, last usage/error) and each segment
 row keeps its own slice. Switching versions recomputes them. Version switching
@@ -573,10 +800,15 @@ Commands are registered in `packages/client/src/lib/chat/commands`:
 
 Commands that the server runs — `compact`, `eval`, `impersonate`, `resume` —
 are gated on an idle session. Invoking one while a stream is active appends it
-to the session's `commandQueue` (bounded at 10) and inserts a hidden
+to the session state's `commandQueue` (bounded at 10) and inserts a hidden
 zero-part `command` chip message announcing it; the queue drains when the
 stream ends, and each chip's `extra.status` moves from `queued` to `ran` or
 `failed`. Client code filters these chips out of normal rendering paths.
+
+The command palette and the agent combobox score cmdk `keywords` rather than
+the option's `value` (`lib/command-filter.ts`), so an opaque id can never
+fuzzily match the search and two identically named entries rank identically
+whatever their ids are.
 
 Normal user sends can include typed attachments, pasted files, and `@path`
 mentions. Mention parsing is shared through `packages/core`: paths with spaces
@@ -599,6 +831,56 @@ command and Ctrl/Cmd+Enter runs it silently. Enter inserts a line break in
 every editor, so block shorthands promote the current line rather than relying
 on block-start input rules.
 
+## User Shell Commands
+
+A user message that starts with `$ ` runs in the bound workspace instead of
+being sent as text. The prefix is parsed in `packages/core/src/shell/command.ts`
+— `$` followed by whitespace and at least one non-space character, matched only
+at the start of the message so later lines (heredocs) survive verbatim, math and
+interpreter blocks are untouched, and `\$ ` is an escape that `sendMessage`
+unescapes back into ordinary text. `shellCommandRange` returns the command's
+offsets so the client can decorate it.
+
+In the composer, `ShellHighlight` (built on the shared two-layer
+`highlightPlugin`) renders the invocation in monospace with a muted prefix
+synchronously, then overlays Shiki bash token colors on a debounce.
+
+Server-side, `sendMessage` detects the prefix and delegates to
+`model/chat/shell.ts` (`runShellCommand`), which requires admin plus a bound
+workspace, rejects attachments, and stores the command as a **shell tool part
+on the user's own message** in `processing` status. The turn is bumped, the
+activity preview is synthesized as `$ <command>`, and the runner action is
+scheduled.
+
+The runner is an internal Node action that outlives Convex's per-action time
+limit by working in windows:
+
+- `_beginUserShellWindow` claims the message, refreshes a heartbeat on the
+  part, and returns what the runner needs — including how to pick up a job a
+  previous window left running (`jobId`, terminal tail, offset).
+- `_patchUserShell` streams the running job's output into the part as
+  `preliminary`, returning false once the message is gone or settled so the
+  runner stops.
+- After `USER_SHELL_WINDOW_MS` (8 minutes) the runner schedules a fresh window
+  and hands the still-running job over rather than settling it.
+- `_finishUserShell` settles the part (or converts a runner failure into an
+  `output-error`), marks the message `done` with its duration, and only then
+  reserves the agent turn through `reserveOrDebounceTurn`, so the agent sees
+  the output.
+- `_reapUserShell` runs on a delay and releases a message whose runner never
+  reported back — a stale heartbeat is the only signal that nobody is watching;
+  otherwise it reschedules itself. Without this a crashed runner would leave
+  the message permanently `processing` and immutable.
+
+Only the command and its plain output reach the model (`toUserShellBlock`);
+terminal scrollback never leaks into provider history, and `representMessage`
+keeps the resolved shell block on a user message while still stripping raw tool
+parts. On the client, `runningShellSender` reads the tail message to detect a
+still-running command — a user command is not a stream, so it is the only
+signal that the tail is growing on its own — and the scroll hooks take a plain
+`active` boolean instead of the AI SDK `ChatStatus` so follow/reveal behave the
+same for streams and user commands.
+
 ## Drafts and Local Persistence
 
 Unsaved work is durable across reloads without touching the server:
@@ -616,6 +898,9 @@ Unsaved work is durable across reloads without touching the server:
 - `close-guard`: a `beforeunload` guard against accidental page closes
 - `scroll-position-store`: per-session anchor message, segment, row key, pixel
   offset, and follow state
+- `agent-editor-store`: which agent the settings editor has open, kept separate
+  from the composer's picked agent (`settings.recentAgentId`) so editing one
+  agent never switches the one the session talks to
 - `view.ts` / `?view=` query parameter: a path of `name:value` segments
   describing what is open (settings tab, prompt, dialog), so dialogs and
   sub-views survive reload and back/forward
@@ -626,7 +911,8 @@ Unsaved work is durable across reloads without touching the server:
 Editing is a shared subsystem rather than a one-off composer feature. Every
 markdown editor is built from `editorKit()`, which composes the StarterKit,
 Shiki code blocks, line-break behavior, block openers, math and HTML
-decorations, reveal-insert, and optional tables/placeholder.
+decorations, reveal-insert, the Markdown clipboard, and optional
+tables/placeholder.
 
 - `CodeBlockShiki`: Shiki-backed code block rendering with line-number
   support, optional gutters, aliases, custom themes, and Markdown rendering
@@ -643,6 +929,12 @@ decorations, reveal-insert, and optional tables/placeholder.
   touching window scroll
 - `FullscreenEditor`: promotes any of these editors to a fullscreen surface
   with its own toolbar, restoring focus to the composer on exit
+- `MarkdownClipboard`: copying writes Markdown rather than plain text, so
+  formatting survives leaving the editor; an in-app paste replays the original
+  ProseMirror slice instead of re-parsing the Markdown
+- `highlight.ts`: the two-layer decoration plugin (synchronous syntax layer so
+  typing never lags the monospace font, debounced Shiki color layer) shared by
+  the interpreter and shell highlighters
 
 Content is stored **literally**. Tiptap's text escaping is patched off, so what
 the user typed is what is persisted; making it render safely is the renderer's
@@ -669,19 +961,26 @@ normalization is not mistaken for a user edit.
 ## Backend Entry Points and Model Layer
 
 Convex public modules such as `chat.ts`, `sessions.ts`, `agents.ts`,
-`settings.ts`, `plans.ts`, `todos.ts`, `subagents.ts`, `streams.ts`,
+`settings.ts`, `prompts.ts`, `reminders.ts`, `providers.ts`, `mcp.ts`,
+`appearances.ts`, `plans.ts`, `todos.ts`, `subagents.ts`, `streams.ts`,
 `editorScripts.ts`, `attachments.ts`, `tools.ts`, and `users.ts` are
 intentionally thin. Most business logic lives in `packages/convex/src/model`.
 
 Key backend domains:
 
-- `model/chat`: message sends, command invocation and queueing, stream
-  reservation, queries/windowing, search, approvals, controls, starters,
-  identities, retry/version selection, injected notes, reminders, and
+- `model/chat`: message sends, user shell commands, command invocation and
+  queueing, stream reservation, queries/windowing, search, approvals, controls,
+  starters, identities, retry/version selection, injected notes, reminders, and
   segment-scoped evaluation
-- `model/session`: session creation/listing/update/removal, memberships,
-  sharing, workspace metadata, title generation, archive import/export,
-  session agents, request logs, and the prompt/tool snapshot cache
+- `model/session`: session creation/listing/update/removal, the `sessionState`
+  side table, memberships, sharing, workspace metadata, the denormalized active
+  model, title generation, archive import/export, session agents, request logs,
+  and the prompt/tool snapshot cache
+- `model/prompts`, `model/reminders`, `model/providers`, `model/mcp`,
+  `model/credentials`, `model/appearances`: the row-owning halves of the
+  configuration tables
+- `model/caps`: the assertion helpers that enforce `core/limits.ts` on every
+  write path
 - `model/stream`: lifecycle (claim/patch/continue/complete/fail/stop),
   reads/history, retries, transformers, usage accounting, reasoning durations,
   generated files, tool-output offloading, and sub-agent spawn/report handling
@@ -715,24 +1014,29 @@ defined ad hoc for local restructures and deleted after running.
 3. Validate staged attachments and reject an empty send.
 4. Insert starter prompts if needed, then inject any hidden notes that are due
    (interval reminders, todo nudges).
-5. Match pre-resolved workspace file snapshots to parsed `@path` mentions, and
+5. If the content parses as a `$ <command>` shell invocation, hand off to
+   `runShellCommand` and return; otherwise unescape a `\$ ` prefix.
+6. Match pre-resolved workspace file snapshots to parsed `@path` mentions
+   (re-clamping each snapshot server-side rather than trusting the client), and
    pick up a dirty plan link.
-6. Build message parts from attachments, file links, and text.
-7. Resolve sender identity and sender snapshot.
-8. Insert a completed `messages` doc plus its `(v1, seg0)` content row with
-   per-segment `searchText`.
-9. Attach staged uploads to the message.
-10. Advance the session's logical `turnCount`.
-11. Schedule message interpolation if text contains dynamic markers.
-12. Sync latest activity onto `sessions` and all `userSessions` rows, and
+7. Build message parts from attachments, file links, and text.
+8. Resolve sender identity — display name, avatar id, and an interned
+   appearance id.
+9. Insert a completed `messages` doc plus its version-1 content rows with
+   per-segment `searchText`. A send larger than the split budget is fanned out
+   across several segment rows on insert; a single part larger than
+   `MAX_MESSAGE_PART_BYTES` is rejected outright.
+10. Attach staged uploads to the message.
+11. Advance the session's logical `turnCount`.
+12. Schedule message interpolation per segment if text contains dynamic markers.
+13. Sync latest activity onto `sessions` and all `userSessions` rows, and
     record the sender's last send time for slow mode.
-13. Reserve an agent stream if the send is not silent and an active agent is
-    available; the stream's actual processing message is created lazily on
-    claim, and rapid consecutive sends are debounced through the stream's
-    `fireAt`.
-14. Schedule title generation when no stream is expected. Titles are generated
-    non-heuristically and always fall back to a truncation of the first
-    message.
+14. `reserveOrDebounceTurn` reserves an agent stream if the send is not silent
+    and an active agent is available, reschedules a pending debounced stream if
+    one is already waiting, and otherwise schedules title generation. The
+    stream's actual processing message is created lazily on claim. Titles are
+    generated non-heuristically and always fall back to a truncation of the
+    first message (`firstMessagePreview`).
 
 Manual agent invocation, compaction, impersonation, resume, and retry all
 reserve streams through the same durable stream machinery with different
@@ -839,14 +1143,17 @@ at the moment it becomes true, as a hidden typed message (`model/chat/notes.ts`)
 - `todo`: the stale-todo nudge
 
 Notes are wrapped in `<system-reminder>` blocks, attributed to the session's
-active agent, hidden from search, and carry a typed `extra` payload so the UI
-can render them as chips.
+active agent **for the UI only**, hidden from search, and carry a typed `extra`
+payload so the UI can render them as chips. Because the attribution is
+cosmetic, provider history treats `hidden` messages specially: it never prefixes
+them with a sender name, and never re-roles them as another agent's output —
+a reminder keeps the role it was authored with.
 
-Reminders are configured per agent (`reminderPrompts`) or referenced from the
-user's shared library (`libraryReminderIds`). Each has an interval in logical
-turns and an optional `eager` flag that fires it on first sight instead of
-waiting a full interval; `sessions.reminderState` records the `turnCount` at
-each reminder's last injection.
+Reminders are `reminders` rows scoped `own` (an agent's) or `library` (the
+user's shared set, referenced by the agent's `libraryReminderIds`). Each has an
+interval in logical turns and an optional `eager` flag that fires it on first
+sight instead of waiting a full interval; `sessionState.reminderState` records
+the `turnCount` at each reminder's last injection.
 
 Todos live in a per-session `todos` row driven by two tools behind a single
 `todo` agent toggle:
@@ -955,8 +1262,13 @@ conversion to model messages:
 - file attachments are loaded from Convex storage as data URLs
 - offloaded tool outputs are loaded back from storage
 - snapshotted file-link parts are converted into file/directory/binary context
-- sender names may be prefixed according to agent sharing settings
-- other agents may be masked as user messages according to agent settings
+- sender names may be prefixed according to agent sharing settings, except on
+  `hidden` messages, whose agent attribution is a UI convention
+- other agents may be masked as user messages according to agent settings —
+  again skipping `hidden` messages, so an injected reminder keeps its role
+- a resolved user `$ <command>` is represented as a shell block carrying the
+  command and its plain output, while raw tool parts on user messages are
+  still stripped
 - incomplete or orphaned tool calls/results are sanitized
 - prompt messages are inserted around history markers
   (`message-history`, `system-boundary`, `agent-prompts`)
@@ -1026,8 +1338,10 @@ Tool approval is enforced in Convex:
   `/workspace/preview-diff` result, then attach the diff to the tool part so
   the UI shows the exact proposed change before approval.
 - An approval can be remembered at `patterns` or `paths` scope, writing into
-  the session's `toolApprovals`; agent-level `autoApprove` rules are merged in
-  on top.
+  `sessionState.toolApprovals` through `appendApprovals` (which drops additions
+  past the cap rather than failing an approval the user already gave);
+  agent-level `autoApprove` rules are merged in on top, and a sub-agent child
+  inherits a copy of its parent's approvals at spawn.
 - Approvals carry an optional note. The picker's note editor shares one
   per-session composer draft: aborting ("Keep planning" / "Abort") preserves
   the note back into the composer, while a non-abort answer delivers it as an
@@ -1059,15 +1373,29 @@ least one valid instance is configured.
 
 ## External MCP Tools
 
-Users can configure external MCP servers in settings. Each server stores a
-label, URL, transport (SSE, WebSocket, or Streamable HTTP), optional bearer
-API key, enabled flag, and discovered tool metadata.
+Users can configure external MCP servers in settings. A server is an
+`mcpServers` row (client-generated `key` stable across renames, label, URL,
+transport, enabled flag, order); its discovered tools are `mcpTools` rows; its
+bearer API key is a `credentials` row. Public queries return an
+`McpServerView`, which carries `hasApiKey` instead of the key itself. Saving
+happens with the settings form through one `mcp.replaceAll` mutation; drafts
+never hold the key, and staged tool metadata is clamped on the way in.
+
+The transport is `auto` | `http` | `sse` | `ws`. **`auto` is the default**:
+`mcpTransportCandidates` yields Streamable HTTP first (SSE is being deprecated;
+WebSocket stays a deliberate user choice), the sidecar dials them in order, and
+caches the winner per URL so later calls do not re-probe. Fallback happens only
+on a connect failure — rejected credentials fail immediately without probing
+the other transport, and an explicit transport surfaces its own error
+unwrapped.
 
 The client settings screen can discover tools by calling
 `api.actions.mcp.discoverMcpTools`, which asks the sidecar to connect to the
 external MCP server and list its tools. Input schemas are serialized as
 strings because JSON Schema commonly contains `$`-prefixed keys that Convex
-validators reject as object field names.
+validators reject as object field names. Each tool can carry a user-authored
+`descriptionOverride`, which `mcpToolDescription` prefers over the server's own
+description.
 
 At stream time, enabled external tools are wrapped as AI SDK tools from the
 cached manifest entries. Tool names are prefixed with a slug of the server
@@ -1120,11 +1448,13 @@ require a restart.
 
 ## Shell Jobs
 
-Shell execution has two consumers over one PTY-backed job registry
+Shell execution has three consumers over one PTY-backed job registry
 (`packages/sidecar/src/shell`):
 
 - the `shell` model tool, which starts sidecar jobs and yields preliminary
   terminal tails plus final model-friendly text
+- user `$ <command>` messages, driven by the self-rescheduling runner action
+  described above, which resumes a still-running job across windows
 - the terminal UI, which streams job output and manages stdin, resize,
   detach, and kill/list controls
 
@@ -1184,9 +1514,17 @@ snapshots, and referenced avatars. Attachments are intentionally converted to
 text placeholders during session archive export/import, while avatars can be
 carried through storage ids.
 
+Archive sender snapshots are `{ name, avatarKey?, appearanceKey? }`, where
+`appearanceKey` indexes a top-level `appearances` record so a look shared by
+many messages is written once. On import, looks are re-interned: two archived
+keys holding the same look collapse onto one `appearances` row, and a message
+referencing a missing key imports without one. This format is not backwards
+compatible with exports made before 2026-08-03.
+
 Agent import/export is split between Convex model logic and sidecar image I/O:
 the sidecar handles PNG metadata and image conversion, while Convex validates
-and creates agent/avatar/settings data.
+and creates agent/avatar/settings data — including copying the agent's prompt
+and reminder rows, which are no longer part of the agent document.
 
 ## Search
 
@@ -1214,13 +1552,27 @@ preferences. Server settings include profile, model providers, prompts,
 reminders, MCP servers, web search instances, fonts, theme, custom CSS, and
 agent behavior — with the agent-overridable subset resolved through
 `overridableFields`. Local state covers sidebar layout, drafts, scroll
-positions, and the `?view=` path described above.
+positions, the agent-editor selection, and the `?view=` path described above.
 
-Themes and avatars are snapshotted into message sender snapshots so historical
-messages keep their original appearance even if the user or agent changes
-later. Theme previews are scoped rather than global: derived `--base-*`
-variables are redeclared per `.theme-scope`, and portalled surfaces opt in
-through `ThemeScope`, so previewing a theme in a dialog never repaints the app.
+Names and looks are snapshotted onto messages so historical messages keep their
+original appearance even if the user or agent changes later. The snapshot is
+three fields — `senderName`, `senderAvatarId`, `appearanceId` — where the look
+(custom CSS plus resolved theme snapshot) is **interned**: `model/appearances.ts`
+hashes a stabilized serialization (key order does not matter) and reuses the
+existing row, so a thousand messages sharing a look cost one document. An empty
+look interns nothing. `senderName` is resolved through `toDisplayName()` at
+write time, since `displayName` is free text where blank is not the same as
+unset.
+
+On the client, `AppearanceProvider` resolves every look on screen through one
+batched `appearances.getMap` query, and `useScopedAppearance` mounts each
+distinct look once as a ref-counted `<style>` element: the theme's palette
+variables are declared on a generated scope class, the custom CSS is wrapped in
+`@scope (.<class>)`, and a themed scope additionally wears
+`theme-scope light|dark`. Theme previews are scoped the same way — derived
+`--base-*` variables are redeclared per `.theme-scope`, and portalled surfaces
+opt in through `ThemeScope` — so previewing a theme in a dialog never repaints
+the app.
 
 Focus and viewport handling are centralized:
 
@@ -1246,8 +1598,8 @@ code, prompt directives, user scripts, and custom CSS settings.
 ## Testing Shape
 
 Tests are Bun-based and focused around behavior rather than broad snapshots,
-organized as `tests/{ai,auth,chat,client,core,markdown,mcp,server}`. Current
-coverage includes:
+organized as `tests/{ai,auth,chat,client,core,markdown,mcp,server}` —
+114 files, 1102 tests, currently all passing. Coverage includes:
 
 - stream lifecycle: claim freshness, over-cap segment splitting, rollover,
   retry, resume, debounce, slow mode, and reasoning durations
@@ -1273,8 +1625,25 @@ coverage includes:
 - client editor behavior: drafts, draft restore, form drafts, line breaks,
   block openers, reveal-insert, fullscreen views, view paths, reparenting
 - file mentions, workspace files, agent import/export data, avatar thumbnails
-- auth setup and site URL behavior
+- auth setup, site URL behavior, and allowed-origin rules (`auth/origins`)
 - sidecar MCP edit, preview diffs, eval file helper, web fetch, SearXNG search
+- query projections: the exact key set `sessions.list`, `userSessions.list`,
+  and `agents.list` return, asserted so a leak is a test failure
+- credential isolation: keys land in `credentials` and never in a listing;
+  removing a server or provider takes its tools and credential with it
+- write caps: part splitting, snapshot re-clamping, environment caps, silent
+  approval-list truncation, and multi-segment inserts
+- typed fields: every `extra` payload its writer produces, resolved usage
+  counts, and the settings patch/clear argument validators
+- prompt rows: row merging matches the old inline arrays, agent-over-owner
+  fallback, stale agent references, `replaceScope` diffing, and scope caps
+- appearance interning (hash stability, sharing, empty looks), scoped
+  appearance class generation, and archive appearance round-tripping
+- user shell: prefix parsing, model-facing blocks, the runner's window /
+  heartbeat / reap lifecycle, and composer shell highlighting
+- MCP transport candidates and negotiation, including auth-failure short-circuit
+- agent form value contracts (never `undefined`, `unset` completeness, the two
+  save halves) and cmdk keyword-based command filtering
 
 The suite mirrors the architecture: pure helpers are tested directly, Convex
 model behavior is tested through backend-oriented tests, and sidecar behavior
@@ -1327,6 +1696,19 @@ The recent work shows the project moving in these directions:
 - **Push and probe over poll and guess**: terminal output arrives over SSE, and
   interactivity is determined by inspecting the process tree rather than by
   matching output patterns.
+- **A document per thing, not a document per user**: unbounded and hot fields
+  keep moving out of the documents clients subscribe to and into indexed tables
+  — prompts, reminders, integrations, credentials, session hot state, and
+  interned appearances. Documents that stay are small and change rarely.
+- **Nothing unbounded, nothing untyped**: every writable field has a cap with a
+  uniform error message, and the remaining `v.any()` escape hatches have been
+  replaced with real validators.
+- **Least data over the wire**: widely-subscribed queries return projections
+  rather than documents, and secrets have no read path at all.
+- **Deployable, not just runnable**: configurable ports and bind addresses,
+  origin-aware auth and CORS, a documented HTTPS reverse-proxy setup, and a
+  signup switch move the project from "runs on localhost" toward "can be
+  exposed on purpose".
 
 The codebase is no longer mainly a chat renderer around Convex messages. It is
 a multi-service self-hosted AI workspace whose core complexity is coordinating

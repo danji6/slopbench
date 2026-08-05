@@ -1,8 +1,8 @@
 # HTTPS with a Reverse Proxy
 
-This guide shows how to put a reverse proxy in front of the app with automatic
-Let's Encrypt certificates using Caddy. You need a machine that can receive
-traffic on ports 80 and 443.
+This (Linux) guide shows how to put a reverse proxy in front of the app with
+automatic Let's Encrypt certificates using Caddy. You need a machine that can
+receive traffic on ports 80 and 443.
 
 ## 1. Expose the ports
 
@@ -51,10 +51,6 @@ FRONTEND_HOST=127.0.0.1
 # Set this once your own account exists
 DISABLE_SIGNUP=true
 ```
-
-`CONVEX_INTERFACE` and `FRONTEND_HOST` are important. By default the app binds
-`0.0.0.0` and would answer plain HTTP on 3210/3211/4173 to anyone who reaches it
-directly, bypassing your proxy entirely.
 
 **Without a domain**, you need to move the app off 3210/3211 to let the proxy
 have them:
@@ -149,3 +145,61 @@ Open your frontend URL and sign in.
 
 From another machine, `curl http://YOUR_HOST:3210` (or `3211`) should refuse to
 connect.
+
+## Alternatives
+
+### SSH tunnel
+
+If you are the only user, an SSH tunnel is a viable alternative to HTTPS.
+
+Leave `FRONTEND_URL`, `CONVEX_SELF_HOSTED_URL` and `CONVEX_SITE_URL` unset and
+bind the listeners to loopback:
+
+```sh
+CONVEX_INTERFACE=127.0.0.1
+FRONTEND_HOST=127.0.0.1
+```
+
+Run `./start.sh`, then from the client machine:
+
+```sh
+ssh -N \
+  -L 4173:localhost:4173 \
+  -L 3210:localhost:3210 \
+  -L 3211:localhost:3211 \
+  user@host
+```
+
+Then in the client browser open <http://localhost:4173>.
+
+To make it easier, you can add this to `~/.ssh/config` on the client:
+
+```
+Host your_host_machine
+	HostName your_ip
+	User your_host_user
+	IdentityFile /path/to/key
+	IdentitiesOnly yes
+	ServerAliveInterval 30
+	LocalForward 4173 localhost:4173
+	LocalForward 3210 localhost:3210
+	LocalForward 3211 localhost:3211
+```
+
+Then `ssh -N your_host_machine`.
+
+Before forwarding port 22, it's advised to harden the host's SSH configuration
+to disable password authentication and root login.
+In `/etc/ssh/sshd_config.d/10-hardening.conf`:
+
+```sh
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+AllowUsers YOUR_USER
+MaxAuthTries 3
+```
+
+Generate an SSH key on the client (with a passphrase) by using `ssh-keygen`,
+then copy it to the host with `ssh-copy-id user@host`. After that, reload the
+service on the host to apply the hardening: `sudo systemctl reload sshd`.
