@@ -143,9 +143,7 @@ export function SessionRow({ id, rename }: SessionRowProps) {
                 </RippleButton>
               }
             />
-            <Tooltip.Content className="max-w-48 wrap-break-word">
-              {displayTitle}
-            </Tooltip.Content>
+            <Tooltip.Content>{displayTitle}</Tooltip.Content>
           </Tooltip>
         </ContextMenu.Trigger>
 
