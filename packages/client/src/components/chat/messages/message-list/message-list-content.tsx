@@ -23,13 +23,15 @@ const CONTENT_FADE_TRANSITION = { duration: 0.18, ease: 'easeOut' } as const
 
 const VirtualizedRowsContext = createContext<readonly MessageRow[]>([])
 
+export type OverlayInset = { top: number; bottom: number }
+
 type MessageListContentProps = {
   /** Whether the list has finished positioning and may fade into view. */
   revealed: boolean
   isEmpty: boolean
   showLoadingIndicator: boolean
-  /** Loading overlay style. Inset is passed here to keep it centered. */
-  overlayStyle?: CSSProperties
+  /** Viewport insets the loading overlay has to stay clear of. */
+  overlayInset: OverlayInset
   emptyStyle?: CSSProperties
   messages: MessageRowsProps
 }
@@ -38,7 +40,7 @@ export function MessageListContent({
   revealed,
   isEmpty,
   showLoadingIndicator,
-  overlayStyle,
+  overlayInset,
   emptyStyle,
   messages,
 }: MessageListContentProps) {
@@ -52,6 +54,15 @@ export function MessageListContent({
 
   return (
     <>
+      <AnimatePresence>
+        {!revealed && (
+          <LoadingOverlay
+            key="loading"
+            showIndicator={showLoadingIndicator}
+            inset={overlayInset}
+          />
+        )}
+      </AnimatePresence>
       <motion.div
         // Query container for the avatar gutter
         className="@container w-full"
@@ -61,15 +72,6 @@ export function MessageListContent({
       >
         <MessageRows {...messages} />
       </motion.div>
-      <AnimatePresence>
-        {!revealed && (
-          <LoadingOverlay
-            key="loading"
-            showIndicator={showLoadingIndicator}
-            style={overlayStyle}
-          />
-        )}
-      </AnimatePresence>
     </>
   )
 }
@@ -103,33 +105,41 @@ function ContentFade({
 
 type LoadingOverlayProps = {
   showIndicator: boolean
-  style?: CSSProperties
+  inset: OverlayInset
 }
 
-/** Viewport-anchored loading overlay shown while the list positions itself. */
-function LoadingOverlay({ showIndicator, style }: LoadingOverlayProps) {
+/**
+ * Loading overlay shown while the list positions itself, centered in the band
+ * of viewport the list is visible through.
+ */
+function LoadingOverlay({ showIndicator, inset }: LoadingOverlayProps) {
   return (
     <motion.div
-      className="pointer-events-none fixed inset-x-0 z-10 flex items-center justify-center"
-      style={style}
+      className="pointer-events-none sticky z-10 h-0"
+      style={{ top: inset.top }}
       initial={{ opacity: 1 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={CONTENT_FADE_TRANSITION}
     >
-      <AnimatePresence>
-        {showIndicator && (
-          <motion.div
-            key="loading-indicator"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={CONTENT_FADE_TRANSITION}
-          >
-            <WavyProgressCircle size={64} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div
+        className="absolute inset-x-0 flex items-center justify-center"
+        style={{ height: `calc(100dvh - ${inset.top + inset.bottom}px)` }}
+      >
+        <AnimatePresence>
+          {showIndicator && (
+            <motion.div
+              key="loading-indicator"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={CONTENT_FADE_TRANSITION}
+            >
+              <WavyProgressCircle size={64} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </motion.div>
   )
 }

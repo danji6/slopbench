@@ -451,7 +451,7 @@ export function MessageList({
     ],
   )
 
-  const overlayStyle = useMemo(
+  const overlayInset = useMemo(
     () => ({ top: getNavPaddingPx(topPad), bottom: bottomPadding ?? 0 }),
     [topPad, bottomPadding],
   )
@@ -471,7 +471,7 @@ export function MessageList({
             revealed={revealed}
             isEmpty={isEmpty}
             showLoadingIndicator={showLoadingIndicator}
-            overlayStyle={overlayStyle}
+            overlayInset={overlayInset}
             emptyStyle={innerStyle}
             messages={{
               rows,
