@@ -1,5 +1,7 @@
 import { spawn } from 'node:child_process'
 
+import { killProcessTree, shellInvocation } from '../../shell/system-shell'
+
 const MAX_COMMAND_BYTES = 100_000
 const TRUNCATED_MARKER = '\n[truncated]\n'
 
@@ -11,7 +13,8 @@ export async function runCommand(
 ) {
   return new Promise<{ exitCode: number | null; output: string }>(
     (resolve, reject) => {
-      const child = spawn('/bin/bash', ['-lc', command], {
+      const { file, args } = shellInvocation(command)
+      const child = spawn(file, args, {
         cwd,
         detached: process.platform !== 'win32',
         env: process.env,
@@ -28,13 +31,7 @@ export async function runCommand(
 
       const kill = () => {
         killed = true
-        if (!child.pid) return
-        try {
-          if (process.platform === 'win32') child.kill()
-          else process.kill(-child.pid, 'SIGTERM')
-        } catch {
-          child.kill()
-        }
+        killProcessTree(child)
       }
 
       const timeout = setTimeout(kill, timeoutSeconds * 1000)

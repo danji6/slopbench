@@ -21,6 +21,7 @@ const TEXT_TAIL_CHARS = 14_000
 export type ShellJobContext = {
   sessionId: string
   workspaceId: string
+  shell?: string
 }
 
 export type ShellJobInput = {
@@ -81,6 +82,7 @@ export async function* executeShellJob(
     command: input.command,
     timeoutSeconds: input.timeout,
     background: input.run_in_background,
+    shell: context.shell,
   })
 
   if (input.run_in_background) {

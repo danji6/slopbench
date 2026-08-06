@@ -112,6 +112,57 @@ describe('tool manifest', () => {
     ).toEqual([])
   })
 
+  test('the shell is resolved agent-over-user, and only for the shell tool', () => {
+    const shellFor = (over: Record<string, unknown>) =>
+      resolveToolManifest({
+        invoker: { role: 'admin' } as never,
+        session,
+        resources: { settings: null, mcpServers: [] },
+        spawnableAgents: [],
+        ...over,
+        agent: { tools: ['shell'], ...(over.agent ?? {}) } as never,
+      } as never).shell
+
+    expect(shellFor({ defaultShell: '/bin/bash' })).toBe('/bin/bash')
+    expect(shellFor({ settings: { shell: 'zsh' }, defaultShell: '/bin/bash' })).toBe('zsh') // prettier-ignore
+    expect(
+      shellFor({
+        agent: { shell: 'pwsh' },
+        settings: { shell: 'zsh' },
+        defaultShell: '/bin/bash',
+      }),
+    ).toBe('pwsh')
+
+    // Empty means "not set" in both forms, so it must not win over the default
+    expect(shellFor({ settings: { shell: '' }, defaultShell: '/bin/bash' })).toBe('/bin/bash') // prettier-ignore
+
+    // Nothing to describe when the agent cannot run commands at all
+    expect(
+      resolveToolManifest({
+        agent: { tools: ['web_fetch'], shell: 'pwsh' } as never,
+        invoker: { role: 'admin' } as never,
+        session,
+        resources: { settings: null, mcpServers: [] },
+        spawnableAgents: [],
+      } as never).shell,
+    ).toBeUndefined()
+  })
+
+  test('the built shell tool names and runs the frozen shell', async () => {
+    const manifest = resolveToolManifest({
+      agent: { tools: ['shell'] } as never,
+      invoker: { role: 'admin' } as never,
+      session,
+      resources: { settings: null, mcpServers: [] },
+      spawnableAgents: [],
+      defaultShell: 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe', // prettier-ignore
+    } as never)
+
+    const tools = await getEnabledTools(manifest, session, null)
+
+    expect(tools.shell.description).toContain('with PowerShell')
+  })
+
   test('a frozen manifest still builds when its MCP server is gone', async () => {
     const manifest = manifestFor({ mcpServers: [mcpServer] })
 

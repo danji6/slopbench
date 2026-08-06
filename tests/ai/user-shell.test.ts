@@ -43,6 +43,7 @@ function mutationCtx(parts: Part[], message: Record<string, unknown> = {}) {
   const doc: Record<string, unknown> = {
     _id: 'msg-1',
     sessionId: 'session-1',
+    sender: { type: 'user', id: 'user-1' },
     status: 'processing',
     selectedVersion: 1,
     _creationTime: Date.now(),
@@ -64,9 +65,10 @@ function mutationCtx(parts: Part[], message: Record<string, unknown> = {}) {
       patch: async (id: string, fields: Record<string, unknown>) => {
         Object.assign(id === 'row-1' ? row : doc, fields)
       },
-      query: () => ({
+      // The sender has no settings row, so their shell is the sidecar's default
+      query: (table: string) => ({
         withIndex: () => ({
-          unique: async () => row,
+          unique: async () => (table === 'settings' ? null : row),
           collect: async () => [row],
           order: () => ({ first: async () => null }),
           first: async () => null,

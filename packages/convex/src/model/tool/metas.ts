@@ -43,7 +43,7 @@ export const TOOL_METAS = [
   },
   {
     name: 'shell',
-    description: 'Run shell commands using bash.',
+    description: 'Run shell commands.',
     category: 'workspace',
     requiresAdmin: true,
     requiresWorkspace: true,

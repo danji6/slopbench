@@ -142,6 +142,7 @@ export const mcpManifestEntryValidator = v.object({
 export const toolManifestValidator = v.object({
   names: v.array(v.string()),
   taskRoster: v.optional(v.string()),
+  shell: v.optional(v.string()),
   mcp: v.optional(v.array(mcpManifestEntryValidator)),
 })
 
@@ -423,6 +424,8 @@ export const overridableFields = {
   theme: v.optional(themeSnapshotValidator),
   mathMode: v.optional(mathModeValidator),
   chatWidth: v.optional(v.number()),
+  /** Program name or path the shell tool uses to execute commands. */
+  shell: v.optional(v.string()),
 }
 
 export const overridableFieldsValidator = v.object(overridableFields)

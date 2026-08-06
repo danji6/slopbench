@@ -20,6 +20,8 @@ export type ToolManifest = {
   names: string[]
   /** Agent roster baked into the task tool description. */
   taskRoster?: string
+  /** Shell used to execute commands. Absent only on sidecar errors. */
+  shell?: string
   /** External MCP metadata, keyed by name. */
   mcp?: McpManifestEntry[]
 }
@@ -38,11 +40,20 @@ export type McpManifestEntry = {
 }
 
 type ManifestInput = {
-  agent: Pick<Doc<'agents'>, 'tools'>
+  agent: Pick<Doc<'agents'>, 'tools' | 'shell'>
   invoker: Pick<Doc<'users'>, 'role'>
   session: Pick<Doc<'sessions'>, 'workspace' | 'parent'>
   resources: ToolResources
   spawnableAgents: SpawnableAgent[]
+  /** The owner's settings, for the fields the agent may override. */
+  settings?: Pick<Doc<'settings'>, 'shell'> | null
+  /** What an unconfigured shell resolves to on the sidecar's host. */
+  defaultShell?: string
+}
+
+function resolveShell(data: ManifestInput): string | undefined {
+  const shell = data.agent.shell || data.settings?.shell || data.defaultShell
+  return shell || undefined
 }
 
 /** Builds the roster block appended to the task tool description. */
@@ -124,9 +135,12 @@ export function resolveToolManifest(data: ManifestInput): ToolManifest {
     : undefined
   if (roster) names.push(TASK_TOOL_NAME)
 
+  const shell = names.includes('shell') ? resolveShell(data) : undefined
+
   return {
     names,
     ...(roster && { taskRoster: roster }),
+    ...(shell && { shell }),
     ...(mcp.length && { mcp }),
   }
 }

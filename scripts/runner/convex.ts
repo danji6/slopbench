@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { type RunnerConfig, browserOrigins } from './config'
 import { loadEnvFile, readEnvFile, updateEnvFile } from './env-file'
-import { type ProcessManager, output } from './processes'
+import { type ProcessManager, bunx, output } from './processes'
 
 // The backend gets these from --convex-origin and --convex-site
 const builtInEnvVars = new Set(['CONVEX_CLOUD_URL', 'CONVEX_SITE_URL'])
@@ -141,8 +141,7 @@ export async function deployConvex(
 ) {
   await manager.run(
     'convex-deploy',
-    [
-      'bunx',
+    bunx(
       'convex',
       'deploy',
       '--url',
@@ -151,7 +150,7 @@ export async function deployConvex(
       config.convexSelfHostedAdminKey ?? '',
       '--typecheck',
       'disable',
-    ],
+    ),
     { cwd: config.convexRoot },
   )
 }
@@ -162,15 +161,14 @@ export async function startConvexDev(
 ) {
   const convexDev = await manager.spawn(
     'convex-dev',
-    [
-      'bunx',
+    bunx(
       'convex',
       'dev',
       '--url',
       config.convexInternalUrl,
       '--admin-key',
       config.convexSelfHostedAdminKey ?? '',
-    ],
+    ),
     { cwd: config.convexRoot },
   )
   await convexDev.waitForLine('functions ready', 120_000)
@@ -185,8 +183,7 @@ async function convexEnv(
 ) {
   await manager.run(
     'convex-env',
-    [
-      'bunx',
+    bunx(
       'convex',
       'env',
       'set',
@@ -196,7 +193,7 @@ async function convexEnv(
       config.convexSelfHostedAdminKey ?? '',
       key,
       value,
-    ],
+    ),
     { cwd: config.convexRoot },
   )
 }

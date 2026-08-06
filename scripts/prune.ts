@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, rename, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, rename, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { createInterface } from 'node:readline/promises'
@@ -13,7 +13,7 @@ import {
 } from './runner/config'
 import { deriveAdminKey } from './runner/convex'
 import { loadEnvFile } from './runner/env-file'
-import { output } from './runner/processes'
+import { bunx } from './runner/processes'
 
 // This script prunes Convex's old data accumulated after every push. The flow:
 // - Export a snapshot from the current `.data` folder
@@ -157,15 +157,14 @@ async function runConvex(
   convexArgs: string[],
 ) {
   const proc = Bun.spawn({
-    cmd: [
-      'bunx',
+    cmd: bunx(
       'convex',
       ...convexArgs,
       '--url',
       config.convexSelfHostedUrl,
       '--admin-key',
       adminKey,
-    ],
+    ),
     cwd: config.convexRoot,
     stdout: 'inherit',
     stderr: 'inherit',
@@ -222,8 +221,14 @@ async function confirm(skip: boolean) {
 
 async function dirSize(path: string) {
   if (!existsSync(path)) return 0
-  const out = await output(['du', '-sb', path], { cwd: projectRoot })
-  return Number(out.split(/\s/)[0]) || 0
+
+  let total = 0
+  for (const entry of await readdir(path, { withFileTypes: true })) {
+    const child = join(path, entry.name)
+    if (entry.isDirectory()) total += await dirSize(child)
+    else if (entry.isFile()) total += (await stat(child)).size
+  }
+  return total
 }
 
 function formatBytes(bytes: number) {

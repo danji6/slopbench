@@ -13,11 +13,10 @@ export async function freePorts(
 
       console.log(`Killing existing process on port ${port} (pid ${pid})`)
       try {
-        process.kill(pid)
+        if (process.platform === 'win32') await taskKill(pid, options.cwd)
+        else process.kill(pid)
       } catch {
-        if (process.platform === 'win32') {
-          await taskKill(pid, options.cwd)
-        }
+        // Process may have exited between the lookup and the kill
       }
     }
   }

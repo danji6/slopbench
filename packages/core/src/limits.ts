@@ -28,6 +28,8 @@ export const MAX_PLAN_CONTENT_CHARS = 200_000
 
 export const MAX_CUSTOM_CSS_CHARS = 5_000
 
+export const MAX_SHELL_PATH_CHARS = 500
+
 /**
  * A single `messageContents` row. Well under the 1MB limit to leave room for
  * metadata and search text.

@@ -21,6 +21,7 @@ export type StartShellJobInput = {
   background?: boolean
   cols?: number
   rows?: number
+  shell?: string
 }
 
 export type ShellJobSummary = {
@@ -223,6 +224,7 @@ export async function startShellJob(
     cwd: input.cwd,
     cols: input.cols ?? 80,
     rows: input.rows ?? 24,
+    shell: input.shell,
   })
 
   const timeoutMs = resolveTimeoutMs(input)

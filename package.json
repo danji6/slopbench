@@ -14,7 +14,7 @@
     "runner:dev": "bun scripts/runner.ts dev",
     "runner:start": "bun scripts/runner.ts start",
     "prune": "bun scripts/prune.ts",
-    "convex": "bunx convex dev",
+    "convex": "bun x convex dev",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "lint": "eslint",

@@ -104,6 +104,7 @@ export const settingsFormSchema = z.object({
   override: overrideSchema,
   chatWidth: z.number(),
   customCss: z.string(),
+  shell: z.string(),
   themeColor: z.string(),
   themeMode: z.enum(['system', 'light', 'dark']),
   globalPrompts: z.array(promptSchema),

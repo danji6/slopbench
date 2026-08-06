@@ -57,8 +57,9 @@ import {
   WrenchIcon,
 } from 'lucide-react'
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
-import { useForm, useWatch } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 
+import { ShellSettings } from '../shell-settings'
 import { AppearanceSettings } from './appearance-settings'
 import { BehaviorSettings } from './behavior-settings'
 import { McpSettings } from './mcp-settings'
@@ -193,6 +194,7 @@ function ChatSettingsDialog({
       },
       chatWidth: DEFAULT_SETTINGS.chatWidth,
       customCss: DEFAULT_SETTINGS.customCss,
+      shell: DEFAULT_SETTINGS.shell,
       themeColor: SOURCE_COLOR,
       themeMode: DEFAULT_SETTINGS.themeMode,
       globalPrompts: [],
@@ -267,6 +269,7 @@ function ChatSettingsDialog({
       },
       chatWidth: settings.chatWidth,
       customCss: settings.customCss,
+      shell: settings.shell,
       themeColor: settings.theme?.source ?? SOURCE_COLOR,
       themeMode: settings.themeMode,
       globalPrompts: globalPrompts as SettingsFormValues['globalPrompts'],
@@ -388,6 +391,7 @@ function ChatSettingsDialog({
         chatFontSize: values.chatFontSize,
         chatWidth: values.chatWidth,
         customCss: values.customCss,
+        shell: values.shell.trim(),
         theme: values.themeColor
           ? await snapshotTheme(values.themeColor)
           : undefined,
@@ -514,6 +518,16 @@ function ChatSettingsDialog({
               </SettingsTabs.Content>
 
               <SettingsTabs.Content value="tools" title="Tools">
+                <Controller
+                  control={form.control}
+                  name="shell"
+                  render={({ field }) => (
+                    <ShellSettings
+                      value={field.value}
+                      onChange={field.onChange}
+                    />
+                  )}
+                />
                 <WebSearchSettings control={form.control} />
                 <McpSettings control={form.control} />
               </SettingsTabs.Content>

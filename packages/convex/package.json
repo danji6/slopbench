@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "convex": "cd ../.. && bunx convex dev",
-    "codegen": "cd ../.. && bunx convex codegen",
-    "deploy": "cd ../.. && bunx convex deploy"
+    "convex": "cd ../.. && bun x convex dev",
+    "codegen": "cd ../.. && bun x convex codegen",
+    "deploy": "cd ../.. && bun x convex deploy"
   }
 }

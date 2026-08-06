@@ -12,6 +12,7 @@ export type OverridableFields = {
   theme?: ThemeSnapshot
   mathMode?: MathMode
   chatWidth?: number
+  shell?: string
 }
 
 /** Per-agent approvals merged into every session's approvals. */

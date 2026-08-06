@@ -51,7 +51,7 @@ type FontFace = { url: string; weight: string; style: 'normal' | 'italic' }
 /* Autodiscovered fonts: drop files into `src/assets/fonts`.
  * Filenames follow "<Family>-<descriptor>.<ext>". */
 const FONT_MODULES = import.meta.glob(
-  '../assets/fonts/**/*.{woff2,woff,ttf,otf}',
+  './assets/fonts/**/*.{woff2,woff,ttf,otf}',
   {
     eager: true,
     query: '?url',

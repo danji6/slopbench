@@ -4,7 +4,7 @@ import type { AuthMutationCtx, AuthQueryCtx } from '../functions'
 import type { CreateAgentArgs, Prompt, UpdateAgentArgs } from '../types'
 import { sanitizeSubAgents } from './agent/subagents'
 import * as Avatars from './avatars'
-import { assertCustomCssCap } from './caps'
+import { assertCustomCssCap, assertShellPathCap } from './caps'
 import { DEFAULT_CONTEXT_OPTIONS, createDefaultAgent } from './defaults'
 import * as Prompts from './prompts'
 import * as Reminders from './reminders'
@@ -74,6 +74,7 @@ export async function exportData(
 export async function create(ctx: AuthMutationCtx, args: CreateAgentArgs) {
   const { prompts, reminderPrompts, ...rest } = args
   assertCustomCssCap(rest.customCss)
+  assertShellPathCap(rest.shell)
 
   const agentId = await ctx.db.insert('agents', {
     ownerId: ctx.userId,
@@ -107,6 +108,7 @@ export async function update(
 ) {
   const agent = await requireOwned(ctx, agentId)
   assertCustomCssCap(patch.customCss)
+  assertShellPathCap(patch.shell)
   if (patch.subAgents) {
     patch.subAgents = await sanitizeSubAgents(ctx, ctx.userId, patch.subAgents)
   }

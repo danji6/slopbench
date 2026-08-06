@@ -11,7 +11,7 @@ import { hasPendingTaskParts } from '../../lib/subagent'
 import { applyPromptCaching } from '../../model/provider/cache'
 import { getProviderOptions } from '../../model/provider/options'
 import { findCredentialsForModel } from '../../model/provider/providers'
-import { postSidecar } from '../../model/sidecar'
+import { postSidecar, sidecarDefaultShell } from '../../model/sidecar'
 import {
   generatedFileCacheKey,
   generatedFilename,
@@ -148,7 +148,12 @@ async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
   const data = await ctx.runQuery(internal.streams._getContext, { streamId })
   if (!data?.stream || data.stream.status === 'stopping') return null
 
-  const operationPlan = createOperationPlan(data)
+  // Only needed while resolving a manifest
+  const defaultShell = data.sessionCache?.tools
+    ? undefined
+    : await sidecarDefaultShell()
+
+  const operationPlan = createOperationPlan(data, defaultShell)
 
   // Frozen prompts skip evaluation (see snapshots.ts)
   let evalResult: PromptEvalResult = {

@@ -3,6 +3,8 @@ import { type ChildProcess, spawn } from 'node:child_process'
 import { accessSync, constants } from 'node:fs'
 import { delimiter, join } from 'node:path'
 
+import { killProcessTree, shellInvocation, shellPath } from './system-shell'
+
 export type PtyMode = 'pty' | 'script' | 'pipe'
 
 export type ShellJobProcess = {
@@ -20,6 +22,7 @@ export type SpawnShellJobInput = {
   cwd: string
   cols: number
   rows: number
+  shell?: string
 }
 
 type NodePtySpawnOptions = {
@@ -49,12 +52,14 @@ function probeNodePty(): Promise<NodePtyModule | null> {
     try {
       const mod = await import('node-pty')
 
+      const { file, args } = shellInvocation('echo ok')
+
       const works = await new Promise<boolean>((resolve) => {
-        const probe = mod.spawn('/bin/sh', ['-c', 'echo ok'], {
+        const probe = mod.spawn(file, args, {
           name: 'xterm',
           cols: 20,
           rows: 5,
-          cwd: '/',
+          cwd: process.cwd(),
           env: process.env as Record<string, string>,
         })
 
@@ -131,7 +136,8 @@ function spawnNodePty(
   nodePty: NodePtyModule,
   input: SpawnShellJobInput,
 ): ShellJobProcess {
-  const pty: IPty = nodePty.spawn('/bin/bash', ['-lc', input.command], {
+  const { file, args } = shellInvocation(input.command, input.shell)
+  const pty: IPty = nodePty.spawn(file, args, {
     name: 'xterm-256color',
     cols: input.cols,
     rows: input.rows,
@@ -171,14 +177,19 @@ function spawnScriptPty(input: SpawnShellJobInput): ShellJobProcess {
   const child = spawn('script', ['-qefc', sized, '/dev/null'], {
     cwd: input.cwd,
     detached: true,
-    env: { ...process.env, SHELL: '/bin/bash', TERM: 'xterm-256color' },
+    env: {
+      ...process.env,
+      SHELL: shellPath(input.shell),
+      TERM: 'xterm-256color',
+    },
     stdio: ['pipe', 'pipe', 'pipe'],
   })
   return wrapChildProcess(child, 'script')
 }
 
 function spawnPipe(input: SpawnShellJobInput): ShellJobProcess {
-  const child = spawn('/bin/bash', ['-lc', input.command], {
+  const { file, args } = shellInvocation(input.command, input.shell)
+  const child = spawn(file, args, {
     cwd: input.cwd,
     detached: process.platform !== 'win32',
     env: process.env,
@@ -215,15 +226,7 @@ function wrapChildProcess(child: ChildProcess, mode: PtyMode): ShellJobProcess {
     resize: () => {
       // Fixed-size pty (script) or no pty at all (pipe)
     },
-    kill: () => {
-      if (!child.pid) return
-      try {
-        if (process.platform === 'win32') child.kill()
-        else process.kill(-child.pid, 'SIGTERM')
-      } catch {
-        child.kill()
-      }
-    },
+    kill: () => killProcessTree(child),
     onData: (cb) => {
       dataCallbacks.push(cb)
       if (pending) {

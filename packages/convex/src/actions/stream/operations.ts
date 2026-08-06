@@ -59,7 +59,10 @@ export function toolResources(data: StreamContext): ToolResources {
   return { settings: data.settings, mcpServers: data.mcpServers }
 }
 
-export function createOperationPlan(data: StreamContext): OperationPlan {
+export function createOperationPlan(
+  data: StreamContext,
+  defaultShell?: string,
+): OperationPlan {
   const prompts = removeStarterPrompts(
     mergePrompts(
       { ...data.agent, prompts: data.prompts.own },
@@ -76,12 +79,13 @@ export function createOperationPlan(data: StreamContext): OperationPlan {
     return createImpersonatePlan(data, prompts)
   }
 
-  return createInvokePlan(data, prompts)
+  return createInvokePlan(data, prompts, defaultShell)
 }
 
 function createInvokePlan(
   data: StreamContext,
   prompts: PromptItem[],
+  defaultShell?: string,
 ): OperationPlan {
   const plan = planSnapshotEval({ cache: data.sessionCache, prompts })
 
@@ -89,7 +93,11 @@ function createInvokePlan(
   const frozenTools = data.sessionCache?.tools
   const manifest =
     frozenTools ??
-    resolveToolManifest({ ...data, resources: toolResources(data) })
+    resolveToolManifest({
+      ...data,
+      resources: toolResources(data),
+      defaultShell,
+    })
 
   return {
     evalItems: plan.evalItems,

@@ -56,6 +56,10 @@ export class ProcessManager {
         return code
       }),
       kill(signal = 'SIGTERM') {
+        if (process.platform === 'win32' && child.pid) {
+          killWindowsTree(child.pid)
+          return
+        }
         child.kill(signal)
       },
       name,
@@ -99,6 +103,14 @@ export class ProcessManager {
   }
 }
 
+function killWindowsTree(pid: number) {
+  Bun.spawn({
+    cmd: ['taskkill', '/PID', String(pid), '/T', '/F'],
+    stderr: 'ignore',
+    stdout: 'ignore',
+  })
+}
+
 function withColorEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   if (!process.stdout.isTTY || env.NO_COLOR) return env
 
@@ -110,6 +122,10 @@ function withColorEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     FORCE_COLOR: env.FORCE_COLOR ?? '1',
     TERM: env.TERM ?? 'xterm-256color',
   }
+}
+
+export function bunx(...args: string[]): string[] {
+  return [process.execPath, 'x', ...args]
 }
 
 export async function output(cmd: string[], options: { cwd: string }) {
@@ -126,15 +142,6 @@ export async function output(cmd: string[], options: { cwd: string }) {
     throw new Error(`${cmd.join(' ')} failed: ${stderr.trim()}`)
   }
   return stdout.trim()
-}
-
-export async function commandExists(cmd: string, cwd: string) {
-  try {
-    await output([cmd, '--version'], { cwd })
-    return true
-  } catch {
-    return false
-  }
 }
 
 async function routeOutput(

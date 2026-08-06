@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 import { defineConfig } from 'vite'
 
+// `__dirname` is unavailable under Vite's native config loader
+const root = import.meta.dirname
+
 function allowedHosts(): string[] {
   const values = [
     process.env.FRONTEND_URL,
@@ -32,12 +35,12 @@ export default defineConfig({
   server: { allowedHosts: allowedHosts() },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
-      '@sb/client': path.resolve(__dirname, './src'),
-      '@sb/convex': path.resolve(__dirname, '../convex/src'),
-      '@sb/core': path.resolve(__dirname, '../core/src'),
-      '@sb/sidecar': path.resolve(__dirname, '../sidecar/src'),
-      '~': path.resolve(__dirname, '../..'),
+      '@': path.resolve(root, './src'),
+      '@sb/client': path.resolve(root, './src'),
+      '@sb/convex': path.resolve(root, '../convex/src'),
+      '@sb/core': path.resolve(root, '../core/src'),
+      '@sb/sidecar': path.resolve(root, '../sidecar/src'),
+      '~': path.resolve(root, '../..'),
     },
     dedupe: [
       'prosemirror-changeset',

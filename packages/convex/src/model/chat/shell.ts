@@ -20,6 +20,7 @@ import {
 } from '../messageContents'
 import { syncActivity } from '../messages'
 import * as Memberships from '../session/memberships'
+import * as Settings from '../settings'
 import { resolveSender } from './identities'
 import { bumpTurnCount } from './reminders'
 import { reserveOrDebounceTurn } from './reserve'
@@ -145,10 +146,16 @@ export async function _beginUserShellWindow(
     })),
   )
 
+  const sender =
+    message.sender.type === 'user'
+      ? await Settings.getByOwnerId(ctx, message.sender.id)
+      : null
+
   const output = part.output
   return {
     sessionId: sharedSessionId(session),
     workspaceId: session.workspace.workspaceId,
+    shell: sender?.shell || undefined,
     command: part.input.command,
     toolCallId: part.toolCallId,
     startedAt: message._creationTime,

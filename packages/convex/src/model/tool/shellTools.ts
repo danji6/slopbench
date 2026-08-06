@@ -1,4 +1,4 @@
-import { TOOL_DESCRIPTIONS } from '@sb/core/types'
+import { TOOL_DESCRIPTIONS, shellToolDescription } from '@sb/core/types'
 
 import {
   commandReferencesForbiddenPath,
@@ -22,7 +22,7 @@ import {
 export async function createShellTool(context: WorkspaceToolContext) {
   const [{ tool }, { z }] = await Promise.all([import('ai'), import('zod')])
   return tool<ShellJobInput, ShellToolOutput, never>({
-    description: TOOL_DESCRIPTIONS.shell,
+    description: shellToolDescription(context.shell),
     inputSchema: z.object({
       command: z.string().describe('Shell command to execute'),
       timeout: z.number().min(1).optional().describe('Timeout in seconds'),

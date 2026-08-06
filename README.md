@@ -42,6 +42,12 @@ Start the app:
 ./start.sh
 ```
 
+On Windows:
+
+```powershell
+.\start.ps1
+```
+
 Open:
 
 ```text
@@ -104,6 +110,8 @@ Run `bun run prune` if your `.data` folder ever grows too large.
 ```sh
 ./dev.sh
 ```
+
+On Windows, `.\dev.ps1`.
 
 Development mode also starts the local Convex dashboard when Docker is
 available:

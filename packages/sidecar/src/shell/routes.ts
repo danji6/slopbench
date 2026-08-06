@@ -1,3 +1,4 @@
+import { shellLabel } from '@sb/core/shell/name'
 import { type Context, Hono } from 'hono'
 import { type SSEStreamingApi, streamSSE } from 'hono/streaming'
 import { ZodError, z } from 'zod'
@@ -16,6 +17,7 @@ import {
   subscribeShellJob,
   writeStdin,
 } from './registry'
+import { shellPath } from './system-shell'
 
 const jobFields = {
   sessionId: z.string(),
@@ -30,6 +32,7 @@ const startSchema = z.object({
   background: z.boolean().optional(),
   cols: z.number().int().min(20).max(500).optional(),
   rows: z.number().int().min(5).max(300).optional(),
+  shell: z.string().optional(),
 })
 
 const pollSchema = z.object({ ...jobFields, offset: z.number().min(0) })
@@ -53,6 +56,16 @@ const killSessionSchema = z.object({
 })
 
 export const shellRoutes = new Hono()
+
+/** What an unconfigured shell resolves to on this host. */
+shellRoutes.get('/info', (c) => {
+  try {
+    const shell = shellPath()
+    return c.json({ shell, label: shellLabel(shell) })
+  } catch (err: unknown) {
+    return jobError(c, err)
+  }
+})
 
 shellRoutes.post('/start', async (c) => {
   try {

@@ -5,6 +5,7 @@ import { Fragment } from 'react'
 import type { Control } from 'react-hook-form'
 import { useController } from 'react-hook-form'
 
+import { ShellSettings } from '../shell-settings'
 import type { AgentFormValues } from './agent-form'
 import { getEnabledToolNames, toToolSelection } from './agent-form'
 import { AutoApproveSettings } from './auto-approve-settings'
@@ -39,6 +40,7 @@ export function ToolSettings({
 }) {
   const { tools: availableTools } = useTools()
   const { field: toolsField } = useController({ control, name: 'tools' })
+  const { field: shellField } = useController({ control, name: 'shell' })
 
   const enabled = new Set(getEnabledToolNames(toolsField.value, availableTools))
 
@@ -125,6 +127,11 @@ export function ToolSettings({
           )
         })}
       </SettingsList>
+      <ShellSettings
+        override
+        value={shellField.value}
+        onChange={shellField.onChange}
+      />
       <AutoApproveSettings control={control} />
     </>
   )

@@ -49,6 +49,7 @@ export type AgentDocValues = {
   modelId: string | null
   reasoningEffort: ReasoningEffort | null
   tools: AgentToolSelection
+  shell: string
   autoApproveTools: string[]
   autoApproveShell: string[]
   subAgentsMode: AgentSubAgentsMode
@@ -88,6 +89,7 @@ export const EMPTY_AGENT_FORM: AgentFormValues = {
   modelId: null,
   reasoningEffort: null,
   tools: [],
+  shell: '',
   autoApproveTools: [],
   autoApproveShell: [],
   subAgentsMode: 'allow',
@@ -158,6 +160,7 @@ export function agentToFormValues(
     modelId: agent.modelId ?? null,
     reasoningEffort: (agent.reasoningEffort as ReasoningEffort | undefined) ?? null, // prettier-ignore
     tools: agent.tools ?? [],
+    shell: agent.shell ?? '',
     autoApproveTools: agent.autoApprove?.tools ?? [],
     autoApproveShell: agent.autoApprove?.shell ?? [],
     subAgentsMode: agent.subAgents?.mode ?? 'allow',
@@ -229,6 +232,7 @@ export async function formValuesToPatch(
     themeColor,
     customCss,
     description,
+    shell,
     autoApproveTools,
     autoApproveShell,
     subAgentsMode,
@@ -244,6 +248,7 @@ export async function formValuesToPatch(
     reasoningEffort: reasoningEffort || null,
     description: description.trim() || null,
     customCss: customCss || null,
+    shell: shell.trim() || null,
     theme: themeColor ? await snapshotTheme(themeColor) : null,
     autoApprove:
       autoApproveTools.length || autoApproveShell.length

@@ -191,6 +191,12 @@ function platformTriple() {
     case 'linux':
       return `${arch}-unknown-linux-gnu`
     case 'win32':
+      if (arch !== 'x86_64') {
+        throw new Error(
+          'Convex does not publish a Windows build for this architecture ' +
+            `(${process.arch}). Run the app under WSL2 instead.`,
+        )
+      }
       return `${arch}-pc-windows-msvc`
     default:
       throw new Error(`Unsupported OS: ${process.platform}`)

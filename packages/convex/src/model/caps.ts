@@ -5,6 +5,7 @@ import {
   MAX_MESSAGE_PART_BYTES,
   MAX_PLAN_CONTENT_CHARS,
   MAX_SEGMENT_BYTES,
+  MAX_SHELL_PATH_CHARS,
   MAX_TODO_CONTENT_CHARS,
   MAX_TODO_ITEMS,
   MAX_WEB_SEARCH_INSTANCES,
@@ -17,6 +18,12 @@ import type { TodoItem } from '../types'
 export function assertCustomCssCap(css: string | undefined) {
   if (css && css.length > MAX_CUSTOM_CSS_CHARS) {
     error(limitError('customCss'), 400)
+  }
+}
+
+export function assertShellPathCap(shell: string | undefined) {
+  if (shell && shell.length > MAX_SHELL_PATH_CHARS) {
+    error(limitError('shellPath'), 400)
   }
 }
 

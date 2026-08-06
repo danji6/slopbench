@@ -3,7 +3,11 @@ import type { MutationCtx, QueryCtx } from '../_generated/server'
 import type { AuthMutationCtx, AuthQueryCtx } from '../functions'
 import type { SettingsKey, SettingsPatch } from '../types'
 import * as Avatars from './avatars'
-import { assertCustomCssCap, assertWebSearchInstancesCap } from './caps'
+import {
+  assertCustomCssCap,
+  assertShellPathCap,
+  assertWebSearchInstancesCap,
+} from './caps'
 import { DEFAULT_SETTINGS, type ResolvedSettings } from './defaults'
 
 export async function getOrDefault(
@@ -38,6 +42,7 @@ export async function update(
   { patch }: { patch: SettingsPatch },
 ) {
   assertCustomCssCap(patch.customCss)
+  assertShellPathCap(patch.shell)
   assertWebSearchInstancesCap(patch.webSearchInstances)
 
   const existing = await ctx.db

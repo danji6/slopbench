@@ -61,6 +61,7 @@ export async function getEnabledTools(
       ? {
           sessionId,
           workspaceId: session.workspace.workspaceId,
+          shell: manifest.shell,
           approvals: mergeToolApprovals(
             session.toolApprovals,
             options?.autoApprove,

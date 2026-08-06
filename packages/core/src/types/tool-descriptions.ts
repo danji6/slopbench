@@ -1,3 +1,4 @@
+import { shellLabel } from '../shell/name'
 import { inline } from '../utils/strings'
 
 const web_fetch = 'Fetch a web page and return its main content as markdown.'
@@ -18,9 +19,12 @@ const edit_file = inline`
   unique; include surrounding context if there are multiple occurrences. Merge
   nearby or overlapping changes into one edit.`
 
-const shell = inline`
-  Run a (bash) shell command in the workspace. Set run_in_background for
-  long-running commands and read them later with shell_output.`
+export function shellToolDescription(shell?: string): string {
+  const where = shell ? ` with ${shellLabel(shell)}` : ''
+  return inline`
+    Run a shell command in the workspace${where}. Set run_in_background for
+    long-running commands and read them later with shell_output.`
+}
 
 const shell_output = inline`
   Read output from a shell job started with run_in_background. Waits up to
@@ -77,7 +81,6 @@ export const TOOL_DESCRIPTIONS = {
   read_file,
   write_file,
   edit_file,
-  shell,
   shell_output,
   kill_shell,
   write_plan,

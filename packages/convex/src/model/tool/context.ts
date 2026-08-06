@@ -5,6 +5,8 @@ import type { ToolApprovals } from '../../types'
 export type WorkspaceToolContext = {
   sessionId: Id<'sessions'>
   workspaceId: string
+  /** Shell used to execute commands (system's default when absent). */
+  shell?: string
   approvals?: ToolApprovals
   isPlanMode?: () => Promise<boolean>
 }
@@ -26,5 +28,6 @@ export function workspaceArgs(context: WorkspaceToolContext) {
   return {
     sessionId: context.sessionId,
     workspaceId: context.workspaceId,
+    shell: context.shell,
   }
 }

@@ -83,6 +83,11 @@ const LIMITS = {
     max: L.MAX_CUSTOM_CSS_CHARS,
     unit: 'characters',
   },
+  shellPath: {
+    subject: 'Shell path',
+    max: L.MAX_SHELL_PATH_CHARS,
+    unit: 'characters',
+  },
   messagePart: {
     subject: 'Message part',
     max: L.MAX_MESSAGE_PART_BYTES,

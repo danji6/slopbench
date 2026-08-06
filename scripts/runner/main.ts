@@ -17,7 +17,7 @@ import {
 } from './convex'
 import { loadEnvFile } from './env-file'
 import { freePorts } from './ports'
-import { type ManagedProcess, ProcessManager, commandExists } from './processes'
+import { ProcessManager, output } from './processes'
 
 export async function run(args: string[]) {
   if (args.includes('--help') || args.includes('-h')) {
@@ -158,7 +158,7 @@ async function dev(
   await waitForHttp(`${config.convexInternalUrl}/version`, 60_000, true)
   console.log('Backend ready.')
 
-  const dashboard = await startDashboard(manager, config)
+  await startDashboard(manager, config)
   await setConvexEnvironment(manager, config)
 
   const convexDev = await startConvexDev(manager, config)
@@ -167,9 +167,8 @@ async function dev(
     ['bun', 'run', 'dev', ...frontendArgs(config)],
     { cwd: config.clientRoot },
   )
-  await manager.waitForAnyExit(
-    [sidecar, backend, convexDev, vite, dashboard].filter(isManagedProcess),
-  )
+
+  await manager.waitForAnyExit([sidecar, backend, convexDev, vite])
 }
 
 function frontendArgs(config: RunnerConfig) {
@@ -193,9 +192,9 @@ async function startSidecar(manager: ProcessManager, config: RunnerConfig) {
 }
 
 async function startDashboard(manager: ProcessManager, config: RunnerConfig) {
-  if (!(await commandExists('docker', config.projectRoot))) {
-    console.error('Docker is not available; skipping Convex dashboard.')
-    return undefined
+  if (!(await dockerAvailable(config.projectRoot))) {
+    console.error('Docker is not running, skipping Convex dashboard.')
+    return
   }
 
   const dashboard = await manager.spawn('convex-dashboard', [
@@ -213,24 +212,38 @@ async function startDashboard(manager: ProcessManager, config: RunnerConfig) {
   console.log(`Started Convex dashboard (pid ${dashboard.pid})`)
 
   try {
-    await waitForHttp(
-      `http://localhost:${config.convexDashboardPort}`,
-      60_000,
-      true,
-    )
+    await Promise.race([
+      waitForHttp(
+        `http://localhost:${config.convexDashboardPort}`,
+        60_000,
+        true,
+      ),
+      dashboard.exited.then((code) => {
+        throw new Error(`docker run exited with code ${code}`)
+      }),
+    ])
     console.log(
       `Convex dashboard ready at http://localhost:${config.convexDashboardPort}.`,
     )
   } catch {
-    console.error(
-      'Convex dashboard did not start in time; continuing without it.',
-    )
+    console.error('Convex dashboard unavailable; continuing without it.')
   }
-  return dashboard
+}
+
+let dockerProbe: Promise<boolean> | undefined
+
+function dockerAvailable(cwd: string) {
+  dockerProbe ??= output(['docker', 'info', '--format', '{{.ServerVersion}}'], {
+    cwd,
+  }).then(
+    () => true,
+    () => false,
+  )
+  return dockerProbe
 }
 
 async function cleanupDocker(config: RunnerConfig) {
-  if (!(await commandExists('docker', config.projectRoot))) return
+  if (!(await dockerAvailable(config.projectRoot))) return
 
   const process = Bun.spawn({
     cmd: ['docker', 'rm', '-f', config.convexDashboardContainer],
@@ -257,12 +270,6 @@ async function waitForHttp(url: string, timeoutMs: number, requireOk: boolean) {
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-function isManagedProcess(
-  process: ManagedProcess | undefined,
-): process is ManagedProcess {
-  return process !== undefined
 }
 
 function printHelp() {

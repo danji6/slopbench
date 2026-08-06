@@ -19,6 +19,23 @@ export async function postSidecar<T>(path: string, body: unknown): Promise<T> {
   return (await response.json()) as T
 }
 
+let defaultShell: string | undefined
+
+/** The shell the sidecar falls back to when nothing is configured. */
+export async function sidecarDefaultShell(): Promise<string | undefined> {
+  if (defaultShell) return defaultShell
+
+  try {
+    const response = await fetch(`${SIDECAR_URL}/shell/info`)
+    if (!response.ok) return undefined
+    const { shell } = (await response.json()) as { shell?: string }
+    defaultShell = shell
+    return shell
+  } catch {
+    return undefined
+  }
+}
+
 export type ShellStreamEvent = { event: string; data: string }
 
 /** Opens an SSE endpoint and yields parsed `{ event, data }` frames. */

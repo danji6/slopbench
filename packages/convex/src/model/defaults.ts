@@ -109,6 +109,7 @@ export const DEFAULT_SETTINGS = {
   chatFontSize: 15,
   chatWidth: 800,
   customCss: '',
+  shell: '',
   themeMode: 'system' as 'light' | 'dark' | 'system',
 } satisfies Partial<Doc<'settings'>>
 
