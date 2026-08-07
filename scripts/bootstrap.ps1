@@ -42,11 +42,13 @@ function Install-Bun([string]$Version, [string]$Destination, [string]$Suffix = '
   New-Item -ItemType Directory -Path $tmp -Force | Out-Null
 
   $archivePath = Join-Path $tmp $archive
-  Invoke-WebRequest -Uri "$base/$archive" -OutFile $archivePath
-  $sums = (Invoke-WebRequest -Uri "$base/SHASUMS256.txt").Content
+  $sumsPath = Join-Path $tmp 'SHASUMS256.txt'
 
-  $line = $sums -split "`n" |
-    Where-Object { (($_ -split '\s+')[1] -replace '^\*', '') -eq $archive } |
+  Invoke-WebRequest -Uri "$base/$archive" -OutFile $archivePath -UseBasicParsing
+  Invoke-WebRequest -Uri "$base/SHASUMS256.txt" -OutFile $sumsPath -UseBasicParsing
+
+  $line = Get-Content -LiteralPath $sumsPath |
+    Where-Object { ((($_ -split '\s+', 2)[1]).Trim() -replace '^\*', '') -eq $archive } |
     Select-Object -First 1
   if (-not $line) { throw "Bun $Version publishes no checksum for $archive." }
   $expected = ($line -split '\s+')[0]
