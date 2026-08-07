@@ -1,5 +1,6 @@
 /// <reference types="bun-types" />
-import { clearReleaseCache } from '@sb/core/update/source'
+import { APP_ID } from '@sb/core/const'
+import { clearReleaseCache, releaseName } from '@sb/core/update/source'
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
@@ -8,7 +9,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { getConfig } from '~/scripts/runner/config'
 import { output } from '~/scripts/runner/processes'
-import { applyUpdateIfRequested } from '~/scripts/runner/update'
+import { applyUpdateIfRequested, rollbackUpdate } from '~/scripts/runner/update'
 
 const CURRENT = '0.0.1'
 const NEXT = '0.0.2'
@@ -19,7 +20,7 @@ let server: ReturnType<typeof Bun.serve> | undefined
 const previousEnv = { ...process.env }
 
 beforeEach(async () => {
-  workspace = await mkdtemp(join(tmpdir(), 'slopbench-update-'))
+  workspace = await mkdtemp(join(tmpdir(), `${APP_ID}-update-`))
   install = join(workspace, 'install')
   clearReleaseCache()
 })
@@ -48,7 +49,7 @@ async function createInstall() {
 
 /** The archive a release ships: one prefixed directory holding the tree. */
 async function createArchive(version: string) {
-  const name = `slopbench-${version}`
+  const name = releaseName(version)
   const staging = join(workspace, 'staging')
   const root = join(staging, name)
   await mkdir(join(root, 'packages/core'), { recursive: true })
@@ -140,12 +141,31 @@ describe('applyUpdateIfRequested', () => {
 
     const backup = join(install, '.data/update/backup')
     expect(existsSync(join(backup, 'packages/core/old.ts'))).toBe(true)
-    expect(existsSync(join(install, '.data/update/convex.sqlite3'))).toBe(true)
+    expect(await readFile(join(install, '.data/update/state/convex.sqlite3'), 'utf8')).toBe('database') // prettier-ignore
 
     const state = JSON.parse(
       await readFile(join(install, '.data/update/backup.json'), 'utf8'),
     ) as { version: string }
     expect(state.version).toBe(CURRENT)
+  })
+
+  // Migrations run against the new schema, so the pre-update database is the
+  // only copy that can still be read by the version being restored.
+  test('rollback restores the database and keeps the one it replaces', async () => {
+    await createInstall()
+    await serveRelease(NEXT)
+    process.env.AUTO_UPDATE = 'true'
+
+    const config = installConfig()
+    await applyUpdateIfRequested(config, { enabled: true })
+    await writeFile(join(install, '.data/convex.sqlite3'), 'migrated')
+
+    await rollbackUpdate(config)
+
+    expect(existsSync(join(install, 'packages/core/old.ts'))).toBe(true)
+    expect(existsSync(join(install, 'packages/core/new.ts'))).toBe(false)
+    expect(await readFile(join(install, '.data/convex.sqlite3'), 'utf8')).toBe('database') // prettier-ignore
+    expect(await readFile(join(install, '.data/update/replaced/convex.sqlite3'), 'utf8')).toBe('migrated') // prettier-ignore
   })
 
   test('does nothing when the release is not newer', async () => {

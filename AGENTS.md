@@ -87,6 +87,8 @@ The `package.json` contains most scripts you will need, including running tests.
    - Use dynamic imports in Convex actions (NOT queries/mutations) to avoid memory carry-over errors.
    - All actions go in the "convex/actions" folder.
    - We have `convex-helpers`, always check if it offers a solution to a complex db-related issue before implementing your own.
+   - A schema change that an existing database can't satisfy needs a migration listed in `releaseMigrations` (`migrations.ts`).
+     Released installs update from arbitrary older versions, so leave the migrations intact.
 
 6. **Sidecar Server**
    - The sidecar currently doesn't support hot-reloading. If you make changes to it, remind the user to restart it.

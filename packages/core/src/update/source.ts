@@ -1,3 +1,4 @@
+import { APP_ID } from '../const'
 import { normalizeVersion } from './version'
 
 export type ReleaseAsset = {
@@ -16,8 +17,10 @@ export type ReleaseInfo = {
   assets: ReleaseAsset[]
 }
 
-export const DEFAULT_UPDATE_FEED_URL =
-  'https://api.github.com/repos/danji6/slopbench/releases/latest'
+/** Owner of the repository releases are published from. */
+export const REPO_OWNER = 'danji6'
+
+export const DEFAULT_UPDATE_FEED_URL = `https://api.github.com/repos/${REPO_OWNER}/${APP_ID}/releases/latest`
 
 const CACHE_TTL_MS = 60 * 60 * 1000
 
@@ -111,6 +114,11 @@ export function selectChecksumAsset(
 }
 
 export const CHECKSUM_ASSET = 'checksums.txt'
+
+/** Stem shared by a version's archives and by the directory inside them. */
+export function releaseName(version: string): string {
+  return `${APP_ID}-${normalizeVersion(version)}`
+}
 
 /** Reads a `<sha256>  <filename>` listing into a name → digest map. */
 export function parseChecksums(body: string): Map<string, string> {

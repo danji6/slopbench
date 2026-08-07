@@ -1,3 +1,4 @@
+import { releaseName } from '@sb/core/update/source'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
@@ -7,7 +8,7 @@ import { output } from './runner/processes'
 /** Builds the source archives for a release. */
 async function main() {
   const version = await readVersion()
-  const name = `slopbench-${version}`
+  const name = releaseName(version)
   const outDir = join(projectRoot, '.data/release')
   const staging = join(outDir, name)
 

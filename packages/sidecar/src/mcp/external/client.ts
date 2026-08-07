@@ -6,6 +6,7 @@ import {
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { WebSocketClientTransport } from '@modelcontextprotocol/sdk/client/websocket.js'
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
+import { APP_ID } from '@sb/core/const'
 import {
   type McpConnection,
   type McpDialedTransport,
@@ -90,7 +91,7 @@ async function withClient<T>(
   let firstError: unknown
 
   for (const transport of candidates) {
-    const client = new Client({ name: 'slopbench', version: '1.0.0' })
+    const client = new Client({ name: APP_ID, version: '1.0.0' })
 
     try {
       await client.connect(createTransport(connection, transport))

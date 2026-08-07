@@ -40,10 +40,16 @@ const PROTECTED_ENTRIES = new Set([
   'node_modules',
 ])
 
+/** Convex state a rollback can't rebuild and therefore needs to be backed up. */
+const STATE_FILES = ['convex.sqlite3', 'convex.sqlite3-wal', 'convex.sqlite3-shm'] // prettier-ignore
+
 type UpdatePaths = {
   root: string
   backup: string
-  database: string
+  /** Pre-update copy of {@link STATE_FILES}. */
+  state: string
+  /** Where a rollback moves the database it is about to replace. */
+  replaced: string
   download: string
   staged: string
 }
@@ -104,9 +110,13 @@ export async function rollbackUpdate(config: RunnerConfig) {
 
   const { version } = JSON.parse(state) as { version?: string }
   await restoreTree(config, paths)
-  await restoreDatabase(config, paths)
+  await restoreState(config, paths)
   await invalidateCaches(config)
+
   console.log(`Rolled back to v${version ?? 'previous'}.`)
+  if (existsSync(paths.replaced)) {
+    console.log(`The database it replaced is kept in ${paths.replaced}.`)
+  }
 }
 
 async function applyRelease(config: RunnerConfig, release: ReleaseInfo) {
@@ -121,7 +131,7 @@ async function applyRelease(config: RunnerConfig, release: ReleaseInfo) {
   await verifyStagedTree(source, release)
 
   const install = await readInstall(config)
-  await backupDatabase(config, paths)
+  await backupState(config, paths)
   await swapTree(config, paths, source)
   await writeFile(
     join(paths.root, 'backup.json'),
@@ -255,18 +265,30 @@ async function restoreTree(config: RunnerConfig, paths: UpdatePaths) {
   }
 }
 
-/** Backs up the db; important since migrations can break things. */
-async function backupDatabase(config: RunnerConfig, paths: UpdatePaths) {
-  const database = join(config.dataDir, 'convex.sqlite3')
-  if (!existsSync(database)) return
-
-  await mkdir(paths.root, { recursive: true })
-  await cp(database, paths.database)
+/** Snapshots the database before the swap. */
+async function backupState(config: RunnerConfig, paths: UpdatePaths) {
+  await rm(paths.state, { force: true, recursive: true })
+  await mkdir(paths.state, { recursive: true })
+  await copyState(config.dataDir, paths.state)
 }
 
-async function restoreDatabase(config: RunnerConfig, paths: UpdatePaths) {
-  if (!existsSync(paths.database)) return
-  await cp(paths.database, join(config.dataDir, 'convex.sqlite3'))
+/** Restores the snapshot, backing up the database it replaces. */
+async function restoreState(config: RunnerConfig, paths: UpdatePaths) {
+  if (!existsSync(paths.state)) return
+
+  await rm(paths.replaced, { force: true, recursive: true })
+  await mkdir(paths.replaced, { recursive: true })
+  await copyState(config.dataDir, paths.replaced)
+
+  await copyState(paths.state, config.dataDir)
+}
+
+async function copyState(from: string, to: string) {
+  for (const file of STATE_FILES) {
+    const source = join(from, file)
+    if (existsSync(source)) await cp(source, join(to, file))
+    else await rm(join(to, file), { force: true })
+  }
 }
 
 /** Makes the normal startup path reinstall and rebuild for the new tree. */
@@ -314,10 +336,11 @@ function updatePaths(config: RunnerConfig): UpdatePaths {
   const root = join(config.dataDir, 'update')
   return {
     backup: join(root, 'backup'),
-    database: join(root, 'convex.sqlite3'),
     download: join(root, 'download'),
+    replaced: join(root, 'replaced'),
     root,
     staged: join(root, 'staged'),
+    state: join(root, 'state'),
   }
 }
 

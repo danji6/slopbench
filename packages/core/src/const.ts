@@ -1,3 +1,8 @@
+/** Internal app identifier, never shown to users. */
+export const APP_ID = 'slopbench'
+/** App name shown to the users. */
+export const APP_NAME = 'SlopBench'
+
 export const FALLBACK_DISPLAY_NAME = 'Anonymous'
 
 // Byte budgets for message pagination and streaming splits. Sizes are

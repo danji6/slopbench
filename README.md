@@ -113,7 +113,8 @@ You can also pass the following argument to undo the last update:
 ./start.sh --rollback
 ```
 
-Rolling back also restores the database saved before the update.
+Every update snapshots the database beforehand, and rolling back restores that
+snapshot. The database it replaces is kept in `.data/update/replaced`.
 
 Note: a git clone never updates itself, since that would overwrite potential dev
 work. You'll have to use `git pull` to update if you manually cloned the repo.

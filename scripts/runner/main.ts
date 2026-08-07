@@ -11,6 +11,7 @@ import {
 import {
   deployConvex,
   prepareEnvironment,
+  runMigrations,
   setConvexEnvironment,
   startBackend,
   startConvexDev,
@@ -154,6 +155,7 @@ async function dev(
   )
 
   const convexDev = await startConvexDev(manager, config)
+  await runMigrations(manager, config)
   const vite = await manager.spawn(
     'vite-dev',
     ['bun', 'run', 'dev', ...frontendArgs(config)],
@@ -217,6 +219,7 @@ async function deployToBackend(
 ) {
   const backend = await readyBackend(manager, config, timeoutMs)
   await deployConvex(manager, config)
+  await runMigrations(manager, config)
   return backend
 }
 

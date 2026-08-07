@@ -3,10 +3,13 @@ import {
   type ReleaseInfo,
   parseChecksums,
   parseRelease,
+  releaseName,
   selectArchiveAsset,
   selectChecksumAsset,
 } from '@sb/core/update/source'
 import { describe, expect, test } from 'bun:test'
+
+const stem = releaseName('0.3.0')
 
 const payload = {
   tag_name: 'v0.3.0',
@@ -15,12 +18,12 @@ const payload = {
   html_url: 'https://example.test/releases/v0.3.0',
   assets: [
     {
-      name: 'slopbench-0.3.0.tar.gz',
-      browser_download_url: 'https://example.test/slopbench-0.3.0.tar.gz',
+      name: `${stem}.tar.gz`,
+      browser_download_url: `https://example.test/${stem}.tar.gz`,
     },
     {
-      name: 'slopbench-0.3.0.zip',
-      browser_download_url: 'https://example.test/slopbench-0.3.0.zip',
+      name: `${stem}.zip`,
+      browser_download_url: `https://example.test/${stem}.zip`,
     },
     { name: 'checksums.txt', browser_download_url: 'https://example.test/checksums.txt' }, // prettier-ignore
   ],
@@ -59,9 +62,9 @@ describe('asset selection', () => {
   // Matched by extension rather than by filename, so renaming the project
   // cannot strand installs that only know the old name.
   test('picks the archive each platform can extract', () => {
-    expect(selectArchiveAsset(release, 'win32')?.name).toBe('slopbench-0.3.0.zip') // prettier-ignore
-    expect(selectArchiveAsset(release, 'linux')?.name).toBe('slopbench-0.3.0.tar.gz') // prettier-ignore
-    expect(selectArchiveAsset(release, 'darwin')?.name).toBe('slopbench-0.3.0.tar.gz') // prettier-ignore
+    expect(selectArchiveAsset(release, 'win32')?.name).toBe(`${stem}.zip`) // prettier-ignore
+    expect(selectArchiveAsset(release, 'linux')?.name).toBe(`${stem}.tar.gz`) // prettier-ignore
+    expect(selectArchiveAsset(release, 'darwin')?.name).toBe(`${stem}.tar.gz`) // prettier-ignore
   })
 
   test('finds the checksum listing', () => {
@@ -79,11 +82,11 @@ describe('parseChecksums', () => {
   test('reads a sha256sum listing', () => {
     const digest = 'a'.repeat(64)
     const entries = parseChecksums(
-      `${digest}  slopbench-0.3.0.tar.gz\n${'b'.repeat(64)} *slopbench-0.3.0.zip\n\n`,
+      `${digest}  ${stem}.tar.gz\n${'b'.repeat(64)} *${stem}.zip\n\n`,
     )
 
-    expect(entries.get('slopbench-0.3.0.tar.gz')).toBe(digest)
-    expect(entries.get('slopbench-0.3.0.zip')).toBe('b'.repeat(64))
+    expect(entries.get(`${stem}.tar.gz`)).toBe(digest)
+    expect(entries.get(`${stem}.zip`)).toBe('b'.repeat(64))
     expect(entries.size).toBe(2)
   })
 

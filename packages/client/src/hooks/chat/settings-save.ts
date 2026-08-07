@@ -41,7 +41,9 @@ export function useSettingsSave<T extends FieldValues>(
 
   return {
     saving,
-    apply: (event) => form.handleSubmit(run)(event),
+    apply: async (event) => {
+      await form.handleSubmit(run)(event)
+    },
     save: (event) =>
       form.handleSubmit(async (values) => {
         if (await run(values)) close()

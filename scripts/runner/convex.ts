@@ -143,6 +143,34 @@ export async function deployConvex(
   )
 }
 
+/** Runs db migrations for the current release. */
+export async function runMigrations(
+  manager: ProcessManager,
+  config: RunnerConfig,
+) {
+  await manager.run(
+    'convex-migrate',
+    bunx(
+      'convex',
+      'run',
+      'migrations:_applyRelease',
+      '--typecheck',
+      'disable',
+      '--codegen',
+      'disable',
+    ),
+    {
+      cwd: config.convexRoot,
+      // `run` has no --url/--admin-key, and the configured self-hosted URL may
+      // be a public origin behind a proxy. Point it at the local backend.
+      env: {
+        CONVEX_SELF_HOSTED_ADMIN_KEY: config.convexSelfHostedAdminKey ?? '',
+        CONVEX_SELF_HOSTED_URL: config.convexInternalUrl,
+      },
+    },
+  )
+}
+
 export async function startConvexDev(
   manager: ProcessManager,
   config: RunnerConfig,

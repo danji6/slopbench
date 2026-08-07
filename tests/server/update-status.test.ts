@@ -1,4 +1,5 @@
 /// <reference types="bun-types" />
+import { APP_ID } from '@sb/core/const'
 import { readInstall } from '@sb/sidecar/update/status'
 import { afterEach, describe, expect, test } from 'bun:test'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
@@ -16,7 +17,7 @@ async function createRoot(files: {
   packageJson?: string
   release?: string
 }) {
-  const root = await mkdtemp(join(tmpdir(), 'slopbench-install-'))
+  const root = await mkdtemp(join(tmpdir(), `${APP_ID}-install-`))
   roots.push(root)
 
   if (files.packageJson) {
