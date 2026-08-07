@@ -132,6 +132,11 @@ function withColorEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   }
 }
 
+/** The Bun the bootstrap picked. Use this instead of calling Bun directly. */
+export function bun(...args: string[]): string[] {
+  return [process.execPath, ...args]
+}
+
 export function bunx(...args: string[]): string[] {
   return [process.execPath, 'x', ...args]
 }

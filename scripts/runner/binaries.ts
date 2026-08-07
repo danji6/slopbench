@@ -1,5 +1,13 @@
 import { existsSync } from 'node:fs'
-import { chmod, cp, mkdir, readdir, rm, writeFile } from 'node:fs/promises'
+import {
+  chmod,
+  cp,
+  mkdir,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 import { extractTar, extractZip } from './archive'
@@ -9,14 +17,52 @@ import { output } from './processes'
 export async function ensureConvexBinaries(config: RunnerConfig) {
   await mkdir(config.binDir, { recursive: true })
 
+  await ensureNode(config)
+  prependPath(dirname(config.nodeBinary))
+  await ensureConvex(config)
+}
+
+function assertProvided(path: string, variable: string) {
+  if (!existsSync(path)) {
+    throw new Error(`${variable} points at a missing file: ${path}`)
+  }
+}
+
+async function ensureNode(config: RunnerConfig) {
+  if (!config.manageNodeBinary) {
+    assertProvided(config.nodeBinary, 'NODE_BINARY')
+    return
+  }
   if (!(await hasPinnedNode(config))) {
     await downloadNode(config)
   }
+}
 
-  prependPath(dirname(config.nodeBinary))
-
-  if (!existsSync(config.convexBinary)) {
+async function ensureConvex(config: RunnerConfig) {
+  if (!config.manageConvexBinary) {
+    assertProvided(config.convexBinary, 'CONVEX_BINARY')
+    return
+  }
+  if (!(await hasPinnedConvex(config))) {
     await downloadBinary(config)
+  }
+}
+
+/**
+ * A tag added beside the binary to keep track of its version. Needed because
+ * we can't tell from the binary itself.
+ */
+function convexVersion(config: RunnerConfig) {
+  return `${config.convexBinary}.version`
+}
+
+async function hasPinnedConvex(config: RunnerConfig) {
+  if (!existsSync(config.convexBinary)) return false
+  try {
+    const tag = await readFile(convexVersion(config), 'utf8')
+    return tag.trim() === config.releaseTag
+  } catch {
+    return false
   }
 }
 
@@ -69,7 +115,7 @@ async function downloadNode(config: RunnerConfig) {
 
 async function downloadBinary(config: RunnerConfig) {
   const asset = 'convex-local-backend'
-  const tag = config.releaseTag ?? (await latestReleaseTag())
+  const tag = config.releaseTag
   const triple = platformTriple()
   const zipName = `${asset}-${triple}.zip`
   const url = `https://github.com/get-convex/convex-backend/releases/download/${tag}/${zipName}`
@@ -93,6 +139,7 @@ async function downloadBinary(config: RunnerConfig) {
   if (process.platform !== 'win32') {
     await chmod(destination, 0o755)
   }
+  await writeFile(convexVersion(config), `${tag}\n`)
   await rm(tmp, { force: true, recursive: true })
 
   console.log(`Saved to ${destination}`)
@@ -111,21 +158,6 @@ function nodeInstallDir(nodeBinary: string) {
   return process.platform === 'win32'
     ? dirname(nodeBinary)
     : dirname(dirname(nodeBinary))
-}
-
-async function latestReleaseTag() {
-  const response = await fetch(
-    'https://api.github.com/repos/get-convex/convex-backend/releases/latest',
-  )
-  if (!response.ok) {
-    throw new Error(`Failed to fetch latest Convex release: ${response.status}`)
-  }
-
-  const body = (await response.json()) as { tag_name?: string }
-  if (!body.tag_name) {
-    throw new Error('Latest Convex release response did not include tag_name')
-  }
-  return body.tag_name
 }
 
 function extractNodeArchive(

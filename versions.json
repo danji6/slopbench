@@ -1,0 +1,6 @@
+{
+  "bun": "1.3.14",
+  "bunMinimum": "1.2.0",
+  "convexBackend": "precompiled-2026-08-05-38abb46",
+  "node": "24.16.0"
+}

@@ -1,6 +1,15 @@
+import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 export type RunnerMode = 'dev' | 'start'
+
+/** Binary versions a release runs on. The bootstrap scripts read the same file. */
+export type PinnedVersions = {
+  bun: string
+  bunMinimum: string
+  convexBackend: string
+  node: string
+}
 
 export type RunnerOptions = {
   trustAny: boolean
@@ -48,11 +57,15 @@ export type RunnerConfig = {
   frontendUrl: string
   instanceSecret?: string
   logDir: string
+  /** False when the user pointed the runner at their own Convex binary. */
+  manageConvexBinary: boolean
+  /** False when the user pointed the runner at their own Node binary. */
+  manageNodeBinary: boolean
   mode: RunnerMode
   nodeBinary: string
   nodeVersion: string
   projectRoot: string
-  releaseTag?: string
+  releaseTag: string
   rustLog: string
   sidecarRoot: string
   sidecarDataDir: string
@@ -63,6 +76,16 @@ export const projectRoot = resolve(import.meta.dir, '../..')
 export const dataDir = resolve(projectRoot, process.env.CHAT_DATA_DIR ?? '.data') // prettier-ignore
 export const sidecarDataDir = resolve(dataDir, '.sidecar')
 export const defaultEnvFile = resolve(projectRoot, '.env.local')
+
+/** Reads the pins from disk. An update swaps the file, so callers that run
+ * after one must re-read rather than use {@link versions}. */
+export function readVersions(root: string = projectRoot): PinnedVersions {
+  return JSON.parse(
+    readFileSync(resolve(root, 'versions.json'), 'utf8'),
+  ) as PinnedVersions
+}
+
+export const versions = readVersions()
 
 export function parseRunnerOptions(args: string[]): RunnerOptions {
   const mode = args.find((arg) => arg === 'dev' || arg === 'start') ?? 'dev'
@@ -155,11 +178,13 @@ export function getConfig(mode: RunnerMode): RunnerConfig {
     frontendUrl,
     instanceSecret: process.env.INSTANCE_SECRET,
     logDir: resolve(dataDir, 'logs'),
+    manageConvexBinary: !process.env.CONVEX_BINARY,
+    manageNodeBinary: !process.env.NODE_BINARY,
     mode,
     nodeBinary: process.env.NODE_BINARY ?? defaultNodeBinary(binDir),
-    nodeVersion: process.env.RUNNER_NODE_VERSION ?? '24.16.0',
+    nodeVersion: process.env.RUNNER_NODE_VERSION ?? versions.node,
     projectRoot,
-    releaseTag: process.env.RELEASE_TAG,
+    releaseTag: process.env.RELEASE_TAG ?? versions.convexBackend,
     rustLog:
       process.env.RUST_LOG ??
       (mode === 'start'

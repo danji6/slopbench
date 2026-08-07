@@ -11,9 +11,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Keeps CI on the same Bun a release runs on
+      - name: Read the pinned Bun version
+        id: pins
+        run: echo "bun=$(jq -r .bun versions.json)" >> "$GITHUB_OUTPUT"
+
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: ${{ steps.pins.outputs.bun }}
 
       - run: bun install --frozen-lockfile
       - run: bun run lint

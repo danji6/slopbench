@@ -9,7 +9,7 @@ import {
   writeCacheState,
 } from './cache'
 import type { RunnerConfig } from './config'
-import type { ProcessManager } from './processes'
+import { type ProcessManager, bun } from './processes'
 
 const cacheVersion = 1
 
@@ -49,16 +49,14 @@ export async function ensureDependencies(
 }
 
 async function install(manager: ProcessManager, config: RunnerConfig) {
-  const bun = process.execPath
-
   try {
     // `--frozen-lockfile` to prevent side effects
-    await manager.run('bun-install', [bun, 'install', '--frozen-lockfile'], {
+    await manager.run('bun-install', bun('install', '--frozen-lockfile'), {
       cwd: config.projectRoot,
     })
   } catch {
     console.log('Lockfile does not match the manifests; resolving...')
-    await manager.run('bun-install', [bun, 'install'], {
+    await manager.run('bun-install', bun('install'), {
       cwd: config.projectRoot,
     })
   }

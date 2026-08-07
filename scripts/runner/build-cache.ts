@@ -8,7 +8,7 @@ import {
   writeCacheState,
 } from './cache'
 import type { RunnerConfig } from './config'
-import type { ProcessManager } from './processes'
+import { type ProcessManager, bun } from './processes'
 
 const cacheVersion = 1
 
@@ -81,7 +81,7 @@ export async function buildFrontendIfNeeded(
     return
   }
 
-  await manager.run('frontend-build', ['bun', 'run', 'build'], {
+  await manager.run('frontend-build', bun('run', 'build'), {
     cwd: config.clientRoot,
   })
   await writeCacheState(cachePath, fingerprint, cacheVersion)

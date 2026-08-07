@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-exec bun scripts/runner.ts dev "$@"
+exec bash "$(dirname "$0")/scripts/bootstrap.sh" dev "$@"

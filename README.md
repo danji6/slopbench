@@ -23,10 +23,9 @@ This application aims to give you full control over your models. Some features:
 
 ## Requirements
 
-- [Bun](https://bun.sh/)
+The launcher automatically downloads all the necessary dependencies on first run:
 
-Other requirements are downloaded automatically on launch. These include:
-
+- [Bun](https://bun.sh/) (if missing or too old)
 - [Convex](https://github.com/get-convex/convex-backend)
 - [Node.js (pinned to v24)](https://nodejs.org)
 

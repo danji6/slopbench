@@ -19,7 +19,7 @@ import {
 import { ensureDependencies } from './deps'
 import { loadEnvFile } from './env-file'
 import { freePorts } from './ports'
-import { ProcessManager, output } from './processes'
+import { ProcessManager, bun, output } from './processes'
 import { applyUpdateIfRequested, rollbackUpdate } from './update'
 
 export async function run(args: string[]) {
@@ -76,7 +76,13 @@ export async function run(args: string[]) {
 
   try {
     if (options.rollback) await rollbackUpdate(config)
-    await applyUpdateIfRequested(config, { enabled: options.update })
+
+    const update = await applyUpdateIfRequested(config, {
+      enabled: options.update,
+    })
+    // Nothing has been spawned yet
+    if (update === 'relaunch') return
+
     await ensureDependencies(manager, config, { enabled: options.install })
     await ensureConvexBinaries(config)
     await prepareEnvironment(config)
@@ -123,7 +129,7 @@ async function start(
 
   const preview = await manager.spawn(
     'vite-preview',
-    ['bun', 'run', 'preview', ...frontendArgs(config)],
+    bun('run', 'preview', ...frontendArgs(config)),
     { cwd: config.clientRoot },
   )
   await manager.waitForAnyExit([sidecar, backend, preview])
@@ -158,7 +164,7 @@ async function dev(
   await runMigrations(manager, config)
   const vite = await manager.spawn(
     'vite-dev',
-    ['bun', 'run', 'dev', ...frontendArgs(config)],
+    bun('run', 'dev', ...frontendArgs(config)),
     { cwd: config.clientRoot },
   )
 

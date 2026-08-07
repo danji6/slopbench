@@ -7,7 +7,7 @@ import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { getConfig } from '~/scripts/runner/config'
+import { getConfig, versions } from '~/scripts/runner/config'
 import { output } from '~/scripts/runner/processes'
 import { applyUpdateIfRequested, rollbackUpdate } from '~/scripts/runner/update'
 
@@ -48,7 +48,10 @@ async function createInstall() {
 }
 
 /** The archive a release ships: one prefixed directory holding the tree. */
-async function createArchive(version: string) {
+async function createArchive(
+  version: string,
+  bunMinimum = versions.bunMinimum,
+) {
   const name = releaseName(version)
   const staging = join(workspace, 'staging')
   const root = join(staging, name)
@@ -56,6 +59,7 @@ async function createArchive(version: string) {
 
   await writeFile(join(root, 'package.json'), JSON.stringify({ version }))
   await writeFile(join(root, 'release.json'), JSON.stringify({ version }))
+  await writeFile(join(root, 'versions.json'), JSON.stringify({ ...versions, bunMinimum })) // prettier-ignore
   await writeFile(join(root, 'packages/core/new.ts'), 'export const fresh = 1')
 
   const archive = join(workspace, `${name}.tar.gz`)
@@ -63,8 +67,8 @@ async function createArchive(version: string) {
   return { archive, name: `${name}.tar.gz` }
 }
 
-async function serveRelease(version: string) {
-  const { archive, name } = await createArchive(version)
+async function serveRelease(version: string, bunMinimum?: string) {
+  const { archive, name } = await createArchive(version, bunMinimum)
   const bytes = await readFile(archive)
   const digest = createHash('sha256').update(bytes).digest('hex')
 
@@ -117,8 +121,11 @@ describe('applyUpdateIfRequested', () => {
     await serveRelease(NEXT)
     process.env.AUTO_UPDATE = 'true'
 
-    await applyUpdateIfRequested(installConfig(), { enabled: true })
+    const outcome = await applyUpdateIfRequested(installConfig(), {
+      enabled: true,
+    })
 
+    expect(outcome).toBe('continue')
     const manifest = JSON.parse(
       await readFile(join(install, 'package.json'), 'utf8'),
     ) as { version: string }
@@ -166,6 +173,34 @@ describe('applyUpdateIfRequested', () => {
     expect(existsSync(join(install, 'packages/core/new.ts'))).toBe(false)
     expect(await readFile(join(install, '.data/convex.sqlite3'), 'utf8')).toBe('database') // prettier-ignore
     expect(await readFile(join(install, '.data/update/replaced/convex.sqlite3'), 'utf8')).toBe('migrated') // prettier-ignore
+  })
+
+  // A process cannot swap its own interpreter, so the swapped tree is left in
+  // place and the bootstrap is given the next launch to install the new floor.
+  test('asks for a relaunch when the new tree needs a newer Bun', async () => {
+    await createInstall()
+    await serveRelease(NEXT, '99.0.0')
+    process.env.AUTO_UPDATE = 'true'
+
+    const outcome = await applyUpdateIfRequested(installConfig(), {
+      enabled: true,
+    })
+
+    expect(outcome).toBe('relaunch')
+    expect(existsSync(join(install, 'packages/core/new.ts'))).toBe(true)
+  })
+
+  // The floor is read from the tree that just landed, not the one that ran.
+  test('carries on when the new tree keeps the current floor', async () => {
+    await createInstall()
+    await serveRelease(NEXT, '0.1.0')
+    process.env.AUTO_UPDATE = 'true'
+
+    const outcome = await applyUpdateIfRequested(installConfig(), {
+      enabled: true,
+    })
+
+    expect(outcome).toBe('continue')
   })
 
   test('does nothing when the release is not newer', async () => {

@@ -1,12 +1,5 @@
 @echo off
-setlocal
-cd /d "%~dp0"
-
-where bun >nul 2>nul
-if errorlevel 1 (
-  echo bun was not found on PATH. Install it from https://bun.sh and retry.
-  exit /b 1
-)
-
-bun scripts\runner.ts start %*
-exit /b %ERRORLEVEL%
+setlocal enabledelayedexpansion
+rem The call and the exit share one line on purpose: cmd resumes reading this
+rem file by byte offset, and a self-update rewrites it while it runs.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0start.ps1" %* & exit /b !ERRORLEVEL!

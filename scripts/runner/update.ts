@@ -27,8 +27,12 @@ import { createInterface } from 'node:readline/promises'
 
 import { extractArchive } from './archive'
 import { invalidateFrontendBuild } from './build-cache'
+import { bunShortfall } from './bun-pin'
 import type { RunnerConfig } from './config'
 import { invalidateDependencies } from './deps'
+
+/** Whether startup can continue or needs a restart. */
+export type UpdateOutcome = 'continue' | 'relaunch'
 
 /** Entries a swap must never touch. */
 const PROTECTED_ENTRIES = new Set([
@@ -74,29 +78,43 @@ export async function readInstall(config: RunnerConfig): Promise<InstallInfo> {
 export async function applyUpdateIfRequested(
   config: RunnerConfig,
   options: { enabled: boolean },
-) {
-  if (!options.enabled || config.mode !== 'start') return
+): Promise<UpdateOutcome> {
+  if (!options.enabled || config.mode !== 'start') return 'continue'
 
   const install = await readInstall(config)
   if (!install.updatable) {
     await reportBlockedUpdate(install)
-    return
+    return 'continue'
   }
 
   const release = await fetchLatestRelease()
-  if (!release || !isNewer(install.version, release.version)) return
+  if (!release || !isNewer(install.version, release.version)) return 'continue'
 
-  if (!(await confirmUpdate(install, release))) return
+  if (!(await confirmUpdate(install, release))) return 'continue'
 
   try {
     await applyRelease(config, release)
     console.log(`Updated to v${release.version}.`)
+    return reportRequiredBun(config, release.version) ? 'relaunch' : 'continue'
   } catch (error) {
     console.error(
       `Update to v${release.version} failed: ${message(error)}\n` +
         `Continuing on v${install.version}.`,
     )
+    return 'continue'
   }
+}
+
+/** Reports whether a newer Bun is required to continue. */
+function reportRequiredBun(config: RunnerConfig, version: string) {
+  const shortfall = bunShortfall(config)
+  if (!shortfall) return false
+
+  console.log(
+    `v${version} needs Bun ${shortfall.minimum}, and this launch is on ` +
+      `${shortfall.running}. Start it again to finish updating.`,
+  )
+  return true
 }
 
 /** Restores the tree and database saved by the last successful update. */
