@@ -7,6 +7,7 @@ import { StarterKit } from '@tiptap/starter-kit'
 import { describe, expect, test } from 'bun:test'
 
 import { setupDom } from '../setup/dom'
+import { waitFor } from '../setup/wait'
 
 setupDom()
 
@@ -76,12 +77,14 @@ describe('shell highlight', () => {
 
   test('colors the command with bash tokens', async () => {
     const e = editorWith('$ echo "hi"')
-    await new Promise((r) => setTimeout(r, 400)) // let the async highlighter settle
+    await waitFor('bash token colors', () =>
+      hasColor(decorationSet(e.state), 3),
+    )
 
     expect(hasColor(decorationSet(e.state), 3)).toBe(true)
 
     e.destroy()
-  })
+  }, 20_000)
 
   test('leaves ordinary text alone', () => {
     const e = editorWith('costs $ 5 to run')

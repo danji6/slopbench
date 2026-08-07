@@ -7,6 +7,7 @@ import { StarterKit } from '@tiptap/starter-kit'
 import { describe, expect, test } from 'bun:test'
 
 import { setupDom } from '../setup/dom'
+import { waitFor } from '../setup/wait'
 
 setupDom()
 
@@ -26,6 +27,15 @@ function decorationSet(state: Editor['state']): DecorationSet | null {
     }
   }
   return null
+}
+
+/** Whether the async Shiki color layer has landed anywhere in the set. */
+function hasColors(set: DecorationSet | null): boolean {
+  return !!set?.find().some((d) => {
+    const style = (d as unknown as { type: { attrs?: { style?: string } } })
+      .type.attrs?.style
+    return String(style).includes('color:')
+  })
 }
 
 /** Whether a monospace (`interp`) decoration covers `pos`. */
@@ -63,7 +73,9 @@ describe('interpreter highlight', () => {
         ],
       } as never,
     })
-    await new Promise((r) => setTimeout(r, 400)) // let the async highlighter settle
+    await waitFor('the async color layer', () =>
+      hasColors(decorationSet(e.state)),
+    )
 
     const bodyStart = 7 // para open (0) + "#eval" (1-5) + hardBreak (6) → body at 7
     expect(isMono(decorationSet(e.state), bodyStart)).toBe(true)
@@ -75,5 +87,5 @@ describe('interpreter highlight', () => {
     expect(isMono(mapped, bodyStart + 1)).toBe(true)
 
     e.destroy()
-  })
+  }, 20_000)
 })
