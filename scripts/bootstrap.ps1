@@ -98,7 +98,29 @@ function Resolve-Bun {
   return $bundled
 }
 
-$bun = Resolve-Bun
+# Waits for a keypress. Skipped when stdin is redirected (CI, pipes) or NO_PAUSE is set.
+function Wait-BeforeExit([int]$Status) {
+  if ($env:NO_PAUSE -or [Console]::IsInputRedirected) { return }
 
-& $bun scripts/runner.ts $Mode @RunnerArgs
-exit $LASTEXITCODE
+  Write-Host ''
+  if ($Status -eq 0) {
+    Write-Host 'Finished. Press Enter to close.'
+  } else {
+    Write-Host "Exited with status $Status. Press Enter to close."
+  }
+  Read-Host | Out-Null
+}
+
+$status = 0
+try {
+  $bun = Resolve-Bun
+  & $bun scripts/runner.ts $Mode @RunnerArgs
+  $status = $LASTEXITCODE
+} catch {
+  Write-Host $_.Exception.Message -ForegroundColor Red
+  $status = 1
+} finally {
+  Wait-BeforeExit $status
+}
+
+exit $status

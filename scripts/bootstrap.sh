@@ -5,6 +5,26 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
+# Waits for a keypress. Skipped when stdin is redirected (CI, pipes) or NO_PAUSE is set.
+pause_before_exit() {
+  local status=$?
+
+  if [ -n "${NO_PAUSE:-}" ] || [ ! -t 0 ]; then
+    return 0
+  fi
+
+  echo
+  if [ "$status" -eq 0 ]; then
+    echo 'Finished. Press Enter to close.'
+  else
+    echo "Exited with status $status. Press Enter to close."
+  fi
+  read -r _ || true
+  return 0
+}
+
+trap pause_before_exit EXIT
+
 die() {
   echo "$*" >&2
   exit 1
@@ -177,4 +197,7 @@ esac
 
 bun="${BUN_BINARY:-$(resolve_bun)}"
 
-exec "$bun" scripts/runner.ts "$mode" "$@"
+status=0
+# Deliberately not exec to keep the EXIT trap
+"$bun" scripts/runner.ts "$mode" "$@" || status=$?
+exit "$status"
