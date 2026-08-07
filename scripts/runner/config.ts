@@ -7,8 +7,11 @@ export type RunnerOptions = {
   exposeUrl?: string
   filterLogs: boolean
   forceBuild: boolean
+  install: boolean
   killPorts: boolean
   mode: RunnerMode
+  rollback: boolean
+  update: boolean
 }
 
 export type BrowserOrigins = {
@@ -68,8 +71,12 @@ export function parseRunnerOptions(args: string[]): RunnerOptions {
     ...parseExpose(args),
     filterLogs: !args.includes('--log-filters=off'),
     forceBuild: args.includes('--rebuild'),
+    install: !args.includes('--no-install'),
     killPorts: !args.includes('--no-kill-ports'),
     mode,
+    rollback: args.includes('--rollback'),
+    update:
+      !args.includes('--no-update') && process.env.AUTO_UPDATE !== 'false',
   }
 }
 

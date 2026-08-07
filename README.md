@@ -3,6 +3,8 @@
 A self-hosted, collaborative AI workspace for agentic work, creative writing and
 general AI use.
 
+[![Download the latest release](https://img.shields.io/github/v/release/danji6/slopbench?style=for-the-badge&label=Download&labelColor=%231f6feb&color=%23238636)](https://github.com/danji6/slopbench/releases/latest)
+
 ## Disclaimer
 
 This application is still in early development, lacks some features and may
@@ -28,27 +30,17 @@ Other requirements are downloaded automatically on launch. These include:
 - [Convex](https://github.com/get-convex/convex-backend)
 - [Node.js (pinned to v24)](https://nodejs.org)
 
-## Run locally
+## Download
 
-Install dependencies:
-
-```sh
-bun install
-```
-
-Start the app:
+Grab the latest release, unzip it, and start it:
 
 ```sh
 ./start.sh
 ```
 
-On Windows:
+On Windows, `.\start.ps1` or `.\start.bat`.
 
-```powershell
-.\start.ps1
-```
-
-Open:
+Dependencies are automatically installed on first launch. Then open:
 
 ```text
 http://localhost:4173
@@ -104,6 +96,27 @@ instance if you want to give your models access to the internet, see
 ### Maintenance
 
 Run `bun run prune` if your `.data` folder ever grows too large.
+
+## Updating
+
+A downloaded release will automatically update itself (after confirmation).
+You can set an environment variable to control this behavior:
+
+```sh
+AUTO_UPDATE=true    # install newer releases without asking
+AUTO_UPDATE=false   # never check
+```
+
+You can also pass the following argument to undo the last update:
+
+```sh
+./start.sh --rollback
+```
+
+Rolling back also restores the database saved before the update.
+
+Note: a git clone never updates itself, since that would overwrite potential dev
+work. You'll have to use `git pull` to update if you manually cloned the repo.
 
 ## Development
 

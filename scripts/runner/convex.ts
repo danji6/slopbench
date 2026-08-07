@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { type RunnerConfig, browserOrigins } from './config'
 import { loadEnvFile, readEnvFile, updateEnvFile } from './env-file'
-import { type ProcessManager, bunx, output } from './processes'
+import { type ProcessManager, bunx, green, output } from './processes'
 
 // The backend gets these from --convex-origin and --convex-site
 const builtInEnvVars = new Set(['CONVEX_CLOUD_URL', 'CONVEX_SITE_URL'])
@@ -98,41 +98,29 @@ export async function startBackend(
   )
 }
 
-export async function setConvexEnvironment(
-  manager: ProcessManager,
-  config: RunnerConfig,
-) {
-  if (!config.convexSelfHostedAdminKey || !config.betterAuthSecret) {
+export async function setConvexEnvironment(config: RunnerConfig) {
+  if (!config.betterAuthSecret) {
     throw new Error('Convex credentials were not prepared')
   }
 
   const origins = browserOrigins(config)
   const env = await readEnvFile(config.envFile)
-  for (const key of Object.keys(env)) {
-    if (builtInEnvVars.has(key)) continue
-    await convexEnv(manager, config, key, process.env[key] ?? env[key])
-  }
+  const values = new Map<string, string>()
 
-  await convexEnv(
-    manager,
-    config,
-    'BETTER_AUTH_SECRET',
-    config.betterAuthSecret,
-  )
-  await convexEnv(manager, config, 'SITE_URL', origins.siteUrl)
-  await convexEnv(manager, config, 'FRONTEND_URL', origins.frontendUrl)
-  await convexEnv(
-    manager,
-    config,
-    'TRUST_ALL_ORIGINS',
-    config.trustAny ? 'true' : 'false',
-  )
-  await convexEnv(
-    manager,
-    config,
-    'SIDECAR_URL',
-    `http://localhost:${config.sidecarPort}`,
-  )
+  for (const [key, value] of Object.entries(env)) {
+    if (builtInEnvVars.has(key)) continue
+    values.set(key, process.env[key] ?? value)
+  }
+  values.set('BETTER_AUTH_SECRET', config.betterAuthSecret)
+  values.set('SITE_URL', origins.siteUrl)
+  values.set('FRONTEND_URL', origins.frontendUrl)
+  values.set('TRUST_ALL_ORIGINS', config.trustAny ? 'true' : 'false')
+  values.set('SIDECAR_URL', `http://localhost:${config.sidecarPort}`)
+
+  const changes = [...values].map(([name, value]) => ({ name, value }))
+  await convexEnv(config, changes)
+  for (const [name, _] of values)
+    console.log(`${green('✔')} Successfully set ${name}`)
 }
 
 export async function deployConvex(
@@ -176,24 +164,25 @@ export async function startConvexDev(
 }
 
 async function convexEnv(
-  manager: ProcessManager,
   config: RunnerConfig,
-  key: string,
-  value: string,
+  changes: { name: string; value: string }[],
 ) {
-  await manager.run(
-    'convex-env',
-    bunx(
-      'convex',
-      'env',
-      'set',
-      '--url',
-      config.convexInternalUrl,
-      '--admin-key',
-      config.convexSelfHostedAdminKey ?? '',
-      key,
-      value,
-    ),
-    { cwd: config.convexRoot },
+  const response = await fetch(
+    `${config.convexInternalUrl}/api/update_environment_variables`,
+    {
+      body: JSON.stringify({ changes }),
+      headers: {
+        Authorization: `Convex ${config.convexSelfHostedAdminKey ?? ''}`,
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    },
   )
+
+  if (!response.ok) {
+    const details = (await response.text()).trim()
+    throw new Error(
+      `Failed to set Convex environment variables (${response.status}): ${details}`,
+    )
+  }
 }

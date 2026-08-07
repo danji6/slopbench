@@ -17,10 +17,12 @@ The `package.json` contains most scripts you will need, including running tests.
 
 ## Scripts
 
-- `bun lint` - Run eslint linting
-- `bun typecheck` - Run TypeScript type checking
-- `bun format` - Run prettier formatting
-- `bun barrels` - Run barrelsby to generate index files for new components
+- `bun lint` - ESLint linting
+- `bun typecheck` - TypeScript type checking
+- `bun format` - Prettier formatting
+- `bun barrels` - Generate index files for new components
+- `bun test` - Verify your changes
+- `bun codegen` - Skip this; the server runs on hot reload
 
 ## Coding Principles
 

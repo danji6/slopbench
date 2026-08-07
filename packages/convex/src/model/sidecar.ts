@@ -19,6 +19,17 @@ export async function postSidecar<T>(path: string, body: unknown): Promise<T> {
   return (await response.json()) as T
 }
 
+export async function getSidecar<T>(path: string): Promise<T> {
+  const response = await fetch(`${SIDECAR_URL}${path}`)
+
+  if (!response.ok) {
+    const message = await response.text()
+    error(`Local server request failed: ${message}`, 500)
+  }
+
+  return (await response.json()) as T
+}
+
 let defaultShell: string | undefined
 
 /** The shell the sidecar falls back to when nothing is configured. */

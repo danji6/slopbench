@@ -10,6 +10,8 @@
     "build": "tsc --noEmit && bun run --cwd packages/client build",
     "dev": "bun run --cwd packages/client dev",
     "preview": "bun run --cwd packages/client preview",
+    "codegen": "bun scripts/codegen.ts",
+    "package": "bun scripts/package.ts",
     "runner": "bun scripts/runner.ts",
     "runner:dev": "bun scripts/runner.ts dev",
     "runner:start": "bun scripts/runner.ts start",

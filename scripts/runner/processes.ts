@@ -111,8 +111,16 @@ function killWindowsTree(pid: number) {
   })
 }
 
+export function supportsColor(env: NodeJS.ProcessEnv = process.env): boolean {
+  return Boolean(process.stdout.isTTY) && !env.NO_COLOR
+}
+
+export function green(text: string): string {
+  return supportsColor() ? `\x1b[32m${text}\x1b[0m` : text
+}
+
 function withColorEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  if (!process.stdout.isTTY || env.NO_COLOR) return env
+  if (!supportsColor(env)) return env
 
   return {
     ...env,

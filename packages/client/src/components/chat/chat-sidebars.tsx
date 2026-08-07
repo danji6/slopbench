@@ -26,6 +26,7 @@ import {
   SessionListView,
   SessionPanel,
 } from './sessions'
+import { UpdateButton } from './update-button'
 
 type ChatSidebarProps = SidebarShellProps
 
@@ -87,6 +88,7 @@ function LeftSidebar() {
             </QuickTooltip>
           </Sidebar.Header>
           <Sidebar.Footer className="items-center">
+            <UpdateButton collapsed />
             <QuickTooltip text="Manage Agents" side="right">
               <ManageAgentsButton collapsed />
             </QuickTooltip>
@@ -109,6 +111,7 @@ function LeftSidebar() {
             </SessionStoreProvider>
           </Sidebar.Content>
           <Sidebar.Footer>
+            <UpdateButton />
             <ManageAgentsButton />
             <ChatSettingsButton />
           </Sidebar.Footer>

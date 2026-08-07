@@ -15,9 +15,11 @@ import {
   startBackend,
   startConvexDev,
 } from './convex'
+import { ensureDependencies } from './deps'
 import { loadEnvFile } from './env-file'
 import { freePorts } from './ports'
 import { ProcessManager, output } from './processes'
+import { applyUpdateIfRequested, rollbackUpdate } from './update'
 
 export async function run(args: string[]) {
   if (args.includes('--help') || args.includes('-h')) {
@@ -72,6 +74,9 @@ export async function run(args: string[]) {
   })
 
   try {
+    if (options.rollback) await rollbackUpdate(config)
+    await applyUpdateIfRequested(config, { enabled: options.update })
+    await ensureDependencies(manager, config, { enabled: options.install })
     await ensureConvexBinaries(config)
     await prepareEnvironment(config)
 
@@ -108,17 +113,11 @@ async function start(
     },
   )
 
-  const sidecar = await startSidecar(manager, config)
-  await waitForHttp(`http://localhost:${config.sidecarPort}/mcp`, 30_000, false)
-  console.log('Sidecar server ready.')
+  const [sidecar, backend] = await parallel(
+    readySidecar(manager, config, 30_000),
+    deployToBackend(manager, config, 30_000),
+  )
 
-  const backend = await startBackend(manager, config)
-  console.log(`Started Convex backend (pid ${backend.pid})`)
-  await waitForHttp(`${config.convexInternalUrl}/version`, 30_000, true)
-  console.log('Backend ready.')
-
-  await setConvexEnvironment(manager, config)
-  await deployConvex(manager, config)
   await buildFrontendIfNeeded(manager, config, { force: options.forceBuild })
 
   const preview = await manager.spawn(
@@ -147,19 +146,12 @@ async function dev(
       enabled: killPorts,
     },
   )
-  await cleanupDocker(config)
 
-  const sidecar = await startSidecar(manager, config)
-  await waitForHttp(`http://localhost:${config.sidecarPort}/mcp`, 60_000, false)
-  console.log('Sidecar server ready.')
-
-  const backend = await startBackend(manager, config)
-  console.log(`Started Convex backend (pid ${backend.pid})`)
-  await waitForHttp(`${config.convexInternalUrl}/version`, 60_000, true)
-  console.log('Backend ready.')
-
-  await startDashboard(manager, config)
-  await setConvexEnvironment(manager, config)
+  const [sidecar, backend] = await parallel(
+    readySidecar(manager, config, 60_000),
+    readyBackend(manager, config, 60_000),
+    restartDashboard(manager, config),
+  )
 
   const convexDev = await startConvexDev(manager, config)
   const vite = await manager.spawn(
@@ -180,6 +172,57 @@ function frontendArgs(config: RunnerConfig) {
     String(config.frontendPort),
     '--strictPort',
   ]
+}
+
+function parallel<T extends readonly Promise<unknown>[]>(...tasks: T) {
+  for (const task of tasks) {
+    void task.catch(() => {})
+  }
+  return Promise.all(tasks)
+}
+
+async function readySidecar(
+  manager: ProcessManager,
+  config: RunnerConfig,
+  timeoutMs: number,
+) {
+  const sidecar = await startSidecar(manager, config)
+  await waitForHttp(
+    `http://localhost:${config.sidecarPort}/mcp`,
+    timeoutMs,
+    false,
+  )
+  console.log('Sidecar server ready.')
+  return sidecar
+}
+
+async function readyBackend(
+  manager: ProcessManager,
+  config: RunnerConfig,
+  timeoutMs: number,
+) {
+  const backend = await startBackend(manager, config)
+  console.log(`Started Convex backend (pid ${backend.pid})`)
+  await waitForHttp(`${config.convexInternalUrl}/version`, timeoutMs, true)
+  console.log('Backend ready.')
+
+  await setConvexEnvironment(config)
+  return backend
+}
+
+async function deployToBackend(
+  manager: ProcessManager,
+  config: RunnerConfig,
+  timeoutMs: number,
+) {
+  const backend = await readyBackend(manager, config, timeoutMs)
+  await deployConvex(manager, config)
+  return backend
+}
+
+async function restartDashboard(manager: ProcessManager, config: RunnerConfig) {
+  await cleanupDocker(config)
+  await startDashboard(manager, config)
 }
 
 async function startSidecar(manager: ProcessManager, config: RunnerConfig) {
@@ -254,7 +297,11 @@ async function cleanupDocker(config: RunnerConfig) {
   await process.exited
 }
 
-async function waitForHttp(url: string, timeoutMs: number, requireOk: boolean) {
+export async function waitForHttp(
+  url: string,
+  timeoutMs: number,
+  requireOk: boolean,
+) {
   const startedAt = Date.now()
   while (Date.now() - startedAt < timeoutMs) {
     try {
@@ -281,6 +328,9 @@ Modes:
 
 Options:
   --rebuild           Force a frontend production build in start mode.
+  --no-install        Skip the automatic dependency install.
+  --no-update         Skip the update check (same as AUTO_UPDATE=false).
+  --rollback          Restore the tree and database saved by the last update.
   --expose[=<origin>] Trust an external frontend origin for auth so a remote
                       browser can sign in. With a value, e.g.
                       --expose=http://203.0.113.5:5173, only that origin is
@@ -288,6 +338,11 @@ Options:
   --log-filters=off   Show all child-process log lines in start mode.
   --no-kill-ports     Do not stop existing processes on required ports.
   -h, --help          Show this help.
+
+Updates (releases only):
+  AUTO_UPDATE=true        Install a newer release without prompting.
+  AUTO_UPDATE=false       Never check for updates.
+  UPDATE_FEED_URL         Release feed to check.
 
 Reverse proxy / HTTPS (see docs/https.md), set in .env.local:
   FRONTEND_URL            Public frontend origin, e.g. https://chat.example.com

@@ -6,7 +6,7 @@ export function Link({ to, ...props }: { to: string } & ButtonProps) {
   return <Button variant="link" render={<WouterLink to={to} />} {...props} />
 }
 
-export function FakeLink({
+export function ExternalLink({
   href = '#',
   className,
   ...props

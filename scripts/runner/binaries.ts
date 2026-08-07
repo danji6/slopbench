@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { chmod, cp, mkdir, readdir, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
+import { extractTar, extractZip } from './archive'
 import { type RunnerConfig, executableName } from './config'
 import { output } from './processes'
 
@@ -127,34 +128,14 @@ async function latestReleaseTag() {
   return body.tag_name
 }
 
-async function extractZip(zipPath: string, destination: string, cwd: string) {
-  if (process.platform === 'win32') {
-    await output(
-      [
-        'powershell',
-        '-NoProfile',
-        '-Command',
-        `Expand-Archive -Force -LiteralPath '${zipPath}' -DestinationPath '${destination}'`,
-      ],
-      { cwd },
-    )
-    return
-  }
-
-  await output(['unzip', '-q', zipPath, '-d', destination], { cwd })
-}
-
-async function extractNodeArchive(
+function extractNodeArchive(
   archivePath: string,
   destination: string,
   cwd: string,
 ) {
-  if (process.platform === 'win32') {
-    await extractZip(archivePath, destination, cwd)
-    return
-  }
-
-  await output(['tar', '-xJf', archivePath, '-C', destination], { cwd })
+  return process.platform === 'win32'
+    ? extractZip(archivePath, destination, cwd)
+    : extractTar(archivePath, destination, cwd)
 }
 
 async function findExtractedBinary(

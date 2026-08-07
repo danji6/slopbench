@@ -1,8 +1,12 @@
-import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
-import { dirname, join, relative } from 'node:path'
+import { join } from 'node:path'
 
+import {
+  createFingerprint,
+  invalidateCache,
+  isCacheFresh,
+  writeCacheState,
+} from './cache'
 import type { RunnerConfig } from './config'
 import type { ProcessManager } from './processes'
 
@@ -50,21 +54,28 @@ const includedExtensions = new Set([
   '.wasm',
 ])
 
+export function frontendCachePath(config: RunnerConfig) {
+  return join(config.dataDir, 'runner/frontend-build.json')
+}
+
+/** Forces a rebuild on the next start, e.g. after applying an update. */
+export function invalidateFrontendBuild(config: RunnerConfig) {
+  return invalidateCache(frontendCachePath(config))
+}
+
 export async function buildFrontendIfNeeded(
   manager: ProcessManager,
   config: RunnerConfig,
   options: { force: boolean },
 ) {
-  const cachePath = join(config.dataDir, 'runner/frontend-build.json')
+  const cachePath = frontendCachePath(config)
   const fingerprint = await createFrontendFingerprint(config)
+  const distIndexPath = join(config.frontendDist, 'index.html')
 
   if (
     !options.force &&
-    (await isBuildFresh(
-      join(config.frontendDist, 'index.html'),
-      cachePath,
-      fingerprint,
-    ))
+    existsSync(distIndexPath) &&
+    (await isCacheFresh(cachePath, fingerprint, cacheVersion))
   ) {
     console.log('Frontend build unchanged; reusing existing client dist/.')
     return
@@ -73,49 +84,21 @@ export async function buildFrontendIfNeeded(
   await manager.run('frontend-build', ['bun', 'run', 'build'], {
     cwd: config.clientRoot,
   })
-  await writeBuildCache(cachePath, fingerprint)
+  await writeCacheState(cachePath, fingerprint, cacheVersion)
 }
 
-async function isBuildFresh(
-  distIndexPath: string,
-  cachePath: string,
-  fingerprint: string,
-) {
-  if (!existsSync(distIndexPath) || !existsSync(cachePath)) return false
-
-  try {
-    const cache = JSON.parse(await readFile(cachePath, 'utf8')) as {
-      fingerprint?: string
-      version?: number
-    }
-    return cache.version === cacheVersion && cache.fingerprint === fingerprint
-  } catch {
-    return false
-  }
-}
-
-async function writeBuildCache(cachePath: string, fingerprint: string) {
-  await mkdir(dirname(cachePath), { recursive: true })
-  await writeFile(
-    cachePath,
-    `${JSON.stringify({ fingerprint, version: cacheVersion }, null, 2)}\n`,
+function createFrontendFingerprint(config: RunnerConfig) {
+  return createFingerprint(
+    config.projectRoot,
+    {
+      directories: inputDirectories,
+      extra: frontendEnvironment(),
+      files: inputFiles,
+      ignoredDirectoryNames,
+      includedExtensions,
+    },
+    cacheVersion,
   )
-}
-
-async function createFrontendFingerprint(config: RunnerConfig) {
-  const hash = createHash('sha256')
-  hash.update(`version:${cacheVersion}\n`)
-  hash.update(JSON.stringify(frontendEnvironment()))
-
-  for (const file of await frontendInputPaths(config.projectRoot)) {
-    const contents = await readFile(file)
-    hash.update(relative(config.projectRoot, file))
-    hash.update('\0')
-    hash.update(contents)
-    hash.update('\0')
-  }
-
-  return hash.digest('hex')
 }
 
 function frontendEnvironment() {
@@ -124,58 +107,4 @@ function frontendEnvironment() {
       .filter(([key]) => key === 'NODE_ENV' || key.startsWith('VITE_'))
       .sort(([left], [right]) => left.localeCompare(right)),
   )
-}
-
-async function frontendInputPaths(root: string) {
-  const paths = new Set<string>()
-
-  for (const file of inputFiles) {
-    const path = join(root, file)
-    if (existsSync(path)) paths.add(path)
-  }
-
-  for (const directory of inputDirectories) {
-    const path = join(root, directory)
-    if (existsSync(path)) {
-      for (const file of await filesInDirectory(path)) {
-        paths.add(file)
-      }
-    }
-  }
-
-  return [...paths].sort()
-}
-
-async function filesInDirectory(directory: string): Promise<string[]> {
-  const entries = await readdir(directory, { withFileTypes: true })
-  const files: string[] = []
-
-  for (const entry of entries) {
-    const path = join(directory, entry.name)
-    if (entry.isDirectory()) {
-      if (!ignoredDirectoryNames.has(entry.name)) {
-        files.push(...(await filesInDirectory(path)))
-      }
-    } else if (entry.isFile() && (await shouldIncludeFile(path))) {
-      files.push(path)
-    }
-  }
-
-  return files
-}
-
-async function shouldIncludeFile(path: string) {
-  if (includedExtensions.has(extension(path))) return true
-
-  const stats = await stat(path)
-  return stats.size > 0 && stats.size < 1024 * 1024
-}
-
-function extension(path: string) {
-  const basename = path.slice(path.lastIndexOf('/') + 1)
-  const dtsSuffix = '.d.ts'
-  if (basename.endsWith(dtsSuffix)) return dtsSuffix
-
-  const index = basename.lastIndexOf('.')
-  return index === -1 ? '' : basename.slice(index)
 }

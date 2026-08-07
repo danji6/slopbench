@@ -40,6 +40,7 @@ import {
   restoreLatestCheckpoint,
 } from './mcp/workspace'
 import { shellRoutes } from './shell/routes'
+import { updateStatus } from './update/status'
 
 const PORT = Number(process.env.MCP_PORT ?? 3212)
 
@@ -137,6 +138,14 @@ app.post('/eval/message', async (c) => {
       environment: store.toRecord(),
       dirty: store.isDirty(),
     })
+  } catch (err: unknown) {
+    return ioError(c, err)
+  }
+})
+
+app.get('/update/status', async (c) => {
+  try {
+    return c.json(await updateStatus())
   } catch (err: unknown) {
     return ioError(c, err)
   }
