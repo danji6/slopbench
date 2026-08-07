@@ -56,8 +56,7 @@ export default defineSchema({
   users: defineTable(userSchema)
     .index('by_subject', ['subject']),
 
-  avatars: defineTable(avatarSchema)
-    .index('by_storageId', ['storageId']),
+  avatars: defineTable(avatarSchema),
 
   settings: defineTable(settingsSchema)
     .index('by_ownerId', ['ownerId'])
@@ -65,23 +64,20 @@ export default defineSchema({
 
   prompts: defineTable(promptSchema)
     .index('by_ownerId_scope_order', ['ownerId', 'scope', 'order'])
-    .index('by_agentId_scope_order', ['agentId', 'scope', 'order'])
-    .index('by_ownerId_scope_key', ['ownerId', 'scope', 'key']),
+    .index('by_agentId_scope_order', ['agentId', 'scope', 'order']),
 
   reminders: defineTable(reminderSchema)
     .index('by_ownerId_scope_order', ['ownerId', 'scope', 'order'])
     .index('by_agentId_scope_order', ['agentId', 'scope', 'order']),
 
   mcpServers: defineTable(mcpServerSchema)
-    .index('by_ownerId_order', ['ownerId', 'order'])
-    .index('by_ownerId_key', ['ownerId', 'key']),
+    .index('by_ownerId_order', ['ownerId', 'order']),
 
   mcpTools: defineTable(mcpToolSchema)
     .index('by_serverId_order', ['serverId', 'order']),
 
   modelProviders: defineTable(modelProviderSchema)
-    .index('by_ownerId_order', ['ownerId', 'order'])
-    .index('by_ownerId_key', ['ownerId', 'key']),
+    .index('by_ownerId_order', ['ownerId', 'order']),
 
   credentials: defineTable(credentialSchema)
     .index('by_ownerId_scope_ref', ['ownerId', 'scope', 'ref']),
@@ -106,8 +102,6 @@ export default defineSchema({
   userSessions: defineTable(userSessionSchema)
     .index('by_sessionId', ['sessionId'])
     .index('by_sessionId_userId', ['sessionId', 'userId'])
-    .index('by_userId', ['userId'])
-    .index('by_userId_lastMessageAt', ['userId', 'lastMessageAt'])
     .index('by_userId_hidden_lastMessageAt', ['userId', 'hidden', 'lastMessageAt'])
     .searchIndex('search_title', { searchField: 'title', filterFields: ['userId'] }),
 
@@ -127,14 +121,11 @@ export default defineSchema({
 
   streams: defineTable(streamSchema)
     .index('by_sessionId', ['sessionId'])
-    .index('by_sessionId_status', ['sessionId', 'status'])
-    .index('by_processingMessageId', ['processingMessageId'])
     .index('by_leaseExpiresAt', ['leaseExpiresAt'])
     .index('by_agentId', ['agentId'])
     .index('by_invokedBy', ['invokedBy']),
 
   attachments: defineTable(attachmentSchema)
-    .index('by_uploaderId', ['uploaderId'])
     .index('by_sessionId', ['sessionId'])
     .index('by_messageId', ['messageId'])
     .index('by_streamId', ['streamId']),

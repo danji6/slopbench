@@ -154,8 +154,8 @@ export const tokenUsageValidator = v.object({
 
 export const sessionSettingsValidator = v.object({
   disabled: v.optional(v.boolean()),
-  slowModeSeconds: v.optional(v.number()), // TODO use milliseconds
-  agentDebounceSeconds: v.optional(v.number()), // TODO use milliseconds
+  slowModeMs: v.optional(v.number()), // minimum gap between a user's sends
+  agentDebounceMs: v.optional(v.number()), // delay before the agent responds
   passiveSend: v.optional(v.boolean()), // invoking the agent requires a modifier
 })
 
@@ -287,7 +287,7 @@ export const streamValidator = v.object({
 export const sessionModeValidator = v.union(
   v.literal('normal'),
   v.literal('plan'),
-  // TODO 'ask'
+  v.literal('ask'),
 )
 
 /** How far a queued command got, rendered by its chip. */

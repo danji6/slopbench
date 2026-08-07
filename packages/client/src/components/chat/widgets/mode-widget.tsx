@@ -5,11 +5,16 @@ import type { SessionMode } from '@/lib/chat/modes'
 import { getSessionModeDefinition } from '@/lib/chat/modes'
 import { cn } from '@/lib/utils'
 import type { LucideIcon } from 'lucide-react'
-import { MessageCircleIcon, NotebookPenIcon } from 'lucide-react'
+import {
+  MessageCircleIcon,
+  MessageCircleQuestionIcon,
+  NotebookPenIcon,
+} from 'lucide-react'
 
 const MODE_ICONS: Record<SessionMode, LucideIcon> = {
   normal: MessageCircleIcon,
   plan: NotebookPenIcon,
+  ask: MessageCircleQuestionIcon,
 }
 
 type ModeWidgetProps = {

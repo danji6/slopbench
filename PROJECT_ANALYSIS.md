@@ -309,8 +309,7 @@ subscribes to.
 - `prompts`: one row per prompt, scoped `own` | `global` | `library` |
   `compaction` | `impersonation`, owned by a user and optionally attached to an
   agent, carrying an `order` and the `item` (a prompt or a history marker).
-  Indexed `by_ownerId_scope_order`, `by_agentId_scope_order`, and
-  `by_ownerId_scope_key`.
+  Indexed `by_ownerId_scope_order` and `by_agentId_scope_order`.
 - `reminders`: the same shape for interval reminders, scoped `own` | `library`
 - `mcpServers` / `mcpTools`: an external MCP server (client-generated `key`
   stable across renames, label, URL, transport, enabled flag, order) and its
@@ -495,7 +494,9 @@ Each session can have:
 - multiple linked agents
 - one optional workspace binding, including its absolute path (exposed to
   prompts as `workDir`)
-- a mode: `normal` or `plan` (an `ask` mode is still a TODO in the validator);
+- a mode: `normal` or `plan`. The validator also declares `ask`, but nothing
+  sets it yet: it is absent from the composer's `SESSION_MODES` cycle, and the
+  write paths normalize anything that isn't `plan` to `undefined`;
   the mode can be toggled even in an empty chat
 - an `announcedMode`, the mode the transcript has actually stated
 - per-session settings (disabled, slow mode, agent debounce, passive send)

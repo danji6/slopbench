@@ -90,7 +90,7 @@ export async function reserveOrDebounceTurn(
   ctx: MutationCtx,
   { session, messageId, invokedBy, silent, activeStream }: TurnReservation,
 ) {
-  const debounceMs = (session.settings?.agentDebounceSeconds ?? 0) * 1000
+  const debounceMs = session.settings?.agentDebounceMs ?? 0
   const willStream =
     Boolean(activeStream) || (!silent && Boolean(session.activeAgentId))
 

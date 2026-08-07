@@ -27,7 +27,7 @@ export const SESSION_MODES: readonly SessionModeDefinition[] = [
 ]
 
 export function resolveSessionMode(mode: SessionMode | undefined): SessionMode {
-  return mode ?? 'normal'
+  return mode && SESSION_MODES.some((def) => def.id === mode) ? mode : 'normal'
 }
 
 export function getSessionModeDefinition(

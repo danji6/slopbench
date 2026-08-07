@@ -13,8 +13,9 @@ export const run = migrations.runner()
 
 /**
  * Migrations an install must apply before this release can read its database,
- * in the order they have to run. Entries are only removed once no supported
- * release predates them.
+ * in the order they have to run.
+ *
+ * The list must be kept append-only. Cast fields that don't exist anymore.
  */
 const releaseMigrations: MigrationFunctionReference[] = []
 

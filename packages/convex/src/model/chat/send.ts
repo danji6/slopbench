@@ -44,7 +44,7 @@ export async function sendMessage(ctx: AuthMutationCtx, args: SendMessageArgs) {
   if (role === 'user') {
     const remainingMs = slowModeRemainingMs(
       membership,
-      session.settings?.slowModeSeconds,
+      session.settings?.slowModeMs,
       now,
     )
     if (remainingMs > 0) {
@@ -349,10 +349,10 @@ export async function latestMessageBefore(
 /** Milliseconds the member must still wait before sending again under slow mode. */
 export function slowModeRemainingMs(
   membership: { lastSendAt?: number },
-  slowModeSeconds: number | undefined,
+  slowModeMs: number | undefined,
   now: number,
 ): number {
-  return !slowModeSeconds || slowModeSeconds <= 0 || !membership.lastSendAt
+  return !slowModeMs || slowModeMs <= 0 || !membership.lastSendAt
     ? 0
-    : Math.max(0, membership.lastSendAt + slowModeSeconds * 1000 - now)
+    : Math.max(0, membership.lastSendAt + slowModeMs - now)
 }

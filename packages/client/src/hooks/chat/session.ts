@@ -149,11 +149,11 @@ export function useMyMembership() {
 export function useSendCooldownUntil(): number | null {
   const session = useActiveSession()
   const membership = useMyMembership()
-  const slowModeSeconds = session?.settings?.slowModeSeconds ?? 0
+  const slowModeMs = session?.settings?.slowModeMs ?? 0
 
-  return slowModeSeconds <= 0 || !membership?.lastSendAt
+  return slowModeMs <= 0 || !membership?.lastSendAt
     ? null
-    : membership.lastSendAt + slowModeSeconds * 1000
+    : membership.lastSendAt + slowModeMs
 }
 
 export function optimisticallyPatchSession(

@@ -181,24 +181,36 @@ export async function cleanUpGeneratedAttachments(
 
 export async function pruneOrphans(ctx: MutationCtx) {
   const cutoff = Date.now() - STAGED_ATTACHMENT_TTL_MS
-  const attachments = await ctx.db.query('attachments').collect()
-  for (const attachment of attachments) {
-    if (attachment._creationTime >= cutoff) continue
 
-    // Staged uploads that were never linked to a message.
-    if (!attachment.messageId) {
+  // Staged uploads that were never linked to a message
+  const staged = await ctx.db
+    .query('attachments')
+    .withIndex('by_messageId', (q) => q.eq('messageId', undefined))
+    .collect()
+
+  for (const attachment of staged) {
+    if (attachment._creationTime < cutoff)
       await removeAttachment(ctx, attachment)
-      continue
-    }
+  }
 
-    // Orphaned AI-generated files
-    if (attachment.streamId) {
-      if (await ctx.db.get(attachment.streamId)) continue
-      const referenced = collectReferencedAttachmentIds(
-        await allVersionParts(ctx, attachment.messageId),
-      ).has(attachment._id)
-      if (!referenced) await removeAttachment(ctx, attachment)
-    }
+  // AI-generated files whose stream ended without running its own cleanup
+  const generated = await ctx.db
+    .query('attachments')
+    // `undefined` sorts below every id, so this range is "streamId is set"
+    .withIndex('by_streamId', (q) => q.gt('streamId', undefined))
+    .collect()
+
+  for (const attachment of generated) {
+    if (attachment._creationTime >= cutoff || !attachment.messageId) continue
+    if (await ctx.db.get(attachment.streamId!)) continue
+
+    const referenced = collectReferencedAttachmentIds(
+      await allVersionParts(ctx, attachment.messageId),
+    ).has(attachment._id)
+
+    // Untag what survived, so it leaves the candidate set for good
+    if (referenced) await ctx.db.patch(attachment._id, { streamId: undefined })
+    else await removeAttachment(ctx, attachment)
   }
 }
 

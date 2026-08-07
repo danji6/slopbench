@@ -329,6 +329,7 @@ export async function remove(
     'todos',
     'sessionCache',
     'sessionState',
+    'typing',
   ] as const
 
   for (const table of sessionTables) {
