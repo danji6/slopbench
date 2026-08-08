@@ -1,5 +1,6 @@
+import type { useMessageStore } from '@/hooks/chat'
 import { getNavPaddingPx } from '@/hooks/nav-padding'
-import type { MessageRow } from '@/lib/chat/rows'
+import { type MessageRow, findToolRow } from '@/lib/chat/rows'
 import { trackUntilSettled } from '@/lib/scroll-settle'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -14,6 +15,7 @@ type AnchorAround = (target: {
 type SeekOptions = {
   anchorAround: AnchorAround
   rows: MessageRow[]
+  messageStore: ReturnType<typeof useMessageStore>
 }
 
 export type SeekTargetOptions = {
@@ -21,18 +23,28 @@ export type SeekTargetOptions = {
   offset?: number
   /** Stable key of the exact row to align to, for sub-message precision. */
   rowKey?: string
+  /**
+   * Aligns to the exact message block rendering this tool call. Resolved once
+   * the window has the message.
+   */
+  toolCallId?: string
+  /** Reports the row the seek settled on, or null when only the message was found. */
+  onLocated?: (row: MessageRow | null) => void
   /** Called once the target has been reached and its position has settled. */
   onSettled?: () => void
   /** Called when the message can't be located even after anchoring the window. */
   onNotFound?: () => void
 }
 
+/** Row index and element to measure for alignment. */
+type AlignTarget = { index: number; selector: string }
+
 /** Resolves the row to align to, preferring the exact saved row over the message. */
 function resolveAlignTarget(
   rows: MessageRow[],
   id: string,
   rowKey: string | undefined,
-): { index: number; selector: string } | null {
+): AlignTarget | null {
   if (rowKey !== undefined) {
     const keyIndex = rows.findIndex((row) => row.key === rowKey)
     if (keyIndex >= 0) {
@@ -50,11 +62,27 @@ function resolveAlignTarget(
   }
 }
 
+function findAlignElement(
+  target: AlignTarget,
+  toolCallId: string | undefined,
+): HTMLElement | null {
+  if (toolCallId !== undefined) {
+    const block = document.querySelector<HTMLElement>(
+      `[data-tool-call-id="${CSS.escape(toolCallId)}"]`,
+    )
+    if (block) return block
+  }
+  return document.querySelector<HTMLElement>(target.selector)
+}
+
 /** How long to wait for an anchored window to surface the target before giving up. */
 const NOT_FOUND_TIMEOUT_MS = 4000
 
 /** Scrolls to a specific message, anchoring the window around it if unloaded. */
-export function useSeek(deps: ScrollDeps, { anchorAround, rows }: SeekOptions) {
+export function useSeek(
+  deps: ScrollDeps,
+  { anchorAround, rows, messageStore }: SeekOptions,
+) {
   const { scroller, virtuaRef, rowsRef, topPadding } = deps
   const { holdPosition } = scroller
 
@@ -70,16 +98,16 @@ export function useSeek(deps: ScrollDeps, { anchorAround, rows }: SeekOptions) {
     [rows, topPadding, virtuaRef],
   )
 
-  const pendingTargetRef = useRef<{
-    id: string
-    creationTime?: number
-    segmentIndex?: number
-    offset: number
-    rowKey?: string
-    onSettled?: () => void
-    onNotFound?: () => void
-    anchored: boolean
-  } | null>(null)
+  const pendingTargetRef = useRef<
+    | ({
+        id: string
+        creationTime?: number
+        segmentIndex?: number
+        offset: number
+        anchored: boolean
+      } & SeekTargetOptions)
+    | null
+  >(null)
   const [seekTick, setSeekTick] = useState(0)
 
   const notFoundTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -106,13 +134,11 @@ export function useSeek(deps: ScrollDeps, { anchorAround, rows }: SeekOptions) {
     ) => {
       clearNotFoundTimer()
       pendingTargetRef.current = {
+        ...options,
         id,
         creationTime,
         segmentIndex,
         offset: options?.offset ?? 0,
-        rowKey: options?.rowKey,
-        onSettled: options?.onSettled,
-        onNotFound: options?.onNotFound,
         anchored: false,
       }
       holdPosition() // disable autoscroller
@@ -122,18 +148,28 @@ export function useSeek(deps: ScrollDeps, { anchorAround, rows }: SeekOptions) {
   )
 
   const seekSettleRef = useRef<(() => void) | null>(null)
-  // Scroll to a message until its top settles at the target offset below the nav padding
-  const scrollToMessageSettled = useCallback(
-    (id: string, offset: number, onSettled?: () => void, rowKey?: string) => {
+  // Scroll to a target until its top settles at the offset below the nav padding
+  const scrollToTargetSettled = useCallback(
+    (target: {
+      id: string
+      offset: number
+      rowKey?: string
+      toolCallId?: string
+      onSettled?: () => void
+    }) => {
       seekSettleRef.current?.()
       const topPaddingPx = getNavPaddingPx(topPadding)
 
       seekSettleRef.current = trackUntilSettled(
         () => {
-          const resolved = resolveAlignTarget(rowsRef.current, id, rowKey)
+          const resolved = resolveAlignTarget(
+            rowsRef.current,
+            target.id,
+            target.rowKey,
+          )
           if (!resolved) return null
 
-          const el = document.querySelector<HTMLElement>(resolved.selector)
+          const el = findAlignElement(resolved, target.toolCallId)
           // Bring it closer if it's not mounted yet
           if (!el) {
             virtuaRef.current?.scrollToIndex(resolved.index, {
@@ -143,17 +179,32 @@ export function useSeek(deps: ScrollDeps, { anchorAround, rows }: SeekOptions) {
             return null
           }
 
-          const delta = el.getBoundingClientRect().top - topPaddingPx - offset
+          const delta =
+            el.getBoundingClientRect().top - topPaddingPx - target.offset
           if (Math.abs(delta) > 1) window.scrollBy({ top: delta })
           return delta
         },
-        { onDone: onSettled },
+        { onDone: target.onSettled },
       )
     },
     [topPadding, rowsRef, virtuaRef],
   )
   useEffect(() => () => seekSettleRef.current?.(), [])
   useEffect(() => clearNotFoundTimer, [clearNotFoundTimer])
+
+  const resolveToolRow = useCallback(
+    (messageId: string, toolCallId: string) => {
+      const message = messageStore.getMessage(messageId)
+      if (!message) return undefined
+      return findToolRow(
+        rowsRef.current,
+        message,
+        messageStore.getMessageMetadata(messageId),
+        toolCallId,
+      )
+    },
+    [messageStore, rowsRef],
+  )
 
   // Resolve a pending scroll target, anchoring the window around it if needed
   useEffect(() => {
@@ -173,12 +224,17 @@ export function useSeek(deps: ScrollDeps, { anchorAround, rows }: SeekOptions) {
     if (loaded) {
       clearNotFoundTimer()
       pendingTargetRef.current = null
-      scrollToMessageSettled(
-        target.id,
-        target.offset,
-        target.onSettled,
-        target.rowKey,
-      )
+
+      // Now that the message is in the window, narrow the target to the block
+      const toolRow = target.toolCallId
+        ? resolveToolRow(target.id, target.toolCallId)
+        : undefined
+      target.onLocated?.(toolRow ?? null)
+
+      scrollToTargetSettled({
+        ...target,
+        rowKey: toolRow?.key ?? target.rowKey,
+      })
       return
     }
 
@@ -198,7 +254,8 @@ export function useSeek(deps: ScrollDeps, { anchorAround, rows }: SeekOptions) {
   }, [
     seekTick,
     rows,
-    scrollToMessageSettled,
+    scrollToTargetSettled,
+    resolveToolRow,
     anchorAround,
     abandonTarget,
     clearNotFoundTimer,

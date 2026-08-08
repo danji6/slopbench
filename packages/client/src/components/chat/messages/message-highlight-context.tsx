@@ -1,4 +1,5 @@
 import { createOptionalContext } from '@/hooks/context'
+import type { MessageRow } from '@/lib/chat/rows'
 import { AnimatePresence, motion } from 'motion/react'
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
@@ -23,6 +24,21 @@ export type MessageHighlightValue = {
 
 export const [MessageHighlightContext, useMessageHighlight] =
   createOptionalContext<MessageHighlightValue>()
+
+/** Targets the block a row renders, falling back to the whole message. */
+export function highlightTargetForRow(
+  messageId: string,
+  row: MessageRow | null | undefined,
+): HighlightTarget {
+  if (row?.kind !== 'group') {
+    return { messageId, segmentIndex: null, groupIndex: null }
+  }
+  return {
+    messageId,
+    segmentIndex: row.segmentIndex,
+    groupIndex: row.groupIndex,
+  }
+}
 
 type RegisteredElement = {
   target: HighlightTarget

@@ -12,7 +12,10 @@ import { useAction } from 'convex/react'
 import { BanIcon, SquareIcon, SquareTerminalIcon } from 'lucide-react'
 import { useState } from 'react'
 
-import { useMessageHighlight } from '../messages/message-highlight-context'
+import {
+  highlightTargetForRow,
+  useMessageHighlight,
+} from '../messages/message-highlight-context'
 import { useMessageSeek } from '../messages/message-seek-context'
 import { openToolBlock } from '../messages/tools/tool-shell'
 
@@ -31,19 +34,18 @@ export function TerminalsWidget({ className }: { className?: string }) {
 
   const running = jobs.filter((job) => job.status === 'running')
 
-  /** Scrolls to the job's terminal in the conversation and opens it. */
+  /** Scrolls to the job's terminal block in the conversation and opens it. */
   function showTerminal(job: ShellJobSummary) {
-    if (!job.messageId) return
+    const messageId = job.messageId
+    if (!messageId) return
     setOpen(false)
     openToolBlock(job.toolCallId)
-    highlight?.setTarget({
-      messageId: job.messageId,
-      segmentIndex: null,
-      groupIndex: null,
-    })
     seek?.({
-      messageId: job.messageId,
+      messageId,
       creationTime: job.messageCreatedAt,
+      toolCallId: job.toolCallId,
+      onLocated: (row) =>
+        highlight?.setTarget(highlightTargetForRow(messageId, row)),
     })
   }
 

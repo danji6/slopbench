@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import { buildRows } from '@/lib/chat'
+import { buildRows, findToolRow } from '@/lib/chat'
 import type { MessageRecord } from '@/lib/chat/types'
 import type { UIMessage } from 'ai'
 import { describe, expect, test } from 'bun:test'
@@ -366,5 +366,74 @@ describe('sender grouping', () => {
     // The summary itself never groups, and the message after it starts fresh
     expect(rows.map((row) => row.key)).toContain('h:message-3')
     expect(rows.some((row) => row.key.endsWith(':grp'))).toBe(false)
+  })
+})
+
+describe('tool rows', () => {
+  const shell = (id: string) =>
+    ({
+      type: 'tool-shell',
+      toolCallId: id,
+      state: 'output-available',
+      input: { command: `echo ${id}` },
+    }) as unknown as UIMessage['parts'][number]
+
+  const meta = (segments: Array<{ index: number; partCount: number }>) =>
+    ({
+      sender: { type: 'agent', id: 'agent_1' },
+      selectedVersion: 1,
+      versionCount: 1,
+      segments,
+      hasOlderSegments: segments[0]?.index !== 0,
+      hasNewerSegments: false,
+    }) as unknown as MessageRecord
+
+  function locate(
+    parts: UIMessage['parts'],
+    record: MessageRecord | undefined,
+    toolCallId: string,
+  ) {
+    const target = message(parts)
+    const rows = buildRows(
+      ['message-1'],
+      () => target,
+      () => record,
+    )
+    return findToolRow(rows, target, record, toolCallId)
+  }
+
+  test('consecutive shell calls share the row they render in', () => {
+    const parts = [shell('call-1'), shell('call-2')]
+
+    // Grouped tools collapse into one row, so the row alone can't tell the
+    // blocks apart: the seek falls back to the block's own element
+    expect(locate(parts, undefined, 'call-1')?.key).toBe(
+      'g:message-1:s0:tools:call-1',
+    )
+    expect(locate(parts, undefined, 'call-2')?.key).toBe(
+      'g:message-1:s0:tools:call-1',
+    )
+  })
+
+  test('a call resolves to the row of its own segment', () => {
+    const parts = [textPart, shell('call-1'), shell('call-2')]
+    const record = meta([
+      { index: 0, partCount: 2 },
+      { index: 1, partCount: 1 },
+    ])
+
+    // The segment break splits the run, so the second call rows on its own
+    expect(locate(parts, record, 'call-2')).toMatchObject({
+      key: 'g:message-1:s1:tools:call-2',
+      segmentIndex: 1,
+      groupIndex: 0,
+    })
+  })
+
+  test('a call in an unloaded segment has no row', () => {
+    const parts = [shell('call-2')]
+    const record = meta([{ index: 1, partCount: 1 }])
+
+    expect(locate(parts, record, 'call-1')).toBeUndefined()
   })
 })

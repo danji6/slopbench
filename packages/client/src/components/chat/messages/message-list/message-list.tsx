@@ -259,6 +259,7 @@ export function MessageList({
   const { scrollToMessage, requestScrollToMessage } = useSeek(deps, {
     anchorAround,
     rows,
+    messageStore,
   })
 
   const { restore: restoreScroll } = useScrollPersistence(deps, {

@@ -71,6 +71,7 @@ export function ToolShell({
   return (
     <CollapsibleBlock
       data-slot="tool-block"
+      data-tool-call-id={part.toolCallId}
       collapsible={collapsible}
       shimmer={status === 'running'}
       reveal={revealProp ?? isAwaitingApproval}

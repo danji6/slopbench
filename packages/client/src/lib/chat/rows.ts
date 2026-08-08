@@ -2,6 +2,7 @@ import { type UIMessage, isReasoningUIPart } from 'ai'
 
 import {
   type PartGroup,
+  groupHasToolCall,
   groupKey,
   groupPartsCached,
   isRenderablePartGroup,
@@ -208,6 +209,32 @@ export function buildRows(
   }
 
   return rows
+}
+
+/**
+ * The row rendering a tool call, for sub-message precision. Absent when the
+ * segment holding the call isn't loaded.
+ */
+export function findToolRow(
+  rows: MessageRow[],
+  message: UIMessage,
+  record: MessageRecord | undefined,
+  toolCallId: string,
+): MessageRow | undefined {
+  for (const slice of segmentGroupsFor(message, record)) {
+    const groupIndex = slice.groups.findIndex((group) =>
+      groupHasToolCall(group, toolCallId),
+    )
+    if (groupIndex < 0) continue
+
+    return rows.find(
+      (row) =>
+        row.kind === 'group' &&
+        row.messageId === message.id &&
+        row.segmentIndex === slice.segmentIndex &&
+        row.groupIndex === groupIndex,
+    )
+  }
 }
 
 export function rowKeysEqual(a: MessageRow[], b: MessageRow[]): boolean {

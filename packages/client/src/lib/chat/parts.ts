@@ -141,6 +141,18 @@ export function groupKey(group: PartGroup): string {
   return `${part.type}:${index}`
 }
 
+/** Whether a group renders the given tool call. */
+export function groupHasToolCall(
+  group: PartGroup,
+  toolCallId: string,
+): boolean {
+  if (group.type === 'tools') {
+    return group.parts.some((part) => part.toolCallId === toolCallId)
+  }
+  if (group.type === 'files') return false
+  return isToolUIPart(group.part) && group.part.toolCallId === toolCallId
+}
+
 export function isRenderablePartGroup(group: PartGroup): boolean {
   if (group.type === 'files' || group.type === 'tools') {
     return group.parts.length > 0
