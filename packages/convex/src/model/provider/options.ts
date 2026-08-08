@@ -92,6 +92,10 @@ async function createLanguageModel(
       const { createDeepSeek } = await import('@ai-sdk/deepseek')
       return createDeepSeek({ apiKey, baseURL })(modelId)
     }
+    case 'moonshotai': {
+      const { createMoonshotAI } = await import('@ai-sdk/moonshotai')
+      return createMoonshotAI({ apiKey, baseURL })(modelId)
+    }
     case 'mistral': {
       const { createMistral } = await import('@ai-sdk/mistral')
       return createMistral({ apiKey, baseURL })(modelId)

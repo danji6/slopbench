@@ -3,6 +3,7 @@ export const KNOWN_PROVIDER_TYPES = [
   { value: 'openai', label: 'OpenAI' },
   { value: 'openrouter', label: 'OpenRouter' },
   { value: 'mistral', label: 'Mistral' },
+  { value: 'moonshotai', label: 'MoonshotAI' },
   { value: 'deepseek', label: 'DeepSeek' },
   { value: 'ollama', label: 'Ollama' },
 ] as const
