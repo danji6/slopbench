@@ -1,6 +1,7 @@
 import { Code, Dialog, RippleButton, SettingsList } from '@/components/ui'
 import { useActiveSession, useActiveSessionState } from '@/hooks/chat'
 import { normalizeBrowserUrl } from '@/lib/auth/site-url'
+import { extractErrorMessage } from '@/lib/errors'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { useQuery } from 'convex/react'
@@ -51,7 +52,7 @@ export function SessionRequestLogSection() {
         if (controller.signal.aborted) return
         setStoredLog({
           url: logUrl,
-          error: err instanceof Error ? err.message : String(err),
+          error: extractErrorMessage(err),
         })
       })
 

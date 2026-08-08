@@ -1,3 +1,5 @@
+import { errorMessage } from '@sb/core/utils/errors'
+
 export class ServerError extends Error {
   public message: string
   public error = true
@@ -35,29 +37,8 @@ export function serverError(
   throw new ServerError(message, status)
 }
 
-export function extractErrorMessage(error: unknown): string {
-  if (!error || typeof error !== 'object') {
-    return extractionError(error)
-  }
-
-  const data = getProperty(error, 'data')
-  const message =
-    getProperty(data, 'message') ??
-    (typeof data === 'string' ? data : undefined) ??
-    getProperty(error, 'message') ??
-    getProperty(error, 'statusText')
-
-  if (typeof message !== 'string') {
-    return extractionError(error)
-  }
-
-  return message
-}
-
-function getProperty(obj: unknown, key: string): unknown {
-  return obj && typeof obj === 'object' && key in obj
-    ? (obj as Record<string, unknown>)[key]
-    : undefined
+export function extractErrorMessage(error: unknown, fallback?: string): string {
+  return errorMessage(error) ?? fallback ?? extractionError(error)
 }
 
 function extractionError(error: unknown) {

@@ -6,7 +6,7 @@ import type { Id } from './_generated/dataModel'
 import { httpAction } from './_generated/server'
 import { uploadAvatar } from './actions/io/avatar'
 import { createAuth } from './auth'
-import type { ErrorPayload } from './errors'
+import { type ErrorPayload, extractErrorMessage } from './errors'
 import { authorizeAdmin } from './functions'
 import { SIDECAR_URL } from './model/sidecar'
 import { isAllowedOrigin, siteUrl } from './origins'
@@ -109,8 +109,7 @@ const avatarUploadHandler = httpAction(async (ctx, req) => {
     })
     return jsonResponse(result, 200, origin)
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return jsonResponse({ error: message }, 500, origin)
+    return jsonResponse({ error: extractErrorMessage(error) }, 500, origin)
   }
 })
 

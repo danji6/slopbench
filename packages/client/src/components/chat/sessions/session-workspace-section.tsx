@@ -1,6 +1,6 @@
 import { RippleButton, SettingsList } from '@/components/ui'
 import { useActiveSession, useRecentWorkspaces } from '@/hooks/chat'
-import { toast } from '@/lib/notifications'
+import { toast, toastError } from '@/lib/notifications'
 import { api } from '@sb/convex/_generated/api'
 import { useAction } from 'convex/react'
 import { FolderIcon } from 'lucide-react'
@@ -24,7 +24,7 @@ export function SessionWorkspaceSection() {
       remember(root)
       toast('Workspace configured')
     } catch (err) {
-      toast(err instanceof Error ? err.message : String(err))
+      toastError(err)
     } finally {
       setBusy(false)
     }
@@ -37,7 +37,7 @@ export function SessionWorkspaceSection() {
       await clearWorkspace({ sessionId: session._id })
       toast('Workspace cleared')
     } catch (err) {
-      toast(err instanceof Error ? err.message : String(err))
+      toastError(err)
     } finally {
       setBusy(false)
     }

@@ -14,7 +14,7 @@ import {
   planDraftKey,
   useEditorDraft,
 } from '@/lib/chat/editor-draft-store'
-import { toast } from '@/lib/notifications'
+import { toast, toastError } from '@/lib/notifications'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { useMutation, useQuery } from 'convex/react'
@@ -51,7 +51,7 @@ export function SessionPlanSection() {
       clearEditorDraft(planDraftKey(session._id))
       toast('Plan deleted')
     } catch (err) {
-      toast(err instanceof Error ? err.message : String(err))
+      toastError(err)
     }
   }
 
@@ -215,7 +215,7 @@ function PlanDraftEditor({
       await update({ sessionId, content: markdown.current })
       stopEditing()
     } catch (err) {
-      toast(err instanceof Error ? err.message : String(err))
+      toastError(err)
     }
   }
 

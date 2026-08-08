@@ -11,6 +11,7 @@ import {
   TooltipButton,
 } from '@/components/ui'
 import { useMcpToolDiscovery, useTools } from '@/hooks/chat'
+import { extractErrorMessage } from '@/lib/errors'
 import { cn, generateId } from '@/lib/utils'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import {
@@ -202,7 +203,7 @@ function McpServerCard({
       onChange({ tools: mergeOverrides(item.tools, tools) })
     } catch (err) {
       setDialed(null)
-      setError(err instanceof Error ? err.message : 'Failed to discover tools')
+      setError(extractErrorMessage(err, 'Failed to discover tools'))
     } finally {
       setRefreshing(false)
     }

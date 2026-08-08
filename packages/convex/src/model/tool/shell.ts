@@ -1,5 +1,6 @@
 import type { Tool, ToolSet } from 'ai'
 
+import { extractErrorMessage } from '../../errors'
 import type {
   ShellJobStatus,
   ShellModelToolOutput,
@@ -553,8 +554,7 @@ function lostOutput(
 }
 
 function isJobNotFound(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error)
-  return message.includes('not found')
+  return extractErrorMessage(error).includes('not found')
 }
 
 async function killQuietly(

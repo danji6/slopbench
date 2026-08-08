@@ -1,3 +1,4 @@
+import { errorMessage, errorMessageChain } from '@sb/core/utils/errors'
 import { ConvexError } from 'convex/values'
 
 export type ErrorPayload = { message: string; code: number }
@@ -17,7 +18,7 @@ export function extractError(obj: unknown): ConvexError<ErrorPayload> {
 }
 
 export function extractErrorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err)
+  return errorMessage(err) ?? String(err)
 }
 
 /**
@@ -39,30 +40,9 @@ export function toolFailure(error: unknown): never {
 }
 
 export function sanitizeChatError(error: unknown): string {
-  let message: string
-
   if (error instanceof ConvexError) {
-    const data = error.data as ErrorPayload | undefined
-    message = data?.message ?? JSON.stringify(error)
-  } else if (error instanceof Error) {
-    message = getErrorMessageChain(error)
-  } else if (typeof error === 'string') {
-    message = error
-  } else {
-    return JSON.stringify(error)
+    return errorMessage(error) ?? JSON.stringify(error)
   }
 
-  return message
-}
-
-function getErrorMessageChain(error: unknown): string {
-  const messages: string[] = []
-  let current: unknown = error
-
-  while (current instanceof Error) {
-    messages.push(current.message)
-    current = (current as Error & { cause?: unknown }).cause
-  }
-
-  return messages.join(' ')
+  return errorMessageChain(error) ?? JSON.stringify(error)
 }

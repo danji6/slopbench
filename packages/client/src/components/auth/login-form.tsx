@@ -7,6 +7,7 @@ import {
   RippleButton,
 } from '@/components/ui'
 import { signIn, signUp } from '@/lib/auth/client'
+import { extractErrorMessage } from '@/lib/errors'
 import { api } from '@sb/convex/_generated/api'
 import { useQuery } from 'convex/react'
 import { useState } from 'react'
@@ -39,7 +40,7 @@ export function LoginForm() {
         if (res.error) setError(res.error.message ?? 'Sign in failed')
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unexpected error')
+      setError(extractErrorMessage(err, 'Unexpected error'))
     } finally {
       setLoading(false)
     }

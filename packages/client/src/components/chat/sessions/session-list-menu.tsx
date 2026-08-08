@@ -5,7 +5,7 @@ import {
 } from '@/components/ui'
 import { useSessionShowHidden } from '@/hooks/chat'
 import { readSessionArchive } from '@/lib/chat/io'
-import { toast } from '@/lib/notifications'
+import { toast, toastError } from '@/lib/notifications'
 import { api } from '@sb/convex/_generated/api'
 import { useAction } from 'convex/react'
 import { EyeIcon, MoreHorizontalIcon, UploadIcon } from 'lucide-react'
@@ -28,9 +28,7 @@ export function SessionListMenu(props: RippleButtonProps) {
       navigate(`/?id=${sessionId}`, { replace: true })
       toast('Session imported')
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : 'Could not import session',
-      )
+      toastError(err, 'Could not import session')
     } finally {
       e.target.value = ''
     }

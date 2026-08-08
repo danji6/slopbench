@@ -1,3 +1,5 @@
+import { errorMessage } from '@sb/core/utils/errors'
+
 import { error } from '../errors'
 
 export const SIDECAR_URL = process.env.SIDECAR_URL
@@ -11,10 +13,7 @@ export async function postSidecar<T>(path: string, body: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
   })
 
-  if (!response.ok) {
-    const message = await response.text()
-    error(`Local server request failed: ${message}`, 500)
-  }
+  if (!response.ok) await sidecarError(response)
 
   return (await response.json()) as T
 }
@@ -22,10 +21,7 @@ export async function postSidecar<T>(path: string, body: unknown): Promise<T> {
 export async function getSidecar<T>(path: string): Promise<T> {
   const response = await fetch(`${SIDECAR_URL}${path}`)
 
-  if (!response.ok) {
-    const message = await response.text()
-    error(`Local server request failed: ${message}`, 500)
-  }
+  if (!response.ok) await sidecarError(response)
 
   return (await response.json()) as T
 }
@@ -62,10 +58,8 @@ export async function* openShellStream(
   })
 
   if (response.status === 404) error('Job not found for this session', 404)
-  if (!response.ok || !response.body) {
-    const message = await response.text().catch(() => response.statusText)
-    error(`Local server stream failed: ${message}`, 500)
-  }
+  if (!response.ok) await sidecarError(response)
+  if (!response.body) error('Local server sent no stream', 500)
 
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
@@ -97,4 +91,10 @@ function parseSseFrame(raw: string): ShellStreamEvent | null {
       data.push(line.slice(5).replace(/^ /, ''))
   }
   return data.length ? { event, data: data.join('\n') } : null
+}
+
+async function sidecarError(response: Response): Promise<never> {
+  const body = await response.text().catch(() => '')
+  const message = errorMessage(body) ?? response.statusText ?? 'Request failed'
+  error(message, response.status)
 }

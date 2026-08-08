@@ -13,7 +13,7 @@ import type { MentionEntry } from '@/lib/chat/file-mentions'
 import { filterMentions } from '@/lib/chat/file-mentions'
 import { handleSelectAllDelete } from '@/lib/editor-clear'
 import { registerFocusReturn } from '@/lib/focus-return'
-import { toast } from '@/lib/notifications'
+import { toastError } from '@/lib/notifications'
 import { pasteCollapsedText } from '@/lib/tiptap/paste'
 import {
   serializeBlocksToMarkdown,
@@ -508,9 +508,7 @@ export function ChatComposer({
           setOriginalFiles((prev) => ({ ...prev, [part.url]: originalFile }))
         }
       } catch (error) {
-        toast.error(
-          error instanceof Error ? error.message : 'Failed to process file',
-        )
+        toastError(error, 'Failed to process file')
         return
       }
     }

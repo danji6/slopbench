@@ -8,7 +8,7 @@ import {
 } from '@/hooks/chat'
 import type { ApproveToolArgs, RememberScope, ToolApprovals } from '@/lib/chat'
 import { useComposerDraft } from '@/lib/chat/composer-draft-store'
-import { toast } from '@/lib/notifications'
+import { toastError } from '@/lib/notifications'
 import {
   serializeBlocksToMarkdown,
   setEditorMarkdown,
@@ -133,7 +133,7 @@ export function ToolApprovalPicker({
       } catch (err) {
         // The rolled back picker remounts its editor from the draft
         if (note) draft.flush(note)
-        toast(err instanceof Error ? err.message : String(err))
+        toastError(err)
       }
     },
     [approveTool, part, session, draft],

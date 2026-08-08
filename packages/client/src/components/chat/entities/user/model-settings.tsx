@@ -47,12 +47,9 @@ export function ModelSettings({ control, providers }: ModelSettingsProps) {
     keyName: 'rhfKey',
   })
 
-  const [newProviderClientId, setNewProviderClientId] = useState<string | null>(
-    null,
-  )
+  const [newProviderClientId, setNewProviderClientId] = useState<string | null>(null) // prettier-ignore
   const { errors } = useFormState({ control })
-  const providerErrors = (errors.providers ??
-    []) as FieldErrors<ProviderFormValues>[]
+  const providerErrors = (errors.providers ?? []) as FieldErrors<ProviderFormValues>[] // prettier-ignore
 
   function addProvider() {
     const clientId = generateId()

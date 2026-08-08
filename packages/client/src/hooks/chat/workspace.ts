@@ -1,4 +1,4 @@
-import { toast } from '@/lib/notifications'
+import { toastError } from '@/lib/notifications'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { useAction } from 'convex/react'
@@ -103,7 +103,7 @@ function useLazyFileIndex(
         })
         .catch((err) => {
           if (requestId.current !== currentRequestId) return
-          toast(err instanceof Error ? err.message : String(err))
+          toastError(err)
         })
         .finally(() => {
           if (requestId.current === currentRequestId) loadingFor.current = null
@@ -160,20 +160,32 @@ export function useWorkspaceBrowser() {
   const [list, setList] = useState<DirectoryList | null>(null)
   const [busy, setBusy] = useState(false)
 
+  const show = useCallback((result: DirectoryList) => {
+    setList(result)
+    setPath(result.path)
+  }, [])
+
+  // Lists `nextPath`, or the sidecar's default directory.
+  // `fallback` retries from the default when the requested path is gone.
   const loadDirectories = useCallback(
-    async (nextPath?: string) => {
+    async (nextPath?: string, fallback = false) => {
       setBusy(true)
       try {
-        const result = await listDirectories(nextPath ? { path: nextPath } : {})
-        setList(result)
-        setPath(result.path)
+        show(await listDirectories(nextPath ? { path: nextPath } : {}))
       } catch (err) {
-        toast(err instanceof Error ? err.message : String(err))
+        toastError(err)
+        if (nextPath && fallback) {
+          try {
+            show(await listDirectories({}))
+          } catch {
+            // no op
+          }
+        }
       } finally {
         setBusy(false)
       }
     },
-    [listDirectories],
+    [listDirectories, show],
   )
 
   return { path, setPath, list, busy, loadDirectories }

@@ -41,7 +41,7 @@ export function WorkspacePickerDialog({
   }, [list])
 
   useEffect(() => {
-    if (open) void loadDirectories(initialPath || undefined)
+    if (open) void loadDirectories(initialPath || undefined, true)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once
   }, [open])
 

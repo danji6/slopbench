@@ -1,5 +1,6 @@
 import type { Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
+import { extractErrorMessage } from '../errors'
 import type { AuthQueryCtx } from '../functions'
 import type { TodoItem, TodoStatus } from '../types'
 import { assertTodoItemsCap } from './caps'
@@ -87,7 +88,7 @@ export async function _edit(
     await upsertItems(ctx, sessionId, existing, items)
     return { ok: true }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
+    const message = extractErrorMessage(error)
     return {
       ok: false,
       error: `${message} Current todos:\n${formatTodoList(existing.items)}`,

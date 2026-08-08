@@ -13,7 +13,7 @@ import {
 import { formatRelativeTime } from '@/lib'
 import type { SessionParticipant } from '@/lib/chat'
 import { triggerJsonDownload } from '@/lib/chat/io'
-import { toast } from '@/lib/notifications'
+import { toastError } from '@/lib/notifications'
 import { cn } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
@@ -84,9 +84,7 @@ export function SessionRow({ id, rename }: SessionRowProps) {
       const archive = await exportSession({ sessionId: id as Id<'sessions'> })
       triggerJsonDownload(archive.session.title, archive)
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : 'Could not export session',
-      )
+      toastError(err, 'Could not export session')
     }
   }
 

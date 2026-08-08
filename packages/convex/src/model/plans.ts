@@ -2,6 +2,7 @@ import { applyEdits } from '@sb/core/workspace/edit'
 
 import type { Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
+import { extractErrorMessage } from '../errors'
 import type { AuthMutationCtx, AuthQueryCtx } from '../functions'
 import type { PlanStatus } from '../types'
 import { assertPlanContentCap, planContentCapError } from './caps'
@@ -154,7 +155,7 @@ export async function _edit(
   } catch (error) {
     return {
       ok: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: extractErrorMessage(error),
       content: existing.content,
     }
   }

@@ -3,6 +3,7 @@ import { evaluate } from '@sb/core/interpreter/evaluate'
 import { createVariableStore } from '@sb/core/interpreter/store'
 import type { EvalContext, JsonValue } from '@sb/core/interpreter/types'
 import { mcpTransportSchema } from '@sb/core/types'
+import { errorMessage } from '@sb/core/utils/errors'
 import { type Context, Hono } from 'hono'
 import { ZodError, z } from 'zod'
 
@@ -270,8 +271,22 @@ serve({
 console.log(`Local server running on http://localhost:${PORT}`)
 
 function ioError(c: Context, err: unknown) {
-  const message = err instanceof Error ? err.message : String(err)
   const status = err instanceof ZodError ? 400 : 500
   console.error('Error handling I/O request:', err)
-  return c.json({ error: message }, status)
+  return c.json({ error: requestErrorMessage(err) }, status)
+}
+
+/** Returns a readable error. */
+function requestErrorMessage(err: unknown): string {
+  if (err instanceof ZodError) {
+    return err.issues
+      .map((issue) =>
+        issue.path.length
+          ? `${issue.path.join('.')}: ${issue.message}`
+          : issue.message,
+      )
+      .join('; ')
+  }
+
+  return errorMessage(err) ?? String(err)
 }
