@@ -5,7 +5,6 @@ import {
   type ShellJobStream,
   type ShellStreamEvent,
   backgroundShellJob,
-  killSessionForegroundShellJobs,
   killSessionShellJobs,
   killShellJob,
   listShellJobs,
@@ -33,6 +32,15 @@ function start(command: string, overrides?: Record<string, unknown>) {
     cwd: process.cwd(),
     ...overrides,
   })
+}
+
+function isAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
 }
 
 async function waitFor(condition: () => boolean, timeoutMs = 6_000) {
@@ -136,11 +144,58 @@ describe('job registry', () => {
     expect(pollShellJob(fg.jobId, session.sessionId, 0).background).toBe(true)
 
     // Foreground-only cleanup must now leave it running.
-    killSessionForegroundShellJobs(session.sessionId)
+    killSessionShellJobs(session.sessionId, false)
     expect(pollShellJob(fg.jobId, session.sessionId, 0).status).toBe('running')
 
     killShellJob(fg.jobId, session.sessionId)
     await waitForExit(fg.jobId)
+  })
+
+  test('kill_session only reaps the jobs of the owner it is given', async () => {
+    const mine = await start('sleep 30', { owner: 'turn-1' })
+    const theirs = await start('sleep 30', { owner: 'turn-2' })
+    await Bun.sleep(100)
+
+    expect(killSessionShellJobs(session.sessionId, false, 'turn-1')).toBe(1)
+
+    expect((await waitForExit(mine.jobId)).status).toBe('killed')
+    expect(pollShellJob(theirs.jobId, session.sessionId, 0).status).toBe(
+      'running',
+    )
+
+    killShellJob(theirs.jobId, session.sessionId)
+    await waitForExit(theirs.jobId)
+  })
+
+  test('runs commands with pagers disabled', async () => {
+    const { jobId } = await start(
+      'echo "pager=$PAGER git=$GIT_PAGER prompt=$GIT_TERMINAL_PROMPT"',
+    )
+
+    const result = await waitForExit(jobId)
+    expect(result.output).toContain('pager=cat git=cat prompt=0')
+  })
+
+  /**
+   * A job that pipes into a pager only dies if the whole group is signalled:
+   * the leader defers the signal until its child exits. Every spawn mode goes
+   * through the same `killProcessTree`; node-pty cannot run under bun, so this
+   * covers it in script mode.
+   */
+  test('killing a job takes its children down with it', async () => {
+    const { jobId } = await start('sleep 30 & echo "child:$!"; wait')
+    await waitFor(() =>
+      pollShellJob(jobId, session.sessionId, 0).chunk.includes('child:'),
+    )
+
+    const child = Number(
+      /child:(\d+)/.exec(pollShellJob(jobId, session.sessionId, 0).chunk)?.[1],
+    )
+    expect(child).toBeGreaterThan(0)
+
+    killShellJob(jobId, session.sessionId)
+    expect((await waitForExit(jobId)).status).toBe('killed')
+    await waitFor(() => !isAlive(child))
   })
 
   test('reports waiting while a job blocks reading stdin', async () => {
@@ -167,7 +222,7 @@ describe('job registry', () => {
     const bg = await start('sleep 30', { background: true })
     await Bun.sleep(100)
 
-    const killed = killSessionForegroundShellJobs(session.sessionId)
+    const killed = killSessionShellJobs(session.sessionId, false)
     expect(killed).toBeGreaterThanOrEqual(1)
 
     const fgResult = await waitForExit(fg.jobId)

@@ -3,7 +3,12 @@ import { type ChildProcess, spawn } from 'node:child_process'
 import { accessSync, constants } from 'node:fs'
 import { delimiter, join } from 'node:path'
 
-import { killProcessTree, shellInvocation, shellPath } from './system-shell'
+import {
+  jobEnv,
+  killProcessTree,
+  shellInvocation,
+  shellPath,
+} from './system-shell'
 
 export type PtyMode = 'pty' | 'script' | 'pipe'
 
@@ -111,18 +116,7 @@ function isExecutable(file: string): boolean {
 export async function spawnJob(
   input: SpawnShellJobInput,
 ): Promise<ShellJobProcess> {
-  const mode = forcedMode()
-  const nodePty = mode ? null : await probeNodePty()
-  const proc =
-    mode === 'pipe'
-      ? spawnPipe(input)
-      : mode === 'script'
-        ? spawnScriptPty(input)
-        : nodePty
-          ? spawnNodePty(nodePty, input)
-          : hasScript()
-            ? spawnScriptPty(input)
-            : spawnPipe(input)
+  const proc = await spawnForMode(forcedMode(), input)
 
   if (loggedMode !== proc.mode) {
     loggedMode = proc.mode
@@ -130,6 +124,19 @@ export async function spawnJob(
   }
 
   return proc
+}
+
+/** Falls back to the next best mode when the requested one is unavailable. */
+async function spawnForMode(
+  mode: PtyMode | undefined,
+  input: SpawnShellJobInput,
+): Promise<ShellJobProcess> {
+  if (mode === 'pipe') return spawnPipe(input)
+  if (mode === 'script') return spawnScriptPty(input)
+
+  const nodePty = await probeNodePty()
+  if (nodePty) return spawnNodePty(nodePty, input)
+  return hasScript() ? spawnScriptPty(input) : spawnPipe(input)
 }
 
 function spawnNodePty(
@@ -142,7 +149,7 @@ function spawnNodePty(
     cols: input.cols,
     rows: input.rows,
     cwd: input.cwd,
-    env: { ...process.env, TERM: 'xterm-256color' } as Record<string, string>,
+    env: jobEnv({ TERM: 'xterm-256color' }) as Record<string, string>,
   })
 
   return {
@@ -156,15 +163,18 @@ function spawnNodePty(
         // Resizing an exited pty throws, no-op
       }
     },
-    kill: () => {
-      try {
-        pty.kill()
-      } catch {
-        // Already exited
-      }
-    },
+    // `forkpty` makes the leader its own session, so the group is the job
+    kill: () => killProcessTree(pty.pid, () => safeKill(pty)),
     onData: (cb) => void pty.onData(cb),
     onExit: (cb) => void pty.onExit(({ exitCode }) => cb(exitCode)),
+  }
+}
+
+function safeKill(pty: IPty) {
+  try {
+    pty.kill()
+  } catch {
+    // Already exited
   }
 }
 
@@ -177,11 +187,7 @@ function spawnScriptPty(input: SpawnShellJobInput): ShellJobProcess {
   const child = spawn('script', ['-qefc', sized, '/dev/null'], {
     cwd: input.cwd,
     detached: true,
-    env: {
-      ...process.env,
-      SHELL: shellPath(input.shell),
-      TERM: 'xterm-256color',
-    },
+    env: jobEnv({ SHELL: shellPath(input.shell), TERM: 'xterm-256color' }),
     stdio: ['pipe', 'pipe', 'pipe'],
   })
   return wrapChildProcess(child, 'script')
@@ -192,7 +198,7 @@ function spawnPipe(input: SpawnShellJobInput): ShellJobProcess {
   const child = spawn(file, args, {
     cwd: input.cwd,
     detached: process.platform !== 'win32',
-    env: process.env,
+    env: jobEnv(),
     stdio: ['pipe', 'pipe', 'pipe'],
     windowsHide: true,
   })
@@ -226,7 +232,7 @@ function wrapChildProcess(child: ChildProcess, mode: PtyMode): ShellJobProcess {
     resize: () => {
       // Fixed-size pty (script) or no pty at all (pipe)
     },
-    kill: () => killProcessTree(child),
+    kill: () => killProcessTree(child.pid, () => child.kill()),
     onData: (cb) => {
       dataCallbacks.push(cb)
       if (pending) {

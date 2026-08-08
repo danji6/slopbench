@@ -4,7 +4,8 @@ import type { Doc } from '@sb/convex/_generated/dataModel'
 import { minRole } from '@sb/convex/lib/roles'
 import { SHELL_TOOL_PART_TYPE } from '@sb/convex/lib/userShell'
 import type { MessageExtra } from '@sb/convex/types'
-import type { FileUIPart, TextUIPart, ToolUIPart, UIMessage } from 'ai'
+import { settleUnansweredToolPart } from '@sb/core/utils/tool-parts'
+import type { FileUIPart, TextUIPart, UIMessage } from 'ai'
 import { isFileUIPart, isReasoningUIPart, isTextUIPart, isToolUIPart } from 'ai'
 
 import type { MessageStore } from './message-store'
@@ -269,19 +270,13 @@ export function sanitizeMessages(messages: UIMessage[]): UIMessage[] {
   return messages.map(finalizeMessageParts).filter((m) => !isMessageEmpty(m))
 }
 
-/** Ensures there are no dangling streaming parts in the message. */
+/** Ensures there are no dangling streaming or unanswered parts in the message. */
 export function finalizeMessageParts<T extends UIMessage>(message: T): T {
   const parts = message.parts.map((part) => {
     if ('state' in part && part.state === 'streaming') {
       return { ...part, state: 'done' }
     }
-    if (
-      part.type.startsWith('tool-') &&
-      (part as ToolUIPart).state === 'input-streaming'
-    ) {
-      return { ...part, state: 'output-error' }
-    }
-    return part
+    return settleUnansweredToolPart(part)
   })
   return { ...message, parts: parts as UIMessage['parts'] }
 }

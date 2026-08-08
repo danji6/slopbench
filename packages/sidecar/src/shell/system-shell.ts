@@ -1,5 +1,5 @@
 import { shellBasename } from '@sb/core/shell/name'
-import { type ChildProcess, spawn } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
 
@@ -85,23 +85,51 @@ function withExtensions(file: string): string[] {
   return [...extensions.map((ext) => file + ext.toLowerCase()), file]
 }
 
-/** Terminate a child and everything it spawned. */
-export function killProcessTree(child: ChildProcess) {
-  if (!child.pid) return
+/** How long a process group gets to exit on its own before SIGKILL. */
+const ESCALATE_MS = 8000
+
+/** Terminate a process and everything it spawned. */
+export function killProcessTree(
+  pid: number | undefined,
+  fallback?: () => void,
+) {
+  if (!pid) return
 
   if (isWindows) {
     // Windows has no process groups, so we walk the tree with `taskkill`
-    const killer = spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], {
+    const killer = spawn('taskkill', ['/PID', String(pid), '/T', '/F'], {
       stdio: 'ignore',
       windowsHide: true,
     })
-    killer.on('error', () => child.kill())
+    killer.on('error', () => fallback?.())
     return
   }
 
+  if (!signalGroup(pid, 'SIGTERM')) {
+    fallback?.()
+    return
+  }
+
+  setTimeout(() => signalGroup(pid, 'SIGKILL'), ESCALATE_MS).unref?.()
+}
+
+/** Signals the group led by `pid`. False when it is already gone. */
+function signalGroup(pid: number, signal: NodeJS.Signals): boolean {
   try {
-    process.kill(-child.pid, 'SIGTERM')
+    process.kill(-pid, signal)
+    return true
   } catch {
-    child.kill()
+    return false
+  }
+}
+
+/** Environment shared by every job. */
+export function jobEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    PAGER: 'cat',
+    GIT_PAGER: 'cat',
+    GIT_TERMINAL_PROMPT: '0',
+    ...extra,
   }
 }

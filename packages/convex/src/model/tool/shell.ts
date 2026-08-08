@@ -21,8 +21,14 @@ const TEXT_TAIL_CHARS = 14_000
 
 export type ShellJobContext = {
   sessionId: string
+  /** Session that owns this job's lifecycle. */
+  owner?: string
   workspaceId: string
   shell?: string
+  /** Tool call the job's terminal belongs to. */
+  messageId?: string
+  messageCreatedAt?: number
+  toolCallId?: string
 }
 
 export type ShellJobInput = {
@@ -79,6 +85,10 @@ export async function* executeShellJob(
   const post = options.post ?? postSidecar
   const { jobId } = await post<StartResponse>('/shell/start', {
     sessionId: context.sessionId,
+    owner: context.owner,
+    messageId: context.messageId,
+    messageCreatedAt: context.messageCreatedAt,
+    toolCallId: context.toolCallId,
     workspaceId: context.workspaceId,
     command: input.command,
     timeoutSeconds: input.timeout,

@@ -8,7 +8,7 @@ import { uploadAvatar } from './actions/io/avatar'
 import { createAuth } from './auth'
 import { type ErrorPayload, extractErrorMessage } from './errors'
 import { authorizeAdmin } from './functions'
-import { SIDECAR_URL } from './model/sidecar'
+import { sidecarUrl } from './model/sidecar'
 import { isAllowedOrigin, siteUrl } from './origins'
 
 const http = httpRouter()
@@ -154,7 +154,7 @@ const termStreamHandler = httpAction(async (ctx, req) => {
   })
   let upstream: Response
   try {
-    upstream = await fetch(`${SIDECAR_URL}/shell/stream?${query.toString()}`, {
+    upstream = await fetch(`${sidecarUrl()}/shell/stream?${query.toString()}`, {
       headers: { Accept: 'text/event-stream' },
       signal: req.signal,
     })

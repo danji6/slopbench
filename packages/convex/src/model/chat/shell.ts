@@ -154,6 +154,8 @@ export async function _beginUserShellWindow(
   const output = part.output
   return {
     sessionId: sharedSessionId(session),
+    owner: messageId, // guards against agent turn abort
+    messageId,
     workspaceId: session.workspace.workspaceId,
     shell: sender?.shell || undefined,
     command: part.input.command,

@@ -1,6 +1,6 @@
 import type { ToolSet } from 'ai'
 
-import type { Doc } from '../../_generated/dataModel'
+import type { Doc, Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { TASK_TOOL_NAME, sharedSessionId } from '../../lib/subagent'
 import { mergeToolApprovals } from '../../lib/tool/approval'
@@ -41,6 +41,9 @@ export type ToolBuildOptions = {
   ctx?: ActionCtx
   /** The agent's own approvals, merged into the session's. */
   autoApprove?: AgentAutoApprove
+  /** Message this turn writes into. */
+  messageId?: Id<'messages'>
+  messageCreatedAt?: number
 }
 
 /**
@@ -60,6 +63,9 @@ export async function getEnabledTools(
     session?.workspace && sessionId
       ? {
           sessionId,
+          ownerId: session._id,
+          messageId: options?.messageId,
+          messageCreatedAt: options?.messageCreatedAt,
           workspaceId: session.workspace.workspaceId,
           shell: manifest.shell,
           approvals: mergeToolApprovals(

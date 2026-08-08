@@ -6,70 +6,19 @@ import {
 import { getToolErrorText, getToolStatus } from '@/lib/chat'
 import type { SourceMessagePart } from '@/lib/chat/combine'
 import type { ToolUIPart } from 'ai'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
 
 import { CollapsibleBlock } from '../collapsible-block'
 import type { CollapsibleBlockProps } from '../collapsible-block'
 import { useMessageList } from '../message-list/message-list-context'
 
 const openStates = new Map<string, boolean>()
+const openListeners = new Set<() => void>()
 
-function usePersistentOpen(id: string) {
-  const [userOpen, setOpenState] = useState<boolean | null>(
-    () => openStates.get(id) ?? null,
-  )
-  const setUserOpen = useCallback(
-    (open: boolean) => {
-      openStates.set(id, open)
-      setOpenState(open)
-    },
-    [id],
-  )
-  return [userOpen, setUserOpen] as const
-}
-
-export type ToolStatus = 'pending' | 'running' | 'complete' | 'error'
-
-export type ToolPartState = {
-  status: ToolStatus
-  errorText: string | undefined
-  isAwaitingApproval: boolean
-}
-
-export function useToolPart(
-  part: ToolUIPart,
-  messageId: string,
-  forceError?: boolean,
-): ToolPartState {
-  const awaitingApproval = useStreamAwaitingApproval()
-  const processingMessageId = useStreamProcessingMessageId()
-  const streamStore = useStreamStore()
-  const sourceMessageId =
-    (part as SourceMessagePart).sourceMessageId ?? messageId
-  const messageList = useMessageList()
-
-  const isAwaitingApproval =
-    part.state === 'approval-requested' &&
-    awaitingApproval &&
-    processingMessageId === sourceMessageId
-
-  const wasAwaitingApprovalRef = useRef(isAwaitingApproval)
-  // Resume following once the approval resolves, but only when the turn
-  // continues (approve/deny)
-  useEffect(() => {
-    if (wasAwaitingApprovalRef.current && !isAwaitingApproval) {
-      const status = streamStore.getRawStatus()
-      const turnContinues =
-        status === 'pending' || status === 'streaming' || status === 'retrying'
-      if (turnContinues) messageList?.resumeFollow()
-    }
-    wasAwaitingApprovalRef.current = isAwaitingApproval
-  }, [isAwaitingApproval, messageList, streamStore])
-
-  return {
-    status: forceError ? 'error' : getToolStatus(part),
-    errorText: getToolErrorText(part),
-    isAwaitingApproval,
+const subscribeToOpenStates = (listener: () => void) => {
+  openListeners.add(listener)
+  return () => {
+    openListeners.delete(listener)
   }
 }
 
@@ -155,4 +104,77 @@ export function ToolShell({
       )}
     </CollapsibleBlock>
   )
+}
+
+/** Opens a tool block from outside the message list. */
+export function openToolBlock(toolCallId: string | undefined) {
+  if (!toolCallId || openStates.get(toolCallId) === true) return
+  openStates.set(toolCallId, true)
+  openListeners.forEach((listener) => listener())
+}
+
+export type ToolStatus = 'pending' | 'running' | 'complete' | 'error'
+
+export type ToolPartState = {
+  status: ToolStatus
+  errorText: string | undefined
+  isAwaitingApproval: boolean
+}
+
+export function useToolPart(
+  part: ToolUIPart,
+  messageId: string,
+  forceError?: boolean,
+): ToolPartState {
+  const awaitingApproval = useStreamAwaitingApproval()
+  const processingMessageId = useStreamProcessingMessageId()
+  const streamStore = useStreamStore()
+  const sourceMessageId =
+    (part as SourceMessagePart).sourceMessageId ?? messageId
+  const messageList = useMessageList()
+
+  const isAwaitingApproval =
+    part.state === 'approval-requested' &&
+    awaitingApproval &&
+    processingMessageId === sourceMessageId
+
+  const wasAwaitingApprovalRef = useRef(isAwaitingApproval)
+  // Resume following once the approval resolves, but only when the turn
+  // continues (approve/deny)
+  useEffect(() => {
+    if (wasAwaitingApprovalRef.current && !isAwaitingApproval) {
+      const status = streamStore.getRawStatus()
+      const turnContinues =
+        status === 'pending' || status === 'streaming' || status === 'retrying'
+      if (turnContinues) messageList?.resumeFollow()
+    }
+    wasAwaitingApprovalRef.current = isAwaitingApproval
+  }, [isAwaitingApproval, messageList, streamStore])
+
+  return {
+    status: forceError ? 'error' : getToolStatus(part),
+    errorText: getToolErrorText(part),
+    isAwaitingApproval,
+  }
+}
+
+/**
+ * Keeps the block open when the user expands it.
+ * null follows the block's own `autoExpand`.
+ */
+function usePersistentOpen(id: string) {
+  const userOpen = useSyncExternalStore(
+    subscribeToOpenStates,
+    () => openStates.get(id) ?? null,
+    () => null,
+  )
+  const setUserOpen = useCallback(
+    (open: boolean) => {
+      if (openStates.get(id) === open) return
+      openStates.set(id, open)
+      openListeners.forEach((listener) => listener())
+    },
+    [id],
+  )
+  return [userOpen, setUserOpen] as const
 }

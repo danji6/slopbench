@@ -40,6 +40,7 @@ import { TypingIndicator } from './composer/typing-indicator'
 import { useMessageEdit } from './messages/editor'
 import { MessageHighlightProvider } from './messages/message-highlight-context'
 import { MessageList, type MessageListHandle } from './messages/message-list'
+import { MessageSeekProvider } from './messages/message-seek-context'
 import { HistorySearchDialog, useChatSearch, useChatSearchHost } from './search'
 import type { AgentItem } from './sessions/agent-combobox'
 import { ChatShortcutsProvider } from './shortcuts'
@@ -245,147 +246,151 @@ export function ChatSessionView({
       onAbort={handleAbort}
       onOpenSearch={openSearch}
     >
-      <MessageHighlightProvider>
-        <ChatLayout
-          scrollbar
-          bottomInset={keyboardInset}
-          mainContent={(bottomPadding) => (
-            <MessageList
-              ref={messageListRef}
-              className="mx-auto w-full flex-1"
-              innerStyle={messageStyle}
-              topPadding={topPadding}
-              bottomPadding={bottomPadding}
-              header={hasPrompts && <ChatPrompts className="h-fit" />}
-              isAtBottom={isAtBottom}
-              onScrollChange={onMessageListScroll}
-              onIntoViewSettle={releaseSticky}
-            />
-          )}
-          dockHeader={(bottomPadding) => {
-            const dockTop = toolbarBottom(
-              showDock,
-              bottomPadding,
-              widgetsHeight,
-              alertHeight,
-            )
-            return (
-              <AnimatePresence>
-                {(!isAtBottom || isEditing) && (
-                  <ChatToolbar
-                    key="chat-toolbar"
-                    bottom={dockTop}
-                    showScroll={!isAtBottom}
-                    activity={hasActivity}
-                    onScrollToBottom={pinToBottom}
-                    pinnable={!isEditing}
-                    pinned={isPinned}
-                    onPinChange={setPinned}
-                    editing={isEditing}
-                    onEditSave={editCtx?.onSave}
-                    onEditCancel={editCtx?.onCancel}
-                    className="pointer-events-auto absolute"
-                    style={{
-                      // Mirrors the widgets' inset on the other end of the row
-                      right: `calc((100% - (${dockWidth})) / 2 + var(--spacing))`,
-                    }}
+      <MessageSeekProvider messageListRef={messageListRef}>
+        <MessageHighlightProvider>
+          <ChatLayout
+            scrollbar
+            bottomInset={keyboardInset}
+            mainContent={(bottomPadding) => (
+              <MessageList
+                ref={messageListRef}
+                className="mx-auto w-full flex-1"
+                innerStyle={messageStyle}
+                topPadding={topPadding}
+                bottomPadding={bottomPadding}
+                header={hasPrompts && <ChatPrompts className="h-fit" />}
+                isAtBottom={isAtBottom}
+                onScrollChange={onMessageListScroll}
+                onIntoViewSettle={releaseSticky}
+              />
+            )}
+            dockHeader={(bottomPadding) => {
+              const dockTop = toolbarBottom(
+                showDock,
+                bottomPadding,
+                widgetsHeight,
+                alertHeight,
+              )
+              return (
+                <AnimatePresence>
+                  {(!isAtBottom || isEditing) && (
+                    <ChatToolbar
+                      key="chat-toolbar"
+                      bottom={dockTop}
+                      showScroll={!isAtBottom}
+                      activity={hasActivity}
+                      onScrollToBottom={pinToBottom}
+                      pinnable={!isEditing}
+                      pinned={isPinned}
+                      onPinChange={setPinned}
+                      editing={isEditing}
+                      onEditSave={editCtx?.onSave}
+                      onEditCancel={editCtx?.onCancel}
+                      className="pointer-events-auto absolute"
+                      style={{
+                        // Mirrors the widgets' inset on the other end of the row
+                        right: `calc((100% - (${dockWidth})) / 2 + var(--spacing))`,
+                      }}
+                    />
+                  )}
+                </AnimatePresence>
+              )
+            }}
+            dockFooter={
+              <div className="flex w-full">
+                <TypingIndicator names={typingUsers.map((user) => user.name)} />
+                <SlowModeLabel className="ml-auto" />
+              </div>
+            }
+            showDockFooter
+            dockFooterWidth={dockWidth}
+            dock={
+              <ChatDock
+                width={dockWidth}
+                hidden={!subagentParent && (isEditing || !showDock)}
+                inert={!subagentParent && isEditing}
+                onAlertHeightChange={setAlertHeight}
+                alert={
+                  <ChatAlert
+                    error={error}
+                    onDismiss={onDismissError}
+                    className="mb-1.5 w-[calc(100%-var(--spacing)*8)]"
+                  />
+                }
+              >
+                {subagentParent && (
+                  <SubagentBanner
+                    parent={subagentParent}
+                    title={session?.title}
+                    status={status}
+                    onStop={onStop}
+                    onScrollToBottom={() =>
+                      messageListRef.current?.followToBottom()
+                    }
                   />
                 )}
-              </AnimatePresence>
-            )
-          }}
-          dockFooter={
-            <div className="flex w-full">
-              <TypingIndicator names={typingUsers.map((user) => user.name)} />
-              <SlowModeLabel className="ml-auto" />
-            </div>
-          }
-          showDockFooter
-          dockFooterWidth={dockWidth}
-          dock={
-            <ChatDock
-              width={dockWidth}
-              hidden={!subagentParent && (isEditing || !showDock)}
-              inert={!subagentParent && isEditing}
-              onAlertHeightChange={setAlertHeight}
-              alert={
-                <ChatAlert
-                  error={error}
-                  onDismiss={onDismissError}
-                  className="mb-1.5 w-[calc(100%-var(--spacing)*8)]"
-                />
-              }
-            >
-              {subagentParent && (
-                <SubagentBanner
-                  parent={subagentParent}
-                  title={session?.title}
-                  status={status}
-                  onStop={onStop}
-                  onScrollToBottom={() =>
-                    messageListRef.current?.followToBottom()
-                  }
-                />
-              )}
-              {!subagentParent && showApproval && (
-                <ToolApprovalPicker
-                  restoreFocusRef={composerRef}
-                  onAbort={handleAbort}
-                  className="pointer-events-auto w-full"
-                />
-              )}
-              {!subagentParent && (
-                <>
-                  <DockWidgets
-                    ref={widgetsRef}
-                    className={cn(showApproval && 'hidden')}
+                {!subagentParent && showApproval && (
+                  <ToolApprovalPicker
+                    restoreFocusRef={composerRef}
+                    onAbort={handleAbort}
+                    className="pointer-events-auto w-full"
                   />
-                  <ChatComposer
-                    onSubmit={handleSubmit}
-                    onTyping={notify}
-                    onStop={onStop}
-                    onRunCommand={onRunCommand}
-                    onCycleMode={canUseWorkspace ? handleCycleMode : undefined}
-                    onContinueAgent={onContinueAgent}
-                    canContinueAgent={hasActiveAgent && status === 'ready'}
-                    commandAvailability={{
-                      hasActiveSession: true,
-                      hasActiveAgent,
-                    }}
-                    activeAgentName={activeAgentName}
-                    startContent={
-                      <ComposerToolbar
-                        fallbackAgent={activeAgentDisplay}
-                        mode={{
-                          value: mode,
-                          workspaceAvailable,
-                          cycle: cycleMode,
-                        }}
-                      />
-                    }
-                    onContentChange={handleContentChange}
-                    status={status}
-                    inputRef={composerRef}
-                    focusOnMount={focusComposerOnMount ?? false}
-                    fileIndex={fileIndex}
-                    passiveSend={passiveSend}
-                    sendDisabled={sendDisabled}
-                    shellAvailable={canUseWorkspace}
-                    draftKey={session?._id}
-                    className={cn('w-full', showApproval && 'hidden')}
-                    inert={!showDock || showApproval}
-                  />
-                </>
-              )}
-            </ChatDock>
-          }
-        />
-        <HistorySearchDialog
-          open={searchOpen}
-          onClose={closeSearch}
-          messageListRef={messageListRef}
-        />
-      </MessageHighlightProvider>
+                )}
+                {!subagentParent && (
+                  <>
+                    <DockWidgets
+                      ref={widgetsRef}
+                      className={cn(showApproval && 'hidden')}
+                    />
+                    <ChatComposer
+                      onSubmit={handleSubmit}
+                      onTyping={notify}
+                      onStop={onStop}
+                      onRunCommand={onRunCommand}
+                      onCycleMode={
+                        canUseWorkspace ? handleCycleMode : undefined
+                      }
+                      onContinueAgent={onContinueAgent}
+                      canContinueAgent={hasActiveAgent && status === 'ready'}
+                      commandAvailability={{
+                        hasActiveSession: true,
+                        hasActiveAgent,
+                      }}
+                      activeAgentName={activeAgentName}
+                      startContent={
+                        <ComposerToolbar
+                          fallbackAgent={activeAgentDisplay}
+                          mode={{
+                            value: mode,
+                            workspaceAvailable,
+                            cycle: cycleMode,
+                          }}
+                        />
+                      }
+                      onContentChange={handleContentChange}
+                      status={status}
+                      inputRef={composerRef}
+                      focusOnMount={focusComposerOnMount ?? false}
+                      fileIndex={fileIndex}
+                      passiveSend={passiveSend}
+                      sendDisabled={sendDisabled}
+                      shellAvailable={canUseWorkspace}
+                      draftKey={session?._id}
+                      className={cn('w-full', showApproval && 'hidden')}
+                      inert={!showDock || showApproval}
+                    />
+                  </>
+                )}
+              </ChatDock>
+            }
+          />
+          <HistorySearchDialog
+            open={searchOpen}
+            onClose={closeSearch}
+            messageListRef={messageListRef}
+          />
+        </MessageHighlightProvider>
+      </MessageSeekProvider>
     </ChatShortcutsProvider>
   )
 }

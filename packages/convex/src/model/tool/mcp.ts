@@ -1,14 +1,11 @@
 import type { McpServer } from '@sb/core/types'
 
 import { ToolError, extractErrorMessage, toolFailure } from '../../errors'
+import { sidecarUrl as defaultSidecarUrl } from '../sidecar'
 import type { McpManifestEntry } from './manifest'
 import { enabledMcpServers } from './settings'
 
-const DEFAULT_SIDECAR_URL = 'http://localhost:3212'
-
-export function getMcpUrl(
-  sidecarUrl = process.env.SIDECAR_URL ?? DEFAULT_SIDECAR_URL,
-): string {
+export function getMcpUrl(sidecarUrl = defaultSidecarUrl()): string {
   const url = new URL(sidecarUrl)
   const pathname = url.pathname.replace(/\/$/, '')
   url.pathname = pathname.endsWith('/mcp') ? pathname : `${pathname}/mcp`
@@ -18,7 +15,7 @@ export function getMcpUrl(
 /** Absolute URL for a sidecar route. */
 export function getSidecarUrl(
   path: string,
-  sidecarUrl = process.env.SIDECAR_URL ?? DEFAULT_SIDECAR_URL,
+  sidecarUrl = defaultSidecarUrl(),
 ): string {
   return new URL(path, sidecarUrl).toString()
 }

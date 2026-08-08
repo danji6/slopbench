@@ -3,9 +3,10 @@ import { Terminal, type TerminalHandle } from '@/components/ui/terminal'
 import { useCode } from '@/hooks'
 import { useIsWorkspaceAdmin } from '@/hooks/chat'
 import { useActiveSessionId } from '@/hooks/chat/session'
-import { type JobTail, useJobTail } from '@/hooks/chat/terminals'
+import { useJobTail, useLiveShellJob } from '@/hooks/chat/terminals'
 import { useToolOutput } from '@/hooks/chat/tool-output'
 import { useDebouncedCallback } from '@/hooks/debounce'
+import { useTerminalFeed } from '@/hooks/terminal-feed'
 import type { ShellToolOutput } from '@/lib/chat'
 import { parseOutputValue } from '@/lib/chat/tool-output'
 import { toast } from '@/lib/notifications'
@@ -14,9 +15,8 @@ import type { Id } from '@sb/convex/_generated/dataModel'
 import type { ToolUIPart } from 'ai'
 import { useAction } from 'convex/react'
 import { ArrowDownFromLineIcon, BanIcon } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
-import { useTerminalFeed } from '../../../../hooks/terminal-feed'
 import { LoadFullOutput } from './load-full-output'
 import { ToolShell } from './tool-shell'
 
@@ -65,23 +65,37 @@ export function ShellBlock({
   // Optimistic flags
   const [detached, setDetached] = useState(false)
   const [killed, setKilled] = useState(false)
-  const optimisticBackground = detached && output?.status === 'running'
 
-  const isBackground = output?.status === 'background' || optimisticBackground
-
-  // Conditions under which a backgrounded job may be tailed for live status
-  const canTail =
-    Boolean(output?.jobId) && isBackground && isAdmin && sessionId !== null
-
-  // Last live status reported by the expanded terminal
-  const [liveTail, setLiveTail] = useState<JobTail | undefined>(undefined)
-  const reportTail = useCallback(
-    (tail: JobTail) => setLiveTail(canTail ? tail : undefined),
-    [canTail],
+  // What the sidecar knows about this shell, independently of the turn itself
+  const mayBeLive =
+    part.state !== 'output-available' ||
+    output?.status === 'running' ||
+    output?.status === 'background'
+  const liveJob = useLiveShellJob(
+    sessionId,
+    mayBeLive && isAdmin,
+    part.toolCallId,
+    output?.jobId,
   )
+  const jobId = output?.jobId ?? liveJob?.jobId
 
-  // Effective status
-  const liveStatus = (canTail ? liveTail?.status : undefined) ?? output?.status
+  const canTail =
+    Boolean(jobId) &&
+    isAdmin &&
+    sessionId !== null &&
+    !killed &&
+    Boolean(liveJob)
+  const tail = useJobTail(sessionId, jobId ?? '', canTail)
+  const tailing = canTail && tail.status !== undefined
+
+  const optimisticBackground = detached && liveJob?.status === 'running'
+  const isBackground =
+    liveJob?.background ??
+    (output?.status === 'background' || optimisticBackground)
+
+  // Effective status, which may be different than the persisted one
+  const liveStatus =
+    (tailing ? tail.status : undefined) ?? liveJob?.status ?? output?.status
   const isLive = liveStatus === 'running' || liveStatus === 'background'
   const terminated =
     killed ||
@@ -89,21 +103,18 @@ export function ShellBlock({
     liveStatus === 'timeout' ||
     liveStatus === 'lost'
 
+  const waiting =
+    (tailing ? tail.waiting : undefined) ?? liveJob?.waiting ?? output?.waiting
+
   // Auto-expand only when the sidecar reports the job is waiting on terminal input
   const interactive =
-    Boolean(output?.waiting) &&
-    isLive &&
-    !isBackground &&
-    isAdmin &&
-    sessionId !== null
+    Boolean(waiting) && isLive && !isBackground && isAdmin && sessionId !== null
   const displayTerm =
-    fullOutput?.term ?? (canTail ? liveTail?.term : undefined) ?? output?.term
+    fullOutput?.term ?? (tailing ? tail.term : undefined) ?? output?.term
   const hasTerminalText =
     typeof displayTerm === 'string' && displayTerm.trim() !== ''
-  const hasTerminal =
-    output !== undefined &&
-    typeof output.term === 'string' &&
-    (isLive || hasTerminalText)
+  // A live job always gets a terminal, even before any output was persisted
+  const hasTerminal = Boolean(jobId) && (isLive || hasTerminalText)
 
   // Reveal an interactive terminal only the first time it goes live
   const revealTerminal = useRevealOnce(
@@ -119,7 +130,7 @@ export function ShellBlock({
         ? part.output
         : output?.text
 
-  const showLiveActions = Boolean(output?.jobId) && isLive && !killed
+  const showLiveActions = Boolean(jobId) && isLive && !killed
   const hasActions = showLiveActions || (truncated && !fullOutput)
 
   const hasContent =
@@ -153,13 +164,18 @@ export function ShellBlock({
     >
       {hasContent && (
         <>
-          {hasTerminal && (
+          {hasTerminal && jobId && (
             <ShellTerminal
-              jobId={output.jobId}
-              output={output}
-              fullOutput={fullOutput}
-              tailEnabled={canTail}
-              onTail={reportTail}
+              jobId={jobId}
+              term={displayTerm ?? ''}
+              termOffset={
+                fullOutput?.termOffset ??
+                (tailing ? tail.termOffset : undefined) ??
+                output?.termOffset ??
+                0
+              }
+              live={isLive}
+              showingFull={fullOutput !== undefined}
             />
           )}
           {fallbackText && (
@@ -174,16 +190,16 @@ export function ShellBlock({
           )}
           {hasActions && (
             <div className="flex w-full items-center gap-2">
-              {showLiveActions && output && (
+              {showLiveActions && jobId && (
                 <>
                   <KillButton
-                    jobId={output.jobId}
+                    jobId={jobId}
                     onKilled={() => setKilled(true)}
                     onError={() => setKilled(false)}
                   />
-                  {output.status === 'running' && !detached && (
+                  {liveStatus === 'running' && !detached && (
                     <SendToBackgroundButton
-                      jobId={output.jobId}
+                      jobId={jobId}
                       onDetached={() => setDetached(true)}
                       onError={() => setDetached(false)}
                     />
@@ -251,16 +267,16 @@ function HighlightedCommand({ command }: { command: string }) {
 
 function ShellTerminal({
   jobId,
-  output,
-  fullOutput,
-  tailEnabled,
-  onTail,
+  term,
+  termOffset,
+  live,
+  showingFull,
 }: {
   jobId: string
-  output: ShellToolOutput
-  fullOutput: ShellToolOutput | undefined
-  tailEnabled: boolean
-  onTail: (tail: JobTail) => void
+  term: string
+  termOffset: number
+  live: boolean
+  showingFull: boolean
 }) {
   const sessionId = useActiveSessionId() as Id<'sessions'> | null
   const isAdmin = useIsWorkspaceAdmin()
@@ -268,23 +284,9 @@ function ShellTerminal({
   const writeTerminal = useAction(api.actions.terminals.write)
   const resizeTerminal = useAction(api.actions.terminals.resize)
 
-  const tail = useJobTail(sessionId, jobId, tailEnabled)
-  useEffect(() => {
-    if (tailEnabled) onTail(tail)
-  }, [tail, tailEnabled, onTail])
-
-  const showingTail = tailEnabled && tail.status !== undefined
-  const liveStatus = showingTail ? tail.status : output.status
-  const live = liveStatus === 'running' || liveStatus === 'background'
   const interactive = live && isAdmin && sessionId !== null
-
-  const term = fullOutput?.term ?? (showingTail ? tail.term : output.term)
-  const termOffset =
-    fullOutput?.termOffset ??
-    (showingTail ? tail.termOffset : output.termOffset)
   const resetFeed = useTerminalFeed(handleRef, term, termOffset)
 
-  const showingFull = fullOutput !== undefined
   useEffect(() => {
     if (!showingFull) return
     handleRef.current?.clear()

@@ -14,6 +14,12 @@ export type ShellJobStatus = 'running' | 'done' | 'killed' | 'timeout'
 
 export type StartShellJobInput = {
   sessionId: string
+  /** Whoever's stop terminates this job. */
+  owner?: string
+  /** Message (tool call) this job belongs to. */
+  messageId?: string
+  messageCreatedAt?: number
+  toolCallId?: string
   workspaceId: string
   command: string
   cwd: string
@@ -26,6 +32,9 @@ export type StartShellJobInput = {
 
 export type ShellJobSummary = {
   jobId: string
+  messageId?: string
+  messageCreatedAt?: number
+  toolCallId?: string
   command: string
   status: ShellJobStatus
   exitCode: number | null
@@ -162,6 +171,10 @@ export class ShellJobSubscriber {
 type ShellJob = {
   jobId: string
   sessionId: string
+  owner?: string
+  messageId?: string
+  messageCreatedAt?: number
+  toolCallId?: string
   workspaceId: string
   command: string
   proc: ShellJobProcess
@@ -232,6 +245,10 @@ export async function startShellJob(
   const job: ShellJob = {
     jobId: nextJobId(),
     sessionId: input.sessionId,
+    owner: input.owner,
+    messageId: input.messageId,
+    messageCreatedAt: input.messageCreatedAt,
+    toolCallId: input.toolCallId,
     workspaceId: input.workspaceId,
     command: input.command,
     proc,
@@ -436,6 +453,9 @@ export function listShellJobs(sessionId: string): ShellJobSummary[] {
     .filter((job) => job.sessionId === sessionId)
     .map((job) => ({
       jobId: job.jobId,
+      messageId: job.messageId,
+      messageCreatedAt: job.messageCreatedAt,
+      toolCallId: job.toolCallId,
       command: job.command,
       status: job.status,
       exitCode: job.exitCode,
@@ -447,20 +467,20 @@ export function listShellJobs(sessionId: string): ShellJobSummary[] {
     }))
 }
 
+/** `owner` narrows the sweep to the jobs one turn started. */
 export function killSessionShellJobs(
   sessionId: string,
   includeBackground: boolean,
+  owner?: string,
 ): number {
   const targets = runningSessionJobs(sessionId).filter(
-    (job) => includeBackground || !job.background,
+    (job) =>
+      (includeBackground || !job.background) &&
+      (owner === undefined || job.owner === owner),
   )
   for (const job of targets) {
     job.endReason = 'killed'
     job.proc.kill()
   }
   return targets.length
-}
-
-export function killSessionForegroundShellJobs(sessionId: string): number {
-  return killSessionShellJobs(sessionId, false)
 }

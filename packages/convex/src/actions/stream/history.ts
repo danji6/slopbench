@@ -12,6 +12,7 @@ import type {
   WorkspaceSkippedLink,
 } from '@sb/core/types/workspace'
 import { block } from '@sb/core/utils/blocks'
+import { settleUnansweredToolParts } from '@sb/core/utils/tool-parts'
 import { blockPath } from '@sb/core/workspace/blocks'
 import {
   MAX_TEXT_SNAPSHOT_CHARS,
@@ -36,30 +37,6 @@ import { hasOutputRef } from '../../model/stream/toolOutput'
 import type { MessageRole, StreamContext } from '../../types'
 import { readWorkspaceFileLink } from '../session/workspace'
 
-/** Reason attached to an approval request that reached history still unanswered. */
-const UNRESOLVED_APPROVAL_REASON =
-  'This tool call was denied and never ran. Do not retry the same call.'
-
-/** Turns any lingering unanswered approval request into a denied tool result. */
-export function denyUnresolvedApprovals(
-  parts: UIMessage['parts'],
-): UIMessage['parts'] {
-  return parts.map((part) => {
-    if (!part.type.startsWith('tool-')) return part
-    const tool = part as { state?: string; approval?: { id?: string } }
-    if (tool.state !== 'approval-requested' || !tool.approval?.id) return part
-    return {
-      ...tool,
-      state: 'output-denied',
-      approval: {
-        id: tool.approval.id,
-        approved: false,
-        reason: UNRESOLVED_APPROVAL_REASON,
-      },
-    } as UIMessage['parts'][number]
-  })
-}
-
 export async function buildProviderHistory(
   ctx: ActionCtx,
   data: StreamContext,
@@ -79,7 +56,10 @@ export async function buildProviderHistory(
     messages.push({
       id: message._id,
       role: role as MessageRole,
-      parts: denyUnresolvedApprovals(parts),
+      parts:
+        message._id === data.stream.processingMessageId
+          ? parts
+          : (settleUnansweredToolParts(parts) as UIMessage['parts']),
     })
   }
 

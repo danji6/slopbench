@@ -1,13 +1,19 @@
 import { convexSiteUrl, getConvexToken } from '@/hooks/http'
 import type { ShellJobStatus, ShellJobSummary } from '@/lib/chat'
+import {
+  type ListShellJobs,
+  dropShellJob,
+  getShellJobs,
+  retainShellJobs,
+  subscribeToShellJobs,
+} from '@/lib/chat/shell-jobs-store'
 import { type SseFrame, readSse } from '@/lib/sse'
 import { sleep } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { useAction } from 'convex/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
-const LIST_INTERVAL_MS = 2500
 const RECONNECT_DELAY_MS = 500
 // Matches the sidecar's terminal-tail cap (see model/tool/shell.ts)
 const TERM_TAIL_CHARS = 48_000
@@ -18,60 +24,59 @@ export type SessionJobs = {
   dropJob: (jobId: string) => void
 }
 
-/** Polls the sidecar for the session's jobs while `enabled`. */
+/** Subscribes to the session's sidecar jobs, polled once for all consumers. */
 export function useSessionJobs(
   sessionId: Id<'sessions'> | null,
   enabled = true,
 ): SessionJobs {
-  const list = useAction(api.actions.terminals.list)
-  const [jobs, setJobs] = useState<ShellJobSummary[]>([])
-  const dropped = useRef<Set<string>>(new Set())
+  const list = useAction(api.actions.terminals.list) as ListShellJobs
+  const jobs = useSyncExternalStore(subscribeToShellJobs, getShellJobs)
 
-  const dropJob = useCallback((jobId: string) => {
-    dropped.current.add(jobId)
-    setJobs((prev) => prev.filter((job) => job.jobId !== jobId))
-  }, [])
+  useEffect(
+    () => retainShellJobs(enabled ? sessionId : null, list),
+    [sessionId, enabled, list],
+  )
 
-  useEffect(() => {
-    if (!sessionId || !enabled) return
+  return { jobs: sessionId && enabled ? jobs : [], dropJob: dropShellJob }
+}
 
-    let active = true
-    let timer: ReturnType<typeof setTimeout>
+/**
+ * The live job a tool call is running, if any. Lets a terminal reattach to a
+ * job the persisted tool output knows nothing about.
+ */
+export function useLiveShellJob(
+  sessionId: Id<'sessions'> | null,
+  enabled: boolean,
+  toolCallId: string | undefined,
+  jobId?: string,
+): ShellJobSummary | undefined {
+  const { jobs } = useSessionJobs(sessionId, enabled)
 
-    const tick = async () => {
-      try {
-        const { jobs } = await list({ sessionId })
-        if (active) {
-          // Keep dropped ids hidden until the sidecar stops reporting them
-          const present = new Set(jobs.map((job) => job.jobId))
-          for (const id of dropped.current) {
-            if (!present.has(id)) dropped.current.delete(id)
-          }
-          setJobs(jobs.filter((job) => !dropped.current.has(job.jobId)))
-        }
-      } catch {
-        // Keep the last known list
-      }
-      if (active) timer = setTimeout(tick, LIST_INTERVAL_MS)
-    }
-
-    void tick()
-    return () => {
-      active = false
-      clearTimeout(timer)
-    }
-  }, [sessionId, enabled, list])
-
-  return { jobs: sessionId && enabled ? jobs : [], dropJob }
+  return useMemo(
+    () =>
+      jobs.find(
+        (job) =>
+          (jobId !== undefined && job.jobId === jobId) ||
+          (toolCallId !== undefined && job.toolCallId === toolCallId),
+      ),
+    [jobs, toolCallId, jobId],
+  )
 }
 
 export type JobTail = {
   term: string
   termOffset: number
   status: ShellJobStatus | undefined
+  /** Sidecar reports the terminal is blocked waiting for input. */
+  waiting: boolean
 }
 
-const EMPTY_TAIL: JobTail = { term: '', termOffset: 0, status: undefined }
+const EMPTY_TAIL: JobTail = {
+  term: '',
+  termOffset: 0,
+  status: undefined,
+  waiting: false,
+}
 
 // Cache tails to keep the DOM stable
 const tailCache = new Map<string, JobTail>()
@@ -99,6 +104,7 @@ export function useJobTail(
     let offset = 0
     let buffer = ''
     let status: ShellJobStatus | undefined = tailCache.get(key)?.status
+    let waiting = tailCache.get(key)?.waiting ?? false
 
     const update = (next: JobTail) => {
       const prev = tailCache.get(key)
@@ -109,7 +115,8 @@ export function useJobTail(
         prev &&
         prev.term === next.term &&
         prev.termOffset === next.termOffset &&
-        prev.status === next.status
+        prev.status === next.status &&
+        prev.waiting === next.waiting
       ) {
         return
       }
@@ -117,7 +124,12 @@ export function useJobTail(
     }
 
     const emit = () =>
-      update({ term: buffer, termOffset: offset - buffer.length, status })
+      update({
+        term: buffer,
+        termOffset: offset - buffer.length,
+        status,
+        waiting,
+      })
 
     const handle = (frame: SseFrame): boolean => {
       if (frame.event === 'chunk') {
@@ -131,8 +143,12 @@ export function useJobTail(
         return true
       }
       if (frame.event === 'meta') {
-        const { background } = JSON.parse(frame.data) as { background: boolean }
-        status = background ? 'background' : 'running'
+        const meta = JSON.parse(frame.data) as {
+          background: boolean
+          waiting?: boolean
+        }
+        status = meta.background ? 'background' : 'running'
+        waiting = meta.waiting ?? false
         emit()
         return true
       }
@@ -140,6 +156,7 @@ export function useJobTail(
         status: ShellJobStatus
       }
       status = next
+      waiting = false
       emit()
       return false
     }

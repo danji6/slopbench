@@ -33,8 +33,12 @@ export async function createShellTool(context: WorkspaceToolContext) {
     }),
     needsApproval: (input) => shellNeedsApproval(input.command, context),
     toModelOutput: shellToModelOutput,
-    execute: (input, { abortSignal }) =>
-      executeShellJob(workspaceArgs(context), input, { abortSignal }),
+    execute: (input, { abortSignal, toolCallId }) =>
+      executeShellJob(
+        { ...workspaceArgs(context), ...jobRef(context, toolCallId) },
+        input,
+        { abortSignal },
+      ),
   })
 }
 
@@ -61,6 +65,15 @@ export async function createKillShellTool(context: WorkspaceToolContext) {
     }),
     execute: ({ jobId }) => killShell(workspaceArgs(context), jobId),
   })
+}
+
+/** Lets the UI find a running job's terminal without its tool output. */
+function jobRef(context: WorkspaceToolContext, toolCallId: string) {
+  return {
+    messageId: context.messageId,
+    messageCreatedAt: context.messageCreatedAt,
+    toolCallId,
+  }
 }
 
 async function shellNeedsApproval(

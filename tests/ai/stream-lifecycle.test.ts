@@ -2,6 +2,7 @@
 import {
   _claim,
   _continue,
+  _fail,
   _finalizeStopped,
   pruneOrphanedOutputs,
 } from '@sb/convex/model/stream/lifecycle'
@@ -542,6 +543,91 @@ describe('_finalizeStopped', () => {
     expect((sealed?.patch.parts as unknown[])[0]).toMatchObject({
       state: 'output-available',
       output: '[The turn ended before the sub-agent could be started.]',
+    })
+  })
+
+  /**
+   * Stopping between approving a call and running it used to leave the part at
+   * `approval-responded` forever: the UI kept spinning, and the next turn sent
+   * the provider a tool_call nothing answered, which it rejects outright.
+   */
+  test('settles a call that was approved but never ran', async () => {
+    const stream = {
+      _id: 'stream_1',
+      status: 'stopping',
+      sessionId: 'session_1',
+      processingMessageId: 'message_1',
+      processingContentId: 'content_1',
+    }
+    const { ctx, patches } = fakeCtx({
+      docs: [stream, { _id: 'message_1', selectedVersion: 1 }],
+      contents: [
+        {
+          _id: 'content_1',
+          version: 1,
+          segmentIndex: 0,
+          parts: [
+            {
+              type: 'tool-shell',
+              toolCallId: 'shell_15',
+              state: 'approval-responded',
+              approval: { id: 'a1', approved: true },
+              input: { command: './packaging/build.sh' },
+            },
+          ],
+        },
+      ],
+    })
+
+    await _finalizeStopped(ctx, { streamId: stream._id as never })
+
+    const sealed = patches.find(
+      ({ id, patch }) => id === 'content_1' && Array.isArray(patch.parts),
+    )
+    expect((sealed?.patch.parts as unknown[])[0]).toMatchObject({
+      state: 'output-error',
+      errorText: expect.stringContaining('turn ended'),
+    })
+  })
+})
+
+describe('_fail', () => {
+  /** The reaper settles a turn the same way a stop does. */
+  test('settles a tool call the failed turn never answered', async () => {
+    const stream = {
+      _id: 'stream_1',
+      status: 'streaming',
+      sessionId: 'session_1',
+      processingMessageId: 'message_1',
+      processingContentId: 'content_1',
+    }
+    const { ctx, patches } = fakeCtx({
+      docs: [stream, { _id: 'message_1', selectedVersion: 1 }],
+      contents: [
+        {
+          _id: 'content_1',
+          version: 1,
+          segmentIndex: 0,
+          parts: [
+            { type: 'tool-shell', toolCallId: 'c1', state: 'input-available' },
+          ],
+        },
+      ],
+    })
+
+    await _fail(ctx, {
+      streamId: stream._id as never,
+      message: 'Stream interrupted before completion.',
+    })
+
+    const sealed = patches.find(
+      ({ id, patch }) => id === 'content_1' && Array.isArray(patch.parts),
+    )
+    expect((sealed?.patch.parts as unknown[])[0]).toMatchObject({
+      state: 'output-error',
+    })
+    expect(sealed?.patch.metadata).toMatchObject({
+      error: 'Stream interrupted before completion.',
     })
   })
 })

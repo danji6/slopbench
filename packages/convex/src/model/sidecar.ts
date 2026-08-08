@@ -2,12 +2,14 @@ import { errorMessage } from '@sb/core/utils/errors'
 
 import { error } from '../errors'
 
-export const SIDECAR_URL = process.env.SIDECAR_URL
-  ? process.env.SIDECAR_URL
-  : 'http://localhost:3212'
+const DEFAULT_SIDECAR_URL = 'http://localhost:3212'
+
+export function sidecarUrl(): string {
+  return process.env.SIDECAR_URL || DEFAULT_SIDECAR_URL
+}
 
 export async function postSidecar<T>(path: string, body: unknown): Promise<T> {
-  const response = await fetch(`${SIDECAR_URL}${path}`, {
+  const response = await fetch(`${sidecarUrl()}${path}`, {
     method: 'POST',
     body: JSON.stringify(body),
     headers: { 'Content-Type': 'application/json' },
@@ -19,7 +21,7 @@ export async function postSidecar<T>(path: string, body: unknown): Promise<T> {
 }
 
 export async function getSidecar<T>(path: string): Promise<T> {
-  const response = await fetch(`${SIDECAR_URL}${path}`)
+  const response = await fetch(`${sidecarUrl()}${path}`)
 
   if (!response.ok) await sidecarError(response)
 
@@ -33,7 +35,7 @@ export async function sidecarDefaultShell(): Promise<string | undefined> {
   if (defaultShell) return defaultShell
 
   try {
-    const response = await fetch(`${SIDECAR_URL}/shell/info`)
+    const response = await fetch(`${sidecarUrl()}/shell/info`)
     if (!response.ok) return undefined
     const { shell } = (await response.json()) as { shell?: string }
     defaultShell = shell
@@ -51,7 +53,7 @@ export async function* openShellStream(
   query: Record<string, string>,
   signal?: AbortSignal,
 ): AsyncGenerator<ShellStreamEvent> {
-  const url = `${SIDECAR_URL}${path}?${new URLSearchParams(query).toString()}`
+  const url = `${sidecarUrl()}${path}?${new URLSearchParams(query).toString()}`
   const response = await fetch(url, {
     headers: { Accept: 'text/event-stream' },
     signal,

@@ -1,4 +1,5 @@
 import { hasInterpolation } from '@sb/core/interpreter/parse'
+import { settleUnansweredToolPart } from '@sb/core/utils/tool-parts'
 import type { UIMessage } from 'ai'
 import type { FilterBuilder, NamedTableInfo } from 'convex/server'
 
@@ -118,13 +119,8 @@ export function finalizeMessageParts(parts: unknown[]) {
       return { ...part, state: 'done' }
     }
 
-    if (
-      typeof part.type === 'string' &&
-      part.type.startsWith('tool-') &&
-      part.state === 'input-streaming'
-    ) {
-      return { ...part, state: 'output-error' }
-    }
+    const settled = settleUnansweredToolPart(part)
+    if (settled !== part) return settled
 
     if (
       typeof part.type === 'string' &&

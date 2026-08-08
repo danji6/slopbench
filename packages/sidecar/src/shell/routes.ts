@@ -26,6 +26,10 @@ const jobFields = {
 
 const startSchema = z.object({
   sessionId: z.string(),
+  owner: z.string().optional(),
+  messageId: z.string().optional(),
+  messageCreatedAt: z.number().optional(),
+  toolCallId: z.string().optional(),
   workspaceId: z.string(),
   command: z.string().min(1),
   timeoutSeconds: z.number().optional(),
@@ -52,6 +56,7 @@ const resizeSchema = z.object({
 const sessionSchema = z.object({ sessionId: z.string() })
 const killSessionSchema = z.object({
   sessionId: z.string(),
+  owner: z.string().optional(),
   includeBackground: z.boolean().optional(),
 })
 
@@ -160,6 +165,7 @@ shellRoutes.post('/kill_session', async (c) => {
     const killed = killSessionShellJobs(
       input.sessionId,
       input.includeBackground ?? false,
+      input.owner,
     )
     return c.json({ killed })
   } catch (err: unknown) {

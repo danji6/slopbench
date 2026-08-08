@@ -3,10 +3,9 @@
 import { api, internal } from '../_generated/api'
 import { action } from '../_generated/server'
 import { error } from '../errors'
+import { sidecarUrl } from '../model/sidecar'
 import type { McpDialedTransport, McpToolMeta } from '../types'
 import * as V from '../validators/args'
-
-const DEFAULT_SIDECAR_URL = 'http://localhost:3212'
 
 /** Performs a stateless tool discovery on the given server. */
 export const discoverMcpTools = action({
@@ -24,7 +23,7 @@ export const discoverMcpTools = action({
       key = (await ctx.runQuery(internal.mcp._getApiKey, { serverId })) ?? undefined // prettier-ignore
     }
 
-    const base = process.env.SIDECAR_URL ?? DEFAULT_SIDECAR_URL
+    const base = sidecarUrl()
     const response = await fetch(new URL('/mcp-ext/list', base).toString(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

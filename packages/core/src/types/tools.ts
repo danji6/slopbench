@@ -40,8 +40,16 @@ export type ShellModelToolOutput = {
   value: string
 }
 
+/** Where a job's terminal is rendered. */
+export type ShellJobRef = {
+  messageId?: string
+  /** Anchors a jump to a message the client has not loaded yet. */
+  messageCreatedAt?: number
+  toolCallId?: string
+}
+
 /** Summary of a sidecar job, surfaced to the user for live monitoring/control. */
-export type ShellJobSummary = {
+export type ShellJobSummary = ShellJobRef & {
   jobId: string
   command: string
   status: ShellJobStatus

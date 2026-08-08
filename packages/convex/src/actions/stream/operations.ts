@@ -171,7 +171,12 @@ async function buildInvokeRequest(
       manifest,
       { ...data.session, toolApprovals: data.toolApprovals },
       toolResources(data),
-      { ctx, autoApprove: data.agent.autoApprove },
+      {
+        ctx,
+        autoApprove: data.agent.autoApprove,
+        messageId: data.output._id,
+        messageCreatedAt: data.output._creationTime,
+      },
     ),
   }
 }

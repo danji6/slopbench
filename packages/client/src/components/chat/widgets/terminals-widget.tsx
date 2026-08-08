@@ -10,6 +10,11 @@ import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { useAction } from 'convex/react'
 import { BanIcon, SquareIcon, SquareTerminalIcon } from 'lucide-react'
+import { useState } from 'react'
+
+import { useMessageHighlight } from '../messages/message-highlight-context'
+import { useMessageSeek } from '../messages/message-seek-context'
+import { openToolBlock } from '../messages/tools/tool-shell'
 
 export function TerminalsWidget({ className }: { className?: string }) {
   const sessionId = useActiveSessionId() as Id<'sessions'> | null
@@ -20,7 +25,28 @@ export function TerminalsWidget({ className }: { className?: string }) {
   )
   const killAll = useAction(api.actions.terminals.killAll)
 
+  const seek = useMessageSeek()
+  const highlight = useMessageHighlight()
+  const [open, setOpen] = useState(false)
+
   const running = jobs.filter((job) => job.status === 'running')
+
+  /** Scrolls to the job's terminal in the conversation and opens it. */
+  function showTerminal(job: ShellJobSummary) {
+    if (!job.messageId) return
+    setOpen(false)
+    openToolBlock(job.toolCallId)
+    highlight?.setTarget({
+      messageId: job.messageId,
+      segmentIndex: null,
+      groupIndex: null,
+    })
+    seek?.({
+      messageId: job.messageId,
+      creationTime: job.messageCreatedAt,
+    })
+  }
+
   if (!isAdmin || !sessionId || running.length === 0) return null
 
   function handleKillAll() {
@@ -30,7 +56,7 @@ export function TerminalsWidget({ className }: { className?: string }) {
   }
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <Popover.Trigger
         className={cn(
           'text-muted-foreground hover:text-foreground focus-visible:ring-ring flex h-full cursor-pointer items-center gap-1 rounded-full px-2 outline-0 transition-colors focus-visible:ring-1',
@@ -53,7 +79,12 @@ export function TerminalsWidget({ className }: { className?: string }) {
           items={running}
           keys={(job) => job.jobId}
           render={(job) => (
-            <JobRow job={job} sessionId={sessionId} onKilled={dropJob} />
+            <JobRow
+              job={job}
+              sessionId={sessionId}
+              onKilled={dropJob}
+              onOpen={showTerminal}
+            />
           )}
           className="flex flex-col gap-2"
         />
@@ -77,10 +108,12 @@ function JobRow({
   job,
   sessionId,
   onKilled,
+  onOpen,
 }: {
   job: ShellJobSummary
   sessionId: Id<'sessions'>
   onKilled: (jobId: string) => void
+  onOpen: (job: ShellJobSummary) => void
 }) {
   const kill = useAction(api.actions.terminals.kill)
 
@@ -95,6 +128,9 @@ function JobRow({
     <div className="flex items-center gap-1">
       <RippleButton
         variant="stealth"
+        disabled={!job.messageId}
+        onClick={() => onOpen(job)}
+        aria-label={`Show terminal for ${job.command}`}
         className="h-auto min-w-0 flex-1 flex-col items-stretch gap-0.5 rounded-md px-2 py-1.5 text-left"
       >
         <span className="truncate font-mono text-xs">{job.command}</span>

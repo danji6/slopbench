@@ -738,7 +738,7 @@ describe('buildProviderHistory', () => {
 
   test('drops incomplete tool calls from the current processing message', async () => {
     const data = {
-      stream: { _id: 'stream_1' },
+      stream: { _id: 'stream_1', processingMessageId: 'message_1' },
       agent: agent(),
       settings: {},
     } as never
@@ -814,8 +814,9 @@ describe('buildProviderHistory', () => {
   })
 
   test('keeps approved tool calls so they can execute', async () => {
+    // Only in the turn being written: that call is about to run
     const data = {
-      stream: { _id: 'stream_1' },
+      stream: { _id: 'stream_1', processingMessageId: 'message_1' },
       agent: agent(),
       settings: {},
     } as never
@@ -873,6 +874,46 @@ describe('buildProviderHistory', () => {
         ],
       },
     ])
+  })
+
+  /**
+   * The turn was stopped between approving the call and running it, so nothing
+   * will ever execute it. Replayed as-is it reaches the provider as a tool_call
+   * with no response message, which the request is rejected for.
+   */
+  test('answers an approved call a finished turn never ran', async () => {
+    const data = {
+      stream: { _id: 'stream_1', processingMessageId: 'message_2' },
+      agent: agent(),
+      settings: {},
+    } as never
+    const message = {
+      _id: 'message_1',
+      role: 'assistant',
+      sender: { type: 'agent', id: SELF },
+      senderName: 'Assistant',
+      parts: [
+        {
+          type: 'tool-shell',
+          toolCallId: 'functions.shell:1',
+          state: 'approval-responded',
+          input: { command: 'pwd' },
+          approval: { id: 'approval_1', approved: true },
+        },
+      ],
+    }
+    const ctx = {
+      runQuery: async () => [message],
+    } as never
+
+    const history = await buildProviderHistory(ctx, data, [])
+
+    const answered = history
+      .flatMap((entry) => (entry.role === 'tool' ? entry.content : []))
+      .filter((part) => part.type === 'tool-result')
+
+    expect(answered).toHaveLength(1)
+    expect(answered[0]).toMatchObject({ toolCallId: 'functions.shell:1' })
   })
 
   test('keeps denied tool calls as answered results', async () => {

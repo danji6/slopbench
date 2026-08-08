@@ -32,7 +32,8 @@ export async function _run(
   })
   if (!context) return
 
-  const { toolCallId, command, startedAt, resume, ...job } = context
+  const { toolCallId, command, startedAt, resume, ...rest } = context
+  const job = { ...rest, toolCallId, messageCreatedAt: startedAt }
 
   const { USER_SHELL_WINDOW_MS, USER_SHELL_TIMEOUT_S } =
     await import('../../model/chat/shell')

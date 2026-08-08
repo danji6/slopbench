@@ -1,6 +1,10 @@
 import { spawn } from 'node:child_process'
 
-import { killProcessTree, shellInvocation } from '../../shell/system-shell'
+import {
+  jobEnv,
+  killProcessTree,
+  shellInvocation,
+} from '../../shell/system-shell'
 
 const MAX_COMMAND_BYTES = 100_000
 const TRUNCATED_MARKER = '\n[truncated]\n'
@@ -17,7 +21,7 @@ export async function runCommand(
       const child = spawn(file, args, {
         cwd,
         detached: process.platform !== 'win32',
-        env: process.env,
+        env: jobEnv(),
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
       })
@@ -31,7 +35,7 @@ export async function runCommand(
 
       const kill = () => {
         killed = true
-        killProcessTree(child)
+        killProcessTree(child.pid, () => child.kill())
       }
 
       const timeout = setTimeout(kill, timeoutSeconds * 1000)

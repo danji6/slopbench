@@ -4,7 +4,7 @@ import { serializedSize } from '@sb/core/utils/size'
 import { internal } from '../../_generated/api'
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
-import { settleAbandonedTaskParts } from '../../lib/subagent'
+import { settleAbandonedTaskParts, sharedSessionId } from '../../lib/subagent'
 import type { TokenUsage } from '../../types'
 import { cleanUpGeneratedAttachments } from '../attachments'
 import {
@@ -532,10 +532,12 @@ export async function _fail(
     const row = await getProcessingSegmentRow(ctx, stream)
     if (row) {
       // Task calls the turn never got to spawn can't report back
-      const settled = settleAbandonedTaskParts(row.parts)
-      await ctx.db.patch(row._id, {
-        ...(settled ? { parts: settled } : {}),
-        metadata: { ...row.metadata, error: message },
+      const parts = finalizeMessageParts(
+        settleAbandonedTaskParts(row.parts) ?? row.parts,
+      )
+      await sealSegment(ctx, row, parts, {
+        ...row.metadata,
+        error: message,
       })
     }
     const doc = await ctx.db.get(stream.processingMessageId)
@@ -643,9 +645,14 @@ export async function _finalizeStopped(
   }
 
   // Foreground sidecar jobs must not outlive the stream that started them
-  await ctx.scheduler.runAfter(0, internal.actions.terminals._killSessionJobs, {
-    sessionId: stream.sessionId,
-  })
+  const session = await ctx.db.get(stream.sessionId)
+  if (session) {
+    await ctx.scheduler.runAfter(
+      0,
+      internal.actions.terminals._killSessionJobs,
+      { sessionId: sharedSessionId(session), owner: stream.sessionId },
+    )
+  }
 
   await deliverChildReport(ctx, stream, { kind: 'stopped' })
 
