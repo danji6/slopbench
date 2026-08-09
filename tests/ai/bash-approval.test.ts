@@ -3,6 +3,7 @@ import {
   analyzeShellCommand,
   commandReferencesForbiddenPath,
   extractPathCandidates,
+  foldPaths,
   isPathAllowed,
   isPathForbidden,
   isShellCommandAutoApproved,
@@ -426,6 +427,33 @@ describe('isPathAllowed', () => {
   test('prefixes only match at path boundaries', () => {
     expect(isPathAllowed('build-cache', ['build'])).toBe(false)
     expect(isPathAllowed('/tmp/cached', ['/tmp/cache'])).toBe(false)
+  })
+})
+
+describe('foldCoveredPaths', () => {
+  test('drops paths a broader entry already covers', () => {
+    expect(
+      foldPaths(['/home/x/.repos', '/home/x/.repos/project']),
+    ).toEqual(['/home/x/.repos'])
+    expect(
+      foldPaths(['/home/x/.repos/project', '/home/x/.repos']),
+    ).toEqual(['/home/x/.repos'])
+  })
+
+  test('keeps siblings and boundary near-misses', () => {
+    expect(foldPaths(['build', 'build-cache', 'dist'])).toEqual([
+      'build',
+      'build-cache',
+      'dist',
+    ])
+  })
+
+  test('collapses duplicates', () => {
+    expect(foldPaths(['/tmp/a.c', '/tmp/a.c'])).toEqual(['/tmp/a.c'])
+  })
+
+  test('keeps the outermost entry of a deep chain', () => {
+    expect(foldPaths(['/a/b/c', '/a', '/a/b'])).toEqual(['/a'])
   })
 })
 

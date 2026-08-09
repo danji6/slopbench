@@ -214,6 +214,15 @@ export function isPathAllowed(path: string, allowed: string[]): boolean {
   return allowed.some((entry) => path === entry || path.startsWith(`${entry}/`))
 }
 
+/** Drops redundant paths another entry already covers. */
+export function foldPaths(paths: string[]): string[] {
+  const unique = [...new Set(paths)]
+  return unique.filter(
+    (path) =>
+      !unique.some((entry) => entry !== path && isPathAllowed(path, [entry])),
+  )
+}
+
 const FORBIDDEN_PATH_SEGMENT = /(^|[\\/])\.git([\\/]|$)/
 
 export function isPathForbidden(path: string): boolean {

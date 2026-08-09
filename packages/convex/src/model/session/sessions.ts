@@ -9,7 +9,7 @@ import {
   type AuthQueryCtx,
   findUserBySubject,
 } from '../../functions'
-import { isPathAllowed } from '../../lib/tool/approval'
+import { foldPaths, isPathAllowed } from '../../lib/tool/approval'
 import type {
   SessionListItem,
   SessionMode,
@@ -30,7 +30,7 @@ import {
   requireOwner,
 } from './memberships'
 import { resolveAgentModel } from './models'
-import { appendApprovals, getApprovals, getState, patchState } from './state'
+import { getApprovals, getState, patchState, setApprovals } from './state'
 
 export async function create(
   ctx: AuthMutationCtx,
@@ -452,7 +452,8 @@ export async function _allowToolPaths(
   const additions = args.paths.filter((path) => !isPathAllowed(path, existing))
   if (additions.length === 0) return
 
-  await appendApprovals(ctx, args.sessionId, 'paths', additions)
+  const paths = foldPaths([...existing, ...additions])
+  await setApprovals(ctx, args.sessionId, 'paths', paths)
 }
 
 async function requireOwnedAgent(ctx: AuthMutationCtx, agentId: Id<'agents'>) {

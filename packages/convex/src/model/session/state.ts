@@ -79,17 +79,27 @@ export async function appendApprovals(
   list: ApprovalList,
   additions: string[],
 ): Promise<void> {
-  const approvals = await getApprovals(ctx, sessionId)
-  const existing = approvals[list] ?? []
+  const existing = (await getApprovals(ctx, sessionId))[list] ?? []
 
   // Only cap additions
-  const room = approvalCap(list) - existing.length
-  if (room <= 0) return
+  if (existing.length >= approvalCap(list)) return
+
+  await setApprovals(ctx, sessionId, list, [...existing, ...additions])
+}
+
+/**
+ * Replaces a remembered approval list. For callers that rewrite entries rather
+ * than only adding to them.
+ */
+export async function setApprovals(
+  ctx: MutationCtx,
+  sessionId: Id<'sessions'>,
+  list: ApprovalList,
+  values: string[],
+): Promise<void> {
+  const approvals = await getApprovals(ctx, sessionId)
 
   await patchState(ctx, sessionId, {
-    toolApprovals: {
-      ...approvals,
-      [list]: [...existing, ...additions.slice(0, room)],
-    },
+    toolApprovals: { ...approvals, [list]: values.slice(0, approvalCap(list)) },
   })
 }
