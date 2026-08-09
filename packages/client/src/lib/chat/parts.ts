@@ -66,6 +66,27 @@ export function isSubagentReportPart(
   )
 }
 
+/**
+ * A background shell job that finished after its tool call had settled,
+ * delivered to the session as its own message.
+ */
+export type ShellReportPart = {
+  type: 'shell-report'
+  jobId: string
+  command: string
+  status: 'done' | 'killed' | 'timeout' | 'lost' | 'failed'
+  exitCode?: number
+  text: string
+}
+
+export function isShellReportPart(part: unknown): part is ShellReportPart {
+  return (
+    typeof part === 'object' &&
+    part !== null &&
+    (part as { type?: string }).type === 'shell-report'
+  )
+}
+
 // Tools whose consecutive calls collapse into a single grouped block
 const GROUPED_TOOLS = new Set(['read_file', 'shell', 'task'])
 
@@ -160,7 +181,7 @@ export function isRenderablePartGroup(group: PartGroup): boolean {
 
   const { part } = group
   if (isFileLinkPart(part) || isPlanLinkPart(part)) return true
-  if (isSubagentReportPart(part)) return true
+  if (isSubagentReportPart(part) || isShellReportPart(part)) return true
   if (isTextUIPart(part) || isReasoningUIPart(part)) {
     return part.text.trim().length > 0
   }

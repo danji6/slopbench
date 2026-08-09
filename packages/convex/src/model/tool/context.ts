@@ -16,6 +16,16 @@ export type WorkspaceToolContext = {
   /** Tool approvals, resolved on every call since they update often. */
   approvals?: () => Promise<ToolApprovals | undefined>
   isPlanMode?: () => Promise<boolean>
+  /** Watches a background job so it can report back. */
+  watchJob?: (job: WatchedJobRef) => Promise<void>
+  /** Drops the watch once the agent has read or killed the job itself. */
+  releaseJob?: (jobId: string) => Promise<void>
+}
+
+export type WatchedJobRef = {
+  jobId: string
+  command: string
+  toolCallId: string
 }
 
 export type PlanToolContext = {

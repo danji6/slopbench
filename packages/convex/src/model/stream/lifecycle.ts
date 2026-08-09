@@ -34,6 +34,7 @@ import {
 import { createPlanLinkPart, getBySession as getPlan } from '../plans'
 import { getState, patchState } from '../session/state'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
+import { releaseForSession } from '../shellJobs'
 import { deliverChildReport } from './subagents'
 import { collectToolOutputStorageIds } from './toolOutput'
 
@@ -645,14 +646,7 @@ export async function _finalizeStopped(
   }
 
   // Foreground sidecar jobs must not outlive the stream that started them
-  const session = await ctx.db.get(stream.sessionId)
-  if (session) {
-    await ctx.scheduler.runAfter(
-      0,
-      internal.actions.terminals._killSessionJobs,
-      { sessionId: sharedSessionId(session), owner: stream.sessionId },
-    )
-  }
+  await killSessionJobs(ctx, stream.sessionId)
 
   await deliverChildReport(ctx, stream, { kind: 'stopped' })
 
@@ -703,12 +697,30 @@ export async function stopChildSessions(
   }
 }
 
+/** Kills the sidecar jobs a session started. */
+async function killSessionJobs(
+  ctx: MutationCtx,
+  sessionId: Id<'sessions'>,
+  includeBackground?: boolean,
+) {
+  const session = await ctx.db.get(sessionId)
+  if (!session) return
+
+  await ctx.scheduler.runAfter(0, internal.actions.terminals._killSessionJobs, {
+    sessionId: sharedSessionId(session),
+    owner: sessionId,
+    ...(includeBackground && { includeBackground }),
+  })
+}
+
 export async function stopForSession(
   ctx: MutationCtx,
   sessionId: Id<'sessions'>,
   options?: { suppressReport?: boolean },
 ) {
   await stopChildSessions(ctx, sessionId)
+  await releaseForSession(ctx, sessionId)
+  await killSessionJobs(ctx, sessionId, true)
 
   const streams = await ctx.db
     .query('streams')

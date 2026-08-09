@@ -269,6 +269,30 @@ export const streamSchema = v.object({
   instructions: v.optional(v.string()),
 })
 
+/**
+ * A background shell job that runs long enough to outlive its tool call,
+ * watched until it exits so its agent can be woken with the result.
+ */
+export const shellJobSchema = v.object({
+  /** Session that owns the turn. The report is delivered here. */
+  sessionId: v.id('sessions'),
+  /** Agent that started it, and the report's sender. */
+  agentId: v.id('agents'),
+  invokedBy: v.id('users'),
+  /** Sidecar job id. */
+  jobId: v.string(),
+  command: v.string(),
+  toolCallId: v.string(),
+  startedAt: v.number(),
+  /** Refreshed each watcher window. A stale value means nobody is watching. */
+  heartbeatAt: v.number(),
+  /** Scrollback carried across windows to keep the reader's offsets continuous. */
+  term: v.string(),
+  termOffset: v.number(),
+  /** The running watcher, cancelled on release. */
+  watcherId: v.optional(v.id('_scheduled_functions')),
+})
+
 export const planSchema = v.object({
   sessionId: v.id('sessions'),
   content: v.string(),

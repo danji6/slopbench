@@ -359,6 +359,27 @@ export const userShellFinishArgsValidator = v.object({
   errorText: v.optional(v.string()),
 })
 
+export const shellJobRegisterArgsValidator = v.object({
+  sessionId: v.id('sessions'),
+  agentId: v.id('agents'),
+  invokedBy: v.id('users'),
+  jobId: v.string(),
+  command: v.string(),
+  toolCallId: v.string(),
+})
+
+export const shellJobCarryArgsValidator = v.object({
+  shellJobId: v.id('shellJobs'),
+  term: v.string(),
+  termOffset: v.number(),
+})
+
+export const shellJobReportArgsValidator = v.object({
+  shellJobId: v.id('shellJobs'),
+  output: v.optional(shellToolOutputValidator),
+  errorText: v.optional(v.string()),
+})
+
 export const messagesWindowArgsValidator = v.object({
   sessionId: v.id('sessions'),
   /**

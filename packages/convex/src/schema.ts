@@ -22,6 +22,7 @@ import {
   sessionShareSchema,
   sessionStateSchema,
   settingsSchema,
+  shellJobSchema,
   streamSchema,
   todoSchema,
   typingSchema,
@@ -132,4 +133,9 @@ export default defineSchema({
 
   offloadedOutputs: defineTable(offloadedOutputSchema)
     .index('by_streamId', ['streamId']),
+
+  shellJobs: defineTable(shellJobSchema)
+    .index('by_sessionId', ['sessionId'])
+    .index('by_sessionId_jobId', ['sessionId', 'jobId'])
+    .index('by_heartbeatAt', ['heartbeatAt']),
 })

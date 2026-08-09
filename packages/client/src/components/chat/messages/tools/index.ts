@@ -3,6 +3,7 @@
  */
 
 export * from './file-change-block'
+export * from './highlighted-command'
 export * from './load-full-output'
 export * from './plan-block'
 export * from './read-file-block'

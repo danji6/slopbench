@@ -45,6 +45,9 @@ export type ToolBuildOptions = {
   /** Message this turn writes into. */
   messageId?: Id<'messages'>
   messageCreatedAt?: number
+  /** Agent and invoker a backgrounded shell job reports back as. */
+  agentId?: Id<'agents'>
+  invokedBy?: Id<'users'>
 }
 
 /**
@@ -73,6 +76,7 @@ export async function getEnabledTools(
           approvals: () => resolveApprovals(session, options),
           // Plan mode can be entered or approved mid-turn
           isPlanMode: ctx ? () => isPlanMode(ctx, sessionId) : undefined,
+          ...jobWatch(session, options),
         }
       : undefined
 
@@ -94,6 +98,35 @@ export async function getEnabledTools(
   }
 
   return withPlanModeReminders(tools, planContext)
+}
+
+/**
+ * Watch callbacks for jobs that outlive their tool call. They are addressed by
+ * the session that owns the turn, which is the one their report wakes.
+ */
+function jobWatch(
+  session: ToolSession,
+  options?: ToolBuildOptions,
+): Pick<WorkspaceToolContext, 'watchJob' | 'releaseJob'> {
+  const { ctx, agentId, invokedBy } = options ?? {}
+  if (!ctx || !agentId || !invokedBy) return {}
+
+  return {
+    watchJob: async (job) => {
+      await ctx.runMutation(internal.shellJobs._register, {
+        sessionId: session._id,
+        agentId,
+        invokedBy,
+        ...job,
+      })
+    },
+    releaseJob: async (jobId) => {
+      await ctx.runMutation(internal.shellJobs._release, {
+        sessionId: session._id,
+        jobId,
+      })
+    },
+  }
 }
 
 /**

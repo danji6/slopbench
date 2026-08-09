@@ -28,4 +28,10 @@ crons.interval(
   internal.typing.prune,
 )
 
+crons.interval(
+  'recover stale shell job watchers',
+  { minutes: 5 },
+  internal.shellJobs.refresh,
+)
+
 export default crons

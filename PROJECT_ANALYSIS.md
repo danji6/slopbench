@@ -287,7 +287,7 @@ Important areas:
 
 ## Data Model
 
-The schema is now 23 tables. The organising rule of the recent rework: any
+The schema is now 24 tables. The organising rule of the recent rework: any
 field that can grow without bound, or that is rewritten on every stream tick,
 gets its own table rather than living inside a document that something
 subscribes to.
@@ -353,6 +353,10 @@ subscribes to.
 - `todos`: per-session todo list — items with `pending`/`in_progress`/
   `completed` status, plus the session `turnCount` at the last write or nudge
 - `typing`: expiring per-user typing indicator rows
+- `shellJobs`: a background shell job that outlived its tool call — the
+  session and agent it reports back to, the sidecar job id and command,
+  the scrollback carried across watcher windows, a watcher heartbeat, and the
+  scheduled watcher's id
 
 **Messages**
 
@@ -1449,7 +1453,7 @@ require a restart.
 
 ## Shell Jobs
 
-Shell execution has three consumers over one PTY-backed job registry
+Shell execution has four consumers over one PTY-backed job registry
 (`packages/sidecar/src/shell`):
 
 - the `shell` model tool, which starts sidecar jobs and yields preliminary
@@ -1458,6 +1462,35 @@ Shell execution has three consumers over one PTY-backed job registry
   described above, which resumes a still-running job across windows
 - the terminal UI, which streams job output and manages stdin, resize,
   detach, and kill/list controls
+- the background-job watcher, which follows a job whose tool call already
+  settled and wakes its agent when it exits
+
+A job outlives its tool call in three ways: a `run_in_background: true` start,
+a foreground job the user detaches, and a `shell_output` call that hits its
+wait deadline. All three settle the tool part with status `background`, which
+is the single rule `trackJob` (`model/tool/shellTools.ts`) registers on — and
+the agent reading the job to a terminal status itself, or killing it with
+`kill_shell`, drops the registration again.
+
+A registration is a `shellJobs` row, watched by a self-rescheduling internal
+action (`actions/tool/shellJobs.ts`) built on the same windowing as the
+user-shell runner: `_beginWindow` refreshes a heartbeat and returns the
+scrollback, `_carry` hands a still-running job to a fresh window, and `_report`
+settles it. Unlike the user-shell runner it writes nothing per tick, because
+the original tool call's terminal already tails the live job. A cron restarts
+watchers whose heartbeat went stale, so a crashed action does not strand a job.
+
+`killSessionJobs` decides what a stop sweeps: a finalized turn kills only the
+foreground jobs it owns, while `stopForSession` (removal, disable, agent
+unlink) releases the watches first and then kills with `includeBackground`,
+because a torn down session has nothing left to hand the output to.
+
+The result is delivered exactly like a sub-agent report (`model/shellJobs.ts`
+mirrors `deliverChildReport`): a `shell-report` part on its own user-role
+message attributed to the agent that started the job, which wakes an idle
+session through `reserveInvokeTurn` and is otherwise picked up by the running
+turn's follow-up gate. Tearing a session down releases its watches; stopping a
+turn does not, matching the sub-agent rule.
 
 Job output is pushed over **server-sent events** rather than polled; the SSE
 connection between Convex and the sidecar is recycled periodically to stay

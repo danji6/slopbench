@@ -5,6 +5,7 @@ import type {
 import { block, closeBlock, openBlock } from '@sb/core/utils/blocks'
 import { blockPath, fileBlock } from '@sb/core/workspace/blocks'
 
+import { SHELL_REPORT_PREFIX } from './shellReport'
 import { SUBAGENT_REPORT_PREFIX } from './subagent'
 import { USER_SHELL_BLOCK_PREFIX } from './userShell'
 
@@ -17,6 +18,7 @@ export const INJECTED_BLOCK_PREFIXES = [
   PLAN_BLOCK_PREFIX,
   SUBAGENT_REPORT_PREFIX,
   USER_SHELL_BLOCK_PREFIX,
+  SHELL_REPORT_PREFIX,
 ]
 
 export function toPlanBlock(snapshot: { content: string; status: string }) {

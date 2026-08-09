@@ -23,6 +23,7 @@ import type { ModelMessage, UIMessage } from 'ai'
 import { internal } from '../../_generated/api'
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
+import { isShellReportPart, toShellReportBlock } from '../../lib/shellReport'
 import {
   isSubagentReportPart,
   sharedSessionId,
@@ -306,16 +307,27 @@ async function resolvePart(
     // Tool parts are stripped off user messages, so this becomes a text part
     return { type: 'text' as const, text: toUserShellBlock(part) }
   }
-  if (hasOutputRef(part)) return resolveOffloadedOutput(ctx, part)
+  if (hasOutputRef(part)) {
+    return resolveOffloadedOutput(ctx, part)
+  }
   if (isPlanLinkPart(part)) {
     return { type: 'text' as const, text: toPlanBlock(part.snapshot) }
   }
   if (isSubagentReportPart(part)) {
     return { type: 'text' as const, text: toSubagentReportBlock(part) }
   }
-  if (isFileLinkPart(part)) return resolveFileLink(ctx, part, session)
-  if (!isAttachmentPart(part)) return part
-  if (part.url.startsWith('data:')) return part
+  if (isShellReportPart(part)) {
+    return { type: 'text' as const, text: toShellReportBlock(part) }
+  }
+  if (isFileLinkPart(part)) {
+    return resolveFileLink(ctx, part, session)
+  }
+  if (!isAttachmentPart(part)) {
+    return part
+  }
+  if (part.url.startsWith('data:')) {
+    return part
+  }
 
   const attachment = await ctx.runQuery(internal.attachments._get, {
     attachmentId: part.attachmentId,

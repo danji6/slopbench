@@ -69,14 +69,19 @@ export async function killAll(
 }
 
 /**
- * Kills foreground jobs started by a turn.
+ * Kills jobs started by a turn, foreground ones only unless told otherwise.
  *
  * @param args.sessionId The shared session the jobs are registered under.
  * @param args.owner The session that started them.
+ * @param args.includeBackground Also kill detached jobs, for a torn down session.
  */
 export async function _killSessionJobs(
   _ctx: ActionCtx,
-  args: { sessionId: Id<'sessions'>; owner: string },
+  args: {
+    sessionId: Id<'sessions'>
+    owner: string
+    includeBackground?: boolean
+  },
 ) {
   const { postSidecar } = await import('../../model/sidecar')
   try {

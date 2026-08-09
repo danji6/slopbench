@@ -176,6 +176,8 @@ async function buildInvokeRequest(
         autoApprove: data.agent.autoApprove,
         messageId: data.output._id,
         messageCreatedAt: data.output._creationTime,
+        agentId: data.agent._id,
+        invokedBy: data.stream.invokedBy,
       },
     ),
   }

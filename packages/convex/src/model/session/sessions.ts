@@ -330,6 +330,7 @@ export async function remove(
     'sessionCache',
     'sessionState',
     'typing',
+    'shellJobs',
   ] as const
 
   for (const table of sessionTables) {

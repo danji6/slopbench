@@ -1,6 +1,5 @@
 import { Button } from '@/components/ui'
 import { Terminal, type TerminalHandle } from '@/components/ui/terminal'
-import { useCode } from '@/hooks'
 import { useIsWorkspaceAdmin } from '@/hooks/chat'
 import { useActiveSessionId } from '@/hooks/chat/session'
 import { useJobTail, useLiveShellJob } from '@/hooks/chat/terminals'
@@ -17,6 +16,7 @@ import { useAction } from 'convex/react'
 import { ArrowDownFromLineIcon, BanIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
+import { HighlightedCommand } from './highlighted-command'
 import { LoadFullOutput } from './load-full-output'
 import { ToolShell } from './tool-shell'
 
@@ -250,18 +250,6 @@ function ShellLabel({
         </span>
       )}
     </span>
-  )
-}
-
-// Fallback while Shiki resolves asynchronously to keep it stable
-const COMMAND_CODE =
-  'text-foreground whitespace-pre-wrap [&_.line]:inline [&_code]:inline [&>pre]:m-0! [&>pre]:inline [&>pre]:bg-transparent! [&>pre]:p-0! [&>pre]:whitespace-pre-wrap [&>pre]:outline-none'
-
-function HighlightedCommand({ command }: { command: string }) {
-  const code = useCode(command, 'shell')
-  if (!code) return <span className={COMMAND_CODE}>{command}</span>
-  return (
-    <span className={COMMAND_CODE} dangerouslySetInnerHTML={{ __html: code }} />
   )
 }
 

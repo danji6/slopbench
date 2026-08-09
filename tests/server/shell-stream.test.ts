@@ -114,3 +114,47 @@ describe('shell job streaming over http', () => {
     registry.killShellJob(jobId, context.sessionId)
   })
 })
+
+describe('watching a job that outlived its tool call', () => {
+  /**
+   * A tool watcher stops as soon as the job goes to the background. The
+   * reporting watcher exists for exactly that job, so it must keep going and
+   * only end when the job actually exits.
+   */
+  test('keeps watching a backgrounded job until it exits', async () => {
+    const { jobId } = await startedJob('sleep 0.4; echo late-output')
+    registry.backgroundShellJob(jobId, context.sessionId)
+
+    const seen = await collect(
+      shellTool.watchBackgroundJob(context, {
+        jobId,
+        term: '',
+        termOffset: 0,
+      }),
+      (part) => part.status !== 'running',
+    )
+
+    const final = seen.at(-1)
+    expect(final?.status).toBe('done')
+    expect(final?.exitCode).toBe(0)
+    expect(final?.text).toContain('late-output')
+  })
+
+  test('hands a still-running job to the next window', async () => {
+    const { jobId } = await startedJob('sleep 30')
+
+    const seen = await collect(
+      shellTool.watchBackgroundJob(
+        context,
+        { jobId, term: '', termOffset: 0 },
+        { windowDeadline: Date.now() + 500 },
+      ),
+      () => false,
+    )
+
+    // The generator ends on its own, with the job left running
+    expect(seen.at(-1)?.status).toBe('running')
+
+    registry.killShellJob(jobId, context.sessionId)
+  })
+})

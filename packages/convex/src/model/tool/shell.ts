@@ -132,6 +132,19 @@ export async function* resumeShellJob(
   })
 }
 
+/** Watches a background job until it exits or the window runs out. */
+export async function* watchBackgroundJob(
+  context: ShellJobContext,
+  resume: ShellJobResume,
+  options: ShellJobOptions = {},
+): AsyncGenerator<ShellToolOutput> {
+  yield* watchJob(context, resume.jobId, {
+    ...options,
+    post: options.post ?? postSidecar,
+    seed: resume,
+  })
+}
+
 export async function* executeShellOutput(
   context: ShellJobContext,
   input: ShellOutputInput,

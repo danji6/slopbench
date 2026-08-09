@@ -48,6 +48,10 @@ export const killAll = action({
 })
 
 export const _killSessionJobs = internalAction({
-  args: { sessionId: v.id('sessions'), owner: v.string() },
+  args: {
+    sessionId: v.id('sessions'),
+    owner: v.string(),
+    includeBackground: v.optional(v.boolean()),
+  },
   handler: Terminal._killSessionJobs,
 })

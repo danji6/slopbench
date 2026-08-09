@@ -3,11 +3,13 @@ import type {
   FileLinkPart,
   PartGroup,
   PlanLinkPart,
+  ShellReportPart,
   SubagentReportPart,
 } from '@/lib/chat/parts'
 import {
   isFileLinkPart,
   isPlanLinkPart,
+  isShellReportPart,
   isSubagentReportPart,
 } from '@/lib/chat/parts'
 import {
@@ -23,6 +25,7 @@ import { FileBlock } from './file-block'
 import { FileLinkBlock } from './file-link-block'
 import { PlanLinkBlock } from './plan-link-block'
 import { ReasoningBlock } from './reasoning-block'
+import { ShellReportBlock } from './shell-report-block'
 import { SummaryBlock } from './summary-block'
 import { TextBlock } from './text-block'
 import { ReadFileBlock } from './tools/read-file-block'
@@ -98,6 +101,10 @@ export const RenderGroup = memo(function RenderGroup(props: RenderGroupProps) {
 
   if (isSubagentReportPart(part)) {
     return <SubagentReportBlock part={part as SubagentReportPart} />
+  }
+
+  if (isShellReportPart(part)) {
+    return <ShellReportBlock part={part as ShellReportPart} />
   }
 
   if (isReasoningUIPart(part)) {
