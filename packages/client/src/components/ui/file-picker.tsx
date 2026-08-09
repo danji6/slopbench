@@ -10,7 +10,7 @@ import {
   XIcon,
 } from 'lucide-react'
 import { useImperativeHandle, useMemo, useState } from 'react'
-import { type FileWithPath, useDropzone as _useDropzone } from 'react-dropzone'
+import { useDropzone as _useDropzone } from 'react-dropzone'
 
 import { Overlay, T } from '.'
 
@@ -18,7 +18,7 @@ const [DropZoneContext, useDropZone] = createUsableContext<
   ReturnType<typeof _useDropzone> & {
     ref?: React.RefObject<HTMLInputElement | null>
     isDisabled?: boolean
-    selectedFiles: readonly FileWithPath[]
+    selectedFiles: readonly File[]
   }
 >('DropZone')
 
@@ -116,9 +116,7 @@ export function DropZone({
   onKeyDown,
   ...props
 }: DropZoneProps) {
-  const [selectedFiles, setSelectedFiles] = useState<readonly FileWithPath[]>(
-    [],
-  )
+  const [selectedFiles, setSelectedFiles] = useState<readonly File[]>([])
 
   const dropZone = _useDropzone({
     disabled,
@@ -221,7 +219,7 @@ function PickedMessage({
   files,
   className,
 }: {
-  files: readonly FileWithPath[]
+  files: readonly File[]
   className?: string
 }) {
   const truncated = useMemo(

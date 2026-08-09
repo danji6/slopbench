@@ -37,7 +37,6 @@ import {
   useRef,
   useState,
 } from 'react'
-import type { FileWithPath } from 'react-dropzone'
 
 import type { DropZoneHandle, InputGroupProps } from '../../ui'
 import {
@@ -499,7 +498,7 @@ export function ChatComposer({
     return editor ? pasteCollapsedText(editor, e) : false
   }
 
-  async function handleFilePick(picked: FileWithPath[]) {
+  async function handleFilePick(picked: File[]) {
     for (const file of picked) {
       try {
         const { part, originalFile } = await processFileForUpload(file)
