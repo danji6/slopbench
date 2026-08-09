@@ -169,9 +169,12 @@ export const workspaceRefValidator = v.object({
 })
 
 export const toolApprovalsValidator = v.object({
-  tools: v.optional(v.array(v.string())), // tool names auto-approved for the whole session
-  shell: v.optional(v.array(v.string())), // allowlisted shell command patterns
-  paths: v.optional(v.array(v.string())), // allowlisted sensitive paths
+  /** Tool names auto-approved for the whole session. */
+  tools: v.optional(v.array(v.string())),
+  /** Allow-listed shell command patterns. */
+  shell: v.optional(v.array(v.string())),
+  /** Allow-listed sensitive paths. */
+  paths: v.optional(v.array(v.string())),
 })
 
 /** Agent approvals merged into every session's approvals. */

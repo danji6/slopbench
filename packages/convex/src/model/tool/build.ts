@@ -1,5 +1,6 @@
 import type { ToolSet } from 'ai'
 
+import { internal } from '../../_generated/api'
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { TASK_TOOL_NAME, sharedSessionId } from '../../lib/subagent'
@@ -68,10 +69,8 @@ export async function getEnabledTools(
           messageCreatedAt: options?.messageCreatedAt,
           workspaceId: session.workspace.workspaceId,
           shell: manifest.shell,
-          approvals: mergeToolApprovals(
-            session.toolApprovals,
-            options?.autoApprove,
-          ),
+          // Approvals can be remembered mid-turn
+          approvals: () => resolveApprovals(session, options),
           // Plan mode can be entered or approved mid-turn
           isPlanMode: ctx ? () => isPlanMode(ctx, sessionId) : undefined,
         }
@@ -95,6 +94,23 @@ export async function getEnabledTools(
   }
 
   return withPlanModeReminders(tools, planContext)
+}
+
+/**
+ * The session's current approvals, read from the (sub-)session that owns the
+ * turn and falls back to the snapshot the caller loaded when there is no ctx.
+ */
+async function resolveApprovals(
+  session: ToolSession,
+  options?: ToolBuildOptions,
+): Promise<ToolApprovals | undefined> {
+  const live = options?.ctx
+    ? await options.ctx.runQuery(internal.sessions._getApprovals, {
+        sessionId: session._id,
+      })
+    : session.toolApprovals
+
+  return mergeToolApprovals(live ?? undefined, options?.autoApprove)
 }
 
 type AnyTool = ToolSet[string]

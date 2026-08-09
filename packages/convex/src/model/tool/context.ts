@@ -13,7 +13,8 @@ export type WorkspaceToolContext = {
   workspaceId: string
   /** Shell used to execute commands (system's default when absent). */
   shell?: string
-  approvals?: ToolApprovals
+  /** Tool approvals, resolved on every call since they update often. */
+  approvals?: () => Promise<ToolApprovals | undefined>
   isPlanMode?: () => Promise<boolean>
 }
 

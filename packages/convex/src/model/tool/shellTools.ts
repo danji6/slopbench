@@ -84,10 +84,11 @@ async function shellNeedsApproval(
   if (!isReadOnlyShellCommand(command) && (await context.isPlanMode?.())) {
     return true
   }
-  if (!isToolAutoApproved('shell', { command }, context.approvals)) return true
+  const approvals = await context.approvals?.()
+  if (!isToolAutoApproved('shell', { command }, approvals)) return true
   const flagged = await getFlaggedPaths(command, context)
   if (flagged === null) return true
-  const allowed = context.approvals?.paths ?? []
+  const allowed = approvals?.paths ?? []
   return flagged.some((path) => !isPathAllowed(path, allowed))
 }
 

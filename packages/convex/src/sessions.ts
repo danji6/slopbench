@@ -5,6 +5,7 @@ import { internalMutation, internalQuery } from './_generated/server'
 import { authMutation, authQuery } from './functions'
 import * as SessionArchive from './model/session/archive'
 import * as Sessions from './model/session/sessions'
+import * as SessionState from './model/session/state'
 import * as SessionTitles from './model/session/title'
 import * as V from './validators/args'
 import * as Sub from './validators/sub'
@@ -85,6 +86,11 @@ export const _importOne = internalMutation({
 export const _getMode = internalQuery({
   args: { sessionId: v.id('sessions') },
   handler: (ctx, { sessionId }) => Sessions.getMode(ctx, sessionId),
+})
+
+export const _getApprovals = internalQuery({
+  args: { sessionId: v.id('sessions') },
+  handler: (ctx, { sessionId }) => SessionState.getApprovals(ctx, sessionId),
 })
 
 export const _getTitleContext = internalQuery({

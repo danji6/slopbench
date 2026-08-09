@@ -43,11 +43,13 @@ describe('.git access requires approval instead of failing', () => {
   test('file tools gate .git paths even when auto-approved', async () => {
     const tools = await getTools()
     const needsApproval = (name: string, path: string) =>
-      (tools[name]!.needsApproval as (input: unknown) => boolean)({ path })
+      (tools[name]!.needsApproval as (input: unknown) => Promise<boolean>)({
+        path,
+      })
 
     for (const name of ['read_file', 'write_file', 'edit_file']) {
-      expect(needsApproval(name, '.git/hooks/pre-commit')).toBe(true)
-      expect(needsApproval(name, 'src/index.ts')).toBe(false)
+      expect(await needsApproval(name, '.git/hooks/pre-commit')).toBe(true)
+      expect(await needsApproval(name, 'src/index.ts')).toBe(false)
     }
   })
 
@@ -112,6 +114,20 @@ describe('tool approval patching', () => {
         reason: 'Denied by user.',
       },
     })
+  })
+
+  test('surfaces the paths resolved when approval was requested', () => {
+    const part = {
+      ...tool('call-1', 'approval-1'),
+      approvalPaths: ['/tmp/outside.c'],
+    }
+
+    const result = patchToolApproval([part], {
+      toolCallId: 'call-1',
+      approved: true,
+    })
+
+    expect(result.matched.paths).toEqual(['/tmp/outside.c'])
   })
 
   test('detects pending approvals only on tool parts', () => {

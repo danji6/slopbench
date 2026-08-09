@@ -31,6 +31,7 @@ import {
 } from '../../model/stream/toolOutput'
 import { stopWhenInactive } from '../../model/stream/transformers'
 import { resolveUsage } from '../../model/stream/usage'
+import { getFlaggedPaths } from '../../model/tool/shellTools'
 import type { ReasoningEffort } from '../../types'
 import { buildEvalContext } from './evalContext'
 import { createOperationPlan } from './operations'
@@ -617,7 +618,12 @@ function hasAwaitingApproval(parts: UIMessage['parts']) {
 
 const FILE_MUTATION_TOOL_TYPES = new Set(['tool-write_file', 'tool-edit_file'])
 
-/** Attach simulated approval previews. Currently used for diff outputs. */
+type ApprovalContext = { sessionId: Id<'sessions'>; workspaceId: string }
+
+/**
+ * Attach what an approval request needs beyond its input: a simulated diff for
+ * file mutations, and the sensitive paths a shell command references.
+ */
 async function attachApprovalPreviews(
   setup: NonNullable<Awaited<ReturnType<typeof prepare>>>,
   parts: UIMessage['parts'],
@@ -625,40 +631,61 @@ async function attachApprovalPreviews(
   const workspaceId = setup.workspace?.workspaceId
   if (!workspaceId) return parts
 
+  const context = { sessionId: setup.stream.sessionId, workspaceId }
   const result = await Promise.all(
-    parts.map(async (part) => {
-      const toolPart = part as {
-        state?: string
-        input?: { path?: string; content?: string; edits?: unknown }
-      }
-      if (
-        !FILE_MUTATION_TOOL_TYPES.has(part.type) ||
-        toolPart.state !== 'approval-requested' ||
-        !toolPart.input?.path
-      ) {
+    parts.map((part) => {
+      if ((part as { state?: string }).state !== 'approval-requested') {
         return part
       }
-
-      try {
-        const { diff, path } = await postSidecar<{
-          diff: string
-          path?: string
-        }>('/workspace/preview-diff', {
-          sessionId: setup.stream.sessionId,
-          workspaceId,
-          filePath: toolPart.input.path,
-          content: toolPart.input.content,
-          edits: toolPart.input.edits,
-        })
-        if (!diff) return part
-        return { ...part, previewDiff: diff, previewPath: path }
-      } catch {
-        return part
+      if (FILE_MUTATION_TOOL_TYPES.has(part.type)) {
+        return withPreviewDiff(context, part)
       }
+      if (part.type === 'tool-shell') {
+        return withApprovalPaths(context, part)
+      }
+      return part
     }),
   )
 
   return result as UIMessage['parts']
+}
+
+async function withPreviewDiff(
+  context: ApprovalContext,
+  part: UIMessage['parts'][number],
+) {
+  const input = (
+    part as { input?: { path?: string; content?: string; edits?: unknown } }
+  ).input
+  if (!input?.path) return part
+
+  try {
+    const { diff, path } = await postSidecar<{ diff: string; path?: string }>(
+      '/workspace/preview-diff',
+      {
+        ...context,
+        filePath: input.path,
+        content: input.content,
+        edits: input.edits,
+      },
+    )
+    if (!diff) return part
+    return { ...part, previewDiff: diff, previewPath: path }
+  } catch {
+    return part
+  }
+}
+
+async function withApprovalPaths(
+  context: ApprovalContext,
+  part: UIMessage['parts'][number],
+) {
+  const command = (part as { input?: { command?: string } }).input?.command
+  if (typeof command !== 'string') return part
+
+  const flagged = await getFlaggedPaths(command, context)
+  if (!flagged?.length) return part
+  return { ...part, approvalPaths: flagged }
 }
 
 async function patchMessage(

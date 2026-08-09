@@ -8,9 +8,18 @@ import type { ApproveToolArgs, RememberScope } from '../../types'
 import { getProcessingSegmentRow, patchSegmentParts } from '../messageContents'
 import { demoteToDraft, setStatus as setPlanStatus } from '../plans'
 import * as Memberships from '../session/memberships'
+import { _allowToolPaths as allowToolPaths } from '../session/sessions'
 import { appendApprovals, getApprovals } from '../session/state'
 import { APPROVAL_LEASE_MS } from '../stream/lifecycle'
 import { resumeIfSettled } from '../stream/subagents'
+
+/** The tool call an approval answered. */
+type ApprovedTool = {
+  toolName: string
+  input: unknown
+  /** Sensitive paths resolved when the approval was requested. */
+  paths?: string[]
+}
 
 export async function approveTool(ctx: AuthMutationCtx, args: ApproveToolArgs) {
   requireRole(ctx.role, 'admin')
@@ -95,7 +104,7 @@ export function patchToolApproval(
     note?: string
   },
 ) {
-  let matched: { toolName: string; input: unknown } | undefined
+  let matched: ApprovedTool | undefined
   const next = parts.map((part) => {
     if (
       typeof part !== 'object' ||
@@ -110,6 +119,7 @@ export function patchToolApproval(
       type?: string
       input?: unknown
       state?: string
+      approvalPaths?: string[]
       approval?: {
         id?: string
         reason?: string
@@ -125,6 +135,7 @@ export function patchToolApproval(
     matched = {
       toolName: typed.type?.replace(/^tool-/, '') ?? '',
       input: typed.input,
+      paths: typed.approvalPaths,
     }
     const note = args.note?.trim()
     return {
@@ -150,7 +161,7 @@ export function patchToolApproval(
 async function rememberApproval(
   ctx: AuthMutationCtx,
   session: Doc<'sessions'>,
-  matched: { toolName: string; input: unknown },
+  matched: ApprovedTool,
   scope: RememberScope,
 ) {
   const approvals = await getApprovals(ctx, session._id)
@@ -158,6 +169,14 @@ async function rememberApproval(
   if (scope === 'paths') {
     const command = (matched.input as { command?: string } | undefined)?.command
     if (matched.toolName !== 'shell' || !command || !session.workspace) return
+
+    if (matched.paths?.length) {
+      await allowToolPaths(ctx, {
+        sessionId: session._id,
+        paths: matched.paths,
+      })
+      return
+    }
 
     await ctx.scheduler.runAfter(
       0,

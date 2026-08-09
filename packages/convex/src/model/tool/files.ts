@@ -39,9 +39,9 @@ export async function createWriteFileTool(context: WorkspaceToolContext) {
   return tool({
     description: TOOL_DESCRIPTIONS.write_file,
     inputSchema: z.object(writeFileFields),
-    needsApproval: ({ path }) =>
+    needsApproval: async ({ path }) =>
       isPathForbidden(path) ||
-      !isToolAutoApproved('write_file', undefined, context.approvals),
+      !isToolAutoApproved('write_file', undefined, await context.approvals?.()),
     execute: async ({ path, content }) => {
       await assertNotPlanMode(context)
       return callMcpTool('write_file', {
@@ -58,9 +58,9 @@ export async function createEditFileTool(context: WorkspaceToolContext) {
   return tool({
     description: TOOL_DESCRIPTIONS.edit_file,
     inputSchema: z.object(editFileFields),
-    needsApproval: ({ path }) =>
+    needsApproval: async ({ path }) =>
       isPathForbidden(path) ||
-      !isToolAutoApproved('edit_file', undefined, context.approvals),
+      !isToolAutoApproved('edit_file', undefined, await context.approvals?.()),
     execute: async ({ path, edits }) => {
       await assertNotPlanMode(context)
       return callMcpTool('edit_file', {
