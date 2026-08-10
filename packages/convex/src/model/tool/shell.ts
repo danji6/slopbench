@@ -1,3 +1,4 @@
+import { stripTerminalCodes } from '@sb/core/shell/ansi'
 import type { Tool, ToolSet } from 'ai'
 
 import { extractErrorMessage } from '../../errors'
@@ -33,6 +34,8 @@ export type ShellJobContext = {
 
 export type ShellJobInput = {
   command: string
+  /** Display-only summary of what the command does. */
+  description?: string
   timeout?: number
   run_in_background?: boolean
 }
@@ -504,25 +507,6 @@ class TermOutputAccumulator {
     if (!this.truncated) return head + tail
     return [head, '[... output truncated ...]', tail].filter(Boolean).join('\n')
   }
-}
-
-const ANSI_PATTERN =
-  // eslint-disable-next-line no-control-regex
-  /\u001b(?:\[[0-9;?]*[ -/]*[@-~]|\][^\u0007\u001b]*(?:\u0007|\u001b\\)|[@-Z\\-_])/g
-
-/** Strips ANSI escapes and resolves carriage-return overwrites (progress bars). */
-export function stripTerminalCodes(text: string): string {
-  const plain = text.replace(ANSI_PATTERN, '').replace(/\r+\n/g, '\n')
-  if (!plain.includes('\r')) return plain
-  return plain.split('\n').map(resolveCarriageReturns).join('\n')
-}
-
-function resolveCarriageReturns(line: string): string {
-  let result = ''
-  for (const segment of line.split('\r')) {
-    result = segment + result.slice(segment.length)
-  }
-  return result
 }
 
 function finalOutput(

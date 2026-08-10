@@ -29,6 +29,10 @@ export async function createShellTool(context: WorkspaceToolContext) {
     description: shellToolDescription(context.shell),
     inputSchema: z.object({
       command: z.string().describe('Shell command to execute'),
+      description: z
+        .string()
+        .optional()
+        .describe('Short one-line summary of what the command does'),
       timeout: z.number().min(1).optional().describe('Timeout in seconds'),
       run_in_background: z
         .boolean()

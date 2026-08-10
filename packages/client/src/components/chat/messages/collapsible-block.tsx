@@ -133,7 +133,11 @@ export function CollapsibleBlock({
           {...rest}
         >
           <div
-            className={cn('flex items-center px-2.5', rowMinH, open && 'pb-2')}
+            className={cn(
+              'flex items-center px-2.5',
+              rowMinH,
+              open && 'pt-1 pb-2',
+            )}
           >
             <Trigger
               leadingIcon={leadingIcon}

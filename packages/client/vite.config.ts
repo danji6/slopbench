@@ -30,6 +30,8 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 3000,
   },
+  // Prevents cold starts / page reloads when the first xterm is mounted
+  optimizeDeps: { include: ['@xterm/xterm', '@xterm/addon-fit'] },
   plugins: [tailwindcss(), react()],
   preview: { allowedHosts: allowedHosts() },
   server: { allowedHosts: allowedHosts() },

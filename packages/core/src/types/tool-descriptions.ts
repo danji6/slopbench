@@ -23,7 +23,9 @@ export function shellToolDescription(shell?: string): string {
   const where = shell ? ` with ${shellLabel(shell)}` : ''
   return inline`
     Run a shell command in the workspace${where}. Set run_in_background for
-    long-running commands and read them later with shell_output.`
+    long-running commands and read them later with shell_output. Pass a
+    description whenever the command isn't self-explanatory, so the user can
+    review it at a glance.`
 }
 
 const shell_output = inline`

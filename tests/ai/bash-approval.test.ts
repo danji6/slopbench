@@ -432,12 +432,12 @@ describe('isPathAllowed', () => {
 
 describe('foldCoveredPaths', () => {
   test('drops paths a broader entry already covers', () => {
-    expect(
-      foldPaths(['/home/x/.repos', '/home/x/.repos/project']),
-    ).toEqual(['/home/x/.repos'])
-    expect(
-      foldPaths(['/home/x/.repos/project', '/home/x/.repos']),
-    ).toEqual(['/home/x/.repos'])
+    expect(foldPaths(['/home/x/.repos', '/home/x/.repos/project'])).toEqual([
+      '/home/x/.repos',
+    ])
+    expect(foldPaths(['/home/x/.repos/project', '/home/x/.repos'])).toEqual([
+      '/home/x/.repos',
+    ])
   })
 
   test('keeps siblings and boundary near-misses', () => {

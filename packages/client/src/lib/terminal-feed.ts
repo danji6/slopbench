@@ -1,6 +1,9 @@
 export const TERMINAL_GAP_MARKER =
   '\r\n\u001b[2m[... output truncated ...]\u001b[0m\r\n'
 
+/** Scrollback cap, shared by both terminal renderers. */
+export const SCROLLBACK_LINES = 5000
+
 export type TerminalFeedWrite = {
   data: string
   writtenThrough: number

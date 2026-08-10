@@ -13,7 +13,7 @@ export type ShellToolPart = {
   type: string
   toolCallId: string
   state?: string
-  input?: { command?: string }
+  input?: { command?: string; description?: string }
   output?: ShellToolOutput
   errorText?: string
   preliminary?: boolean

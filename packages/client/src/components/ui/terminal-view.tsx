@@ -1,4 +1,6 @@
+import { SCROLLBACK_LINES } from '@/lib/terminal-feed'
 import { cn } from '@/lib/utils'
+import { ANSI_COLOR_VARS } from '@sb/core/shell/ansi'
 import { FitAddon } from '@xterm/addon-fit'
 import type { ITheme } from '@xterm/xterm'
 import { Terminal as XTerm } from '@xterm/xterm'
@@ -6,8 +8,6 @@ import '@xterm/xterm/css/xterm.css'
 import { type Ref, useEffect, useImperativeHandle, useRef } from 'react'
 
 import { TERMINAL_BOX } from './terminal'
-
-const SCROLLBACK_LINES = 5000
 
 export type TerminalHandle = {
   write: (data: string) => void
@@ -151,49 +151,80 @@ function readMonoFont(element: HTMLElement): string | undefined {
   return value || undefined
 }
 
+const CHROME_VARS = [
+  '--surface-container-lowest',
+  '--on-surface',
+  '--primary',
+  '--surface-container-low',
+  '--outline-variant',
+] as const
+
+/** ITheme's ANSI slots, in the same order as `ANSI_COLOR_VARS`. */
+const ANSI_THEME_KEYS = [
+  'black',
+  'red',
+  'green',
+  'yellow',
+  'blue',
+  'magenta',
+  'cyan',
+  'white',
+  'brightBlack',
+  'brightRed',
+  'brightGreen',
+  'brightYellow',
+  'brightBlue',
+  'brightMagenta',
+  'brightCyan',
+  'brightWhite',
+] as const
+
 /** Turns M3's CSS color-mixes into concrete colors. */
 function readTerminalTheme(element: HTMLElement): ITheme {
-  const probe = document.createElement('span')
-  probe.style.position = 'absolute'
-  probe.style.visibility = 'hidden'
-  probe.style.pointerEvents = 'none'
+  const colors = resolveColors(element, [...CHROME_VARS, ...ANSI_COLOR_VARS])
+  const ansi = Object.fromEntries(
+    ANSI_THEME_KEYS.map((key, index) => [
+      key,
+      colors.get(ANSI_COLOR_VARS[index]!),
+    ]),
+  ) as Pick<ITheme, (typeof ANSI_THEME_KEYS)[number]>
+
+  return {
+    background: colors.get('--surface-container-lowest'),
+    foreground: colors.get('--on-surface'),
+    cursor: colors.get('--primary'),
+    cursorAccent: colors.get('--surface-container-low'),
+    selectionBackground: colors.get('--outline-variant'),
+    ...ansi,
+  }
+}
+
+/** Resolves CSS custom properties to concrete colors in a single recalc. */
+function resolveColors(
+  element: HTMLElement,
+  variables: readonly string[],
+): Map<string, string | undefined> {
+  const unique = [...new Set(variables)]
+  const probe = document.createElement('div')
+  probe.style.cssText =
+    'position:absolute;visibility:hidden;pointer-events:none'
+
+  const spans = unique.map((variable) => {
+    const span = document.createElement('span')
+    span.style.color = `var(${variable})`
+    probe.appendChild(span)
+    return span
+  })
   element.appendChild(probe)
 
-  const resolve = (variable: string) => {
-    probe.style.color = ''
-    probe.style.color = `var(${variable})`
-    if (!probe.style.color) return undefined
-    return getComputedStyle(probe).color || undefined
-  }
-
-  const theme: ITheme = {
-    background: resolve('--surface-container-lowest'),
-    foreground: resolve('--on-surface'),
-    cursor: resolve('--primary'),
-    cursorAccent: resolve('--surface-container-low'),
-    selectionBackground: resolve('--outline-variant'),
-
-    black: resolve('--surface-container-low'),
-    red: resolve('--shiki-red'),
-    green: resolve('--shiki-green'),
-    yellow: resolve('--shiki-yellow'),
-    blue: resolve('--shiki-blue'),
-    magenta: resolve('--shiki-purple'),
-    cyan: resolve('--shiki-cyan'),
-    white: resolve('--on-surface-variant'),
-
-    brightBlack: resolve('--outline'),
-    brightRed: resolve('--shiki-red'),
-    brightGreen: resolve('--shiki-green'),
-    brightYellow: resolve('--shiki-yellow'),
-    brightBlue: resolve('--shiki-blue'),
-    brightMagenta: resolve('--shiki-pink'),
-    brightCyan: resolve('--shiki-cyan'),
-    brightWhite: resolve('--on-surface'),
-  }
-
+  const colors = new Map(
+    unique.map((variable, index) => [
+      variable,
+      getComputedStyle(spans[index]!).color || undefined,
+    ]),
+  )
   probe.remove()
-  return theme
+  return colors
 }
 
 /** Re-reads the terminal theme whenever the source color changes. */

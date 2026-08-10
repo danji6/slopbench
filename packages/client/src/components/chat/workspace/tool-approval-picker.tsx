@@ -103,6 +103,7 @@ export function ToolApprovalPicker({
     ToolUIPart | undefined
   const toolName = part?.type.replace('tool-', '') ?? ''
   const planApproval = PLAN_APPROVALS[toolName]
+  const description = getDescription(part?.input)
   const hold =
     session && part && !planApproval
       ? approvalHold(toolName, part.input, session.mode, approvals)
@@ -227,13 +228,18 @@ export function ToolApprovalPicker({
           </div>
         )}
         {!planApproval && (
-          <Code
-            text={summarizeInput(part.input)}
-            language={toolName === 'shell' ? 'shell' : undefined}
-            innerClassName="max-h-40"
-            noLoadingIndicator
-            wordWrap
-          />
+          <>
+            <Code
+              text={summarizeInput(part.input)}
+              language={toolName === 'shell' ? 'shell' : undefined}
+              innerClassName="max-h-40"
+              noLoadingIndicator
+              wordWrap
+            />
+            {description && (
+              <div className="text-muted-foreground text-xs">{description}</div>
+            )}
+          </>
         )}
         {hold && (
           <div className="text-muted-foreground text-xs">
@@ -553,6 +559,14 @@ function summarizeInput(input: unknown): string {
     if (typeof record.path === 'string') return record.path
   }
   return JSON.stringify(input ?? {}, null, 2)
+}
+
+function getDescription(input: unknown): string | null {
+  const description = (input as { description?: string } | undefined)
+    ?.description
+  return typeof description === 'string' && description.trim()
+    ? description.trim()
+    : null
 }
 
 function getCommand(input: unknown): string | null {

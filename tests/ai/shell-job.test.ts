@@ -7,9 +7,9 @@ import {
   shellFailure,
   shellHistoryTools,
   shellToModelOutput,
-  stripTerminalCodes,
 } from '@sb/convex/model/tool/shell'
 import type { ShellToolOutput } from '@sb/convex/types'
+import { stripTerminalCodes } from '@sb/core/shell/ansi'
 import { describe, expect, test } from 'bun:test'
 
 const context = { sessionId: 'session-1', workspaceId: 'ws-1' }

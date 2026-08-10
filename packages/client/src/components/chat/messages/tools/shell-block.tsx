@@ -1,28 +1,32 @@
 import { Button } from '@/components/ui'
-import { Terminal, type TerminalHandle } from '@/components/ui/terminal'
+import {
+  Terminal,
+  type TerminalHandle,
+  prefetchTerminal,
+} from '@/components/ui/terminal'
+import { TerminalText } from '@/components/ui/terminal-text'
 import { useIsWorkspaceAdmin } from '@/hooks/chat'
 import { useActiveSessionId } from '@/hooks/chat/session'
 import { useJobTail, useLiveShellJob } from '@/hooks/chat/terminals'
 import { useToolOutput } from '@/hooks/chat/tool-output'
 import { useDebouncedCallback } from '@/hooks/debounce'
+import { useLatch } from '@/hooks/latch'
 import { useTerminalFeed } from '@/hooks/terminal-feed'
 import type { ShellToolOutput } from '@/lib/chat'
 import { parseOutputValue } from '@/lib/chat/tool-output'
 import { toast } from '@/lib/notifications'
+import { cn } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
+import { needsEmulator } from '@sb/core/shell/ansi'
 import type { ToolUIPart } from 'ai'
 import { useAction } from 'convex/react'
 import { ArrowDownFromLineIcon, BanIcon } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { HighlightedCommand } from './highlighted-command'
 import { LoadFullOutput } from './load-full-output'
 import { ToolShell } from './tool-shell'
-
-// Terminals that have already revealed themselves once, persisted across
-// remounts for stable virtualization
-const revealedTerminals = new Set<string>()
 
 export function ShellBlock({
   part,
@@ -39,7 +43,12 @@ export function ShellBlock({
   alwaysExpand?: boolean
 }) {
   const input = part.input as
-    | { command?: string; jobId?: string; run_in_background?: boolean }
+    | {
+        command?: string
+        description?: string
+        jobId?: string
+        run_in_background?: boolean
+      }
     | undefined
 
   const {
@@ -117,10 +126,28 @@ export function ShellBlock({
   const hasTerminal = Boolean(jobId) && (isLive || hasTerminalText)
 
   // Reveal an interactive terminal only the first time it goes live
-  const revealTerminal = useRevealOnce(
-    part.toolCallId,
+  const revealTerminal = useLatch(
+    `reveal:${part.toolCallId}`,
     interactive || (Boolean(alwaysExpand) && hasTerminal),
   )
+
+  // Emulate only if the shell is interactive or redraws with cursor addressing
+  const cursorAddressed = useMemo(
+    () => needsEmulator(displayTerm ?? ''),
+    [displayTerm],
+  )
+  const emulator = useLatch(
+    `emulator:${part.toolCallId}`,
+    Boolean(waiting) || cursorAddressed,
+  )
+
+  // A live job may block on input at any moment, so warm the chunk behind it
+  useEffect(() => {
+    if (isLive && isAdmin && !isBackground) prefetchTerminal()
+  }, [isLive, isAdmin, isBackground])
+
+  // Live output uses a fixed height for stable virtualization
+  const isFixedHeight = useLatch(`live:${part.toolCallId}`, isLive)
 
   const suppressJobText = Boolean(output?.jobId) && output?.status !== 'lost'
   const fallbackText =
@@ -160,7 +187,10 @@ export function ShellBlock({
           terminated={terminated}
         />
       }
-      className={dense ? 'px-2' : 'px-2 pt-1.5 pb-2'}
+      className={cn(
+        'px-2',
+        dense ? 'data-[open=true]:my-1 data-[open=true]:py-2' : 'pt-1.5 pb-2',
+      )}
     >
       {hasContent && (
         <>
@@ -176,6 +206,8 @@ export function ShellBlock({
               }
               live={isLive}
               showingFull={fullOutput !== undefined}
+              emulator={emulator}
+              fixedHeight={isFixedHeight}
             />
           )}
           {fallbackText && (
@@ -223,7 +255,7 @@ function ShellLabel({
   background,
   terminated,
 }: {
-  input: { command?: string; jobId?: string } | undefined
+  input: { command?: string; description?: string; jobId?: string } | undefined
   output: ShellToolOutput | undefined
   background?: boolean
   terminated?: boolean
@@ -233,21 +265,27 @@ function ShellLabel({
     : output?.status === 'background' || background
       ? 'background'
       : null
+  const description = input?.description?.trim()
 
   return (
-    <span className="font-mono">
-      <span className="text-foreground/70">$</span>{' '}
-      {input?.command ? (
-        <HighlightedCommand command={input.command} />
-      ) : (
-        <span className="text-foreground/70">
-          output of job {input?.jobId ?? '…'}
-        </span>
-      )}
-      {status && (
-        <span className="text-muted-foreground ml-2 text-[10px] uppercase">
-          {status}
-        </span>
+    <span className="flex min-w-0 flex-col gap-0.5">
+      <span className="font-mono">
+        <span className="text-foreground/70">$</span>{' '}
+        {input?.command ? (
+          <HighlightedCommand command={input.command} />
+        ) : (
+          <span className="text-foreground/70">
+            output of job {input?.jobId ?? '…'}
+          </span>
+        )}
+        {status && (
+          <span className="text-muted-foreground ml-2 text-[10px] uppercase">
+            {status}
+          </span>
+        )}
+      </span>
+      {description && (
+        <span className="text-muted-foreground text-[11px]">{description}</span>
       )}
     </span>
   )
@@ -259,12 +297,16 @@ function ShellTerminal({
   termOffset,
   live,
   showingFull,
+  emulator,
+  fixedHeight,
 }: {
   jobId: string
   term: string
   termOffset: number
   live: boolean
   showingFull: boolean
+  emulator: boolean
+  fixedHeight: boolean
 }) {
   const sessionId = useActiveSessionId() as Id<'sessions'> | null
   const isAdmin = useIsWorkspaceAdmin()
@@ -292,16 +334,24 @@ function ShellTerminal({
       data-slot="terminal-wrapper"
       className="bg-m3-surface-container-lowest rounded-lg border p-2"
     >
-      <Terminal
-        ref={handleRef}
-        readOnly={!interactive}
-        onReady={resetFeed}
-        onData={(data) => {
-          if (!interactive) return
-          void writeTerminal({ sessionId, jobId, data }).catch(() => {})
-        }}
-        onResize={resize.run}
-      />
+      {emulator ? (
+        <Terminal
+          ref={handleRef}
+          readOnly={!interactive}
+          onReady={resetFeed}
+          onData={(data) => {
+            if (!interactive) return
+            void writeTerminal({ sessionId, jobId, data }).catch(() => {})
+          }}
+          onResize={resize.run}
+        />
+      ) : (
+        <TerminalText
+          ref={handleRef}
+          onReady={resetFeed}
+          className={fixedHeight ? 'h-72' : 'max-h-72'}
+        />
+      )}
     </div>
   )
 }
@@ -376,12 +426,4 @@ function SendToBackgroundButton({
       <ArrowDownFromLineIcon /> Send to background
     </Button>
   )
-}
-
-/** Latches `true` the first time `trigger` fires for `id`, surviving remounts. */
-function useRevealOnce(id: string, trigger: boolean): boolean {
-  useEffect(() => {
-    if (trigger) revealedTerminals.add(id)
-  }, [trigger, id])
-  return trigger || revealedTerminals.has(id)
 }

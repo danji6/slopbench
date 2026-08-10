@@ -8,11 +8,18 @@ export type { TerminalHandle, TerminalProps } from './terminal-view'
 /** The terminal's box, shared with the Suspense fallback to keep the layout stable */
 export const TERMINAL_BOX = 'h-72 overflow-hidden'
 
+const importTerminalView = () => import('./terminal-view')
+
 const TerminalView = lazy(() =>
-  import('./terminal-view').then((module) => ({
+  importTerminalView().then((module) => ({
     default: module.TerminalView,
   })),
 )
+
+/** Warms the xterm chunk before a shell is likely to need an emulator. */
+export function prefetchTerminal(): void {
+  void importTerminalView()
+}
 
 /**
  * Lazy boundary for the xterm.js terminal. Keeps xterm.js and its CSS in a
