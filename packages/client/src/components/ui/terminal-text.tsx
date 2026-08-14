@@ -37,7 +37,7 @@ export function TerminalText({ ref, onReady, className }: TerminalProps) {
     >
       <pre
         ref={preRef}
-        className="text-m3-on-surface font-mono text-xs leading-[1.35]"
+        className="text-m3-on-surface overflow-x-hidden font-mono text-xs leading-[1.35] wrap-anywhere whitespace-pre-wrap"
       />
     </div>
   )

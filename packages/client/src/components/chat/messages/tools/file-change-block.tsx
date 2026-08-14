@@ -35,7 +35,6 @@ export function FileChangeBlock({
   messageId: string
   forceError?: boolean
 }) {
-  const verb = part.type === 'tool-write_file' ? 'Write' : 'Edit'
   const input = part.input as FileChangeInput | undefined
   const { previewDiff, previewPath } = part as FileChangePart
 
@@ -55,7 +54,16 @@ export function FileChangeBlock({
   const diff = output?.diff ?? previewDiff ?? undefined
 
   const showContentFallback = !diff && Boolean(input?.content)
-  const showPending = !diff && !showContentFallback
+  const isPending = !diff && !showContentFallback
+
+  const verb =
+    part.type === 'tool-write_file'
+      ? isPending
+        ? 'Writing'
+        : 'Wrote'
+      : isPending
+        ? 'Editing'
+        : 'Edited'
 
   return (
     <ToolShell
@@ -78,7 +86,7 @@ export function FileChangeBlock({
           language={languageFromPath(path)}
           diff
           className="my-1 rounded-lg"
-          innerClassName="max-h-80 p-3 text-xs w-full"
+          innerClassName="max-h-none p-3 text-xs w-full"
           hugParent
           noLoadingIndicator
           noCopyButton
@@ -89,16 +97,11 @@ export function FileChangeBlock({
           text={input?.content}
           language={languageFromPath(path)}
           className="my-1 rounded-lg"
-          innerClassName="max-h-80 p-3 text-xs w-full"
+          innerClassName="max-h-none p-3 text-xs w-full"
           hugParent
           noLoadingIndicator
           noCopyButton
         />
-      )}
-      {showPending && (
-        <div className="text-muted-foreground my-1 px-1 text-xs">
-          Preparing diff…
-        </div>
       )}
       {truncated && <LoadFullOutput onLoad={loadFull} loading={loadingFull} />}
     </ToolShell>

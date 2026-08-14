@@ -26,6 +26,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { HighlightedCommand } from './highlighted-command'
 import { LoadFullOutput } from './load-full-output'
+import { useShellGroup } from './shell-group-block'
 import { ToolShell } from './tool-shell'
 
 export function ShellBlock({
@@ -103,14 +104,23 @@ export function ShellBlock({
     (output?.status === 'background' || optimisticBackground)
 
   // Effective status, which may be different than the persisted one
-  const liveStatus =
-    (tailing ? tail.status : undefined) ?? liveJob?.status ?? output?.status
+  const attestedStatus = (tailing ? tail.status : undefined) ?? liveJob?.status
+  const liveStatus = attestedStatus ?? output?.status
   const isLive = liveStatus === 'running' || liveStatus === 'background'
   const terminated =
     killed ||
     liveStatus === 'killed' ||
     liveStatus === 'timeout' ||
     liveStatus === 'lost'
+
+  // A persisted status may be stale, while this one comes directly from the sidecar
+  const confirmedLive =
+    attestedStatus === 'running' || attestedStatus === 'background'
+
+  const shellGroup = useShellGroup()
+  useEffect(() => {
+    shellGroup?.reportRunning(part.toolCallId, confirmedLive)
+  }, [shellGroup, part.toolCallId, confirmedLive])
 
   const waiting =
     (tailing ? tail.waiting : undefined) ?? liveJob?.waiting ?? output?.waiting
