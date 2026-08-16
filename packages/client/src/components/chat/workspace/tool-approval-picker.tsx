@@ -36,7 +36,7 @@ import {
   useState,
 } from 'react'
 
-import { Code } from '../../ui'
+import { Code, T } from '../../ui'
 import { Command } from '../../ui/command'
 
 const ComposerEditor = lazy(() =>
@@ -221,7 +221,7 @@ export function ToolApprovalPicker({
           </div>
         ) : (
           <div className="text-sm">
-            <span className="text-muted-foreground">Approve:</span>{' '}
+            <span className="text-muted-foreground ml-1">Approve:</span>{' '}
             <span className="text-foreground font-medium">
               {part.title || toolName}
             </span>
@@ -232,37 +232,24 @@ export function ToolApprovalPicker({
             <Code
               text={summarizeInput(part.input)}
               language={toolName === 'shell' ? 'shell' : undefined}
-              innerClassName="max-h-40"
+              className="mx-auto w-full"
+              innerClassName="max-h-40 border-0 py-0"
               noLoadingIndicator
               wordWrap
             />
             {description && (
-              <div className="text-muted-foreground text-xs">{description}</div>
+              <div className="text-muted-foreground -mt-2 ml-6 text-xs">
+                {description}
+              </div>
             )}
           </>
         )}
+        <T.hr className="mx-auto w-[calc(100%-(var(--spacing)*2.5))]" />
         {hold && (
-          <div className="text-muted-foreground text-xs">
+          <div className="text-muted-foreground ml-2 text-xs">
             {HOLD_HINTS[hold]}
           </div>
         )}
-        <div
-          data-slot="approval-note"
-          className="bg-background/60 max-h-32 overflow-y-auto rounded-lg border px-3 py-1.5"
-          style={{
-            fontFamily: 'var(--chat-font-family)',
-            fontSize: 'var(--chat-font-size)',
-          }}
-        >
-          <Suspense fallback={<div aria-hidden className="h-8" />}>
-            <ComposerEditor
-              placeholder="Add a note (optional)…"
-              autoFocus={false}
-              editorClassName="min-h-8! [&_p]:mt-0!"
-              onReady={handleNoteReady}
-            />
-          </Suspense>
-        </div>
         <Command
           shouldFilter={false}
           value={selectedAction}
@@ -287,6 +274,23 @@ export function ToolApprovalPicker({
             ))}
           </Command.CommandList>
         </Command>
+        <div
+          data-slot="approval-note"
+          className="bg-background/60 max-h-32 overflow-y-auto rounded-lg border px-3 py-1.5"
+          style={{
+            fontFamily: 'var(--chat-font-family)',
+            fontSize: 'var(--chat-font-size)',
+          }}
+        >
+          <Suspense fallback={<div aria-hidden className="h-8" />}>
+            <ComposerEditor
+              placeholder="Add a note (optional)…"
+              autoFocus={false}
+              editorClassName="min-h-8! [&_p]:mt-0!"
+              onReady={handleNoteReady}
+            />
+          </Suspense>
+        </div>
       </div>
     </div>
   )
@@ -300,11 +304,14 @@ function buildApprovalActions(
 ): ApprovalAction[] {
   if (!enabled) return []
 
+  let key = 1
+  const getKey = () => String(key++)
+
   const items: ApprovalAction[] = [
     {
       id: 'approve',
       label: planApproval?.approveLabel ?? 'Allow',
-      shortcut: 'y',
+      shortcut: getKey(),
       approved: true,
     },
   ]
@@ -313,7 +320,7 @@ function buildApprovalActions(
     items.push({
       id: 'deny',
       label: planApproval.denyLabel,
-      shortcut: 'n',
+      shortcut: getKey(),
       approved: false,
       abort: planApproval.denyAborts,
     })
@@ -324,7 +331,7 @@ function buildApprovalActions(
     items.push({
       id: 'remember-paths',
       label: 'Always allow these paths for this session',
-      shortcut: 'a',
+      shortcut: getKey(),
       approved: true,
       remember: 'paths',
     })
@@ -332,7 +339,7 @@ function buildApprovalActions(
     items.push({
       id: 'remember-patterns',
       label: rememberLabel,
-      shortcut: 'a',
+      shortcut: getKey(),
       approved: true,
       remember: 'patterns',
     })
@@ -341,14 +348,14 @@ function buildApprovalActions(
   items.push({
     id: 'deny',
     label: 'Deny',
-    shortcut: 'n',
+    shortcut: getKey(),
     approved: false,
   })
 
   items.push({
     id: 'abort',
     label: 'Abort',
-    shortcut: 'x',
+    shortcut: getKey(),
     approved: false,
     abort: true,
   })
