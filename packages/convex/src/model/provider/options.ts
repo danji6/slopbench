@@ -88,17 +88,24 @@ async function createLanguageModel(
       const { createAnthropic } = await import('@ai-sdk/anthropic')
       return createAnthropic({ apiKey, baseURL })(modelId)
     }
+    case 'alibaba': {
+      const { createAlibaba } = await import('@ai-sdk/alibaba')
+      return createAlibaba({ apiKey, baseURL })(modelId)
+    }
     case 'deepseek': {
       const { createDeepSeek } = await import('@ai-sdk/deepseek')
       return createDeepSeek({ apiKey, baseURL })(modelId)
+    }
+    case 'mistral': {
+      const { createMistral } = await import('@ai-sdk/mistral')
+      return createMistral({ apiKey, baseURL })(modelId)
     }
     case 'moonshotai': {
       const { createMoonshotAI } = await import('@ai-sdk/moonshotai')
       return createMoonshotAI({ apiKey, baseURL })(modelId)
     }
-    case 'mistral': {
-      const { createMistral } = await import('@ai-sdk/mistral')
-      return createMistral({ apiKey, baseURL })(modelId)
+    case 'ollama': {
+      return createOllamaModel(modelId, baseURL, apiKey, reasoningEffort)
     }
     case 'openai': {
       const { createOpenAI } = await import('@ai-sdk/openai')
@@ -110,8 +117,9 @@ async function createLanguageModel(
         usage: { include: true },
       })
     }
-    case 'ollama': {
-      return createOllamaModel(modelId, baseURL, apiKey, reasoningEffort)
+    case 'qwen': {
+      const { createOpenAI } = await import('@ai-sdk/openai')
+      return createOpenAI({ apiKey, baseURL })(modelId)
     }
     default: {
       if (!baseURL) error('Provider URL not specified.')
@@ -192,10 +200,17 @@ async function applyReasoning(
   modelId: string,
   effort: ReasoningEffort | undefined,
 ): Promise<ProviderOptions> {
-  // OpenRouter ignores the top-level reasoning option and needs its own provider
-  // option instead
-  if (providerId === 'openrouter') {
-    return { ...result, providerOptions: buildOpenRouterReasoning(effort) }
+  switch (providerId) {
+    case 'openrouter':
+      return {
+        ...result,
+        providerOptions: buildOpenRouterReasoning(effort),
+      }
+    case 'qwen':
+      return {
+        ...result,
+        providerOptions: { qwen: { enable_thinking: effort !== 'none' } },
+      }
   }
 
   const reasoning = toReasoningValue(effort)
