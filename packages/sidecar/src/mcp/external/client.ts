@@ -16,6 +16,46 @@ import {
 
 const negotiated = new Map<string, McpDialedTransport>()
 
+export async function listExternalTools(
+  connection: McpConnection,
+): Promise<Negotiated<McpToolMeta[]>> {
+  return withClient(connection, async (client) => {
+    const { tools } = await client.listTools()
+    return tools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      // Serialize: JSON Schema uses '$'-prefixed keys that Convex rejects.
+      inputSchema: tool.inputSchema
+        ? JSON.stringify(tool.inputSchema)
+        : undefined,
+    }))
+  })
+}
+
+export async function callExternalTool(
+  connection: McpConnection,
+  name: string,
+  args: Record<string, unknown>,
+  signal?: AbortSignal,
+): Promise<string> {
+  const { value } = await withClient(connection, async (client) => {
+    const result = await client.callTool({ name, arguments: args }, undefined, {
+      signal,
+    })
+    const content = (result.content ?? []) as Array<{
+      type: string
+      text?: string
+    }>
+    const text = content
+      .filter((part) => part.type === 'text')
+      .map((part) => part.text ?? '')
+      .join('\n')
+    if (result.isError) throw new Error(text || 'Tool failed')
+    return text
+  })
+  return value
+}
+
 function authHeaders(apiKey?: string): Record<string, string> | undefined {
   return apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined
 }
@@ -93,8 +133,11 @@ async function withClient<T>(
   for (const transport of candidates) {
     const client = new Client({ name: APP_ID, version: '1.0.0' })
 
+    const connecting = client.connect(createTransport(connection, transport))
+    connecting.catch(() => {})
+
     try {
-      await client.connect(createTransport(connection, transport))
+      await withTimeout(connecting, dialTimeoutMs())
     } catch (err) {
       await client.close().catch(() => {})
       firstError ??= err
@@ -117,42 +160,25 @@ async function withClient<T>(
   )
 }
 
-export async function listExternalTools(
-  connection: McpConnection,
-): Promise<Negotiated<McpToolMeta[]>> {
-  return withClient(connection, async (client) => {
-    const { tools } = await client.listTools()
-    return tools.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      // Serialize: JSON Schema uses '$'-prefixed keys that Convex rejects.
-      inputSchema: tool.inputSchema
-        ? JSON.stringify(tool.inputSchema)
-        : undefined,
-    }))
-  })
+function dialTimeoutMs(): number {
+  return Number(process.env.MCP_DIAL_TIMEOUT_MS) || 10_000
 }
 
-export async function callExternalTool(
-  connection: McpConnection,
-  name: string,
-  args: Record<string, unknown>,
-  signal?: AbortSignal,
-): Promise<string> {
-  const { value } = await withClient(connection, async (client) => {
-    const result = await client.callTool({ name, arguments: args }, undefined, {
-      signal,
-    })
-    const content = (result.content ?? []) as Array<{
-      type: string
-      text?: string
-    }>
-    const text = content
-      .filter((part) => part.type === 'text')
-      .map((part) => part.text ?? '')
-      .join('\n')
-    if (result.isError) throw new Error(text || 'Tool failed')
-    return text
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`Timed out after ${ms}ms`)),
+      ms,
+    )
+    promise.then(
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      (error) => {
+        clearTimeout(timer)
+        reject(error)
+      },
+    )
   })
-  return value
 }
