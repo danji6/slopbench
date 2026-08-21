@@ -76,6 +76,16 @@ export const _scheduleRetry = internalMutation({
   handler: StreamLifecycle._scheduleRetry,
 })
 
+export const _handoff = internalMutation({
+  args: { streamId: v.id('streams') },
+  handler: StreamLifecycle._handoff,
+})
+
+export const _heartbeat = internalMutation({
+  args: { streamId: v.id('streams') },
+  handler: StreamLifecycle._heartbeat,
+})
+
 export const _finalizeStopped = internalMutation({
   args: { streamId: v.id('streams') },
   handler: StreamLifecycle._finalizeStopped,

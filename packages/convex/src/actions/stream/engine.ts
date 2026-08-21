@@ -19,7 +19,7 @@ import {
   parseDataUrl,
 } from '../../model/stream/generatedFiles'
 import {
-  getProviderRateLimitRetryDelay,
+  getProviderRetryDelay,
   hasReplayableToolOutputSince,
 } from '../../model/stream/retry'
 import {
@@ -39,12 +39,15 @@ import type { PromptEvalResult } from './operations'
 
 const PATCH_INTERVAL_MS = 100
 const MAX_STEPS = 50
+const STREAM_WINDOW_MS = 8 * 60 * 1000
+const HEARTBEAT_INTERVAL_MS = 60_000
 
 class ProviderStreamFailure {
   constructor(
     readonly error: unknown,
     readonly hasOutput: boolean,
     readonly hasReplayableToolOutput: boolean,
+    readonly aborted: boolean,
   ) {}
 }
 
@@ -57,9 +60,10 @@ export async function _stream(
 
   let attempt = claimed.attempt
   let hasGeneratedOutput = false
+  const windowDeadline = Date.now() + STREAM_WINDOW_MS
 
   try {
-    for (let step = 0; step < MAX_STEPS; step++) {
+    for (let step = claimed.stepsDone; step < MAX_STEPS; step++) {
       const setup = await prepare(ctx, streamId)
       if (!setup) return
 
@@ -104,6 +108,11 @@ export async function _stream(
       })
       if (!continued) return
 
+      if (Date.now() >= windowDeadline) {
+        await ctx.runMutation(internal.streams._handoff, { streamId })
+        return
+      }
+
       attempt = 0
     }
 
@@ -112,21 +121,20 @@ export async function _stream(
       message: 'Maximum tool steps exceeded.',
     })
   } catch (err) {
-    const error = err instanceof ProviderStreamFailure ? err.error : err
+    const failure = err instanceof ProviderStreamFailure ? err : undefined
+    const error = failure ? failure.error : err
 
-    hasGeneratedOutput =
-      hasGeneratedOutput ||
-      (err instanceof ProviderStreamFailure && err.hasOutput)
+    hasGeneratedOutput = hasGeneratedOutput || (failure?.hasOutput ?? false)
 
-    const failedStepHasOutput =
-      err instanceof ProviderStreamFailure
-        ? err.hasOutput && !err.hasReplayableToolOutput
-        : hasGeneratedOutput
+    const failedStepHasOutput = failure
+      ? failure.hasOutput && !failure.hasReplayableToolOutput
+      : hasGeneratedOutput
 
-    const retryDelay = getProviderRateLimitRetryDelay({
+    const retryDelay = getProviderRetryDelay({
       error,
       retryAttempt: attempt + 1,
       hasOutput: failedStepHasOutput,
+      aborted: failure?.aborted ?? false,
     })
 
     if (retryDelay !== null) {
@@ -442,6 +450,7 @@ async function consumeProviderStep(
       streamError ?? error,
       outputTracker.hasOutput,
       hasReplayableToolOutputSince(latestParts, initialPartCount),
+      abortController.signal.aborted,
     )
   } finally {
     stopWatcher.dispose()
@@ -726,6 +735,7 @@ function watchForStop(
 ) {
   let disposed = false
   void (async () => {
+    let lastHeartbeat = 0
     while (!disposed && !abortController.signal.aborted) {
       try {
         const active = await ctx.runQuery(internal.streams._isActive, {
@@ -734,6 +744,10 @@ function watchForStop(
         if (!active) {
           abortController.abort()
           return
+        }
+        if (Date.now() - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {
+          lastHeartbeat = Date.now()
+          await ctx.runMutation(internal.streams._heartbeat, { streamId })
         }
       } catch {
         // Keep polling

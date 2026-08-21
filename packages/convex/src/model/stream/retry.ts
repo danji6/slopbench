@@ -9,6 +9,29 @@ const RATE_LIMIT_PATTERNS = [
   /quota/i,
 ]
 
+const TRANSIENT_STATUS_CODES = new Set([408, 500, 502, 503, 504, 529])
+
+const TRANSIENT_PATTERNS = [
+  /\b(?:econnreset|econnrefused|etimedout|epipe|eai_again|ehostunreach|enetunreach)\b/i,
+  /socket hang up/i,
+  /fetch failed/i,
+  /terminated$/i,
+  /overloaded/i,
+  /connection (?:closed|reset|refused)/i,
+  /internal server error/i,
+  /service unavailable/i,
+  /bad gateway/i,
+  /gateway timeout/i,
+  /request timeout/i,
+]
+
+function backoffDelay(retryAttempt: number) {
+  return Math.min(
+    RETRY_DELAY_MS * 1.25 ** Math.max(0, retryAttempt - 1),
+    MAX_RETRY_DELAY_MS,
+  )
+}
+
 export function getRateLimitRetryDelay(error: unknown, retryAttempt: number) {
   const values = getErrorChain(error)
   if (!values.some(isRateLimitValue)) return null
@@ -16,17 +39,20 @@ export function getRateLimitRetryDelay(error: unknown, retryAttempt: number) {
   const retryAfter =
     values.map(parseRetryAfter).find((delay) => delay !== undefined) ??
     RETRY_DELAY_MS
-  const exponentialDelay = Math.min(
-    RETRY_DELAY_MS * 1.25 ** Math.max(0, retryAttempt - 1),
-    MAX_RETRY_DELAY_MS,
-  )
-  return Math.max(exponentialDelay, retryAfter)
+  return Math.max(backoffDelay(retryAttempt), retryAfter)
+}
+
+export function getTransientRetryDelay(error: unknown, retryAttempt: number) {
+  const values = getErrorChain(error)
+  if (!values.some(isTransientValue)) return null
+  return backoffDelay(retryAttempt)
 }
 
 export type ProviderRetryOptions = {
   error: unknown
   retryAttempt: number
   hasOutput: boolean
+  aborted?: boolean
 }
 
 export function getProviderRateLimitRetryDelay({
@@ -34,6 +60,18 @@ export function getProviderRateLimitRetryDelay({
   retryAttempt,
 }: ProviderRetryOptions) {
   return getRateLimitRetryDelay(error, retryAttempt)
+}
+
+export function getProviderRetryDelay({
+  error,
+  retryAttempt,
+  aborted,
+}: ProviderRetryOptions) {
+  if (aborted) return null
+  return (
+    getRateLimitRetryDelay(error, retryAttempt) ??
+    getTransientRetryDelay(error, retryAttempt)
+  )
 }
 
 export function hasReplayableToolOutputSince(
@@ -93,8 +131,29 @@ function isRateLimitValue(value: unknown): boolean {
     if (status === 429 || statusCode === 429) return true
   }
 
-  const message = stringifyRateLimitCandidate(value)
+  const message = stringifyErrorCandidate(value)
   return RATE_LIMIT_PATTERNS.some((pattern) => pattern.test(message))
+}
+
+function isTransientValue(value: unknown): boolean {
+  if (value != null && typeof value === 'object') {
+    const { status, statusCode, isRetryable } = value as {
+      status?: unknown
+      statusCode?: unknown
+      isRetryable?: unknown
+    }
+    if (typeof status === 'number' && TRANSIENT_STATUS_CODES.has(status))
+      return true
+    if (
+      typeof statusCode === 'number' &&
+      TRANSIENT_STATUS_CODES.has(statusCode)
+    )
+      return true
+    if (isRetryable === true) return true
+  }
+
+  const message = stringifyErrorCandidate(value)
+  return TRANSIENT_PATTERNS.some((pattern) => pattern.test(message))
 }
 
 function parseRetryAfter(value: unknown): number | undefined {
@@ -144,7 +203,7 @@ function normalizeHeaders(headers: unknown): Record<string, unknown> | null {
   )
 }
 
-function stringifyRateLimitCandidate(value: unknown): string {
+function stringifyErrorCandidate(value: unknown): string {
   if (value instanceof Error) return value.message
   if (typeof value === 'string') return value
   if (value == null || typeof value !== 'object') return ''

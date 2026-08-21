@@ -56,7 +56,8 @@ export async function _claim(
   }
 
   if (!stream.processingMessageId) {
-    return claimFreshTurn(ctx, stream)
+    const claimed = await claimFreshTurn(ctx, stream)
+    return { ...claimed, stepsDone: 0 }
   }
 
   const row = await getProcessingSegmentRow(ctx, stream)
@@ -94,7 +95,59 @@ export async function _claim(
     status: 'streaming' as const,
     contextBoundaryMessageId,
     contextBoundaryCreationTime,
+    stepsDone: await countTurnSteps(ctx, stream),
   }
+}
+
+/** 'step-start' markers already persisted for this turn's selected version. */
+async function countTurnSteps(ctx: MutationCtx, stream: Doc<'streams'>) {
+  if (!stream.processingMessageId) return 0
+  const parts = await allVersionParts(ctx, stream.processingMessageId)
+  return parts.filter((part) => readPartType(part) === 'step-start').length
+}
+
+function readPartType(part: unknown) {
+  return part != null && typeof part === 'object'
+    ? (part as { type?: unknown }).type
+    : undefined
+}
+
+/**
+ * Hands a turn that is approaching the action time limit to a freshly
+ * scheduled action.
+*/
+export async function _handoff(
+  ctx: MutationCtx,
+  { streamId }: { streamId: Id<'streams'> },
+) {
+  const stream = await ctx.db.get(streamId)
+  if (!stream || stream.status === 'stopping') return false
+
+  const jobId = await ctx.scheduler.runAfter(
+    0,
+    internal.actions.streams._stream,
+    { streamId },
+  )
+
+  await ctx.db.patch(streamId, {
+    jobId,
+    leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
+  })
+
+  return true
+}
+
+/** Keeps the lease alive while a step streams nothing patchable. */
+export async function _heartbeat(
+  ctx: MutationCtx,
+  { streamId }: { streamId: Id<'streams'> },
+) {
+  const stream = await ctx.db.get(streamId)
+  if (!stream || stream.status !== 'streaming') return
+
+  await ctx.db.patch(streamId, {
+    leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
+  })
 }
 
 /** Materializes the processing message for a turn that is starting to stream. */

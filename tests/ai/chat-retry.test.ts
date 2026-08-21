@@ -2,7 +2,9 @@
 import { reserveRetryStream } from '@sb/convex/model/chat/reserve'
 import {
   getProviderRateLimitRetryDelay,
+  getProviderRetryDelay,
   getRateLimitRetryDelay,
+  getTransientRetryDelay,
   hasReplayableToolOutputSince,
 } from '@sb/convex/model/stream/retry'
 import { trackGeneratedOutput } from '@sb/convex/model/stream/transformers'
@@ -102,6 +104,76 @@ describe('getProviderRateLimitRetryDelay', () => {
         hasOutput: true,
       }),
     ).toBe(1000)
+  })
+})
+
+describe('getTransientRetryDelay', () => {
+  test('retries server errors by status code', () => {
+    expect(getTransientRetryDelay({ statusCode: 503 }, 1)).toBe(1000)
+    expect(getTransientRetryDelay({ statusCode: 500 }, 2)).toBe(1250)
+    expect(getTransientRetryDelay({ status: 529 }, 1)).toBe(1000)
+  })
+
+  test('retries provider overload and gateway messages', () => {
+    expect(
+      getTransientRetryDelay(new Error('overloaded_error: try again'), 1),
+    ).toBe(1000)
+    expect(getTransientRetryDelay(new Error('Bad Gateway'), 1)).toBe(1000)
+  })
+
+  test('retries network failures found in the error chain', () => {
+    const error = new Error('Request failed', {
+      cause: { code: 'ECONNRESET' },
+    })
+
+    expect(getTransientRetryDelay(error, 1)).toBe(1000)
+  })
+
+  test('retries errors the AI SDK marks retryable', () => {
+    expect(getTransientRetryDelay({ isRetryable: true }, 1)).toBe(1000)
+  })
+
+  test('does not retry client errors or unknown failures', () => {
+    expect(getTransientRetryDelay({ statusCode: 400 }, 1)).toBeNull()
+    expect(getTransientRetryDelay(new Error('Invalid API key'), 1)).toBeNull()
+    expect(getTransientRetryDelay(new Error('Terminated'), 1)).toBe(1000)
+  })
+})
+
+describe('getProviderRetryDelay', () => {
+  test('retries transient network errors mid-turn', () => {
+    expect(
+      getProviderRetryDelay({
+        error: new Error('fetch failed'),
+        retryAttempt: 1,
+        hasOutput: false,
+      }),
+    ).toBe(1000)
+  })
+
+  test('never retries once the user stopped the stream', () => {
+    expect(
+      getProviderRetryDelay({
+        error: new Error('socket hang up'),
+        retryAttempt: 1,
+        hasOutput: true,
+        aborted: true,
+      }),
+    ).toBeNull()
+  })
+
+  test('prefers the rate limit delay when both classes match', () => {
+    expect(
+      getProviderRetryDelay({
+        error: {
+          statusCode: 429,
+          responseHeaders: { 'retry-after': '7' },
+          data: { error: { message: 'internal server error' } },
+        },
+        retryAttempt: 1,
+        hasOutput: false,
+      }),
+    ).toBe(7000)
   })
 })
 
