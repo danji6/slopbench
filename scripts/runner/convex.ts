@@ -93,7 +93,10 @@ export async function startBackend(
       join(config.dataDir, 'convex.sqlite3'),
     ],
     {
-      env: { DOCUMENT_RETENTION_DELAY: config.convexDocumentRetentionDelay },
+      env: {
+        DOCUMENT_RETENTION_DELAY: config.convexDocumentRetentionDelay,
+        NODE_ACTION_USER_TIMEOUT_SECS: config.convexNodeActionTimeoutSecs,
+      },
     },
   )
 }

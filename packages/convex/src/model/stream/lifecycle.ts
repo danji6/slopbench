@@ -69,22 +69,38 @@ export async function _claim(
     stream.operation !== 'retry' &&
     (!row || (row.segmentIndex === 0 && row.parts.length === 0))
 
-  // Only compute the context boundary for a fresh segment to preserve tool approvals
-  const boundary = fresh
-    ? await latestContextMessage(ctx, stream.sessionId)
-    : null
+  let boundaryId = stream.contextBoundaryMessageId
+  let boundaryCreationTime = stream.contextBoundaryCreationTime
+  let processingMessageId = stream.processingMessageId
+  let stepsDone: number | null = null
 
-  const contextBoundaryMessageId = fresh
-    ? boundary?._id
-    : stream.contextBoundaryMessageId
-  const contextBoundaryCreationTime = fresh
-    ? boundary?._creationTime
-    : stream.contextBoundaryCreationTime
+  if (fresh) {
+    // Only compute the context boundary for a fresh segment to preserve tool approvals
+    const boundary = await latestContextMessage(ctx, stream.sessionId)
+    boundaryId = boundary?._id
+    boundaryCreationTime = boundary?._creationTime
+  } else if (stream.operation === 'invoke') {
+    const current = await ctx.db.get(stream.processingMessageId)
+    // Only this stream's own turn may roll over. /resume and retry streams point
+    // at pre-existing messages that must keep streaming into themselves
+    if (current && current._creationTime > stream._creationTime) {
+      const consumed = await consumeInterjections(ctx, stream)
+      if (consumed) {
+        const updated = await ctx.db.get(streamId)
+        if (updated?.processingMessageId) {
+          boundaryId = updated.contextBoundaryMessageId
+          boundaryCreationTime = updated.contextBoundaryCreationTime
+          processingMessageId = updated.processingMessageId
+          stepsDone = 0
+        }
+      }
+    }
+  }
 
   await ctx.db.patch(streamId, {
     status: 'streaming',
-    contextBoundaryMessageId,
-    contextBoundaryCreationTime,
+    contextBoundaryMessageId: boundaryId,
+    contextBoundaryCreationTime: boundaryCreationTime,
     leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
     jobId: undefined,
     retryAt: undefined,
@@ -94,9 +110,12 @@ export async function _claim(
   return {
     ...stream,
     status: 'streaming' as const,
-    contextBoundaryMessageId,
-    contextBoundaryCreationTime,
-    stepsDone: await countTurnSteps(ctx, stream),
+    processingMessageId,
+    contextBoundaryMessageId: boundaryId,
+    contextBoundaryCreationTime: boundaryCreationTime,
+    stepsDone:
+      stepsDone ??
+      (await countTurnSteps(ctx, { ...stream, processingMessageId })),
   }
 }
 
@@ -300,14 +319,17 @@ export async function _patchMessage(
   return true
 }
 
-export async function _continue(
+/**
+ * Seals the in-flight turn and starts a fresh one when a message arrived after
+ * it, moving the context boundary onto the newest message.
+ *
+ * @returns true when the turn was rolled over.
+ */
+export async function consumeInterjections(
   ctx: MutationCtx,
-  { streamId }: { streamId: Id<'streams'> },
+  stream: Doc<'streams'>,
 ) {
-  const stream = await ctx.db.get(streamId)
-  if (!stream || stream.status === 'stopping' || !stream.processingMessageId) {
-    return false
-  }
+  if (!stream.processingMessageId) return false
 
   const current = await ctx.db.get(stream.processingMessageId)
   if (!current) return false
@@ -324,22 +346,38 @@ export async function _continue(
     .order('desc')
     .first()
 
+  if (!newer) return false
+
+  const row = await getProcessingSegmentRow(ctx, stream)
+  if (row) {
+    await finalizeTurn(ctx, {
+      message: current,
+      row,
+      parts: row.parts,
+      metadata: row.metadata,
+    })
+  } else {
+    await ctx.db.patch(current._id, { status: 'done' })
+  }
+  await rolloverProcessingMessage(ctx, stream, current, newer)
+  return true
+}
+
+export async function _continue(
+  ctx: MutationCtx,
+  { streamId }: { streamId: Id<'streams'> },
+) {
+  const stream = await ctx.db.get(streamId)
+  if (!stream || stream.status === 'stopping' || !stream.processingMessageId) {
+    return false
+  }
+
+  const current = await ctx.db.get(stream.processingMessageId)
+  if (!current) return false
+
   const row = await getProcessingSegmentRow(ctx, stream)
 
-  if (newer) {
-    if (row) {
-      await finalizeTurn(ctx, {
-        message: current,
-        row,
-        parts: row.parts,
-        metadata: row.metadata,
-      })
-    } else {
-      await ctx.db.patch(current._id, { status: 'done' })
-    }
-    await rolloverProcessingMessage(ctx, stream, current, newer)
-    return true
-  }
+  if (await consumeInterjections(ctx, stream)) return true
 
   // Split a large turn: seal the active segment and stream into a fresh
   // one. The doc stays processing, the context boundary doesn't move.
@@ -601,6 +639,7 @@ export async function _fail(
       status: 'done',
       metadata: { ...doc?.metadata, error: message },
     })
+    await demoteFailedSummary(ctx, stream)
   }
 
   await cleanUpOffloadedOutputs(ctx, streamId)
@@ -679,6 +718,7 @@ export async function _finalizeStopped(
       ),
     })
   }
+  await demoteFailedSummary(ctx, stream)
 
   await cleanUpOffloadedOutputs(ctx, streamId)
   await cleanUpGeneratedAttachments(ctx, streamId)
@@ -706,6 +746,14 @@ export async function _finalizeStopped(
   await deliverChildReport(ctx, stream, { kind: 'stopped' })
 
   await scheduleCommandDrain(ctx, stream.sessionId)
+}
+
+async function demoteFailedSummary(
+  ctx: MutationCtx,
+  stream: Doc<'streams'>,
+) {
+  if (stream.operation !== 'compact' || !stream.processingMessageId) return
+  await ctx.db.patch(stream.processingMessageId, { type: undefined })
 }
 
 function preserveStoppedStreamError(

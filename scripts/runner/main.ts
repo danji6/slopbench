@@ -361,6 +361,10 @@ Reverse proxy / HTTPS (see docs/https.md), set in .env.local:
   CONVEX_PORT             Backend port (default 3210)
   CONVEX_SITE_PORT        HTTP actions port (default 3211)
   FRONTEND_HOST           Frontend bind address (default 0.0.0.0)
+  NODE_ACTION_USER_TIMEOUT_SECS
+                          Backend Node action timeout in seconds
+                          (default: 1800; keep above the stream engine's
+                          5-minute handoff window)
 
 Logs are written to .data/logs.`)
 }

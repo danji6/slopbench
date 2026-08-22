@@ -757,7 +757,9 @@ export class Scroller {
       }
 
       if (this.isFollowing) return
-      if (nearBottom && scrollingDown && this._userScrollIntent !== 'up') {
+
+      // Resume on any downward arrival near the bottom
+      if (nearBottom && scrollingDown) {
         this._resumeAtBottom()
       }
     }

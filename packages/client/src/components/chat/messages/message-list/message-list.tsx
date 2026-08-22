@@ -421,6 +421,7 @@ export function MessageList({
   // Suppress auto-follow during layout shifts and emit scroll change when the
   // height settles
   const onLayoutChange = useCallback(() => {
+    holdPosition()
     setShiftInProgress(true)
     requestAnimationFrame(() => setShiftInProgress(shiftHoldRef.current))
 
@@ -428,7 +429,7 @@ export function MessageList({
     settleCancelRef.current = onScrollChange
       ? trackHeightSettle(onScrollChange)
       : null
-  }, [setShiftInProgress, onScrollChange])
+  }, [holdPosition, setShiftInProgress, onScrollChange])
 
   useEffect(() => () => settleCancelRef.current?.(), [])
 

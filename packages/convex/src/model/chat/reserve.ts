@@ -104,13 +104,11 @@ export async function reserveOrDebounceTurn(
       delayMs: debounceMs,
     })
   } else if (
-    debounceMs > 0 &&
     activeStream &&
     activeStream.status === 'pending' &&
-    activeStream.operation === 'invoke' &&
-    activeStream.fireAt
+    activeStream.operation === 'invoke'
   ) {
-    // New messages reschedule the pending turn
+    // New messages reschedule the pending turn so the claim reads up to them
     await rescheduleStream(ctx, activeStream, {
       boundaryId: messageId,
       delayMs: debounceMs,

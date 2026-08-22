@@ -124,6 +124,7 @@ export async function _getProviderHistory(
         .eq('type', 'summary')
         .eq('status', 'done'),
     )
+    .filter((q) => q.eq(q.field('contextEligible'), true))
     .order('desc')
     .first()
 

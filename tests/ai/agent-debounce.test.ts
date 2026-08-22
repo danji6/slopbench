@@ -1,5 +1,8 @@
 /// <reference types="bun-types" />
-import { rescheduleStream } from '@sb/convex/model/chat/reserve'
+import {
+  rescheduleStream,
+  reserveOrDebounceTurn,
+} from '@sb/convex/model/chat/reserve'
 import { describe, expect, test } from 'bun:test'
 
 function rescheduleCtx(boundary: Record<string, unknown> | null) {
@@ -72,5 +75,59 @@ describe('rescheduleStream (debounce reset)', () => {
 
     expect(cancelled).toEqual([])
     expect(scheduled).toHaveLength(1)
+  })
+})
+
+describe('reserveOrDebounceTurn (pending window)', () => {
+  test('re-anchors a pending turn even without a debounce or fireAt', async () => {
+    const { ctx, patches, scheduled, cancelled } = rescheduleCtx({
+      _id: 'msg_2',
+      _creationTime: 42,
+    })
+
+    await reserveOrDebounceTurn(ctx, {
+      session: { _id: 'session_1', activeAgentId: 'agent_1' },
+      messageId: 'msg_2',
+      invokedBy: 'user_1',
+      silent: false,
+      // A zero-debounce pending turn has no fireAt yet
+      activeStream: {
+        _id: 'stream_1',
+        status: 'pending',
+        operation: 'invoke',
+        jobId: 'job_old',
+      },
+    } as never)
+
+    expect(cancelled).toEqual(['job_old'])
+    expect(scheduled).toEqual([{ delay: 0, args: { streamId: 'stream_1' } }])
+    const patch = patches.find((p) => p.id === 'stream_1')?.patch
+    expect(patch).toMatchObject({
+      contextBoundaryMessageId: 'msg_2',
+      contextBoundaryCreationTime: 42,
+    })
+    expect(typeof patch?.fireAt).toBe('number')
+  })
+
+  test('leaves running and non-invoke streams alone', async () => {
+    const { ctx, patches, scheduled, cancelled } = rescheduleCtx(null)
+
+    for (const activeStream of [
+      { _id: 'stream_1', status: 'streaming', operation: 'invoke' },
+      { _id: 'stream_1', status: 'pending', operation: 'compact' },
+      { _id: 'stream_1', status: 'awaiting_approval', operation: 'invoke' },
+    ]) {
+      await reserveOrDebounceTurn(ctx, {
+        session: { _id: 'session_1', activeAgentId: 'agent_1' },
+        messageId: 'msg_2',
+        invokedBy: 'user_1',
+        silent: false,
+        activeStream,
+      } as never)
+    }
+
+    expect(cancelled).toEqual([])
+    expect(scheduled).toEqual([])
+    expect(patches).toEqual([])
   })
 })

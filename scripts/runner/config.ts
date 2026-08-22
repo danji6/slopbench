@@ -41,6 +41,7 @@ export type RunnerConfig = {
   convexDocumentRetentionDelay: string
   convexInterface: string
   convexInternalUrl: string
+  convexNodeActionTimeoutSecs: string
   convexPort: number
   convexRoot: string
   convexSelfHostedAdminKey?: string
@@ -163,6 +164,9 @@ export function getConfig(mode: RunnerMode): RunnerConfig {
       process.env.DOCUMENT_RETENTION_DELAY ?? String(60 * 60 * 24 * 2),
     convexInterface: process.env.CONVEX_INTERFACE ?? '0.0.0.0',
     convexInternalUrl,
+    // This must stay above the stream engine's time window (see STREAM_WINDOW_MS)
+    convexNodeActionTimeoutSecs:
+      process.env.NODE_ACTION_USER_TIMEOUT_SECS ?? String(30 * 60),
     convexPort,
     convexRoot,
     convexSelfHostedAdminKey: process.env.CONVEX_SELF_HOSTED_ADMIN_KEY,

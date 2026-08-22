@@ -38,8 +38,16 @@ import type { PromptEvalResult } from './operations'
 
 const PATCH_INTERVAL_MS = 100
 const MAX_STEPS = 50
-const STREAM_WINDOW_MS = 8 * 60 * 1000
+const STEP_DEADLINE_GRACE_MS = 45_000
 const HEARTBEAT_INTERVAL_MS = 60_000
+
+// One engine invocation must stay well below the platform's Node action timeout
+// (NODE_ACTION_USER_TIMEOUT_SECS, default 600s). An externally killed action
+// cannot checkpoint anything and the turn hangs until the lease expires. The
+// deadline is enforced between steps and, within the grace period, against the
+// in-flight step itself (see watchForStop).
+const STREAM_WINDOW_MS = 5 * 60 * 1000
+const STEP_DEADLINE_REASON = 'stream-window-elapsed'
 
 class ProviderStreamFailure {
   constructor(
@@ -47,6 +55,7 @@ class ProviderStreamFailure {
     readonly hasOutput: boolean,
     readonly hasReplayableToolOutput: boolean,
     readonly aborted: boolean,
+    readonly deadlineHit: boolean,
   ) {}
 }
 
@@ -63,6 +72,12 @@ export async function _stream(
 
   try {
     for (let step = claimed.stepsDone; step < MAX_STEPS; step++) {
+      // Hand off between steps to stay below the deadline
+      if (Date.now() >= windowDeadline) {
+        await ctx.runMutation(internal.streams._handoff, { streamId })
+        return
+      }
+
       const setup = await prepare(ctx, streamId)
       if (!setup) return
 
@@ -72,7 +87,7 @@ export async function _stream(
         usage,
         awaitingApproval,
         awaitingTasks,
-      } = await consumeProviderStep(ctx, streamId, setup)
+      } = await consumeProviderStep(ctx, streamId, setup, windowDeadline)
       if (shouldContinue === null) return
 
       hasGeneratedOutput = hasGeneratedOutput || hasOutput.value
@@ -107,11 +122,6 @@ export async function _stream(
       })
       if (!continued) return
 
-      if (Date.now() >= windowDeadline) {
-        await ctx.runMutation(internal.streams._handoff, { streamId })
-        return
-      }
-
       attempt = 0
     }
 
@@ -124,6 +134,12 @@ export async function _stream(
     const error = failure ? failure.error : err
 
     hasGeneratedOutput = hasGeneratedOutput || (failure?.hasOutput ?? false)
+
+    if (failure?.deadlineHit) {
+      // Our own time window elapsed, hand off the turn
+      await ctx.runMutation(internal.streams._handoff, { streamId })
+      return
+    }
 
     const failedStepHasOutput = failure
       ? failure.hasOutput && !failure.hasReplayableToolOutput
@@ -251,6 +267,7 @@ async function consumeProviderStep(
   ctx: ActionCtx,
   streamId: Id<'streams'>,
   setup: NonNullable<Awaited<ReturnType<typeof prepare>>>,
+  windowDeadline: number,
 ) {
   const [
     {
@@ -284,7 +301,10 @@ async function consumeProviderStep(
   const offloadCache = new Map<string, unknown>()
   const fileCache = new Map<string, unknown>()
   const abortController = new AbortController()
-  const stopWatcher = watchForStop(ctx, streamId, abortController)
+
+  const stopWatcher = watchForStop(ctx, streamId, abortController, {
+    deadlineAt: windowDeadline + STEP_DEADLINE_GRACE_MS,
+  })
 
   const initialMessage = {
     id: setup.output._id,
@@ -449,6 +469,7 @@ async function consumeProviderStep(
       outputTracker.hasOutput,
       hasReplayableToolOutputSince(latestParts, initialPartCount),
       abortController.signal.aborted,
+      abortController.signal.reason === STEP_DEADLINE_REASON,
     )
   } finally {
     stopWatcher.dispose()
@@ -730,6 +751,7 @@ function watchForStop(
   ctx: ActionCtx,
   streamId: Id<'streams'>,
   abortController: AbortController,
+  options?: { deadlineAt?: number },
 ) {
   let disposed = false
   void (async () => {
@@ -741,6 +763,13 @@ function watchForStop(
         })
         if (!active) {
           abortController.abort()
+          return
+        }
+        if (
+          options?.deadlineAt !== undefined &&
+          Date.now() >= options.deadlineAt
+        ) {
+          abortController.abort(STEP_DEADLINE_REASON)
           return
         }
         if (Date.now() - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {

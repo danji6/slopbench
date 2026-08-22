@@ -22,18 +22,43 @@ function historyCtx(fixture: HistoryFixture) {
     index: string,
     captured: Record<string, unknown>,
   ) => {
+    const predicates: Array<(row: Record<string, unknown>) => boolean> = []
+    const matches = (row: Record<string, unknown>) =>
+      predicates.every((predicate) => predicate(row))
     const obj = {
+      filter: (fn?: (q: unknown) => unknown) => {
+        if (fn) {
+          predicates.push((row) =>
+            Boolean(
+              fn({
+                field: (name: string) => row[name],
+                eq: (a: unknown, b: unknown) => a === b,
+              }),
+            ),
+          )
+        }
+        return obj
+      },
       order: () => obj,
       first: async () =>
         table === 'messages' && index === 'by_sessionId_type_status'
-          ? (summary ?? null)
+          ? (summary && matches(summary) ? summary : null)
           : null,
       collect: async () => {
         if (
           table === 'messages' &&
           index === 'by_sessionId_status_contextEligible'
         ) {
-          return doneMessages
+          const creationTime = (message: Record<string, unknown>) =>
+            message._creationTime as number
+          return doneMessages.filter(
+            (message) =>
+              creationTime(message) >=
+                ((captured.gte as number | undefined) ?? -Infinity) &&
+              creationTime(message) <=
+                ((captured.lte as number | undefined) ?? Infinity) &&
+              matches(message),
+          )
         }
         if (table === 'messageContents') {
           const byMessage =
@@ -62,8 +87,14 @@ function historyCtx(fixture: HistoryFixture) {
               captured[field] = value
               return q
             },
-            gte: () => q,
-            lte: () => q,
+            gte: (_field: string, value: unknown) => {
+              captured.gte = value
+              return q
+            },
+            lte: (_field: string, value: unknown) => {
+              captured.lte = value
+              return q
+            },
           }
           fn?.(q)
           return resultFor(table, index, captured)
@@ -162,6 +193,51 @@ describe('_getProviderHistory', () => {
     expect(history.map((m) => m._id)).toEqual(['m_user' as never])
   })
 
+  test('a completed summary bounds the history at its creation time', async () => {
+    const fixture = baseFixture('invoke')
+    fixture.summary = {
+      _id: 'm_summary',
+      _creationTime: 150,
+      role: 'assistant',
+      type: 'summary',
+      status: 'done',
+      selectedVersion: 1,
+      contextEligible: true,
+    }
+
+    const history = await _getProviderHistory(historyCtx(fixture), {
+      streamId: 'stream_1' as never,
+    })
+
+    // Everything before the successful compaction stays out
+    expect(history.map((m) => m._id)).toEqual(['m_current' as never])
+  })
+
+  test('an empty failed summary never becomes the context floor', async () => {
+    const fixture = baseFixture('invoke')
+    // What a failed/aborted compaction used to leave behind: a done summary
+    // marker with no content and no eligibility
+    fixture.summary = {
+      _id: 'm_failed_summary',
+      _creationTime: 150,
+      role: 'assistant',
+      type: 'summary',
+      status: 'done',
+      selectedVersion: 1,
+      contextEligible: false,
+    }
+
+    const history = await _getProviderHistory(historyCtx(fixture), {
+      streamId: 'stream_1' as never,
+    })
+
+    // The ineligible summary is skipped, so the earlier history survives
+    expect(history.map((m) => m._id)).toEqual([
+      'm_user' as never,
+      'm_current' as never,
+    ])
+  })
+
   test('concatenates the segments of an in-flight split turn', async () => {
     const call = {
       type: 'tool-write_file',
@@ -227,5 +303,63 @@ describe('_getProviderHistory', () => {
     })
 
     expect(history.map((m) => m._id)).toEqual(['m_user' as never])
+  })
+
+  test('includes a mid-turn interjection once the boundary moved past it', async () => {
+    const finalized = {
+      _id: 'm_assistant',
+      _creationTime: 110,
+      role: 'assistant',
+      selectedVersion: 1,
+    }
+    const interrupt = {
+      _id: 'm_interrupt',
+      _creationTime: 120,
+      role: 'user',
+      selectedVersion: 1,
+    }
+    const fixture = baseFixture('invoke')
+    // The rollover advanced the boundary onto the newest message (the interrupt)
+    fixture.stream.contextBoundaryCreationTime = 120
+    fixture.doneMessages = [
+      userMessage,
+      finalized,
+      interrupt,
+      // A later message beyond the boundary must stay out
+      { ...interrupt, _id: 'm_late', _creationTime: 130 },
+    ]
+    fixture.segmentsByMessage.m_assistant = {
+      1: [
+        {
+          _id: 'c_assistant_1',
+          segmentIndex: 0,
+          parts: [{ type: 'text', text: 'working' }],
+        },
+      ],
+    }
+    fixture.segmentsByMessage.m_interrupt = {
+      1: [
+        {
+          _id: 'c_interrupt_1',
+          segmentIndex: 0,
+          parts: [{ type: 'text', text: 'stop, do X instead' }],
+        },
+      ],
+    }
+    // The post-rollover continuation message is still empty
+    fixture.current = { ...retryMessage, _creationTime: 200 }
+    fixture.segmentsByMessage.m_current = {
+      2: [{ _id: 'c_current_2', segmentIndex: 0, parts: [] }],
+    }
+
+    const history = await _getProviderHistory(historyCtx(fixture), {
+      streamId: 'stream_1' as never,
+    })
+
+    expect(history.map((m) => m._id)).toEqual([
+      'm_user' as never,
+      'm_assistant' as never,
+      'm_interrupt' as never,
+    ])
   })
 })

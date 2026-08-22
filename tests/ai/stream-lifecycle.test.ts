@@ -207,42 +207,153 @@ describe('_claim', () => {
     })
   })
 
-  test('keeps the boundary when resuming an in-progress turn (approval)', async () => {
+  test('consumes a message sent during an approval pause when the turn resumes', async () => {
     const stream = {
       _id: 'stream_1',
+      _creationTime: 30,
       status: 'pending',
       sessionId: 'session_1',
+      invokedBy: 'user_1',
+      operation: 'invoke',
+      attempt: 0,
       processingMessageId: 'message_1',
       processingContentId: 'content_1',
-      attempt: 0,
       contextBoundaryMessageId: 'user_1',
       contextBoundaryCreationTime: 10,
     }
-    const { ctx, patches } = fakeCtx({
-      docs: [stream, { _id: 'message_1' }],
-      // Tool call awaiting approval already streamed into the segment.
+    const { ctx, patches, inserts } = fakeCtx({
+      docs: [
+        stream,
+        // The turn's own output message, created after the stream itself
+        {
+          _id: 'message_1',
+          _creationTime: 40,
+          selectedVersion: 1,
+          sender: { type: 'agent', id: 'agent_1' },
+        },
+      ],
       contents: [
         {
           _id: 'content_1',
+          messageId: 'message_1',
+          version: 1,
           segmentIndex: 0,
           parts: [{ type: 'tool-shell', state: 'approval-responded' }],
         },
       ],
-      // A user message sent during the approval pause.
+      // A user message sent while parked on the approval
       firstMessage: { _id: 'user_2', _creationTime: 50 },
     })
 
     const result = await _claim(ctx, { streamId: stream._id as never })
 
-    expect(result?.contextBoundaryMessageId).toBe('user_1' as never)
-    expect(result?.contextBoundaryCreationTime).toBe(10 as never)
+    // The interrupted turn is sealed...
+    expect(patches).toContainEqual({
+      id: 'message_1',
+      patch: expect.objectContaining({ status: 'done' }),
+    })
+    // ...and continuation streams into a fresh message behind the interrupt
+    const rollover = inserts.find(({ table }) => table === 'messages')
+    expect(rollover?.fields).toMatchObject({ status: 'processing' })
+    expect(result?.processingMessageId).toBe('inserted_1' as never)
+    expect(result?.stepsDone).toBe(0)
+    expect(result?.contextBoundaryMessageId).toBe('user_2' as never)
     expect(patches).toContainEqual({
       id: 'stream_1',
       patch: expect.objectContaining({
-        contextBoundaryMessageId: 'user_1',
-        contextBoundaryCreationTime: 10,
+        contextBoundaryMessageId: 'user_2',
+        contextBoundaryCreationTime: 50,
       }),
     })
+  })
+
+  test('keeps the boundary when resuming a pre-existing message (/resume)', async () => {
+    const stream = {
+      _id: 'stream_1',
+      _creationTime: 60,
+      status: 'pending',
+      sessionId: 'session_1',
+      invokedBy: 'user_1',
+      operation: 'invoke',
+      attempt: 0,
+      processingMessageId: 'message_1',
+      processingContentId: 'content_1',
+      contextBoundaryMessageId: 'user_1',
+      contextBoundaryCreationTime: 10,
+    }
+    const { ctx, patches, inserts } = fakeCtx({
+      docs: [
+        stream,
+        // An older agent message being resumed: newer transcript messages exist
+        {
+          _id: 'message_1',
+          _creationTime: 20,
+          selectedVersion: 1,
+          sender: { type: 'agent', id: 'agent_1' },
+        },
+      ],
+      contents: [
+        {
+          _id: 'content_1',
+          messageId: 'message_1',
+          version: 1,
+          segmentIndex: 0,
+          parts: [{ type: 'text', text: 'partial' }],
+        },
+      ],
+      firstMessage: { _id: 'user_2', _creationTime: 50 },
+    })
+
+    const result = await _claim(ctx, { streamId: stream._id as never })
+
+    // No rollover: the resumed message keeps streaming into itself
+    expect(inserts.some(({ table }) => table === 'messages')).toBe(false)
+    expect(patches.some(({ id }) => id === 'message_1')).toBe(false)
+    expect(result?.processingMessageId).toBe('message_1' as never)
+    expect(result?.contextBoundaryMessageId).toBe('user_1' as never)
+  })
+
+  test('never rolls over a retry stream, even with newer messages', async () => {
+    const stream = {
+      _id: 'stream_1',
+      _creationTime: 30,
+      status: 'pending',
+      sessionId: 'session_1',
+      invokedBy: 'user_1',
+      operation: 'retry',
+      attempt: 0,
+      processingMessageId: 'message_1',
+      processingContentId: 'content_1',
+      contextBoundaryMessageId: 'user_1',
+      contextBoundaryCreationTime: 10,
+    }
+    const { ctx, patches, inserts } = fakeCtx({
+      docs: [
+        stream,
+        {
+          _id: 'message_1',
+          _creationTime: 40,
+          selectedVersion: 2,
+          sender: { type: 'agent', id: 'agent_1' },
+        },
+      ],
+      contents: [
+        {
+          _id: 'content_1',
+          messageId: 'message_1',
+          version: 2,
+          segmentIndex: 0,
+          parts: [{ type: 'text', text: 'regenerating' }],
+        },
+      ],
+      firstMessage: { _id: 'user_2', _creationTime: 50 },
+    })
+
+    const result = await _claim(ctx, { streamId: stream._id as never })
+
+    expect(inserts.some(({ table }) => table === 'messages')).toBe(false)
+    expect(patches.some(({ id }) => id === 'message_1')).toBe(false)
+    expect(result?.contextBoundaryMessageId).toBe('user_1' as never)
   })
 })
 
@@ -549,6 +660,33 @@ describe('_finalizeStopped', () => {
     })
   })
 
+  test('a stopped compaction stops claiming to be a summary', async () => {
+    const stream = {
+      _id: 'stream_1',
+      status: 'stopping',
+      sessionId: 'session_1',
+      operation: 'compact',
+      processingMessageId: 'message_1',
+      processingContentId: 'content_1',
+    }
+    const { ctx, patches } = fakeCtx({
+      docs: [
+        // Claim stamped the summary marker before any content existed
+        stream,
+        { _id: 'message_1', selectedVersion: 1, type: 'summary' },
+      ],
+      contents: [{ _id: 'content_1', version: 1, segmentIndex: 0, parts: [] }],
+    })
+
+    await _finalizeStopped(ctx, { streamId: stream._id as never })
+
+    // Otherwise the newest-done-summary floor would hide all earlier history
+    expect(patches).toContainEqual({
+      id: 'message_1',
+      patch: { type: undefined },
+    })
+  })
+
   /**
    * Stopping between approving a call and running it used to leave the part at
    * `approval-responded` forever: the UI kept spinning, and the next turn sent
@@ -632,6 +770,66 @@ describe('_fail', () => {
     expect(sealed?.patch.metadata).toMatchObject({
       error: 'Stream interrupted before completion.',
     })
+  })
+
+  test('a failed compaction no longer claims to be the context boundary', async () => {
+    const stream = {
+      _id: 'stream_1',
+      status: 'streaming',
+      sessionId: 'session_1',
+      operation: 'compact',
+      processingMessageId: 'message_1',
+      processingContentId: 'content_1',
+    }
+    const { ctx, patches } = fakeCtx({
+      docs: [
+        stream,
+        {
+          _id: 'message_1',
+          _creationTime: 10,
+          selectedVersion: 1,
+          type: 'summary',
+        },
+      ],
+      contents: [{ _id: 'content_1', version: 1, segmentIndex: 0, parts: [] }],
+    })
+
+    await _fail(ctx, {
+      streamId: stream._id as never,
+      message: 'Provider overloaded.',
+    })
+
+    expect(patches).toContainEqual({
+      id: 'message_1',
+      patch: { type: undefined },
+    })
+  })
+
+  test('a failed regular turn keeps its type untouched', async () => {
+    const stream = {
+      _id: 'stream_1',
+      status: 'streaming',
+      sessionId: 'session_1',
+      operation: 'invoke',
+      processingMessageId: 'message_1',
+      processingContentId: 'content_1',
+    }
+    const { ctx, patches } = fakeCtx({
+      docs: [
+        stream,
+        { _id: 'message_1', _creationTime: 10, selectedVersion: 1 },
+      ],
+      contents: [{ _id: 'content_1', version: 1, segmentIndex: 0, parts: [] }],
+    })
+
+    await _fail(ctx, {
+      streamId: stream._id as never,
+      message: 'Stream interrupted before completion.',
+    })
+
+    expect(
+      patches.some(({ id, patch }) => id === 'message_1' && 'type' in patch),
+    ).toBe(false)
   })
 })
 
