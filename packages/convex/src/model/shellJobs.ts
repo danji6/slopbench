@@ -62,6 +62,31 @@ export async function release(
   if (row) await removeWatch(ctx, row)
 }
 
+/** Marks a job as stopped by a user, so its report doesn't wake the agent. */
+export async function markUserKilled(
+  ctx: MutationCtx,
+  { sessionId, jobId }: { sessionId: Id<'sessions'>; jobId: string },
+) {
+  const row =
+    (await getByJobId(ctx, sessionId, jobId)) ??
+    (await getByJobIdForChildren(ctx, sessionId, jobId))
+  if (row) await ctx.db.patch(row._id, { userKilled: true })
+}
+
+/** Marks every watched job of a session and its children as stopped by a user. */
+export async function markAllUserKilled(
+  ctx: MutationCtx,
+  { sessionId }: { sessionId: Id<'sessions'> },
+) {
+  for (const id of await withChildSessionIds(ctx, sessionId)) {
+    const rows = await ctx.db
+      .query('shellJobs')
+      .withIndex('by_sessionId', (q) => q.eq('sessionId', id))
+      .collect()
+    for (const row of rows) await ctx.db.patch(row._id, { userKilled: true })
+  }
+}
+
 /** Drops every watch of a session being torn down. */
 export async function releaseForSession(
   ctx: MutationCtx,
@@ -186,12 +211,16 @@ async function deliverShellReport(
       role: 'user', // no 'system' because some providers complain
       ...(agent ? await agentIdentity(ctx, agent, settings) : {}),
       status: 'done',
+      ...(row.userKilled && { extra: { userKilled: true } }),
     },
     [part],
   )
 
   // A live turn consumes the report at its end via the follow-up gate
   if (await getActiveStream(ctx, row.sessionId)) return
+
+  // A job the user stopped shouldn't wake the agent
+  if (row.userKilled) return
 
   const message = await ctx.db.get(messageId)
   if (!message) return
@@ -243,6 +272,33 @@ function getByJobId(
       q.eq('sessionId', sessionId).eq('jobId', jobId),
     )
     .unique()
+}
+
+async function getByJobIdForChildren(
+  ctx: MutationCtx,
+  sessionId: Id<'sessions'>,
+  jobId: string,
+) {
+  for (const child of await childSessions(ctx, sessionId)) {
+    const row = await getByJobId(ctx, child._id, jobId)
+    if (row) return row
+  }
+  return undefined
+}
+
+async function withChildSessionIds(
+  ctx: MutationCtx,
+  sessionId: Id<'sessions'>,
+) {
+  const children = await childSessions(ctx, sessionId)
+  return [sessionId, ...children.map((child) => child._id)]
+}
+
+function childSessions(ctx: MutationCtx, sessionId: Id<'sessions'>) {
+  return ctx.db
+    .query('sessions')
+    .withIndex('by_parentSessionId', (q) => q.eq('parent.sessionId', sessionId))
+    .collect()
 }
 
 async function scheduleWatcher(ctx: MutationCtx, shellJobId: Id<'shellJobs'>) {

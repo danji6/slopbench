@@ -46,17 +46,20 @@ function fakeCtx({
   })
 
   const makeQuery = (table: string) => {
-    let predicate: ((q: ReturnType<typeof filterFor>) => boolean) | null = null
+    const predicates: Array<(q: ReturnType<typeof filterFor>) => boolean> = []
     const chain = {
       withIndex: () => chain,
       order: () => chain,
       filter: (next: (q: ReturnType<typeof filterFor>) => boolean) => {
-        predicate = next
+        predicates.push(next)
         return chain
       },
       first: async () => {
         if (table === 'messageContents') return rows[rows.length - 1] ?? null
-        if (firstMessage && predicate && !predicate(filterFor(firstMessage))) {
+        if (
+          firstMessage &&
+          !predicates.every((predicate) => predicate(filterFor(firstMessage)))
+        ) {
           return null
         }
         return firstMessage

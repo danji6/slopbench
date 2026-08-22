@@ -368,6 +368,15 @@ export const shellJobRegisterArgsValidator = v.object({
   toolCallId: v.string(),
 })
 
+export const shellJobUserKillArgsValidator = v.object({
+  sessionId: v.id('sessions'),
+  jobId: v.string(),
+})
+
+export const shellJobSessionArgsValidator = v.object({
+  sessionId: v.id('sessions'),
+})
+
 export const shellJobCarryArgsValidator = v.object({
   shellJobId: v.id('shellJobs'),
   term: v.string(),

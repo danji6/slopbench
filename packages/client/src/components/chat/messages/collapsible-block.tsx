@@ -317,6 +317,7 @@ function Content({
 
   useScrollIntoView({
     active: isOpen && revealOnOpen,
+    align: 'start',
     blockRef,
     scrollRef,
     onBeforeScroll: releaseFollow,

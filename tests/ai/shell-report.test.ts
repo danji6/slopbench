@@ -6,11 +6,16 @@ import {
 import { INJECTED_BLOCK_PREFIXES } from '@sb/convex/lib/workspace'
 import {
   _report,
+  markAllUserKilled,
+  markUserKilled,
   register,
   release,
   releaseForSession,
 } from '@sb/convex/model/shellJobs'
-import { stopForSession } from '@sb/convex/model/stream/lifecycle'
+import {
+  earliestUnconsumedMessage,
+  stopForSession,
+} from '@sb/convex/model/stream/lifecycle'
 import { trackJob } from '@sb/convex/model/tool/shellTools'
 import type { ShellToolOutput } from '@sb/convex/types'
 import { describe, expect, test } from 'bun:test'
@@ -29,11 +34,13 @@ function fakeCtx({
   shellJobs = [],
   sessionAgents = [],
   streamsBySession = {},
+  messages = [],
 }: {
   docs?: Row[]
   shellJobs?: Row[]
   sessionAgents?: Row[]
   streamsBySession?: Record<string, Row[]>
+  messages?: Row[]
 } = {}) {
   const inserts: Array<{ table: string; fields: Record<string, unknown> }> = []
   const patches: Array<{ id: string; patch: Record<string, unknown> }> = []
@@ -45,8 +52,23 @@ function fakeCtx({
   )
   const jobs = [...shellJobs]
 
+  // Enough of a filter builder to evaluate the guards turn logic applies
+  const filterFor = (row: Row) => ({
+    field: (path: string) =>
+      path
+        .split('.')
+        .reduce<unknown>(
+          (acc, key) =>
+            acc && typeof acc === 'object' ? (acc as Row)[key] : undefined,
+          row,
+        ),
+    eq: (a: unknown, b: unknown) => a === b,
+    neq: (a: unknown, b: unknown) => a !== b,
+  })
+
   const makeQuery = (table: string) => {
     const captured: Array<[string, unknown]> = []
+    const predicates: Array<(q: ReturnType<typeof filterFor>) => boolean> = []
     const q = {
       eq: (field: string, value: unknown) => {
         captured.push([field, value])
@@ -65,25 +87,50 @@ function fakeCtx({
         fn?.(q)
         return chain
       },
-      filter: () => chain,
+      filter: (next: (q: ReturnType<typeof filterFor>) => boolean) => {
+        predicates.push(next)
+        return chain
+      },
       order: () => chain,
       take: async (n: number) => (await chain.collect()).slice(0, n),
       first: async () => (await chain.collect())[0] ?? null,
       unique: async () => (await chain.collect())[0] ?? null,
       collect: async (): Promise<Row[]> => {
+        let matched: Row[] = []
         if (table === 'shellJobs') {
           const jobId = value('jobId')
-          return jobs.filter(
+          matched = jobs.filter(
             (row) =>
               row.sessionId === value('sessionId') &&
               (jobId === undefined || row.jobId === jobId),
           )
+        } else if (table === 'sessionAgents') {
+          matched = sessionAgents
+        } else if (table === 'streams') {
+          matched = streamsBySession[String(value('sessionId'))] ?? []
+        } else if (table === 'messages') {
+          matched = messages.filter(
+            (row) => row.sessionId === value('sessionId'),
+          )
+          const senderType = value('sender.type')
+          if (senderType !== undefined) {
+            matched = matched.filter(
+              (row) => (row.sender as Row | undefined)?.type === senderType,
+            )
+          }
+          matched.sort(
+            (a, b) => Number(a._creationTime) - Number(b._creationTime),
+          )
+        } else if (table === 'sessions') {
+          matched = docs.filter(
+            (row) =>
+              (row.parent as Row | undefined)?.sessionId ===
+              value('parent.sessionId'),
+          )
         }
-        if (table === 'sessionAgents') return sessionAgents
-        if (table === 'streams') {
-          return streamsBySession[String(value('sessionId'))] ?? []
-        }
-        return []
+        return matched.filter((row) =>
+          predicates.every((predicate) => predicate(filterFor(row))),
+        )
       },
     }
     return chain
@@ -390,6 +437,160 @@ describe('_report', () => {
     await _report(ctx, { shellJobId: 'watch_1' as never, output: output() })
 
     expect(inserts).toHaveLength(0)
+  })
+
+  test('a user-killed job leaves its report but never wakes the agent', async () => {
+    const { ctx, inserts, scheduled } = fakeCtx({
+      docs: [session, agent],
+      shellJobs: [watchRow({ userKilled: true })],
+      sessionAgents: [agentLink],
+    })
+
+    await _report(ctx, {
+      shellJobId: 'watch_1' as never,
+      output: output({ status: 'killed', exitCode: null }),
+    })
+
+    // The report is tagged so turn logic looks past it
+    const message = inserts.find(({ table }) => table === 'messages')
+    expect(message?.fields.extra).toEqual({ userKilled: true })
+
+    expect(inserts.some(({ table }) => table === 'streams')).toBe(false)
+    expect(scheduled).toHaveLength(0)
+  })
+})
+
+describe('markUserKilled', () => {
+  test('marks the watched job of the session', async () => {
+    const { ctx, patches } = fakeCtx({
+      docs: [session],
+      shellJobs: [watchRow()],
+    })
+
+    await markUserKilled(ctx, {
+      sessionId: session._id as never,
+      jobId: 'shell-1',
+    })
+
+    expect(patches).toEqual([{ id: 'watch_1', patch: { userKilled: true } }])
+  })
+
+  test('reaches jobs owned by a sub-agent child session', async () => {
+    const child = {
+      _id: 'session_child',
+      ownerId: owner,
+      parent: { sessionId: 'session_1' },
+    }
+    const { ctx, patches } = fakeCtx({
+      docs: [session, child],
+      shellJobs: [{ ...watchRow(), sessionId: 'session_child' }],
+    })
+
+    await markUserKilled(ctx, {
+      sessionId: session._id as never,
+      jobId: 'shell-1',
+    })
+
+    expect(patches).toEqual([{ id: 'watch_1', patch: { userKilled: true } }])
+  })
+})
+
+describe('markAllUserKilled', () => {
+  test('marks every watched job of the session and its children', async () => {
+    const child = {
+      _id: 'session_child',
+      ownerId: owner,
+      parent: { sessionId: 'session_1' },
+    }
+    const { ctx, patches } = fakeCtx({
+      docs: [session, child],
+      shellJobs: [
+        watchRow(),
+        {
+          ...watchRow({ jobId: 'shell-2', toolCallId: 'tc_2' }),
+          _id: 'watch_2',
+          sessionId: 'session_child',
+        },
+      ],
+    })
+
+    await markAllUserKilled(ctx, { sessionId: session._id as never })
+
+    expect(patches).toEqual([
+      { id: 'watch_1', patch: { userKilled: true } },
+      { id: 'watch_2', patch: { userKilled: true } },
+    ])
+  })
+})
+
+describe('earliestUnconsumedMessage', () => {
+  const boundaryStream = {
+    _id: 'stream_1',
+    sessionId: 'session_1',
+    contextBoundaryCreationTime: 0,
+  } as never
+
+  const message = (
+    overrides: Record<string, unknown> & { _id: string },
+  ): Row => ({
+    sessionId: 'session_1',
+    role: 'user',
+    sender: { type: 'agent', id: 'agent_coder' },
+    ...overrides,
+  })
+
+  test('looks past a user-killed report to the next candidate', async () => {
+    const { ctx } = fakeCtx({
+      messages: [
+        message({
+          _id: 'msg_killed',
+          _creationTime: 10,
+          extra: { userKilled: true },
+        }),
+        message({ _id: 'msg_report', _creationTime: 20 }),
+      ],
+    })
+
+    const found = (await earliestUnconsumedMessage(
+      ctx,
+      boundaryStream,
+    )) as Row | null
+
+    expect(found?._id).toBe('msg_report')
+  })
+
+  test('never picks a user-killed report on its own', async () => {
+    const { ctx } = fakeCtx({
+      messages: [
+        message({
+          _id: 'msg_killed',
+          _creationTime: 10,
+          extra: { userKilled: true },
+        }),
+      ],
+    })
+
+    expect(await earliestUnconsumedMessage(ctx, boundaryStream)).toBeNull()
+  })
+
+  test('prefers the earliest of late user messages and reports', async () => {
+    const { ctx } = fakeCtx({
+      messages: [
+        message({ _id: 'msg_report', _creationTime: 20 }),
+        message({
+          _id: 'msg_user',
+          _creationTime: 5,
+          sender: { type: 'user', id: owner },
+        }),
+      ],
+    })
+
+    const found = (await earliestUnconsumedMessage(
+      ctx,
+      boundaryStream,
+    )) as Row | null
+
+    expect(found?._id).toBe('msg_user')
   })
 })
 

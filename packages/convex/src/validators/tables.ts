@@ -289,6 +289,8 @@ export const shellJobSchema = v.object({
   /** Scrollback carried across windows to keep the reader's offsets continuous. */
   term: v.string(),
   termOffset: v.number(),
+  /** Whether a user stopped this job. Manual stops don't wake the agent. */
+  userKilled: v.optional(v.boolean()),
   /** The running watcher, cancelled on release. */
   watcherId: v.optional(v.id('_scheduled_functions')),
 })

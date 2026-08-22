@@ -1,6 +1,5 @@
 'use node'
 
-import type { LanguageModelV3 } from '@ai-sdk/provider'
 import type { UIMessage } from 'ai'
 
 import { internal } from '../../_generated/api'
@@ -212,11 +211,20 @@ async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
     data.agent.modelId,
   )
 
+  // Apply logging after replay filtering for more accuracy
+  const requestLog: { body?: string } = {}
   const resolved = await getProviderOptions(
     data.agent.modelId,
     data.agent.reasoningEffort as ReasoningEffort | undefined,
     data.agent,
     credentials,
+    async (body) => {
+      requestLog.body = body
+      await patchSessionLogBody(ctx, {
+        body: buildSessionLogBody({ requestBody: body }),
+        sessionId: data.stream.sessionId,
+      })
+    },
   )
 
   const request = applyPromptCaching(
@@ -234,6 +242,7 @@ async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
     systemPrompt: request.systemPrompt,
     messages: request.messages,
     resolved,
+    requestLog,
     tools,
   }
 }
@@ -259,7 +268,6 @@ async function consumeProviderStep(
       stripProviderMetadata,
       trackGeneratedOutput,
       trackToolErrors,
-      withProviderRequestLogging,
     },
     { repairToolCall },
     { applyReasoningDurations, createReasoningTracker, trackReasoningTimings },
@@ -305,20 +313,10 @@ async function consumeProviderStep(
   let lastPatch = 0
   let latestParts = initialMessage.parts
   let lastToolStates = toolStateSignature(latestParts)
-  let lastRequestBody: string | undefined
   try {
     const startedAt = Date.now()
     const result = streamText({
-      model: await withProviderRequestLogging(
-        setup.resolved.languageModel as LanguageModelV3,
-        async (body) => {
-          lastRequestBody = body
-          await patchSessionLogBody(ctx, {
-            body: buildSessionLogBody({ requestBody: body }),
-            sessionId: setup.stream.sessionId,
-          })
-        },
-      ),
+      model: setup.resolved.languageModel,
       system: setup.systemPrompt,
       allowSystemInMessages: true,
       messages: setup.messages,
@@ -421,7 +419,7 @@ async function consumeProviderStep(
 
     await patchSessionLogBody(ctx, {
       body: buildSessionLogBody({
-        requestBody: lastRequestBody,
+        requestBody: setup.requestLog.body,
         responseBody: lastResponseBody,
       }),
       sessionId: setup.stream.sessionId,

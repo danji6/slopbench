@@ -22,6 +22,10 @@ export async function write(ctx: ActionCtx, args: TerminalWriteArgs) {
 
 export async function kill(ctx: ActionCtx, args: TerminalKillArgs) {
   await requireSessionAccess(ctx, args.sessionId)
+  await ctx.runMutation(internal.shellJobs._markUserKilled, {
+    sessionId: args.sessionId,
+    jobId: args.jobId,
+  })
   const { postSidecar } = await import('../../model/sidecar')
   await postSidecar('/shell/kill', args)
 }
@@ -61,6 +65,9 @@ export async function killAll(
   args: TerminalSessionArgs,
 ): Promise<void> {
   await requireSessionAccess(ctx, args.sessionId)
+  await ctx.runMutation(internal.shellJobs._markAllUserKilled, {
+    sessionId: args.sessionId,
+  })
   const { postSidecar } = await import('../../model/sidecar')
   await postSidecar('/shell/kill_session', {
     sessionId: args.sessionId,

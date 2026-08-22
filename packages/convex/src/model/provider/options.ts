@@ -1,9 +1,15 @@
 import type { SharedV3ProviderOptions } from '@ai-sdk/provider'
-import type { LanguageModelV3 } from '@ai-sdk/provider'
+import type {
+  LanguageModelV3,
+  LanguageModelV4Message,
+  LanguageModelV4Prompt,
+  LanguageModelV4ReasoningPart,
+} from '@ai-sdk/provider'
 import type { LanguageModel, LanguageModelMiddleware } from 'ai'
 
 import { error } from '../../errors'
 import type { InferenceParameters, ReasoningEffort } from '../../types'
+import { withProviderRequestLogging } from '../stream/transformers'
 import type { ProviderCredentials } from './providers'
 
 const REASONING_TAGS: Record<string, string> = {
@@ -49,6 +55,7 @@ export async function getProviderOptions(
   reasoningEffort?: ReasoningEffort,
   inferenceParameters?: Partial<InferenceParameters>,
   credentials?: ProviderCredentials | null,
+  onRequest?: (body: string) => void | Promise<void>,
 ): Promise<ProviderOptions> {
   if (!model) {
     error('No model provided')
@@ -60,14 +67,20 @@ export async function getProviderOptions(
   }
 
   const providerId = credentials.providerId
-  const languageModel = await createLanguageModel(
+  const created = await createLanguageModel(
     providerId,
     model,
     credentials,
     reasoningEffort,
   )
 
-  let result: ProviderOptions = { languageModel }
+  const languageModel = onRequest
+    ? await withProviderRequestLogging(created as LanguageModelV3, onRequest)
+    : created
+
+  let result: ProviderOptions = {
+    languageModel: await applyReasoningReplayPolicy(languageModel, providerId),
+  }
   result = await applyReasoning(result, providerId, model, reasoningEffort)
   result = applyPenalties(result, providerId, inferenceParameters)
 
@@ -249,6 +262,115 @@ async function buildReasoningMiddleware(
   if (!tag) return undefined
   const { extractReasoningMiddleware } = await import('ai')
   return extractReasoningMiddleware({ tagName: tag })
+}
+
+type ReasoningPartPolicy = (
+  part: LanguageModelV4ReasoningPart,
+) => LanguageModelV4ReasoningPart | null
+
+export async function applyReasoningReplayPolicy(
+  languageModel: LanguageModel,
+  providerId: string,
+): Promise<LanguageModel> {
+  const policy = getReasoningPartPolicy(providerId)
+  if (!policy) return languageModel
+
+  const { wrapLanguageModel } = await import('ai')
+  return wrapLanguageModel({
+    model: languageModel as LanguageModelV3,
+    middleware: {
+      specificationVersion: 'v3',
+      transformParams: async ({ params }) => ({
+        ...params,
+        prompt: filterPromptReasoning(params.prompt, policy),
+      }),
+    },
+  })
+}
+
+export function getReasoningPartPolicy(
+  providerId: string,
+): ReasoningPartPolicy | null {
+  switch (providerId) {
+    case 'openai':
+      return keepOpenAIReplayableReasoning
+    case 'anthropic':
+      return keepAnthropicReplayableReasoning
+    case 'deepseek':
+    case 'mistral':
+    case 'moonshotai':
+    case 'alibaba':
+    case 'ollama':
+    case 'openrouter':
+      // These providers fold replayed reasoning into their own format
+      return null
+    case 'qwen':
+    default:
+      // Generic OpenAI-compatible endpoints cannot round-trip reasoning
+      return () => null
+  }
+}
+
+export function filterPromptReasoning(
+  prompt: LanguageModelV4Prompt,
+  policy: ReasoningPartPolicy,
+): LanguageModelV4Prompt {
+  return prompt.map((message) =>
+    message.role === 'assistant'
+      ? filterAssistantReasoning(message, policy)
+      : message,
+  )
+}
+
+function filterAssistantReasoning(
+  message: Extract<LanguageModelV4Message, { role: 'assistant' }>,
+  policy: ReasoningPartPolicy,
+): LanguageModelV4Message {
+  const content: typeof message.content = []
+  for (const part of message.content) {
+    if (part.type !== 'reasoning') {
+      content.push(part)
+      continue
+    }
+    const kept = policy(part)
+    if (kept) content.push(kept)
+  }
+  return { ...message, content }
+}
+
+function keepOpenAIReplayableReasoning(
+  part: LanguageModelV4ReasoningPart,
+): LanguageModelV4ReasoningPart | null {
+  const openai = part.providerOptions?.openai as
+    | { itemId?: string | null; reasoningEncryptedContent?: string | null }
+    | undefined
+  if (typeof openai?.reasoningEncryptedContent === 'string') {
+    // Prefer encrypted content over item references, which break once OpenAI
+    // no longer stores the original response
+    return {
+      ...part,
+      providerOptions: {
+        ...part.providerOptions,
+        openai: { reasoningEncryptedContent: openai.reasoningEncryptedContent },
+      },
+    }
+  }
+  if (typeof openai?.itemId === 'string') return part
+  return null
+}
+
+function keepAnthropicReplayableReasoning(
+  part: LanguageModelV4ReasoningPart,
+): LanguageModelV4ReasoningPart | null {
+  const anthropic = part.providerOptions?.anthropic as
+    { signature?: unknown; redactedData?: unknown } | undefined
+  if (
+    typeof anthropic?.signature !== 'string' &&
+    typeof anthropic?.redactedData !== 'string'
+  ) {
+    return null
+  }
+  return part
 }
 
 function applyPenalties(

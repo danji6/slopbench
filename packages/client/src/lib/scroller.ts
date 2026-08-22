@@ -25,6 +25,9 @@ const FOLLOW_SNAP_VIEWPORT_MULTIPLE = 2
 /** Max time a frame can take before the follow needs to catch up. */
 const MAX_FRAME_MS = 50
 
+/** How long auto-follow stays suppressed after a layout shift ends. */
+const LAYOUT_SHIFT_SETTLE_MS = 250
+
 /** How close to the bottom (px) before autoscroll should trigger again. */
 const FOLLOW_RESUME_DISTANCE = 80
 
@@ -90,6 +93,7 @@ export class Scroller {
   private _bottomInset = 0
   private _shiftInProgress = false
   private _suppressAutoFollow = false
+  private _suppressTimer: ReturnType<typeof setTimeout> | null = null
   private _stopCondition: (() => boolean) | null = null
   private _overflowAnchorLocked = false
   private _immediate = false
@@ -156,12 +160,13 @@ export class Scroller {
       this._updateOverflowAnchor()
     } else if (wasActive) {
       this._updateOverflowAnchor()
-      // Suppress auto-follow for one frame so DOM/resize events
-      // from layout changes are ignored
+      // Suppress auto-follow until the shifted layout has finished animating
       this._suppressAutoFollow = true
-      requestAnimationFrame(() => {
+      if (this._suppressTimer !== null) clearTimeout(this._suppressTimer)
+      this._suppressTimer = setTimeout(() => {
+        this._suppressTimer = null
         this._suppressAutoFollow = false
-      })
+      }, LAYOUT_SHIFT_SETTLE_MS)
     }
   }
 
@@ -834,6 +839,11 @@ export class Scroller {
   dispose() {
     this._ready = false
     scrollSuppressors.delete(this._ownsScroll)
+    if (this._suppressTimer !== null) {
+      clearTimeout(this._suppressTimer)
+      this._suppressTimer = null
+    }
+    this._suppressAutoFollow = false
     this._stopCondition = null
     this.isFollowing = false
     this._shiftInProgress = false

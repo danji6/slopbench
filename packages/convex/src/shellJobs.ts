@@ -14,6 +14,16 @@ export const _release = internalMutation({
   handler: ShellJobs.release,
 })
 
+export const _markUserKilled = internalMutation({
+  args: V.shellJobUserKillArgsValidator.fields,
+  handler: ShellJobs.markUserKilled,
+})
+
+export const _markAllUserKilled = internalMutation({
+  args: V.shellJobSessionArgsValidator.fields,
+  handler: ShellJobs.markAllUserKilled,
+})
+
 export const _beginWindow = internalMutation({
   args: { shellJobId: v.id('shellJobs') },
   handler: ShellJobs._beginWindow,

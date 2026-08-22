@@ -3,6 +3,7 @@ import {
   formatStreamWarnings,
   normalizeUnsupportedWarnings,
   omitLargeStrings,
+  stripProviderMetadata,
 } from '@sb/convex/model/stream/transformers'
 import { describe, expect, test } from 'bun:test'
 
@@ -106,6 +107,68 @@ describe('chat stream transformers', () => {
       'The provider does not support "presencePenalty". Ignored by this provider.',
       'kept as-is',
     ])
+  })
+
+  test('keeps reasoning and finish metadata but strips the rest', async () => {
+    const openaiMeta = { openai: { reasoningEncryptedContent: 'blob' } }
+    const input = new ReadableStream({
+      start(controller) {
+        controller.enqueue({
+          type: 'reasoning-start',
+          id: 'r1',
+          providerMetadata: openaiMeta,
+        })
+        controller.enqueue({
+          type: 'reasoning-delta',
+          id: 'r1',
+          delta: 'thinking',
+          providerMetadata: openaiMeta,
+        })
+        controller.enqueue({
+          type: 'reasoning-end',
+          id: 'r1',
+          providerMetadata: openaiMeta,
+        })
+        controller.enqueue({
+          type: 'text-start',
+          id: 't1',
+          providerMetadata: { anthropic: { signature: 'sig' } },
+        })
+        controller.enqueue({
+          type: 'finish',
+          finishReason: 'stop',
+          providerMetadata: { openai: { cachedInputTokens: 5 } },
+        })
+        controller.close()
+      },
+    })
+
+    const output = await collectStream(
+      input.pipeThrough(stripProviderMetadata({ tools: {} }) as never),
+    )
+
+    expect(output[0]).toEqual({
+      type: 'reasoning-start',
+      id: 'r1',
+      providerMetadata: openaiMeta,
+    })
+    expect(output[1]).toEqual({
+      type: 'reasoning-delta',
+      id: 'r1',
+      delta: 'thinking',
+      providerMetadata: openaiMeta,
+    })
+    expect(output[2]).toEqual({
+      type: 'reasoning-end',
+      id: 'r1',
+      providerMetadata: openaiMeta,
+    })
+    expect(output[3]).toEqual({ type: 'text-start', id: 't1' })
+    expect(output[4]).toEqual({
+      type: 'finish',
+      finishReason: 'stop',
+      providerMetadata: { openai: { cachedInputTokens: 5 } },
+    })
   })
 })
 

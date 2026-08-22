@@ -19,7 +19,7 @@ The `package.json` contains most scripts you will need, including running tests.
 
 - `bun lint` - ESLint linting
 - `bun typecheck` - TypeScript type checking
-- `bun format` - Prettier formatting
+- `bun format <paths>` - Prettier formatting (requires args)
 - `bun barrels` - Generate index files for new components
 - `bun test` - Verify your changes
 - `bun codegen` - Skip this; the server runs on hot reload

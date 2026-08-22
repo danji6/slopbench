@@ -181,6 +181,13 @@ type MessageFilter = FilterBuilder<NamedTableInfo<DataModel, 'messages'>>
 export const notACommandChip = (q: MessageFilter) =>
   q.neq(q.field('type'), 'command')
 
+/**
+ * Reports of jobs the user stopped by hand are transcript records only. Turn
+ * logic must look past them, or a manual stop reads as an event to react to.
+ */
+export const notAUserKilledReport = (q: MessageFilter) =>
+  q.neq(q.field('extra.userKilled'), true)
+
 export async function scheduleMessageEval(
   ctx: MutationCtx,
   {

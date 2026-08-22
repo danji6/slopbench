@@ -211,8 +211,15 @@ export const stripProviderMetadata = <TOOLS extends ToolSet>(_: {
 }) =>
   new TransformStream<TextStreamPart<TOOLS>, TextStreamPart<TOOLS>>({
     transform(chunk, controller) {
-      // Keep provider metadata on the finish chunks so we can track usage
-      const keep = chunk.type === 'finish' || chunk.type === 'finish-step'
+      // Keep provider metadata on finish chunks so we can track usage, and on
+      // reasoning chunks so replayable reasoning (OpenAI encrypted content,
+      // Anthropic signatures) survives persistence
+      const keep =
+        chunk.type === 'finish' ||
+        chunk.type === 'finish-step' ||
+        chunk.type === 'reasoning-start' ||
+        chunk.type === 'reasoning-delta' ||
+        chunk.type === 'reasoning-end'
       if (!keep && 'providerMetadata' in chunk) {
         const { providerMetadata: _, ...rest } =
           chunk as TextStreamPart<TOOLS> & {

@@ -27,6 +27,7 @@ import {
 import {
   finalizeMessageParts,
   notACommandChip,
+  notAUserKilledReport,
   scheduleMessageEval,
   scheduleTitle,
   syncActivity,
@@ -115,7 +116,7 @@ function readPartType(part: unknown) {
 /**
  * Hands a turn that is approaching the action time limit to a freshly
  * scheduled action.
-*/
+ */
 export async function _handoff(
   ctx: MutationCtx,
   { streamId }: { streamId: Id<'streams'> },
@@ -319,6 +320,7 @@ export async function _continue(
         .gt('_creationTime', current._creationTime),
     )
     .filter(notACommandChip)
+    .filter(notAUserKilledReport)
     .order('desc')
     .first()
 
@@ -840,7 +842,7 @@ async function reserveFollowUp(ctx: MutationCtx, stream: Doc<'streams'>) {
 }
 
 /** The earliest user/sub-agent message the completed turn did not consume. */
-async function earliestUnconsumedMessage(
+export async function earliestUnconsumedMessage(
   ctx: MutationCtx,
   stream: Doc<'streams'>,
 ): Promise<Doc<'messages'> | null> {
@@ -868,6 +870,7 @@ async function earliestUnconsumedMessage(
         .gt('_creationTime', boundary),
     )
     .filter((q) => q.eq(q.field('role'), 'user'))
+    .filter(notAUserKilledReport)
     .order('asc')
     .first()
 

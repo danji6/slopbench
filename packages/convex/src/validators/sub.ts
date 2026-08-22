@@ -321,11 +321,16 @@ export const commandExtraValidator = v.object({
   error: v.optional(v.string()),
 })
 
+export const shellReportExtraValidator = v.object({
+  userKilled: v.optional(v.boolean()),
+})
+
 export const messageExtraValidator = v.union(
   reminderExtraValidator,
   workspaceExtraValidator,
   modeExtraValidator,
   commandExtraValidator,
+  shellReportExtraValidator,
 )
 
 export const planStatusValidator = v.union(
