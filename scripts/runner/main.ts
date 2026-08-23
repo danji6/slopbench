@@ -55,7 +55,7 @@ export async function run(args: string[]) {
   const manager = new ProcessManager({
     cwd: config.projectRoot,
     env: process.env,
-    filterLogs: options.mode === 'start' && options.filterLogs,
+    filterLogs: options.filterLogs,
     logDir: config.logDir,
     mode: options.mode,
   })
