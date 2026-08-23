@@ -19,6 +19,11 @@ export const create = authMutation({
   handler: Sessions.create,
 })
 
+export const duplicate = authMutation({
+  args: { sessionId: v.id('sessions'), title: v.optional(v.string()) },
+  handler: Sessions.duplicate,
+})
+
 export const list = authQuery({
   args: {
     paginationOpts: paginationOptsValidator,

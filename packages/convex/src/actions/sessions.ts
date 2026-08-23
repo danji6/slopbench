@@ -14,6 +14,14 @@ export const createWithWorkspace = action({
   handler: Workspace.createSession,
 })
 
+export const duplicate = action({
+  args: {
+    sessionId: v.id('sessions'),
+    title: v.optional(v.string()),
+  },
+  handler: Workspace.duplicateSession,
+})
+
 export const regenerateTitle = action({
   args: { sessionId: v.id('sessions') },
   handler: SessionTitles.regenerateTitle,

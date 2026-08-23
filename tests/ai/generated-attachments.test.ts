@@ -75,6 +75,8 @@ function reconcileCtx(
   const ctx = {
     db: {
       query: (table: string) => ({
+        // Index-less reads (foreignStorageIds) scan the whole table
+        collect: async () => rows,
         withIndex: (_index: string, fn?: (q: unknown) => unknown) => {
           if (table === 'messageContents') {
             let messageId: string | undefined

@@ -163,7 +163,7 @@ export async function cleanUpGeneratedAttachments(
     if (!row.messageId || referencedByMessage.has(row.messageId)) continue
     referencedByMessage.set(
       row.messageId,
-      collectReferencedAttachmentIds(await allVersionParts(ctx, row.messageId)),
+      referencedAttachmentIds(await allVersionParts(ctx, row.messageId)),
     )
   }
 
@@ -204,7 +204,7 @@ export async function pruneOrphans(ctx: MutationCtx) {
     if (attachment._creationTime >= cutoff || !attachment.messageId) continue
     if (await ctx.db.get(attachment.streamId!)) continue
 
-    const referenced = collectReferencedAttachmentIds(
+    const referenced = referencedAttachmentIds(
       await allVersionParts(ctx, attachment.messageId),
     ).has(attachment._id)
 
@@ -214,7 +214,8 @@ export async function pruneOrphans(ctx: MutationCtx) {
   }
 }
 
-function collectReferencedAttachmentIds(parts: unknown[]): Set<string> {
+/** Attachment ids referenced by `file` parts, for copy/cleanup walks. */
+export function referencedAttachmentIds(parts: unknown[]): Set<string> {
   const ids = new Set<string>()
   for (const part of parts) {
     if (
@@ -229,18 +230,57 @@ function collectReferencedAttachmentIds(parts: unknown[]): Set<string> {
   return ids
 }
 
+/** Rewrites each part's `attachmentId` through the old->new id map. */
+export function remapPartAttachmentIds(
+  parts: unknown[],
+  map: Map<Id<'attachments'>, Id<'attachments'>>,
+): unknown[] {
+  return parts.map((part) => {
+    if (typeof part !== 'object' || part === null) return part
+    const record = part as Record<string, unknown>
+    if (typeof record.attachmentId !== 'string') return part
+    const mapped = map.get(record.attachmentId as Id<'attachments'>)
+    return mapped ? { ...record, attachmentId: mapped } : part
+  })
+}
+
 export async function removeAttachment(
   ctx: MutationCtx,
   attachment: {
     _id: Id<'attachments'>
+    sessionId: Id<'sessions'>
     storageId: Id<'_storage'>
     previewStorageId?: Id<'_storage'>
   },
+  sharedStorageIds?: Set<Id<'_storage'>>,
 ) {
-  await ctx.storage.delete(attachment.storageId).catch(() => {})
-  if (attachment.previewStorageId)
+  // Duplicated sessions share blobs with their source, so a blob that another
+  // session still references must survive this removal
+  const shared =
+    sharedStorageIds ?? (await foreignStorageIds(ctx, attachment.sessionId))
+
+  if (!shared.has(attachment.storageId)) {
+    await ctx.storage.delete(attachment.storageId).catch(() => {})
+  }
+  if (attachment.previewStorageId && !shared.has(attachment.previewStorageId)) {
     await ctx.storage.delete(attachment.previewStorageId).catch(() => {})
+  }
   await ctx.db.delete(attachment._id)
+}
+
+/** Storage blobs still referenced by attachments of other sessions. */
+export async function foreignStorageIds(
+  ctx: QueryCtx,
+  sessionId: Id<'sessions'>,
+): Promise<Set<Id<'_storage'>>> {
+  const refs = new Set<Id<'_storage'>>()
+  const rows = await ctx.db.query('attachments').collect()
+  for (const row of rows) {
+    if (row.sessionId === sessionId) continue
+    refs.add(row.storageId)
+    if (row.previewStorageId) refs.add(row.previewStorageId)
+  }
+  return refs
 }
 
 async function requireReadable(

@@ -33,6 +33,34 @@ export async function createSession(
   return { sessionId }
 }
 
+/**
+ * Duplicates a session and re-registers its workspace binding via sidecar.
+ * `workspaceBound` is false when the sidecar bind failed.
+ */
+export async function duplicateSession(
+  ctx: ActionCtx,
+  args: { sessionId: Id<'sessions'>; title?: string },
+): Promise<{ sessionId: Id<'sessions'>; workspaceBound: boolean }> {
+  const source = await ctx.runQuery(api.sessions.get, {
+    sessionId: args.sessionId,
+  })
+  const { sessionId } = await ctx.runMutation(api.sessions.duplicate, {
+    sessionId: args.sessionId,
+    ...(args.title !== undefined && { title: args.title }),
+  })
+
+  let workspaceBound = true
+  if (source?.workspace) {
+    try {
+      await bindWorkspace(ctx, { sessionId, root: source.workspace.path })
+    } catch {
+      workspaceBound = false
+    }
+  }
+
+  return { sessionId, workspaceBound }
+}
+
 export async function listDirectories(
   ctx: ActionCtx,
   args: { path?: string },

@@ -13,7 +13,7 @@ import {
 import { formatRelativeTime } from '@/lib'
 import type { SessionParticipant } from '@/lib/chat'
 import { triggerJsonDownload } from '@/lib/chat/io'
-import { toastError } from '@/lib/notifications'
+import { toast, toastError } from '@/lib/notifications'
 import { cn } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
@@ -46,7 +46,7 @@ export function SessionRow({ id, rename }: SessionRowProps) {
   const [, navigate] = useLocation()
   const sidebar = useOptionalSidebar()
   const removeSession = useMutation(api.sessions.remove)
-  const createSession = useMutation(api.sessions.create)
+  const duplicateSession = useAction(api.actions.sessions.duplicate)
   const setHidden = useMutation(api.sessions.setHidden)
   const exportSession = useAction(api.actions.sessions.exportOne)
 
@@ -64,11 +64,18 @@ export function SessionRow({ id, rename }: SessionRowProps) {
 
   async function handleDuplicate() {
     if (!item) return
-    const { sessionId } = await createSession({
-      title: item.title ? `${item.title} (copy)` : undefined,
-      activeAgentId: item.activeAgentId,
-    })
-    navigate(`/?id=${sessionId}`, { replace: true })
+    try {
+      const { sessionId, workspaceBound } = await duplicateSession({
+        sessionId: id as Id<'sessions'>,
+      })
+      navigate(`/?id=${sessionId}`, { replace: true })
+      sidebar?.close()
+      if (!workspaceBound) {
+        toast.warning('Session duplicated without its workspace')
+      }
+    } catch (err) {
+      toastError(err, 'Could not duplicate session')
+    }
   }
 
   async function handleToggleHidden() {
