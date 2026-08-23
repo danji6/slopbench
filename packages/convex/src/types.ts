@@ -99,6 +99,7 @@ export type ReminderScope = Infer<typeof V.reminderScopeValidator>
 export type CredentialScope = Infer<typeof V.credentialScopeValidator>
 
 export type SessionMode = Infer<typeof V.sessionModeValidator>
+export type ApprovalMode = Infer<typeof V.approvalModeValidator>
 export type PlanStatus = Infer<typeof V.planStatusValidator>
 export type TodoStatus = Infer<typeof V.todoStatusValidator>
 export type TodoItem = Infer<typeof V.todoItemValidator>

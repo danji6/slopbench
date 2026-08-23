@@ -63,6 +63,11 @@ export async function getEnabledTools(
   const ctx = options?.ctx
   const sessionId = session ? sharedSessionId(session) : undefined
 
+  // Approvals can be remembered mid-turn
+  const approvals = session
+    ? () => resolveApprovals(session, options)
+    : undefined
+
   const workspace: WorkspaceToolContext | undefined =
     session?.workspace && sessionId
       ? {
@@ -72,8 +77,7 @@ export async function getEnabledTools(
           messageCreatedAt: options?.messageCreatedAt,
           workspaceId: session.workspace.workspaceId,
           shell: manifest.shell,
-          // Approvals can be remembered mid-turn
-          approvals: () => resolveApprovals(session, options),
+          approvals,
           // Plan mode can be entered or approved mid-turn
           isPlanMode: ctx ? () => isPlanMode(ctx, sessionId) : undefined,
           ...jobWatch(session, options),
@@ -81,7 +85,7 @@ export async function getEnabledTools(
       : undefined
 
   const planContext: PlanToolContext | undefined =
-    ctx && sessionId ? { ctx, sessionId } : undefined
+    ctx && sessionId ? { ctx, sessionId, approvals } : undefined
 
   const mcpByName = new Map((manifest.mcp ?? []).map((e) => [e.name, e]))
   const tools: ToolSet = {}

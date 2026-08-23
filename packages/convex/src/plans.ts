@@ -36,3 +36,15 @@ export const _edit = internalMutation({
   },
   handler: Plans._edit,
 })
+
+export const _applyModeTransition = internalMutation({
+  args: {
+    sessionId: v.id('sessions'),
+    toolName: v.union(
+      v.literal('enter_plan_mode'),
+      v.literal('exit_plan_mode'),
+    ),
+  },
+  handler: (ctx, { sessionId, toolName }) =>
+    Plans.applyModeTransition(ctx, sessionId, toolName),
+})

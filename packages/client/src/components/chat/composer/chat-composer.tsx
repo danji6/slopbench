@@ -14,6 +14,7 @@ import { filterMentions } from '@/lib/chat/file-mentions'
 import { handleSelectAllDelete } from '@/lib/editor-clear'
 import { registerFocusReturn } from '@/lib/focus-return'
 import { toastError } from '@/lib/notifications'
+import { Result } from '@/lib/result'
 import { pasteCollapsedText } from '@/lib/tiptap/paste'
 import {
   serializeBlocksToMarkdown,
@@ -25,7 +26,12 @@ import { parseShellCommand } from '@sb/core/shell/command'
 import { truncate } from '@sb/core/utils/strings'
 import type { Editor } from '@tiptap/react'
 import type { ChatStatus, FileUIPart } from 'ai'
-import { MessageSquareWarningIcon, PlusIcon } from 'lucide-react'
+import {
+  LightbulbIcon,
+  MessageSquareWarningIcon,
+  PaperclipIcon,
+  PlusIcon,
+} from 'lucide-react'
 import {
   Suspense,
   lazy,
@@ -41,6 +47,7 @@ import {
 import type { DropZoneHandle, InputGroupProps } from '../../ui'
 import {
   DropZone,
+  DropdownMenu,
   FilePickerOverlay,
   FileStrip,
   FullscreenEditor,
@@ -57,6 +64,7 @@ import {
   COMPOSER_COMPACT_WIDTH,
   ComposerLayoutProvider,
 } from './composer-layout'
+import type { ComposerToolbarMode } from './composer-toolbar'
 import { SendButton } from './send-button'
 
 const ComposerEditor = lazy(() =>
@@ -96,6 +104,8 @@ export type ChatComposerProps = Omit<InputGroupProps, 'onSubmit'> & {
   activeAgentName?: string
   /** Optional content rendered in the action bar, left of the attach button. */
   startContent?: React.ReactNode
+  /** Session mode exposed through the attach menu. */
+  mode?: ComposerToolbarMode
   onContentChange?: (hasContent: boolean) => void
   /** Fired on content change while the composer has text. */
   onTyping?: () => void
@@ -128,6 +138,7 @@ export function ChatComposer({
   hideTokenWidget,
   activeAgentName,
   startContent,
+  mode,
   onContentChange,
   onTyping,
   inputRef,
@@ -598,7 +609,10 @@ export function ChatComposer({
               className="px-3 pt-4 pb-2.5"
             >
               <span className="bg-m3-surface-container flex min-w-0 shrink items-center gap-1 rounded-full px-[5.5px] py-1">
-                <FilePicker onClick={() => dropZoneRef.current?.open()} />
+                <ComposerActions
+                  mode={mode}
+                  onAddFiles={() => dropZoneRef.current?.open()}
+                />
                 {startContent && (
                   <>
                     <div className="bg-border/80 h-7 w-px shrink-0" />
@@ -649,10 +663,50 @@ function editorShellCommand(editor: Editor): string | null {
   return parseShellCommand(doc.textBetween(0, doc.content.size, '\n'))
 }
 
-function FilePicker({ onClick }: { onClick: () => void }) {
+function ComposerActions({
+  mode,
+  onAddFiles,
+}: {
+  mode?: ComposerToolbarMode
+  onAddFiles: () => void
+}) {
   return (
-    <RippleButton onClick={onClick} size="icon" variant="surface">
-      <PlusIcon />
-    </RippleButton>
+    <DropdownMenu>
+      <DropdownMenu.Trigger
+        render={
+          <RippleButton
+            size="icon"
+            variant="surface"
+            aria-label="Composer actions"
+          >
+            <PlusIcon />
+          </RippleButton>
+        }
+      />
+      <DropdownMenu.Content side="top" align="start" className="min-w-48">
+        <DropdownMenu.Item onClick={onAddFiles}>
+          <PaperclipIcon />
+          Add files
+        </DropdownMenu.Item>
+        {mode?.workspaceAvailable && (
+          <>
+            <DropdownMenu.Separator />
+            <DropdownMenu.Switch
+              checked={mode.value === 'plan'}
+              onCheckedChange={(checked) =>
+                void Result.from(() =>
+                  mode.set(checked ? 'plan' : 'normal'),
+                ).catch()
+              }
+            >
+              <span className="flex items-center gap-2">
+                <LightbulbIcon className="size-4" />
+                Plan mode
+              </span>
+            </DropdownMenu.Switch>
+          </>
+        )}
+      </DropdownMenu.Content>
+    </DropdownMenu>
   )
 }

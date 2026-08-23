@@ -3,6 +3,7 @@ import { v } from 'convex/values'
 import {
   agentAutoApproveValidator,
   agentSubAgentsValidator,
+  approvalModeValidator,
   mcpToolMetaValidator,
   mcpTransportValidator,
   modelEntryValidator,
@@ -246,6 +247,8 @@ export const createSessionArgsValidator = v.object({
   workspaceRoot: v.optional(v.string()),
   /** Only meaningful together with workspaceRoot. */
   mode: v.optional(sessionModeValidator),
+  /** Only meaningful together with workspaceRoot. */
+  approvalMode: v.optional(approvalModeValidator),
 })
 
 export const updateSessionArgsValidator = v.object({

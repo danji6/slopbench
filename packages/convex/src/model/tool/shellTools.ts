@@ -6,6 +6,7 @@ import {
   isPathAllowed,
   isReadOnlyShellCommand,
   isToolAutoApproved,
+  isUnrestrictedAccess,
 } from '../../lib/tool/approval'
 import type { ShellToolOutput } from '../../types'
 import {
@@ -123,11 +124,12 @@ async function shellNeedsApproval(
   command: string,
   context: WorkspaceToolContext,
 ): Promise<boolean> {
+  const approvals = await context.approvals?.()
+  if (isUnrestrictedAccess(approvals)) return false
   if (commandReferencesForbiddenPath(command)) return true
   if (!isReadOnlyShellCommand(command) && (await context.isPlanMode?.())) {
     return true
   }
-  const approvals = await context.approvals?.()
   if (!isToolAutoApproved('shell', { command }, approvals)) return true
   const flagged = await getFlaggedPaths(command, context)
   if (flagged === null) return true

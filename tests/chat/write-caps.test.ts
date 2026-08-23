@@ -7,7 +7,10 @@ import {
   assertTodoItemsCap,
 } from '@sb/convex/model/caps'
 import { insertMessage } from '@sb/convex/model/messageContents'
-import { appendApprovals } from '@sb/convex/model/session/state'
+import {
+  appendApprovals,
+  setApprovalMode,
+} from '@sb/convex/model/session/state'
 import { MESSAGE_SPLIT_BUDGET_BYTES } from '@sb/core/const'
 import { createVariableStore } from '@sb/core/interpreter/store'
 import {
@@ -162,6 +165,26 @@ describe('appendApprovals', () => {
     await appendApprovals(makeCtx(state), SESSION as never, 'tools', ['shell'])
 
     expect(state.row?.toolApprovals).toEqual({ tools: ['shell'] })
+  })
+
+  test('toggles unrestricted access without losing remembered approvals', async () => {
+    const state = fakeSessionState({
+      toolApprovals: { shell: ['git push'], paths: ['/tmp'] },
+    })
+    const ctx = makeCtx(state)
+
+    await setApprovalMode(ctx, SESSION as never, 'unrestricted')
+    expect(state.row?.toolApprovals).toEqual({
+      mode: 'unrestricted',
+      shell: ['git push'],
+      paths: ['/tmp'],
+    })
+
+    await setApprovalMode(ctx, SESSION as never, 'ask')
+    expect(state.row?.toolApprovals).toEqual({
+      shell: ['git push'],
+      paths: ['/tmp'],
+    })
   })
 
   test('drops additions past the cap instead of failing the approval', async () => {

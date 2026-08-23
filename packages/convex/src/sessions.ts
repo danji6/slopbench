@@ -15,6 +15,7 @@ export const create = authMutation({
     title: v.optional(v.string()),
     activeAgentId: v.optional(v.id('agents')),
     mode: v.optional(Sub.sessionModeValidator),
+    approvalMode: v.optional(Sub.approvalModeValidator),
   },
   handler: Sessions.create,
 })
@@ -56,6 +57,14 @@ export const update = authMutation({
 export const setMode = authMutation({
   args: { sessionId: v.id('sessions'), mode: Sub.sessionModeValidator },
   handler: Sessions.setMode,
+})
+
+export const setApprovalMode = authMutation({
+  args: {
+    sessionId: v.id('sessions'),
+    mode: Sub.approvalModeValidator,
+  },
+  handler: Sessions.setApprovalMode,
 })
 
 export const setDisabled = authMutation({

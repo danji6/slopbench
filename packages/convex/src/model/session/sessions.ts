@@ -8,9 +8,11 @@ import {
   type AuthMutationCtx,
   type AuthQueryCtx,
   findUserBySubject,
+  requireRole,
 } from '../../functions'
 import { foldPaths, isPathAllowed } from '../../lib/tool/approval'
 import type {
+  ApprovalMode,
   SessionListItem,
   SessionMode,
   SessionParticipant,
@@ -37,12 +39,24 @@ import {
   requireOwner,
 } from './memberships'
 import { resolveAgentModel } from './models'
-import { getApprovals, getState, patchState, setApprovals } from './state'
+import {
+  getApprovals,
+  getState,
+  patchState,
+  setApprovals,
+  setApprovalMode as setStateApprovalMode,
+} from './state'
 
 export async function create(
   ctx: AuthMutationCtx,
-  args: { title?: string; activeAgentId?: Id<'agents'>; mode?: SessionMode },
+  args: {
+    title?: string
+    activeAgentId?: Id<'agents'>
+    mode?: SessionMode
+    approvalMode?: ApprovalMode
+  },
 ) {
+  if (args.approvalMode === 'unrestricted') requireRole(ctx.role, 'admin')
   if (args.activeAgentId) {
     await requireOwnedAgent(ctx, args.activeAgentId)
   }
@@ -71,6 +85,10 @@ export async function create(
       agentId: args.activeAgentId,
       addedBy: ctx.userId,
     })
+  }
+
+  if (args.approvalMode === 'unrestricted') {
+    await setStateApprovalMode(ctx, sessionId, args.approvalMode)
   }
 
   return { sessionId }
@@ -445,6 +463,15 @@ export async function setMode(
   if (mode === 'plan') await demoteToDraft(ctx, sessionId)
 
   await injectModeNote(ctx, { ...session, mode: next }, ctx.userId)
+}
+
+export async function setApprovalMode(
+  ctx: AuthMutationCtx,
+  { sessionId, mode }: { sessionId: Id<'sessions'>; mode: ApprovalMode },
+) {
+  requireRole(ctx.role, 'admin')
+  await requireMember(ctx, sessionId, ctx.userId)
+  await setStateApprovalMode(ctx, sessionId, mode)
 }
 
 export async function setDisabled(

@@ -124,10 +124,17 @@ export function mergeToolApprovals(
 ): ToolApprovals | undefined {
   if (!agent?.tools?.length && !agent?.shell?.length) return session
   return {
+    ...(session?.mode && { mode: session.mode }),
     tools: unionLists(session?.tools, agent.tools),
     shell: unionLists(session?.shell, agent.shell),
     paths: session?.paths,
   }
+}
+
+export function isUnrestrictedAccess(
+  approvals: ToolApprovals | undefined,
+): boolean {
+  return approvals?.mode === 'unrestricted'
 }
 
 function unionLists(
@@ -145,6 +152,7 @@ export function isToolAutoApproved(
   input: unknown,
   approvals: ToolApprovals | undefined,
 ): boolean {
+  if (isUnrestrictedAccess(approvals)) return true
   if (name === 'shell') {
     const command = (input as { command?: string } | undefined)?.command
     return (

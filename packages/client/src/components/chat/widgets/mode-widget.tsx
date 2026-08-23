@@ -1,54 +1,73 @@
-import { RippleButton } from '@/components/ui'
+import { ConfirmDialog, RippleButton } from '@/components/ui'
 import { QuickTooltip } from '@/components/ui/quick-tooltip'
 import { Result } from '@/lib'
 import type { SessionMode } from '@/lib/chat/modes'
-import { getSessionModeDefinition } from '@/lib/chat/modes'
 import { cn } from '@/lib/utils'
-import type { LucideIcon } from 'lucide-react'
+import type { ApprovalMode } from '@sb/convex/types'
 import {
-  MessageCircleIcon,
-  MessageCircleQuestionIcon,
-  NotebookPenIcon,
+  LightbulbIcon,
+  LockKeyholeIcon,
+  LockKeyholeOpenIcon,
 } from 'lucide-react'
 
-const MODE_ICONS: Record<SessionMode, LucideIcon> = {
-  normal: MessageCircleIcon,
-  plan: NotebookPenIcon,
-  ask: MessageCircleQuestionIcon,
-}
-
 type ModeWidgetProps = {
-  className?: string
   mode: SessionMode
-  onCycle: () => void | Promise<void>
+  onDisable: () => void | Promise<void>
 }
 
-/**
- * Composer control cycling the session mode (normal, plan, ask (todo)).
- * The mode/cycle source is injected by the caller.
- */
-export function ModeWidget({ className, mode, onCycle }: ModeWidgetProps) {
-  const def = getSessionModeDefinition(mode)
-  const Icon = MODE_ICONS[def.id]
-  const active = def.id !== 'normal'
+/** Active plan mode indicator with confirmation. */
+export function ModeWidget({ mode, onDisable }: ModeWidgetProps) {
+  if (mode !== 'plan') return null
 
   return (
-    <QuickTooltip
-      text={`${def.label} mode. ${def.description} (Shift+Tab to switch)`}
+    <ConfirmDialog
+      title="Disable plan mode?"
+      description="The agent will leave its read-only planning state."
+      confirmText="Disable"
+      onConfirm={() => void Result.from(onDisable).catch()}
     >
       <RippleButton
-        onClick={() => Result.from(onCycle).catch()}
+        variant="stealth"
+        size="icon"
+        className="text-m3-primary size-10"
+        aria-label="Disable plan mode"
+        title="Plan mode is active"
+      >
+        <LightbulbIcon />
+      </RippleButton>
+    </ConfirmDialog>
+  )
+}
+
+type ApprovalModeWidgetProps = {
+  mode: ApprovalMode
+  onToggle: () => void | Promise<void>
+}
+
+export function ApprovalModeWidget({
+  mode,
+  onToggle,
+}: ApprovalModeWidgetProps) {
+  const unrestricted = mode === 'unrestricted'
+  const label = unrestricted
+    ? 'Unrestricted access is active. Click to require approvals.'
+    : 'Ask for approval. Click to allow unrestricted access.'
+  const Icon = unrestricted ? LockKeyholeOpenIcon : LockKeyholeIcon
+
+  return (
+    <QuickTooltip text={label}>
+      <RippleButton
+        onClick={() => void Result.from(onToggle).catch()}
         variant="stealth"
         size="icon"
         className={cn(
           'text-muted-foreground size-10',
-          active && 'text-m3-primary w-auto gap-1.5 px-3',
-          className,
+          unrestricted && 'text-orange-500 dark:text-orange-400',
         )}
-        aria-label={`Session mode: ${def.label}`}
+        aria-label={label}
+        aria-pressed={unrestricted}
       >
         <Icon />
-        {active && def.label}
       </RippleButton>
     </QuickTooltip>
   )

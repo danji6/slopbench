@@ -7,7 +7,7 @@ import { describe, expect, test } from 'bun:test'
 describe('approval labels', () => {
   test('preserves short labels', () => {
     expect(formatAlwaysAllowLabel(['node'])).toBe(
-      'Always allow `node` for this session',
+      'Allow for this session: `node`',
     )
   })
 

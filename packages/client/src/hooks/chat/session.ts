@@ -6,6 +6,7 @@ import {
 } from '@/lib/chat/modes'
 import { api } from '@sb/convex/_generated/api'
 import type { Doc, Id } from '@sb/convex/_generated/dataModel'
+import type { ApprovalMode } from '@sb/convex/types'
 import type { OptimisticLocalStore } from 'convex/browser'
 import { useMutation, useQuery } from 'convex/react'
 import { useCallback, useEffect, useMemo } from 'react'
@@ -64,6 +65,44 @@ export function useActiveSessionState() {
         : 'skip',
     ) ?? null
   )
+}
+
+/** The active session's tool approval policy. */
+export function useSessionApprovalMode() {
+  const session = useActiveSession()
+  const state = useActiveSessionState()
+  const sessionId = session?._id
+  const mode: ApprovalMode = state?.toolApprovals?.mode ?? 'ask'
+
+  const mutate = useMutation(api.sessions.setApprovalMode).withOptimisticUpdate(
+    (store, args) => {
+      const queryArgs = { sessionId: args.sessionId }
+      const current = store.getQuery(api.sessions.getState, queryArgs)
+      if (!current) return
+      const { mode: _mode, ...remembered } = current.toolApprovals ?? {}
+      store.setQuery(api.sessions.getState, queryArgs, {
+        ...current,
+        toolApprovals:
+          args.mode === 'unrestricted'
+            ? { ...remembered, mode: args.mode }
+            : remembered,
+      })
+    },
+  )
+
+  const setMode = useCallback(
+    async (target: ApprovalMode) => {
+      if (sessionId) await mutate({ sessionId, mode: target })
+    },
+    [mutate, sessionId],
+  )
+
+  const toggleMode = useCallback(
+    () => setMode(mode === 'ask' ? 'unrestricted' : 'ask'),
+    [mode, setMode],
+  )
+
+  return { mode, setMode, toggleMode }
 }
 
 /** The active session's composer mode, with setters cycling/toggling it. */

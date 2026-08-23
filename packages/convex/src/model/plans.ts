@@ -72,6 +72,28 @@ export async function setStatus(
   }
 }
 
+export async function applyModeTransition(
+  ctx: MutationCtx,
+  sessionId: Id<'sessions'>,
+  toolName: 'enter_plan_mode' | 'exit_plan_mode',
+  streamId?: Id<'streams'>,
+) {
+  const mode = toolName === 'enter_plan_mode' ? 'plan' : undefined
+  if (mode) await demoteToDraft(ctx, sessionId)
+  else await setStatus(ctx, sessionId, 'approved')
+
+  await ctx.db.patch(sessionId, { mode })
+  if (streamId) {
+    await ctx.db.patch(streamId, { mode })
+    return
+  }
+  const stream = await ctx.db
+    .query('streams')
+    .withIndex('by_sessionId', (q) => q.eq('sessionId', sessionId))
+    .first()
+  if (stream) await ctx.db.patch(stream._id, { mode })
+}
+
 /** Demotes the plan to a revisable draft that needs approval again. */
 export async function demoteToDraft(
   ctx: MutationCtx,

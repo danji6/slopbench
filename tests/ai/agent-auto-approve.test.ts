@@ -2,6 +2,7 @@
 import {
   isShellCommandAutoApproved,
   isToolAutoApproved,
+  isUnrestrictedAccess,
   mergeToolApprovals,
 } from '@sb/convex/lib/tool/approval'
 import { describe, expect, test } from 'bun:test'
@@ -32,6 +33,15 @@ describe('mergeToolApprovals', () => {
     expect(merged?.tools).toEqual(['edit_file'])
   })
 
+  test('keeps the session approval mode', () => {
+    const merged = mergeToolApprovals(
+      { mode: 'unrestricted' },
+      { tools: ['edit_file'] },
+    )
+    expect(merged?.mode).toBe('unrestricted')
+    expect(isUnrestrictedAccess(merged)).toBe(true)
+  })
+
   test('works without any session approvals', () => {
     const merged = mergeToolApprovals(undefined, {
       tools: ['write_file'],
@@ -44,6 +54,14 @@ describe('mergeToolApprovals', () => {
 })
 
 describe('merged approvals through the approval checks', () => {
+  test('unrestricted access approves every tool and command pattern', () => {
+    const approvals = { mode: 'unrestricted' as const }
+    expect(isToolAutoApproved('edit_file', undefined, approvals)).toBe(true)
+    expect(
+      isToolAutoApproved('shell', { command: 'rm -rf .git' }, approvals),
+    ).toBe(true)
+  })
+
   test('agent-approved tools skip the approval prompt', () => {
     const merged = mergeToolApprovals(undefined, { tools: ['write_file'] })
     expect(isToolAutoApproved('write_file', undefined, merged)).toBe(true)

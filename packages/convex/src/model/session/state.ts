@@ -2,6 +2,7 @@ import { MAX_APPROVAL_PATHS, MAX_APPROVAL_PATTERNS } from '@sb/core/limits'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../../_generated/server'
+import type { ApprovalMode } from '../../types'
 import { assertEnvironmentCap } from '../caps'
 
 export type SessionState = Doc<'sessionState'>
@@ -39,7 +40,7 @@ export async function patchState(
   await ctx.db.insert('sessionState', { sessionId, ...patch, updatedAt })
 }
 
-/** Copies a parent's approvals onto a session it spawns. */
+/** Copies a parent's approval settings onto a session it spawns. */
 export async function cloneApprovals(
   ctx: MutationCtx,
   { from, to }: { from: Id<'sessions'>; to: Id<'sessions'> },
@@ -49,10 +50,25 @@ export async function cloneApprovals(
 
   await patchState(ctx, to, {
     toolApprovals: {
+      mode: approvals.mode,
       tools: approvals.tools?.slice(),
       shell: approvals.shell?.slice(),
       paths: approvals.paths?.slice(),
     },
+  })
+}
+
+export async function setApprovalMode(
+  ctx: MutationCtx,
+  sessionId: Id<'sessions'>,
+  mode: ApprovalMode,
+): Promise<void> {
+  const approvals = await getApprovals(ctx, sessionId)
+  const { mode: _current, ...remembered } = approvals
+
+  await patchState(ctx, sessionId, {
+    toolApprovals:
+      mode === 'unrestricted' ? { ...remembered, mode } : remembered,
   })
 }
 

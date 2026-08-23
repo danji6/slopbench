@@ -505,6 +505,13 @@ describe('plan mode transition tools', () => {
     expect(await resolveNeedsApproval(tools.enter_plan_mode)).toBe(true)
   })
 
+  test('unrestricted access suppresses plan transition approvals', async () => {
+    const tools = await buildTools({ mode: 'unrestricted' })
+
+    expect(await resolveNeedsApproval(tools.enter_plan_mode)).toBe(false)
+    expect(await resolveNeedsApproval(tools.exit_plan_mode)).toBe(false)
+  })
+
   test('enter_plan_mode is a quiet no-op when plan mode is already active', async () => {
     const tools = await buildTools('plan')
 

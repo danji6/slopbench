@@ -6,8 +6,8 @@ import {
 } from '@/hooks/chat'
 import { NO_SESSION_DRAFT_KEY, type PendingMessage } from '@/lib/chat'
 import type { SessionMode } from '@/lib/chat/modes'
-import { nextSessionMode } from '@/lib/chat/modes'
 import { api } from '@sb/convex/_generated/api'
+import type { ApprovalMode } from '@sb/convex/types'
 import { useAction } from 'convex/react'
 import { useCallback, useState } from 'react'
 import { useLocation } from 'wouter'
@@ -48,12 +48,13 @@ export function EmptyChat({
 
   // Manual mode tracking since no session is available here
   const [mode, setMode] = useState<SessionMode>('normal')
+  const [approvalMode, setApprovalMode] = useState<ApprovalMode>('ask')
   const handleWorkspaceChange = useCallback((root: string | null) => {
     setWorkspaceRoot(root)
-    if (!root) setMode('normal')
-  }, [])
-  const cycleMode = useCallback(() => {
-    setMode((current) => nextSessionMode(current))
+    if (!root) {
+      setMode('normal')
+      setApprovalMode('ask')
+    }
   }, [])
 
   const handleSubmit = useCallback(
@@ -62,6 +63,7 @@ export function EmptyChat({
         activeAgentId: settings?.recentAgentId ?? undefined,
         workspaceRoot: workspaceRoot ?? undefined,
         mode: mode === 'normal' ? undefined : mode,
+        approvalMode: approvalMode === 'ask' ? undefined : approvalMode,
       })
       onFirstMessage(message)
       navigate(`/?id=${sessionId}`, { replace: true })
@@ -70,6 +72,7 @@ export function EmptyChat({
       createSession,
       workspaceRoot,
       mode,
+      approvalMode,
       onFirstMessage,
       navigate,
       settings?.recentAgentId,
@@ -142,10 +145,23 @@ export function EmptyChat({
                 mode={{
                   value: mode,
                   workspaceAvailable: Boolean(workspaceRoot),
-                  cycle: cycleMode,
+                  set: setMode,
+                }}
+                approval={{
+                  value: approvalMode,
+                  available: isAdmin && Boolean(workspaceRoot),
+                  toggle: () =>
+                    setApprovalMode((current) =>
+                      current === 'ask' ? 'unrestricted' : 'ask',
+                    ),
                 }}
               />
             }
+            mode={{
+              value: mode,
+              workspaceAvailable: Boolean(workspaceRoot),
+              set: setMode,
+            }}
             fileIndex={fileIndex}
             className="w-full"
           />

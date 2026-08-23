@@ -6,6 +6,7 @@ import {
   useChatWidth,
   useIsAdmin,
   useSendCooldownUntil,
+  useSessionApprovalMode,
   useSessionMode,
   useStreamAwaitingApproval,
   useTypingIndicator,
@@ -124,7 +125,8 @@ export function ChatSessionView({
   const workspaceAvailable = Boolean(session?.workspace)
   const awaitingApproval = useStreamAwaitingApproval()
   const canApproveTools = useIsAdmin()
-  const { mode, cycleMode } = useSessionMode()
+  const { mode, setMode } = useSessionMode()
+  const approval = useSessionApprovalMode()
   const canUseWorkspace = canApproveTools && workspaceAvailable
   const showApproval = awaitingApproval && canApproveTools
 
@@ -355,10 +357,20 @@ export function ChatSessionView({
                           mode={{
                             value: mode,
                             workspaceAvailable,
-                            cycle: cycleMode,
+                            set: setMode,
+                          }}
+                          approval={{
+                            value: approval.mode,
+                            available: canUseWorkspace,
+                            toggle: approval.toggleMode,
                           }}
                         />
                       }
+                      mode={{
+                        value: mode,
+                        workspaceAvailable,
+                        set: setMode,
+                      }}
                       onContentChange={handleContentChange}
                       status={status}
                       inputRef={composerRef}

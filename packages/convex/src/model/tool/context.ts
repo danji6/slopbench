@@ -31,6 +31,7 @@ export type WatchedJobRef = {
 export type PlanToolContext = {
   ctx: ActionCtx
   sessionId: Id<'sessions'>
+  approvals?: () => Promise<ToolApprovals | undefined>
 }
 
 export type ToolMeta = {

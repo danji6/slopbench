@@ -12,7 +12,7 @@ import type { ActionCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import { authorizeAdmin } from '../../functions'
 import { decodeBase64 } from '../../model/io/base64'
-import type { SessionMode } from '../../types'
+import type { ApprovalMode, SessionMode } from '../../types'
 
 export async function createSession(
   ctx: ActionCtx,
@@ -20,12 +20,14 @@ export async function createSession(
     activeAgentId?: Id<'agents'>
     workspaceRoot?: string
     mode?: SessionMode
+    approvalMode?: ApprovalMode
   },
 ): Promise<{ sessionId: Id<'sessions'> }> {
   const { sessionId } = await ctx.runMutation(api.sessions.create, {
     activeAgentId: args.activeAgentId,
     // Plan mode only applies to workspace-bound sessions
     mode: args.workspaceRoot ? args.mode : undefined,
+    approvalMode: args.workspaceRoot ? args.approvalMode : undefined,
   })
   if (args.workspaceRoot) {
     await bindWorkspace(ctx, { sessionId, root: args.workspaceRoot })

@@ -7,6 +7,7 @@ import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { ToolError } from '../../errors'
+import { isUnrestrictedAccess } from '../../lib/tool/approval'
 import type { ShellToolOutput } from '../../types'
 import { modeNoteBody } from '../chat/notes'
 import type { PlanToolContext } from './context'
@@ -55,12 +56,18 @@ export async function createEnterPlanModeTool(context: PlanToolContext) {
     description: TOOL_DESCRIPTIONS.enter_plan_mode,
     inputSchema: z.object({}),
     // Entering an already active plan mode is a no-op
-    needsApproval: async () => !(await planMode()),
-    execute: async () =>
-      (await planMode())
-        ? // The tools only exist for a non sub-agent session that has them
-          modeNoteBody('plan', { planTools: true, subagent: false }).join('\n')
-        : 'Plan mode is already active for this session.',
+    needsApproval: async () =>
+      !isUnrestrictedAccess(await context.approvals?.()) && !(await planMode()),
+    execute: async () => {
+      if (!(await planMode())) {
+        await transitionMode(context, 'enter_plan_mode')
+      }
+      // The tools only exist for a non sub-agent session that has them
+      return modeNoteBody('plan', {
+        planTools: true,
+        subagent: false,
+      }).join('\n')
+    },
   })
 }
 
@@ -73,6 +80,7 @@ export async function createExitPlanModeTool(context: PlanToolContext) {
     description: TOOL_DESCRIPTIONS.exit_plan_mode,
     inputSchema: z.object({}),
     needsApproval: async () => {
+      if (isUnrestrictedAccess(await context.approvals?.())) return false
       const plan = await getPlan()
       return !!plan?.content.trim() && plan.status !== 'approved'
     },
@@ -83,8 +91,19 @@ export async function createExitPlanModeTool(context: PlanToolContext) {
           'No plan exists yet. Create one with write_plan first.',
         )
       }
+      await transitionMode(context, 'exit_plan_mode')
       return `The plan was approved. Here is the approved plan:\n\n${plan.content}\n\nPlan mode is over, proceed with the implementation.`
     },
+  })
+}
+
+async function transitionMode(
+  context: PlanToolContext,
+  toolName: 'enter_plan_mode' | 'exit_plan_mode',
+) {
+  await context.ctx.runMutation(internal.plans._applyModeTransition, {
+    sessionId: context.sessionId,
+    toolName,
   })
 }
 

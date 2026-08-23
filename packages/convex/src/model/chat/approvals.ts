@@ -6,7 +6,7 @@ import { requireRole } from '../../functions'
 import { analyzeShellCommand } from '../../lib/tool/approval'
 import type { ApproveToolArgs, RememberScope } from '../../types'
 import { getProcessingSegmentRow, patchSegmentParts } from '../messageContents'
-import { demoteToDraft, setStatus as setPlanStatus } from '../plans'
+import { applyModeTransition } from '../plans'
 import * as Memberships from '../session/memberships'
 import { _allowToolPaths as allowToolPaths } from '../session/sessions'
 import { appendApprovals, getApprovals } from '../session/state'
@@ -81,18 +81,8 @@ export async function applyPlanModeTransition(
   stream: Doc<'streams'>,
   toolName: string,
 ) {
-  if (toolName === 'exit_plan_mode') {
-    await setPlanStatus(ctx, stream.sessionId, 'approved')
-    await ctx.db.patch(stream.sessionId, { mode: undefined })
-    await ctx.db.patch(stream._id, { mode: undefined })
-    return
-  }
-
-  if (toolName === 'enter_plan_mode') {
-    await demoteToDraft(ctx, stream.sessionId)
-    await ctx.db.patch(stream.sessionId, { mode: 'plan' })
-    await ctx.db.patch(stream._id, { mode: 'plan' })
-  }
+  if (toolName !== 'enter_plan_mode' && toolName !== 'exit_plan_mode') return
+  await applyModeTransition(ctx, stream.sessionId, toolName, stream._id)
 }
 
 export function patchToolApproval(

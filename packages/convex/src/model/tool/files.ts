@@ -6,7 +6,11 @@ import {
 } from '@sb/core/types'
 
 import { ToolError } from '../../errors'
-import { isPathForbidden, isToolAutoApproved } from '../../lib/tool/approval'
+import {
+  isPathForbidden,
+  isToolAutoApproved,
+  isUnrestrictedAccess,
+} from '../../lib/tool/approval'
 import { type WorkspaceToolContext, workspaceArgs } from './context'
 import { callMcpTool } from './mcp'
 
@@ -15,7 +19,9 @@ export async function createReadFileTool(context: WorkspaceToolContext) {
   return tool({
     description: TOOL_DESCRIPTIONS.read_file,
     inputSchema: z.object(readFileFields),
-    needsApproval: ({ path }) => isPathForbidden(path),
+    needsApproval: async ({ path }) =>
+      isPathForbidden(path) &&
+      !isUnrestrictedAccess(await context.approvals?.()),
     execute: ({ path, offset, limit }) =>
       callMcpTool('read_file', {
         ...workspaceArgs(context),
@@ -39,9 +45,14 @@ export async function createWriteFileTool(context: WorkspaceToolContext) {
   return tool({
     description: TOOL_DESCRIPTIONS.write_file,
     inputSchema: z.object(writeFileFields),
-    needsApproval: async ({ path }) =>
-      isPathForbidden(path) ||
-      !isToolAutoApproved('write_file', undefined, await context.approvals?.()),
+    needsApproval: async ({ path }) => {
+      const approvals = await context.approvals?.()
+      return (
+        !isUnrestrictedAccess(approvals) &&
+        (isPathForbidden(path) ||
+          !isToolAutoApproved('write_file', undefined, approvals))
+      )
+    },
     execute: async ({ path, content }) => {
       await assertNotPlanMode(context)
       return callMcpTool('write_file', {
@@ -58,9 +69,14 @@ export async function createEditFileTool(context: WorkspaceToolContext) {
   return tool({
     description: TOOL_DESCRIPTIONS.edit_file,
     inputSchema: z.object(editFileFields),
-    needsApproval: async ({ path }) =>
-      isPathForbidden(path) ||
-      !isToolAutoApproved('edit_file', undefined, await context.approvals?.()),
+    needsApproval: async ({ path }) => {
+      const approvals = await context.approvals?.()
+      return (
+        !isUnrestrictedAccess(approvals) &&
+        (isPathForbidden(path) ||
+          !isToolAutoApproved('edit_file', undefined, approvals))
+      )
+    },
     execute: async ({ path, edits }) => {
       await assertNotPlanMode(context)
       return callMcpTool('edit_file', {
