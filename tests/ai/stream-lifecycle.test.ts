@@ -4,6 +4,7 @@ import {
   _continue,
   _fail,
   _finalizeStopped,
+  _handoff,
   pruneOrphanedOutputs,
 } from '@sb/convex/model/stream/lifecycle'
 import { MESSAGE_SPLIT_BUDGET_BYTES } from '@sb/core/const'
@@ -256,7 +257,6 @@ describe('_claim', () => {
     const rollover = inserts.find(({ table }) => table === 'messages')
     expect(rollover?.fields).toMatchObject({ status: 'processing' })
     expect(result?.processingMessageId).toBe('inserted_1' as never)
-    expect(result?.stepsDone).toBe(0)
     expect(result?.contextBoundaryMessageId).toBe('user_2' as never)
     expect(patches).toContainEqual({
       id: 'stream_1',
@@ -354,6 +354,43 @@ describe('_claim', () => {
     expect(inserts.some(({ table }) => table === 'messages')).toBe(false)
     expect(patches.some(({ id }) => id === 'message_1')).toBe(false)
     expect(result?.contextBoundaryMessageId).toBe('user_1' as never)
+  })
+})
+
+describe('_handoff', () => {
+  test('reschedules the stream action with a fresh lease', async () => {
+    const stream = {
+      _id: 'stream_1',
+      status: 'streaming',
+      sessionId: 'session_1',
+      processingMessageId: 'message_1',
+    }
+    const { ctx, patches, scheduled } = fakeCtx({ docs: [stream] })
+
+    const result = await _handoff(ctx, { streamId: stream._id as never })
+
+    expect(result).toBe(true)
+    expect(scheduled).toContainEqual({
+      args: [0, expect.anything(), { streamId: 'stream_1' }],
+    })
+    const patch = patches.find(({ id }) => id === 'stream_1')
+    expect(patch?.patch.leaseExpiresAt).toBeGreaterThan(Date.now())
+  })
+
+  test('leaves a stopping stream alone', async () => {
+    const stream = {
+      _id: 'stream_1',
+      status: 'stopping',
+      sessionId: 'session_1',
+      processingMessageId: 'message_1',
+    }
+    const { ctx, patches, scheduled } = fakeCtx({ docs: [stream] })
+
+    const result = await _handoff(ctx, { streamId: stream._id as never })
+
+    expect(result).toBe(false)
+    expect(scheduled).toEqual([])
+    expect(patches.find(({ id }) => id === 'stream_1')).toBeUndefined()
   })
 })
 

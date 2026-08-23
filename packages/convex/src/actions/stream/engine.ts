@@ -37,7 +37,10 @@ import { createOperationPlan } from './operations'
 import type { PromptEvalResult } from './operations'
 
 const PATCH_INTERVAL_MS = 100
+
+// Max steps before the turn is handed off to a new action
 const MAX_STEPS = 50
+
 const STEP_DEADLINE_GRACE_MS = 45_000
 const HEARTBEAT_INTERVAL_MS = 60_000
 
@@ -71,7 +74,7 @@ export async function _stream(
   const windowDeadline = Date.now() + STREAM_WINDOW_MS
 
   try {
-    for (let step = claimed.stepsDone; step < MAX_STEPS; step++) {
+    for (let step = 0; step < MAX_STEPS; step++) {
       // Hand off between steps to stay below the deadline
       if (Date.now() >= windowDeadline) {
         await ctx.runMutation(internal.streams._handoff, { streamId })
@@ -125,10 +128,8 @@ export async function _stream(
       attempt = 0
     }
 
-    await ctx.runMutation(internal.streams._fail, {
-      streamId,
-      message: 'Maximum tool steps exceeded.',
-    })
+    // Hand off once the max step count is reached
+    await ctx.runMutation(internal.streams._handoff, { streamId })
   } catch (err) {
     const failure = err instanceof ProviderStreamFailure ? err : undefined
     const error = failure ? failure.error : err

@@ -58,7 +58,7 @@ export async function _claim(
 
   if (!stream.processingMessageId) {
     const claimed = await claimFreshTurn(ctx, stream)
-    return { ...claimed, stepsDone: 0 }
+    return claimed
   }
 
   const row = await getProcessingSegmentRow(ctx, stream)
@@ -72,7 +72,6 @@ export async function _claim(
   let boundaryId = stream.contextBoundaryMessageId
   let boundaryCreationTime = stream.contextBoundaryCreationTime
   let processingMessageId = stream.processingMessageId
-  let stepsDone: number | null = null
 
   if (fresh) {
     // Only compute the context boundary for a fresh segment to preserve tool approvals
@@ -91,7 +90,6 @@ export async function _claim(
           boundaryId = updated.contextBoundaryMessageId
           boundaryCreationTime = updated.contextBoundaryCreationTime
           processingMessageId = updated.processingMessageId
-          stepsDone = 0
         }
       }
     }
@@ -113,23 +111,7 @@ export async function _claim(
     processingMessageId,
     contextBoundaryMessageId: boundaryId,
     contextBoundaryCreationTime: boundaryCreationTime,
-    stepsDone:
-      stepsDone ??
-      (await countTurnSteps(ctx, { ...stream, processingMessageId })),
   }
-}
-
-/** 'step-start' markers already persisted for this turn's selected version. */
-async function countTurnSteps(ctx: MutationCtx, stream: Doc<'streams'>) {
-  if (!stream.processingMessageId) return 0
-  const parts = await allVersionParts(ctx, stream.processingMessageId)
-  return parts.filter((part) => readPartType(part) === 'step-start').length
-}
-
-function readPartType(part: unknown) {
-  return part != null && typeof part === 'object'
-    ? (part as { type?: unknown }).type
-    : undefined
 }
 
 /**
@@ -748,10 +730,7 @@ export async function _finalizeStopped(
   await scheduleCommandDrain(ctx, stream.sessionId)
 }
 
-async function demoteFailedSummary(
-  ctx: MutationCtx,
-  stream: Doc<'streams'>,
-) {
+async function demoteFailedSummary(ctx: MutationCtx, stream: Doc<'streams'>) {
   if (stream.operation !== 'compact' || !stream.processingMessageId) return
   await ctx.db.patch(stream.processingMessageId, { type: undefined })
 }
