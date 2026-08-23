@@ -1,6 +1,7 @@
 /// <reference types="bun-types" />
 import {
   analyzeShellCommand,
+  analyzeShellPathCandidates,
   commandReferencesForbiddenPath,
   extractPathCandidates,
   foldPaths,
@@ -333,56 +334,115 @@ describe('wrappers and prefixes', () => {
     ])
   })
 
-  test('shell -c scripts match exactly', () => {
+  test('quoted interpreter payloads approve the executable', () => {
     const { patterns } = analyzeShellCommand("sh -c 'rm -rf /'", [])
-    expect(patterns).toEqual(['sh rm -rf /'])
-    expect(isShellCommandAutoApproved("sh -c 'rm -rf /'", [])).toBe(false)
+    expect(patterns).toEqual(['sh'])
+    expect(isShellCommandAutoApproved("sh -c 'rm -rf /'", ['sh'])).toBe(true)
+    expect(
+      analyzeShellCommand('node -e "console.log(1)"', []).patterns,
+    ).toEqual(['node'])
+    expect(analyzeShellCommand("python -c 'print(1)'", []).patterns).toEqual([
+      'python',
+    ])
+    expect(
+      analyzeShellCommand("bash -O extglob -c 'echo first'", []).patterns,
+    ).toEqual(['bash'])
+  })
+
+  test('unquoted scripts and non-interpreter subcommands stay precise', () => {
+    expect(analyzeShellCommand('node script.js', []).patterns).toEqual([
+      'node script.js',
+    ])
+    expect(analyzeShellCommand('python script.py', []).patterns).toEqual([
+      'python script.py',
+    ])
+    expect(analyzeShellCommand('git "checkout" main', []).patterns).toEqual([
+      'git checkout',
+    ])
   })
 })
 
 describe('extractPathCandidates', () => {
-  test('collects non-flag words from every chain segment', () => {
+  test('collects path operands without executable names', () => {
     expect(extractPathCandidates('cat .env && ls dist')).toEqual([
-      'cat',
       '.env',
-      'ls',
       'dist',
     ])
   })
 
   test('includes --flag=value and env assignment values, skips bare flags', () => {
     expect(extractPathCandidates('grep -rn --file=.env.local foo')).toEqual([
-      'grep',
       '.env.local',
       'foo',
     ])
-    expect(extractPathCandidates('DOTENV_PATH=.env ls -la')).toEqual([
-      '.env',
-      'ls',
-    ])
+    expect(extractPathCandidates('DOTENV_PATH=.env ls -la')).toEqual(['.env'])
   })
 
   test('keeps glob tokens for sidecar expansion', () => {
-    expect(extractPathCandidates('cat .env*')).toEqual(['cat', '.env*'])
+    expect(extractPathCandidates('cat .env*')).toEqual(['.env*'])
   })
 
   test('skips redirect leftovers and dedupes', () => {
-    expect(extractPathCandidates('wc -l < notes.txt')).toEqual([
-      'wc',
-      'notes.txt',
-    ])
-    expect(extractPathCandidates('ls a; ls a')).toEqual(['ls', 'a'])
+    expect(extractPathCandidates('wc -l < notes.txt')).toEqual(['notes.txt'])
+    expect(extractPathCandidates('ls a; ls a')).toEqual(['a'])
   })
 
   test('skips match-pattern flag arguments', () => {
     expect(
       extractPathCandidates("find src -name '*.ts' -not -path '*/dist/*'"),
-    ).toEqual(['find', 'src'])
+    ).toEqual(['src'])
     expect(extractPathCandidates('grep --exclude-dir=.git foo src')).toEqual([
-      'grep',
-      'foo',
       'src',
     ])
+  })
+
+  test('classifies the reported sed and grep chain precisely', () => {
+    const command =
+      'cd /home/null/Projects/slopbench && ' +
+      "sed -n '120,152p' packages/convex/src/actions/session/workspace.ts && " +
+      'grep -n "postWorkspaceSidecar\\|requireAdminWorkspaceAction" -A 20 ' +
+      'packages/convex/src/actions/session/workspace.ts | ' +
+      "sed -n '/function postWorkspaceSidecar/,/^}/p;" +
+      "/function requireAdminWorkspaceAction/,/^}/p'"
+
+    expect(analyzeShellPathCandidates(command)).toEqual({
+      candidates: [
+        '/home/null/Projects/slopbench',
+        'packages/convex/src/actions/session/workspace.ts',
+      ],
+      complete: true,
+    })
+  })
+
+  test('distinguishes expressions, option values, and quoted paths', () => {
+    expect(
+      extractPathCandidates("sed -n -e '/error/p' 'logs/app output.log'"),
+    ).toEqual(['logs/app output.log'])
+    expect(
+      extractPathCandidates("grep -e '/tmp/value' -A 20 'src/input file.ts'"),
+    ).toEqual(['src/input file.ts'])
+    expect(extractPathCandidates("grep --include '*.ts' needle src")).toEqual([
+      'src',
+    ])
+    expect(
+      extractPathCandidates("rg -g '*.ts' 'needle/value' packages tests"),
+    ).toEqual(['packages', 'tests'])
+    expect(extractPathCandidates('cat "/tmp/private file"')).toEqual([
+      '/tmp/private file',
+    ])
+  })
+
+  test('fails closed for ambiguous path semantics', () => {
+    expect(analyzeShellPathCandidates('custom-tool "some data"')).toEqual({
+      candidates: ['some data'],
+      complete: false,
+    })
+    expect(analyzeShellPathCandidates("sed 'w /tmp/output' input.txt")).toEqual(
+      {
+        candidates: ['input.txt'],
+        complete: false,
+      },
+    )
   })
 })
 
@@ -503,6 +563,16 @@ describe('forbidden .git access', () => {
     expect(commandReferencesForbiddenPath("grep -e '.git/' src/x.ts")).toBe(
       false,
     )
+  })
+
+  test('does not treat sed or grep expressions as forbidden paths', () => {
+    expect(commandReferencesForbiddenPath("sed -n '/.git/p' app.log")).toBe(
+      false,
+    )
+    expect(commandReferencesForbiddenPath("grep '/.git/' src/app.ts")).toBe(
+      false,
+    )
+    expect(commandReferencesForbiddenPath("sed -n '1p' .git/config")).toBe(true)
   })
 
   test('positional and non-pattern flag references still count', () => {

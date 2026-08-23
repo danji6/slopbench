@@ -1,8 +1,8 @@
 import { TOOL_DESCRIPTIONS, shellToolDescription } from '@sb/core/types'
 
 import {
+  analyzeShellPathCandidates,
   commandReferencesForbiddenPath,
-  extractPathCandidates,
   isPathAllowed,
   isReadOnlyShellCommand,
   isToolAutoApproved,
@@ -143,7 +143,8 @@ export async function getFlaggedPaths(
   command: string,
   context: Pick<WorkspaceToolContext, 'sessionId' | 'workspaceId'>,
 ): Promise<string[] | null> {
-  const paths = extractPathCandidates(command)
+  const { candidates: paths, complete } = analyzeShellPathCandidates(command)
+  if (!complete) return null
   if (paths.length === 0) return []
 
   try {

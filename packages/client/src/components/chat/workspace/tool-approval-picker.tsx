@@ -7,6 +7,7 @@ import {
   useStreamProcessingMessageId,
 } from '@/hooks/chat'
 import type { ApproveToolArgs, RememberScope, ToolApprovals } from '@/lib/chat'
+import { formatAlwaysAllowLabel } from '@/lib/chat/approval-label'
 import { useComposerDraft } from '@/lib/chat/composer-draft-store'
 import { toastError } from '@/lib/notifications'
 import {
@@ -17,6 +18,7 @@ import { cn } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import {
   analyzeShellCommand,
+  analyzeShellPathCandidates,
   commandReferencesForbiddenPath,
   isPathForbidden,
   isReadOnlyShellCommand,
@@ -263,10 +265,12 @@ export function ToolApprovalPicker({
                 onSelect={() => selectAction(action)}
                 className="flex items-center gap-2 rounded-lg px-3 py-2.5"
               >
-                <span className="text-sm font-medium">{action.label}</span>
+                <span className="min-w-0 flex-1 truncate text-sm font-medium whitespace-nowrap">
+                  {action.label}
+                </span>
                 <kbd
                   data-slot="command-shortcut"
-                  className="text-muted-foreground bg-muted ml-auto rounded px-1.5 py-0.5 font-mono text-[11px] uppercase"
+                  className="text-muted-foreground bg-muted ml-auto shrink-0 rounded px-1.5 py-0.5 font-mono text-[11px] uppercase"
                 >
                   {action.shortcut}
                 </kbd>
@@ -594,18 +598,18 @@ function alwaysLabel(
   const { unapproved } = analyzeShellCommand(command, approvals?.shell ?? [])
   if (unapproved.length === 0) return null
 
-  const list = unapproved.map((pattern) => `\`${pattern}\``).join(', ')
-  return `Always allow ${list} for this session`
+  return formatAlwaysAllowLabel(unapproved)
 }
 
 /** Why an otherwise covered call still needs approval. */
-type ApprovalHold = 'forbidden' | 'plan' | 'paths' | null
+type ApprovalHold = 'forbidden' | 'plan' | 'paths' | 'analysis' | null
 
 // prettier-ignore
 const HOLD_HINTS: Record<NonNullable<ApprovalHold>, string> = {
   forbidden: 'This accesses a forbidden path and always requires approval.',
   plan: 'Plan mode is active and this command is not read-only.',
   paths: 'This command references git-ignored files or paths outside the workspace.',
+  analysis: 'This command’s path operands cannot be verified statically.',
 }
 
 function approvalHold(
@@ -625,6 +629,7 @@ function approvalHold(
   if (command === null) return null
   if (commandReferencesForbiddenPath(command)) return 'forbidden'
   if (mode === 'plan' && !isReadOnlyShellCommand(command)) return 'plan'
+  if (!analyzeShellPathCandidates(command).complete) return 'analysis'
 
   const { patterns, unapproved, unsafe } = analyzeShellCommand(
     command,

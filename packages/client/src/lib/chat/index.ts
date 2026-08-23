@@ -3,6 +3,7 @@
  */
 
 export * from './agent-editor-store'
+export * from './approval-label'
 export * from './avatar'
 export * from './combine'
 export * from './composer-draft-store'
