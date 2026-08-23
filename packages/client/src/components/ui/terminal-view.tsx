@@ -89,7 +89,29 @@ export function TerminalView({
     const fit = new FitAddon()
     term.loadAddon(fit)
     term.open(container)
-    fit.fit()
+
+    let lastWidth = -1
+    let lastHeight = -1
+    let frame = 0
+
+    const refit = () => {
+      frame = 0
+      const width = container.clientWidth
+      const height = container.clientHeight
+      // Only refit when the container's measured size actually changed
+      if (width === lastWidth && height === lastHeight) return
+      lastWidth = width
+      lastHeight = height
+      fit.fit()
+    }
+
+    const scheduleRefit = () => {
+      // Refit at most once per frame
+      if (frame) return
+      frame = requestAnimationFrame(refit)
+    }
+
+    refit()
 
     term.onData((data) => {
       if (!readOnlyRef.current) onDataRef.current?.(data)
@@ -105,7 +127,7 @@ export function TerminalView({
       pendingRef.current = ''
     }
 
-    const resizeObserver = new ResizeObserver(() => fit.fit())
+    const resizeObserver = new ResizeObserver(scheduleRefit)
     resizeObserver.observe(container)
 
     const unobserveTheme = observeThemeChange(() => {
@@ -119,6 +141,7 @@ export function TerminalView({
     const detachTouch = enableTouchScroll(term)
 
     return () => {
+      if (frame) cancelAnimationFrame(frame)
       resizeObserver.disconnect()
       unobserveTheme()
       detachTouch()

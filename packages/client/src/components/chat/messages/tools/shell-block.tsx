@@ -323,6 +323,7 @@ function ShellTerminal({
   const handleRef = useRef<TerminalHandle>(null)
   const writeTerminal = useAction(api.actions.terminals.write)
   const resizeTerminal = useAction(api.actions.terminals.resize)
+  const sentDimensionsRef = useRef<[number, number] | null>(null)
 
   const interactive = live && isAdmin && sessionId !== null
   const resetFeed = useTerminalFeed(handleRef, term, termOffset)
@@ -334,9 +335,13 @@ function ShellTerminal({
   }, [showingFull, resetFeed])
 
   const resize = useDebouncedCallback((cols: number, rows: number) => {
-    if (live && isAdmin && sessionId) {
-      void resizeTerminal({ sessionId, jobId, cols, rows }).catch(() => {})
-    }
+    if (!live || !isAdmin || !sessionId) return
+    const sent = sentDimensionsRef.current
+    // Skip dimensions already sent. A redundant pty resize raises SIGWINCH,
+    // the program redraws, and the new output goes back into fit, causing a loop.
+    if (sent && sent[0] === cols && sent[1] === rows) return
+    sentDimensionsRef.current = [cols, rows]
+    void resizeTerminal({ sessionId, jobId, cols, rows }).catch(() => {})
   }, 500)
 
   return (
