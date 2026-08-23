@@ -316,6 +316,13 @@ export async function consumeInterjections(
   const current = await ctx.db.get(stream.processingMessageId)
   if (!current) return false
 
+  const row = await getProcessingSegmentRow(ctx, stream)
+
+  // An approved call must execute in the turn that issued it. Rolling over
+  // here would finalize it as unanswered before the resumed SDK stream gets a
+  // chance to run the tool.
+  if (row?.parts.some(isApprovedToolAwaitingExecution)) return false
+
   const newer = await ctx.db
     .query('messages')
     .withIndex('by_sessionId', (q) =>
@@ -330,7 +337,6 @@ export async function consumeInterjections(
 
   if (!newer) return false
 
-  const row = await getProcessingSegmentRow(ctx, stream)
   if (row) {
     await finalizeTurn(ctx, {
       message: current,
@@ -343,6 +349,15 @@ export async function consumeInterjections(
   }
   await rolloverProcessingMessage(ctx, stream, current, newer)
   return true
+}
+
+function isApprovedToolAwaitingExecution(part: unknown) {
+  const typed = part as { type?: unknown; state?: unknown }
+  return (
+    typeof typed?.type === 'string' &&
+    typed.type.startsWith('tool-') &&
+    typed.state === 'approval-responded'
+  )
 }
 
 export async function _continue(

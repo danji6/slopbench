@@ -82,10 +82,11 @@ export const trackGeneratedOutput =
     new TransformStream<TextStreamPart<TOOLS>, TextStreamPart<TOOLS>>({
       transform(chunk, controller) {
         if (
-          chunk.type === 'text-delta' ||
-          chunk.type === 'reasoning-delta' ||
+          ((chunk.type === 'text-delta' || chunk.type === 'reasoning-delta') &&
+            chunk.text.trim().length > 0) ||
           chunk.type === 'tool-call' ||
           chunk.type === 'tool-result' ||
+          chunk.type === 'tool-error' ||
           chunk.type === 'file' ||
           chunk.type === 'source'
         ) {

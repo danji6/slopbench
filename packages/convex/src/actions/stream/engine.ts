@@ -18,6 +18,7 @@ import {
   parseDataUrl,
 } from '../../model/stream/generatedFiles'
 import {
+  assertProviderStepOutput,
   getProviderRetryDelay,
   hasReplayableToolOutputSince,
 } from '../../model/stream/retry'
@@ -432,8 +433,11 @@ async function consumeProviderStep(
       outputText,
     })
 
+    const steps = await result.steps
+    const finishReason = steps.at(-1)?.finishReason
+
     const lastResponseBody = JSON.stringify(
-      omitLargeStrings({ parts: latestParts, usage }),
+      omitLargeStrings({ parts: latestParts, usage, finishReason }),
       null,
       2,
     )
@@ -446,10 +450,10 @@ async function consumeProviderStep(
       sessionId: setup.stream.sessionId,
     })
 
-    const steps = await result.steps
+    assertProviderStepOutput(outputTracker.hasOutput, finishReason)
 
     return {
-      shouldContinue: steps.at(-1)?.finishReason === 'tool-calls',
+      shouldContinue: finishReason === 'tool-calls',
       awaitingApproval,
       awaitingTasks,
       hasOutput: {

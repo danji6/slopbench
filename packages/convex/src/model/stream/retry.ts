@@ -1,6 +1,25 @@
 // TODO make these user-configurable
 const RETRY_DELAY_MS = 1000
 const MAX_RETRY_DELAY_MS = 600000
+const MAX_EMPTY_RESPONSE_RETRIES = 2
+
+/** A provider stream that closed normally without producing model output. */
+export class EmptyProviderResponseError extends Error {
+  constructor(finishReason?: string) {
+    super(
+      'The provider returned an empty response' +
+        (finishReason ? ` (finish reason: ${finishReason})` : ''),
+    )
+    this.name = 'EmptyProviderResponseError'
+  }
+}
+
+export function assertProviderStepOutput(
+  hasOutput: boolean,
+  finishReason?: string,
+) {
+  if (!hasOutput) throw new EmptyProviderResponseError(finishReason)
+}
 
 const RATE_LIMIT_PATTERNS = [
   /429/i,
@@ -68,6 +87,11 @@ export function getProviderRetryDelay({
   aborted,
 }: ProviderRetryOptions) {
   if (aborted) return null
+  if (error instanceof EmptyProviderResponseError) {
+    return retryAttempt <= MAX_EMPTY_RESPONSE_RETRIES
+      ? backoffDelay(retryAttempt)
+      : null
+  }
   return (
     getRateLimitRetryDelay(error, retryAttempt) ??
     getTransientRetryDelay(error, retryAttempt)

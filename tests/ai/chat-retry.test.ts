@@ -1,6 +1,8 @@
 /// <reference types="bun-types" />
 import { reserveRetryStream } from '@sb/convex/model/chat/reserve'
 import {
+  EmptyProviderResponseError,
+  assertProviderStepOutput,
   getProviderRateLimitRetryDelay,
   getProviderRetryDelay,
   getRateLimitRetryDelay,
@@ -141,6 +143,26 @@ describe('getTransientRetryDelay', () => {
 })
 
 describe('getProviderRetryDelay', () => {
+  test('retries an empty successful response twice, then surfaces it', () => {
+    const error = new EmptyProviderResponseError('stop')
+    const options = { error, hasOutput: false }
+
+    expect(getProviderRetryDelay({ ...options, retryAttempt: 1 })).toBe(1000)
+    expect(getProviderRetryDelay({ ...options, retryAttempt: 2 })).toBe(1250)
+    expect(getProviderRetryDelay({ ...options, retryAttempt: 3 })).toBeNull()
+  })
+
+  test('does not retry an empty response after the user stops the turn', () => {
+    expect(
+      getProviderRetryDelay({
+        error: new EmptyProviderResponseError(),
+        retryAttempt: 1,
+        hasOutput: false,
+        aborted: true,
+      }),
+    ).toBeNull()
+  })
+
   test('retries transient network errors mid-turn', () => {
     expect(
       getProviderRetryDelay({
@@ -208,6 +230,55 @@ describe('trackGeneratedOutput', () => {
     )
 
     expect(tracker.hasOutput).toBe(true)
+  })
+
+  test('ignores empty text deltas', async () => {
+    const tracker = { hasOutput: false }
+    const input = new ReadableStream({
+      start(controller) {
+        controller.enqueue({ type: 'text-delta', id: 'text', text: '  ' })
+        controller.close()
+      },
+    })
+
+    await drainStream(
+      input.pipeThrough(trackGeneratedOutput(tracker)({ tools: {} }) as never),
+    )
+
+    expect(tracker.hasOutput).toBe(false)
+  })
+
+  test('counts a failed approved tool as output from the resumed step', async () => {
+    const tracker = { hasOutput: false }
+    const input = new ReadableStream({
+      start(controller) {
+        controller.enqueue({
+          type: 'tool-error',
+          toolCallId: 'approved-call',
+          input: {},
+          error: new Error('tool failed'),
+        })
+        controller.close()
+      },
+    })
+
+    await drainStream(
+      input.pipeThrough(trackGeneratedOutput(tracker)({ tools: {} }) as never),
+    )
+
+    expect(tracker.hasOutput).toBe(true)
+  })
+})
+
+describe('assertProviderStepOutput', () => {
+  test('accepts a step with generated output', () => {
+    expect(() => assertProviderStepOutput(true, 'stop')).not.toThrow()
+  })
+
+  test('preserves the finish reason on an empty step error', () => {
+    expect(() => assertProviderStepOutput(false, 'content-filter')).toThrow(
+      'empty response (finish reason: content-filter)',
+    )
   })
 })
 

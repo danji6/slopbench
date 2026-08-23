@@ -208,7 +208,7 @@ describe('_claim', () => {
     })
   })
 
-  test('consumes a message sent during an approval pause when the turn resumes', async () => {
+  test('runs an approved tool before consuming a message sent during the approval pause', async () => {
     const stream = {
       _id: 'stream_1',
       _creationTime: 30,
@@ -248,21 +248,17 @@ describe('_claim', () => {
 
     const result = await _claim(ctx, { streamId: stream._id as never })
 
-    // The interrupted turn is sealed...
-    expect(patches).toContainEqual({
-      id: 'message_1',
-      patch: expect.objectContaining({ status: 'done' }),
-    })
-    // ...and continuation streams into a fresh message behind the interrupt
-    const rollover = inserts.find(({ table }) => table === 'messages')
-    expect(rollover?.fields).toMatchObject({ status: 'processing' })
-    expect(result?.processingMessageId).toBe('inserted_1' as never)
-    expect(result?.contextBoundaryMessageId).toBe('user_2' as never)
+    // Keep streaming into the issuing turn so the approved call can execute.
+    // The newer message is consumed after the tool produces its output.
+    expect(inserts.some(({ table }) => table === 'messages')).toBe(false)
+    expect(patches.some(({ id }) => id === 'message_1')).toBe(false)
+    expect(result?.processingMessageId).toBe('message_1' as never)
+    expect(result?.contextBoundaryMessageId).toBe('user_1' as never)
     expect(patches).toContainEqual({
       id: 'stream_1',
       patch: expect.objectContaining({
-        contextBoundaryMessageId: 'user_2',
-        contextBoundaryCreationTime: 50,
+        contextBoundaryMessageId: 'user_1',
+        contextBoundaryCreationTime: 10,
       }),
     })
   })
