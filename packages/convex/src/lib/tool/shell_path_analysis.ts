@@ -4,6 +4,7 @@ import {
   ENV_ASSIGNMENT,
   INTERPRETER_PROGRAMS,
   WRAPPER_PROGRAMS,
+  isInterpreterPayloadFlag,
 } from './shell_config'
 import { type ShellToken, splitShellChain, tokenizeShell } from './shell_parse'
 
@@ -99,7 +100,10 @@ function pathValuesFromSegment(text: string): SegmentPathAnalysis {
   if (!invocation) return { values: [], complete: false }
 
   const { program, args, values } = invocation
-  if (INTERPRETER_PROGRAMS.has(program)) {
+  if (
+    INTERPRETER_PROGRAMS.has(program) ||
+    hasInterpreterPayload(program, args)
+  ) {
     return {
       values: [...values, ...interpreterPathValues(program, args)],
       complete: true,
@@ -175,21 +179,21 @@ function envAssignmentValue(token: string): string | null {
 
 function interpreterPathValues(program: string, args: ShellToken[]): string[] {
   const values: string[] = []
-  const payloadFlags =
-    program === 'node'
-      ? new Set(['-e', '--eval', '-p', '--print'])
-      : new Set(['-c'])
 
   for (let i = 0; i < args.length; i++) {
     const token = args[i]!
-    if (payloadFlags.has(token.value)) {
-      i++
+    if (isInterpreterPayloadFlag(program, token.value)) {
+      if (!token.value.includes('=')) i++
       continue
     }
     if (!token.quoted && !token.value.startsWith('-')) values.push(token.value)
   }
 
   return values
+}
+
+function hasInterpreterPayload(program: string, args: ShellToken[]): boolean {
+  return args.some((token) => isInterpreterPayloadFlag(program, token.value))
 }
 
 function sedPathValues(args: ShellToken[]): SegmentPathAnalysis {

@@ -347,6 +347,18 @@ describe('wrappers and prefixes', () => {
     expect(
       analyzeShellCommand("bash -O extglob -c 'echo first'", []).patterns,
     ).toEqual(['bash'])
+    expect(
+      analyzeShellCommand(
+        'bun -e "import { value } from \'./module\'\nconsole.log(value)"',
+        [],
+      ).patterns,
+    ).toEqual(['bun'])
+    expect(isShellCommandAutoApproved('bun -e "console.log(1)"', ['bun'])).toBe(
+      true,
+    )
+    expect(
+      analyzeShellCommand('bun --eval="console.log(1)"', []).patterns,
+    ).toEqual(['bun'])
   })
 
   test('unquoted scripts and non-interpreter subcommands stay precise', () => {
@@ -359,10 +371,24 @@ describe('wrappers and prefixes', () => {
     expect(analyzeShellCommand('git "checkout" main', []).patterns).toEqual([
       'git checkout',
     ])
+    expect(analyzeShellCommand('bun test "focused test"', []).patterns).toEqual(
+      ['bun test'],
+    )
+    expect(analyzeShellCommand('bun run "build"', []).patterns).toEqual([
+      'bun run',
+    ])
   })
 })
 
 describe('extractPathCandidates', () => {
+  test('treats Bun eval source as opaque data', () => {
+    expect(
+      analyzeShellPathCandidates(
+        'bun -e "import { value } from \'./module\'\nconsole.log(value)"',
+      ),
+    ).toEqual({ candidates: [], complete: true })
+  })
+
   test('collects path operands without executable names', () => {
     expect(extractPathCandidates('cat .env && ls dist')).toEqual([
       '.env',

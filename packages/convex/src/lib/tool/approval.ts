@@ -5,6 +5,7 @@ import {
   ENV_ASSIGNMENT,
   INTERPRETER_PROGRAMS,
   WRAPPER_PROGRAMS,
+  isInterpreterPayloadFlag,
 } from './shell_config'
 import { type ShellToken, splitShellChain, tokenizeShell } from './shell_parse'
 import { analyzeShellPathCandidates } from './shell_path_analysis'
@@ -204,6 +205,7 @@ function patternFromSegment(text: string) {
   const tokens = tokenizeShell(text)
   const names: string[] = []
   let program: string | null = null
+  let hasOpaquePayload = false
   let i = 0
 
   while (i < tokens.length) {
@@ -211,11 +213,9 @@ function patternFromSegment(text: string) {
     i++
     if (ENV_ASSIGNMENT.test(token.value)) continue
     names.push(token.value)
-    if (
-      INTERPRETER_PROGRAMS.has(token.value) &&
-      hasQuotedInterpreterArgument(tokens.slice(i))
-    ) {
+    if (hasQuotedInterpreterArgument(token.value, tokens.slice(i))) {
       program = token.value
+      hasOpaquePayload = true
       break
     }
     if (!WRAPPER_PROGRAMS.has(token.value)) {
@@ -236,7 +236,7 @@ function patternFromSegment(text: string) {
   if (program && SUBCOMMAND_PROGRAMS.has(program)) {
     const subIndex = subcommandIndex(program, rest)
     const sub = subIndex === -1 ? undefined : rest[subIndex]
-    if (sub && !(INTERPRETER_PROGRAMS.has(program) && sub.quoted)) {
+    if (sub && !hasOpaquePayload) {
       names.push(sub.value)
       const nested = NESTED_SUBCOMMAND_PROGRAMS.get(program)
       if (nested?.has(sub.value)) {
@@ -268,6 +268,18 @@ function patternFromSegment(text: string) {
   }
 }
 
-function hasQuotedInterpreterArgument(args: ShellToken[]): boolean {
-  return args.some((token) => token.quoted)
+function hasQuotedInterpreterArgument(
+  program: string,
+  args: ShellToken[],
+): boolean {
+  if (INTERPRETER_PROGRAMS.has(program)) {
+    return args.some((token) => token.quoted)
+  }
+
+  return args.some((token, index) => {
+    if (!isInterpreterPayloadFlag(program, token.value)) return false
+    return token.value.includes('=')
+      ? token.quoted
+      : args[index + 1]?.quoted === true
+  })
 }

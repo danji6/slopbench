@@ -20,6 +20,26 @@ export const INTERPRETER_PROGRAMS = new Set([
   'dash',
 ])
 
+/** Flags whose following value is executable source code rather than a path. */
+const INTERPRETER_PAYLOAD_FLAGS = new Map<string, ReadonlySet<string>>([
+  ['bun', new Set(['-e', '--eval'])],
+  ['node', new Set(['-e', '--eval', '-p', '--print'])],
+  ['python', new Set(['-c'])],
+  ['python3', new Set(['-c'])],
+  ['sh', new Set(['-c'])],
+  ['bash', new Set(['-c'])],
+  ['zsh', new Set(['-c'])],
+  ['fish', new Set(['-c'])],
+  ['dash', new Set(['-c'])],
+])
+
+export function isInterpreterPayloadFlag(program: string, arg: string) {
+  const flags = INTERPRETER_PAYLOAD_FLAGS.get(program)
+  if (!flags) return false
+  const separator = arg.indexOf('=')
+  return flags.has(separator === -1 ? arg : arg.slice(0, separator))
+}
+
 /** Patterns that never need approval (they still respect path approval). */
 // prettier-ignore
 export const DEFAULT_SAFE_SHELL_PATTERNS: ReadonlySet<string> = new Set([
