@@ -87,8 +87,6 @@ export type ChatComposerProps = Omit<InputGroupProps, 'onSubmit'> & {
   onSubmit: (message: PendingMessage) => void
   onStop?: () => void
   onRunCommand?: (name: string, argument: string, silent: boolean) => void
-  /** Shift+Tab handler cycling the session mode. */
-  onCycleMode?: () => void
   onContinueAgent?: () => void
   canContinueAgent?: boolean
   commandAvailability?: CommandAvailabilityContext
@@ -123,7 +121,6 @@ export function ChatComposer({
   onSubmit,
   onStop,
   onRunCommand,
-  onCycleMode,
   onContinueAgent,
   canContinueAgent = false,
   commandAvailability,
@@ -418,12 +415,6 @@ export function ChatComposer({
   function handleEditorKeyDown(e: KeyboardEvent): boolean {
     const editor = editorRef.current
     if (editor && handleSelectAllDelete(editor.view, e)) return true
-
-    // Shift+Tab cycles the session mode
-    if (e.key === 'Tab' && e.shiftKey && onCycleMode) {
-      onCycleMode()
-      return true
-    }
 
     if (
       mentionOpen &&

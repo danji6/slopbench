@@ -14,7 +14,6 @@ import {
 import type { useChatStatus, useWorkspaceFileIndex } from '@/hooks/chat'
 import { useHasElapsed } from '@/hooks/expiry'
 import { useAtBottomSticky } from '@/hooks/scroll'
-import { Result } from '@/lib'
 import type { PendingMessage } from '@/lib/chat'
 import { getDraft } from '@/lib/chat/composer-draft-store'
 import {
@@ -235,10 +234,6 @@ export function ChatSessionView({
     }
   }, [onStop, showApproval, showDock])
 
-  function handleCycleMode() {
-    Result.from(cycleMode).catch()
-  }
-
   return (
     <ChatShortcutsProvider
       messageListRef={messageListRef}
@@ -347,9 +342,6 @@ export function ChatSessionView({
                       onTyping={notify}
                       onStop={onStop}
                       onRunCommand={onRunCommand}
-                      onCycleMode={
-                        canUseWorkspace ? handleCycleMode : undefined
-                      }
                       onContinueAgent={onContinueAgent}
                       canContinueAgent={hasActiveAgent && status === 'ready'}
                       commandAvailability={{

@@ -91,7 +91,7 @@ export function ChatSettingsButton({
       className={cn(
         'text-muted-foreground rounded-full',
         !collapsed &&
-          'focus-visible:border-ring h-11 w-full justify-center rounded-md font-bold focus-visible:border focus-visible:ring-0',
+          'focus-visible:border-ring h-11 w-full justify-center font-bold focus-visible:border focus-visible:ring-0',
       )}
     >
       <SettingsIcon />

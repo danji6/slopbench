@@ -127,7 +127,6 @@ export function EmptyChat({
           <ChatComposer
             onSubmit={handleSubmit}
             onRunCommand={handleRunCommand}
-            onCycleMode={workspaceRoot ? cycleMode : undefined}
             status="ready"
             draftKey={NO_SESSION_DRAFT_KEY}
             shellAvailable={isAdmin && Boolean(workspaceRoot)}
