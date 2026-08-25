@@ -97,6 +97,8 @@ export type SessionListItem = CoreSessionListItem<
 export type PromptScope = Infer<typeof V.promptScopeValidator>
 export type ReminderScope = Infer<typeof V.reminderScopeValidator>
 export type CredentialScope = Infer<typeof V.credentialScopeValidator>
+export type NotificationKind = Infer<typeof V.notificationKindValidator>
+export type NotificationStatus = Infer<typeof V.notificationStatusValidator>
 
 export type SessionMode = Infer<typeof V.sessionModeValidator>
 export type ApprovalMode = Infer<typeof V.approvalModeValidator>

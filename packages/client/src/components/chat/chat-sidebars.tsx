@@ -18,6 +18,7 @@ import { useLocation } from 'wouter'
 import type { SidebarShellProps } from '../ui/sidebar'
 import { ManageAgentsButton } from './entities/agent/agent-settings'
 import { ChatSettingsButton } from './entities/user/user-settings'
+import { NotificationInboxButton } from './notifications/notification-inbox'
 import { SearchHistoryButton, useChatSearch } from './search'
 import {
   AgentsStrip,
@@ -136,13 +137,14 @@ function RightSidebar() {
           <Sidebar.Content className="items-center">
             <AgentsStrip />
           </Sidebar.Content>
-          {canSearch && (
-            <Sidebar.Footer className="items-center">
+          <Sidebar.Footer className="items-center">
+            {canSearch && (
               <QuickTooltip text="Search" side="left">
                 <SearchHistoryButton collapsed />
               </QuickTooltip>
-            </Sidebar.Footer>
-          )}
+            )}
+            <NotificationInboxButton />
+          </Sidebar.Footer>
         </Sidebar.Collapsed>
         <Sidebar.Expanded>
           <Sidebar.Header>

@@ -20,6 +20,7 @@ import {
   finalizeTurn,
   getProcessingSegmentRow,
   insertMessage,
+  listSelectedSegments,
   patchSegmentParts,
   saveSegmentMeta,
   sealSegment,
@@ -32,6 +33,10 @@ import {
   scheduleTitle,
   syncActivity,
 } from '../messages'
+import {
+  notificationPreviewFromParts,
+  notifyAgentEvent,
+} from '../notifications'
 import { createPlanLinkPart, getBySession as getPlan } from '../plans'
 import { getState, patchState } from '../session/state'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
@@ -568,10 +573,13 @@ export async function _complete(
     segmentIndex: row?.segmentIndex ?? 0,
   })
 
+  let followUpReserved = false
   if (stream.operation === 'invoke') {
     await syncActivity(ctx, stream.sessionId, parts)
     await scheduleTitle(ctx, stream.sessionId)
-    if (!stream.suppressFollowUp) await reserveFollowUp(ctx, stream)
+    if (!stream.suppressFollowUp) {
+      followUpReserved = await reserveFollowUp(ctx, stream)
+    }
   } else if (await isLatestRetry(ctx, stream, message)) {
     // A retry of the newest message becomes the session's tail
     await syncActivity(ctx, stream.sessionId, parts)
@@ -580,6 +588,21 @@ export async function _complete(
 
   // A finished sub-agent turn reports back to its parent session
   await deliverChildReport(ctx, stream, { kind: 'complete' })
+
+  // The automatic follow-up owns the eventual completion notification
+  if (!followUpReserved) {
+    // Retries may span segments, so preview the selected message version
+    const previewParts = message
+      ? (await listSelectedSegments(ctx, message)).flatMap((row) => row.parts)
+      : parts
+    await notifyAgentEvent(ctx, {
+      sessionId: stream.sessionId,
+      agentId: stream.agentId,
+      kind: 'turn_completed',
+      preview: notificationPreviewFromParts(previewParts),
+      sourceMessageId: stream.processingMessageId,
+    })
+  }
 
   // Scheduled, not inline: a bad command must not roll back this turn
   await scheduleCommandDrain(ctx, stream.sessionId)
@@ -642,6 +665,13 @@ export async function _fail(
   await cleanUpOffloadedOutputs(ctx, streamId)
   await cleanUpGeneratedAttachments(ctx, streamId)
   await ctx.db.delete(streamId)
+
+  await notifyAgentEvent(ctx, {
+    sessionId: stream.sessionId,
+    agentId: stream.agentId,
+    kind: 'turn_error',
+    sourceMessageId: stream.processingMessageId,
+  })
 
   // A failed sub-agent still reports back so the parent can react
   await deliverChildReport(ctx, stream, { kind: 'failed', message })
@@ -869,18 +899,23 @@ export async function remove(ctx: MutationCtx, streamId: Id<'streams'>) {
   }
 }
 
-async function reserveFollowUp(ctx: MutationCtx, stream: Doc<'streams'>) {
+async function reserveFollowUp(
+  ctx: MutationCtx,
+  stream: Doc<'streams'>,
+): Promise<boolean> {
   const session = await ctx.db.get(stream.sessionId)
-  if (!session) return
+  if (!session) return false
 
   const boundaryMessage = await earliestUnconsumedMessage(ctx, stream)
-  if (!boundaryMessage) return
+  if (!boundaryMessage) return false
 
-  await reserveInvokeTurn(ctx, {
-    session,
-    boundaryMessage,
-    invokedBy: stream.invokedBy,
-  })
+  return Boolean(
+    await reserveInvokeTurn(ctx, {
+      session,
+      boundaryMessage,
+      invokedBy: stream.invokedBy,
+    }),
+  )
 }
 
 /** The earliest user/sub-agent message the completed turn did not consume. */

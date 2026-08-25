@@ -62,10 +62,16 @@ The `package.json` contains most scripts you will need, including running tests.
 
 3. **When writing functions**
    - Keep them small and focused
-   - Avoid excessive comments (good code is self-documenting)
    - Always extract repeated patterns into reusable helpers
 
-4. **React & UI**
+4. **When writing comments**
+   - Avoid excessive comments; good code is self-documenting
+   - Aim for one-line JSDoc comments where it matters, use @tags when it makes sense
+   - If a line of code isn't obvious, comment what it does but keep the comment short
+   - Multiline comments are justified when the code is complex or needs important info/notes
+   - Comments must be easy to understand and only convey essential context to the reader
+
+5. **React & UI**
    - React components should be pure and reusable.
    - Always think outside of React before trying to implement a solution with it.
    - Try to reuse existing primitives in the project, or create new reusable ones when needed.
@@ -75,7 +81,7 @@ The `package.json` contains most scripts you will need, including running tests.
    - Don't use `forwardRef`, just pass refs as props (React 19+).
    - Prefer `RippleButton` over `Button` in most cases, save for very small buttons.
 
-5. **Convex**
+6. **Convex**
    - Convex files can only contain alphanumeric characters, underscores, or periods, otherwise they'll be rejected.
    - Query/Mutation handlers should be thin wrappers around business logic that lives in the `model` folder.
    - On the client, always use query/mutation hooks and avoid non-reactive calls.
@@ -89,5 +95,5 @@ The `package.json` contains most scripts you will need, including running tests.
    - We have `convex-helpers`, always check if it offers a solution to a complex db-related issue before implementing your own.
    - A schema change that an existing database can't satisfy needs a migration listed in `releaseMigrations` (`migrations.ts`).
 
-6. **Sidecar Server**
+7. **Sidecar Server**
    - The sidecar currently doesn't support hot-reloading. If you make changes to it, remind the user to restart it.

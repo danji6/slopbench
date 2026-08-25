@@ -5,6 +5,7 @@ import type { MutationCtx } from '../_generated/server'
 import { error } from '../errors'
 import type { AuthMutationCtx, AuthQueryCtx } from '../functions'
 import type { SessionMember } from '../types'
+import * as Notifications from './notifications'
 import { getMember, getMembership, requireOwner } from './session/memberships'
 import { getByOwnerId as getSettings } from './settings'
 import { stopForUser } from './stream/lifecycle'
@@ -76,5 +77,6 @@ export async function remove(
   if (!membership) return
 
   await stopForUser(ctx, userId)
+  await Notifications.removeForMembership(ctx, userId, sessionId)
   await ctx.db.delete(membership._id)
 }

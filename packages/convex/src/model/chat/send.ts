@@ -10,6 +10,7 @@ import type { AuthMutationCtx } from '../../functions'
 import type { SendMessageArgs } from '../../types'
 import { insertMessage } from '../messageContents'
 import { scheduleMessageEval, syncActivity } from '../messages'
+import { notifyUserMessage } from '../notifications'
 import {
   type PlanLinkPart,
   createPlanLinkPart,
@@ -135,6 +136,17 @@ export async function sendMessage(ctx: AuthMutationCtx, args: SendMessageArgs) {
     })
   }
   await syncActivity(ctx, args.sessionId, parts)
+
+  if (sender.type === 'user') {
+    await notifyUserMessage(ctx, {
+      sessionId: args.sessionId,
+      senderId: sender.id,
+      actorName: identity.senderName ?? 'User',
+      actorAvatarId: identity.senderAvatarId,
+      preview: content.trim() || 'Sent an attachment',
+      sourceMessageId: messageId,
+    })
+  }
 
   if (role === 'user') {
     await ctx.db.patch(membership._id, { lastSendAt: now })

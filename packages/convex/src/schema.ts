@@ -12,6 +12,7 @@ import {
   messageContentSchema,
   messageSchema,
   modelProviderSchema,
+  notificationSchema,
   offloadedOutputSchema,
   planSchema,
   promptSchema,
@@ -105,6 +106,11 @@ export default defineSchema({
     .index('by_sessionId_userId', ['sessionId', 'userId'])
     .index('by_userId_hidden_lastMessageAt', ['userId', 'hidden', 'lastMessageAt'])
     .searchIndex('search_title', { searchField: 'title', filterFields: ['userId'] }),
+
+  notifications: defineTable(notificationSchema)
+    .index('by_recipientId_status_readAt', ['recipientId', 'status', 'readAt'])
+    .index('by_recipientId_sessionId', ['recipientId', 'sessionId'])
+    .index('by_sessionId', ['sessionId']),
 
   typing: defineTable(typingSchema)
     .index('by_sessionId', ['sessionId'])

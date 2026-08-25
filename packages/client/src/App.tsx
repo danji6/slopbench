@@ -1,6 +1,7 @@
 import { AuthGate } from '@/components/auth/auth-gate'
 import { ProfileGate } from '@/components/auth/profile-gate'
 import { Chat } from '@/components/chat'
+import { NotificationProvider } from '@/components/chat/notifications/notification-provider'
 import { LightboxProvider } from '@/components/ui/lightbox'
 import { Toaster } from '@/components/ui/sonner'
 import {
@@ -25,7 +26,9 @@ function ChatApp() {
       <AvatarUrlProvider />
       <AttachmentUrlProvider />
       <AppearanceProvider />
-      <Chat />
+      <NotificationProvider>
+        <Chat />
+      </NotificationProvider>
     </>
   )
 }

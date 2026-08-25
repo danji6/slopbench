@@ -524,6 +524,7 @@ export async function remove(
     'sessionState',
     'typing',
     'shellJobs',
+    'notifications',
   ] as const
 
   for (const table of sessionTables) {

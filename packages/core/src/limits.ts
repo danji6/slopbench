@@ -21,6 +21,11 @@ export const MAX_ENVIRONMENT_BYTES = 256 * 1024
 export const MAX_APPROVAL_PATTERNS = 500
 export const MAX_APPROVAL_PATHS = 500
 
+// Notification retention and preview limits
+export const MAX_UNREAD_NOTIFICATIONS = 100
+export const MAX_READ_NOTIFICATIONS = 50
+export const MAX_NOTIFICATION_PREVIEW_CHARS = 140
+
 export const MAX_TODO_ITEMS = 100
 export const MAX_TODO_CONTENT_CHARS = 5_000
 

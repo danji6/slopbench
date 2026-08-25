@@ -52,6 +52,20 @@ export const messageStatusValidator = v.union(
   v.literal('done'),
 )
 
+/** Activity kinds that can produce durable notifications. */
+export const notificationKindValidator = v.union(
+  v.literal('user_message'),
+  v.literal('turn_completed'),
+  v.literal('approval_required'),
+  v.literal('turn_error'),
+)
+
+/** Inbox states supported by notification retention and ordering. */
+export const notificationStatusValidator = v.union(
+  v.literal('unread'),
+  v.literal('read'),
+)
+
 /** Mirrors `ShellJobStatus` from `@sb/core/types/tools`. */
 export const shellJobStatusValidator = v.union(
   v.literal('running'),

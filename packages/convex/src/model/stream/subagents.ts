@@ -19,6 +19,7 @@ import {
   patchSegmentParts,
 } from '../messageContents'
 import { syncActivity } from '../messages'
+import { notifyAgentEvent } from '../notifications'
 import { createPlanLinkPart, getBySession as getPlan } from '../plans'
 import { getActiveStream } from '../session/memberships'
 import { resolveAgentModel } from '../session/models'
@@ -98,11 +99,19 @@ export async function _suspendStep(
 }
 
 async function park(ctx: MutationCtx, streamId: Id<'streams'>) {
+  const stream = await ctx.db.get(streamId)
+  if (!stream) return
   await ctx.db.patch(streamId, {
     status: 'awaiting_approval',
     attempt: 0,
     jobId: undefined,
     leaseExpiresAt: Date.now() + APPROVAL_LEASE_MS,
+  })
+  await notifyAgentEvent(ctx, {
+    sessionId: stream.sessionId,
+    agentId: stream.agentId,
+    kind: 'approval_required',
+    sourceMessageId: stream.processingMessageId,
   })
 }
 

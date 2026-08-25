@@ -19,6 +19,7 @@ import {
   setSegmentParts,
 } from '../messageContents'
 import { syncActivity } from '../messages'
+import { notifyUserMessage } from '../notifications'
 import * as Memberships from '../session/memberships'
 import * as Settings from '../settings'
 import { resolveSender } from './identities'
@@ -101,6 +102,16 @@ export async function runShellCommand(
   await bumpTurnCount(ctx, session._id)
   // The preview reads from text parts, which a command message has none of
   await syncActivity(ctx, session._id, [{ type: 'text', text: `$ ${command}` }])
+  if (sender.type === 'user') {
+    await notifyUserMessage(ctx, {
+      sessionId: session._id,
+      senderId: sender.id,
+      actorName: identity.senderName ?? 'User',
+      actorAvatarId: identity.senderAvatarId,
+      preview: `$ ${command}`,
+      sourceMessageId: messageId,
+    })
+  }
   await ctx.db.patch(membership._id, { lastSendAt: Date.now() })
 
   await ctx.scheduler.runAfter(0, internal.actions.userShell._run, {

@@ -224,6 +224,20 @@ export const userSessionSchema = v.object({
   userHidden: v.optional(v.boolean()),
 })
 
+/** A notification with denormalized display snapshots. */
+export const notificationSchema = v.object({
+  recipientId: v.id('users'),
+  sessionId: v.id('sessions'),
+  kind: V.notificationKindValidator,
+  status: V.notificationStatusValidator,
+  readAt: v.optional(v.number()),
+  sessionTitle: v.string(),
+  actorName: v.string(),
+  actorAvatarId: v.optional(v.id('avatars')),
+  preview: v.optional(v.string()),
+  sourceMessageId: v.optional(v.id('messages')),
+})
+
 export const typingSchema = v.object({
   sessionId: v.id('sessions'),
   userId: v.id('users'),
