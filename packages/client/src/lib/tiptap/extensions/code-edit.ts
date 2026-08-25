@@ -239,6 +239,8 @@ function adjustIndent(editor: Editor, outdent: boolean): boolean {
   const { from, to, empty } = selection
   const $from = doc.resolve(from)
   if ($from.parent.type.name !== 'codeBlock') return false
+  // Let the fallback handle selections spanning multiple text blocks
+  if (!empty && !$from.sameParent(doc.resolve(to))) return false
 
   // A caret indent simply inserts the indent unit at the cursor
   if (empty && !outdent) {

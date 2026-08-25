@@ -11,6 +11,7 @@ import { Markdown } from '@/lib/tiptap/extensions/markdown'
 import { MarkdownClipboard } from '@/lib/tiptap/extensions/markdown-clipboard'
 import { MarkdownMath } from '@/lib/tiptap/extensions/markdown-math'
 import { RevealInsert } from '@/lib/tiptap/extensions/reveal-insert'
+import { TabIndent } from '@/lib/tiptap/extensions/tab-indent'
 import type { Extensions } from '@tiptap/core'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { Table } from '@tiptap/extension-table'
@@ -74,6 +75,7 @@ export function editorKit({
     LineBreaks,
     BlockOpeners,
     RevealInsert,
+    TabIndent,
     ...(placeholder ? [Placeholder.configure({ placeholder })] : []),
   ]
 }

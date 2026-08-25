@@ -4,6 +4,7 @@ import { theme, themeName } from '@/lib/shiki/theme'
 import { CodeEdit } from '@/lib/tiptap/extensions/code-edit'
 import { RevealInsert } from '@/lib/tiptap/extensions/reveal-insert'
 import { SnippetStops } from '@/lib/tiptap/extensions/snippet-stops'
+import { TabIndent } from '@/lib/tiptap/extensions/tab-indent'
 import { cn } from '@/lib/utils'
 import { Node } from '@tiptap/core'
 import { Placeholder } from '@tiptap/extension-placeholder'
@@ -96,6 +97,8 @@ export function CodeEditor({
       CodeEdit,
       RevealInsert,
       SnippetStops,
+      // CodeEdit already handles Tab, this guards odd selection states
+      TabIndent,
       // Mutually exclusive with the gutter (shared pre::before pseudo-element)
       ...(placeholder && !lineNumbers
         ? [Placeholder.configure({ placeholder })]

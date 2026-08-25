@@ -91,12 +91,15 @@ function indentCodeRegion(editor: Editor, outdent: boolean): boolean {
   if (!inInterpreterCode(state)) return false
 
   const { from, to, empty } = state.selection
+  const $from = state.doc.resolve(from)
+  // Let the fallback handle selections spanning multiple text blocks
+  if (!empty && !$from.sameParent(state.doc.resolve(to))) return false
+
   if (empty && !outdent) {
     editor.view.dispatch(state.tr.insertText(INDENT_UNIT, from))
     return true
   }
 
-  const $from = state.doc.resolve(from)
   const lines = blockLines($from.parent, $from.start())
   const tr = state.tr
   let shift = 0
