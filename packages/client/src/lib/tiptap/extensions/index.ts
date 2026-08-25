@@ -4,6 +4,7 @@
 
 export * from './block-openers'
 export * from './code-edit'
+export * from './hard-break'
 export * from './interpreter-input'
 export * from './line-breaks'
 export * from './markdown-clipboard'

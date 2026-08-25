@@ -75,7 +75,7 @@ export function FileChangeBlock({
       className="w-full"
       label={
         <>
-          {verb}{' '}
+          {verb}{path && ' '}
           <span className="text-foreground font-mono">{path ?? '…'}</span>
         </>
       }

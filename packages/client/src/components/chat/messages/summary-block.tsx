@@ -15,7 +15,7 @@ export function SummaryBlock({ message }: { message: UIMessage }) {
   const textPart = message.parts.find(isTextUIPart)
   if (!textPart) return null
 
-  const label = isStreaming ? 'Summarizing...' : 'Summary'
+  const label = isStreaming ? 'Summarizing…' : 'Summary'
 
   return (
     <CollapsibleBlock

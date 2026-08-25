@@ -25,7 +25,7 @@ function CommandRoot({
 
 function CommandDialog({
   title = 'Command Palette',
-  description = 'Search for a command to run...',
+  description = 'Search for a command to run…',
   children,
   className,
   showCloseButton = false,

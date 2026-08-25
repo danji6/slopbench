@@ -1,4 +1,6 @@
 /// <reference types="bun-types" />
+import { BlockOpeners } from '@/lib/tiptap/extensions/block-openers'
+import { HardBreakKeys } from '@/lib/tiptap/extensions/hard-break'
 import { LineBreaks } from '@/lib/tiptap/extensions/line-breaks'
 import { Markdown } from '@/lib/tiptap/extensions/markdown'
 import { serializeDocumentToMarkdown } from '@/lib/tiptap/serialize'
@@ -18,8 +20,15 @@ afterEach(() => {
 })
 
 function open(markdown: string): Editor {
+  // Mirrors how `editorKit` composes the shortcut-relevant extensions
   editor = new Editor({
-    extensions: [StarterKit, Markdown, LineBreaks],
+    extensions: [
+      StarterKit.configure({ codeBlock: false, hardBreak: false }),
+      Markdown,
+      LineBreaks,
+      HardBreakKeys,
+      BlockOpeners,
+    ],
     content: markdown,
     contentType: 'markdown',
   })
@@ -84,5 +93,50 @@ describe('LineBreaks', () => {
     caretAtLineStart(e, 'body')
     e.commands.keyboardShortcut('Backspace')
     expect(serializeDocumentToMarkdown(e)).not.toContain('# Head\nbody')
+  })
+})
+
+// Whichever chord sends, the other must escape headers and lists exactly like
+// plain Enter would instead of trapping the caret with a break inside them
+describe('Shift+Enter', () => {
+  test('inserts a line break just like Enter', () => {
+    const e = open('a')
+    e.commands.focus('end')
+    e.commands.keyboardShortcut('Shift-Enter')
+    e.commands.insertContent('b')
+    expect(serializeDocumentToMarkdown(e)).toBe('a\nb')
+  })
+
+  test('in a list still makes a list item', () => {
+    const e = open('- one')
+    e.commands.focus('end')
+    e.commands.keyboardShortcut('Shift-Enter')
+    e.commands.insertContent('two')
+    expect(serializeDocumentToMarkdown(e)).toBe('- one\n- two')
+  })
+
+  test('leaves an empty list item like Enter', () => {
+    const e = open('- one')
+    e.commands.focus('end')
+    e.commands.keyboardShortcut('Shift-Enter')
+    e.commands.keyboardShortcut('Shift-Enter')
+    e.commands.insertContent('out')
+    expect(serializeDocumentToMarkdown(e)).toBe('- one\n\nout')
+  })
+
+  test('leaves a heading like Enter', () => {
+    const e = open('# Head')
+    e.commands.focus('end')
+    e.commands.keyboardShortcut('Shift-Enter')
+    e.commands.insertContent('body')
+    expect(serializeDocumentToMarkdown(e)).toBe('# Head\n\nbody')
+  })
+
+  test('Mod+Enter still inserts a break', () => {
+    const e = open('a')
+    e.commands.focus('end')
+    e.commands.keyboardShortcut('Mod-Enter')
+    e.commands.insertContent('b')
+    expect(serializeDocumentToMarkdown(e)).toBe('a\nb')
   })
 })

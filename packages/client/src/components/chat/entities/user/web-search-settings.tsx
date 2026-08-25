@@ -109,7 +109,7 @@ function WebSearchInstanceList({
       fields={['engine', 'url']}
       pageSize={10}
       searchThreshold={5}
-      searchPlaceholder="Search instances..."
+      searchPlaceholder="Search instances…"
       actions={
         <RippleButton
           type="button"

@@ -29,7 +29,10 @@ export function JoinSessionButton({
         onClick?.(e)
         setOpen(true)
       }}
-      className={cn(!collapsed && 'h-11 w-full justify-center', className)}
+      className={cn(
+        collapsed ? 'text-muted-foreground' : 'h-11 w-full justify-center',
+        className,
+      )}
     >
       <LogInIcon />
     </RippleButton>

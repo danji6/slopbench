@@ -68,7 +68,7 @@ export function ModelPicker({
         disabled={disabled || isLoading || models.length === 0}
         {...props}
       >
-        <Combobox.DisplayValue placeholder="Select model...">
+        <Combobox.DisplayValue placeholder="Select model…">
           {(val) => {
             const m = models.find((m) => m.id === val)
             return m ? (m.label ?? m.id) : undefined

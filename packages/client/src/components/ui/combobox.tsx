@@ -224,7 +224,7 @@ function ComboboxContent({
 }
 
 function ComboboxSearch({
-  placeholder = 'Search...',
+  placeholder = 'Search…',
   onValueChange,
   ...props
 }: React.ComponentProps<typeof Command.CommandInput>) {

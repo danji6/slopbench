@@ -1,5 +1,7 @@
 import { openLineBlock } from '@/lib/tiptap/extensions/block-openers'
+import { newlineKeepIndent } from '@/lib/tiptap/extensions/code-edit'
 import { inTopLevelParagraph } from '@/lib/tiptap/lines'
+import type { KeyboardShortcutCommand } from '@tiptap/core'
 import { Extension } from '@tiptap/core'
 import { TextSelection } from '@tiptap/pm/state'
 
@@ -7,6 +9,7 @@ import { TextSelection } from '@tiptap/pm/state'
  * Makes a single Enter insert a line break rather than split the paragraph.
  * Pressing Enter twice still creates a paragraph break, and a line that opens
  * a block becomes that block instead (see {@link BlockOpeners}).
+ * Shift+Enter mirrors the same behavior ({@linkcode HardBreakKeys}).
  */
 export const LineBreaks = Extension.create({
   name: 'lineBreaks',
@@ -14,15 +17,32 @@ export const LineBreaks = Extension.create({
   priority: 150,
 
   addKeyboardShortcuts() {
+    const newline: KeyboardShortcutCommand = ({ editor }) => {
+      const { state } = editor
+      const { $from, empty } = state.selection
+      if (!empty || !inTopLevelParagraph($from)) return false
+
+      if (openLineBlock(editor)) return true
+
+      return editor.commands.setHardBreak()
+    }
+
     return {
-      Enter: ({ editor }) => {
-        const { state } = editor
-        const { $from, empty } = state.selection
-        if (!empty || !inTopLevelParagraph($from)) return false
+      Enter: newline,
 
-        if (openLineBlock(editor)) return true
-
-        return editor.commands.setHardBreak()
+      // Same handlers as normal Enter
+      'Shift-Enter': ({ editor }) => {
+        if (newlineKeepIndent(editor)) return true
+        if (newline({ editor })) return true
+        if (editor.state.schema.nodes.listItem) {
+          if (editor.commands.splitListItem('listItem')) return true
+        }
+        return (
+          editor.commands.newlineInCode() ||
+          editor.commands.createParagraphNear() ||
+          editor.commands.liftEmptyBlock() ||
+          editor.commands.splitBlock()
+        )
       },
 
       // Backspace at the start of a paragraph takes the blank line away and

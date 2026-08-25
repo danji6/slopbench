@@ -226,7 +226,7 @@ export function collapsePath(input: string): string {
 
   if (segments.length - 1 <= 5) return input
 
-  return [segments[0], '...', ...segments.slice(-2)].join(sep)
+  return [segments[0], '…', ...segments.slice(-2)].join(sep)
 }
 
 export async function readRequestBody(

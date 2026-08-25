@@ -73,7 +73,7 @@ export function ChatAgentPicker({
           )}
           aria-label="Select agent"
         >
-          <Combobox.DisplayValue placeholder="Select agent...">
+          <Combobox.DisplayValue placeholder="Select agent…">
             <AgentItemLabel agent={displayAgent} />
           </Combobox.DisplayValue>
         </Combobox.Trigger>

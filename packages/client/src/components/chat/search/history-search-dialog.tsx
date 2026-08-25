@@ -3,7 +3,7 @@ import { useAvatarUrls } from '@/hooks/chat'
 import { type MessageSearchResult, useMessageSearch } from '@/hooks/chat/search'
 import { useActiveSessionId } from '@/hooks/chat/session'
 import type { MessageRole } from '@/lib/chat'
-import { formatRelativeTime } from '@/lib/utils'
+import { cn, formatRelativeTime } from '@/lib/utils'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { BotIcon, CogIcon, SearchIcon, UserIcon } from 'lucide-react'
 import { type ReactNode, useCallback } from 'react'
@@ -54,14 +54,17 @@ export function HistorySearchDialog({
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <Dialog.Content
         showCloseButton={false}
-        className="top-[15%] flex max-h-[70vh] translate-y-0 flex-col gap-3 overflow-hidden p-3 sm:max-w-xl"
+        className={cn(
+          'top-[15%] flex max-h-[70vh] translate-y-0 flex-col gap-3 overflow-hidden p-3 sm:max-w-xl',
+          !term && results.length === 0 && 'pb-0',
+        )}
       >
         <Dialog.Title className="sr-only">Search messages</Dialog.Title>
         <div className="flex items-center gap-2 px-1">
           <SearchIcon className="text-muted-foreground size-5 shrink-0" />
           <Input
             autoFocus
-            placeholder="Search this conversation..."
+            placeholder="Search this conversation…"
             value={query}
             onValueChange={setSearch}
             className="h-10 border-0 bg-transparent px-1 shadow-none"

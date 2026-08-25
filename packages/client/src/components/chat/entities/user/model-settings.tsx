@@ -227,11 +227,11 @@ function ProviderCard({
               className="w-full max-w-64 justify-between"
               disabled={!providers}
             >
-              <Combobox.DisplayValue placeholder="Select provider...">
+              <Combobox.DisplayValue placeholder="Select provider…">
                 {(val) => {
                   if (!val) return undefined
-                  if (val === '_other') return 'Other...'
-                  if (!providers) return 'Loading...'
+                  if (val === '_other') return 'Other…'
+                  if (!providers) return 'Loading…'
                   return providers.find((t) => t.value === val)?.label ?? val
                 }}
               </Combobox.DisplayValue>
@@ -244,7 +244,7 @@ function ProviderCard({
                       {t.label}
                     </Combobox.Item>
                   ))}
-                  <Combobox.Item value="_other">Other...</Combobox.Item>
+                  <Combobox.Item value="_other">Other…</Combobox.Item>
                 </Combobox.List>
               )}
             </Combobox.Content>

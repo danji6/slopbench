@@ -50,7 +50,7 @@ const Ellipsis = ({ size = 24, ...props }: SpinnerVariantProps) => {
       xmlns="http://www.w3.org/2000/svg"
       {...props}
     >
-      <title>Loading...</title>
+      <title>Loading…</title>
       <circle cx="4" cy="12" fill="currentColor" r="2">
         <animate
           attributeName="cy"
@@ -96,7 +96,7 @@ const Ring = ({ size = 24, ...props }: SpinnerVariantProps) => (
     xmlns="http://www.w3.org/2000/svg"
     {...props}
   >
-    <title>Loading...</title>
+    <title>Loading…</title>
     <g fill="none" fillRule="evenodd" strokeWidth="2">
       <circle cx="22" cy="22" r="1">
         <animate
@@ -154,7 +154,7 @@ const Bars = ({ size = 24, ...props }: SpinnerVariantProps) => (
     xmlns="http://www.w3.org/2000/svg"
     {...props}
   >
-    <title>Loading...</title>
+    <title>Loading…</title>
     <style>{`
       .spinner-bar {
         animation: spinner-bars-animation .8s linear infinite;
@@ -214,7 +214,7 @@ const Infinite = ({ size = 24, ...props }: SpinnerVariantProps) => (
     xmlns="http://www.w3.org/2000/svg"
     {...props}
   >
-    <title>Loading...</title>
+    <title>Loading…</title>
     <path
       d="M24.3 30C11.4 30 5 43.3 5 50s6.4 20 19.3 20c19.3 0 32.1-40 51.4-40 C88.6 30 95 43.3 95 50s-6.4 20-19.3 20C56.4 70 43.6 30 24.3 30z"
       fill="none"

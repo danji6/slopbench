@@ -79,7 +79,7 @@ function LeftSidebar() {
         <Sidebar.Collapsed>
           <Sidebar.Header className="items-center">
             <QuickTooltip text="Expand" side="right">
-              <Sidebar.Toggle />
+              <Sidebar.Toggle className="text-muted-foreground" />
             </QuickTooltip>
             <QuickTooltip text="New Session" side="right">
               <NewSessionButton collapsed onClick={newSession} />
@@ -131,7 +131,7 @@ function RightSidebar() {
         <Sidebar.Collapsed>
           <Sidebar.Header className="items-center">
             <QuickTooltip text="Expand" side="left">
-              <Sidebar.Toggle />
+              <Sidebar.Toggle className="text-muted-foreground" />
             </QuickTooltip>
           </Sidebar.Header>
           <Sidebar.Content className="items-center">

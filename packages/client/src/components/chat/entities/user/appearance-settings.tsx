@@ -237,7 +237,7 @@ function FontFields({ values, onChange }: FontFieldsProps) {
         onValueChange={(v) => onChange({ uiFont: v || 'system' })}
         noDeselect
         allowCustom
-        placeholder="Select font..."
+        placeholder="Select font…"
         renderValue={(val) => capitalize(val || 'system')}
       >
         {fontItems}
@@ -249,7 +249,7 @@ function FontFields({ values, onChange }: FontFieldsProps) {
         onValueChange={(v) => onChange({ monoFont: v || 'system' })}
         noDeselect
         allowCustom
-        placeholder="Select font..."
+        placeholder="Select font…"
         renderValue={(val) => capitalize(val || 'system')}
       >
         {monoFontItems}
@@ -268,7 +268,7 @@ function FontFields({ values, onChange }: FontFieldsProps) {
         onValueChange={(v) => onChange({ chatFont: v || 'system' })}
         noDeselect
         allowCustom
-        placeholder="Select font..."
+        placeholder="Select font…"
         renderValue={(val) => capitalize(val || 'system')}
       >
         {fontItems}

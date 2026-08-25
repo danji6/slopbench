@@ -71,7 +71,7 @@ export function AgentCombobox({
 
 export function AgentItemLabel({
   agent,
-  placeholder = 'Select agent...',
+  placeholder = 'Select agent…',
   ...props
 }: {
   agent?: AgentItem

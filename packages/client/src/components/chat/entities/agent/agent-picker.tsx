@@ -123,7 +123,7 @@ export function AgentPicker({ className, confirmSwitch }: AgentPickerProps) {
           <Combobox.Trigger
             className={cn('h-12 flex-1', ctx.active && 'pl-2!')}
           >
-            <Combobox.DisplayValue placeholder="Select agent...">
+            <Combobox.DisplayValue placeholder="Select agent…">
               <AgentItemLabel agent={selected} />
             </Combobox.DisplayValue>
           </Combobox.Trigger>

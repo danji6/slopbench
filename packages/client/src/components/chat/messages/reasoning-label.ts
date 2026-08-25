@@ -9,7 +9,7 @@ export function useReasoningLabel(part: ReasoningPart) {
   const durationMs = part.duration ?? elapsedMs
 
   const label = useMemo(() => {
-    if (isStreaming) return 'Thinking...'
+    if (isStreaming) return 'Thinking…'
     return durationMs > 0
       ? `Thought for ${formatDuration(durationMs)}`
       : 'Thought'

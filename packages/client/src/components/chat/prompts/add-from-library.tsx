@@ -16,7 +16,7 @@ type AddFromLibraryProps = {
 export function AddFromLibrary({
   items,
   onSelect,
-  searchPlaceholder = 'Search prompts...',
+  searchPlaceholder = 'Search prompts…',
   emptyText = 'No prompts found.',
 }: AddFromLibraryProps) {
   const showSearch = items.length > LIBRARY_SEARCH_THRESHOLD

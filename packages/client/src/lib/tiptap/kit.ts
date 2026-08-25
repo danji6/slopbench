@@ -6,6 +6,7 @@ import { HtmlDecoration } from '@/lib/tiptap/decorations/html'
 import { MathDecoration } from '@/lib/tiptap/decorations/math'
 import { BlockOpeners } from '@/lib/tiptap/extensions/block-openers'
 import { CodeEdit } from '@/lib/tiptap/extensions/code-edit'
+import { HardBreakKeys } from '@/lib/tiptap/extensions/hard-break'
 import { LineBreaks } from '@/lib/tiptap/extensions/line-breaks'
 import { Markdown } from '@/lib/tiptap/extensions/markdown'
 import { MarkdownClipboard } from '@/lib/tiptap/extensions/markdown-clipboard'
@@ -49,7 +50,7 @@ export function editorKit({
   collapseBlocks = false,
 }: EditorKitOptions = {}): Extensions {
   return [
-    StarterKit.configure({ codeBlock: false }),
+    StarterKit.configure({ codeBlock: false, hardBreak: false }),
     CodeBlockShiki.configure({
       themes: { light: themeName, dark: themeName },
       customThemes: [theme],
@@ -73,6 +74,7 @@ export function editorKit({
     MarkdownClipboard.configure({ collapseBlocks }),
     CodeEdit,
     LineBreaks,
+    HardBreakKeys,
     BlockOpeners,
     RevealInsert,
     TabIndent,

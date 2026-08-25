@@ -20,8 +20,9 @@ export function NewSessionButton({
       variant={collapsed ? 'stealth' : 'outline'}
       size={collapsed ? 'icon' : 'sm'}
       className={cn(
-        !collapsed &&
-          'focus-visible:border-ring h-11 w-full justify-center font-bold focus-visible:border focus-visible:ring-0',
+        collapsed
+          ? 'text-muted-foreground'
+          : 'focus-visible:border-ring h-11 w-full justify-center font-bold focus-visible:border focus-visible:ring-0',
         className,
       )}
       {...props}

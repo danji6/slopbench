@@ -20,7 +20,7 @@ export function ParticipantList<T>({
   renderItem,
   emptyLabel,
   footer,
-  searchPlaceholder = 'Search...',
+  searchPlaceholder = 'Search…',
 }: ParticipantListProps<T>) {
   const [query, setQuery] = useState('')
 

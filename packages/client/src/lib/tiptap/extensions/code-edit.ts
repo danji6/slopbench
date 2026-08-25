@@ -201,7 +201,7 @@ export function applyIndentRules(ctx: IndentContext): IndentResult {
 }
 
 /** Inserts a newline, preserving indentation and applying any indent rules. */
-function newlineKeepIndent(editor: Editor): boolean {
+export function newlineKeepIndent(editor: Editor): boolean {
   const { state } = editor
   const { from, empty } = state.selection
   const $from = state.doc.resolve(from)

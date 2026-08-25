@@ -80,7 +80,7 @@ export function McpSettings({
           fields={['label', 'url']}
           pageSize={10}
           searchThreshold={5}
-          searchPlaceholder="Search servers..."
+          searchPlaceholder="Search servers…"
           actions={
             <RippleButton
               type="button"

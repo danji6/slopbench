@@ -26,7 +26,7 @@ export type SearchableListProps<T> = Omit<FilterableListProps<T>, 'filter'> & {
 export function SearchableList<T>({
   items,
   searchThreshold = 3,
-  searchPlaceholder = 'Search...',
+  searchPlaceholder = 'Search…',
   onSearchChange,
   searchDebounce = 250,
   actions,

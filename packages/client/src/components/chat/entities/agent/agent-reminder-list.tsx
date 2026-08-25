@@ -49,7 +49,7 @@ export function AgentReminderList({ control }: AgentReminderListProps) {
           <AddFromLibrary
             items={available}
             onSelect={handleAddLibrary}
-            searchPlaceholder="Search reminders..."
+            searchPlaceholder="Search reminders…"
             emptyText="No reminders found."
           />
         )

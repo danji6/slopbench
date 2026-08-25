@@ -63,7 +63,7 @@ export const SessionListView = memo(function SessionListView() {
         </div>
         {showSearch && (
           <Input
-            placeholder="Search..."
+            placeholder="Search…"
             value={query}
             onValueChange={handleQueryChange}
             className="border-input/50 h-10"

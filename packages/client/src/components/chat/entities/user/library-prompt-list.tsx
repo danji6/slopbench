@@ -90,7 +90,7 @@ export function LibraryPromptList({
         keys={(p) => p.id}
         fields={['name', 'content']}
         pageSize={10}
-        searchPlaceholder="Search prompts..."
+        searchPlaceholder="Search prompts…"
         actions={
           <RippleButton size="sm" variant="input" onClick={handleAdd}>
             <PlusIcon />

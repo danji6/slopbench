@@ -253,7 +253,7 @@ function ScriptsPopover({
       <Popover.Content className="w-56 p-0" align="start" side={side}>
         <Command>
           <div className="flex items-center gap-1 p-1 pb-0 **:data-[slot=command-input-wrapper]:flex-1 **:data-[slot=command-input-wrapper]:p-0">
-            <Command.CommandInput placeholder="Search scripts..." />
+            <Command.CommandInput placeholder="Search scripts…" />
             {onManage && (
               <MenuButton
                 tooltip="Manage scripts"

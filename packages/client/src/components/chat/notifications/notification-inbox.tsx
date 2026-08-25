@@ -23,6 +23,7 @@ export function NotificationInboxButton() {
               variant="stealth"
               size="icon"
               aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ''}`}
+              className="text-muted-foreground"
             />
           }
         >

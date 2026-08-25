@@ -240,7 +240,7 @@ function PickedMessage({
           </li>
         ))}
         {files.length > 3 && (
-          <li className="text-center tracking-widest">...</li>
+          <li className="text-center tracking-widest">…</li>
         )}
       </ul>
     </Message>

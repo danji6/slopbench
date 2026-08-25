@@ -111,7 +111,7 @@ export function ReminderPromptList({
         keys={(r) => r.id}
         fields={['name', 'content']}
         pageSize={10}
-        searchPlaceholder="Search reminders..."
+        searchPlaceholder="Search reminders…"
         actions={
           <div className="flex items-center gap-1">
             {extraButtons}

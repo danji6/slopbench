@@ -28,7 +28,7 @@ export class RateLimitError extends ChatError {
     public readonly nextRetryDelay: number,
     public readonly retryAt?: number,
   ) {
-    super('Rate limited, retrying...')
+    super('Rate limited, retrying…')
     this.name = 'RateLimitError'
   }
 }

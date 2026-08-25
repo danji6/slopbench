@@ -205,7 +205,7 @@ export function IconPicker({
         <Input
           value={search}
           onChange={handleSearchChange}
-          placeholder="Search icons..."
+          placeholder="Search icons…"
           className="h-8 text-sm"
         />
         <Tooltip.Provider delay={500}>
