@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, readlinkSync } from 'node:fs'
+import { readFileSync, readdirSync, readlinkSync, statSync } from 'node:fs'
 
 /** read(2) syscall numbers on x86_64 and aarch64. */
 const READ_SYSCALL_NUMBERS = new Set(['0', '63'])
@@ -12,7 +12,21 @@ const MAX_FD = 65_536
  */
 export function probeStdinWait(rootPid: number): boolean {
   if (process.platform !== 'linux') return false
-  return descendantPids(rootPid).some(isBlockedReadingPty)
+  const jobPtys = jobPtyDevices(rootPid)
+  if (jobPtys.size === 0) return false
+  return descendantPids(rootPid).some((pid) =>
+    isBlockedReadingPty(pid, jobPtys),
+  )
+}
+
+/** The root owns the pty directly in node-pty mode; `script` gives it to its child. */
+function jobPtyDevices(rootPid: number): Set<number> {
+  const devices = new Set<number>()
+  for (const pid of [rootPid, ...childPids(rootPid)]) {
+    const device = ptyDevice(pid, 0)
+    if (device !== undefined) devices.add(device)
+  }
+  return devices
 }
 
 function descendantPids(rootPid: number): number[] {
@@ -38,26 +52,44 @@ function childPids(pid: number): number[] {
   return children
 }
 
-function isBlockedReadingPty(pid: number): boolean {
+function isBlockedReadingPty(pid: number, jobPtys: Set<number>): boolean {
   try {
     return readdirSync(`/proc/${pid}/task`).some((tid) =>
-      threadBlockedReadingPty(pid, tid),
+      threadBlockedReadingPty(pid, tid, jobPtys),
     )
   } catch {
     return false
   }
 }
 
-function threadBlockedReadingPty(pid: number, tid: string): boolean {
+function threadBlockedReadingPty(
+  pid: number,
+  tid: string,
+  jobPtys: Set<number>,
+): boolean {
   try {
     const syscall = readFileSync(`/proc/${pid}/task/${tid}/syscall`, 'ascii')
     const [nr, fdHex] = syscall.trim().split(' ')
     if (!nr || !READ_SYSCALL_NUMBERS.has(nr)) return false
     const fd = Number.parseInt(fdHex, 16)
     if (!Number.isInteger(fd) || fd < 0 || fd > MAX_FD) return false
-    return readlinkSync(`/proc/${pid}/fd/${fd}`).startsWith('/dev/pts/')
+    const device = ptyDevice(pid, fd)
+    return device !== undefined && jobPtys.has(device)
   } catch {
     return false
+  }
+}
+
+function ptyDevice(pid: number, fd: number): number | undefined {
+  const path = `/proc/${pid}/fd/${fd}`
+  try {
+    const target = readlinkSync(path)
+    if (target !== '/dev/tty' && !target.startsWith('/dev/pts/')) {
+      return undefined
+    }
+    return statSync(path).rdev
+  } catch {
+    return undefined
   }
 }
 

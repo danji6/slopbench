@@ -23,6 +23,27 @@ export function getShellJobs(): ShellJobSummary[] {
   return jobs
 }
 
+/** Resolves a part to its own job without accepting a reused tool call id. */
+export function findShellJob(
+  jobs: ShellJobSummary[],
+  jobId: string | undefined,
+  toolCallId: string | undefined,
+): ShellJobSummary | undefined {
+  if (jobId) return jobs.find((job) => job.jobId === jobId)
+  if (!toolCallId) return undefined
+
+  for (let index = jobs.length - 1; index >= 0; index -= 1) {
+    const job = jobs[index]
+    if (
+      job.toolCallId === toolCallId &&
+      (job.status === 'running' || job.status === 'background')
+    ) {
+      return job
+    }
+  }
+  return undefined
+}
+
 export function subscribeToShellJobs(listener: () => void) {
   listeners.add(listener)
   return () => {

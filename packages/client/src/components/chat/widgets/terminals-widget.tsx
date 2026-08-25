@@ -39,7 +39,7 @@ export function TerminalsWidget({ className }: { className?: string }) {
     const messageId = job.messageId
     if (!messageId) return
     setOpen(false)
-    openToolBlock(job.toolCallId)
+    openToolBlock(messageId, job.toolCallId)
     seek?.({
       messageId,
       creationTime: job.messageCreatedAt,

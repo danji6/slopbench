@@ -217,6 +217,18 @@ describe('job registry', () => {
     expect(result.waiting).toBe(false)
   })
 
+  test("ignores a nested job's private terminal wait", async () => {
+    const { jobId } = await start(
+      "script -qefc 'read line' /dev/null >/dev/null 2>&1 & sleep 30",
+    )
+    await Bun.sleep(1_500)
+
+    expect(pollShellJob(jobId, session.sessionId, 0).waiting).toBe(false)
+
+    killShellJob(jobId, session.sessionId)
+    await waitForExit(jobId)
+  })
+
   test('kill_session only kills foreground jobs', async () => {
     const fg = await start('sleep 30')
     const bg = await start('sleep 30', { background: true })

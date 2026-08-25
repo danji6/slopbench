@@ -3,6 +3,7 @@ import type { ShellJobStatus, ShellJobSummary } from '@/lib/chat'
 import {
   type ListShellJobs,
   dropShellJob,
+  findShellJob,
   getShellJobs,
   retainShellJobs,
   subscribeToShellJobs,
@@ -53,12 +54,7 @@ export function useLiveShellJob(
   const { jobs } = useSessionJobs(sessionId, enabled)
 
   return useMemo(
-    () =>
-      jobs.find(
-        (job) =>
-          (jobId !== undefined && job.jobId === jobId) ||
-          (toolCallId !== undefined && job.toolCallId === toolCallId),
-      ),
+    () => findShellJob(jobs, jobId, toolCallId),
     [jobs, toolCallId, jobId],
   )
 }

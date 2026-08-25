@@ -2,7 +2,7 @@ import { Popover, QuickTooltip, RippleButton, Tabs } from '@/components/ui'
 import { notificationBody } from '@/lib/chat/notification-ui'
 import { cn, formatRelativeTime } from '@/lib/utils'
 import type { Doc } from '@sb/convex/_generated/dataModel'
-import { BellIcon, MailOpenIcon, Trash2Icon } from 'lucide-react'
+import { BellIcon, BroomIcon, MailOpenIcon } from 'lucide-react'
 import { useState } from 'react'
 
 import { NotificationAvatar } from './notification-avatar'
@@ -50,7 +50,7 @@ export function NotificationInboxButton() {
             <Tabs.Trigger value="read">Read</Tabs.Trigger>
           </Tabs.List>
           <Tabs.Panels>
-            <Tabs.Content value="unread" className="flex h-full flex-col">
+            <Tabs.Content value="unread" className="h-full">
               <NotificationPanel
                 action={
                   <RippleButton
@@ -80,7 +80,7 @@ export function NotificationInboxButton() {
                     className={cn(notifications.unread.length > 0 && 'hidden')} // prettier-ignore
                     onClick={notifications.clearRead}
                   >
-                    <Trash2Icon /> Clear
+                    <BroomIcon /> Clear all read
                   </RippleButton>
                 }
               >
@@ -108,8 +108,8 @@ function NotificationPanel({
   footer?: React.ReactNode
 }) {
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-11 shrink-0 items-center justify-end px-3 py-4">
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      <div className="flex h-11 shrink-0 items-center justify-start px-3 pt-3">
         {action}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">{children}</div>

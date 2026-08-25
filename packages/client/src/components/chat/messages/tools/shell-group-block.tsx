@@ -1,4 +1,5 @@
 import { createOptionalContext } from '@/hooks'
+import { isToolInFlight } from '@/lib/chat'
 import type { ToolUIPart } from 'ai'
 import { SquareTerminalIcon } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
@@ -39,6 +40,8 @@ export function ShellGroupBlock({
 
   const state = useMemo(() => ({ reportRunning }), [reportRunning])
 
+  const inFlight = running.size > 0 || parts.some(isToolInFlight)
+
   return (
     <ShellGroupContext.Provider value={state}>
       <CollapsibleBlock
@@ -48,7 +51,7 @@ export function ShellGroupBlock({
         leadingIcon={<SquareTerminalIcon className="size-3.5 shrink-0" />}
         label={
           <>
-            {running.size === 0 ? 'Ran' : 'Running'}{' '}
+            {inFlight ? 'Running' : 'Ran'}{' '}
             <span className="text-foreground font-medium">
               {parts.length} {parts.length === 1 ? 'command' : 'commands'}
             </span>

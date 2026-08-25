@@ -134,10 +134,11 @@ export function ShellBlock({
     typeof displayTerm === 'string' && displayTerm.trim() !== ''
   // A live job always gets a terminal, even before any output was persisted
   const hasTerminal = Boolean(jobId) && (isLive || hasTerminalText)
+  const latchKey = `${messageId}\0${part.toolCallId}`
 
   // Reveal an interactive terminal only the first time it goes live
   const revealTerminal = useLatch(
-    `reveal:${part.toolCallId}`,
+    `reveal:${latchKey}`,
     interactive || (Boolean(alwaysExpand) && hasTerminal),
   )
 
@@ -147,7 +148,7 @@ export function ShellBlock({
     [displayTerm],
   )
   const emulator = useLatch(
-    `emulator:${part.toolCallId}`,
+    `emulator:${latchKey}`,
     Boolean(waiting) || cursorAddressed,
   )
 
@@ -157,7 +158,7 @@ export function ShellBlock({
   }, [isLive, isAdmin, isBackground])
 
   // Live output uses a fixed height for stable virtualization
-  const isFixedHeight = useLatch(`live:${part.toolCallId}`, isLive)
+  const isFixedHeight = useLatch(`live:${latchKey}`, isLive)
 
   const suppressJobText = Boolean(output?.jobId) && output?.status !== 'lost'
   const fallbackText =

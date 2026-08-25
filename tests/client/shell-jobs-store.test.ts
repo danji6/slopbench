@@ -1,6 +1,7 @@
 /// <reference types="bun-types" />
 import {
   dropShellJob,
+  findShellJob,
   getShellJobs,
   retainShellJobs,
   subscribeToShellJobs,
@@ -111,5 +112,55 @@ describe('shell jobs store', () => {
     await settle()
 
     expect(getShellJobs().map((entry) => entry.jobId)).toEqual(['shell-9'])
+  })
+})
+
+describe('findShellJob', () => {
+  test('an exact job id cannot be shadowed by a reused tool-call id', () => {
+    const stale = job({
+      jobId: 'shell-1',
+      toolCallId: 'functions.shell:1',
+      waiting: true,
+    })
+    const current = job({
+      jobId: 'shell-2',
+      toolCallId: 'functions.shell:1',
+    })
+
+    expect(
+      findShellJob([stale, current], current.jobId, current.toolCallId),
+    ).toBe(current)
+  })
+
+  test('a missing exact job never falls back to a reused tool-call id', () => {
+    const stale = job({
+      jobId: 'shell-1',
+      toolCallId: 'functions.shell:1',
+      waiting: true,
+    })
+
+    expect(
+      findShellJob([stale], 'shell-missing', stale.toolCallId),
+    ).toBeUndefined()
+  })
+
+  test('an unresolved part attaches to the newest matching live job', () => {
+    const finished = job({
+      jobId: 'shell-1',
+      toolCallId: 'functions.shell:1',
+      status: 'done',
+    })
+    const older = job({
+      jobId: 'shell-2',
+      toolCallId: 'functions.shell:1',
+    })
+    const current = job({
+      jobId: 'shell-3',
+      toolCallId: 'functions.shell:1',
+    })
+
+    expect(
+      findShellJob([finished, older, current], undefined, current.toolCallId),
+    ).toBe(current)
   })
 })

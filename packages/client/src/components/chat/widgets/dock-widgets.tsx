@@ -13,11 +13,12 @@ export function DockWidgets({
   ref?: React.Ref<HTMLDivElement>
   className?: string
 }) {
+  // Reserve the row so widgets appearing cannot resize the message list.
   return (
     <div
       ref={ref}
       className={cn(
-        'pointer-events-none mb-3 flex items-center gap-2 px-1 empty:hidden',
+        'pointer-events-none mb-3 flex h-9 items-center gap-2 px-1',
         className,
       )}
     >

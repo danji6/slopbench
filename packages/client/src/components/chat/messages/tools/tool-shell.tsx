@@ -60,7 +60,7 @@ export function ToolShell({
     messageId,
     forceError,
   )
-  const [userOpen, setUserOpen] = usePersistentOpen(part.toolCallId)
+  const [userOpen, setUserOpen] = usePersistentOpen(messageId, part.toolCallId)
 
   const note = (part as { approval?: { note?: string } }).approval?.note?.trim()
   const showErrorText = Boolean(errorText) && !noErrorText
@@ -108,9 +108,14 @@ export function ToolShell({
 }
 
 /** Opens a tool block from outside the message list. */
-export function openToolBlock(toolCallId: string | undefined) {
-  if (!toolCallId || openStates.get(toolCallId) === true) return
-  openStates.set(toolCallId, true)
+export function openToolBlock(
+  messageId: string,
+  toolCallId: string | undefined,
+) {
+  if (!toolCallId) return
+  const key = openStateKey(messageId, toolCallId)
+  if (openStates.get(key) === true) return
+  openStates.set(key, true)
   openListeners.forEach((listener) => listener())
 }
 
@@ -163,19 +168,24 @@ export function useToolPart(
  * Keeps the block open when the user expands it.
  * null follows the block's own `autoExpand`.
  */
-function usePersistentOpen(id: string) {
+function openStateKey(messageId: string, toolCallId: string): string {
+  return `${messageId}\0${toolCallId}`
+}
+
+function usePersistentOpen(messageId: string, toolCallId: string) {
+  const key = openStateKey(messageId, toolCallId)
   const userOpen = useSyncExternalStore(
     subscribeToOpenStates,
-    () => openStates.get(id) ?? null,
+    () => openStates.get(key) ?? null,
     () => null,
   )
   const setUserOpen = useCallback(
     (open: boolean) => {
-      if (openStates.get(id) === open) return
-      openStates.set(id, open)
+      if (openStates.get(key) === open) return
+      openStates.set(key, open)
       openListeners.forEach((listener) => listener())
     },
-    [id],
+    [key],
   )
   return [userOpen, setUserOpen] as const
 }
