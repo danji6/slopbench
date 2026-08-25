@@ -1,4 +1,3 @@
-import { isServer } from '@/lib/utils'
 import { useEffect, useState } from 'react'
 
 export type Breakpoint = 'sm' | 'md' | 'lg' | 'xl' | '2xl'
@@ -13,13 +12,16 @@ const breakpoints: Record<Breakpoint, number> = {
 
 const query = (bp: Breakpoint) => `(max-width: ${breakpoints[bp] - 1}px)`
 
+// Checked lazily
+const hasWindow = () => typeof window !== 'undefined'
+
 export function useBreakpoint(bp: Breakpoint) {
   const [match, setMatch] = useState(
-    () => !isServer && window.matchMedia(query(bp)).matches,
+    () => hasWindow() && window.matchMedia(query(bp)).matches,
   )
 
   useEffect(() => {
-    if (isServer) return
+    if (!hasWindow()) return
 
     const m = window.matchMedia(query(bp))
 

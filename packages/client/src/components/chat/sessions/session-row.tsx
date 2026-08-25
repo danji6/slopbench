@@ -35,10 +35,15 @@ import { SessionAvatar } from './session-avatar'
 
 interface SessionRowProps {
   id: string
+  hasUnreadNotification: boolean
   rename: (id: string) => void
 }
 
-export function SessionRow({ id, rename }: SessionRowProps) {
+export function SessionRow({
+  id,
+  hasUnreadNotification,
+  rename,
+}: SessionRowProps) {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const item = useSession(id)
   const isActive = useSessionIsActive(id)
@@ -115,12 +120,10 @@ export function SessionRow({ id, rename }: SessionRowProps) {
                   onClick={handleSelect}
                 >
                   <span className="flex w-full items-center gap-1.5">
-                    {isStreaming && (
-                      <span
-                        aria-label="Streaming"
-                        className="bg-primary size-2 shrink-0 animate-pulse rounded-full"
-                      />
-                    )}
+                    <SessionStatusDot
+                      unread={hasUnreadNotification}
+                      streaming={isStreaming}
+                    />
                     {item.hidden && (
                       <EyeOffIcon className="text-muted-foreground" />
                     )}
@@ -189,6 +192,29 @@ export function SessionRow({ id, rename }: SessionRowProps) {
         onConfirm={handleDelete}
       />
     </>
+  )
+}
+
+/** Distinguishes unread activity from a currently streaming turn. */
+function SessionStatusDot({
+  unread,
+  streaming,
+}: {
+  unread: boolean
+  streaming: boolean
+}) {
+  if (!unread && !streaming) return null
+
+  const label =
+    unread && streaming ? 'Unread, streaming' : unread ? 'Unread' : 'Streaming'
+  return (
+    <span
+      aria-label={label}
+      className={cn(
+        'size-2 shrink-0 animate-pulse rounded-full',
+        unread ? 'bg-primary' : 'bg-muted-foreground/40',
+      )}
+    />
   )
 }
 

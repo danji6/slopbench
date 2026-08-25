@@ -12,6 +12,7 @@ import { useAction, useMutation } from 'convex/react'
 import { memo, useCallback, useRef, useState } from 'react'
 import { Virtualizer, type VirtualizerHandle } from 'virtua'
 
+import { useUnreadNotificationSessionIds } from '../notifications/notification-provider'
 import { SessionListMenu } from './session-list-menu'
 import { SessionRow } from './session-row'
 import { SessionTitleEditor } from './session-title-editor'
@@ -22,6 +23,7 @@ const SEARCH_DEBOUNCE = 250
 
 export const SessionListView = memo(function SessionListView() {
   const ids = useSessionIds()
+  const unreadSessionIds = useUnreadNotificationSessionIds()
   const { status, isLoadingFirstPage, loadMore } = useSessionPagination()
   const setSearch = useSessionSearch()
 
@@ -83,7 +85,11 @@ export const SessionListView = memo(function SessionListView() {
           >
             {(id) => (
               <div className="py-0.5">
-                <SessionRow id={id} rename={rename} />
+                <SessionRow
+                  id={id}
+                  hasUnreadNotification={unreadSessionIds.has(id)}
+                  rename={rename}
+                />
               </div>
             )}
           </Virtualizer>

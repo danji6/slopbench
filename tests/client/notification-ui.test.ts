@@ -5,6 +5,7 @@ import {
   notificationDocumentTitle,
 } from '@/lib/notification-favicon'
 import { chooseNotificationSurface } from '@/lib/notification-presence'
+import { APP_NAME } from '@sb/core/const'
 import { describe, expect, test } from 'bun:test'
 
 const item = {
@@ -35,13 +36,13 @@ describe('notification presentation', () => {
 describe('tab badge labels', () => {
   test('restores the base title at zero', () => {
     expect(notificationBadgeLabel(0)).toBe('')
-    expect(notificationDocumentTitle(0)).toBe('Chat')
+    expect(notificationDocumentTitle(0)).toBe(APP_NAME)
   })
 
   test('shows single digits and clamps the favicon at 9+', () => {
     expect(notificationBadgeLabel(7)).toBe('7')
     expect(notificationBadgeLabel(10)).toBe('9+')
-    expect(notificationDocumentTitle(42)).toBe('(42) Chat')
+    expect(notificationDocumentTitle(42)).toBe(`(42) ${APP_NAME}`)
   })
 })
 

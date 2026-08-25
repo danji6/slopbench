@@ -595,11 +595,17 @@ export async function _complete(
     const previewParts = message
       ? (await listSelectedSegments(ctx, message)).flatMap((row) => row.parts)
       : parts
+
+    const previewMessage =
+      stream.operation === 'compact'
+        ? 'Compaction finished'
+        : notificationPreviewFromParts(previewParts)
+
     await notifyAgentEvent(ctx, {
       sessionId: stream.sessionId,
       agentId: stream.agentId,
       kind: 'turn_completed',
-      preview: notificationPreviewFromParts(previewParts),
+      preview: previewMessage,
       sourceMessageId: stream.processingMessageId,
     })
   }

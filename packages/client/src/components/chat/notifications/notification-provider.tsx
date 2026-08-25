@@ -15,7 +15,9 @@ import {
 } from '@/lib/notification-presence'
 import { toast } from '@/lib/notifications'
 import { api } from '@sb/convex/_generated/api'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Doc, Id } from '@sb/convex/_generated/dataModel'
+import { MAX_READ_NOTIFICATIONS } from '@sb/core/limits'
+import type { OptimisticLocalStore } from 'convex/browser'
 import { useMutation, useQuery } from 'convex/react'
 import {
   type ReactNode,
@@ -35,6 +37,7 @@ type NotificationContextValue = {
   unread: NotificationItem[]
   read: NotificationItem[]
   desktopPermission: DesktopPermission
+  openSession: (notification: NotificationItem) => void
   show: (notification: NotificationItem) => void
   markRead: (notification: NotificationItem) => void
   markAllRead: () => void
@@ -47,6 +50,15 @@ const [NotificationContext, useNotifications] =
 
 export { useNotifications }
 
+/** Returns the session IDs represented in the current unread inbox. */
+export function useUnreadNotificationSessionIds() {
+  const { unread } = useNotifications()
+  return useMemo(
+    () => new Set<string>(unread.map((notification) => notification.sessionId)),
+    [unread],
+  )
+}
+
 /** Coordinates inbox state and contextual delivery across browser tabs. */
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const unreadResult = useQuery(api.notifications.list, { status: 'unread' })
@@ -55,7 +67,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const read = useMemo(() => readResult ?? [], [readResult])
   const activeSessionId = useActiveSessionId()
   const [, navigate] = useLocation()
-  const markReadMutation = useMutation(api.notifications.markRead)
+  const markReadMutation = useMutation(
+    api.notifications.markRead,
+  ).withOptimisticUpdate(optimisticallyMarkNotificationRead)
   const markManyRead = useMutation(api.notifications.markManyRead)
   const markAllReadMutation = useMutation(api.notifications.markAllRead)
   const markSessionRead = useMutation(api.notifications.markSessionRead)
@@ -77,13 +91,23 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     [markReadMutation],
   )
 
-  const show = useCallback(
+  const openSession = useCallback(
     (notification: NotificationItem) => {
-      if (notification.status === 'unread') markRead(notification)
-      navigate(`/?id=${notification.sessionId}`)
-      window.focus()
+      navigate(`/?id=${notification.sessionId}`, { replace: true })
+      if (notification.status === 'unread') {
+        // Let the destination render before starting notification bookkeeping
+        window.setTimeout(() => markRead(notification), 0)
+      }
     },
     [markRead, navigate],
+  )
+
+  const show = useCallback(
+    (notification: NotificationItem) => {
+      openSession(notification)
+      window.focus()
+    },
+    [openSession],
   )
 
   const markAll = useCallback(() => {
@@ -118,12 +142,16 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           notificationIds: [event.data.notificationId as Id<'notifications'>],
         })
       }
+      if (event.data.action === 'show' && event.data.sessionId) {
+        navigate(`/?id=${event.data.sessionId}`)
+        window.focus()
+      }
     }
     navigator.serviceWorker.addEventListener('message', onMessage)
     void drainPendingWorkerActions(markManyRead)
     return () =>
       navigator.serviceWorker.removeEventListener('message', onMessage)
-  }, [markManyRead])
+  }, [markManyRead, navigate])
 
   useEffect(() => {
     if (!activeSessionId) return
@@ -185,6 +213,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         unread,
         read,
         desktopPermission,
+        openSession,
         show,
         markRead,
         markAllRead: markAll,
@@ -194,6 +223,38 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     >
       {children}
     </NotificationContext.Provider>
+  )
+}
+
+/** Moves one notification between the subscribed inbox lists immediately. */
+function optimisticallyMarkNotificationRead(
+  store: OptimisticLocalStore,
+  { notificationId }: { notificationId: Id<'notifications'> },
+) {
+  const unreadArgs = { status: 'unread' as const }
+  const unread = store.getQuery(api.notifications.list, unreadArgs)
+  const notification = unread?.find((item) => item._id === notificationId)
+  if (!unread || !notification) return
+
+  store.setQuery(
+    api.notifications.list,
+    unreadArgs,
+    unread.filter((item) => item._id !== notificationId),
+  )
+
+  const readArgs = { status: 'read' as const }
+  const read = store.getQuery(api.notifications.list, readArgs)
+  if (!read) return
+
+  const readNotification: Doc<'notifications'> = {
+    ...notification,
+    status: 'read',
+    readAt: Date.now(),
+  }
+  store.setQuery(
+    api.notifications.list,
+    readArgs,
+    [readNotification, ...read].slice(0, MAX_READ_NOTIFICATIONS),
   )
 }
 
@@ -274,10 +335,7 @@ async function showDesktopNotification(notification: NotificationItem) {
       notificationId: notification._id,
       sessionId: notification.sessionId,
     },
-    actions: [
-      { action: 'show', title: 'Show' },
-      { action: 'dismiss', title: 'Dismiss' },
-    ],
+    actions: [{ action: 'dismiss', title: 'Dismiss' }],
   }
   await registration.showNotification(notification.actorName, options)
 }
@@ -445,5 +503,7 @@ function pageIsFocused() {
 
 type WorkerAction = {
   type: 'slopbench:notification-action'
+  action?: 'read' | 'show'
   notificationId?: string
+  sessionId?: string
 }

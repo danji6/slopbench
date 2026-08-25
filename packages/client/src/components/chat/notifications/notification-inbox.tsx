@@ -108,7 +108,7 @@ function NotificationPanel({
 }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-11 shrink-0 items-center justify-end px-3 pt-4 pb-2">
+      <div className="flex h-11 shrink-0 items-center justify-end px-3 py-4">
         {action}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">{children}</div>
@@ -177,35 +177,43 @@ function NotificationRow({
   notification: Doc<'notifications'>
   unread: boolean
 }) {
-  const { show, markRead } = useNotifications()
+  const { openSession, markRead } = useNotifications()
 
   return (
-    <div className="hover:bg-m3-surface-container-high group flex items-center rounded-lg">
-      <button
-        type="button"
-        className="focus-visible:ring-ring flex min-w-0 flex-1 items-start gap-2 rounded-lg p-2 text-left outline-none focus-visible:ring-1"
-        onClick={() => show(notification)}
+    <div
+      className={cn(
+        'hover:bg-m3-surface-container-high group flex items-center rounded-lg',
+        !unread && 'text-muted-foreground',
+      )}
+    >
+      <Popover.Close
+        render={
+          <RippleButton variant={null} size={null} rippleVariant="stealth" />
+        }
+        className="min-w-0 flex-1 shrink items-start justify-start gap-2 rounded-lg p-2 text-left font-normal whitespace-normal"
+        onClick={() => openSession(notification)}
       >
-        <NotificationAvatar notification={notification} />
+        <NotificationAvatar
+          notification={notification}
+          className={cn(!unread && 'opacity-70')}
+        />
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline gap-1">
             <span className="truncate font-medium">
               {notification.actorName}
             </span>
-            <span className="text-muted-foreground ml-auto shrink-0 text-[11px]">
+            <span className="text-muted-foreground ml-auto shrink-0 text-xs">
               {formatRelativeTime(
                 notification.readAt ?? notification._creationTime,
               )}
             </span>
           </span>
-          <span className="line-clamp-2 text-xs">
-            {notificationBody(notification)}
-          </span>
-          <span className="text-muted-foreground block truncate text-[11px]">
+          <span className="line-clamp-2">{notificationBody(notification)}</span>
+          <span className="text-muted-foreground block truncate text-xs">
             {notification.sessionTitle}
           </span>
         </span>
-      </button>
+      </Popover.Close>
       {unread && (
         <RippleButton
           variant="stealth"

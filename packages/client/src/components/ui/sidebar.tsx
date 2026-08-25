@@ -1,4 +1,4 @@
-import { useBreakpoint } from '@/hooks'
+import { useBreakpoint } from '@/hooks/breakpoint'
 import { cn } from '@/lib/utils'
 import { PanelLeftIcon, PanelRightIcon, PinIcon } from 'lucide-react'
 import { motion } from 'motion/react'
@@ -148,7 +148,7 @@ function SidebarRoot({
   const localRef = useRef<HTMLDivElement>(null)
   const rootRef = useContext(SidebarShellContext) ?? localRef
 
-  const isPinned = pinned !== undefined ? pinned : internalPinned
+  const isPinned = !isMobile && (pinned !== undefined ? pinned : internalPinned)
 
   const togglePinned = useCallback(() => {
     const next = !isPinned

@@ -4,6 +4,15 @@
 const ACTION_CACHE = 'slopbench-notification-actions-v1'
 const ACTION_PATH = '/__notification_actions__/'
 
+// This worker has no fetch lifecycle, so updates are safe to activate immediately
+self.addEventListener('install', (event) => {
+  event.waitUntil(self.skipWaiting())
+})
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim())
+})
+
 // Native notification clicks can arrive without any app tab running
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
@@ -29,6 +38,7 @@ async function markRead(notificationId) {
     for (const client of windows) {
       client.postMessage({
         type: 'slopbench:notification-action',
+        action: 'read',
         notificationId,
       })
     }
@@ -45,7 +55,6 @@ async function markRead(notificationId) {
 
 /** Marks the alert read, then focuses or opens its session. */
 async function showSession(notificationId, sessionId) {
-  await markRead(notificationId)
   if (!sessionId) return
   const destination = new URL(
     `/?id=${encodeURIComponent(sessionId)}`,
@@ -55,10 +64,19 @@ async function showSession(notificationId, sessionId) {
     type: 'window',
     includeUncontrolled: true,
   })
-  const client = windows[0]
+  const client =
+    windows.find((window) => window.focused) ||
+    windows.find((window) => window.visibilityState === 'visible') ||
+    windows[0]
   if (client) {
-    await client.navigate(destination)
+    client.postMessage({
+      type: 'slopbench:notification-action',
+      action: 'show',
+      notificationId,
+      sessionId,
+    })
     return client.focus()
   }
+  await markRead(notificationId)
   return self.clients.openWindow(destination)
 }
