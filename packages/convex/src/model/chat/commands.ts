@@ -1,7 +1,7 @@
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import { error, sanitizeChatError } from '../../errors'
-import type { AuthMutationCtx } from '../../functions'
+import type { AuthMutationCtx, AuthQueryCtx } from '../../functions'
 import type {
   CommandName,
   CommandStatus,
@@ -17,7 +17,11 @@ import { executeCompact, executeImpersonate, executeResume } from './send'
 /** How many commands a session may keep waiting for an idle moment. */
 const MAX_QUEUED_COMMANDS = 10
 
-type CommandInvocation = { name: CommandName; argument?: string }
+type CommandInvocation = {
+  name: CommandName
+  argument?: string
+  requestId?: string
+}
 
 export function compact(
   ctx: AuthMutationCtx,
@@ -54,15 +58,25 @@ export function resumeAgentMessage(
 
 export function resetSessionCache(
   ctx: AuthMutationCtx,
-  { sessionId }: { sessionId: Id<'sessions'> },
+  { sessionId, requestId }: { sessionId: Id<'sessions'>; requestId?: string },
 ) {
-  return invokeCommand(ctx, sessionId, { name: 'eval' })
+  return invokeCommand(ctx, sessionId, { name: 'eval', requestId })
 }
 
-/**
- * Runs a command, or defers it to the next idle moment when the agent is
- * responding. Either way the transcript gets a chip announcing it.
- */
+/** Whether the caller's requested command is still waiting to run. */
+export async function isCommandQueued(
+  ctx: AuthQueryCtx,
+  { sessionId, requestId }: { sessionId: Id<'sessions'>; requestId: string },
+) {
+  await Memberships.requireMember(ctx, sessionId, ctx.userId)
+  const queue = (await getState(ctx, sessionId))?.commandQueue ?? []
+
+  return queue.some(
+    (entry) => entry.invokedBy === ctx.userId && entry.requestId === requestId,
+  )
+}
+
+/** Runs a command, or defers it to the next idle moment when the agent is busy. */
 async function invokeCommand(
   ctx: AuthMutationCtx,
   sessionId: Id<'sessions'>,
@@ -81,14 +95,20 @@ async function invokeCommand(
     error('Too many commands are already waiting', 409)
   }
 
-  const messageId = await insertCommandChip(
-    ctx,
-    session,
-    ctx.userId,
-    command,
-    defer ? 'queued' : 'ran',
-  )
-  const entry: QueuedCommand = { ...command, invokedBy: ctx.userId, messageId }
+  const messageId = commandCreatesMessage(command.name)
+    ? await insertCommandChip(
+        ctx,
+        session,
+        ctx.userId,
+        command,
+        defer ? 'queued' : 'ran',
+      )
+    : undefined
+  const entry: QueuedCommand = {
+    ...command,
+    invokedBy: ctx.userId,
+    ...(messageId && { messageId }),
+  }
 
   if (defer) {
     await patchState(ctx, sessionId, { commandQueue: [...queue, entry] })
@@ -97,6 +117,11 @@ async function invokeCommand(
 
   await executeCommand(ctx, session, entry)
   return { queued: false }
+}
+
+/** Whether the command creates a new message after its invocation boundary. */
+function commandCreatesMessage(name: CommandName) {
+  return name === 'compact' || name === 'impersonate'
 }
 
 /** Runs everything that has been waiting, until the session gets busy again. */
@@ -124,14 +149,16 @@ async function runQueuedCommand(
   session: Doc<'sessions'>,
   entry: QueuedCommand,
 ) {
-  // Deleting the chip is how the user cancels a waiting command
-  if (!(await ctx.db.get(entry.messageId))) return
+  // Deleting a visible chip is how the user cancels its waiting command
+  if (entry.messageId && !(await ctx.db.get(entry.messageId))) return
 
   try {
     await executeCommand(ctx, session, entry)
-    await markChip(ctx, entry.messageId, 'ran')
+    if (entry.messageId) await markChip(ctx, entry.messageId, 'ran')
   } catch (err) {
-    await markChip(ctx, entry.messageId, 'failed', sanitizeChatError(err))
+    if (entry.messageId) {
+      await markChip(ctx, entry.messageId, 'failed', sanitizeChatError(err))
+    }
   }
 }
 
@@ -172,7 +199,11 @@ async function insertCommandChip(
       status: 'done',
       type: 'command',
       hidden: true,
-      extra: { ...command, status } satisfies MessageExtra['command'],
+      extra: {
+        name: command.name,
+        argument: command.argument,
+        status,
+      } satisfies MessageExtra['command'],
     },
     [],
   )

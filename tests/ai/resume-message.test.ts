@@ -1,4 +1,5 @@
 /// <reference types="bun-types" />
+import { resumeAgentMessage } from '@sb/convex/model/chat/commands'
 import { executeResume } from '@sb/convex/model/chat/send'
 import { describe, expect, test } from 'bun:test'
 
@@ -56,6 +57,9 @@ function resumeCtx({
           if (table === 'streams') {
             return { first: async () => null }
           }
+          if (table === 'sessionState') {
+            return { unique: async () => null }
+          }
           if (table === 'messages') {
             return {
               order: () => ({
@@ -97,6 +101,26 @@ function resumeCtx({
 }
 
 describe('executeResume', () => {
+  test('invokes resume without inserting a command chip', async () => {
+    const assistant = {
+      _id: 'assistant_1',
+      _creationTime: 20,
+      sessionId: 'session_1',
+      role: 'assistant',
+      sender: { type: 'agent', id: 'agent_original' },
+      status: 'done',
+      contextEligible: true,
+    }
+    const { ctx, inserts } = resumeCtx({
+      messages: [assistant],
+      boundary: null,
+    })
+
+    await resumeAgentMessage(ctx, { sessionId: 'session_1' as never })
+
+    expect(inserts.map(({ table }) => table)).toEqual(['streams'])
+  })
+
   test('resumes the latest normal assistant message behind newer user messages', async () => {
     const assistant = {
       _id: 'assistant_1',

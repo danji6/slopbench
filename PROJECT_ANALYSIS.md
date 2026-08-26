@@ -805,10 +805,15 @@ Commands are registered in `packages/client/src/lib/chat/commands`:
 
 Commands that the server runs — `compact`, `eval`, `impersonate`, `resume` —
 are gated on an idle session. Invoking one while a stream is active appends it
-to the session state's `commandQueue` (bounded at 10) and inserts a hidden
-zero-part `command` chip message announcing it; the queue drains when the
-stream ends, and each chip's `extra.status` moves from `queued` to `ran` or
-`failed`. Client code filters these chips out of normal rendering paths.
+to the session state's `commandQueue` (bounded at 10); the queue drains when
+the stream ends. `compact` and `impersonate`, which create new transcript
+messages, insert a hidden zero-part `command` chip announcing them, and each
+chip's `extra.status` moves from `queued` to `ran` or `failed`. Resume has no
+chip because its output continues an older assistant message. Eval has no chip
+because it only invalidates the frozen prompt/tool snapshot; the invoking
+client tracks queued eval completion by request ID and shows an environment
+update toast. Client code filters legacy and current command chips out of
+normal rendering paths.
 
 The command palette and the agent combobox score cmdk `keywords` rather than
 the option's `value` (`lib/command-filter.ts`), so an opaque id can never

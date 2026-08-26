@@ -39,12 +39,13 @@ export const commandNameValidator = v.union(
   v.literal('resume'),
 )
 
-/** One command awaiting an idle session, with the chip that announces it. */
+/** One command awaiting an idle session, optionally with an announcing chip. */
 export const queuedCommandValidator = v.object({
   name: commandNameValidator,
   argument: v.optional(v.string()),
   invokedBy: v.id('users'),
-  messageId: v.id('messages'),
+  requestId: v.optional(v.string()),
+  messageId: v.optional(v.id('messages')),
 })
 
 export const messageStatusValidator = v.union(

@@ -1,11 +1,19 @@
 /// <reference types="bun-types" />
-import { drainCommandQueue } from '@sb/convex/model/chat/commands'
+import {
+  drainCommandQueue,
+  isCommandQueued,
+} from '@sb/convex/model/chat/commands'
 import { describe, expect, test } from 'bun:test'
 
 import { fakeSessionState } from '../setup/session-state'
 
 type Doc = Record<string, unknown>
-type Entry = { name: string; invokedBy: string; messageId: string }
+type Entry = {
+  name: string
+  invokedBy: string
+  requestId?: string
+  messageId?: string
+}
 
 const activeStream = () => ({
   _id: 'stream_1',
@@ -39,6 +47,7 @@ function drainCtx({
   ])
 
   for (const item of queue) {
+    if (!item.messageId) continue
     if (deletedChips.includes(item.messageId)) continue
     docs.set(item.messageId, {
       _id: item.messageId,
@@ -50,6 +59,7 @@ function drainCtx({
   const q = { eq: () => q, gt: () => q, lt: () => q }
 
   const ctx = {
+    userId: 'user_1',
     db: {
       get: async (id: string) => docs.get(id) ?? null,
       patch: async (id: string, patch: Doc) => {
@@ -63,6 +73,9 @@ function drainCtx({
         withIndex: (_index: string, cb: (query: typeof q) => typeof q) => {
           cb(q)
           if (table === 'sessionState') return state.query()
+          if (table === 'userSessions') {
+            return { unique: async () => ({ _id: 'membership_1' }) }
+          }
           if (table === 'streams') {
             return { first: async () => streams[streamCall++] ?? null }
           }
@@ -124,6 +137,16 @@ describe('drainCommandQueue', () => {
     expect(chipPatches(patches)).toEqual([])
   })
 
+  test('runs a chipless command', async () => {
+    const command: Entry = { name: 'eval', invokedBy: 'user_1' }
+    const { ctx, patches, state } = drainCtx({ queue: [command] })
+
+    await drainCommandQueue(ctx, { sessionId: 'session_1' as never })
+
+    expect(queuePatches(state)).toEqual([[]])
+    expect(chipPatches(patches)).toEqual([])
+  })
+
   test('marks a failing command on its chip instead of retrying it', async () => {
     const { ctx, patches, state } = drainCtx({
       queue: [entry('compact', 'msg_1')],
@@ -154,5 +177,38 @@ describe('drainCommandQueue', () => {
 
     expect(patches).toEqual([])
     expect(state.patches).toEqual([])
+  })
+})
+
+describe('isCommandQueued', () => {
+  test('matches only a requested command owned by the caller', async () => {
+    const own: Entry = {
+      name: 'eval',
+      invokedBy: 'user_1',
+      requestId: 'request_1',
+    }
+    const other: Entry = {
+      name: 'eval',
+      invokedBy: 'user_2',
+      requestId: 'request_2',
+    }
+    const { ctx } = drainCtx({ queue: [own, other] })
+
+    const ownResult = await isCommandQueued(ctx, {
+      sessionId: 'session_1' as never,
+      requestId: 'request_1',
+    })
+    const otherResult = await isCommandQueued(ctx, {
+      sessionId: 'session_1' as never,
+      requestId: 'request_2',
+    })
+    const missingResult = await isCommandQueued(ctx, {
+      sessionId: 'session_1' as never,
+      requestId: 'missing',
+    })
+
+    expect(ownResult).toBe(true)
+    expect(otherResult).toBe(false)
+    expect(missingResult).toBe(false)
   })
 })

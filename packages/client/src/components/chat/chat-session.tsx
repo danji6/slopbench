@@ -17,8 +17,10 @@ import { useNavPadding } from '@/hooks/nav-padding'
 import type { PendingMessage } from '@/lib/chat'
 import { ChatError, ChatWarning, RateLimitError } from '@/lib/chat/errors'
 import type { PartAddress } from '@/lib/chat/parts'
+import { toast } from '@/lib/notifications'
 import { api } from '@sb/convex/_generated/api'
-import { useMutation } from 'convex/react'
+import type { Id } from '@sb/convex/_generated/dataModel'
+import { useMutation, useQuery } from 'convex/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ChatSessionView } from './chat-session-view'
@@ -46,6 +48,26 @@ export function ChatSession({ sessionId, ...props }: ChatSessionProps) {
 }
 
 type ChatSessionContentProps = Omit<ChatSessionProps, 'sessionId'>
+
+function EvalCompletionNotifier({
+  sessionId,
+  requestId,
+  onComplete,
+}: {
+  sessionId: Id<'sessions'>
+  requestId: string
+  onComplete: (requestId: string) => void
+}) {
+  const queued = useQuery(api.chat.isCommandQueued, { sessionId, requestId })
+
+  useEffect(() => {
+    if (queued !== false) return
+    toast.success('Environment updated')
+    onComplete(requestId)
+  }, [onComplete, queued, requestId])
+
+  return null
+}
 
 function ChatSessionContent({
   pendingMessage,
@@ -75,6 +97,7 @@ function ChatSessionContent({
   const pendingProcessed = useRef(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [dismissedKeys, setDismissedKeys] = useState(() => new Set<string>())
+  const [pendingEvalRequestIds, setPendingEvalRequestIds] = useState<string[]>([]) // prettier-ignore
   const streamError = useChatError(dismissedKeys)
   const [localError, setLocalError] = useState<Error | null>(null)
   const error = localError ?? streamError
@@ -97,6 +120,12 @@ function ChatSessionContent({
       onError?.(streamError)
     }
   }, [streamError, onError])
+
+  const handleEvalComplete = useCallback((completedId: string) => {
+    setPendingEvalRequestIds((current) =>
+      current.filter((requestId) => requestId !== completedId),
+    )
+  }, [])
 
   // EmptyChat creates the session first, then this sends the queued message.
   useEffect(() => {
@@ -163,7 +192,22 @@ function ChatSessionContent({
             ).catch(handleError)
           break
         case 'eval':
-          await resetSessionCache({ sessionId: session._id }).catch(handleError)
+          {
+            const requestId = crypto.randomUUID()
+            const result = await resetSessionCache({
+              sessionId: session._id,
+              requestId,
+            }).catch((error) => {
+              handleError(error)
+              return null
+            })
+            if (!result) break
+            if (result.queued) {
+              setPendingEvalRequestIds((current) => [...current, requestId])
+            } else {
+              toast.success('Environment updated')
+            }
+          }
           break
         case 'shortcuts':
           setShowShortcuts(true)
@@ -215,6 +259,15 @@ function ChatSessionContent({
         fileIndex={fileIndex}
       />
       <ShortcutsDialog open={showShortcuts} onOpenChange={setShowShortcuts} />
+      {session &&
+        pendingEvalRequestIds.map((requestId) => (
+          <EvalCompletionNotifier
+            key={requestId}
+            sessionId={session._id}
+            requestId={requestId}
+            onComplete={handleEvalComplete}
+          />
+        ))}
     </MessageEditProvider>
   )
 }

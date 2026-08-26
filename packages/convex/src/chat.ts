@@ -62,8 +62,19 @@ export const retryStreamNow = authMutation({
 })
 
 export const resetSessionCache = authMutation({
-  args: { sessionId: v.id('sessions') },
+  args: {
+    sessionId: v.id('sessions'),
+    requestId: v.optional(v.string()),
+  },
   handler: Chat.resetSessionCache,
+})
+
+export const isCommandQueued = authQuery({
+  args: {
+    sessionId: v.id('sessions'),
+    requestId: v.string(),
+  },
+  handler: Chat.isCommandQueued,
 })
 
 export const approveTool = authMutation({

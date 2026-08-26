@@ -65,7 +65,6 @@ The `package.json` contains most scripts you will need, including running tests.
    - Always extract repeated patterns into reusable helpers
 
 4. **When writing comments**
-   - Avoid excessive comments; good code is self-documenting
    - Aim for one-line JSDoc comments where it matters, use @tags when it makes sense
    - If a line of code isn't obvious, comment what it does but keep the comment short
    - Multiline comments are justified when the code is complex or needs important info/notes
