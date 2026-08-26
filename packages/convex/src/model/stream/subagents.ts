@@ -1,3 +1,5 @@
+import { hasPendingQuestions } from '@sb/core/utils/ask'
+
 import { internal } from '../../_generated/api'
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
@@ -41,7 +43,7 @@ const SUBAGENT_DENIAL_REASON =
 export type SuspendStepResult = 'suspended' | 'continue' | 'abort'
 
 /**
- * Handles a step that ended with pending approvals and/or task calls.
+ * Handles a step that ended with pending questions, approvals, and/or tasks.
  *
  * Parent sessions: spawns a background child session for a valid task call
  * and settles the part right away with a started acknowledgment that the
@@ -90,19 +92,27 @@ export async function _suspendStep(
     await patchSegmentParts(ctx, stream.processingMessageId, row, parts)
   }
 
+  if (hasPendingQuestions(parts)) {
+    await park(ctx, stream, 'awaiting_input')
+    return 'suspended'
+  }
+
   if (hasPendingToolApprovals(parts)) {
-    await park(ctx, streamId)
+    await park(ctx, stream, 'awaiting_approval')
     return 'suspended'
   }
 
   return 'continue'
 }
 
-async function park(ctx: MutationCtx, streamId: Id<'streams'>) {
-  const stream = await ctx.db.get(streamId)
-  if (!stream) return
-  await ctx.db.patch(streamId, {
-    status: 'awaiting_approval',
+/** Parks a root turn and notifies every session member that can respond. */
+async function park(
+  ctx: MutationCtx,
+  stream: Doc<'streams'>,
+  status: 'awaiting_input' | 'awaiting_approval',
+) {
+  await ctx.db.patch(stream._id, {
+    status,
     attempt: 0,
     jobId: undefined,
     leaseExpiresAt: Date.now() + APPROVAL_LEASE_MS,
@@ -110,7 +120,7 @@ async function park(ctx: MutationCtx, streamId: Id<'streams'>) {
   await notifyAgentEvent(ctx, {
     sessionId: stream.sessionId,
     agentId: stream.agentId,
-    kind: 'approval_required',
+    kind: status === 'awaiting_input' ? 'input_required' : 'approval_required',
     sourceMessageId: stream.processingMessageId,
   })
 }
@@ -444,11 +454,21 @@ export async function resumeIfSettled(
   stream: Doc<'streams'>,
   parts: unknown[],
 ) {
+  if (hasPendingQuestions(parts)) {
+    if (stream.status === 'awaiting_input') {
+      await refreshUserResponseLease(ctx, stream)
+    } else {
+      await park(ctx, stream, 'awaiting_input')
+    }
+    return
+  }
+
   if (hasPendingToolApprovals(parts)) {
-    await ctx.db.patch(stream._id, {
-      attempt: 0,
-      leaseExpiresAt: Date.now() + APPROVAL_LEASE_MS,
-    })
+    if (stream.status === 'awaiting_approval') {
+      await refreshUserResponseLease(ctx, stream)
+    } else {
+      await park(ctx, stream, 'awaiting_approval')
+    }
     return
   }
 
@@ -463,5 +483,15 @@ export async function resumeIfSettled(
     attempt: 0,
     jobId,
     leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
+  })
+}
+
+async function refreshUserResponseLease(
+  ctx: MutationCtx,
+  stream: Doc<'streams'>,
+) {
+  await ctx.db.patch(stream._id, {
+    attempt: 0,
+    leaseExpiresAt: Date.now() + APPROVAL_LEASE_MS,
   })
 }

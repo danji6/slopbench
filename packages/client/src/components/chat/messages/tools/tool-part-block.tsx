@@ -6,6 +6,7 @@ import { PlanBlock } from './plan-block'
 import { ShellBlock } from './shell-block'
 import { SubagentBlock } from './subagent-block'
 import { EditTodoBlock, WriteTodoBlock } from './todo-block'
+import { QuestionBlock } from './question-block'
 import { WebFetchBlock } from './web-fetch-block'
 
 export type ToolRendererProps = {
@@ -35,6 +36,8 @@ export function ToolPartBlock(props: ToolRendererProps) {
       return <WriteTodoBlock {...props} />
     case 'edit_todo':
       return <EditTodoBlock {...props} />
+    case 'ask':
+      return <QuestionBlock {...props} />
     default:
       return <ToolBlock {...props} />
   }

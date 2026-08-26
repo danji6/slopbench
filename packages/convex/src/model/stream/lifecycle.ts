@@ -56,7 +56,8 @@ export async function _claim(
   if (
     !stream ||
     stream.status === 'stopping' ||
-    stream.status === 'awaiting_approval'
+    stream.status === 'awaiting_approval' ||
+    stream.status === 'awaiting_input'
   ) {
     return null
   }

@@ -1,3 +1,4 @@
+import { ASK_TOOL_NAME } from '@sb/core/const'
 import type { ToolSet } from 'ai'
 
 import { internal } from '../../_generated/api'
@@ -6,6 +7,7 @@ import type { ActionCtx } from '../../_generated/server'
 import { TASK_TOOL_NAME, sharedSessionId } from '../../lib/subagent'
 import { mergeToolApprovals } from '../../lib/tool/approval'
 import type { AgentAutoApprove, ToolApprovals } from '../../types'
+import { createAskTool } from './ask'
 import type { PlanToolContext, WorkspaceToolContext } from './context'
 import {
   createEditFileTool,
@@ -197,6 +199,8 @@ async function createManifestTool(
       return planContext && createWriteTodoTool(planContext)
     case 'edit_todo':
       return planContext && createEditTodoTool(planContext)
+    case ASK_TOOL_NAME:
+      return createAskTool()
     case TASK_TOOL_NAME:
       return createTaskTool(build.manifest.taskRoster ?? '')
   }

@@ -8,6 +8,7 @@ import {
   useSendCooldownUntil,
   useSessionApprovalMode,
   useSessionMode,
+  useStreamAwaitingAnswer,
   useStreamAwaitingApproval,
   useTypingIndicator,
   useUnseenTailActivity,
@@ -46,6 +47,7 @@ import type { AgentItem } from './sessions/agent-combobox'
 import { ChatShortcutsProvider } from './shortcuts'
 import { SubagentBanner } from './subagents/subagent-banner'
 import { DockWidgets } from './widgets/dock-widgets'
+import { AnswerPicker } from './workspace/answer-picker'
 import { ToolApprovalPicker } from './workspace/tool-approval-picker'
 
 const DOCK_HIDE_DISTANCE = 160
@@ -124,11 +126,14 @@ export function ChatSessionView({
   // Workspace
   const workspaceAvailable = Boolean(session?.workspace)
   const awaitingApproval = useStreamAwaitingApproval()
+  const awaitingAnswer = useStreamAwaitingAnswer()
   const canApproveTools = useIsAdmin()
   const { mode, setMode } = useSessionMode()
   const approval = useSessionApprovalMode()
   const canUseWorkspace = canApproveTools && workspaceAvailable
   const showApproval = awaitingApproval && canApproveTools
+  const showAnswerPicker = awaitingAnswer
+  const showInteractionPicker = showApproval || showAnswerPicker
 
   // Search
   const { open: openSearch } = useChatSearch()
@@ -197,13 +202,13 @@ export function ChatSessionView({
   useEffect(() => {
     if (completedEditRevision === handledEditRevisionRef.current) return
     handledEditRevisionRef.current = completedEditRevision
-    if (!showDock || showApproval) return
+    if (!showDock || showInteractionPicker) return
 
     const frame = requestAnimationFrame(() =>
       composerRef.current?.focus({ preventScroll: true }),
     )
     return () => cancelAnimationFrame(frame)
-  }, [completedEditRevision, showApproval, showDock])
+  }, [completedEditRevision, showDock, showInteractionPicker])
 
   const handleSubmit = useCallback(
     (msg: PendingMessage) => {
@@ -226,7 +231,7 @@ export function ChatSessionView({
 
   const handleAbort = useCallback(() => {
     onStop()
-    if (showApproval) return
+    if (showInteractionPicker) return
     if (showDock) {
       requestAnimationFrame(() =>
         composerRef.current?.focus({ preventScroll: true }),
@@ -234,7 +239,7 @@ export function ChatSessionView({
     } else {
       pendingFocusRef.current = true
     }
-  }, [onStop, showApproval, showDock])
+  }, [onStop, showDock, showInteractionPicker])
 
   return (
     <ChatShortcutsProvider
@@ -333,11 +338,18 @@ export function ChatSessionView({
                     className="pointer-events-auto w-full"
                   />
                 )}
+                {!subagentParent && showAnswerPicker && (
+                  <AnswerPicker
+                    restoreFocusRef={composerRef}
+                    onAbort={handleAbort}
+                    className="pointer-events-auto w-full"
+                  />
+                )}
                 {!subagentParent && (
                   <>
                     <DockWidgets
                       ref={widgetsRef}
-                      className={cn(showApproval && 'hidden')}
+                      className={cn(showInteractionPicker && 'hidden')}
                     />
                     <ChatComposer
                       onSubmit={handleSubmit}
@@ -380,8 +392,11 @@ export function ChatSessionView({
                       sendDisabled={sendDisabled}
                       shellAvailable={canUseWorkspace}
                       draftKey={session?._id}
-                      className={cn('w-full', showApproval && 'hidden')}
-                      inert={!showDock || showApproval}
+                      className={cn(
+                        'w-full',
+                        showInteractionPicker && 'hidden',
+                      )}
+                      inert={!showDock || showInteractionPicker}
                     />
                   </>
                 )}

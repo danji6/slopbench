@@ -58,6 +58,7 @@ export const notificationKindValidator = v.union(
   v.literal('user_message'),
   v.literal('turn_completed'),
   v.literal('approval_required'),
+  v.literal('input_required'),
   v.literal('turn_error'),
 )
 
@@ -287,6 +288,7 @@ export const streamStatusValidator = v.union(
   v.literal('stopping'),
   v.literal('retrying'),
   v.literal('awaiting_approval'),
+  v.literal('awaiting_input'),
   v.literal('failed'),
 )
 

@@ -82,6 +82,11 @@ export const approveTool = authMutation({
   handler: Chat.approveTool,
 })
 
+export const answerQuestions = authMutation({
+  args: V.answerQuestionsArgsValidator,
+  handler: Chat.answerQuestions,
+})
+
 export const compact = authMutation({
   args: {
     sessionId: v.id('sessions'),

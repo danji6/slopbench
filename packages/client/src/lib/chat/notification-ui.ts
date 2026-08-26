@@ -7,6 +7,8 @@ export function notificationBody(notification: NotificationItem): string {
   switch (notification.kind) {
     case 'approval_required':
       return `${notification.actorName} needs your attention`
+    case 'input_required':
+      return `${notification.actorName} has questions for you`
     case 'turn_error':
       return `${notification.actorName}'s turn ended with an error`
     case 'turn_completed':

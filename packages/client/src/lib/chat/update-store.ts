@@ -1,6 +1,8 @@
+import { APP_ID } from '@sb/core/const'
+
 import { createLocalStorageStore } from '../local-storage-store'
 
-const STORAGE_KEY = 'update-check'
+const STORAGE_KEY = `${APP_ID}-update-check`
 
 export const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
 

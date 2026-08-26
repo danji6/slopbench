@@ -31,6 +31,13 @@ export const MAX_TODO_CONTENT_CHARS = 5_000
 
 export const MAX_PLAN_CONTENT_CHARS = 200_000
 
+export const MAX_ASK_QUESTIONS = 3
+export const MAX_ASK_OPTIONS = 4
+export const MAX_ASK_QUESTION_CHARS = 2_000
+export const MAX_ASK_OPTION_LABEL_CHARS = 200
+export const MAX_ASK_OPTION_DESCRIPTION_CHARS = 1_000
+export const MAX_ASK_RESPONSE_CHARS = 5_000
+
 export const MAX_CUSTOM_CSS_CHARS = 5_000
 
 export const MAX_SHELL_PATH_CHARS = 500

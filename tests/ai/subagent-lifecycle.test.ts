@@ -4,6 +4,7 @@ import { _fail, stopChildSessions } from '@sb/convex/model/stream/lifecycle'
 import {
   _suspendStep,
   deliverChildReport,
+  resumeIfSettled,
 } from '@sb/convex/model/stream/subagents'
 import {
   list as listSubagents,
@@ -343,6 +344,65 @@ describe('_suspendStep', () => {
     })
   })
 
+  test('parks for questions before approvals and notifies members', async () => {
+    const askPart = {
+      type: 'tool-ask',
+      toolCallId: 'tc_input',
+      state: 'input-available',
+      input: {
+        questions: [
+          {
+            question: 'Pick one',
+            options: [{ label: 'A' }, { label: 'B' }],
+          },
+        ],
+      },
+    }
+    const approvalPart = {
+      type: 'tool-shell',
+      toolCallId: 'tc_approval',
+      state: 'approval-requested',
+      approval: { id: 'approval_1' },
+    }
+    const { ctx, patches, inserts } = fakeCtx({
+      docs: parentDocs([askPart, approvalPart]),
+      membershipsBySession: {
+        session_1: [
+          { _id: 'membership_1', userId: owner },
+          { _id: 'membership_2', userId: 'user_2' },
+        ],
+      },
+    })
+
+    const result = await _suspendStep(ctx, { streamId: 'stream_1' as never })
+
+    expect(result).toBe('suspended')
+    expect(patches).toContainEqual({
+      id: 'stream_1',
+      patch: expect.objectContaining({ status: 'awaiting_input' }),
+    })
+    const notifications = inserts.filter(
+      ({ table }) => table === 'notifications',
+    )
+    expect(notifications).toHaveLength(2)
+    expect(notifications.map(({ fields }) => fields)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          recipientId: owner,
+          kind: 'input_required',
+          actorName: 'Coder',
+          sourceMessageId: 'message_1',
+        }),
+        expect.objectContaining({
+          recipientId: 'user_2',
+          kind: 'input_required',
+          actorName: 'Coder',
+          sourceMessageId: 'message_1',
+        }),
+      ]),
+    )
+  })
+
   test('parks as awaiting_approval when approvals are also pending', async () => {
     const approvalPart = {
       type: 'tool-shell',
@@ -402,6 +462,53 @@ describe('_suspendStep', () => {
         approved: false,
         reason: expect.stringContaining('cannot request user approval'),
       }),
+    })
+  })
+})
+
+describe('resumeIfSettled user waits', () => {
+  test('stays parked while another Q&A call is pending', async () => {
+    const pending = {
+      type: 'tool-ask',
+      toolCallId: 'call_2',
+      state: 'input-available',
+      input: {
+        questions: [
+          {
+            question: 'Another?',
+            options: [{ label: 'A' }, { label: 'B' }],
+          },
+        ],
+      },
+    }
+    const docs = parentDocs([pending], { status: 'awaiting_input' })
+    const { ctx, patches, scheduled, byId } = fakeCtx({ docs })
+
+    await resumeIfSettled(ctx, byId.get('stream_1') as never, [pending])
+
+    expect(scheduled).toHaveLength(0)
+    expect(patches).toContainEqual({
+      id: 'stream_1',
+      patch: expect.objectContaining({ attempt: 0 }),
+    })
+  })
+
+  test('moves from answered Q&A to a pending approval', async () => {
+    const approval = {
+      type: 'tool-shell',
+      toolCallId: 'call_2',
+      state: 'approval-requested',
+      approval: { id: 'approval_2' },
+    }
+    const docs = parentDocs([approval], { status: 'awaiting_input' })
+    const { ctx, patches, scheduled, byId } = fakeCtx({ docs })
+
+    await resumeIfSettled(ctx, byId.get('stream_1') as never, [approval])
+
+    expect(scheduled).toHaveLength(0)
+    expect(patches).toContainEqual({
+      id: 'stream_1',
+      patch: expect.objectContaining({ status: 'awaiting_approval' }),
     })
   })
 })

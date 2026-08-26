@@ -1,5 +1,6 @@
 'use node'
 
+import { hasPendingQuestions } from '@sb/core/utils/ask'
 import type { UIMessage } from 'ai'
 
 import { internal } from '../../_generated/api'
@@ -90,6 +91,7 @@ export async function _stream(
         hasOutput,
         usage,
         awaitingApproval,
+        awaitingQuestions,
         awaitingTasks,
       } = await consumeProviderStep(ctx, streamId, setup, windowDeadline)
       if (shouldContinue === null) return
@@ -111,7 +113,7 @@ export async function _stream(
         usage,
       })
 
-      if (awaitingApproval || awaitingTasks) {
+      if (awaitingApproval || awaitingQuestions || awaitingTasks) {
         const suspended = await ctx.runMutation(internal.streams._suspendStep, {
           streamId,
         })
@@ -417,6 +419,7 @@ async function consumeProviderStep(
 
     latestParts = await prepareParts(latestParts)
     const awaitingApproval = hasAwaitingApproval(latestParts)
+    const awaitingQuestions = hasPendingQuestions(latestParts)
     const awaitingTasks = hasPendingTaskParts(latestParts)
     // Sub-agent approvals are auto-denied
     if (awaitingApproval && !setup.isSubagent) {
@@ -455,6 +458,7 @@ async function consumeProviderStep(
     return {
       shouldContinue: finishReason === 'tool-calls',
       awaitingApproval,
+      awaitingQuestions,
       awaitingTasks,
       hasOutput: {
         value: outputTracker.hasOutput,

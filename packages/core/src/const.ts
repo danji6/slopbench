@@ -27,6 +27,9 @@ export const TODO_TOOL_TOGGLE = 'todo'
 /** Single agent settings toggle covering every plan tool. */
 export const PLAN_TOOL_TOGGLE = 'plan'
 
+/** Built-in client-executed tool used to pause for human decisions. */
+export const ASK_TOOL_NAME = 'ask'
+
 /** Compact edit_todo statuses mapped to their stored counterparts. */
 export const TODO_EDIT_STATUSES = {
   todo: 'pending',

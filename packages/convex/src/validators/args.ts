@@ -439,6 +439,20 @@ export const approveToolArgsValidator = v.object({
   note: v.optional(v.string()),
 })
 
+export const userAnswerDraftValidator = v.object({
+  questionIndex: v.number(),
+  selectedOptionIndex: v.optional(v.number()),
+  customAnswer: v.optional(v.string()),
+  note: v.optional(v.string()),
+  skipped: v.optional(v.boolean()),
+})
+
+export const answerQuestionsArgsValidator = v.object({
+  sessionId: v.id('sessions'),
+  toolCallId: v.string(),
+  answers: v.array(userAnswerDraftValidator),
+})
+
 export const importSessionArgsValidator = v.object({
   payload: sessionArchiveValidator,
   subject: v.string(),

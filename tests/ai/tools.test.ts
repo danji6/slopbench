@@ -53,4 +53,13 @@ describe('tool metadata', () => {
       }),
     )
   })
+
+  test('exposes ask in the General section', () => {
+    expect(TOOL_METAS).toContainEqual(
+      expect.objectContaining({
+        name: 'ask',
+        category: 'general',
+      }),
+    )
+  })
 })

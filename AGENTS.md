@@ -68,10 +68,11 @@ The `package.json` contains most scripts you will need, including running tests.
    - Aim for one-line JSDoc comments where it matters, use @tags when it makes sense
    - If a line of code isn't obvious, comment what it does but keep the comment short
    - Multiline comments are justified when the code is complex or needs important info/notes
-   - Comments must be easy to understand and only convey essential context to the reader
+   - Comments must be easy to understand and convey essential context to the reader
 
 5. **React & UI**
    - React components should be pure and reusable.
+   - Split large JSX into smaller self-contained components where possible.
    - Always think outside of React before trying to implement a solution with it.
    - Try to reuse existing primitives in the project, or create new reusable ones when needed.
    - Business logic should not be tied to React components. React is merely a presentation layer.

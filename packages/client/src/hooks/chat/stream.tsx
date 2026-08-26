@@ -68,6 +68,10 @@ export function useStreamAwaitingApproval(): boolean {
   return useStreamRawStatus() === 'awaiting_approval'
 }
 
+export function useStreamAwaitingAnswer(): boolean {
+  return useStreamRawStatus() === 'awaiting_input'
+}
+
 /** Scheduled claim time of a debounced stream (agent debounce mechanism). */
 export function useStreamFireAt(): number | undefined {
   const store = useStreamStore()

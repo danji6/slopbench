@@ -118,6 +118,7 @@ export type UpdateSessionArgs = Infer<typeof V.updateSessionArgsValidator>
 export type CreateScriptArgs = Infer<typeof V.createScriptArgsValidator>
 export type UpdateScriptArgs = Infer<typeof V.updateScriptArgsValidator>
 export type ApproveToolArgs = Infer<typeof V.approveToolArgsValidator>
+export type AnswerQuestionsArgs = Infer<typeof V.answerQuestionsArgsValidator>
 export type TerminalWriteArgs = Infer<typeof V.terminalWriteArgsValidator>
 export type TerminalKillArgs = Infer<typeof V.terminalKillArgsValidator>
 export type TerminalResizeArgs = Infer<typeof V.terminalResizeArgsValidator>

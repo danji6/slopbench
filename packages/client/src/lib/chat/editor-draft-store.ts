@@ -1,3 +1,4 @@
+import { APP_ID } from '@sb/core/const'
 import { useEffect, useMemo } from 'react'
 
 import { createLocalStorageStore } from '../local-storage-store'
@@ -9,7 +10,7 @@ import {
   requestDraftRestore,
 } from './draft-restore'
 
-const STORAGE_KEY = 'chat-editor-drafts'
+const STORAGE_KEY = `${APP_ID}-chat-editor-drafts`
 
 /** How many editors retain an unsaved draft before the oldest is evicted. */
 const MAX_ENTRIES = 50

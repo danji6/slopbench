@@ -10,6 +10,7 @@ import {
   reminderDraftKey,
   setEditorDraft,
 } from '@/lib/chat/editor-draft-store'
+import { APP_ID } from '@sb/core/const'
 import { beforeEach, describe, expect, test } from 'bun:test'
 
 import { setupDom } from '../setup/dom'
@@ -18,11 +19,12 @@ setupDom()
 
 /** Mirrors the store's own cap; exceeding it must evict the oldest entries. */
 const MAX_ENTRIES = 50
+const STORAGE_KEY = `${APP_ID}-chat-editor-drafts`
 
 type PromptDraft = { name: string; content?: string }
 
 function keysInStorage(): string[] {
-  const raw = localStorage.getItem('chat-editor-drafts')
+  const raw = localStorage.getItem(STORAGE_KEY)
   return raw ? Object.keys(JSON.parse(raw)) : []
 }
 
@@ -117,14 +119,14 @@ describe('get/set/clear', () => {
 
   test('clearing an absent key does not write', () => {
     setEditorDraft(promptDraftKey('p1'), { name: 'a' })
-    const before = localStorage.getItem('chat-editor-drafts')
+    const before = localStorage.getItem(STORAGE_KEY)
     clearEditorDraft(promptDraftKey('never-stored'))
-    expect(localStorage.getItem('chat-editor-drafts')).toBe(before)
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(before)
   })
 
   test('survives a reload, which is the point of the feature', () => {
     setEditorDraft(SCRIPTS_DRAFT_KEY, { scripts: [{ id: 's1', code: 'x' }] })
-    const persisted = JSON.parse(localStorage.getItem('chat-editor-drafts')!)
+    const persisted = JSON.parse(localStorage.getItem(STORAGE_KEY)!)
     expect(persisted[SCRIPTS_DRAFT_KEY].value).toEqual({
       scripts: [{ id: 's1', code: 'x' }],
     })

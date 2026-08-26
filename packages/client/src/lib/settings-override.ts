@@ -1,8 +1,9 @@
 import type { ResolvedSettings } from '@sb/convex/model/defaults'
+import { APP_ID } from '@sb/core/const'
 
 import { createLocalStorageStore } from './local-storage-store'
 
-const STORAGE_KEY = 'settings-override'
+const STORAGE_KEY = `${APP_ID}-settings-override`
 
 export type SettingsOverride = Partial<ResolvedSettings>
 

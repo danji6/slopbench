@@ -1,4 +1,8 @@
-import { PLAN_TOOL_TOGGLE, TODO_TOOL_TOGGLE } from '@sb/core/const'
+import {
+  ASK_TOOL_NAME,
+  PLAN_TOOL_TOGGLE,
+  TODO_TOOL_TOGGLE,
+} from '@sb/core/const'
 import { mcpToolDescription, mcpToolName } from '@sb/core/types'
 
 import type { AuthQueryCtx } from '../../functions'
@@ -56,6 +60,11 @@ export const TOOL_METAS = [
     name: PLAN_TOOL_TOGGLE,
     description: 'Research and author implementation plans before editing.',
     requiresAdmin: true,
+  },
+  {
+    name: ASK_TOOL_NAME,
+    description: 'Ask you questions when the agent needs a decision.',
+    category: 'general',
   },
 ] as const
 

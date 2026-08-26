@@ -1,6 +1,8 @@
+import { APP_ID } from '@sb/core/const'
+
 import { createLocalStorageStore } from '../local-storage-store'
 
-const STORAGE_KEY = 'agent-editor-selection'
+const STORAGE_KEY = `${APP_ID}-agent-editor-selection`
 
 type Selection = { agentId?: string }
 

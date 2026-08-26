@@ -61,6 +61,13 @@ const edit_todo = inline`
   its new status. Mark a task 'doing' before starting it (one at a time) and
   'done' immediately when finished; never batch completions.`
 
+const ask = inline`
+  Ask the user one or more decision-blocking questions. Group related
+  questions into one call. Provide 2-4 mutually exclusive options for each
+  question, mark at most one as recommended, and keep labels concise. The
+  user may choose an option, add context, write a different answer, or skip a
+  question.`
+
 const task = [
   inline`
     Delegate a task to a sub-agent that works in its own separate session in the
@@ -91,5 +98,6 @@ export const TOOL_DESCRIPTIONS = {
   exit_plan_mode,
   write_todo,
   edit_todo,
+  ask,
   task,
 } as const

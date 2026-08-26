@@ -78,7 +78,7 @@ describe('form draft autosave contract', () => {
 
   test('stays clean when a reset restores the stored values', () => {
     // `restore()` is preceded by a reset to the backend values; that reset must
-    // not be mistaken for user input and overwrite the draft.
+    // not be mistaken for a user edit and overwrite the draft.
     const form = makeForm()
     form.setValue('name', 'Edited', { shouldDirty: true })
 
