@@ -6,6 +6,7 @@ import { collapseHome, expandHome } from './paths'
 
 export const listDirectoriesSchema = z.object({
   path: z.string().optional(),
+  showHidden: z.boolean().optional(),
 })
 
 export type DirectoryListing = {
@@ -30,6 +31,7 @@ export async function listDirectories(
     parent: parent === root ? undefined : collapseHome(parent),
     entries: entries
       .filter((entry) => entry.isDirectory())
+      .filter((entry) => input.showHidden || !entry.name.startsWith('.'))
       .map((entry) => ({
         name: entry.name,
         path: collapseHome(path.join(root, entry.name)),

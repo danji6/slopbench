@@ -26,57 +26,6 @@ export function BehaviorSettings({
 
   return (
     <SettingsList>
-      <Controller
-        control={control}
-        name="scrollMode"
-        render={({ field }) => (
-          <SettingsList.Select
-            unclickable
-            unhoverable
-            label={<OverrideLabel>Scroll mode</OverrideLabel>}
-            value={field.value ?? ''}
-            onValueChange={(v) => field.onChange((v as ScrollMode) || null)}
-            placeholder="Default"
-          >
-            <SettingsList.Select.Item value="">
-              Default
-            </SettingsList.Select.Item>
-            <SettingsList.Select.Item value="follow">
-              Follow
-            </SettingsList.Select.Item>
-            <SettingsList.Select.Item value="into-view">
-              Into View
-            </SettingsList.Select.Item>
-          </SettingsList.Select>
-        )}
-      />
-
-      <Controller
-        control={control}
-        name="mathMode"
-        render={({ field }) => (
-          <SettingsList.Select
-            unclickable
-            unhoverable
-            label={<OverrideLabel>Math rendering</OverrideLabel>}
-            value={field.value ?? ''}
-            onValueChange={(v) => field.onChange((v as MathMode) || null)}
-            placeholder="Default"
-          >
-            <SettingsList.Select.Item value="">
-              Default
-            </SettingsList.Select.Item>
-            <SettingsList.Select.Item value="off">Off</SettingsList.Select.Item>
-            <SettingsList.Select.Item value="single">
-              Single $…$
-            </SettingsList.Select.Item>
-            <SettingsList.Select.Item value="double">
-              Double $$…$$
-            </SettingsList.Select.Item>
-          </SettingsList.Select>
-        )}
-      />
-
       <SettingsList.Item
         unclickable
         unhoverable
@@ -152,6 +101,57 @@ export function BehaviorSettings({
           />
         )}
       </OverrideSection>
+
+      <Controller
+        control={control}
+        name="scrollMode"
+        render={({ field }) => (
+          <SettingsList.Select
+            unclickable
+            unhoverable
+            label={<OverrideLabel>Scroll mode</OverrideLabel>}
+            value={field.value ?? ''}
+            onValueChange={(v) => field.onChange((v as ScrollMode) || null)}
+            placeholder="Default"
+          >
+            <SettingsList.Select.Item value="">
+              Default
+            </SettingsList.Select.Item>
+            <SettingsList.Select.Item value="follow">
+              Follow
+            </SettingsList.Select.Item>
+            <SettingsList.Select.Item value="into-view">
+              Into View
+            </SettingsList.Select.Item>
+          </SettingsList.Select>
+        )}
+      />
+
+      <Controller
+        control={control}
+        name="mathMode"
+        render={({ field }) => (
+          <SettingsList.Select
+            unclickable
+            unhoverable
+            label={<OverrideLabel>Math rendering</OverrideLabel>}
+            value={field.value ?? ''}
+            onValueChange={(v) => field.onChange((v as MathMode) || null)}
+            placeholder="Default"
+          >
+            <SettingsList.Select.Item value="">
+              Default
+            </SettingsList.Select.Item>
+            <SettingsList.Select.Item value="off">Off</SettingsList.Select.Item>
+            <SettingsList.Select.Item value="single">
+              Single $…$
+            </SettingsList.Select.Item>
+            <SettingsList.Select.Item value="double">
+              Double $$…$$
+            </SettingsList.Select.Item>
+          </SettingsList.Select>
+        )}
+      />
     </SettingsList>
   )
 }

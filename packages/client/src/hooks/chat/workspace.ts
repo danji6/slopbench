@@ -159,24 +159,40 @@ export function useWorkspaceBrowser() {
   const [path, setPath] = useState('')
   const [list, setList] = useState<DirectoryList | null>(null)
   const [busy, setBusy] = useState(false)
+  const [showHidden, setShowHidden] = useState(false)
+  const [history, setHistory] = useState<string[]>([])
+  const currentRef = useRef<string | null>(null)
 
   const show = useCallback((result: DirectoryList) => {
+    currentRef.current = result.path
     setList(result)
     setPath(result.path)
   }, [])
 
+  const fetchList = useCallback(
+    async (nextPath?: string) =>
+      listDirectories({ path: nextPath, showHidden }),
+    [listDirectories, showHidden],
+  )
+
   // Lists `nextPath`, or the sidecar's default directory.
   // `fallback` retries from the default when the requested path is gone.
-  const loadDirectories = useCallback(
-    async (nextPath?: string, fallback = false) => {
+  // `record` pushes the previous directory onto the back history.
+  const load = useCallback(
+    async (nextPath?: string, fallback = false, record = true) => {
+      const from = currentRef.current
       setBusy(true)
       try {
-        show(await listDirectories(nextPath ? { path: nextPath } : {}))
+        const result = await fetchList(nextPath)
+        if (record && from && from !== result.path) {
+          setHistory((h) => [...h, from])
+        }
+        show(result)
       } catch (err) {
         toastError(err)
         if (nextPath && fallback) {
           try {
-            show(await listDirectories({}))
+            show(await fetchList())
           } catch {
             // no op
           }
@@ -185,8 +201,51 @@ export function useWorkspaceBrowser() {
         setBusy(false)
       }
     },
-    [listDirectories, show],
+    [fetchList, show],
   )
 
-  return { path, setPath, list, busy, loadDirectories }
+  const loadDirectories = useCallback(
+    (nextPath?: string, fallback = false) => load(nextPath, fallback),
+    [load],
+  )
+
+  const goBack = useCallback(() => {
+    const target = history.at(-1)
+    if (!target || busy) return
+    setHistory((h) => h.slice(0, -1))
+    void load(target, false, false)
+  }, [busy, history, load])
+
+  const goUp = useCallback(() => {
+    const parent = list?.parent
+    if (!parent) return
+    void load(parent)
+  }, [list, load])
+
+  const goHome = useCallback(() => {
+    void load('~')
+  }, [load])
+
+  // Refetch the current listing when hidden entry visibility flips
+  const prevHidden = useRef(showHidden)
+  useEffect(() => {
+    if (prevHidden.current === showHidden) return
+    prevHidden.current = showHidden
+    if (!currentRef.current) return
+    void load(currentRef.current, false, false)
+  }, [load, showHidden])
+
+  return {
+    path,
+    setPath,
+    list,
+    busy,
+    loadDirectories,
+    showHidden,
+    toggleShowHidden: useCallback(() => setShowHidden((v) => !v), []),
+    canGoBack: history.length > 0,
+    goBack,
+    goUp,
+    goHome,
+  }
 }

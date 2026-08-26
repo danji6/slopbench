@@ -153,7 +153,7 @@ function ProviderCard({
   }
 
   function addModel() {
-    onChange({ models: [...provider.models, { id: '' }] })
+    onChange({ models: [{ id: '' }, ...provider.models] })
     setExpanded(true)
   }
 
@@ -326,6 +326,15 @@ function ProviderCard({
 
         <div className="flex flex-col gap-3">
           <Label className="text-muted-foreground text-sm">Models</Label>
+          <RippleButton
+            variant="input"
+            size="sm"
+            className="self-start text-sm"
+            onClick={addModel}
+          >
+            <PlusIcon />
+            Add model
+          </RippleButton>
           {provider.models.length > 0 && (
             <div className="flex flex-col gap-1">
               {provider.models.map((model, idx) => (
@@ -338,15 +347,6 @@ function ProviderCard({
               ))}
             </div>
           )}
-          <RippleButton
-            variant="input"
-            size="sm"
-            className="mb-1 self-start text-sm"
-            onClick={addModel}
-          >
-            <PlusIcon />
-            Add model
-          </RippleButton>
         </div>
       </Collapsible.Content>
     </Collapsible>

@@ -1,7 +1,16 @@
 import { Dialog, Input, RippleButton } from '@/components/ui'
 import { useWorkspaceBrowser } from '@/hooks/chat'
 import { cn } from '@/lib/utils'
-import { ArrowRightIcon, CornerLeftUpIcon, FolderIcon } from 'lucide-react'
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  ArrowUpIcon,
+  CornerLeftUpIcon,
+  EyeIcon,
+  EyeOffIcon,
+  FolderIcon,
+  HouseIcon,
+} from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 interface WorkspacePickerDialogProps {
@@ -21,7 +30,19 @@ export function WorkspacePickerDialog({
   initialPath,
   title = 'Select a folder',
 }: WorkspacePickerDialogProps) {
-  const { path, setPath, list, busy, loadDirectories } = useWorkspaceBrowser()
+  const {
+    path,
+    setPath,
+    list,
+    busy,
+    loadDirectories,
+    showHidden,
+    toggleShowHidden,
+    canGoBack,
+    goBack,
+    goUp,
+    goHome,
+  } = useWorkspaceBrowser()
   const listRef = useRef<HTMLDivElement | null>(null)
   const rowRefs = useRef<(HTMLButtonElement | null)[]>([])
   const pendingFocus = useRef(false)
@@ -95,7 +116,37 @@ export function WorkspacePickerDialog({
           <Dialog.Title>{title}</Dialog.Title>
         </Dialog.Header>
         <div className="flex flex-col gap-3 py-2" onKeyDown={handleKeyDown}>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-1">
+            <RippleButton
+              size="icon"
+              variant="input"
+              disabled={!canGoBack || busy}
+              onClick={goBack}
+              aria-label="Back"
+              title="Back"
+            >
+              <ArrowLeftIcon />
+            </RippleButton>
+            <RippleButton
+              size="icon"
+              variant="input"
+              disabled={busy || !list?.parent}
+              onClick={goUp}
+              aria-label="Up"
+              title="Up"
+            >
+              <ArrowUpIcon />
+            </RippleButton>
+            <RippleButton
+              size="icon"
+              variant="input"
+              disabled={busy}
+              onClick={goHome}
+              aria-label="Home"
+              title="Home"
+            >
+              <HouseIcon />
+            </RippleButton>
             <Input
               value={path}
               onChange={(event) => setPath(event.target.value)}
@@ -103,8 +154,19 @@ export function WorkspacePickerDialog({
                 if (event.key === 'Enter') navigate(path.trim())
               }}
               placeholder="/path/to/project"
-              className="h-9 font-mono text-xs"
+              className="h-9 min-w-0 flex-1 font-mono text-xs"
             />
+            <RippleButton
+              size="icon"
+              variant="input"
+              onClick={toggleShowHidden}
+              aria-label={
+                showHidden ? 'Hide hidden folders' : 'Show hidden folders'
+              }
+              title={showHidden ? 'Hide hidden folders' : 'Show hidden folders'}
+            >
+              {showHidden ? <EyeIcon /> : <EyeOffIcon />}
+            </RippleButton>
             <RippleButton
               size="icon"
               variant="input"

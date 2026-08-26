@@ -65,7 +65,7 @@ export async function duplicateSession(
 
 export async function listDirectories(
   ctx: ActionCtx,
-  args: { path?: string },
+  args: { path?: string; showHidden?: boolean },
 ): Promise<{
   path: string
   parent?: string
@@ -74,6 +74,7 @@ export async function listDirectories(
   await authorizeAdmin(ctx)
   return postWorkspaceSidecar('/workspace/list-directories', {
     path: args.path,
+    showHidden: args.showHidden,
   })
 }
 

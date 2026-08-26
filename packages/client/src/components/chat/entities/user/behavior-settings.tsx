@@ -25,59 +25,6 @@ export function BehaviorSettings({ control }: BehaviorSettingsProps) {
     <SettingsList className="pb-4">
       <Controller
         control={control}
-        name="scrollMode"
-        render={({ field }) => (
-          <SettingsList.Select
-            unclickable
-            unhoverable
-            label="Scroll mode"
-            description={
-              field.value === 'follow'
-                ? 'Auto scroll to follow the response as it streams in.'
-                : 'Scroll the response into view to fill the viewport.'
-            }
-            value={field.value}
-            onValueChange={(v) => field.onChange(v || 'follow')}
-          >
-            <SettingsList.Select.Item value="follow">
-              Follow
-            </SettingsList.Select.Item>
-            <SettingsList.Select.Item value="into-view">
-              Into View
-            </SettingsList.Select.Item>
-          </SettingsList.Select>
-        )}
-      />
-      <Controller
-        control={control}
-        name="mathMode"
-        render={({ field }) => (
-          <SettingsList.Select
-            unclickable
-            unhoverable
-            label="Math rendering"
-            description={
-              field.value === 'off'
-                ? 'Math formulae are not rendered.'
-                : field.value === 'double'
-                  ? 'Only $$…$$ renders as math.'
-                  : 'Both $…$ and $$…$$ render as math.'
-            }
-            value={field.value}
-            onValueChange={field.onChange}
-          >
-            <SettingsList.Select.Item value="off">Off</SettingsList.Select.Item>
-            <SettingsList.Select.Item value="single">
-              Single ($…$)
-            </SettingsList.Select.Item>
-            <SettingsList.Select.Item value="double">
-              Double ($$…$$)
-            </SettingsList.Select.Item>
-          </SettingsList.Select>
-        )}
-      />
-      <Controller
-        control={control}
         name="invertSend"
         render={({ field }) => (
           <SettingsList.Switch
@@ -216,6 +163,59 @@ export function BehaviorSettings({ control }: BehaviorSettingsProps) {
           )}
         />
       </SettingsList.Item>
+      <Controller
+        control={control}
+        name="scrollMode"
+        render={({ field }) => (
+          <SettingsList.Select
+            unclickable
+            unhoverable
+            label="Scroll mode"
+            description={
+              field.value === 'follow'
+                ? 'Auto scroll to follow the response as it streams in.'
+                : 'Scroll the response into view to fill the viewport.'
+            }
+            value={field.value}
+            onValueChange={(v) => field.onChange(v || 'follow')}
+          >
+            <SettingsList.Select.Item value="follow">
+              Follow
+            </SettingsList.Select.Item>
+            <SettingsList.Select.Item value="into-view">
+              Into View
+            </SettingsList.Select.Item>
+          </SettingsList.Select>
+        )}
+      />
+      <Controller
+        control={control}
+        name="mathMode"
+        render={({ field }) => (
+          <SettingsList.Select
+            unclickable
+            unhoverable
+            label="Math rendering"
+            description={
+              field.value === 'off'
+                ? 'Math formulae are not rendered.'
+                : field.value === 'double'
+                  ? 'Only $$…$$ renders as math.'
+                  : 'Both $…$ and $$…$$ render as math.'
+            }
+            value={field.value}
+            onValueChange={field.onChange}
+          >
+            <SettingsList.Select.Item value="off">Off</SettingsList.Select.Item>
+            <SettingsList.Select.Item value="single">
+              Single ($…$)
+            </SettingsList.Select.Item>
+            <SettingsList.Select.Item value="double">
+              Double ($$…$$)
+            </SettingsList.Select.Item>
+          </SettingsList.Select>
+        )}
+      />
     </SettingsList>
   )
 }

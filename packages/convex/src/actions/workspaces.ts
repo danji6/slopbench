@@ -8,7 +8,7 @@ import { getFlaggedPaths } from '../model/tool/shellTools'
 import * as Workspace from './session/workspace'
 
 export const listDirectories = action({
-  args: { path: v.optional(v.string()) },
+  args: { path: v.optional(v.string()), showHidden: v.optional(v.boolean()) },
   handler: Workspace.listDirectories,
 })
 
