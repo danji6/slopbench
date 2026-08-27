@@ -1,5 +1,7 @@
 import { limitError } from '@sb/core/limit-errors'
 import { MAX_PROVIDERS, MAX_PROVIDER_MODELS } from '@sb/core/limits'
+import { parseModelExtraParameters } from '@sb/core/model-parameters'
+import { parseProviderExtraHeaders } from '@sb/core/provider-headers'
 import type { ModelEntry, ModelProviderConfig } from '@sb/core/types'
 
 import type { Id } from '../_generated/dataModel'
@@ -7,6 +9,7 @@ import type { MutationCtx, QueryCtx } from '../_generated/server'
 import { error } from '../errors'
 import type { AuthMutationCtx, AuthQueryCtx } from '../functions'
 import * as Credentials from './credentials'
+import { normalizeConfiguredReasoning } from './provider/known'
 
 /** What the settings UI renders. */
 export type ModelProviderView = Omit<ModelProviderConfig, 'apiKey'> & {
@@ -22,8 +25,9 @@ export async function list(ctx: AuthQueryCtx): Promise<ModelProviderView[]> {
     _id: provider._id,
     id: provider.key,
     baseURL: provider.baseURL,
+    extraHeaders: provider.extraHeaders,
     enabled: provider.enabled,
-    models: provider.models,
+    models: normalizeProviderModels(provider.key, provider.models),
     hasKey: keys.has(provider.key),
   }))
 }
@@ -43,8 +47,9 @@ export async function resolve(
     id: provider.key,
     apiKey: keys.get(provider.key),
     baseURL: provider.baseURL,
+    extraHeaders: provider.extraHeaders,
     enabled: provider.enabled,
-    models: provider.models,
+    models: normalizeProviderModels(provider.key, provider.models),
   }))
 }
 
@@ -53,11 +58,13 @@ export async function create(
   {
     key,
     baseURL,
+    extraHeaders,
     enabled,
     models,
   }: {
     key: string
     baseURL?: string
+    extraHeaders?: string
     enabled: boolean
     models: ModelEntry[]
   },
@@ -70,37 +77,52 @@ export async function create(
     error('Duplicate provider', 409)
   }
   assertModelsWithinCap(models)
+  parseProviderExtraHeaders(extraHeaders)
 
   return ctx.db.insert('modelProviders', {
     ownerId: ctx.userId,
     key,
     baseURL,
+    extraHeaders,
     enabled,
-    models,
+    models: normalizeProviderModels(key, models),
     order: providers.length,
   })
 }
 
+type UpdateArgs = {
+  providerId: Id<'modelProviders'>
+  baseURL?: string
+  extraHeaders?: string
+  enabled?: boolean
+  models?: ModelEntry[]
+}
+
 export async function update(
   ctx: AuthMutationCtx,
-  {
-    providerId,
-    ...patch
-  }: {
-    providerId: Id<'modelProviders'>
-    baseURL?: string
-    enabled?: boolean
-    models?: ModelEntry[]
-  },
+  { providerId, ...patch }: UpdateArgs,
 ) {
   const provider = await requireOwned(ctx, providerId)
+
   if (patch.models) assertModelsWithinCap(patch.models)
-  await ctx.db.patch(provider._id, patch)
+  if ('extraHeaders' in patch) parseProviderExtraHeaders(patch.extraHeaders)
+
+  const normalizedModels = patch.models
+    ? normalizeProviderModels(provider.key, patch.models)
+    : undefined
+
+  const normalizedPatch = {
+    ...patch,
+    ...(normalizedModels ? { models: normalizedModels } : {}),
+  }
+
+  await ctx.db.patch(provider._id, normalizedPatch)
 }
 
 export type ModelProviderInput = {
   key: string
   baseURL?: string
+  extraHeaders?: string
   enabled: boolean
   models: ModelEntry[]
   /** `undefined` leaves the stored credential alone; `''` clears it. */
@@ -121,10 +143,15 @@ export async function replaceAll(
   const seen = new Set<string>()
 
   for (const [order, input] of providers.entries()) {
-    const { apiKey, ...fields } = input
+    const { apiKey, ...rawFields } = input
+    const fields = {
+      ...rawFields,
+      models: normalizeProviderModels(rawFields.key, rawFields.models),
+    }
     if (seen.has(fields.key)) continue
     seen.add(fields.key)
     assertModelsWithinCap(fields.models)
+    parseProviderExtraHeaders(fields.extraHeaders)
 
     const provider = byKey.get(fields.key)
     if (provider) {
@@ -181,8 +208,9 @@ export async function seed(
       ownerId,
       key: provider.id,
       baseURL: provider.baseURL,
+      extraHeaders: provider.extraHeaders,
       enabled: provider.enabled,
-      models: provider.models,
+      models: normalizeProviderModels(provider.id, provider.models),
       order,
     })
     if (provider.apiKey) {
@@ -218,4 +246,34 @@ function assertModelsWithinCap(models: ModelEntry[]) {
   if (models.length > MAX_PROVIDER_MODELS) {
     error(limitError('providerModels'), 400)
   }
+  for (const model of models) assertModelConfig(model)
+}
+
+function assertModelConfig(model: ModelEntry) {
+  try {
+    parseModelExtraParameters(model.extraParameters)
+  } catch (err) {
+    error(err instanceof Error ? err.message : 'Invalid extra parameters', 400)
+  }
+
+  if (model.reasoning?.type === 'binary' && !model.reasoning.parameter.trim()) {
+    error('Binary thinking parameter cannot be empty', 400)
+  }
+
+  if (model.reasoning?.type === 'effort') {
+    const unique = new Set(model.reasoning.efforts)
+    if (unique.size !== model.reasoning.efforts.length) {
+      error('Reasoning efforts cannot contain duplicates', 400)
+    }
+  }
+}
+
+function normalizeProviderModels(
+  providerId: string,
+  models: ModelEntry[],
+): ModelEntry[] {
+  return models.map((model) => {
+    const reasoning = normalizeConfiguredReasoning(providerId, model.reasoning)
+    return reasoning === model.reasoning ? model : { ...model, reasoning }
+  })
 }

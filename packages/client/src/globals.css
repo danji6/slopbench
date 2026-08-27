@@ -822,11 +822,11 @@ html::-webkit-scrollbar {
 
 /** Standalone code editor. */
 [data-slot='code-editor'] pre {
-  @apply m-0 rounded-none border-0;
+  @apply relative m-0 min-h-full rounded-none border-0;
 }
 
 [data-slot='code-editor'] pre.is-editor-empty:first-child::before {
-  @apply text-muted-foreground pointer-events-none float-left h-0;
+  @apply text-muted-foreground pointer-events-none absolute inset-x-4 top-4 whitespace-pre-wrap;
   content: attr(data-placeholder);
 }
 

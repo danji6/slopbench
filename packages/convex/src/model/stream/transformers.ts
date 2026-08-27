@@ -1,4 +1,3 @@
-import type { LanguageModelV3 } from '@ai-sdk/provider'
 import type { TextStreamPart, ToolSet } from 'ai'
 
 import { generateId } from '../../lib/utils'
@@ -45,33 +44,6 @@ function isLikelyBase64Binary(value: string) {
 
 function formatBinaryOmission(length: number) {
   return `[omitted binary data ${length} chars]`
-}
-
-export async function withProviderRequestLogging(
-  languageModel: LanguageModelV3,
-  onRequest: (body: string) => void | Promise<void>,
-) {
-  const { wrapLanguageModel } = await import('ai')
-  return wrapLanguageModel({
-    model: languageModel,
-    middleware: {
-      specificationVersion: 'v3',
-      transformParams: async ({ params, type }) => {
-        const body = JSON.stringify(
-          omitLargeStrings({
-            type,
-            provider: languageModel.provider,
-            modelId: languageModel.modelId,
-            ...params,
-          }),
-          null,
-          2,
-        )
-        await onRequest(body)
-        return params
-      },
-    },
-  })
 }
 
 export type StreamTracker = { hasOutput: boolean }

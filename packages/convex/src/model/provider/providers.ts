@@ -3,11 +3,14 @@ import type { QueryCtx } from '../../_generated/server'
 import type { AuthQueryCtx } from '../../functions'
 import type { ModelEntry, ModelProviderConfig } from '../../types'
 import { resolve as resolveProviders } from '../providers'
+import { resolveModelReasoning } from './known'
 
 export type ProviderCredentials = {
   providerId?: string
   apiKey?: string
   baseURL?: string
+  extraHeaders?: string
+  model?: ModelEntry
 }
 
 export type UIModel = {
@@ -15,6 +18,7 @@ export type UIModel = {
   label?: string
   contextWindow?: number
   local?: boolean
+  reasoning?: ModelEntry['reasoning']
 }
 
 export type UIModelConfig = {
@@ -35,6 +39,7 @@ export async function list(ctx: AuthQueryCtx): Promise<UIModelConfig> {
             label: m.label,
             contextWindow: m.contextWindow,
             local: p.id === 'ollama',
+            reasoning: resolveModelReasoning(p.id, m.reasoning),
           })),
       )
 
@@ -64,6 +69,8 @@ export function findCredentialsForModel(
         providerId: provider.id,
         apiKey: provider.apiKey,
         baseURL: provider.baseURL,
+        extraHeaders: provider.extraHeaders,
+        model: provider.models.find((m) => m.id.trim() === modelId),
       }
     : null
 }
@@ -78,12 +85,16 @@ export function findModelEntry(
   const provider = providers.find((p) =>
     p.models.some((m) => m.id.trim() === modelId),
   )
-  const model = provider?.models.find((m) => m.id.trim() === modelId)
+  if (!provider) return null
+
+  const model = provider.models.find((m) => m.id.trim() === modelId)
   if (!model) return null
 
   return {
     id: model.id.trim(),
     label: model.label,
     contextWindow: model.contextWindow,
+    reasoning: resolveModelReasoning(provider.id, model.reasoning),
+    extraParameters: model.extraParameters,
   }
 }

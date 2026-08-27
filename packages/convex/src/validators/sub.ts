@@ -78,10 +78,32 @@ export const shellJobStatusValidator = v.union(
   v.literal('lost'),
 )
 
+export const reasoningTierValidator = v.union(
+  v.literal('low'),
+  v.literal('medium'),
+  v.literal('high'),
+  v.literal('xhigh'),
+  v.literal('max'),
+)
+
+export const modelReasoningValidator = v.union(
+  v.object({
+    type: v.literal('effort'),
+    efforts: v.array(reasoningTierValidator),
+  }),
+  v.object({
+    type: v.literal('binary'),
+    parameter: v.string(),
+  }),
+  v.object({ type: v.literal('none') }),
+)
+
 export const modelEntryValidator = v.object({
   id: v.string(),
   label: v.optional(v.string()),
   contextWindow: v.optional(v.number()),
+  reasoning: v.optional(modelReasoningValidator),
+  extraParameters: v.optional(v.string()),
 })
 
 /** A model provider joined with its credential. */
@@ -89,6 +111,7 @@ export const modelProviderValidator = v.object({
   id: v.string(),
   apiKey: v.optional(v.string()),
   baseURL: v.optional(v.string()),
+  extraHeaders: v.optional(v.string()),
   enabled: v.boolean(),
   models: v.array(modelEntryValidator),
 })

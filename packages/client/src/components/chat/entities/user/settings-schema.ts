@@ -1,4 +1,8 @@
 import { PROMPT_MARKERS } from '@sb/convex/model/prompt/markers'
+import { providerRequiresBaseURL } from '@sb/convex/model/provider/known'
+import { parseModelExtraParameters } from '@sb/core/model-parameters'
+import { parseProviderExtraHeaders } from '@sb/core/provider-headers'
+import { REASONING_TIERS } from '@sb/core/types'
 import { MCP_TRANSPORTS, SEARCH_ENGINE_IDS } from '@sb/core/types'
 import { z } from 'zod/v4'
 
@@ -34,21 +38,68 @@ export const mcpServerSchema = z.object({
   _clientId: z.string().optional(),
 })
 
-export const modelEntrySchema = z.object({
-  id: z.string(),
-  label: z.string().optional(),
-  contextWindow: z.number().optional(),
-})
+export const modelEntrySchema = z
+  .object({
+    id: z.string(),
+    label: z.string().optional(),
+    contextWindow: z.number().optional(),
+    reasoning: z
+      .discriminatedUnion('type', [
+        z.object({
+          type: z.literal('effort'),
+          efforts: z.array(z.enum(REASONING_TIERS)),
+        }),
+        z.object({
+          type: z.literal('binary'),
+          parameter: z.string().min(1, 'Parameter name is required'),
+        }),
+        z.object({ type: z.literal('none') }),
+      ])
+      .optional(),
+    extraParameters: z.string().optional(),
+  })
+  .superRefine((model, ctx) => {
+    try {
+      parseModelExtraParameters(model.extraParameters)
+    } catch (error) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['extraParameters'],
+        message: error instanceof Error ? error.message : 'Invalid JSON',
+      })
+    }
+  })
 
-export const providerSchema = z.object({
-  id: z.string(),
-  apiKey: z.string().optional(),
-  hasKey: z.boolean().default(false),
-  baseURL: z.string().optional(),
-  enabled: z.boolean(),
-  models: z.array(modelEntrySchema),
-  _clientId: z.string().optional(),
-})
+export const providerSchema = z
+  .object({
+    id: z.string(),
+    apiKey: z.string().optional(),
+    hasKey: z.boolean().default(false),
+    baseURL: z.string().optional(),
+    extraHeaders: z.string().optional(),
+    enabled: z.boolean(),
+    models: z.array(modelEntrySchema),
+    _clientId: z.string().optional(),
+  })
+  .superRefine((provider, ctx) => {
+    if (providerRequiresBaseURL(provider.id) && !provider.baseURL?.trim()) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['baseURL'],
+        message: 'Base URL is required for this provider',
+      })
+    }
+
+    try {
+      parseProviderExtraHeaders(provider.extraHeaders)
+    } catch (error) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['extraHeaders'],
+        message: error instanceof Error ? error.message : 'Invalid JSON',
+      })
+    }
+  })
 
 export const promptSchema = z.object({
   id: z.string(),

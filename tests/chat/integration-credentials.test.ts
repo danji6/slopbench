@@ -240,6 +240,46 @@ describe('MCP servers', () => {
 })
 
 describe('model providers', () => {
+  test('round-trips a custom provider endpoint', async () => {
+    const { ctx, tables } = makeCtx()
+
+    await replaceProviders(ctx, {
+      providers: [
+        {
+          key: 'custom-service',
+          baseURL: 'https://custom.example/v1',
+          enabled: true,
+          models: [],
+        },
+      ],
+    })
+
+    expect(tables.modelProviders[0].baseURL).toBe('https://custom.example/v1')
+    expect((await listProviders(ctx))[0].baseURL).toBe(
+      'https://custom.example/v1',
+    )
+  })
+
+  test('round-trips a manually configured Qwen endpoint', async () => {
+    const { ctx, tables } = makeCtx()
+
+    await replaceProviders(ctx, {
+      providers: [
+        {
+          key: 'qwen',
+          baseURL: 'https://qwen.example/v1',
+          enabled: true,
+          models: [],
+        },
+      ],
+    })
+
+    expect(tables.modelProviders[0].baseURL).toBe('https://qwen.example/v1')
+    expect((await listProviders(ctx))[0].baseURL).toBe(
+      'https://qwen.example/v1',
+    )
+  })
+
   test('the key lands in credentials and never in the listing', async () => {
     const { ctx, tables } = makeCtx()
 
@@ -273,5 +313,106 @@ describe('model providers', () => {
 
     expect(tables.modelProviders).toEqual([])
     expect(tables.credentials).toEqual([])
+  })
+
+  test('round-trips per-model reasoning and extra parameters', async () => {
+    const { ctx, tables } = makeCtx()
+    const model = {
+      id: 'custom-model',
+      reasoning: {
+        type: 'binary' as const,
+        parameter: 'thinking_enabled',
+      },
+      extraParameters: '{"service_tier":"fast"}',
+    }
+
+    await replaceProviders(ctx, {
+      providers: [
+        {
+          key: 'custom',
+          enabled: true,
+          extraHeaders: '{"X-Custom":"value"}',
+          models: [model],
+        },
+      ],
+    })
+
+    expect(tables.modelProviders[0].models).toEqual([model])
+    const listed = await listProviders(ctx)
+    expect(listed[0].models).toEqual([model])
+    expect(listed[0].extraHeaders).toBe('{"X-Custom":"value"}')
+  })
+
+  test('normalizes the obsolete binary default for Ollama models', async () => {
+    const { ctx, tables } = makeCtx({
+      modelProviders: [
+        {
+          _id: 'modelProviders_legacy',
+          ownerId: OWNER,
+          key: 'ollama',
+          enabled: true,
+          order: 0,
+          models: [
+            {
+              id: 'legacy-model',
+              reasoning: {
+                type: 'binary',
+                parameter: 'enable_thinking',
+              },
+            },
+          ],
+        },
+      ],
+    })
+
+    const listed = await listProviders(ctx)
+    expect(listed[0].models[0].reasoning).toEqual({
+      type: 'binary',
+      parameter: 'think',
+    })
+
+    await replaceProviders(ctx, {
+      providers: [
+        {
+          key: 'ollama',
+          enabled: true,
+          models: listed[0].models,
+        },
+      ],
+    })
+    expect(tables.modelProviders[0].models).toEqual(listed[0].models)
+  })
+
+  test('rejects invalid model extra parameters', async () => {
+    const { ctx } = makeCtx()
+
+    expect(
+      replaceProviders(ctx, {
+        providers: [
+          {
+            key: 'custom',
+            enabled: true,
+            models: [{ id: 'bad', extraParameters: '{"messages":[]}' }],
+          },
+        ],
+      }),
+    ).rejects.toThrow('reserved fields')
+  })
+
+  test('rejects transport-managed provider headers', async () => {
+    const { ctx } = makeCtx()
+
+    expect(
+      replaceProviders(ctx, {
+        providers: [
+          {
+            key: 'custom',
+            enabled: true,
+            extraHeaders: '{"Host":"example.com"}',
+            models: [],
+          },
+        ],
+      }),
+    ).rejects.toThrow('managed by the HTTP transport')
   })
 })

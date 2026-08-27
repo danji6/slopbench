@@ -5,12 +5,21 @@ import type {
   LanguageModelV4Prompt,
   LanguageModelV4ReasoningPart,
 } from '@ai-sdk/provider'
+import { normalizeReasoningEffort } from '@sb/core/model-reasoning'
+import type { ModelReasoning, ReasoningTier } from '@sb/core/types'
 import type { LanguageModel, LanguageModelMiddleware } from 'ai'
 
 import { error } from '../../errors'
 import type { InferenceParameters, ReasoningEffort } from '../../types'
-import { withProviderRequestLogging } from '../stream/transformers'
+import {
+  providerReasoningField,
+  providerRequiresBaseURL,
+  resolveChatCompletionsBaseURL,
+  resolveModelReasoning,
+} from './known'
+import { withProviderMiddleware } from './providerMiddleware'
 import type { ProviderCredentials } from './providers'
+import { createProviderFetch } from './request'
 
 const REASONING_TAGS: Record<string, string> = {
   qwen: 'reasoning',
@@ -56,6 +65,7 @@ export async function getProviderOptions(
   inferenceParameters?: Partial<InferenceParameters>,
   credentials?: ProviderCredentials | null,
   onRequest?: (body: string) => void | Promise<void>,
+  fetchOverride?: typeof globalThis.fetch,
 ): Promise<ProviderOptions> {
   if (!model) {
     error('No model provided')
@@ -67,21 +77,33 @@ export async function getProviderOptions(
   }
 
   const providerId = credentials.providerId
+  const reasoning = resolveModelReasoning(
+    providerId,
+    credentials.model?.reasoning,
+  )
+  const normalizedEffort = normalizeReasoningEffort(reasoningEffort, reasoning)
+  const requestFetch = createProviderFetch({
+    providerId,
+    reasoning,
+    reasoningEffort: normalizedEffort,
+    extraParameters: credentials.model?.extraParameters,
+    extraHeaders: credentials.extraHeaders,
+    onRequest,
+    fetch: fetchOverride,
+  })
   const created = await createLanguageModel(
     providerId,
     model,
     credentials,
-    reasoningEffort,
+    reasoning,
+    normalizedEffort,
+    requestFetch,
   )
 
-  const languageModel = onRequest
-    ? await withProviderRequestLogging(created as LanguageModelV3, onRequest)
-    : created
-
   let result: ProviderOptions = {
-    languageModel: await applyReasoningReplayPolicy(languageModel, providerId),
+    languageModel: await applyReasoningReplayPolicy(created, providerId),
   }
-  result = await applyReasoning(result, providerId, model, reasoningEffort)
+  result = await applyReasoning(result, providerId, model, normalizedEffort)
   result = applyPenalties(result, providerId, inferenceParameters)
 
   return result
@@ -91,74 +113,153 @@ async function createLanguageModel(
   providerId: string,
   modelId: string,
   credentials?: ProviderCredentials,
+  reasoning?: ModelReasoning,
   reasoningEffort?: ReasoningEffort,
+  requestFetch?: typeof fetch,
 ): Promise<LanguageModel> {
-  const baseURL = credentials?.baseURL || undefined
+  const baseURL = credentials?.baseURL
   const apiKey = credentials?.apiKey || undefined
+  if (providerRequiresBaseURL(providerId) && !baseURL) {
+    error('Provider URL not specified.')
+  }
+
+  const videoModel = await createVideoModel({
+    providerId,
+    modelId,
+    baseURL,
+    apiKey,
+    requestFetch,
+  })
+
+  const withMiddleware = (model: LanguageModel) =>
+    withProviderMiddleware({ model, videoModel })
 
   switch (providerId) {
     case 'anthropic': {
       const { createAnthropic } = await import('@ai-sdk/anthropic')
-      return createAnthropic({ apiKey, baseURL })(modelId)
+      return withMiddleware(
+        createAnthropic({ apiKey, baseURL, fetch: requestFetch })(modelId),
+      )
     }
     case 'alibaba': {
       const { createAlibaba } = await import('@ai-sdk/alibaba')
-      return createAlibaba({ apiKey, baseURL })(modelId)
+      return withMiddleware(
+        createAlibaba({ apiKey, baseURL, fetch: requestFetch })(modelId),
+      )
     }
     case 'deepseek': {
       const { createDeepSeek } = await import('@ai-sdk/deepseek')
-      return createDeepSeek({ apiKey, baseURL })(modelId)
+      return withMiddleware(
+        createDeepSeek({ apiKey, baseURL, fetch: requestFetch })(modelId),
+      )
     }
     case 'mistral': {
       const { createMistral } = await import('@ai-sdk/mistral')
-      return createMistral({ apiKey, baseURL })(modelId)
+      return withMiddleware(
+        createMistral({ apiKey, baseURL, fetch: requestFetch })(modelId),
+      )
     }
     case 'moonshotai': {
       const { createMoonshotAI } = await import('@ai-sdk/moonshotai')
-      return createMoonshotAI({ apiKey, baseURL })(modelId)
+      const model = createMoonshotAI({ apiKey, baseURL, fetch: requestFetch })(
+        modelId,
+      )
+      return withMiddleware(model)
     }
     case 'ollama': {
-      return createOllamaModel(modelId, baseURL, apiKey, reasoningEffort)
+      return withMiddleware(
+        await createOllamaModel(
+          modelId,
+          baseURL,
+          apiKey,
+          reasoning,
+          reasoningEffort,
+          requestFetch,
+        ),
+      )
     }
     case 'openai': {
       const { createOpenAI } = await import('@ai-sdk/openai')
-      return createOpenAI({ apiKey, baseURL })(modelId)
+      return withMiddleware(
+        createOpenAI({ apiKey, baseURL, fetch: requestFetch })(modelId),
+      )
     }
     case 'openrouter': {
       const { createOpenRouter } = await import('@openrouter/ai-sdk-provider')
-      return createOpenRouter({ apiKey, baseURL })(modelId, {
-        usage: { include: true },
-      })
+      return withMiddleware(
+        createOpenRouter({ apiKey, baseURL, fetch: requestFetch })(modelId, {
+          usage: { include: true },
+        }),
+      )
     }
     case 'qwen': {
       const { createOpenAI } = await import('@ai-sdk/openai')
-      return createOpenAI({ apiKey, baseURL })(modelId)
+      const model = createOpenAI({
+        apiKey,
+        baseURL,
+        fetch: requestFetch,
+      }).chat(modelId)
+      return withMiddleware(model)
     }
     default: {
       if (!baseURL) error('Provider URL not specified.')
       const { createOpenAI } = await import('@ai-sdk/openai')
 
       if (baseURL.endsWith('/responses')) {
-        return createOpenAI({
+        const model = createOpenAI({
           apiKey,
           baseURL: baseURL.slice(0, -'/responses'.length),
+          fetch: requestFetch,
         }).responses(modelId)
+        return withMiddleware(model)
       }
 
       const chatBase = baseURL.endsWith('/chat/completions')
         ? baseURL.slice(0, -'/chat/completions'.length)
         : baseURL
 
-      return createOpenAI({ apiKey, baseURL: chatBase }).chat(modelId)
+      const model = createOpenAI({
+        apiKey,
+        baseURL: chatBase,
+        fetch: requestFetch,
+      }).chat(modelId)
+      return withMiddleware(model)
     }
   }
+}
+
+/** A model API that handles video uploads, currently by using the MoonshotAI API. */
+async function createVideoModel({
+  providerId,
+  modelId,
+  baseURL,
+  apiKey,
+  requestFetch,
+}: {
+  providerId: string
+  modelId: string
+  baseURL?: string
+  apiKey?: string
+  requestFetch?: typeof fetch
+}): Promise<LanguageModel | undefined> {
+  const chatBaseURL = resolveChatCompletionsBaseURL(providerId, baseURL)
+  if (!chatBaseURL) return undefined
+
+  const { createMoonshotAI } = await import('@ai-sdk/moonshotai')
+  return createMoonshotAI({
+    apiKey,
+    baseURL: chatBaseURL,
+    fetch: requestFetch,
+  })(modelId)
 }
 
 async function createOllamaModel(
   modelId: string,
   baseURL: string | undefined,
   apiKey: string | undefined,
+  reasoning: ModelReasoning | undefined,
   reasoningEffort: ReasoningEffort | undefined,
+  requestFetch: typeof fetch | undefined,
 ): Promise<LanguageModel> {
   const [{ createOllama }, { wrapLanguageModel }] = await Promise.all([
     import('ai-sdk-ollama'),
@@ -168,16 +269,15 @@ async function createOllamaModel(
   let abortSignal: AbortSignal | undefined
 
   const fetchWithAbort = ((input: RequestInfo | URL, init?: RequestInit) => {
-    const signals = [init?.signal, abortSignal].filter(
-      (s): s is AbortSignal => s != null,
-    )
+    const signals = [init?.signal, abortSignal].filter((s): s is AbortSignal => s != null) // prettier-ignore
     const signal = signals.length ? AbortSignal.any(signals) : undefined
-    return fetch(input, { ...init, signal })
+    return (requestFetch ?? fetch)(input, { ...init, signal })
   }) as typeof fetch // Bun fix
 
   const model = createOllama({ baseURL, apiKey, fetch: fetchWithAbort })(
     modelId,
-    { think: getOllamaThink(reasoningEffort) },
+    // ollama-js omits Ollama's documented `max` value from its current type.
+    { think: getOllamaThink(reasoning, reasoningEffort) as never },
   )
 
   // Fix for Ollama not forwarding the AI SDK's `abortSignal`
@@ -192,17 +292,20 @@ async function createOllamaModel(
 }
 
 function getOllamaThink(
+  reasoning: ModelReasoning | undefined,
   effort: ReasoningEffort | undefined,
-): boolean | 'low' | 'medium' | 'high' {
+): boolean | ReasoningTier {
+  if (reasoning?.type === 'none') return false
+  if (reasoning?.type === 'binary') return effort !== 'none'
   if (!effort || effort === 'auto') return true
-  if (effort === 'none') return false
-  return effort
+  return effort === 'none' ? false : effort
 }
 
 function toReasoningValue(
   effort: ReasoningEffort | undefined,
 ): ReasoningValue | undefined {
   if (!effort) return undefined
+  if (effort === 'max') return undefined
   if (effort === 'auto') return 'provider-default'
   return effort
 }
@@ -219,11 +322,6 @@ async function applyReasoning(
         ...result,
         providerOptions: buildOpenRouterReasoning(effort),
       }
-    case 'qwen':
-      return {
-        ...result,
-        providerOptions: { qwen: { enable_thinking: effort !== 'none' } },
-      }
   }
 
   const reasoning = toReasoningValue(effort)
@@ -231,7 +329,7 @@ async function applyReasoning(
   // Generic OpenAI-compatible endpoints don't emit structured reasoning. If the
   // model streams inline <think> tags, extract them into reasoning parts.
   if (!FIRST_PARTY_PROVIDERS.has(providerId) && effort && effort !== 'none') {
-    const middleware = await buildReasoningMiddleware(modelId)
+    const middleware = await buildReasoningMiddleware(providerId, modelId)
     if (middleware) {
       const { wrapLanguageModel } = await import('ai')
       return {
@@ -252,13 +350,18 @@ function buildOpenRouterReasoning(
   effort: ReasoningEffort | undefined,
 ): SharedV3ProviderOptions | undefined {
   if (!effort || effort === 'auto') return undefined
+  if (effort === 'max') return undefined
   return { openrouter: { reasoning: { effort } } }
 }
 
 async function buildReasoningMiddleware(
+  providerId: string,
   modelId: string,
 ): Promise<LanguageModelMiddleware | undefined> {
-  const tag = getReasoningTag(modelId)
+  const tag =
+    providerReasoningField(providerId) != null
+      ? 'reasoning'
+      : getReasoningTag(modelId)
   if (!tag) return undefined
   const { extractReasoningMiddleware } = await import('ai')
   return extractReasoningMiddleware({ tagName: tag })

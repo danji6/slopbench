@@ -8,6 +8,7 @@ import type {
   SessionParticipant as CoreSessionParticipant,
   UpdateAgentArgs as CoreUpdateAgentArgs,
   MessageRole,
+  ModelReasoning,
 } from '@sb/core/types'
 import type { ChatStatus, FileUIPart, UIMessage } from 'ai'
 
@@ -114,6 +115,7 @@ export type UIModel = {
   label?: string
   contextWindow?: number
   local?: boolean
+  reasoning?: ModelReasoning
 }
 
 export type UIModelConfig = {

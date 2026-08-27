@@ -50,6 +50,16 @@ const LIMITS = {
     subject: 'Models',
     max: L.MAX_PROVIDER_MODELS,
   },
+  modelExtraParameters: {
+    subject: 'Model extra parameters',
+    max: L.MAX_MODEL_EXTRA_PARAMETERS_CHARS,
+    unit: 'characters',
+  },
+  providerExtraHeaders: {
+    subject: 'Provider extra headers',
+    max: L.MAX_PROVIDER_EXTRA_HEADERS_CHARS,
+    unit: 'characters',
+  },
   webSearchInstances: {
     subject: 'Web search instances',
     max: L.MAX_WEB_SEARCH_INSTANCES,

@@ -284,6 +284,7 @@ function ChatSettingsDialog({
       providers: (providers ?? []).map((p) => ({
         id: p.id,
         baseURL: p.baseURL,
+        extraHeaders: p.extraHeaders,
         enabled: p.enabled,
         models: p.models,
         hasKey: p.hasKey,
@@ -409,11 +410,14 @@ function ChatSettingsDialog({
       providers: values.providers.map((p) => ({
         key: p.id,
         baseURL: p.baseURL,
+        extraHeaders: p.extraHeaders,
         enabled: p.enabled,
         models: p.models.map((model) => ({
           id: model.id,
           label: model.label,
           contextWindow: model.contextWindow,
+          reasoning: model.reasoning,
+          extraParameters: model.extraParameters,
         })),
         apiKey: p.apiKey,
       })),

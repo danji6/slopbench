@@ -12,12 +12,15 @@ import {
   Switch,
   useCollapsible,
 } from '@/components/ui'
-import { cn, expandNumber, generateId } from '@/lib/utils'
+import { cn, generateId } from '@/lib/utils'
+import type { ModelReasoning, ReasoningTier } from '@sb/core/types'
 import { EyeIcon, EyeOffIcon, PlusIcon, Trash2Icon } from 'lucide-react'
 import { useState } from 'react'
 import type { Control, FieldErrors } from 'react-hook-form'
 import { useFieldArray, useFormState } from 'react-hook-form'
 
+import { ModelRow } from './model-entry'
+import { ProviderExtraHeaders } from './provider-extra-headers'
 import type {
   ModelEntryFormValues,
   ProviderFormValues,
@@ -29,7 +32,13 @@ export type {
   ProviderFormValues,
 } from './settings-schema'
 
-type ProviderOption = { value: string; label: string }
+type ProviderOption = {
+  value: string
+  label: string
+  requiresBaseURL: boolean
+  defaultReasoning: ModelReasoning
+  binaryReasoningParameter?: string
+}
 
 type ModelSettingsProps = {
   control: Control<SettingsFormValues>
@@ -82,6 +91,9 @@ export function ModelSettings({ control, providers }: ModelSettingsProps) {
               typeError={
                 providerErrors[index]?.id?.message as string | undefined
               }
+              baseURLError={
+                providerErrors[index]?.baseURL?.message as string | undefined
+              }
               onChange={(patch) => {
                 const { rhfKey: _, ...data } = field
                 update(index, { ...data, ...patch })
@@ -109,6 +121,7 @@ type ProviderCardProps = {
   defaultOpen?: boolean
   providers?: ProviderOption[]
   typeError?: string
+  baseURLError?: string
   onChange: (patch: Partial<ProviderFormValues>) => void
   onRemove: () => void
 }
@@ -118,6 +131,7 @@ function ProviderCard({
   defaultOpen = false,
   providers,
   typeError,
+  baseURLError,
   onChange,
   onRemove,
 }: ProviderCardProps) {
@@ -141,6 +155,7 @@ function ProviderCard({
       : ''
 
   const providerLabel = knownProvider?.label ?? (provider.id || 'New Provider')
+  const requiresBaseURL = knownProvider?.requiresBaseURL ?? true
 
   function handleProviderChange(value: string) {
     if (value === '_other') {
@@ -153,7 +168,11 @@ function ProviderCard({
   }
 
   function addModel() {
-    onChange({ models: [{ id: '' }, ...provider.models] })
+    const reasoning = knownProvider?.defaultReasoning ?? {
+      type: 'effort' as const,
+      efforts: ['low', 'medium', 'high'] as ReasoningTier[],
+    }
+    onChange({ models: [{ id: '', reasoning }, ...provider.models] })
     setExpanded(true)
   }
 
@@ -268,12 +287,14 @@ function ProviderCard({
         {typeError && <p className="text-destructive text-sm">{typeError}</p>}
 
         <div className="flex flex-col gap-1">
-          <Label className="text-muted-foreground text-sm">API Key</Label>
+          <Label className="text-muted-foreground text-sm">
+            API Key <span className="opacity-60">(optional)</span>
+          </Label>
           <div className="flex items-center gap-4">
             <Input
               type={showKey ? 'text' : 'password'}
               className="flex-1 font-mono text-sm"
-              placeholder={`${`(${provider.hasKey ? 'Already set' : 'Optional'}`})`}
+              placeholder={provider.hasKey ? '(Already set)' : 'sk-...'}
               // Undefined keeps the stored key, while an empty string clears it
               value={provider.apiKey ?? ''}
               onChange={(e) => onChange({ apiKey: e.target.value })}
@@ -304,12 +325,14 @@ function ProviderCard({
                 the URL to use the responses API.
               `}
             >
-              Base URL
+              Base URL <span className="opacity-60">(required)</span>
             </HelpPopoverLabel>
           ) : (
             <Label className="text-muted-foreground text-sm">
               Base URL
-              <span className="opacity-60"> (optional)</span>
+              <span className="opacity-60">
+                {requiresBaseURL ? ' (required)' : ' (optional)'}
+              </span>
             </Label>
           )}
           <Input
@@ -321,8 +344,18 @@ function ProviderCard({
             }
             value={provider.baseURL ?? ''}
             onChange={(e) => onChange({ baseURL: e.target.value || undefined })}
+            aria-invalid={!!baseURLError}
           />
+          {baseURLError && (
+            <p className="text-destructive text-sm">{baseURLError}</p>
+          )}
         </div>
+
+        <ProviderExtraHeaders
+          editorId={provider._clientId ?? provider.id}
+          value={provider.extraHeaders ?? ''}
+          onChange={(value) => onChange({ extraHeaders: value || undefined })}
+        />
 
         <div className="flex flex-col gap-3">
           <Label className="text-muted-foreground text-sm">Models</Label>
@@ -341,6 +374,12 @@ function ProviderCard({
                 <ModelRow
                   key={idx}
                   model={model}
+                  editorId={`${provider._clientId ?? provider.id}-${idx}`}
+                  defaultReasoning={knownProvider?.defaultReasoning}
+                  binaryReasoningParameter={
+                    knownProvider?.binaryReasoningParameter ??
+                    providerFormBinaryParameter(provider.id)
+                  }
                   onChange={(patch) => updateModel(idx, patch)}
                   onRemove={() => removeModel(idx)}
                 />
@@ -351,6 +390,11 @@ function ProviderCard({
       </Collapsible.Content>
     </Collapsible>
   )
+}
+
+/** Keeps provider form defaults usable while newer metadata is loading. */
+function providerFormBinaryParameter(providerId: string) {
+  return providerId === 'ollama' ? 'think' : undefined
 }
 
 function ExpandToggle() {
@@ -368,98 +412,5 @@ function ExpandToggle() {
         className="text-muted-foreground size-4"
       />
     </RippleButton>
-  )
-}
-
-type ModelRowProps = {
-  model: ModelEntryFormValues
-  onChange: (patch: Partial<ModelEntryFormValues>) => void
-  onRemove: () => void
-}
-
-type ContextWindowFieldProps = {
-  value?: number
-  onChange: (value: number | undefined) => void
-}
-
-function ContextWindowField({ value, onChange }: ContextWindowFieldProps) {
-  const [text, setText] = useState(value?.toString() ?? '')
-  const [prevValue, setPrevValue] = useState(value)
-  if (prevValue !== value) {
-    setPrevValue(value)
-    setText(value?.toString() ?? '')
-  }
-
-  function commit(raw: string) {
-    setText(raw)
-    const trimmed = raw.trim()
-    if (!trimmed) return onChange(undefined)
-    try {
-      onChange(Math.round(expandNumber(trimmed)))
-    } catch {
-      // Keep typing
-    }
-  }
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <HelpPopoverLabel
-        className="text-muted-foreground text-sm"
-        help={md`
-          Maximum context tokens for this model. Only used for
-          visual feedback. Accepts shorthand like \`128k\` or \`1m\`.
-        `}
-      >
-        Context window <span className="opacity-60">(optional)</span>
-      </HelpPopoverLabel>
-      <Input
-        className="h-9 max-w-32 font-mono text-sm"
-        placeholder="e.g. 128k"
-        value={text}
-        onChange={(e) => commit(e.target.value)}
-      />
-    </div>
-  )
-}
-
-function ModelRow({ model, onChange, onRemove }: ModelRowProps) {
-  return (
-    <div className="bg-background/40 flex items-center gap-4 rounded-lg border p-4">
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-muted-foreground text-sm">Model ID</Label>
-          <Input
-            className="h-9 font-mono text-sm"
-            placeholder="e.g. model-id"
-            value={model.id}
-            onChange={(e) => onChange({ id: e.target.value })}
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-muted-foreground text-sm">
-            Display name <span className="opacity-60">(optional)</span>
-          </Label>
-          <Input
-            className="h-9 max-w-48 text-sm"
-            placeholder="e.g. Model Name"
-            value={model.label ?? ''}
-            onChange={(e) => onChange({ label: e.target.value || undefined })}
-          />
-        </div>
-        <ContextWindowField
-          value={model.contextWindow}
-          onChange={(contextWindow) => onChange({ contextWindow })}
-        />
-      </div>
-      <RippleButton
-        variant="surface"
-        size="icon"
-        className="text-muted-foreground hover:text-destructive size-10"
-        onClick={onRemove}
-        aria-label="Remove model"
-      >
-        <Trash2Icon />
-      </RippleButton>
-    </div>
   )
 }

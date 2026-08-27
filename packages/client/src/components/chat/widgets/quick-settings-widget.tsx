@@ -58,14 +58,18 @@ export function QuickSettingsWidget({
               />
             </QuickSetting>
 
-            <QuickSetting label="Reasoning">
-              <ReasoningPicker
-                variant="input"
-                className="w-fit justify-between"
-                value={settings.reasoningEffort ?? 'auto'}
-                onValueChange={settings.setReasoningEffort}
-              />
-            </QuickSetting>
+            {settings.model?.reasoning?.type !== 'none' && (
+              <QuickSetting label="Reasoning">
+                <ReasoningPicker
+                  variant="input"
+                  className="w-fit justify-between"
+                  value={settings.reasoningEffort ?? 'auto'}
+                  onValueChange={settings.setReasoningEffort}
+                  model={settings.model}
+                  binaryLabel="Enabled"
+                />
+              </QuickSetting>
+            )}
           </div>
         )}
       </Popover.Content>

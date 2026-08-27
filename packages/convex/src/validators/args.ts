@@ -221,6 +221,7 @@ export const replaceModelProvidersArgsValidator = v.object({
     v.object({
       key: v.string(),
       baseURL: v.optional(v.string()),
+      extraHeaders: v.optional(v.string()),
       enabled: v.boolean(),
       models: v.array(modelEntryValidator),
       apiKey: v.optional(v.string()),
@@ -231,6 +232,7 @@ export const replaceModelProvidersArgsValidator = v.object({
 export const createModelProviderArgsValidator = v.object({
   key: v.string(),
   baseURL: v.optional(v.string()),
+  extraHeaders: v.optional(v.string()),
   enabled: v.boolean(),
   models: v.array(modelEntryValidator),
 })
@@ -238,6 +240,7 @@ export const createModelProviderArgsValidator = v.object({
 export const updateModelProviderArgsValidator = v.object({
   providerId: v.id('modelProviders'),
   baseURL: v.optional(v.string()),
+  extraHeaders: v.optional(v.string()),
   enabled: v.optional(v.boolean()),
   models: v.optional(v.array(modelEntryValidator)),
 })

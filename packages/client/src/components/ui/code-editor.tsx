@@ -20,7 +20,7 @@ import { type CompletionSource, useCodeCompletion } from './code-completion'
 import { FullscreenEditor, fullscreenFill } from './fullscreen-editor'
 
 export const codeEditorVariants = cva(
-  'border-input bg-m3-surface-container-low relative flex max-h-full min-h-0 min-w-0 flex-1 cursor-text flex-col overflow-auto rounded-2xl border transition-[color,box-shadow,border]',
+  'border-input bg-m3-surface-container-low relative flex max-h-full min-h-0 min-w-0 flex-1 cursor-text flex-col overflow-hidden rounded-2xl border transition-[color,box-shadow,border]',
   {
     variants: {
       variant: {
@@ -153,7 +153,10 @@ export function CodeEditor({
         onMouseDown={focusEditor}
       >
         <FullscreenEditor.Toolbar />
-        <EditorContent className="flex min-h-0 flex-1" editor={editor} />
+        <EditorContent
+          className="flex min-h-0 flex-1 overflow-auto"
+          editor={editor}
+        />
         {completionPopup}
       </div>
     </FullscreenEditor>

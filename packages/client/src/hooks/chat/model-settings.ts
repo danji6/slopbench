@@ -1,5 +1,9 @@
 import type { ReasoningEffort, UIModel } from '@/lib/chat'
 import type { Doc } from '@sb/convex/_generated/dataModel'
+import {
+  defaultModelReasoning,
+  normalizeReasoningEffort as normalizeConfiguredEffort,
+} from '@sb/core/model-reasoning'
 import { useCallback, useMemo } from 'react'
 
 import { useActiveAgent, useAgentUpdate, useEditingAgent } from './agent'
@@ -39,9 +43,20 @@ function useModelSettingsFor(
     (value: UIModel | string) => {
       if (!agent) return
       const id = typeof value === 'string' ? value : value.id
-      void updateAgent({ agentId: agent._id, modelId: id })
+      const selected = models.find((candidate) => candidate.id === id)
+      const normalized = normalizeReasoningEffort(
+        reasoningEffort,
+        selected?.reasoning,
+      )
+      void updateAgent({
+        agentId: agent._id,
+        modelId: id,
+        ...(normalized !== reasoningEffort
+          ? { reasoningEffort: normalized }
+          : {}),
+      })
     },
-    [agent, updateAgent],
+    [agent, models, reasoningEffort, updateAgent],
   )
 
   const setReasoningEffort = useCallback(
@@ -59,6 +74,16 @@ function useModelSettingsFor(
     setReasoningEffort,
     initialModel: undefined,
   }
+}
+
+export function normalizeReasoningEffort(
+  effort: ReasoningEffort | undefined,
+  configured?: UIModel['reasoning'],
+): ReasoningEffort {
+  return normalizeConfiguredEffort(
+    effort,
+    configured ?? defaultModelReasoning(),
+  )
 }
 
 export function useModelSettings(): ModelSettingsState {

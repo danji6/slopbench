@@ -132,6 +132,8 @@ export const modelProviderSchema = v.object({
   /** The provider id, e.g. 'ollama'. */
   key: v.string(),
   baseURL: v.optional(v.string()),
+  /** Additional HTTP headers, stored as serialized JSON. */
+  extraHeaders: v.optional(v.string()),
   enabled: v.boolean(),
   models: v.array(V.modelEntryValidator),
   order: v.number(),

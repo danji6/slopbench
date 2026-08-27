@@ -1,10 +1,9 @@
-import { Select, type SelectTriggerProps } from '@/components/ui'
+import { Select, type SelectTriggerProps, Switch } from '@/components/ui'
 import { useBreakpoint } from '@/hooks'
-import { useModelSettings } from '@/hooks/chat'
-import type { ReasoningEffort } from '@/lib/chat'
+import { normalizeReasoningEffort, useModelSettings } from '@/hooks/chat'
+import type { ReasoningEffort, UIModel } from '@/lib/chat'
 import { cn } from '@/lib/utils'
 import { BrainIcon } from 'lucide-react'
-import { useMemo } from 'react'
 
 const REASONING_OPTIONS: { value: ReasoningEffort; label: string }[] = [
   { value: 'auto', label: 'Auto' },
@@ -12,15 +11,21 @@ const REASONING_OPTIONS: { value: ReasoningEffort; label: string }[] = [
   { value: 'low', label: 'Low' },
   { value: 'medium', label: 'Medium' },
   { value: 'high', label: 'High' },
+  { value: 'xhigh', label: 'XHigh' },
+  { value: 'max', label: 'Max' },
 ]
 
 export type ReasoningPickerProps = SelectTriggerProps & {
-  /** Controlled mode: current reasoning effort */
+  /** Controlled mode: current reasoning effort. */
   value?: ReasoningEffort
-  /** Controlled mode: called with the new reasoning effort */
+  /** Controlled mode: called with the new reasoning effort. */
   onValueChange?: (value: ReasoningEffort) => void
-  /** Hide the label on mobile */
+  /** Controlled model whose reasoning capabilities should be rendered. */
+  model?: UIModel | null
+  /** Hide the label on mobile. */
   compactMobile?: boolean
+  /** Optional text shown beside a binary reasoning switch. */
+  binaryLabel?: string
 }
 
 export function ReasoningPicker({
@@ -28,7 +33,9 @@ export function ReasoningPicker({
   className,
   value: controlledValue,
   onValueChange: controlledOnChange,
+  model: controlledModel,
   compactMobile,
+  binaryLabel,
   ...props
 }: ReasoningPickerProps) {
   const isMobile = useBreakpoint('sm') && !!compactMobile
@@ -37,32 +44,66 @@ export function ReasoningPicker({
     reasoningEffort: uncontrolledReasoning,
     setReasoningEffort: setUncontrolledReasoning,
     initialModel,
+    model: uncontrolledModel,
   } = useModelSettings()
 
   const isControlled =
     controlledValue !== undefined || controlledOnChange !== undefined
+  const model =
+    controlledModel === undefined ? uncontrolledModel : controlledModel
 
-  const reasoning = isControlled ? controlledValue : uncontrolledReasoning
+  const reasoning = normalizeReasoningEffort(
+    isControlled ? controlledValue : uncontrolledReasoning,
+    model?.reasoning,
+  )
 
   const setReasoning = isControlled
     ? (v: ReasoningEffort) => controlledOnChange?.(v)
     : setUncontrolledReasoning
 
-  const { items, selectedLabel } = useMemo(
-    () => ({
-      items: REASONING_OPTIONS.map((opt) => ({
-        value: opt.value,
-        label: opt.label,
-      })),
-      selectedLabel: REASONING_OPTIONS.find(
-        (o) => o.value === (reasoning ?? 'auto'),
-      )?.label,
-    }),
-    [reasoning],
+  const supported =
+    model?.reasoning?.type === 'effort'
+      ? new Set(model.reasoning.efforts)
+      : new Set(['low', 'medium', 'high'])
+  const options = REASONING_OPTIONS.filter(
+    (option) =>
+      option.value === 'auto' ||
+      option.value === 'none' ||
+      supported.has(option.value),
   )
+  const items = options.map((option) => ({
+    value: option.value,
+    label: option.label,
+  }))
+  const selectedLabel = options.find(
+    (option) => option.value === (reasoning ?? 'auto'),
+  )?.label
 
   if (initialModel) {
     return null
+  }
+
+  if (model?.reasoning?.type === 'none') return null
+
+  if (model?.reasoning?.type === 'binary') {
+    const checked = reasoning !== 'none'
+    return (
+      <label
+        className={cn(
+          'text-muted-foreground flex items-center gap-2 text-sm',
+          className,
+        )}
+      >
+        {!isMobile && binaryLabel}
+        <Switch
+          size="sm"
+          checked={checked}
+          disabled={disabled}
+          onCheckedChange={(next) => setReasoning(next ? 'auto' : 'none')}
+          aria-label="Enable reasoning"
+        />
+      </label>
+    )
   }
 
   return (
