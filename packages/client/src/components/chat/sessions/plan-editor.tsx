@@ -1,4 +1,5 @@
 import {
+  EditorScrollArea,
   FullscreenEditor,
   codeEditorVariants,
   fullscreenFill,
@@ -15,7 +16,7 @@ import {
 } from '@/lib/tiptap/serialize'
 import { cn } from '@/lib/utils'
 import type { JSONContent } from '@tiptap/core'
-import { EditorContent, useEditor } from '@tiptap/react'
+import { useEditor } from '@tiptap/react'
 import { useEffect, useImperativeHandle, useRef } from 'react'
 
 /**
@@ -132,7 +133,7 @@ export function PlanEditor({
         )}
       >
         <FullscreenEditor.Toolbar>{toolbar}</FullscreenEditor.Toolbar>
-        <EditorContent className="min-h-0 flex-1" editor={editor} />
+        <EditorScrollArea editor={editor} />
       </div>
     </FullscreenEditor>
   )

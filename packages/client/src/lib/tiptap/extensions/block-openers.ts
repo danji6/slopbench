@@ -86,15 +86,18 @@ function promoteLine(state: EditorState): Transaction | null {
 
   // A split leaves two positions where the breaks it replaces were
   const { breakBefore } = line
-  const shift = breakBefore ? 2 - (breakBefore.to - breakBefore.from) : 0
+  const shift = breakBefore ? breakBefore.to - breakBefore.from : 0
   tr.setSelection(TextSelection.create(tr.doc, state.selection.from + shift))
   return tr
 }
 
-/** Replaces a run of breaks with a single paragraph split. */
+/** Replaces each break with a paragraph split, preserving blank lines. */
 function splitAtBreaks(tr: Transaction, breaks: PositionRange): void {
+  const count = breaks.to - breaks.from
   tr.delete(breaks.from, breaks.to)
-  tr.split(breaks.from)
+  for (let index = 0; index < count; index++) {
+    tr.split(breaks.from + index * 2)
+  }
 }
 
 /** Promotes the caret's line when the typed character completes an opener. */

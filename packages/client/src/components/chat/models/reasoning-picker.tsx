@@ -24,8 +24,6 @@ export type ReasoningPickerProps = SelectTriggerProps & {
   model?: UIModel | null
   /** Hide the label on mobile. */
   compactMobile?: boolean
-  /** Optional text shown beside a binary reasoning switch. */
-  binaryLabel?: string
 }
 
 export function ReasoningPicker({
@@ -35,7 +33,6 @@ export function ReasoningPicker({
   onValueChange: controlledOnChange,
   model: controlledModel,
   compactMobile,
-  binaryLabel,
   ...props
 }: ReasoningPickerProps) {
   const isMobile = useBreakpoint('sm') && !!compactMobile
@@ -88,21 +85,14 @@ export function ReasoningPicker({
   if (model?.reasoning?.type === 'binary') {
     const checked = reasoning !== 'none'
     return (
-      <label
-        className={cn(
-          'text-muted-foreground flex items-center gap-2 text-sm',
-          className,
-        )}
-      >
-        {!isMobile && binaryLabel}
+      <div className="flex w-full pl-2.5">
         <Switch
-          size="sm"
           checked={checked}
           disabled={disabled}
           onCheckedChange={(next) => setReasoning(next ? 'auto' : 'none')}
           aria-label="Enable reasoning"
         />
-      </label>
+      </div>
     )
   }
 

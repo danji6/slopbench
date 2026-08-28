@@ -37,7 +37,7 @@ export function QuickSettingsWidget({
       <Popover.Content
         align="center"
         side="top"
-        className="w-90 max-w-dvw space-y-3 p-4"
+        className="w-fit max-w-dvw space-y-3 p-4"
       >
         <Popover.Header>
           <Popover.Title>Quick settings</Popover.Title>
@@ -48,7 +48,7 @@ export function QuickSettingsWidget({
         )}
 
         {settings.editable && (
-          <div className="grid grid-cols-[2fr_1fr] gap-2">
+          <div className="grid grid-cols-[2fr_1fr] items-center gap-2">
             <QuickSetting label="Model">
               <ModelPicker
                 variant="input"
@@ -62,11 +62,9 @@ export function QuickSettingsWidget({
               <QuickSetting label="Reasoning">
                 <ReasoningPicker
                   variant="input"
-                  className="w-fit justify-between"
                   value={settings.reasoningEffort ?? 'auto'}
                   onValueChange={settings.setReasoningEffort}
                   model={settings.model}
-                  binaryLabel="Enabled"
                 />
               </QuickSetting>
             )}

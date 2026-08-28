@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 import { Node } from '@tiptap/core'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import type { Editor } from '@tiptap/react'
-import { EditorContent, useEditor } from '@tiptap/react'
+import { useEditor } from '@tiptap/react'
 import { StarterKit } from '@tiptap/starter-kit'
 import { type VariantProps, cva } from 'class-variance-authority'
 import type { MouseEvent } from 'react'
@@ -17,6 +17,7 @@ import { useEffect, useRef } from 'react'
 
 import { CodeBlockShiki } from './code-block-shiki'
 import { type CompletionSource, useCodeCompletion } from './code-completion'
+import { EditorScrollArea } from './editor-scroll-area'
 import { FullscreenEditor, fullscreenFill } from './fullscreen-editor'
 
 export const codeEditorVariants = cva(
@@ -153,10 +154,7 @@ export function CodeEditor({
         onMouseDown={focusEditor}
       >
         <FullscreenEditor.Toolbar />
-        <EditorContent
-          className="flex min-h-0 flex-1 overflow-auto"
-          editor={editor}
-        />
+        <EditorScrollArea className="flex" editor={editor} />
         {completionPopup}
       </div>
     </FullscreenEditor>

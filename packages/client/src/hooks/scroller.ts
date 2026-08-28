@@ -61,6 +61,11 @@ export function useScroller(
     scrollerRef.current?.setImmediate(value)
   }, [])
 
+  const isAutoScrolling = useCallback(
+    () => scrollerRef.current?.autoScrolling ?? false,
+    [],
+  )
+
   useEffect(() => {
     if (scrollerRef.current && options?.enabled !== undefined) {
       scrollerRef.current.enabled = options.enabled
@@ -78,6 +83,12 @@ export function useScroller(
       scrollerRef.current.onFollowRelease = options?.onFollowRelease ?? null
     }
   }, [options?.onFollowRelease])
+
+  useEffect(() => {
+    if (scrollerRef.current) {
+      scrollerRef.current.onPositionChange = options?.onPositionChange ?? null
+    }
+  }, [options?.onPositionChange])
 
   useEffect(() => {
     scrollerRef.current?.setBottomInset(options?.bottomInset ?? 0)
@@ -114,5 +125,6 @@ export function useScroller(
     holdPosition,
     pauseFollow,
     scrollUntilCondition,
+    isAutoScrolling,
   }
 }

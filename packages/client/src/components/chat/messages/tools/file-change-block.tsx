@@ -54,6 +54,8 @@ export function FileChangeBlock({
   const diff = output?.diff ?? previewDiff ?? undefined
 
   const showContentFallback = !diff && Boolean(input?.content)
+  // write_file already has the complete content in its input fallback
+  const showLoadFullOutput = truncated && !showContentFallback
   const isPending = !diff && !showContentFallback
 
   const verb =
@@ -75,7 +77,8 @@ export function FileChangeBlock({
       className="w-full"
       label={
         <>
-          {verb}{path && ' '}
+          {verb}
+          {path && ' '}
           <span className="text-foreground font-mono">{path ?? '…'}</span>
         </>
       }
@@ -103,7 +106,9 @@ export function FileChangeBlock({
           noCopyButton
         />
       )}
-      {truncated && <LoadFullOutput onLoad={loadFull} loading={loadingFull} />}
+      {showLoadFullOutput && (
+        <LoadFullOutput onLoad={loadFull} loading={loadingFull} />
+      )}
     </ToolShell>
   )
 }

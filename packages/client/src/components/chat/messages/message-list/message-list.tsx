@@ -62,8 +62,9 @@ export type MessageListProps = Omit<React.ComponentProps<'div'>, 'ref'> & {
   bottomPadding?: number
   header?: React.ReactNode
   isAtBottom?: boolean
-  onScrollChange?: (e?: Event) => void
+  onScrollChange?: (e?: Event, autoScrolling?: boolean) => void
   onIntoViewSettle?: () => void
+  onInitialPositionSettled?: () => void
 }
 
 export type MessageListHandle = {
@@ -95,6 +96,7 @@ export function MessageList({
   isAtBottom,
   onScrollChange,
   onIntoViewSettle,
+  onInitialPositionSettled,
   ...rest
 }: MessageListProps) {
   const messageIds = useMessageIds()
@@ -144,7 +146,13 @@ export function MessageList({
   // The list stays hidden behind the loading phase until its initial scroll
   // position has settled
   const [revealed, setRevealed] = useState(false)
-  const markRevealed = useCallback(() => setRevealed(true), [])
+  const revealedRef = useRef(false)
+  const markRevealed = useCallback(() => {
+    if (revealedRef.current) return
+    revealedRef.current = true
+    setRevealed(true)
+    onInitialPositionSettled?.()
+  }, [onInitialPositionSettled])
 
   const showLoadingIndicator = useDelayedVisibility(
     !revealed && !isEmpty,
@@ -172,10 +180,16 @@ export function MessageList({
     setSubagentFollowReleased(true)
   }, [])
 
+  const handlePositionChange = useCallback(
+    (autoScrolling: boolean) => onScrollChange?.(undefined, autoScrolling),
+    [onScrollChange],
+  )
+
   const scroller = useScroller({
     enabled: autoScroll && !isEditing,
     onSettle: onIntoViewSettle,
     onFollowRelease: releaseFollowOverride,
+    onPositionChange: handlePositionChange,
     bottomInset: bottomPadding ?? 0,
     mode: 'window',
   })
@@ -190,7 +204,13 @@ export function MessageList({
     holdPosition,
     scrollUntilCondition,
     setImmediate,
+    isAutoScrolling,
   } = scroller
+
+  const handleScrollChange = useCallback(
+    (event?: Event) => onScrollChange?.(event, isAutoScrolling()),
+    [onScrollChange, isAutoScrolling],
+  )
 
   const virtuaRef = useRef<WindowVirtualizerHandle>(null)
 
@@ -303,13 +323,17 @@ export function MessageList({
 
   useEffect(() => {
     if (!onScrollChange) return
-    window.addEventListener('scroll', onScrollChange, { passive: true })
-    return () => window.removeEventListener('scroll', onScrollChange)
-  }, [onScrollChange])
+    window.addEventListener('scroll', handleScrollChange, { passive: true })
+    window.addEventListener('resize', handleScrollChange, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', handleScrollChange)
+      window.removeEventListener('resize', handleScrollChange)
+    }
+  }, [onScrollChange, handleScrollChange])
 
   useEffect(() => {
-    onScrollChange?.()
-  }, [messageIds, onScrollChange])
+    handleScrollChange()
+  }, [messageIds, handleScrollChange])
 
   const editingId = useMessageEdit()?.editingMessageId ?? null
 
@@ -405,6 +429,10 @@ export function MessageList({
 
   useEffect(() => () => initialSettleRef.current?.(), [])
 
+  useLayoutEffect(() => {
+    if (isEmpty) markRevealed()
+  }, [isEmpty, markRevealed])
+
   // Never leave the list hidden if a restore never settles
   useEffect(() => {
     if (revealed) return
@@ -427,9 +455,9 @@ export function MessageList({
 
     settleCancelRef.current?.()
     settleCancelRef.current = onScrollChange
-      ? trackHeightSettle(onScrollChange)
+      ? trackHeightSettle(handleScrollChange)
       : null
-  }, [holdPosition, setShiftInProgress, onScrollChange])
+  }, [holdPosition, setShiftInProgress, onScrollChange, handleScrollChange])
 
   useEffect(() => () => settleCancelRef.current?.(), [])
 

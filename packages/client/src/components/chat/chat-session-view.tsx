@@ -26,7 +26,13 @@ import {
 import { isOngoingStream } from '@/lib/chat/stream'
 import { cn } from '@/lib/utils'
 import { AnimatePresence } from 'motion/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 
 import { ChatAlert } from './chat-alert'
 import { SlowModeLabel } from './chat-countdowns'
@@ -155,6 +161,7 @@ export function ChatSessionView({
 
   const messageListRef = useRef<MessageListHandle>(null)
   const composerRef = useRef<ComposerHandle>(null)
+  const [initialPositionSettled, setInitialPositionSettled] = useState(false)
 
   const {
     isAtBottom,
@@ -164,7 +171,19 @@ export function ChatSessionView({
     useCallback(() => {
       messageListRef.current?.lockScroll()
     }, []),
-    { unstickDistance: DOCK_HIDE_DISTANCE },
+    {
+      unstickDistance: DOCK_HIDE_DISTANCE,
+      suspended: !initialPositionSettled,
+    },
+  )
+
+  useLayoutEffect(() => {
+    if (initialPositionSettled) onMessageListScroll()
+  }, [initialPositionSettled, onMessageListScroll])
+
+  const handleInitialPositionSettled = useCallback(
+    () => setInitialPositionSettled(true),
+    [],
   )
 
   const unseenActivity = useUnseenTailActivity(isAtBottom)
@@ -264,6 +283,7 @@ export function ChatSessionView({
                 isAtBottom={isAtBottom}
                 onScrollChange={onMessageListScroll}
                 onIntoViewSettle={releaseSticky}
+                onInitialPositionSettled={handleInitialPositionSettled}
               />
             )}
             dockHeader={(bottomPadding) => {
@@ -304,7 +324,6 @@ export function ChatSessionView({
                 <SlowModeLabel className="ml-auto" />
               </div>
             }
-            showDockFooter
             dockFooterWidth={dockWidth}
             dock={
               <ChatDock

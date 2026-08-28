@@ -65,6 +65,9 @@ export interface AutoScrollerOptions {
    */
   onFollowRelease?: () => void
 
+  /** Invoked when content growth may have changed the bottom distance. */
+  onPositionChange?: (autoScrolling: boolean) => void
+
   /**
    * Distance (px) reserved at the bottom of the viewport to prevent
    * early locking.
@@ -104,6 +107,7 @@ export class Scroller {
   private scrollListener: (() => void) | null = null
   onSettle: (() => void) | null = null
   onFollowRelease: (() => void) | null = null
+  onPositionChange: ((autoScrolling: boolean) => void) | null = null
 
   constructor(options: AutoScrollerOptions = {}) {
     this.followK =
@@ -113,7 +117,12 @@ export class Scroller {
     this._enabled = options.enabled ?? true
     this.onSettle = options.onSettle ?? null
     this.onFollowRelease = options.onFollowRelease ?? null
+    this.onPositionChange = options.onPositionChange ?? null
     this._bottomInset = Math.max(0, Math.round(options.bottomInset ?? 0))
+  }
+
+  get autoScrolling() {
+    return this.isFollowing
   }
 
   setBottomInset(px: number) {
@@ -656,7 +665,10 @@ export class Scroller {
         return
       }
       this._unlockIfContentFits()
-      if (this._suppressAutoFollow) return
+      if (this._suppressAutoFollow) {
+        this.onPositionChange?.(this.autoScrolling)
+        return
+      }
       if (
         this._enabled &&
         !this._manualScrollActive &&
@@ -666,6 +678,7 @@ export class Scroller {
       ) {
         this.lockScroll()
       }
+      this.onPositionChange?.(this.autoScrolling)
     })
 
     this.mutationObserver.observe(contentEl, {
@@ -685,7 +698,10 @@ export class Scroller {
         return
       }
       this._unlockIfContentFits()
-      if (this._suppressAutoFollow) return
+      if (this._suppressAutoFollow) {
+        this.onPositionChange?.(this.autoScrolling)
+        return
+      }
       if (
         this._enabled &&
         !this._manualScrollActive &&
@@ -695,6 +711,7 @@ export class Scroller {
       ) {
         this.lockScroll()
       }
+      this.onPositionChange?.(this.autoScrolling)
     })
 
     this.resizeObserver.observe(contentEl)

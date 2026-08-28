@@ -1,9 +1,9 @@
 /// <reference types="bun-types" />
 import { createMoonshotAI } from '@ai-sdk/moonshotai'
 import type { LanguageModelV3, LanguageModelV4Prompt } from '@ai-sdk/provider'
-import { withModelRoutes } from '@sb/convex/model/provider/model-middleware'
+import { withModelRoutes } from '@sb/convex/model/provider/modelMiddleware'
 import { getProviderOptions } from '@sb/convex/model/provider/options'
-import { withProviderMiddleware } from '@sb/convex/model/provider/provider-middleware'
+import { withProviderMiddleware } from '@sb/convex/model/provider/providerMiddleware'
 import { createProviderFetch } from '@sb/convex/model/provider/request'
 import { parseModelExtraParameters } from '@sb/core/model-parameters'
 import { normalizeReasoningEffort } from '@sb/core/model-reasoning'

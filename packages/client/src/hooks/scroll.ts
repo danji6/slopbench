@@ -14,6 +14,15 @@ type ScrollerOptions = {
 
 type AtBottomStickyOptions = {
   unstickDistance?: number
+  suspended?: boolean
+}
+
+type StickyBottomState = {
+  isStuck: boolean
+  distanceFromBottom: number
+  unstickDistance: number
+  autoScrolling: boolean
+  suspended: boolean
 }
 
 const scrollCancelEvents = [
@@ -26,6 +35,21 @@ const scrollCancelEvents = [
 const NEAR_BOTTOM_THRESHOLD = 20
 const MIN_SCROLL_DELTA = 5
 const INITIAL_BOTTOM_DISTANCE = 0
+
+/** Resolves sticky bottom state from position while preserving active follows. */
+export function nextStickyBottomState({
+  isStuck,
+  distanceFromBottom,
+  unstickDistance,
+  autoScrolling,
+  suspended,
+}: StickyBottomState): boolean {
+  if (suspended) return isStuck
+  if (distanceFromBottom < NEAR_BOTTOM_THRESHOLD) return true
+  if (autoScrolling) return isStuck
+  if (distanceFromBottom >= unstickDistance) return false
+  return isStuck
+}
 
 export function useScroll() {
   const [scroll, setScroll] = useState(0)
@@ -97,12 +121,12 @@ export function useAtBottomSticky(
   options: AtBottomStickyOptions = {},
 ) {
   const unstickDistance = options.unstickDistance ?? NEAR_BOTTOM_THRESHOLD
+  const suspended = options.suspended ?? false
   const [isStuck, setIsStuck] = useState(true)
   const [distanceFromBottom, setDistanceFromBottom] = useState(
     INITIAL_BOTTOM_DISTANCE,
   )
   const onReachBottomRef = useRef(onReachBottom)
-  const lastScrollTopRef = useRef(0)
   const releasedRef = useRef(false)
 
   useEffect(() => {
@@ -110,11 +134,9 @@ export function useAtBottomSticky(
   }, [onReachBottom])
 
   const onScroll = useCallback(
-    (e?: Event) => {
-      const { scrollTop, distFromBottom, contentFits } = getScrollMetrics(e)
+    (e?: Event, autoScrolling = false) => {
+      const { distFromBottom, contentFits } = getScrollMetrics(e)
       setDistanceFromBottom(distFromBottom)
-      const movedUp = scrollTop < lastScrollTopRef.current
-      lastScrollTopRef.current = scrollTop
       const atBottom = distFromBottom < NEAR_BOTTOM_THRESHOLD
 
       if (releasedRef.current) {
@@ -124,20 +146,25 @@ export function useAtBottomSticky(
       }
 
       setIsStuck((prev) => {
-        if (atBottom) {
-          if (!prev) onReachBottomRef.current?.()
-          return true
-        }
-        return movedUp && distFromBottom >= unstickDistance ? false : prev
+        const next = nextStickyBottomState({
+          isStuck: prev,
+          distanceFromBottom: distFromBottom,
+          unstickDistance,
+          autoScrolling,
+          suspended,
+        })
+        if (next && !prev) onReachBottomRef.current?.()
+        return next
       })
     },
-    [unstickDistance],
+    [unstickDistance, suspended],
   )
 
   const release = useCallback(() => {
+    if (suspended) return
     releasedRef.current = true
     setIsStuck(false)
-  }, [])
+  }, [suspended])
 
   return { isAtBottom: isStuck, distanceFromBottom, onScroll, release }
 }

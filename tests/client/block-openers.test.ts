@@ -2,7 +2,10 @@
 import { BlockOpeners } from '@/lib/tiptap/extensions/block-openers'
 import { LineBreaks } from '@/lib/tiptap/extensions/line-breaks'
 import { Markdown } from '@/lib/tiptap/extensions/markdown'
-import { serializeDocumentToMarkdown } from '@/lib/tiptap/serialize'
+import {
+  serializeBlocksToMarkdown,
+  serializeDocumentToMarkdown,
+} from '@/lib/tiptap/serialize'
 import { Editor } from '@tiptap/react'
 import { StarterKit } from '@tiptap/starter-kit'
 import { afterEach, describe, expect, test } from 'bun:test'
@@ -136,14 +139,16 @@ describe('BlockOpeners', () => {
     expect(serializeDocumentToMarkdown(e)).toBe('one\n\n# two\n\nthree')
   })
 
-  test('a blank line above is not doubled', () => {
+  test('a blank line above a list is preserved', () => {
     const e = open('hello')
     e.commands.focus('end')
     press(e, 'Enter')
     press(e, 'Enter')
-    type(e, '# ')
-    type(e, 'Title')
-    expect(serializeDocumentToMarkdown(e)).toBe('hello\n\n# Title')
+    type(e, '- ')
+    type(e, 'item')
+    expect(e.state.doc.child(1).type.name).toBe('paragraph')
+    expect(e.state.doc.child(1).content.size).toBe(0)
+    expect(serializeBlocksToMarkdown(e)).toBe('hello\n\n- item')
   })
 
   test('a marker within a line is left alone', () => {

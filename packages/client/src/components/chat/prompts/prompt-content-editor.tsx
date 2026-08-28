@@ -1,4 +1,5 @@
 import {
+  EditorScrollArea,
   FullscreenEditor,
   codeEditorVariants,
   fullscreenFill,
@@ -18,7 +19,7 @@ import {
 } from '@/lib/tiptap/serialize'
 import { cn } from '@/lib/utils'
 import type { JSONContent } from '@tiptap/core'
-import { EditorContent, useEditor } from '@tiptap/react'
+import { useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 import { useEffect, useImperativeHandle, useRef } from 'react'
 
@@ -134,8 +135,8 @@ export function PromptContentEditor({
         )}
       >
         <FullscreenEditor.Toolbar />
-        <EditorContent
-          className="min-h-0 flex-1 pr-6! [&_p]:mt-0! [&_p+p]:mt-7!"
+        <EditorScrollArea
+          className="pr-6! [&_p]:mt-0! [&_p+p]:mt-7!"
           editor={editor}
         />
         {completionPopup}
