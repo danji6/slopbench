@@ -16,6 +16,7 @@ import {
   offloadedOutputSchema,
   planSchema,
   promptSchema,
+  releaseStateSchema,
   reminderSchema,
   sessionAgentSchema,
   sessionCacheSchema,
@@ -30,6 +31,8 @@ import {
   userSchema,
   userSessionSchema,
 } from './validators'
+
+const schemaValidation = true
 
 // prettier-ignore
 export default defineSchema({
@@ -63,6 +66,9 @@ export default defineSchema({
   settings: defineTable(settingsSchema)
     .index('by_ownerId', ['ownerId'])
     .index('by_avatarId', ['avatarId']),
+
+  releaseState: defineTable(releaseStateSchema)
+    .index('by_key', ['key']),
 
   prompts: defineTable(promptSchema)
     .index('by_ownerId_scope_order', ['ownerId', 'scope', 'order'])
@@ -144,4 +150,4 @@ export default defineSchema({
     .index('by_sessionId', ['sessionId'])
     .index('by_sessionId_jobId', ['sessionId', 'jobId'])
     .index('by_heartbeatAt', ['heartbeatAt']),
-})
+}, { schemaValidation })

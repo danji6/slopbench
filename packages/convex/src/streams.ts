@@ -46,6 +46,12 @@ export const _continue = internalMutation({
   args: { streamId: v.id('streams') },
   handler: StreamLifecycle._continue,
 })
+
+export const _recordStep = internalMutation({
+  args: { streamId: v.id('streams'), interruptible: v.boolean() },
+  handler: StreamLifecycle._recordStep,
+})
+
 export const _saveMeta = internalMutation({
   args: saveStreamMetaArgsValidator.fields,
   handler: StreamLifecycle._saveMeta,

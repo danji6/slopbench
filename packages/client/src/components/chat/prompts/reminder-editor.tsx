@@ -173,7 +173,7 @@ export function ReminderEditor({
           </div>
 
           <div className="flex flex-col gap-2">
-            <HelpPopoverLabel help="Inject this reminder every N turns (messages).">
+            <HelpPopoverLabel help="Inject this reminder every N agent steps.">
               Interval
             </HelpPopoverLabel>
             <Controller

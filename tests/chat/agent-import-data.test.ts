@@ -30,8 +30,6 @@ describe('agent import data normalization', () => {
         tools: undefined,
         globalPromptsEnabled: undefined,
         promptOrder: undefined,
-        modelId: undefined,
-        reasoningEffort: undefined,
         temperature: undefined,
         topP: undefined,
         frequencyPenalty: undefined,
@@ -87,6 +85,8 @@ describe('agent import data normalization', () => {
         starter: false,
       },
     ])
+    expect('modelId' in data).toBe(false)
+    expect('reasoningEffort' in data).toBe(false)
   })
 
   test('filters invalid validated fields from loose export data', () => {
@@ -113,6 +113,8 @@ describe('agent import data normalization', () => {
       exportedAt: 123,
       agent: {
         name: 'Assistant',
+        modelId: 'legacy-model',
+        reasoningEffort: 'high',
         prompts: [
           {
             id: 'prompt',
@@ -140,6 +142,8 @@ describe('agent import data normalization', () => {
         starter: false,
       },
     ])
+    expect('modelId' in data).toBe(false)
+    expect('reasoningEffort' in data).toBe(false)
   })
 
   test('rejects unsupported future archive versions explicitly', () => {

@@ -27,7 +27,6 @@ export type LinkedAgent = {
   _id: Id<'agents'>
   name: string
   avatarId?: Id<'avatars'>
-  modelId?: string
   customCss?: string
   scrollMode?: ScrollMode
   mathMode?: MathMode

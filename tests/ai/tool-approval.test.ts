@@ -1,5 +1,6 @@
 /// <reference types="bun-types" />
 import {
+  approveTool,
   hasPendingToolApprovals,
   patchToolApproval,
 } from '@sb/convex/model/chat'
@@ -143,6 +144,98 @@ describe('tool approval patching', () => {
         { type: 'tool-shell', state: 'approval-responded' },
       ]),
     ).toBe(false)
+  })
+})
+
+describe('plan approval timing', () => {
+  test('approves the plan and exits plan mode before resuming the stream', async () => {
+    const events: Array<{ id: string; patch: Record<string, unknown> }> = []
+    const docs = new Map<string, Record<string, unknown>>([
+      ['session_1', { _id: 'session_1', mode: 'plan' }],
+      [
+        'stream_1',
+        {
+          _id: 'stream_1',
+          sessionId: 'session_1',
+          status: 'awaiting_approval',
+          operation: 'invoke',
+          mode: 'plan',
+          processingMessageId: 'message_1',
+          processingContentId: 'content_1',
+          leaseExpiresAt: Date.now() + 10_000,
+        },
+      ],
+      ['message_1', { _id: 'message_1' }],
+      [
+        'content_1',
+        {
+          _id: 'content_1',
+          segmentIndex: 0,
+          parts: [
+            {
+              type: 'tool-exit_plan_mode',
+              toolCallId: 'call_1',
+              state: 'approval-requested',
+              input: {},
+              approval: { id: 'approval_1' },
+            },
+          ],
+        },
+      ],
+      ['plan_1', { _id: 'plan_1', status: 'draft', content: '# Plan' }],
+    ])
+    const membership = {
+      _id: 'membership_1',
+      sessionId: 'session_1',
+      userId: 'user_1',
+      role: 'owner',
+    }
+    const ctx = {
+      role: 'admin',
+      userId: 'user_1',
+      db: {
+        get: async (id: string) => docs.get(id) ?? null,
+        patch: async (id: string, patch: Record<string, unknown>) => {
+          events.push({ id, patch })
+          Object.assign(docs.get(id) ?? {}, patch)
+        },
+        query: (table: string) => ({
+          withIndex: () => ({
+            unique: async () =>
+              table === 'userSessions'
+                ? membership
+                : table === 'plans'
+                  ? docs.get('plan_1')
+                  : null,
+            first: async () =>
+              table === 'streams' ? docs.get('stream_1') : null,
+          }),
+        }),
+      },
+      scheduler: {
+        runAfter: async () => 'job_1',
+      },
+    } as never
+
+    await approveTool(ctx, {
+      sessionId: 'session_1' as never,
+      toolCallId: 'call_1',
+      approved: true,
+    })
+
+    const planApproved = events.findIndex(
+      ({ id, patch }) => id === 'plan_1' && patch.status === 'approved',
+    )
+    const modeChanged = events.findIndex(
+      ({ id, patch }) => id === 'session_1' && 'mode' in patch,
+    )
+    const resumed = events.findIndex(
+      ({ id, patch }) => id === 'stream_1' && patch.status === 'pending',
+    )
+
+    expect(planApproved).toBeGreaterThanOrEqual(0)
+    expect(modeChanged).toBeGreaterThan(planApproved)
+    expect(resumed).toBeGreaterThan(modeChanged)
   })
 })
 

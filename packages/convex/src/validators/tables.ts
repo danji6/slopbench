@@ -10,16 +10,15 @@ export const sessionSchema = v.object({
   /** Mode the transcript states. */
   announcedMode: v.optional(V.sessionModeValidator),
   settings: v.optional(V.sessionSettingsValidator),
-  /** Resolved model of the active agent. */
+  /** Selected model, resolved against the active agent owner's providers. */
   model: v.optional(V.modelEntryValidator),
+  reasoningEffort: v.optional(v.string()),
   workspace: v.optional(V.workspaceRefValidator),
   parent: v.optional(V.sessionParentValidator),
   lastMessageAt: v.optional(v.number()),
   lastMessagePreview: v.optional(v.string()),
   /** Title fallback. */
   firstMessagePreview: v.optional(v.string()),
-  /** Logical turn counter. */
-  turnCount: v.optional(v.number()),
 })
 
 /**
@@ -31,7 +30,9 @@ export const sessionStateSchema = v.object({
   sessionId: v.id('sessions'),
   environment: v.optional(V.environmentValidator),
   toolApprovals: v.optional(V.toolApprovalsValidator),
-  /** (reminderId, turnCount) at last injection, or baseline when first seen. */
+  /** Successful provider steps completed by invoke streams. */
+  stepCount: v.number(),
+  /** (reminderId, stepCount) at last injection, or baseline when first seen. */
   reminderState: v.optional(v.record(v.string(), v.number())),
   /** Deferred (slash) commands. */
   commandQueue: v.optional(v.array(V.queuedCommandValidator)),
@@ -49,8 +50,6 @@ export const agentSchema = v.object({
   promptOrder: v.optional(v.array(V.promptOrderRefValidator)),
   globalPromptsEnabled: v.optional(v.boolean()),
   libraryReminderIds: v.optional(v.array(v.string())),
-  modelId: v.optional(v.string()),
-  reasoningEffort: v.optional(v.string()),
   /** Names of the selected tools. */
   tools: v.optional(v.array(v.string())),
   temperature: v.optional(v.number()),
@@ -333,8 +332,8 @@ export const sessionCacheSchema = v.object({
 export const todoSchema = v.object({
   sessionId: v.id('sessions'),
   items: v.array(V.todoItemValidator),
-  /** Session turnCount at last write or nudge reminder. */
-  turnCount: v.number(),
+  /** Session stepCount at last write or nudge reminder. */
+  stepCount: v.number(),
   updatedAt: v.number(),
 })
 
@@ -347,4 +346,13 @@ export const offloadedOutputSchema = v.object({
   streamId: v.id('streams'),
   messageId: v.id('messages'),
   storageId: v.id('_storage'),
+})
+
+/** Boot state for migration and deploy phases. */
+export const releaseStateSchema = v.object({
+  key: v.literal('schema'),
+  version: v.number(),
+  targetVersion: v.number(),
+  phase: v.union(v.literal('migrating'), v.literal('complete')),
+  updatedAt: v.number(),
 })

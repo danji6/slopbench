@@ -13,7 +13,7 @@ import {
   streamOutputIdentity,
 } from '../chat/identities'
 import { clearAnnouncedMode, injectModeNote } from '../chat/notes'
-import { bumpTurnCount, injectDueReminders } from '../chat/reminders'
+import { injectDueReminders } from '../chat/reminders'
 import {
   allVersionParts,
   appendSegment,
@@ -38,7 +38,7 @@ import {
   notifyAgentEvent,
 } from '../notifications'
 import { createPlanLinkPart, getBySession as getPlan } from '../plans'
-import { getState, patchState } from '../session/state'
+import { advanceStepCount, getState, patchState } from '../session/state'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 import { releaseForSession } from '../shellJobs'
 import { deliverChildReport } from './subagents'
@@ -186,8 +186,6 @@ async function claimFreshTurn(ctx: MutationCtx, stream: Doc<'streams'>) {
     },
     [],
   )
-
-  await bumpTurnCount(ctx, stream.sessionId)
 
   await ctx.db.patch(stream._id, {
     status: 'streaming',
@@ -414,6 +412,36 @@ export async function _continue(
   return true
 }
 
+/** Records a completed invoke step and injects notes at a safe continuation. */
+export async function _recordStep(
+  ctx: MutationCtx,
+  {
+    streamId,
+    interruptible,
+  }: { streamId: Id<'streams'>; interruptible: boolean },
+) {
+  const stream = await ctx.db.get(streamId)
+  if (
+    !stream ||
+    stream.status === 'stopping' ||
+    stream.operation !== 'invoke'
+  ) {
+    return false
+  }
+
+  const stepCount = await advanceStepCount(ctx, stream.sessionId)
+  if (!interruptible) return true
+
+  const session = await ctx.db.get(stream.sessionId)
+  if (!session) return false
+
+  // Mode transitions and interval reminders become transcript interjections.
+  // _continue consumes them immediately after this mutation, never mid tool call.
+  await injectModeNote(ctx, session, stream.invokedBy)
+  await injectDueReminders(ctx, session, stream.invokedBy, stepCount)
+  return true
+}
+
 /** Inserts a fresh output message and repoints the stream at it. */
 async function rolloverProcessingMessage(
   ctx: MutationCtx,
@@ -432,8 +460,6 @@ async function rolloverProcessingMessage(
     },
     [],
   )
-
-  await bumpTurnCount(ctx, stream.sessionId)
 
   await ctx.db.patch(stream._id, {
     processingMessageId: messageId,
@@ -996,7 +1022,6 @@ export async function reserveInvokeTurn(
 
   await injectModeNote(ctx, session, invokedBy)
   await injectDueReminders(ctx, session, invokedBy)
-  await bumpTurnCount(ctx, session._id)
 
   const { messageId: processingMessageId, contentId } = await insertMessage(
     ctx,

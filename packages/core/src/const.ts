@@ -18,8 +18,8 @@ export const MESSAGE_PAGE_MAX_ROWS = 40
 /** Row count safety cap for the full retained message window. */
 export const MESSAGE_WINDOW_MAX_ROWS = 160
 
-/** Turns without a todo write/edit before unresolved todos trigger a nudge. */
-export const TODO_NUDGE_INTERVAL_TURNS = 10
+/** Steps without a todo write/edit before unresolved todos trigger a nudge. */
+export const TODO_NUDGE_INTERVAL_STEPS = 10
 
 /** Single agent settings toggle covering both todo tools. */
 export const TODO_TOOL_TOGGLE = 'todo'

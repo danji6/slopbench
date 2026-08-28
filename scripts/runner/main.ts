@@ -9,9 +9,8 @@ import {
   parseRunnerOptions,
 } from './config'
 import {
-  deployConvex,
+  deployWithMigrations,
   prepareEnvironment,
-  runMigrations,
   setConvexEnvironment,
   startBackend,
   startConvexDev,
@@ -160,8 +159,8 @@ async function dev(
     restartDashboard(manager, config),
   )
 
+  await deployWithMigrations(manager, config)
   const convexDev = await startConvexDev(manager, config)
-  await runMigrations(manager, config)
   const vite = await manager.spawn(
     'vite-dev',
     bun('run', 'dev', ...frontendArgs(config)),
@@ -224,8 +223,7 @@ async function deployToBackend(
   timeoutMs: number,
 ) {
   const backend = await readyBackend(manager, config, timeoutMs)
-  await deployConvex(manager, config)
-  await runMigrations(manager, config)
+  await deployWithMigrations(manager, config)
   return backend
 }
 

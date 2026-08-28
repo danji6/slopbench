@@ -9,7 +9,6 @@ import {
   requireMember,
   requireNonBlockingStream,
 } from './memberships'
-import { resolveAgentModel } from './models'
 
 type Args = {
   sessionId: Id<'sessions'>
@@ -35,7 +34,6 @@ export async function list(
           _id: agent._id,
           name: agent.name,
           avatarId: agent.avatarId,
-          modelId: agent.modelId,
           customCss: agent.customCss,
           scrollMode: agent.scrollMode,
           mathMode: agent.mathMode,
@@ -88,7 +86,6 @@ export async function unlink(ctx: AuthMutationCtx, args: Args) {
   if (session.activeAgentId === args.agentId) {
     await ctx.db.patch(session._id, {
       activeAgentId: undefined,
-      model: undefined,
     })
     await stopForSession(ctx, args.sessionId)
   }
@@ -108,12 +105,10 @@ export async function activate(ctx: AuthMutationCtx, args: Args) {
   }
 
   const isActive = session.activeAgentId === args.agentId
-  const agent = isActive ? null : await requireAgent(ctx, args.agentId)
-  const model = agent ? await modelForAgent(ctx, agent) : undefined
+  if (!isActive) await requireAgent(ctx, args.agentId)
 
   await ctx.db.patch(args.sessionId, {
     activeAgentId: isActive ? undefined : args.agentId,
-    model,
   })
   if (isActive) await stopForSession(ctx, args.sessionId)
 }
@@ -142,13 +137,4 @@ function requireOwnerAdministrationWhenDisabled(
 ) {
   if (session.settings?.disabled && session.ownerId !== userId)
     error('Session is disabled', 409)
-}
-
-async function modelForAgent(
-  ctx: AuthQueryCtx | AuthMutationCtx,
-  agent: { modelId?: string; ownerId: Id<'users'> },
-) {
-  if (!agent.modelId) return undefined
-
-  return resolveAgentModel(ctx, agent)
 }

@@ -23,7 +23,6 @@ import { notifyUserMessage } from '../notifications'
 import * as Memberships from '../session/memberships'
 import * as Settings from '../settings'
 import { resolveSender } from './identities'
-import { bumpTurnCount } from './reminders'
 import { reserveOrDebounceTurn } from './reserve'
 
 /** How long a user command can run. Currently forever. */
@@ -99,7 +98,6 @@ export async function runShellCommand(
     [part],
   )
 
-  await bumpTurnCount(ctx, session._id)
   // The preview reads from text parts, which a command message has none of
   await syncActivity(ctx, session._id, [{ type: 'text', text: `$ ${command}` }])
   if (sender.type === 'user') {

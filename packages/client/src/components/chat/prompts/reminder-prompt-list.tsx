@@ -149,7 +149,7 @@ export function ReminderPromptList({
               {r.role}
             </span>
             <span className="text-muted-foreground mr-2 text-xs whitespace-nowrap">
-              every {r.interval} {r.interval === 1 ? 'turn' : 'turns'}
+              every {r.interval} {r.interval === 1 ? 'step' : 'steps'}
             </span>
             {r.isLibrary ? (
               <>

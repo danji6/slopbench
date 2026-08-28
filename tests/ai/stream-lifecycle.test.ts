@@ -5,6 +5,7 @@ import {
   _fail,
   _finalizeStopped,
   _handoff,
+  _recordStep,
   pruneOrphanedOutputs,
 } from '@sb/convex/model/stream/lifecycle'
 import { MESSAGE_SPLIT_BUDGET_BYTES } from '@sb/core/const'
@@ -65,7 +66,14 @@ function fakeCtx({
         }
         return firstMessage
       },
-      unique: async () => (table === 'settings' ? settings : null),
+      unique: async () =>
+        table === 'settings'
+          ? settings
+          : table === 'sessionState'
+            ? ([...byId.values()].find(
+                (row) => row.sessionId === 'session_1' && 'updatedAt' in row,
+              ) ?? null)
+            : null,
       collect: async () => (table === 'messageContents' ? rows : []),
     }
     return chain
@@ -613,6 +621,105 @@ describe('_continue', () => {
   })
 
   // Approval/task parking moved to _suspendStep (see subagent-lifecycle.test.ts)
+})
+
+describe('_recordStep', () => {
+  test('advances the hot clock for a completed invoke step', async () => {
+    const stream = {
+      _id: 'stream_1',
+      status: 'streaming',
+      operation: 'invoke',
+      sessionId: 'session_1',
+      invokedBy: 'user_1',
+    }
+    const state = {
+      _id: 'state_1',
+      sessionId: 'session_1',
+      stepCount: 4,
+      updatedAt: 1,
+    }
+    const { ctx, patches, inserts } = fakeCtx({ docs: [stream, state] })
+
+    expect(
+      await _recordStep(ctx, {
+        streamId: stream._id as never,
+        interruptible: false,
+      }),
+    ).toBe(true)
+
+    expect(patches).toContainEqual({
+      id: 'state_1',
+      patch: expect.objectContaining({ stepCount: 5 }),
+    })
+    expect(inserts).toEqual([])
+  })
+
+  test('injects the normal-mode note at a safe continuation', async () => {
+    const stream = {
+      _id: 'stream_1',
+      status: 'streaming',
+      operation: 'invoke',
+      sessionId: 'session_1',
+      invokedBy: 'user_1',
+    }
+    const session = {
+      _id: 'session_1',
+      activeAgentId: 'agent_1',
+      announcedMode: 'plan',
+    }
+    const agent = {
+      _id: 'agent_1',
+      ownerId: 'owner_1',
+      name: 'Agent',
+      tools: ['plan'],
+    }
+    const state = {
+      _id: 'state_1',
+      sessionId: 'session_1',
+      stepCount: 2,
+      updatedAt: 1,
+    }
+    const { ctx, patches, inserts } = fakeCtx({
+      docs: [stream, session, agent, state],
+      settings: { _id: 'settings_1', ownerId: 'owner_1' },
+    })
+
+    await _recordStep(ctx, {
+      streamId: stream._id as never,
+      interruptible: true,
+    })
+
+    expect(
+      inserts.find(({ table }) => table === 'messages')?.fields,
+    ).toMatchObject({
+      type: 'mode',
+      hidden: true,
+      extra: { from: 'plan', to: 'normal' },
+    })
+    expect(patches).toContainEqual({
+      id: 'session_1',
+      patch: { announcedMode: 'normal' },
+    })
+  })
+
+  test('does not count retry streams', async () => {
+    const stream = {
+      _id: 'stream_1',
+      status: 'streaming',
+      operation: 'retry',
+      sessionId: 'session_1',
+      invokedBy: 'user_1',
+    }
+    const { ctx, patches } = fakeCtx({ docs: [stream] })
+
+    expect(
+      await _recordStep(ctx, {
+        streamId: stream._id as never,
+        interruptible: true,
+      }),
+    ).toBe(false)
+    expect(patches).toEqual([])
+  })
 })
 
 describe('_finalizeStopped', () => {

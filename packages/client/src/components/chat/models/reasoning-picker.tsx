@@ -1,6 +1,6 @@
 import { Select, type SelectTriggerProps, Switch } from '@/components/ui'
 import { useBreakpoint } from '@/hooks'
-import { normalizeReasoningEffort, useModelSettings } from '@/hooks/chat'
+import { normalizeReasoningEffort } from '@/hooks/chat'
 import type { ReasoningEffort, UIModel } from '@/lib/chat'
 import { cn } from '@/lib/utils'
 import { BrainIcon } from 'lucide-react'
@@ -16,12 +16,9 @@ const REASONING_OPTIONS: { value: ReasoningEffort; label: string }[] = [
 ]
 
 export type ReasoningPickerProps = SelectTriggerProps & {
-  /** Controlled mode: current reasoning effort. */
-  value?: ReasoningEffort
-  /** Controlled mode: called with the new reasoning effort. */
-  onValueChange?: (value: ReasoningEffort) => void
-  /** Controlled model whose reasoning capabilities should be rendered. */
-  model?: UIModel | null
+  value: ReasoningEffort
+  onValueChange: (value: ReasoningEffort) => void
+  model: UIModel | null
   /** Hide the label on mobile. */
   compactMobile?: boolean
 }
@@ -29,34 +26,15 @@ export type ReasoningPickerProps = SelectTriggerProps & {
 export function ReasoningPicker({
   disabled,
   className,
-  value: controlledValue,
-  onValueChange: controlledOnChange,
-  model: controlledModel,
+  value,
+  onValueChange,
+  model,
   compactMobile,
   ...props
 }: ReasoningPickerProps) {
   const isMobile = useBreakpoint('sm') && !!compactMobile
 
-  const {
-    reasoningEffort: uncontrolledReasoning,
-    setReasoningEffort: setUncontrolledReasoning,
-    initialModel,
-    model: uncontrolledModel,
-  } = useModelSettings()
-
-  const isControlled =
-    controlledValue !== undefined || controlledOnChange !== undefined
-  const model =
-    controlledModel === undefined ? uncontrolledModel : controlledModel
-
-  const reasoning = normalizeReasoningEffort(
-    isControlled ? controlledValue : uncontrolledReasoning,
-    model?.reasoning,
-  )
-
-  const setReasoning = isControlled
-    ? (v: ReasoningEffort) => controlledOnChange?.(v)
-    : setUncontrolledReasoning
+  const reasoning = normalizeReasoningEffort(value, model?.reasoning)
 
   const supported =
     model?.reasoning?.type === 'effort'
@@ -76,10 +54,6 @@ export function ReasoningPicker({
     (option) => option.value === (reasoning ?? 'auto'),
   )?.label
 
-  if (initialModel) {
-    return null
-  }
-
   if (model?.reasoning?.type === 'none') return null
 
   if (model?.reasoning?.type === 'binary') {
@@ -89,7 +63,7 @@ export function ReasoningPicker({
         <Switch
           checked={checked}
           disabled={disabled}
-          onCheckedChange={(next) => setReasoning(next ? 'auto' : 'none')}
+          onCheckedChange={(next) => onValueChange(next ? 'auto' : 'none')}
           aria-label="Enable reasoning"
         />
       </div>
@@ -100,7 +74,7 @@ export function ReasoningPicker({
     <Select
       items={items}
       value={reasoning ?? 'auto'}
-      onValueChange={(value) => setReasoning(value as ReasoningEffort)}
+      onValueChange={(value) => onValueChange(value as ReasoningEffort)}
       disabled={disabled}
     >
       <Select.Trigger

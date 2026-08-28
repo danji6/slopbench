@@ -8,7 +8,6 @@ import { assertCustomCssCap, assertShellPathCap } from './caps'
 import { DEFAULT_CONTEXT_OPTIONS, createDefaultAgent } from './defaults'
 import * as Prompts from './prompts'
 import * as Reminders from './reminders'
-import { refreshForAgent } from './session/models'
 import { stopForSession } from './stream/lifecycle'
 
 /** What the agent pickers and lists render. */
@@ -106,7 +105,7 @@ export async function update(
   ctx: AuthMutationCtx,
   { agentId, unset, ...patch }: UpdateAgentArgs,
 ) {
-  const agent = await requireOwned(ctx, agentId)
+  await requireOwned(ctx, agentId)
   assertCustomCssCap(patch.customCss)
   assertShellPathCap(patch.shell)
   if (patch.subAgents) {
@@ -117,10 +116,6 @@ export async function update(
     (unset ?? []).map((key) => [key, undefined]),
   )
   await ctx.db.patch(agentId, { ...patch, ...cleared })
-
-  if ('modelId' in patch) {
-    await refreshForAgent(ctx, { ...agent, modelId: patch.modelId })
-  }
 }
 
 export async function remove(
@@ -140,7 +135,6 @@ export async function remove(
     if (session?.activeAgentId === agentId) {
       await ctx.db.patch(session._id, {
         activeAgentId: undefined,
-        model: undefined,
       })
     }
     await ctx.db.delete(link._id)

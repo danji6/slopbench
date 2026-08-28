@@ -20,25 +20,24 @@ describe('isTodoNudgeDue', () => {
   })
 
   test('never fires when every todo is completed', () => {
-    const todo = { items: items('completed', 'completed'), turnCount: 0 }
+    const todo = { items: items('completed', 'completed'), stepCount: 0 }
     expect(isTodoNudgeDue(todo, 10)).toBe(false)
   })
 
   test('fires only once a full interval has elapsed', () => {
-    const todo = { items: items('pending'), turnCount: 4 }
+    const todo = { items: items('pending'), stepCount: 4 }
     expect(isTodoNudgeDue(todo, 6, 3)).toBe(false)
     expect(isTodoNudgeDue(todo, 7, 3)).toBe(true)
     expect(isTodoNudgeDue(todo, 9, 3)).toBe(true)
   })
 
   test('counts in_progress todos as unresolved', () => {
-    const todo = { items: items('in_progress', 'completed'), turnCount: 0 }
+    const todo = { items: items('in_progress', 'completed'), stepCount: 0 }
     expect(isTodoNudgeDue(todo, 5, 3)).toBe(true)
   })
 
-  test('waits out a rewound counter instead of firing early', () => {
-    // After deletions the session counter can fall below the baseline
-    const todo = { items: items('pending'), turnCount: 10 }
+  test('does not fire when the current counter precedes the baseline', () => {
+    const todo = { items: items('pending'), stepCount: 10 }
     expect(isTodoNudgeDue(todo, 4, 3)).toBe(false)
     expect(isTodoNudgeDue(todo, 13, 3)).toBe(true)
   })

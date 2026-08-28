@@ -93,11 +93,6 @@ export type SessionMessage = {
   type?: UIMessageType
 }
 
-export type SessionOptions = {
-  modelId?: string
-  reasoningEffort?: string
-}
-
 export type SessionUpdate = Partial<Omit<Doc<'sessions'>, '_id'>>
 
 export type MessagesEventData = {

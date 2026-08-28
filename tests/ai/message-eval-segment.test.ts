@@ -157,6 +157,8 @@ describe('_applyMessageEval', () => {
       dirty: true,
     })
 
-    expect(state.patches).toEqual([{ environment: { counter: 1 } }])
+    expect(state.patches).toEqual([
+      { environment: { counter: 1 }, stepCount: 0 },
+    ])
   })
 })

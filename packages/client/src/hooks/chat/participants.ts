@@ -242,7 +242,6 @@ function optimisticallyLinkAgent(
       name: owned.name,
       avatarId: owned.avatarId,
       // The agent's appearance arrives with the server's next result
-      modelId: undefined,
       customCss: undefined,
       scrollMode: undefined,
       mathMode: undefined,

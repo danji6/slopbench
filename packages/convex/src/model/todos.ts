@@ -5,6 +5,7 @@ import type { AuthQueryCtx } from '../functions'
 import type { TodoItem, TodoStatus } from '../types'
 import { assertTodoItemsCap } from './caps'
 import { getMember } from './session/memberships'
+import { getStepCount } from './session/state'
 
 export type TodoEdit = { task: string; status: TodoStatus }
 
@@ -44,7 +45,7 @@ export async function remove(ctx: MutationCtx, sessionId: Id<'sessions'>) {
 
 /**
  * Fully replaces the session's todo list, keeping the status of existing ones.
- * The session's current turnCount becomes the baseline for the nudge reminder.
+ * The session's current stepCount becomes the baseline for the nudge reminder.
  */
 export async function _write(
   ctx: MutationCtx,
@@ -125,10 +126,9 @@ async function upsertItems(
   items: TodoItem[],
 ) {
   assertTodoItemsCap(items)
-  const session = await ctx.db.get(sessionId)
   const patch = {
     items,
-    turnCount: session?.turnCount ?? 0,
+    stepCount: await getStepCount(ctx, sessionId),
     updatedAt: Date.now(),
   }
 

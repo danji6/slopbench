@@ -134,7 +134,6 @@ describe('sessions.list', () => {
           settings: { slowModeSeconds: 5 },
           model: { id: 'gpt-5' },
           workspace: { path: '/home/secret' },
-          turnCount: 7,
         },
       ],
       userSessions: [
@@ -184,7 +183,6 @@ describe('agents.list', () => {
           name: 'Ada',
           description: 'Helper',
           avatarId: 'avatars_a',
-          modelId: 'gpt-5',
           tools: ['shell'],
           customCss: 'body{}',
           theme: { source: '#fff' },

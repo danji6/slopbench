@@ -1,4 +1,4 @@
-import { TODO_NUDGE_INTERVAL_TURNS, TODO_TOOL_TOGGLE } from '@sb/core/const'
+import { TODO_NUDGE_INTERVAL_STEPS, TODO_TOOL_TOGGLE } from '@sb/core/const'
 import type { ReminderPrompt } from '@sb/core/types'
 import { systemReminder } from '@sb/core/utils/blocks'
 
@@ -6,7 +6,7 @@ import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import type { MessageExtra, TodoItem } from '../../types'
 import { resolveSets as resolveReminderSets } from '../reminders'
-import { getState, patchState } from '../session/state'
+import { getState, getStepCount, patchState } from '../session/state'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 import {
   formatTodoList,
@@ -42,11 +42,11 @@ export function mergeReminders(
   return [...merged.values()]
 }
 
-/** Decides which reminders fire at the given turn count. */
+/** Decides which reminders fire at the given step count. */
 export function resolveDueReminders(
   reminders: ReminderPrompt[],
   state: ReminderState | undefined,
-  turnCount: number,
+  stepCount: number,
 ): { due: ReminderPrompt[]; nextState: ReminderState } {
   const due: ReminderPrompt[] = []
   const nextState: ReminderState = {}
@@ -56,10 +56,10 @@ export function resolveDueReminders(
     const last = state?.[reminder.id]
     if (last === undefined) {
       if (reminder.eager) due.push(reminder)
-      nextState[reminder.id] = turnCount
-    } else if (turnCount - last >= reminder.interval) {
+      nextState[reminder.id] = stepCount
+    } else if (stepCount - last >= reminder.interval) {
       due.push(reminder)
-      nextState[reminder.id] = turnCount
+      nextState[reminder.id] = stepCount
     } else {
       nextState[reminder.id] = last
     }
@@ -70,14 +70,14 @@ export function resolveDueReminders(
 
 /** Whether unresolved todos went stale enough to warrant a nudge. */
 export function isTodoNudgeDue(
-  todo: { items: TodoItem[]; turnCount: number } | null,
-  turnCount: number,
-  interval = TODO_NUDGE_INTERVAL_TURNS,
+  todo: { items: TodoItem[]; stepCount: number } | null,
+  stepCount: number,
+  interval = TODO_NUDGE_INTERVAL_STEPS,
 ) {
   return (
     todo !== null &&
     hasUnresolvedTodos(todo.items) &&
-    turnCount - todo.turnCount >= interval
+    stepCount - todo.stepCount >= interval
   )
 }
 
@@ -101,6 +101,7 @@ export async function injectDueReminders(
   ctx: MutationCtx,
   session: Doc<'sessions'>,
   invokerId: Id<'users'>,
+  stepCount?: number,
 ) {
   if (!session.activeAgentId) return
 
@@ -112,9 +113,10 @@ export async function injectDueReminders(
     agent,
     identity: await agentIdentity(ctx, agent, settings),
   }
+  const currentStep = stepCount ?? (await getStepCount(ctx, session._id))
 
-  await injectConfiguredReminders(ctx, session, invokerId, sender)
-  await injectTodoNudge(ctx, session, invokerId, sender)
+  await injectConfiguredReminders(ctx, session, invokerId, sender, currentStep)
+  await injectTodoNudge(ctx, session, invokerId, sender, currentStep)
 }
 
 async function injectConfiguredReminders(
@@ -122,6 +124,7 @@ async function injectConfiguredReminders(
   session: Doc<'sessions'>,
   invokerId: Id<'users'>,
   sender: NoteSender,
+  stepCount: number,
 ) {
   const sets = await resolveReminderSets(ctx, sender.agent)
   const reminders = mergeReminders(
@@ -132,11 +135,7 @@ async function injectConfiguredReminders(
   const state = (await getState(ctx, session._id))?.reminderState
   if (reminders.length === 0 && !state) return
 
-  const { due, nextState } = resolveDueReminders(
-    reminders,
-    state,
-    session.turnCount ?? 0,
-  )
+  const { due, nextState } = resolveDueReminders(reminders, state, stepCount)
 
   if (!sameState(state ?? {}, nextState)) {
     await patchState(ctx, session._id, { reminderState: nextState })
@@ -161,59 +160,20 @@ async function injectTodoNudge(
   session: Doc<'sessions'>,
   invokerId: Id<'users'>,
   sender: NoteSender,
+  stepCount: number,
 ) {
   // The nudge asks for write_todo/edit_todo calls, so it needs the toggle on
   const tools = sender.agent.tools
   if (!Array.isArray(tools) || !tools.includes(TODO_TOOL_TOGGLE)) return
 
   const todo = await getTodosBySession(ctx, session._id)
-  const turnCount = session.turnCount ?? 0
-  if (!todo || !isTodoNudgeDue(todo, turnCount)) return
+  if (!todo || !isTodoNudgeDue(todo, stepCount)) return
 
-  await ctx.db.patch(todo._id, { turnCount })
+  await ctx.db.patch(todo._id, { stepCount })
   await insertHiddenNote(ctx, session, invokerId, sender, {
     type: 'todo',
     role: 'system',
     content: buildTodoNudgeContent(todo.items),
-  })
-}
-
-/** Counts a new logical turn (user send, fresh agent turn, mid-stream rollover). */
-export async function bumpTurnCount(
-  ctx: MutationCtx,
-  sessionId: Id<'sessions'>,
-) {
-  const session = await ctx.db.get(sessionId)
-  if (!session) return
-  await ctx.db.patch(sessionId, { turnCount: (session.turnCount ?? 0) + 1 })
-}
-
-/**
- * Rewinds the turn count after messages are deleted and adjusts reminders to
- * prevent negative deltas.
- */
-export async function rewindTurnCount(
-  ctx: MutationCtx,
-  sessionId: Id<'sessions'>,
-  deletedTurns: number,
-) {
-  if (deletedTurns < 1) return
-  const session = await ctx.db.get(sessionId)
-  if (!session?.turnCount) return
-
-  const turnCount = Math.max(0, session.turnCount - deletedTurns)
-  await ctx.db.patch(sessionId, { turnCount })
-
-  const state = (await getState(ctx, sessionId))?.reminderState
-  if (!state) return
-
-  await patchState(ctx, sessionId, {
-    reminderState: Object.fromEntries(
-      Object.entries(state).map(([id, last]) => [
-        id,
-        Math.min(last, turnCount),
-      ]),
-    ),
   })
 }
 

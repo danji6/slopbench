@@ -22,6 +22,24 @@ export async function getState(
     .unique()
 }
 
+/** Reads the successful provider-step count. */
+export async function getStepCount(
+  ctx: QueryCtx,
+  sessionId: Id<'sessions'>,
+): Promise<number> {
+  return (await getState(ctx, sessionId))?.stepCount ?? 0
+}
+
+/** Advances the step reminder count after a successful invoke step. */
+export async function advanceStepCount(
+  ctx: MutationCtx,
+  sessionId: Id<'sessions'>,
+): Promise<number> {
+  const next = (await getStepCount(ctx, sessionId)) + 1
+  await patchState(ctx, sessionId, { stepCount: next })
+  return next
+}
+
 /** Patches the state row, creating it on first write. */
 export async function patchState(
   ctx: MutationCtx,
@@ -37,7 +55,12 @@ export async function patchState(
     return
   }
 
-  await ctx.db.insert('sessionState', { sessionId, ...patch, updatedAt })
+  await ctx.db.insert('sessionState', {
+    sessionId,
+    stepCount: 0,
+    ...patch,
+    updatedAt,
+  })
 }
 
 /** Copies a parent's approval settings onto a session it spawns. */

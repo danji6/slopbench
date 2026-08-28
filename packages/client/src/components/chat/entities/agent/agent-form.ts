@@ -3,7 +3,6 @@ import type {
   OrderedItem,
   PromptItem,
   PromptMarkerType,
-  ReasoningEffort,
   ReminderPrompt,
   ScrollMode,
   ToolMetadata,
@@ -46,8 +45,6 @@ export type AgentDocValues = {
   promptOrder: OrderedItem[] | null
   globalPromptsEnabled: boolean
   libraryReminderIds: string[]
-  modelId: string | null
-  reasoningEffort: ReasoningEffort | null
   tools: AgentToolSelection
   shell: string
   autoApproveTools: string[]
@@ -86,8 +83,6 @@ export const EMPTY_AGENT_FORM: AgentFormValues = {
   globalPromptsEnabled: true,
   reminderPrompts: [],
   libraryReminderIds: [],
-  modelId: null,
-  reasoningEffort: null,
   tools: [],
   shell: '',
   autoApproveTools: [],
@@ -157,8 +152,6 @@ export function agentToFormValues(
     globalPromptsEnabled: agent.globalPromptsEnabled ?? true,
     reminderPrompts: sets.reminderPrompts,
     libraryReminderIds: agent.libraryReminderIds ?? [],
-    modelId: agent.modelId ?? null,
-    reasoningEffort: (agent.reasoningEffort as ReasoningEffort | undefined) ?? null, // prettier-ignore
     tools: agent.tools ?? [],
     shell: agent.shell ?? '',
     autoApproveTools: agent.autoApprove?.tools ?? [],
@@ -237,15 +230,11 @@ export async function formValuesToPatch(
     autoApproveShell,
     subAgentsMode,
     subAgentIds,
-    modelId,
-    reasoningEffort,
     ...rest
   } = values
 
   const fields: PatchFields = {
     ...rest,
-    modelId: modelId || null,
-    reasoningEffort: reasoningEffort || null,
     description: description.trim() || null,
     customCss: customCss || null,
     shell: shell.trim() || null,

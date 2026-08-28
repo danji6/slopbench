@@ -19,7 +19,7 @@ import {
 import * as Memberships from '../session/memberships'
 import { get as getSettings } from '../settings'
 import { resolveSender } from './identities'
-import { bumpTurnCount, injectDueReminders } from './reminders'
+import { injectDueReminders } from './reminders'
 import {
   latestMessageId,
   reserveOrDebounceTurn,
@@ -122,8 +122,6 @@ export async function sendMessage(ctx: AuthMutationCtx, args: SendMessageArgs) {
   for (const { attachment } of attachments) {
     await ctx.db.patch(attachment._id, { messageId })
   }
-
-  await bumpTurnCount(ctx, args.sessionId)
 
   // A long send may comprise several segments, each evaluated on its own row
   for (const [segmentIndex, segmentParts] of segments.entries()) {

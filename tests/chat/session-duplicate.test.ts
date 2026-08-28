@@ -4,7 +4,9 @@ import {
   foreignStorageIds,
   removeAttachment,
 } from '@sb/convex/model/attachments'
-import { duplicate } from '@sb/convex/model/session/sessions'
+import { activate } from '@sb/convex/model/session/agents'
+import { refreshForOwner } from '@sb/convex/model/session/models'
+import { create, duplicate, setModel } from '@sb/convex/model/session/sessions'
 import { describe, expect, test } from 'bun:test'
 
 type Row = Record<string, unknown> & { _id: string }
@@ -27,6 +29,10 @@ function makeCtx() {
     messageContents: [],
     attachments: [],
     streams: [],
+    agents: [],
+    settings: [],
+    modelProviders: [],
+    credentials: [],
   }
   const deletedBlobs: string[] = []
   let nextId = 1
@@ -187,9 +193,10 @@ describe('sessions.duplicate', () => {
     const { ctx, tables } = makeCtx()
     seedSession(tables, {
       activeAgentId: 'agents_1',
+      model: { id: 'model-a', label: 'Model A' },
+      reasoningEffort: 'high',
       mode: 'plan',
       announcedMode: 'plan',
-      turnCount: 4,
       lastMessagePreview: 'bye',
       firstMessagePreview: 'hi',
       workspace: { workspaceId: 'w1', label: 'repo', path: '/repo' },
@@ -244,8 +251,9 @@ describe('sessions.duplicate', () => {
     expect(copy.title).toBe('Source (copy)')
     expect(copy.ownerId).toBe(OWNER)
     expect(copy.activeAgentId).toBe('agents_1')
+    expect(copy.model).toEqual({ id: 'model-a', label: 'Model A' })
+    expect(copy.reasoningEffort).toBe('high')
     expect(copy.mode).toBe('plan')
-    expect(copy.turnCount).toBe(4)
     expect(copy.lastMessagePreview).toBe('bye')
     expect(copy.firstMessagePreview).toBe('hi')
     // Workspace bindings are per-sidecar-registration and never copied
@@ -389,6 +397,150 @@ describe('sessions.duplicate', () => {
         sessionId: 'session_1' as Id<'sessions'>,
       }),
     ).rejects.toThrow()
+  })
+})
+
+describe('session model binding', () => {
+  test('new sessions copy the recent model defaults', async () => {
+    const { ctx, tables } = makeCtx()
+    tables.agents.push({
+      _id: 'agents_1',
+      ownerId: OWNER,
+      name: 'Agent',
+    })
+    tables.settings.push({
+      _id: 'settings_1',
+      ownerId: OWNER,
+      recentModel: 'model-a',
+      recentReasoning: 'medium',
+    })
+
+    const { sessionId } = await create(ctx as never, {
+      activeAgentId: 'agents_1' as Id<'agents'>,
+    })
+    const session = tables.sessions.find((row) => row._id === sessionId)!
+
+    expect(session.model).toEqual({ id: 'model-a' })
+    expect(session.reasoningEffort).toBe('medium')
+  })
+
+  test('changes only the selected session and remembers the choice', async () => {
+    const { ctx, tables } = makeCtx()
+    const first = seedSession(tables, {
+      activeAgentId: 'agents_1',
+      model: { id: 'model-a' },
+    })
+    const second = {
+      ...first,
+      _id: 'session_2',
+      model: { id: 'model-b' },
+    }
+    tables.sessions.push(second)
+    tables.agents.push({
+      _id: 'agents_1',
+      ownerId: OWNER,
+      name: 'Agent',
+    })
+
+    await setModel(ctx as never, {
+      sessionId: first._id as Id<'sessions'>,
+      modelId: 'model-c',
+      reasoningEffort: 'low',
+    })
+
+    expect(first.model).toEqual({ id: 'model-c' })
+    expect(first.reasoningEffort).toBe('low')
+    expect(second.model).toEqual({ id: 'model-b' })
+    expect(tables.agents[0].modelId).toBeUndefined()
+    expect(tables.settings[0]).toMatchObject({
+      recentModel: 'model-c',
+      recentReasoning: 'low',
+    })
+  })
+
+  test('rejects changes from someone other than the active agent owner', async () => {
+    const { ctx, tables } = makeCtx()
+    seedSession(tables, { activeAgentId: 'agents_1' })
+    seedMembership(tables, OWNER)
+    tables.agents.push({
+      _id: 'agents_1',
+      ownerId: MEMBER,
+      name: 'Theirs',
+    })
+
+    await expect(
+      setModel(ctx as never, {
+        sessionId: 'session_1' as Id<'sessions'>,
+        modelId: 'model-c',
+        reasoningEffort: 'auto',
+      }),
+    ).rejects.toThrow('Forbidden')
+  })
+
+  test('switching agents preserves the session model binding', async () => {
+    const { ctx, tables } = makeCtx()
+    const session = seedSession(tables, {
+      activeAgentId: 'agents_1',
+      model: { id: 'model-a' },
+      reasoningEffort: 'high',
+    })
+    tables.agents.push(
+      { _id: 'agents_1', ownerId: OWNER, name: 'First' },
+      { _id: 'agents_2', ownerId: OWNER, name: 'Second' },
+    )
+    tables.sessionAgents.push({
+      _id: 'link_2',
+      sessionId: session._id,
+      agentId: 'agents_2',
+    })
+
+    await activate(ctx as never, {
+      sessionId: session._id as Id<'sessions'>,
+      agentId: 'agents_2' as Id<'agents'>,
+    })
+
+    expect(session.activeAgentId).toBe('agents_2')
+    expect(session.model).toEqual({ id: 'model-a' })
+    expect(session.reasoningEffort).toBe('high')
+  })
+
+  test('provider edits refresh metadata without changing the selected id', async () => {
+    const { ctx, tables } = makeCtx()
+    const session = seedSession(tables, {
+      activeAgentId: 'agents_1',
+      model: { id: 'model-a', label: 'Old label' },
+    })
+    tables.agents.push(
+      { _id: 'agents_0', ownerId: OWNER, name: 'Inactive' },
+      { _id: 'agents_1', ownerId: OWNER, name: 'Agent' },
+    )
+    tables.sessionAgents.push(
+      {
+        _id: 'link_0',
+        sessionId: session._id,
+        agentId: 'agents_0',
+      },
+      {
+        _id: 'link_1',
+        sessionId: session._id,
+        agentId: 'agents_1',
+      },
+    )
+    tables.modelProviders.push({
+      _id: 'provider_1',
+      ownerId: OWNER,
+      key: 'openai',
+      enabled: true,
+      order: 0,
+      models: [{ id: 'model-a', label: 'Updated label' }],
+    })
+
+    await refreshForOwner(ctx as never, OWNER as Id<'users'>)
+
+    expect((session.model as { id: string; label?: string }).id).toBe('model-a')
+    expect((session.model as { id: string; label?: string }).label).toBe(
+      'Updated label',
+    )
   })
 })
 

@@ -4,30 +4,19 @@ import type { ModelEntry } from '../../types'
 import { findModelEntry } from '../provider/providers'
 import { resolve as resolveProviders } from '../providers'
 
-/**
- * The model entry an agent resolves to, falling back to just the id when no
- * provider lists it. `undefined` when the agent has no model configured.
- */
-export async function resolveAgentModel(
+/** Resolves a session selection, preserving unknown model ids. */
+export async function resolveSessionModel(
   ctx: QueryCtx | MutationCtx,
-  agent: { ownerId: Id<'users'>; modelId?: string },
+  ownerId: Id<'users'>,
+  modelId?: string,
 ): Promise<ModelEntry | undefined> {
-  if (!agent.modelId) return undefined
+  if (!modelId) return undefined
 
-  const providers = await resolveProviders(ctx, agent.ownerId)
-  return findModelEntry(providers, agent.modelId) ?? { id: agent.modelId }
+  const providers = await resolveProviders(ctx, ownerId)
+  return findModelEntry(providers, modelId) ?? { id: modelId }
 }
 
-/** Refreshes the denormalized active agent's model entry. */
-export async function refreshForAgent(
-  ctx: MutationCtx,
-  agent: { _id: Id<'agents'>; ownerId: Id<'users'>; modelId?: string },
-) {
-  const providers = await resolveProviders(ctx, agent.ownerId)
-  await pushModel(ctx, agent, providers)
-}
-
-/** Refreshes every agent this user owns, after a provider list edit. */
+/** Refreshes model metadata for sessions running one of this user's agents. */
 export async function refreshForOwner(ctx: MutationCtx, ownerId: Id<'users'>) {
   const providers = await resolveProviders(ctx, ownerId)
 
@@ -37,28 +26,19 @@ export async function refreshForOwner(ctx: MutationCtx, ownerId: Id<'users'>) {
     .collect()
 
   for (const agent of agents) {
-    await pushModel(ctx, agent, providers)
-  }
-}
+    const links = await ctx.db
+      .query('sessionAgents')
+      .withIndex('by_agentId', (q) => q.eq('agentId', agent._id))
+      .collect()
 
-async function pushModel(
-  ctx: MutationCtx,
-  agent: { _id: Id<'agents'>; modelId?: string },
-  providers: Parameters<typeof findModelEntry>[0],
-) {
-  const model = agent.modelId
-    ? (findModelEntry(providers, agent.modelId) ?? { id: agent.modelId })
-    : undefined
+    for (const link of links) {
+      const session = await ctx.db.get(link.sessionId)
+      if (session?.activeAgentId !== agent._id || !session.model) continue
 
-  const links = await ctx.db
-    .query('sessionAgents')
-    .withIndex('by_agentId', (q) => q.eq('agentId', agent._id))
-    .collect()
-
-  for (const link of links) {
-    const session = await ctx.db.get(link.sessionId)
-    if (session?.activeAgentId !== agent._id) continue
-
-    await ctx.db.patch(session._id, { model })
+      const model =
+        findModelEntry(providers, session.model.id) ??
+        ({ id: session.model.id } as ModelEntry)
+      await ctx.db.patch(session._id, { model })
+    }
   }
 }

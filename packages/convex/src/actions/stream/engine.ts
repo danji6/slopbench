@@ -117,11 +117,22 @@ export async function _stream(
         const suspended = await ctx.runMutation(internal.streams._suspendStep, {
           streamId,
         })
-        if (suspended !== 'continue') return
-      } else if (!shouldContinue) {
+        if (suspended === 'abort') return
+        if (suspended === 'suspended') {
+          await recordStep(ctx, streamId, false)
+          return
+        }
+      }
+
+      if (!shouldContinue) {
+        await recordStep(ctx, streamId, false)
         await ctx.runMutation(internal.streams._complete, { streamId })
         return
       }
+
+      // Tool/task output is settled and the model will continue. This is the
+      // safe seam for mode notes and interval reminders to interrupt the turn.
+      await recordStep(ctx, streamId, true)
 
       const continued = await ctx.runMutation(internal.streams._continue, {
         streamId,
@@ -170,6 +181,17 @@ export async function _stream(
       message: sanitizeChatError(error),
     })
   }
+}
+
+function recordStep(
+  ctx: ActionCtx,
+  streamId: Id<'streams'>,
+  interruptible: boolean,
+) {
+  return ctx.runMutation(internal.streams._recordStep, {
+    streamId,
+    interruptible,
+  })
 }
 
 async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
@@ -228,14 +250,14 @@ async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
 
   const credentials = findCredentialsForModel(
     data.modelProviders,
-    data.agent.modelId,
+    data.session.model?.id,
   )
 
   // Apply logging after replay filtering for more accuracy
   const requestLog: { body?: string } = {}
   const resolved = await getProviderOptions(
-    data.agent.modelId,
-    data.agent.reasoningEffort as ReasoningEffort | undefined,
+    data.session.model?.id,
+    data.session.reasoningEffort as ReasoningEffort | undefined,
     data.agent,
     credentials,
     async (body) => {

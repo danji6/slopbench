@@ -54,6 +54,20 @@ export const update = authMutation({
   handler: Sessions.update,
 })
 
+export const setModel = authMutation({
+  args: {
+    sessionId: v.id('sessions'),
+    modelId: v.string(),
+    reasoningEffort: v.string(),
+  },
+  handler: Sessions.setModel,
+})
+
+export const setReasoningEffort = authMutation({
+  args: { sessionId: v.id('sessions'), reasoningEffort: v.string() },
+  handler: Sessions.setReasoningEffort,
+})
+
 export const setMode = authMutation({
   args: { sessionId: v.id('sessions'), mode: Sub.sessionModeValidator },
   handler: Sessions.setMode,

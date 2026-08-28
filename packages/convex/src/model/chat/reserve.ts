@@ -5,7 +5,6 @@ import { error } from '../../errors'
 import { addVersion, getActiveSegmentRow } from '../messageContents'
 import { scheduleTitle, stripMessageError } from '../messages'
 import * as Memberships from '../session/memberships'
-import { resolveAgentModel } from '../session/models'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 import { STREAM_LEASE_MS } from '../stream/lifecycle'
 import { agentIdentity } from './identities'
@@ -36,10 +35,6 @@ export async function reserveStream(
   if (!agent) error('Agent not found', 404)
 
   const session = await ctx.db.get(args.sessionId)
-  const model = await resolveAgentModel(ctx, agent)
-
-  await ctx.db.patch(args.sessionId, { model })
-
   const boundary = args.boundaryId ? await ctx.db.get(args.boundaryId) : null
   const delayMs = args.delayMs ?? 0
 
@@ -167,10 +162,6 @@ export async function reserveResumableStream(
 
   const session = await ctx.db.get(args.sessionId)
 
-  const model = await resolveAgentModel(ctx, agent)
-
-  await ctx.db.patch(args.sessionId, { model })
-
   const [boundary, message] = await Promise.all([
     args.boundaryId ? ctx.db.get(args.boundaryId) : null,
     ctx.db.get(args.messageId),
@@ -241,10 +232,6 @@ export async function reserveRetryStream(
   if (!agent) error('Agent not found', 404)
 
   const agentSettings = await getSettingsByOwnerId(ctx, agent.ownerId)
-
-  const model = await resolveAgentModel(ctx, agent)
-
-  await ctx.db.patch(args.sessionId, { model })
 
   const [boundary, message] = await Promise.all([
     args.boundaryId ? ctx.db.get(args.boundaryId) : null,

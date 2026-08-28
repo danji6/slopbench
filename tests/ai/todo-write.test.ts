@@ -4,13 +4,14 @@ import { _edit, _write, applyTodoEdits } from '@sb/convex/model/todos'
 import { getEnabledTools } from '@sb/convex/model/tool/build'
 import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
 import type { TodoItem } from '@sb/convex/types'
-import { TODO_NUDGE_INTERVAL_TURNS, TODO_TOOL_TOGGLE } from '@sb/core/const'
+import { TODO_NUDGE_INTERVAL_STEPS, TODO_TOOL_TOGGLE } from '@sb/core/const'
 import { describe, expect, test } from 'bun:test'
 
 type CtxArgs = {
   agent?: Record<string, unknown> | null
   settings?: Record<string, unknown> | null
   session?: Record<string, unknown>
+  stepCount?: number
   todo?: Record<string, unknown> | null
 }
 
@@ -18,6 +19,7 @@ function makeCtx({
   agent,
   settings = null,
   session,
+  stepCount = 6,
   todo = null,
 }: CtxArgs = {}) {
   const inserts: Array<{ table: string; doc: Record<string, unknown> }> = []
@@ -46,6 +48,7 @@ function makeCtx({
         withIndex: () => ({
           unique: async () => {
             if (table === 'settings') return settings
+            if (table === 'sessionState') return { stepCount }
             if (table === 'todos') return todo
             return null
           },
@@ -72,7 +75,7 @@ function todos(...statuses: TodoItem['status'][]): TodoItem[] {
   }))
 }
 
-const session = { _id: 'session_1', activeAgentId: 'agent_1', turnCount: 6 }
+const session = { _id: 'session_1', activeAgentId: 'agent_1' }
 const agent = {
   _id: 'agent_1',
   name: 'Agent',
@@ -81,7 +84,7 @@ const agent = {
 }
 
 describe('_write', () => {
-  test('creates a pending row stamped with the session turn count', async () => {
+  test('creates a pending row stamped with the session step count', async () => {
     const { ctx, inserts } = makeCtx({ session })
 
     await _write(ctx, {
@@ -94,7 +97,7 @@ describe('_write', () => {
     expect(inserts[0].doc).toMatchObject({
       sessionId: 'session_1',
       items: todos('pending', 'pending'),
-      turnCount: 6,
+      stepCount: 6,
     })
     expect(inserts[0].doc.updatedAt).toBeNumber()
   })
@@ -105,7 +108,7 @@ describe('_write', () => {
       todo: {
         _id: 'todo_1',
         items: todos('completed', 'in_progress'),
-        turnCount: 2,
+        stepCount: 2,
       },
     })
 
@@ -122,14 +125,14 @@ describe('_write', () => {
         { content: 'task 2', status: 'in_progress' },
         { content: 'task 3', status: 'pending' },
       ],
-      turnCount: 6,
+      stepCount: 6,
     })
   })
 
   test('an empty list deletes the row', async () => {
     const { ctx, deletes } = makeCtx({
       session,
-      todo: { _id: 'todo_1', items: todos('pending'), turnCount: 2 },
+      todo: { _id: 'todo_1', items: todos('pending'), stepCount: 2 },
     })
 
     await _write(ctx, { sessionId: 'session_1' as never, todos: [] })
@@ -149,13 +152,13 @@ describe('_write', () => {
 })
 
 describe('_edit', () => {
-  test('updates matched tasks and re-stamps the turn count', async () => {
+  test('updates matched tasks and re-stamps the step count', async () => {
     const { ctx, patches } = makeCtx({
       session,
       todo: {
         _id: 'todo_1',
         items: todos('in_progress', 'pending'),
-        turnCount: 2,
+        stepCount: 2,
       },
     })
 
@@ -171,14 +174,14 @@ describe('_edit', () => {
     expect(patches).toHaveLength(1)
     expect(patches[0].patch).toMatchObject({
       items: todos('completed', 'in_progress'),
-      turnCount: 6,
+      stepCount: 6,
     })
   })
 
   test('a failed match returns the current list without writing', async () => {
     const { ctx, patches } = makeCtx({
       session,
-      todo: { _id: 'todo_1', items: todos('pending'), turnCount: 2 },
+      todo: { _id: 'todo_1', items: todos('pending'), stepCount: 2 },
     })
 
     const result = await _edit(ctx, {
@@ -213,21 +216,25 @@ describe('_edit', () => {
 })
 
 describe('injectDueReminders todo nudge', () => {
-  // A todo row exactly one full interval staler than the session
-  const staleSession = { ...session, turnCount: 2 + TODO_NUDGE_INTERVAL_TURNS }
+  const staleStepCount = 2 + TODO_NUDGE_INTERVAL_STEPS
 
   test('injects a stale nudge as a todo message and re-arms the row', async () => {
     const { ctx, inserts, patches } = makeCtx({
       agent,
-      session: staleSession,
+      session,
       todo: {
         _id: 'todo_1',
         items: [{ content: 'ship it', status: 'pending' }],
-        turnCount: 2,
+        stepCount: 2,
       },
     })
 
-    await injectDueReminders(ctx, staleSession as never, 'user_1' as never)
+    await injectDueReminders(
+      ctx,
+      session as never,
+      'user_1' as never,
+      staleStepCount,
+    )
 
     const message = inserts.find((entry) => entry.table === 'messages')
     expect(message?.doc).toMatchObject({
@@ -245,7 +252,7 @@ describe('injectDueReminders todo nudge', () => {
     expect(part.text).toContain('<system-reminder>')
 
     expect(patches).toEqual([
-      { id: 'todo_1', patch: { turnCount: staleSession.turnCount } },
+      { id: 'todo_1', patch: { stepCount: staleStepCount } },
     ])
   })
 
@@ -253,10 +260,10 @@ describe('injectDueReminders todo nudge', () => {
     const { ctx, inserts, patches } = makeCtx({
       agent,
       session,
-      todo: { _id: 'todo_1', items: todos('pending'), turnCount: 5 },
+      todo: { _id: 'todo_1', items: todos('pending'), stepCount: 5 },
     })
 
-    await injectDueReminders(ctx, session as never, 'user_1' as never)
+    await injectDueReminders(ctx, session as never, 'user_1' as never, 6)
 
     expect(inserts).toEqual([])
     expect(patches).toEqual([])
@@ -265,15 +272,20 @@ describe('injectDueReminders todo nudge', () => {
   test('never nudges a fully completed list', async () => {
     const { ctx, inserts, patches } = makeCtx({
       agent,
-      session: staleSession,
+      session,
       todo: {
         _id: 'todo_1',
         items: todos('completed', 'completed'),
-        turnCount: 2,
+        stepCount: 2,
       },
     })
 
-    await injectDueReminders(ctx, staleSession as never, 'user_1' as never)
+    await injectDueReminders(
+      ctx,
+      session as never,
+      'user_1' as never,
+      staleStepCount,
+    )
 
     expect(inserts).toEqual([])
     expect(patches).toEqual([])
@@ -282,11 +294,16 @@ describe('injectDueReminders todo nudge', () => {
   test('never nudges an agent with the todo toggle off', async () => {
     const { ctx, inserts, patches } = makeCtx({
       agent: { ...agent, tools: [] },
-      session: staleSession,
-      todo: { _id: 'todo_1', items: todos('pending'), turnCount: 2 },
+      session,
+      todo: { _id: 'todo_1', items: todos('pending'), stepCount: 2 },
     })
 
-    await injectDueReminders(ctx, staleSession as never, 'user_1' as never)
+    await injectDueReminders(
+      ctx,
+      session as never,
+      'user_1' as never,
+      staleStepCount,
+    )
 
     expect(inserts).toEqual([])
     expect(patches).toEqual([])

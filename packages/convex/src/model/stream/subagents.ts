@@ -24,7 +24,6 @@ import { syncActivity } from '../messages'
 import { notifyAgentEvent } from '../notifications'
 import { createPlanLinkPart, getBySession as getPlan } from '../plans'
 import { getActiveStream } from '../session/memberships'
-import { resolveAgentModel } from '../session/models'
 import { cloneApprovals } from '../session/state'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 import {
@@ -231,8 +230,6 @@ async function spawnChild(
   { stream, session, agent, input, toolCallId }: SpawnChildArgs,
 ): Promise<Id<'sessions'>> {
   const now = Date.now()
-  const model = await resolveAgentModel(ctx, agent)
-
   // A preset title keeps scheduleTitle from running for hidden sessions
   const title = input.title ?? input.prompt.trim().slice(0, 80)
 
@@ -244,7 +241,8 @@ async function spawnChild(
     title,
     activeAgentId: agent._id,
     workspace: session.workspace,
-    model,
+    model: session.model,
+    reasoningEffort: session.reasoningEffort,
     mode,
     parent: {
       sessionId: session._id,

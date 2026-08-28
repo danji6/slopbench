@@ -16,7 +16,6 @@ import { scheduleMessageEval } from '../messages'
 import * as Memberships from '../session/memberships'
 import { collectToolOutputStorageIds } from '../stream/toolOutput'
 import { clearAnnouncedMode } from './notes'
-import { rewindTurnCount } from './reminders'
 
 export async function editMessage(
   ctx: AuthMutationCtx,
@@ -109,7 +108,6 @@ export async function deleteMessageParts(
 
   if (plans.every(({ kept }) => kept.length === 0)) {
     await deleteMessageDoc(ctx, message)
-    await rewindTurnCount(ctx, message.sessionId, countTurnDocs([message]))
     return true
   }
 
@@ -136,7 +134,6 @@ export async function deleteMessage(
 ) {
   const { message } = await requireMessageMutation(ctx, args.messageId)
   await deleteMessageDoc(ctx, message)
-  await rewindTurnCount(ctx, message.sessionId, countTurnDocs([message]))
   await forgetDeletedModeNotes(ctx, message.sessionId, [message])
 }
 
@@ -168,7 +165,6 @@ export async function deleteMessagesFrom(
   for (const avatarId of avatarIds) {
     await Avatars.removeIfUnreferenced(ctx, avatarId)
   }
-  await rewindTurnCount(ctx, message.sessionId, countTurnDocs(range))
   await forgetDeletedModeNotes(ctx, message.sessionId, range)
 }
 
@@ -180,11 +176,6 @@ async function forgetDeletedModeNotes(
   if (deleted.some((doc) => doc.type === 'mode')) {
     await clearAnnouncedMode(ctx, sessionId)
   }
-}
-
-/** Count turns while excluding hidden messages. */
-function countTurnDocs(docs: Doc<'messages'>[]) {
-  return docs.filter((doc) => !doc.hidden).length
 }
 
 export function assertRangeDeletable(

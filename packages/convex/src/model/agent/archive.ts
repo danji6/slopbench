@@ -25,8 +25,6 @@ const PASSTHROUGH_KEYS = [
   'description',
   'tools',
   'globalPromptsEnabled',
-  'modelId',
-  'reasoningEffort',
   'temperature',
   'topP',
   'frequencyPenalty',

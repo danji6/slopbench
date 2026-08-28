@@ -174,6 +174,8 @@ function parentDocs(
       _id: 'session_1',
       ownerId: owner,
       workspace: { workspaceId: 'ws_1', label: 'ws' },
+      model: { id: 'parent-model', label: 'Parent Model' },
+      reasoningEffort: 'high',
     },
     { _id: 'message_1', selectedVersion: 1 },
     { _id: 'content_1', segmentIndex: 0, version: 1, parts },
@@ -217,6 +219,8 @@ describe('_suspendStep', () => {
       ownerId: owner,
       activeAgentId: 'agent_explorer',
       workspace: { workspaceId: 'ws_1', label: 'ws' },
+      model: { id: 'parent-model', label: 'Parent Model' },
+      reasoningEffort: 'high',
       parent: {
         sessionId: 'session_1',
         streamId: 'stream_1',

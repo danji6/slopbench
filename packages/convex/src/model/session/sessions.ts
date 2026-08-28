@@ -28,7 +28,10 @@ import {
   getBySession as getPlan,
   upsert as upsertPlan,
 } from '../plans'
-import { getByOwnerId as getSettings } from '../settings'
+import {
+  ensureForUser as ensureSettingsForUser,
+  getByOwnerId as getSettings,
+} from '../settings'
 import { remove as removeStream, stopForSession } from '../stream/lifecycle'
 import { syncTitle } from '../userSessions'
 import {
@@ -38,7 +41,7 @@ import {
   requireNonBlockingStream,
   requireOwner,
 } from './memberships'
-import { resolveAgentModel } from './models'
+import { resolveSessionModel } from './models'
 import {
   getApprovals,
   getState,
@@ -57,16 +60,22 @@ export async function create(
   },
 ) {
   if (args.approvalMode === 'unrestricted') requireRole(ctx.role, 'admin')
-  if (args.activeAgentId) {
-    await requireOwnedAgent(ctx, args.activeAgentId)
-  }
+  const activeAgent = args.activeAgentId
+    ? await requireOwnedAgent(ctx, args.activeAgentId)
+    : null
+  const settings = await getSettings(ctx, ctx.userId)
 
   const now = Date.now()
   const sessionId = await ctx.db.insert('sessions', {
     ownerId: ctx.userId,
     title: args.title,
     activeAgentId: args.activeAgentId,
-    model: await modelForAgent(ctx, args.activeAgentId),
+    model: await resolveSessionModel(
+      ctx,
+      activeAgent?.ownerId ?? ctx.userId,
+      settings?.recentModel,
+    ),
+    reasoningEffort: settings?.recentReasoning,
     lastMessageAt: now,
     mode: args.mode === 'plan' ? args.mode : undefined,
   })
@@ -129,13 +138,13 @@ export async function duplicate(
     title: newTitle,
     activeAgentId: session.activeAgentId,
     ...(session.model ? { model: session.model } : {}),
+    reasoningEffort: session.reasoningEffort,
     mode: session.mode,
     announcedMode: session.announcedMode,
     // A copy starts enabled even when its source was disabled
     settings: session.settings
       ? { ...session.settings, disabled: undefined }
       : undefined,
-    turnCount: session.turnCount,
     lastMessageAt: now,
     lastMessagePreview: session.lastMessagePreview,
     firstMessagePreview: session.firstMessagePreview,
@@ -429,9 +438,6 @@ export async function update(
     ...('activeAgentId' in patch
       ? { activeAgentId: patch.activeAgentId ?? undefined }
       : {}),
-    ...('activeAgentId' in patch
-      ? { model: await modelForAgent(ctx, patch.activeAgentId) }
-      : {}),
     ...(patch.settings
       ? { settings: { ...session?.settings, ...patch.settings } }
       : {}),
@@ -442,6 +448,44 @@ export async function update(
   }
 
   if (patch.settings?.disabled) await stopForSession(ctx, sessionId)
+}
+
+/** Selects the model for one session and remembers it for future sessions. */
+export async function setModel(
+  ctx: AuthMutationCtx,
+  {
+    sessionId,
+    modelId,
+    reasoningEffort,
+  }: {
+    sessionId: Id<'sessions'>
+    modelId: string
+    reasoningEffort: string
+  },
+) {
+  const agent = await requireActiveAgentOwner(ctx, sessionId)
+  const model = await resolveSessionModel(ctx, agent.ownerId, modelId)
+
+  await ctx.db.patch(sessionId, { model, reasoningEffort })
+  await ensureSettingsForUser(ctx, ctx.userId, {
+    recentModel: modelId,
+    recentReasoning: reasoningEffort,
+  })
+}
+
+/** Selects reasoning effort for one session and its future session default. */
+export async function setReasoningEffort(
+  ctx: AuthMutationCtx,
+  {
+    sessionId,
+    reasoningEffort,
+  }: { sessionId: Id<'sessions'>; reasoningEffort: string },
+) {
+  await requireActiveAgentOwner(ctx, sessionId)
+  await ctx.db.patch(sessionId, { reasoningEffort })
+  await ensureSettingsForUser(ctx, ctx.userId, {
+    recentReasoning: reasoningEffort,
+  })
 }
 
 export async function getMode(
@@ -659,16 +703,17 @@ async function requireOwnedAgent(ctx: AuthMutationCtx, agentId: Id<'agents'>) {
   return agent
 }
 
-async function modelForAgent(
-  ctx: MutationCtx,
-  agentId: Id<'agents'> | null | undefined,
+async function requireActiveAgentOwner(
+  ctx: AuthMutationCtx,
+  sessionId: Id<'sessions'>,
 ) {
-  if (!agentId) return undefined
+  const { session } = await requireMember(ctx, sessionId, ctx.userId)
+  if (!session.activeAgentId) error('No active agent', 409)
 
-  const agent = await ctx.db.get(agentId)
-  if (!agent?.modelId) return undefined
-
-  return resolveAgentModel(ctx, agent)
+  const agent = await ctx.db.get(session.activeAgentId)
+  if (!agent) error('Agent not found', 404)
+  if (agent.ownerId !== ctx.userId) error('Forbidden', 403)
+  return agent
 }
 
 async function deleteStorageIfPresent(

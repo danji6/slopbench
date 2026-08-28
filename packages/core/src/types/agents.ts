@@ -40,8 +40,6 @@ export type AgentMutableFields<AgentId extends string = string> =
     OverridableFields & {
       /** Names of the tools the agent may call. */
       tools?: string[]
-      modelId?: string
-      reasoningEffort?: string
       description?: string
       libraryReminderIds?: string[]
       autoApprove?: AgentAutoApprove

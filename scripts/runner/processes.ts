@@ -141,16 +141,28 @@ export function bunx(...args: string[]): string[] {
   return [process.execPath, 'x', ...args]
 }
 
-export async function output(cmd: string[], options: { cwd: string }) {
+export async function commandResult(
+  cmd: string[],
+  options: { cwd: string; env?: NodeJS.ProcessEnv },
+) {
   const child = Bun.spawn({
     cmd,
     cwd: options.cwd,
+    env: options.env ? { ...process.env, ...options.env } : process.env,
     stderr: 'pipe',
     stdout: 'pipe',
   })
   const stdout = await new Response(child.stdout).text()
   const stderr = await new Response(child.stderr).text()
   const exitCode = await child.exited
+  return { exitCode, stderr, stdout }
+}
+
+export async function output(
+  cmd: string[],
+  options: { cwd: string; env?: NodeJS.ProcessEnv },
+) {
+  const { exitCode, stderr, stdout } = await commandResult(cmd, options)
   if (exitCode !== 0) {
     throw new Error(`${cmd.join(' ')} failed: ${stderr.trim()}`)
   }

@@ -26,7 +26,8 @@ The application is organized around sessions. A session can contain humans,
 linked agents, messages, files, workspace bindings, tool approvals, request
 logs, a session mode (normal or plan), a plan document, a todo list, a command
 queue, background sub-agent children, and a durable stream for the currently
-running agent turn. Users create agents with model settings, prompts,
+running agent turn. Users create agents with prompts, tools, and inference
+settings, then choose a model independently for each session.
 reminders, tools, appearance, and context behavior. The first created user
 becomes an admin; admin users can bind local workspaces and use local file or
 command tools.
@@ -170,8 +171,15 @@ processes, Convex orchestration, build cache, logs). The runner loads
 `.env.local` if present, prepares local generated state under `.data`, frees
 the required ports unless told not to, starts the sidecar, starts the
 self-hosted Convex backend, configures Convex environment variables, deploys or
-starts Convex functions, and starts either Vite dev or Vite preview. Raw
-child-process logs go to `.data/logs`. The sidecar binds to `127.0.0.1`.
+starts Convex functions, and starts either Vite dev or Vite preview. Before the
+frontend starts, it reads the durable schema-release state from the currently
+deployed functions. A completed current release gets one strict deploy. A new
+or interrupted release deploys an isolated function copy with schema validation
+disabled, runs only pending release migrations, restores the tracked strict
+schema, and marks the release complete. Startup aborts before serving the
+frontend if any phase fails; migration failures also trigger a best-effort
+strict deploy. Raw child-process logs go to `.data/logs`. The sidecar binds to
+`127.0.0.1`.
 
 The runner distinguishes **where the backend listens** from **what a browser
 talks to**, which is what makes a TLS-terminating reverse proxy work:
@@ -302,8 +310,8 @@ subscribes to.
   fields. Prompts, reminders, providers, MCP servers, and API keys are no
   longer here.
 - `agents`: user-owned agents with `promptOrder` (refs into the `prompts`
-  table), `globalPromptsEnabled`, `libraryReminderIds`, model id, reasoning
-  effort, inference parameters, enabled tool names, context settings, sharing
+  table), `globalPromptsEnabled`, `libraryReminderIds`, inference parameters,
+  enabled tool names, context settings, sharing
   and masking behavior, auto-approve rules, spawnable sub-agent policy, and
   their own copy of the overridable fields (agent overrides user)
 - `prompts`: one row per prompt, scoped `own` | `global` | `library` |
@@ -329,16 +337,17 @@ subscribes to.
 **Sessions**
 
 - `sessions`: the stable half of conversation state — owner, title, active
-  agent, `model` (the active agent's resolved model entry, denormalized for
-  the UI), mode and `announcedMode`, session settings, workspace binding
+  agent, the session-owned selected `model` entry and `reasoningEffort`, mode
+  and `announcedMode`, session settings, workspace binding
   (`workspaceId`, `label`, `path`), optional `parent` link marking a sub-agent
-  child, activity previews (`lastMessagePreview` plus `firstMessagePreview` as
-  the title fallback), and a logical `turnCount`. Indexed by owner and by
+  child, and activity previews (`lastMessagePreview` plus
+  `firstMessagePreview` as the title fallback). Indexed by owner and by
   `parent.sessionId`.
 - `sessionState`: the hot half, split off precisely because every field here is
-  rewritten during a turn — `environment`, `toolApprovals`, `reminderState`,
-  `commandQueue`, cumulative `usage`, and `log` (a storage id holding the last
-  provider request/response body). Created lazily on first write.
+  rewritten during a turn — `environment`, `toolApprovals`, the provider-step
+  `stepCount`, `reminderState`, `commandQueue`, cumulative `usage`, and `log`
+  (a storage id holding the last provider request/response body). Created
+  lazily on first write.
 - `userSessions`: per-user session membership/list rows for owners and shared
   members; denormalizes title and activity for listing and search, holds the
   user's last send time for slow mode, and carries `hidden` (sub-agent child
@@ -351,7 +360,7 @@ subscribes to.
 - `plans`: per-session plan document with draft/approved status, a dirty flag
   for manual user edits, and an update timestamp
 - `todos`: per-session todo list — items with `pending`/`in_progress`/
-  `completed` status, plus the session `turnCount` at the last write or nudge
+  `completed` status, plus the session `stepCount` at the last write or nudge
 - `typing`: expiring per-user typing indicator rows
 - `shellJobs`: a background shell job that outlived its tool call — the
   session and agent it reports back to, the sidecar job id and command,
@@ -389,8 +398,8 @@ streams, message windows, content-segment lookup, sender and message-type
 filtering, stream leases, attachments, avatars, agent links, and the
 `(owner, scope, order)` ordering of every configuration table.
 
-Schema validation is on; the ad-hoc migrations written for the restructure were
-run and then deleted, as is the project's habit.
+Schema validation is on in the tracked source. Release migrations and their
+durable boot state are retained so installs may skip application versions.
 
 ## Write Caps
 
@@ -480,7 +489,7 @@ Queries that many clients subscribe to are **projected**, not returned whole:
 - `sessions.list` yields only `_id`, `_creationTime`, `title`,
   `activeAgentId`, `lastMessageAt`, `lastMessagePreview`,
   `firstMessagePreview`, `hidden`, and `participants`. Mode, session settings,
-  the resolved model, the workspace path, and `turnCount` stay out of it.
+  the resolved model and the workspace path stay out of it.
 - `userSessions.list` (the member list) yields `{ membership, name, avatarId }`
   per member — never another user's settings document.
 - `agents.list` yields `{ _id, name, description, avatarId }` — no prompts,
@@ -493,8 +502,9 @@ UI renders (`toolApprovals`, `usage`, and whether a request log exists).
 
 Each session can have:
 
-- one active agent, whose resolved model entry is denormalized onto the session
-  and refreshed when the agent or the owner's provider list changes
+- one active agent and an independent model/reasoning selection; only the
+  active agent's owner may change it, changing agents preserves it, and the
+  resolved model metadata refreshes with that owner's provider list
 - multiple linked agents
 - one optional workspace binding, including its absolute path (exposed to
   prompts as `workDir`)
@@ -504,7 +514,6 @@ Each session can have:
   the mode can be toggled even in an empty chat
 - an `announcedMode`, the mode the transcript has actually stated
 - per-session settings (disabled, slow mode, agent debounce, passive send)
-- a logical `turnCount` driving reminder and todo-nudge intervals
 - expiring typing indicator rows so participants see who is writing
 - a parent link, when the session is a background sub-agent child
 
@@ -514,8 +523,9 @@ and, in its `sessionState` row:
   onto sub-agent children at spawn)
 - mutable environment variables used by prompt interpolation (capped by key
   count and total bytes)
-- reminder injection state, the deferred command queue, cumulative token
-  usage, and the storage id of the last provider request/response log
+- the monotonic successful-provider-step clock and reminder injection state,
+  the deferred command queue, cumulative token usage, and the storage id of
+  the last provider request/response log
 
 Disabling a session stops active streams and prevents new message sends or
 agent invocations while preserving the data.
@@ -527,7 +537,6 @@ Agents are user-owned entities with their own behavior and presentation:
 - prompt ordering across own/global/library sources (`promptOrder`), with the
   prompt items themselves living in the `prompts` table
 - own reminders (rows in `reminders`) and referenced library reminders
-- selected model id and reasoning effort
 - temperature, top-p, frequency/presence penalties, repeat penalty, context
   window, output token cap, and context trimming
 - enabled tool names (including the single `todo` and `plan` toggles)
@@ -551,6 +560,10 @@ web search instances, theme mode, and recent model/agent/reasoning/workspace
 selections. Everything else that used to be embedded there is a table:
 prompts, reminders, model providers, MCP servers and their tools, API keys,
 and editor scripts.
+
+The recent model and reasoning values are copied into each new top-level
+session. Changing a session updates those defaults without rebinding any
+existing session.
 
 `model/prompts.ts` and `model/reminders.ts` own their rows and expose the same
 surface: `list` / `listOwned` / `listForAgent`, `create` / `update` / `remove`,
@@ -1012,8 +1025,18 @@ Key backend domains:
   `model/editorScripts`, `model/typing`, `model/context`, and `model/sidecar`:
   supporting domains
 
-`migrations.ts` holds a bare `@convex-dev/migrations` runner; migrations are
-defined ad hoc for local restructures and deleted after running.
+`migrations.ts` holds the `@convex-dev/migrations` runner, the append-only
+release migration list, and stable internal endpoints for boot coordination.
+`packages/core/src/migration-version.ts` owns the canonical append-only
+migration manifest; its length is the schema migration version. A singleton
+`releaseState` document records the last strictly completed version and any
+in-progress target. This lets ordinary boots avoid disabling validation, lets
+interrupted or skipped releases resume, and rejects an application older than
+the database. `_applyRelease` skips completed entries and returns only a compact
+applied count. Completion is recorded only after the tracked strict schema
+deploy succeeds. The current finalizers move remaining turn-based reminder
+baselines to `stepCount`, remove legacy `turnCount`, bind model choice to
+sessions, seed recent model defaults, and remove legacy agent model fields.
 
 ## Message Send Flow
 
@@ -1037,11 +1060,10 @@ defined ad hoc for local restructures and deleted after running.
    across several segment rows on insert; a single part larger than
    `MAX_MESSAGE_PART_BYTES` is rejected outright.
 10. Attach staged uploads to the message.
-11. Advance the session's logical `turnCount`.
-12. Schedule message interpolation per segment if text contains dynamic markers.
-13. Sync latest activity onto `sessions` and all `userSessions` rows, and
+11. Schedule message interpolation per segment if text contains dynamic markers.
+12. Sync latest activity onto `sessions` and all `userSessions` rows, and
     record the sender's last send time for slow mode.
-14. `reserveOrDebounceTurn` reserves an agent stream if the send is not silent
+13. `reserveOrDebounceTurn` reserves an agent stream if the send is not silent
     and an active agent is available, reschedules a pending debounced stream if
     one is already waiting, and otherwise schedules title generation. The
     stream's actual processing message is created lazily on claim. Titles are
@@ -1077,16 +1099,21 @@ The stream action flow is:
    timings, reasoning durations and warnings, and offloads large payloads.
    A watchdog polls stream status and aborts the provider call when the user
    stops the turn.
-4. Between steps, `_continue` handles rollover: if a newer user message
-   arrived, the current turn is finalized and processing rolls over to a new
-   message; if the active segment passed the split cap, it is sealed and a new
-   segment is appended (same doc, same boundary, doc stays `processing`).
-5. A step that ends with pending tool approvals and/or `task` calls goes
+4. Every successfully completed invoke step advances `sessionState.stepCount`.
+   When the stream can safely continue, `_recordStep` also injects unannounced
+   mode changes and due configured/todo reminders as hidden transcript notes.
+   Final or parked steps advance the clock but defer injection.
+5. Between steps, `_continue` consumes those notes like any other interjection:
+   it finalizes the current processing message, rolls onto a new one whose
+   boundary includes the notes, and lets the next provider request see them.
+   It performs the same rollover for newer user messages; over-cap output is
+   instead sealed into a new segment on the same processing doc.
+6. A step that ends with pending tool approvals and/or `task` calls goes
    through the sub-agent suspend path: task calls spawn background children and
    settle immediately, and the stream only suspends when approvals are also
    pending. In sub-agent sessions, approval requests are auto-denied with an
    explanatory reason instead of suspending.
-6. The stream either completes, continues for another tool step, pauses for
+7. The stream either completes, continues for another tool step, pauses for
    approval, schedules a provider-rate-limit retry, or fails with sanitized
    metadata — writing error/usage metadata to both the segment row and the
    doc's accumulated metadata.
@@ -1161,9 +1188,9 @@ a reminder keeps the role it was authored with.
 
 Reminders are `reminders` rows scoped `own` (an agent's) or `library` (the
 user's shared set, referenced by the agent's `libraryReminderIds`). Each has an
-interval in logical turns and an optional `eager` flag that fires it on first
+interval in successful provider steps and an optional `eager` flag that fires it on first
 sight instead of waiting a full interval; `sessionState.reminderState` records
-the `turnCount` at each reminder's last injection.
+the `stepCount` at each reminder's last injection.
 
 Todos live in a per-session `todos` row driven by two tools behind a single
 `todo` agent toggle:
@@ -1174,9 +1201,10 @@ Todos live in a per-session `todos` row driven by two tools behind a single
   `todo`/`doing`/`done` vocabulary, mapped to
   `pending`/`in_progress`/`completed`
 
-When a session goes `TODO_NUDGE_INTERVAL_TURNS` (10) turns without a todo
-write or edit while items are unresolved, a `todo` note is injected with the
-formatted list. A docked todos widget renders the same list for the user.
+When a session goes `TODO_NUDGE_INTERVAL_STEPS` (10) successful provider steps
+without a todo write or edit while items are unresolved, a `todo` note is
+injected with the formatted list. A docked todos widget renders the same list
+for the user.
 
 ## Plan Mode
 
@@ -1186,6 +1214,10 @@ Sessions can enter plan mode, which frames the agent as a planner:
   chat, via the `/plan` command, or by the agent through `enter_plan_mode`),
   and the change is announced through a hidden `mode` note rather than a
   prompt-frame override.
+- Approving `exit_plan_mode` locks the plan and flips the session and active
+  stream to normal mode inside the approval mutation. Once the approved tool
+  finishes, the safe post-step hook inserts the Normal-mode note before the
+  model can begin implementation.
 - The `plans` table holds one plan per session with `draft`/`approved` status
   and a `dirty` flag marking manual user edits.
 - Plan tools sit behind the single `plan` agent toggle and require admin:
@@ -1214,8 +1246,9 @@ The model is fully **background**:
    optional short title.
 2. The engine creates a hidden child session (`sessions.parent` records the
    parent session, stream, tool call id, and parent agent; the child's
-   `userSessions` row is `hidden`), then settles the tool part immediately with
-   a started acknowledgment. The parent turn is not blocked.
+   `userSessions` row is `hidden`) with the parent's model and reasoning
+   selection, then settles the tool part immediately with a started
+   acknowledgment. The parent turn is not blocked.
 3. The parent's tool part carries `subagentSessionId`, which the UI uses to
    render a live watch view — title, agent identity, stream status, and the
    child's last-request input tokens.

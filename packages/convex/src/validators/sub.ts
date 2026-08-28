@@ -290,7 +290,7 @@ export const reminderPromptValidator = v.object({
   role: roleValidator,
   content: v.string(),
   enabled: v.boolean(),
-  interval: v.number(), // injected as a hidden message every N logical turns
+  interval: v.number(), // injected as a hidden message every N steps
   eager: v.optional(v.boolean()), // fire on first sight instead of waiting a full interval
 })
 

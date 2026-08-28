@@ -3,8 +3,8 @@ import { api } from '@sb/convex/_generated/api'
 import { useQuery } from 'convex/react'
 import { useMemo } from 'react'
 
-import { useActiveAgent } from './agent'
 import { useActiveSession } from './session'
+import { useSettings } from './settings'
 
 export type ModelsConfig = {
   models: UIModel[]
@@ -22,9 +22,9 @@ export function useModels(): ModelsConfig {
 
 export function useActiveModel(): UIModel | null {
   const session = useActiveSession()
-  const agent = useActiveAgent()
+  const settings = useSettings()
   const { models, isLoading } = useModels()
-  const modelId = agent?.modelId
+  const modelId = session?.model?.id ?? settings?.recentModel
 
   return useMemo(() => {
     if (session?.model) return session.model

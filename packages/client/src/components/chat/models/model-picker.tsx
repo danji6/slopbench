@@ -1,5 +1,4 @@
 import { Combobox, type ComboboxTriggerProps } from '@/components/ui'
-import { useModelSettings } from '@/hooks/chat'
 import { useModels } from '@/hooks/chat'
 import { cn } from '@/lib/utils'
 import { useMemo } from 'react'
@@ -7,24 +6,18 @@ import { useMemo } from 'react'
 export type ModelPickerProps = ComboboxTriggerProps & {
   className?: string
   disabled?: boolean
-  /** Controlled mode: current model id */
-  value?: string
-  /** Controlled mode: called with new model id */
-  onValueChange?: (value: string) => void
+  value: string
+  onValueChange: (value: string) => void
 }
 
 export function ModelPicker({
   disabled = false,
   className,
-  value: controlledValue,
-  onValueChange: controlledOnChange,
+  value,
+  onValueChange,
   ...props
 }: ModelPickerProps) {
-  const { model, setModel, initialModel } = useModelSettings()
   const { models, isLoading } = useModels()
-
-  const isControlled =
-    controlledValue !== undefined || controlledOnChange !== undefined
 
   const [localModels, cloudModels] = useMemo(() => {
     return models.reduce(
@@ -48,17 +41,12 @@ export function ModelPicker({
     )
   }, [models])
 
-  if (!isControlled && initialModel) {
-    return null
-  }
-
-  const value = isControlled ? (controlledValue ?? '') : (model?.id ?? '')
-  const handleChange = isControlled
-    ? (v: string) => controlledOnChange?.(v || '')
-    : (v: string) => setModel(v || '')
-
   return (
-    <Combobox value={value} onValueChange={handleChange} noDeselect>
+    <Combobox
+      value={value}
+      onValueChange={(v) => onValueChange(v || '')}
+      noDeselect
+    >
       <Combobox.Trigger
         variant="stealth"
         className={cn(
