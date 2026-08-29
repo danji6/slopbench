@@ -41,6 +41,7 @@ export const mcpServerSchema = z.object({
 export const modelEntrySchema = z
   .object({
     id: z.string(),
+    _clientId: z.string().optional(),
     label: z.string().optional(),
     contextWindow: z.number().optional(),
     reasoning: z
@@ -55,6 +56,15 @@ export const modelEntrySchema = z
         }),
         z.object({ type: z.literal('none') }),
       ])
+      .optional(),
+    inference: z
+      .object({
+        temperature: z.number().optional(),
+        topP: z.number().optional(),
+        frequencyPenalty: z.number().optional(),
+        presencePenalty: z.number().optional(),
+        repeatPenalty: z.number().optional(),
+      })
       .optional(),
     extraParameters: z.string().optional(),
   })

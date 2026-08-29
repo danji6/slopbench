@@ -17,6 +17,7 @@ export const sliderControlVariants = cva(
   {
     variants: {
       thickness: {
+        xxs: 'data-horizontal:h-8 data-horizontal:w-full data-vertical:h-full data-vertical:w-8',
         xs: 'data-horizontal:h-12 data-horizontal:w-full data-vertical:h-full data-vertical:w-12',
         s: 'data-horizontal:h-12 data-horizontal:w-full data-vertical:h-full data-vertical:w-12',
         m: 'data-horizontal:h-[52px] data-horizontal:w-full data-vertical:h-full data-vertical:w-[52px]',
@@ -33,6 +34,7 @@ export const sliderTrackVariants = cva(
   {
     variants: {
       thickness: {
+        xxs: 'rounded-[6px] data-horizontal:h-2 data-horizontal:w-full data-vertical:h-full data-vertical:w-2',
         xs: 'rounded-[8px] data-horizontal:h-4 data-horizontal:w-full data-vertical:h-full data-vertical:w-4',
         s: 'rounded-[8px] data-horizontal:h-6 data-horizontal:w-full data-vertical:h-full data-vertical:w-6',
         m: 'rounded-[12px] data-horizontal:h-10 data-horizontal:w-full data-vertical:h-full data-vertical:w-10',
@@ -49,6 +51,7 @@ export const sliderThumbVariants = cva(
   {
     variants: {
       thickness: {
+        xxs: 'rounded-[6px] data-horizontal:h-7 data-horizontal:w-(--slider-thumb-thickness) data-vertical:h-(--slider-thumb-thickness) data-vertical:w-7',
         xs: 'rounded-[8px] data-horizontal:h-11 data-horizontal:w-(--slider-thumb-thickness) data-vertical:h-(--slider-thumb-thickness) data-vertical:w-11',
         s: 'rounded-[8px] data-horizontal:h-11 data-horizontal:w-(--slider-thumb-thickness) data-vertical:h-(--slider-thumb-thickness) data-vertical:w-11',
         m: 'rounded-[12px] data-horizontal:h-[52px] data-horizontal:w-(--slider-thumb-thickness) data-vertical:h-(--slider-thumb-thickness) data-vertical:w-[52px]',

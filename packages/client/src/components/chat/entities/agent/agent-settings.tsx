@@ -62,7 +62,6 @@ import { AgentPicker } from './agent-picker'
 import { AppearanceSettings } from './appearance-settings'
 import { BehaviorSettings } from './behavior-settings'
 import { ContextSettings } from './context-settings'
-import { InferenceSettings } from './inference-settings'
 import { ProfileSettings } from './profile-settings'
 import { SubagentSettings } from './subagent-settings'
 import { ToolSettings } from './tool-settings'
@@ -281,9 +280,6 @@ function AgentSettingsDialog() {
                   <SettingsTabs.Trigger value="context" icon={<LayersIcon />}>
                     Context
                   </SettingsTabs.Trigger>
-                  <SettingsTabs.Trigger value="inference" icon={<BotIcon />}>
-                    Inference
-                  </SettingsTabs.Trigger>
                   <SettingsTabs.Trigger value="tools" icon={<WrenchIcon />}>
                     Tools
                   </SettingsTabs.Trigger>
@@ -310,9 +306,6 @@ function AgentSettingsDialog() {
                     onStageAvatar={handleStageAvatar}
                     onClearAvatar={() => setAvatarCleared(true)}
                   />
-                </SettingsTabs.Content>
-                <SettingsTabs.Content value="inference" title="Inference">
-                  <InferenceSettings control={form.control} />
                 </SettingsTabs.Content>
                 <SettingsTabs.Content value="context" title="Context">
                   <ContextSettings control={form.control} />

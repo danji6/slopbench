@@ -6,7 +6,7 @@ import {
   resolveChatCompletionsBaseURL,
   resolveModelReasoning,
 } from '@sb/convex/model/provider/known'
-import { findModelEntry } from '@sb/convex/model/provider/providers'
+import { findModelSelection } from '@sb/convex/model/provider/providers'
 import { describe, expect, test } from 'bun:test'
 
 describe('provider definitions', () => {
@@ -93,7 +93,7 @@ describe('provider definitions', () => {
 
   test('resolved Qwen model metadata carries binary reasoning', () => {
     expect(
-      findModelEntry(
+      findModelSelection(
         [
           {
             id: 'qwen',
@@ -104,5 +104,31 @@ describe('provider definitions', () => {
         'qwen3.8-max',
       )?.reasoning,
     ).toEqual({ type: 'binary', parameter: 'enable_thinking' })
+  })
+
+  test('session model metadata excludes provider inference configuration', () => {
+    expect(
+      findModelSelection(
+        [
+          {
+            id: 'openai',
+            enabled: true,
+            models: [
+              { id: 'model', inference: { temperature: 0.3, topP: 0.7 } },
+            ],
+          },
+        ],
+        'model',
+      ),
+    ).toEqual({
+      id: 'model',
+      label: undefined,
+      contextWindow: undefined,
+      reasoning: {
+        type: 'effort',
+        efforts: ['low', 'medium', 'high'],
+      },
+      extraParameters: undefined,
+    })
   })
 })

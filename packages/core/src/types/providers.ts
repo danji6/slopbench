@@ -18,17 +18,13 @@ export type ModelReasoning =
   | { type: 'binary'; parameter: string }
   | { type: 'none' }
 
+export type ModelSelection = Infer<typeof V.modelSelectionValidator>
+
 export type ModelEntry = Infer<typeof V.modelEntryValidator>
 
 export type ModelProviderConfig = Infer<typeof V.modelProviderValidator>
 
-export type InferenceParameters = {
-  temperature?: number
-  topP?: number
-  frequencyPenalty?: number
-  presencePenalty?: number
-  repeatPenalty?: number
-}
+export type InferenceParameters = NonNullable<ModelEntry['inference']>
 
 export type ContextOptions = {
   trimContext?: boolean

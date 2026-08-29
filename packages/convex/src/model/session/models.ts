@@ -1,7 +1,7 @@
 import type { Id } from '../../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../../_generated/server'
-import type { ModelEntry } from '../../types'
-import { findModelEntry } from '../provider/providers'
+import type { ModelSelection } from '../../types'
+import { findModelSelection } from '../provider/providers'
 import { resolve as resolveProviders } from '../providers'
 
 /** Resolves a session selection, preserving unknown model ids. */
@@ -9,11 +9,11 @@ export async function resolveSessionModel(
   ctx: QueryCtx | MutationCtx,
   ownerId: Id<'users'>,
   modelId?: string,
-): Promise<ModelEntry | undefined> {
+): Promise<ModelSelection | undefined> {
   if (!modelId) return undefined
 
   const providers = await resolveProviders(ctx, ownerId)
-  return findModelEntry(providers, modelId) ?? { id: modelId }
+  return findModelSelection(providers, modelId) ?? { id: modelId }
 }
 
 /** Refreshes model metadata for sessions running one of this user's agents. */
@@ -36,8 +36,8 @@ export async function refreshForOwner(ctx: MutationCtx, ownerId: Id<'users'>) {
       if (session?.activeAgentId !== agent._id || !session.model) continue
 
       const model =
-        findModelEntry(providers, session.model.id) ??
-        ({ id: session.model.id } as ModelEntry)
+        findModelSelection(providers, session.model.id) ??
+        ({ id: session.model.id } as ModelSelection)
       await ctx.db.patch(session._id, { model })
     }
   }

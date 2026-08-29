@@ -14,6 +14,7 @@ import {
   chooseNotificationSurface,
 } from '@/lib/notification-presence'
 import { toast } from '@/lib/notifications'
+import { generateId } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import type { Doc, Id } from '@sb/convex/_generated/dataModel'
 import { MAX_READ_NOTIFICATIONS } from '@sb/core/limits'
@@ -414,7 +415,7 @@ type Peer = Omit<PresenceMessage, 'type'>
 
 /** Tracks live same origin tabs and arbitrates which one surfaces each alert. */
 function useTabPresence(activeSessionId: string | null) {
-  const [tabId] = useState(() => crypto.randomUUID())
+  const [tabId] = useState(generateId)
   const [startedAt] = useState(Date.now)
   const peers = useRef(new Map<string, Peer>())
   const channel = useRef<BroadcastChannel | null>(null)

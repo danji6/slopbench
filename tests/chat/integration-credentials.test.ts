@@ -3,6 +3,7 @@ import { list as listMcp, replaceAll as replaceMcp } from '@sb/convex/model/mcp'
 import {
   list as listProviders,
   replaceAll as replaceProviders,
+  setModelInference,
 } from '@sb/convex/model/providers'
 import { MAX_MCP_SCHEMA_CHARS } from '@sb/core/limits'
 import { describe, expect, test } from 'bun:test'
@@ -315,7 +316,7 @@ describe('model providers', () => {
     expect(tables.credentials).toEqual([])
   })
 
-  test('round-trips per-model reasoning and extra parameters', async () => {
+  test('round-trips per-model reasoning, extras, and inference', async () => {
     const { ctx, tables } = makeCtx()
     const model = {
       id: 'custom-model',
@@ -324,6 +325,7 @@ describe('model providers', () => {
         parameter: 'thinking_enabled',
       },
       extraParameters: '{"service_tier":"fast"}',
+      inference: { temperature: 0.4, topP: 0.8 },
     }
 
     await replaceProviders(ctx, {
@@ -341,6 +343,53 @@ describe('model providers', () => {
     const listed = await listProviders(ctx)
     expect(listed[0].models).toEqual([model])
     expect(listed[0].extraHeaders).toBe('{"X-Custom":"value"}')
+  })
+
+  test('updates one model inference configuration without rewriting siblings', async () => {
+    const { ctx, tables } = makeCtx()
+    await replaceProviders(ctx, {
+      providers: [
+        {
+          key: 'openai',
+          enabled: true,
+          models: [
+            { id: 'model-a', label: 'A' },
+            { id: 'model-b', inference: { temperature: 0.2 } },
+          ],
+        },
+      ],
+    })
+
+    await setModelInference(ctx, {
+      modelId: 'model-a',
+      inference: { temperature: 0.7, presencePenalty: 0.3 },
+    })
+
+    expect(tables.modelProviders[0].models).toEqual([
+      {
+        id: 'model-a',
+        label: 'A',
+        inference: { temperature: 0.7, presencePenalty: 0.3 },
+      },
+      { id: 'model-b', inference: { temperature: 0.2 } },
+    ])
+  })
+
+  test('clears an empty model inference configuration', async () => {
+    const { ctx, tables } = makeCtx()
+    await replaceProviders(ctx, {
+      providers: [
+        {
+          key: 'openai',
+          enabled: true,
+          models: [{ id: 'model-a', inference: { temperature: 0.2 } }],
+        },
+      ],
+    })
+
+    await setModelInference(ctx, { modelId: 'model-a', inference: {} })
+
+    expect(tables.modelProviders[0].models).toEqual([{ id: 'model-a' }])
   })
 
   test('normalizes the obsolete binary default for Ollama models', async () => {

@@ -1,23 +1,15 @@
 import { RippleButton } from '@/components/ui'
 import { Popover } from '@/components/ui/popover'
-import { useActiveModelSettings } from '@/hooks/chat'
+import { useActiveModelInference } from '@/hooks/chat'
 import { cn } from '@/lib/utils'
 import { SlidersHorizontalIcon } from 'lucide-react'
 
-import { ModelPicker } from '../models/model-picker'
-import { ReasoningPicker } from '../models/reasoning-picker'
+import { InferenceSettings } from '../models'
 
-export function QuickSettingsWidget({
-  className,
-  agentPicker,
-}: {
-  className?: string
-  /** Agent picker relocated here when the toolbar is too narrow to fit it. */
-  agentPicker?: React.ReactNode
-}) {
-  const settings = useActiveModelSettings()
+export function QuickSettingsWidget({ className }: { className?: string }) {
+  const settings = useActiveModelInference()
 
-  if (!settings.editable && !agentPicker) return null
+  if (!settings.editable) return null
 
   return (
     <Popover>
@@ -37,57 +29,26 @@ export function QuickSettingsWidget({
       <Popover.Content
         align="center"
         side="top"
-        className="w-fit max-w-dvw space-y-3 p-4"
+        className="w-80 max-w-dvw space-y-3 p-4"
       >
         <Popover.Header>
           <Popover.Title>Quick settings</Popover.Title>
         </Popover.Header>
 
-        {agentPicker && (
-          <QuickSetting label="Agent">{agentPicker}</QuickSetting>
-        )}
-
-        {settings.editable && (
-          <div className="grid grid-cols-[2fr_1fr] items-center gap-2">
-            <QuickSetting label="Model">
-              <ModelPicker
-                variant="input"
-                className="w-full"
-                value={settings.model?.id ?? ''}
-                onValueChange={settings.setModel}
-              />
-            </QuickSetting>
-
-            {settings.model?.reasoning?.type !== 'none' && (
-              <QuickSetting label="Reasoning">
-                <ReasoningPicker
-                  variant="input"
-                  value={settings.reasoningEffort ?? 'auto'}
-                  onValueChange={settings.setReasoningEffort}
-                  model={settings.model}
-                />
-              </QuickSetting>
-            )}
+        {settings.model ? (
+          <div className="space-y-2">
+            <InferenceSettings
+              density="compact"
+              value={settings.inference}
+              onChange={settings.setInference}
+            />
           </div>
+        ) : (
+          <p className="text-muted-foreground py-2 text-sm">
+            Select a model from the agent menu to configure inference.
+          </p>
         )}
       </Popover.Content>
     </Popover>
-  )
-}
-
-function QuickSetting({
-  label,
-  children,
-}: {
-  label: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-muted-foreground ml-1 text-xs font-medium">
-        {label}
-      </span>
-      {children}
-    </div>
   )
 }

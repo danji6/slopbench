@@ -30,11 +30,6 @@ describe('agent import data normalization', () => {
         tools: undefined,
         globalPromptsEnabled: undefined,
         promptOrder: undefined,
-        temperature: undefined,
-        topP: undefined,
-        frequencyPenalty: undefined,
-        presencePenalty: undefined,
-        repeatPenalty: undefined,
         trimContext: undefined,
         contextWindow: undefined,
         outputTokens: undefined,
@@ -85,8 +80,6 @@ describe('agent import data normalization', () => {
         starter: false,
       },
     ])
-    expect('modelId' in data).toBe(false)
-    expect('reasoningEffort' in data).toBe(false)
   })
 
   test('filters invalid validated fields from loose export data', () => {
@@ -107,14 +100,12 @@ describe('agent import data normalization', () => {
     expect(data.theme).toBeUndefined()
   })
 
-  test('imports current archive versions through the migration path', () => {
+  test('imports current archive versions', () => {
     const data = agentArchiveToCreateArgs({
       version: 1,
       exportedAt: 123,
       agent: {
         name: 'Assistant',
-        modelId: 'legacy-model',
-        reasoningEffort: 'high',
         prompts: [
           {
             id: 'prompt',
@@ -142,8 +133,6 @@ describe('agent import data normalization', () => {
         starter: false,
       },
     ])
-    expect('modelId' in data).toBe(false)
-    expect('reasoningEffort' in data).toBe(false)
   })
 
   test('rejects unsupported future archive versions explicitly', () => {

@@ -26,9 +26,10 @@ The application is organized around sessions. A session can contain humans,
 linked agents, messages, files, workspace bindings, tool approvals, request
 logs, a session mode (normal or plan), a plan document, a todo list, a command
 queue, background sub-agent children, and a durable stream for the currently
-running agent turn. Users create agents with prompts, tools, and inference
-settings, then choose a model independently for each session.
-reminders, tools, appearance, and context behavior. The first created user
+running agent turn. Users create agents with prompts, reminders, tools,
+appearance, and context behavior, then choose a model and reasoning effort
+independently for each session. Inference parameters belong to each configured
+model rather than to an agent. The first created user
 becomes an admin; admin users can bind local workspaces and use local file or
 command tools.
 
@@ -244,7 +245,7 @@ Important areas:
   composer, messages, entities (agent/user settings), prompts, models, search,
   shortcuts, subagents, widgets, and workspace controls
 - `packages/client/src/components/chat/widgets`: docked strip widgets
-  (terminals, todos, sub-agents, tokens, mode, quick settings)
+  (terminals, todos, sub-agents, tokens, and mode)
 - `packages/client/src/components/ui`: shared UI primitives plus reusable
   code-editing, completion, Shiki code-block, drawer/sheet/dialog, fullscreen
   editor, sidebar, and control components
@@ -310,8 +311,8 @@ subscribes to.
   fields. Prompts, reminders, providers, MCP servers, and API keys are no
   longer here.
 - `agents`: user-owned agents with `promptOrder` (refs into the `prompts`
-  table), `globalPromptsEnabled`, `libraryReminderIds`, inference parameters,
-  enabled tool names, context settings, sharing
+  table), `globalPromptsEnabled`, `libraryReminderIds`, enabled tool names,
+  context settings, sharing
   and masking behavior, auto-approve rules, spawnable sub-agent policy, and
   their own copy of the overridable fields (agent overrides user)
 - `prompts`: one row per prompt, scoped `own` | `global` | `library` |
@@ -324,7 +325,9 @@ subscribes to.
   discovered tools as separate rows (name, description, user
   `descriptionOverride`, raw `inputSchema` string, order)
 - `modelProviders`: a provider (`key` such as `ollama`, optional `baseURL`,
-  enabled flag, model list, order) **without** its API key
+  enabled flag, model list, order) **without** its API key. Every model entry
+  carries its own reasoning capabilities, extra request parameters, and
+  optional inference parameters.
 - `credentials`: API keys, keyed `(ownerId, scope, ref)` where scope is
   `provider` | `mcp` and `ref` is the provider/server `key`. Never returned by
   any public query.
@@ -537,8 +540,7 @@ Agents are user-owned entities with their own behavior and presentation:
 - prompt ordering across own/global/library sources (`promptOrder`), with the
   prompt items themselves living in the `prompts` table
 - own reminders (rows in `reminders`) and referenced library reminders
-- temperature, top-p, frequency/presence penalties, repeat penalty, context
-  window, output token cap, and context trimming
+- context window, output token cap, and context trimming
 - enabled tool names (including the single `todo` and `plan` toggles)
 - auto-approve rules for tools and shell command patterns, merged into every
   session's approvals
@@ -563,7 +565,18 @@ and editor scripts.
 
 The recent model and reasoning values are copied into each new top-level
 session. Changing a session updates those defaults without rebinding any
-existing session.
+existing session. Child sessions and duplicates copy their source session's
+selection. In shared sessions, only the active agent's owner may change the
+model or reasoning effort because provider credentials and model configuration
+belong to that owner; other members see those controls read-only.
+
+Inference parameters are stored on provider model entries and therefore apply
+to every later request that resolves that model, regardless of which agent or
+session invokes it. They are edited per model in the model settings dialog;
+the composer keeps these less commonly supported controls out of its agent and
+model picker. Provider defaults apply wherever an optional parameter is
+disabled. Reasoning capability remains model metadata, but the chosen
+reasoning effort is copied into and edited on each session.
 
 `model/prompts.ts` and `model/reminders.ts` own their rows and expose the same
 surface: `list` / `listOwned` / `listForAgent`, `create` / `update` / `remove`,
@@ -796,9 +809,8 @@ evaluation is segment-scoped: it reads and rewrites exactly one
 ## Composer, Commands, and the Command Queue
 
 `ChatComposer` owns local editor state, staged files, command mode, send
-behavior, silent sends, the active-agent picker slot, quick settings slot
-(which the toolbar collapses into on mobile), fullscreen editing, draft
-persistence, and workspace file mention picker state. The editor itself is
+behavior, silent sends, the active-agent/model popover, fullscreen editing,
+draft persistence, and workspace file mention picker state. The editor itself is
 lazy-loaded Tiptap built from the shared `editorKit()`, with Markdown
 serialization, Shiki-backed code blocks, math and HTML decorations, placeholder
 refresh logic, and decorations for workspace mentions. Because it mounts
@@ -1026,17 +1038,18 @@ Key backend domains:
   supporting domains
 
 `migrations.ts` holds the `@convex-dev/migrations` runner, the append-only
-release migration list, and stable internal endpoints for boot coordination.
-`packages/core/src/migration-version.ts` owns the canonical append-only
-migration manifest; its length is the schema migration version. A singleton
+public release migration list, and stable internal endpoints for boot
+coordination. `packages/core/src/migration-version.ts` establishes pre-release
+schema version 5 as the public baseline; later manifest entries advance the
+version from that baseline. The public migration manifest is currently empty.
+A singleton
 `releaseState` document records the last strictly completed version and any
 in-progress target. This lets ordinary boots avoid disabling validation, lets
 interrupted or skipped releases resume, and rejects an application older than
 the database. `_applyRelease` skips completed entries and returns only a compact
 applied count. Completion is recorded only after the tracked strict schema
-deploy succeeds. The current finalizers move remaining turn-based reminder
-baselines to `stepCount`, remove legacy `turnCount`, bind model choice to
-sessions, seed recent model defaults, and remove legacy agent model fields.
+deploy succeeds. The one-off pre-release migrations and their compatibility
+helpers were removed after the local data reached the baseline.
 
 ## Message Send Flow
 

@@ -36,6 +36,11 @@ export const update = authMutation({
   },
 })
 
+export const setModelInference = authMutation({
+  args: V.setModelInferenceArgsValidator.fields,
+  handler: Providers.setModelInference,
+})
+
 export const setApiKey = authMutation({
   args: { providerId: v.id('modelProviders'), apiKey: v.string() },
   handler: Providers.setApiKey,

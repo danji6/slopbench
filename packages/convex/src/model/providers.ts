@@ -119,6 +119,30 @@ export async function update(
   await ctx.db.patch(provider._id, normalizedPatch)
 }
 
+type ModelInferenceArgs = {
+  modelId: string
+  inference: ModelEntry['inference']
+}
+
+/** Replaces the inference configuration for one owned model. */
+export async function setModelInference(
+  ctx: AuthMutationCtx,
+  { modelId, inference }: ModelInferenceArgs,
+) {
+  const providers = await listProviders(ctx, ctx.userId)
+  const provider = providers.find((row) =>
+    row.models.some((model) => model.id.trim() === modelId),
+  )
+  if (!provider) error('Model not found', 404)
+
+  const normalized = Object.keys(inference ?? {}).length ? inference : undefined
+  const models = provider.models.map((model) =>
+    model.id.trim() === modelId ? { ...model, inference: normalized } : model,
+  )
+
+  await ctx.db.patch(provider._id, { models })
+}
+
 export type ModelProviderInput = {
   key: string
   baseURL?: string
@@ -274,6 +298,12 @@ function normalizeProviderModels(
 ): ModelEntry[] {
   return models.map((model) => {
     const reasoning = normalizeConfiguredReasoning(providerId, model.reasoning)
-    return reasoning === model.reasoning ? model : { ...model, reasoning }
+    const inference = Object.keys(model.inference ?? {}).length
+      ? model.inference
+      : undefined
+    if (reasoning === model.reasoning && inference === model.inference) {
+      return model
+    }
+    return { ...model, reasoning, inference }
   })
 }

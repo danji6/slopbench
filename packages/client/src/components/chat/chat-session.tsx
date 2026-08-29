@@ -18,6 +18,7 @@ import type { PendingMessage } from '@/lib/chat'
 import { ChatError, ChatWarning, RateLimitError } from '@/lib/chat/errors'
 import type { PartAddress } from '@/lib/chat/parts'
 import { toast } from '@/lib/notifications'
+import { generateId } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { useMutation, useQuery } from 'convex/react'
@@ -193,7 +194,7 @@ function ChatSessionContent({
           break
         case 'eval':
           {
-            const requestId = crypto.randomUUID()
+            const requestId = generateId()
             const result = await resetSessionCache({
               sessionId: session._id,
               requestId,

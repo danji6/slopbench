@@ -51,12 +51,6 @@ export type AgentDocValues = {
   autoApproveShell: string[]
   subAgentsMode: AgentSubAgentsMode
   subAgentIds: Id<'agents'>[]
-  // Inference
-  temperature: number | null
-  topP: number | null
-  frequencyPenalty: number | null
-  presencePenalty: number | null
-  repeatPenalty: number | null
   // Context
   trimContext: boolean
   contextWindow: number
@@ -89,11 +83,6 @@ export const EMPTY_AGENT_FORM: AgentFormValues = {
   autoApproveShell: [],
   subAgentsMode: 'allow',
   subAgentIds: [],
-  temperature: null,
-  topP: null,
-  frequencyPenalty: null,
-  presencePenalty: null,
-  repeatPenalty: null,
   trimContext: false,
   contextWindow: -1,
   outputTokens: -1,
@@ -158,11 +147,6 @@ export function agentToFormValues(
     autoApproveShell: agent.autoApprove?.shell ?? [],
     subAgentsMode: agent.subAgents?.mode ?? 'allow',
     subAgentIds: agent.subAgents?.agentIds ?? [],
-    temperature: agent.temperature ?? null,
-    topP: agent.topP ?? null,
-    frequencyPenalty: agent.frequencyPenalty ?? null,
-    presencePenalty: agent.presencePenalty ?? null,
-    repeatPenalty: agent.repeatPenalty ?? null,
     trimContext: agent.trimContext ?? false,
     contextWindow: agent.contextWindow ?? -1,
     outputTokens: agent.outputTokens ?? -1,

@@ -98,12 +98,27 @@ export const modelReasoningValidator = v.union(
   v.object({ type: v.literal('none') }),
 )
 
-export const modelEntryValidator = v.object({
+export const inferenceParametersValidator = v.object({
+  temperature: v.optional(v.number()),
+  topP: v.optional(v.number()),
+  frequencyPenalty: v.optional(v.number()),
+  presencePenalty: v.optional(v.number()),
+  repeatPenalty: v.optional(v.number()),
+})
+
+const modelSelectionFields = {
   id: v.string(),
   label: v.optional(v.string()),
   contextWindow: v.optional(v.number()),
   reasoning: v.optional(modelReasoningValidator),
   extraParameters: v.optional(v.string()),
+}
+
+export const modelSelectionValidator = v.object(modelSelectionFields)
+
+export const modelEntryValidator = v.object({
+  ...modelSelectionFields,
+  inference: v.optional(inferenceParametersValidator),
 })
 
 /** A model provider joined with its credential. */

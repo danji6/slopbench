@@ -3,6 +3,21 @@ import { providerSchema } from '@/components/chat/entities/user/settings-schema'
 import { describe, expect, test } from 'bun:test'
 
 describe('provider settings schema', () => {
+  test('accepts optional per-model inference parameters', () => {
+    expect(
+      providerSchema.safeParse({
+        id: 'openai',
+        enabled: true,
+        models: [
+          {
+            id: 'gpt-test',
+            inference: { temperature: 0.4, frequencyPenalty: 0.2 },
+          },
+        ],
+      }).success,
+    ).toBe(true)
+  })
+
   test('requires a manually configured Qwen base URL', () => {
     const result = providerSchema.safeParse({
       id: 'qwen',

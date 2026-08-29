@@ -11,7 +11,7 @@ export const sessionSchema = v.object({
   announcedMode: v.optional(V.sessionModeValidator),
   settings: v.optional(V.sessionSettingsValidator),
   /** Selected model, resolved against the active agent owner's providers. */
-  model: v.optional(V.modelEntryValidator),
+  model: v.optional(V.modelSelectionValidator),
   reasoningEffort: v.optional(v.string()),
   workspace: v.optional(V.workspaceRefValidator),
   parent: v.optional(V.sessionParentValidator),
@@ -52,11 +52,6 @@ export const agentSchema = v.object({
   libraryReminderIds: v.optional(v.array(v.string())),
   /** Names of the selected tools. */
   tools: v.optional(v.array(v.string())),
-  temperature: v.optional(v.number()),
-  topP: v.optional(v.number()),
-  frequencyPenalty: v.optional(v.number()),
-  presencePenalty: v.optional(v.number()),
-  repeatPenalty: v.optional(v.number()),
   trimContext: v.optional(v.boolean()),
   contextWindow: v.optional(v.number()),
   outputTokens: v.optional(v.number()),

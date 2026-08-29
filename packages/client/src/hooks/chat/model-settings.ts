@@ -1,4 +1,4 @@
-import type { ReasoningEffort, UIModel } from '@/lib/chat'
+import type { InferenceParameters, ReasoningEffort, UIModel } from '@/lib/chat'
 import { api } from '@sb/convex/_generated/api'
 import {
   defaultModelReasoning,
@@ -17,6 +17,15 @@ export type ActiveModelSettingsState = {
   setModel: (model: UIModel | string) => void
   reasoningEffort: ReasoningEffort | undefined
   setReasoningEffort: (effort: ReasoningEffort) => void
+  inference: InferenceParameters
+  setInference: (inference: InferenceParameters) => void
+  editable: boolean
+}
+
+export type ActiveModelInferenceState = {
+  model: UIModel | null
+  inference: InferenceParameters
+  setInference: (inference: InferenceParameters) => void
   editable: boolean
 }
 
@@ -38,6 +47,7 @@ export function useActiveModelSettings(): ActiveModelSettingsState {
   const updateSettings = useSettingsUpdate()
   const setSessionModel = useMutation(api.sessions.setModel)
   const setSessionReasoning = useMutation(api.sessions.setReasoningEffort)
+  const setModelInference = useMutation(api.providers.setModelInference)
   const { models, isLoading } = useModels()
 
   const editable = Boolean(agent && 'ownerId' in agent)
@@ -45,14 +55,18 @@ export function useActiveModelSettings(): ActiveModelSettingsState {
   const reasoningEffort = (
     session ? session.reasoningEffort : settings?.recentReasoning
   ) as ReasoningEffort | undefined
+  const sessionModel = session?.model
 
   const model = useMemo(() => {
     if (isLoading || !modelId) return null
-    if (session?.model?.id === modelId) return session.model
-    return (
-      models.find((candidate) => candidate.id === modelId) ?? { id: modelId }
-    )
-  }, [isLoading, modelId, models, session?.model])
+    const configured = models.find((candidate) => candidate.id === modelId)
+    if (sessionModel?.id !== modelId) return configured ?? { id: modelId }
+    return {
+      ...configured,
+      ...sessionModel,
+      inference: configured?.inference,
+    }
+  }, [isLoading, modelId, models, sessionModel])
 
   const setModel = useCallback(
     (value: UIModel | string) => {
@@ -102,11 +116,33 @@ export function useActiveModelSettings(): ActiveModelSettingsState {
     [editable, session, setSessionReasoning, updateSettings],
   )
 
+  const setInference = useCallback(
+    (inference: InferenceParameters) => {
+      if (!editable || !model) return
+      void setModelInference({ modelId: model.id, inference })
+    },
+    [editable, model, setModelInference],
+  )
+
   return {
     model,
     setModel,
     reasoningEffort,
     setReasoningEffort,
+    inference: model?.inference ?? {},
+    setInference,
+    editable,
+  }
+}
+
+/** Inference configuration for the selected owned provider model. */
+export function useActiveModelInference(): ActiveModelInferenceState {
+  const { model, inference, setInference, editable } = useActiveModelSettings()
+
+  return {
+    model,
+    inference,
+    setInference,
     editable,
   }
 }

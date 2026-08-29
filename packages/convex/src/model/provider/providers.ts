@@ -1,7 +1,12 @@
 import type { Id } from '../../_generated/dataModel'
 import type { QueryCtx } from '../../_generated/server'
 import type { AuthQueryCtx } from '../../functions'
-import type { ModelEntry, ModelProviderConfig } from '../../types'
+import type {
+  InferenceParameters,
+  ModelEntry,
+  ModelProviderConfig,
+  ModelSelection,
+} from '../../types'
 import { resolve as resolveProviders } from '../providers'
 import { resolveModelReasoning } from './known'
 
@@ -19,6 +24,7 @@ export type UIModel = {
   contextWindow?: number
   local?: boolean
   reasoning?: ModelEntry['reasoning']
+  inference?: InferenceParameters
 }
 
 export type UIModelConfig = {
@@ -40,6 +46,7 @@ export async function list(ctx: AuthQueryCtx): Promise<UIModelConfig> {
             contextWindow: m.contextWindow,
             local: p.id === 'ollama',
             reasoning: resolveModelReasoning(p.id, m.reasoning),
+            inference: m.inference,
           })),
       )
 
@@ -75,10 +82,10 @@ export function findCredentialsForModel(
     : null
 }
 
-export function findModelEntry(
+export function findModelSelection(
   value: unknown,
   modelId?: string,
-): ModelEntry | null {
+): ModelSelection | null {
   if (!modelId) return null
 
   const providers = (value ?? []) as ModelProviderConfig[]

@@ -62,7 +62,6 @@ export type ProviderOptions = {
 export async function getProviderOptions(
   model?: string,
   reasoningEffort?: ReasoningEffort,
-  inferenceParameters?: Partial<InferenceParameters>,
   credentials?: ProviderCredentials | null,
   onRequest?: (body: string) => void | Promise<void>,
   fetchOverride?: typeof globalThis.fetch,
@@ -104,7 +103,7 @@ export async function getProviderOptions(
     languageModel: await applyReasoningReplayPolicy(created, providerId),
   }
   result = await applyReasoning(result, providerId, model, normalizedEffort)
-  result = applyPenalties(result, providerId, inferenceParameters)
+  result = applyPenalties(result, providerId, credentials.model?.inference)
 
   return result
 }

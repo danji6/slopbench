@@ -1,9 +1,6 @@
 import { createContext, useContext } from 'react'
 
-/**
- * Width at which secondary controls (e.g. agent picker) collapse into
- * the quick-settings popover.
- */
+/** Width at which the composer switches to its compact text layout. */
 export const COMPOSER_COMPACT_WIDTH = 480
 
 type ComposerLayout = {

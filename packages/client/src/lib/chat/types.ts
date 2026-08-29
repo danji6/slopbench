@@ -7,6 +7,7 @@ import type {
   SessionMember as CoreSessionMember,
   SessionParticipant as CoreSessionParticipant,
   UpdateAgentArgs as CoreUpdateAgentArgs,
+  InferenceParameters,
   MessageRole,
   ModelReasoning,
 } from '@sb/core/types'
@@ -111,6 +112,7 @@ export type UIModel = {
   contextWindow?: number
   local?: boolean
   reasoning?: ModelReasoning
+  inference?: InferenceParameters
 }
 
 export type UIModelConfig = {

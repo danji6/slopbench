@@ -9,7 +9,7 @@ import { NotificationAvatar } from './notification-avatar'
 import { useNotifications } from './notification-provider'
 
 /** The sidebar trigger and durable Unread/Read inbox popover. */
-export function NotificationInboxButton() {
+export function NotificationInboxButton({ className }: { className?: string }) {
   const notifications = useNotifications()
   const [tab, setTab] = useState('unread')
   const unreadCount = notifications.unread.length
@@ -23,7 +23,7 @@ export function NotificationInboxButton() {
               variant="stealth"
               size="icon"
               aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ''}`}
-              className="text-muted-foreground"
+              className={cn('text-muted-foreground', className)}
             />
           }
         >
@@ -41,11 +41,12 @@ export function NotificationInboxButton() {
         className="h-[min(28rem,calc(100dvh-2rem))] w-96 gap-0 overflow-hidden p-0"
       >
         <Tabs
+          variant="hug"
           value={tab}
           onValueChange={setTab}
           className="min-h-0 flex-1 gap-0"
         >
-          <Tabs.List className="h-11 shrink-0 gap-0 overflow-hidden rounded-t-lg px-0 **:data-[slot=tabs-trigger]:rounded-none **:data-[slot=tabs-trigger]:border-none">
+          <Tabs.List className="h-11 shrink-0 overflow-hidden">
             <Tabs.Trigger value="unread">Unread</Tabs.Trigger>
             <Tabs.Trigger value="read">Read</Tabs.Trigger>
           </Tabs.List>

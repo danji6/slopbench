@@ -258,7 +258,6 @@ async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
   const resolved = await getProviderOptions(
     data.session.model?.id,
     data.session.reasoningEffort as ReasoningEffort | undefined,
-    data.agent,
     credentials,
     async (body) => {
       requestLog.body = body

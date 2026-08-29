@@ -1,5 +1,6 @@
 import { Combobox, type ComboboxTriggerProps } from '@/components/ui'
 import { useModels } from '@/hooks/chat'
+import type { UIModel } from '@/lib/chat'
 import { cn } from '@/lib/utils'
 import { useMemo } from 'react'
 
@@ -8,6 +9,7 @@ export type ModelPickerProps = ComboboxTriggerProps & {
   disabled?: boolean
   value: string
   onValueChange: (value: string) => void
+  selectedModel?: UIModel | null
 }
 
 export function ModelPicker({
@@ -15,6 +17,7 @@ export function ModelPicker({
   className,
   value,
   onValueChange,
+  selectedModel,
   ...props
 }: ModelPickerProps) {
   const { models, isLoading } = useModels()
@@ -48,7 +51,7 @@ export function ModelPicker({
       noDeselect
     >
       <Combobox.Trigger
-        variant="stealth"
+        variant="input"
         className={cn(
           'text-muted-foreground w-[calc(min(fit-content,100%,200px))]',
           className,
@@ -58,7 +61,9 @@ export function ModelPicker({
       >
         <Combobox.DisplayValue placeholder="Select model…">
           {(val) => {
-            const m = models.find((m) => m.id === val)
+            const m =
+              models.find((candidate) => candidate.id === val) ??
+              (selectedModel?.id === val ? selectedModel : undefined)
             return m ? (m.label ?? m.id) : undefined
           }}
         </Combobox.DisplayValue>

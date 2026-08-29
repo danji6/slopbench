@@ -3,4 +3,5 @@
  */
 
 export * from './model-picker'
+export * from './inference-settings'
 export * from './reasoning-picker'

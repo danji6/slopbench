@@ -6,7 +6,12 @@ import {
 } from '@sb/convex/model/attachments'
 import { activate } from '@sb/convex/model/session/agents'
 import { refreshForOwner } from '@sb/convex/model/session/models'
-import { create, duplicate, setModel } from '@sb/convex/model/session/sessions'
+import {
+  create,
+  duplicate,
+  setModel,
+  setReasoningEffort,
+} from '@sb/convex/model/session/sessions'
 import { describe, expect, test } from 'bun:test'
 
 type Row = Record<string, unknown> & { _id: string }
@@ -451,11 +456,34 @@ describe('session model binding', () => {
     expect(first.model).toEqual({ id: 'model-c' })
     expect(first.reasoningEffort).toBe('low')
     expect(second.model).toEqual({ id: 'model-b' })
-    expect(tables.agents[0].modelId).toBeUndefined()
     expect(tables.settings[0]).toMatchObject({
       recentModel: 'model-c',
       recentReasoning: 'low',
     })
+  })
+
+  test('changes reasoning effort only for the targeted session', async () => {
+    const { ctx, tables } = makeCtx()
+    const first = seedSession(tables, {
+      activeAgentId: 'agents_1',
+      reasoningEffort: 'low',
+    })
+    const second = { ...first, _id: 'session_2', reasoningEffort: 'high' }
+    tables.sessions.push(second)
+    tables.agents.push({
+      _id: 'agents_1',
+      ownerId: OWNER,
+      name: 'Agent',
+    })
+
+    await setReasoningEffort(ctx as never, {
+      sessionId: first._id as Id<'sessions'>,
+      reasoningEffort: 'medium',
+    })
+
+    expect(first.reasoningEffort).toBe('medium')
+    expect(second.reasoningEffort).toBe('high')
+    expect(tables.settings[0].recentReasoning).toBe('medium')
   })
 
   test('rejects changes from someone other than the active agent owner', async () => {

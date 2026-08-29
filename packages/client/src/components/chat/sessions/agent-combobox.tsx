@@ -20,6 +20,8 @@ type AgentComboboxProps = {
   trigger: React.ReactNode
   /** Optional content rendered at the top of the list, above the search field. */
   header?: React.ReactNode
+  /** Optional controls rendered below the scrollable agent list. */
+  footer?: React.ReactNode
   /** Render the search field once the list exceeds this length. */
   searchThreshold?: number
   /** Label to show when the agent list is empty. */
@@ -35,6 +37,7 @@ export function AgentCombobox({
   onOpenChangeComplete,
   trigger,
   header,
+  footer,
   searchThreshold = 3,
   emptyLabel = 'No agents found.',
 }: AgentComboboxProps) {
@@ -47,10 +50,10 @@ export function AgentCombobox({
       onOpenChangeComplete={onOpenChangeComplete}
     >
       {trigger}
-      <Combobox.Content className="w-[calc(min(fit-content,100%,200px))]">
+      <Combobox.Content className="w-72 max-w-[calc(100dvw-2rem)]">
         {header}
         {agents.length > searchThreshold && <Combobox.Search />}
-        <Combobox.List>
+        <Combobox.List className="max-h-52">
           <Combobox.Empty>{emptyLabel}</Combobox.Empty>
           <Combobox.Group>
             {agents.map((agent) => (
@@ -64,6 +67,7 @@ export function AgentCombobox({
             ))}
           </Combobox.Group>
         </Combobox.List>
+        {footer && <div className="p-3">{footer}</div>}
       </Combobox.Content>
     </Combobox>
   )

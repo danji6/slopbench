@@ -4,6 +4,7 @@ import {
   agentAutoApproveValidator,
   agentSubAgentsValidator,
   approvalModeValidator,
+  inferenceParametersValidator,
   mcpToolMetaValidator,
   mcpTransportValidator,
   modelEntryValidator,
@@ -95,11 +96,6 @@ export const agentMutableFieldsValidator = {
   globalPromptsEnabled: v.optional(v.boolean()),
   libraryReminderIds: v.optional(v.array(v.string())),
   promptOrder: v.optional(v.array(promptOrderRefValidator)),
-  temperature: v.optional(v.number()),
-  topP: v.optional(v.number()),
-  frequencyPenalty: v.optional(v.number()),
-  presencePenalty: v.optional(v.number()),
-  repeatPenalty: v.optional(v.number()),
   trimContext: v.optional(v.boolean()),
   contextWindow: v.optional(v.number()),
   outputTokens: v.optional(v.number()),
@@ -241,6 +237,11 @@ export const updateModelProviderArgsValidator = v.object({
   extraHeaders: v.optional(v.string()),
   enabled: v.optional(v.boolean()),
   models: v.optional(v.array(modelEntryValidator)),
+})
+
+export const setModelInferenceArgsValidator = v.object({
+  modelId: v.string(),
+  inference: inferenceParametersValidator,
 })
 
 export const createSessionArgsValidator = v.object({

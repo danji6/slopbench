@@ -11,7 +11,7 @@ import {
   Switch,
   useCollapsible,
 } from '@/components/ui'
-import { cn } from '@/lib/utils'
+import { cn, generateId } from '@/lib/utils'
 import type { ReasoningTier } from '@sb/core/types'
 import { EyeIcon, EyeOffIcon, PlusIcon, Trash2Icon } from 'lucide-react'
 import { useState } from 'react'
@@ -44,6 +44,7 @@ export function ProviderCard({
   onRemove,
 }: ProviderCardProps) {
   const [expanded, setExpanded] = useState(defaultOpen)
+  const [expandedModelIds, setExpandedModelIds] = useState<Set<string>>(() => new Set()) // prettier-ignore
   const [showKey, setShowKey] = useState(false)
 
   const knownProvider = providers?.find((t) => t.value === provider.id)
@@ -76,11 +77,16 @@ export function ProviderCard({
   }
 
   function addModel() {
+    const clientId = generateId()
     const reasoning = knownProvider?.defaultReasoning ?? {
       type: 'effort' as const,
       efforts: ['low', 'medium', 'high'] as ReasoningTier[],
     }
-    onChange({ models: [{ id: '', reasoning }, ...provider.models] })
+
+    onChange({
+      models: [{ id: '', reasoning, _clientId: clientId }, ...provider.models],
+    })
+    setExpandedModelIds((current) => new Set(current).add(clientId))
     setExpanded(true)
   }
 
@@ -93,7 +99,24 @@ export function ProviderCard({
   }
 
   function removeModel(idx: number) {
+    const modelId = provider.models[idx]?._clientId
+    if (modelId) {
+      setExpandedModelIds((current) => {
+        const next = new Set(current)
+        next.delete(modelId)
+        return next
+      })
+    }
     onChange({ models: provider.models.filter((_, i) => i !== idx) })
+  }
+
+  function setModelExpanded(modelId: string, isExpanded: boolean) {
+    setExpandedModelIds((current) => {
+      const next = new Set(current)
+      if (isExpanded) next.add(modelId)
+      else next.delete(modelId)
+      return next
+    })
   }
 
   return (
@@ -110,7 +133,7 @@ export function ProviderCard({
         onRemove={onRemove}
       />
 
-      <Collapsible.Content className="gap-3.5">
+      <Collapsible.Content className="gap-3.5" unmountOnClose>
         <ProviderTypeField
           providers={providers}
           value={comboboxValue}
@@ -152,9 +175,11 @@ export function ProviderCard({
             knownProvider?.binaryReasoningParameter ??
             providerFormBinaryParameter(provider.id)
           }
+          expandedModelIds={expandedModelIds}
           onAdd={addModel}
           onUpdate={updateModel}
           onRemove={removeModel}
+          onExpandedChange={setModelExpanded}
         />
       </Collapsible.Content>
     </Collapsible>
@@ -393,9 +418,11 @@ type ProviderModelListProps = {
   editorId: string
   defaultReasoning?: ProviderOption['defaultReasoning']
   binaryReasoningParameter?: string
+  expandedModelIds: Set<string>
   onAdd: () => void
   onUpdate: (index: number, patch: Partial<ModelEntryFormValues>) => void
   onRemove: (index: number) => void
+  onExpandedChange: (modelId: string, expanded: boolean) => void
 }
 
 function ProviderModelList({
@@ -403,9 +430,11 @@ function ProviderModelList({
   editorId,
   defaultReasoning,
   binaryReasoningParameter,
+  expandedModelIds,
   onAdd,
   onUpdate,
   onRemove,
+  onExpandedChange,
 }: ProviderModelListProps) {
   return (
     <div className="flex flex-col gap-3">
@@ -423,11 +452,20 @@ function ProviderModelList({
         <div className="flex flex-col gap-1">
           {models.map((model, idx) => (
             <ModelRow
-              key={idx}
+              key={model._clientId ?? `${model.id}:${idx}`}
               model={model}
               editorId={`${editorId}-${idx}`}
               defaultReasoning={defaultReasoning}
               binaryReasoningParameter={binaryReasoningParameter}
+              open={expandedModelIds.has(
+                model._clientId ?? `${model.id}:${idx}`,
+              )}
+              onOpenChange={(expanded) =>
+                onExpandedChange(
+                  model._clientId ?? `${model.id}:${idx}`,
+                  expanded,
+                )
+              }
               onChange={(patch) => onUpdate(idx, patch)}
               onRemove={() => onRemove(idx)}
             />

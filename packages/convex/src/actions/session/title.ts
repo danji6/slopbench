@@ -82,7 +82,6 @@ async function composeTitle(
     const { languageModel, providerOptions } = await getProviderOptions(
       resolved.modelId,
       'none', // no reasoning
-      undefined,
       resolved.credentials,
     )
 

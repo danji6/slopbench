@@ -156,6 +156,31 @@ describe('provider request body adapter', () => {
   })
 })
 
+describe('model-owned inference', () => {
+  test('provider options use the selected model configuration', async () => {
+    const options = await getProviderOptions('gpt-test', 'none', {
+      providerId: 'openai',
+      apiKey: 'test-key',
+      model: {
+        id: 'gpt-test',
+        inference: {
+          temperature: 0.35,
+          topP: 0.8,
+          frequencyPenalty: 0.2,
+          presencePenalty: 0.1,
+        },
+      },
+    })
+
+    expect(options).toMatchObject({
+      temperature: 0.35,
+      topP: 0.8,
+      frequencyPenalty: 0.2,
+      presencePenalty: 0.1,
+    })
+  })
+})
+
 describe('provider extra headers', () => {
   test('requires string values and rejects transport-managed headers', () => {
     expect(() => parseProviderExtraHeaders('{"X-Number":1}')).toThrow(
@@ -280,7 +305,6 @@ describe('provider model middleware', () => {
       const options = await getProviderOptions(
         'video-model',
         'none',
-        undefined,
         {
           providerId,
           apiKey: 'test-key',
@@ -310,7 +334,7 @@ describe('provider model middleware', () => {
 
   test('requires Qwen endpoints to be configured explicitly', async () => {
     expect(
-      getProviderOptions('qwen-model', 'none', undefined, {
+      getProviderOptions('qwen-model', 'none', {
         providerId: 'qwen',
         apiKey: 'test-key',
         model: { id: 'qwen-model' },
@@ -325,7 +349,6 @@ describe('provider model middleware', () => {
     const options = await getProviderOptions(
       'model-latest',
       'auto',
-      undefined,
       {
         providerId: 'qwen',
         apiKey: 'test-key',
@@ -367,7 +390,6 @@ describe('provider model middleware', () => {
     const options = await getProviderOptions(
       'qwen3.8-max',
       'auto',
-      undefined,
       {
         providerId: 'qwen',
         apiKey: 'test-key',

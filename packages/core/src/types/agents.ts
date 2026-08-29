@@ -1,5 +1,5 @@
 import type { PromptItem, PromptOrdering, ReminderPrompt } from './prompts'
-import type { ContextOptions, InferenceParameters } from './providers'
+import type { ContextOptions } from './providers'
 import type { ThemeSnapshot } from './theme'
 
 export type ScrollMode = 'follow' | 'into-view'
@@ -35,7 +35,6 @@ export type AgentSubAgents<AgentId extends string = string> = {
  */
 export type AgentMutableFields<AgentId extends string = string> =
   PromptOrdering &
-    InferenceParameters &
     ContextOptions &
     OverridableFields & {
       /** Names of the tools the agent may call. */

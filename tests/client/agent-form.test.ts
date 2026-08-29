@@ -87,12 +87,11 @@ describe('agent form values', () => {
 
   test('reads the values an agent does carry', () => {
     const values = agentToFormValues(
-      bareAgent({ chatWidth: 1200, temperature: 0.4, mathMode: 'double' }),
+      bareAgent({ chatWidth: 1200, mathMode: 'double' }),
       EMPTY_AGENT_PROMPT_SETS,
     )
 
     expect(values.chatWidth).toBe(1200)
-    expect(values.temperature).toBe(0.4)
     expect(values.mathMode).toBe('double')
   })
 })
@@ -137,11 +136,9 @@ describe('agent update payload', () => {
     })
 
     expect(patch.unset).toContain('chatWidth')
-    expect(patch.unset).toContain('temperature')
     expect(patch.unset).toContain('mathMode')
     expect(patch.unset).toContain('scrollMode')
     expect(patch.chatWidth).toBeUndefined()
-    expect(patch.temperature).toBeUndefined()
   })
 
   test('sends the values that are set, and unsets nothing of theirs', async () => {
@@ -149,27 +146,23 @@ describe('agent update payload', () => {
       ...EMPTY_AGENT_FORM,
       name: 'Agent',
       chatWidth: 1200,
-      temperature: 0.4,
       scrollMode: 'follow',
     })
 
     expect(patch.chatWidth).toBe(1200)
-    expect(patch.temperature).toBe(0.4)
     expect(patch.scrollMode).toBe('follow')
     expect(patch.unset).not.toContain('chatWidth')
-    expect(patch.unset).not.toContain('temperature')
     expect(patch.unset).not.toContain('scrollMode')
   })
 
   test('round-trips an agent without touching what it holds', async () => {
-    const agent = bareAgent({ chatWidth: 1200, temperature: 0.4 })
+    const agent = bareAgent({ chatWidth: 1200 })
     const patch = await formValuesToPatch(
       AGENT_ID,
       agentToFormValues(agent, EMPTY_AGENT_PROMPT_SETS),
     )
 
     expect(patch.chatWidth).toBe(agent.chatWidth)
-    expect(patch.temperature).toBe(agent.temperature)
     expect(patch.unset).not.toContain('chatWidth')
   })
 })

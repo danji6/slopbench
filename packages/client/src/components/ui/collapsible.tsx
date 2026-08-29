@@ -102,15 +102,24 @@ function CollapsibleTrigger({
 
 type CollapsibleContentProps = React.ComponentProps<'div'> & {
   outerClassName?: string
+  /** Avoid mounting expensive content until opened, then unmount after closing. */
+  unmountOnClose?: boolean
 }
 
 function CollapsibleContent({
   className,
   outerClassName,
   children,
+  unmountOnClose = false,
+  onTransitionEnd,
   ...props
 }: CollapsibleContentProps) {
   const { isOpen } = useCollapsible()
+  const [retained, setRetained] = useState(isOpen)
+
+  if (unmountOnClose && isOpen && !retained) setRetained(true)
+
+  const renderChildren = !unmountOnClose || isOpen || retained
 
   return (
     <div
@@ -123,13 +132,24 @@ function CollapsibleContent({
       style={{
         gridTemplateRows: isOpen ? '1fr' : '0fr',
       }}
+      onTransitionEnd={(event) => {
+        onTransitionEnd?.(event)
+        if (
+          unmountOnClose &&
+          !isOpen &&
+          event.target === event.currentTarget &&
+          event.propertyName === 'grid-template-rows'
+        ) {
+          setRetained(false)
+        }
+      }}
       {...props}
     >
       <div className="min-h-0 overflow-hidden">
         <div
           className={cn('flex flex-col gap-1.5 px-4 py-2 pt-1.5', className)}
         >
-          {children}
+          {renderChildren ? children : null}
         </div>
       </div>
     </div>

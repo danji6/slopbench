@@ -19,7 +19,7 @@ type Position = {
 
 type Direction = 'left' | 'right'
 
-type Variant = 'line' | 'pill'
+type Variant = 'gap' | 'hug' | 'pill'
 
 interface TabsContextValue {
   currentValue: string | null
@@ -37,7 +37,7 @@ const [TabsContext, useTabsContext] =
 function TabsRoot({
   className,
   orientation = 'horizontal',
-  variant = 'line',
+  variant = 'gap',
   children,
   value,
   onValueChange,
@@ -102,7 +102,10 @@ function TabsRoot({
         className={cn(
           variant === 'pill'
             ? 'flex w-full flex-col items-center gap-4'
-            : 'group/tabs flex gap-2 data-horizontal:flex-col',
+            : cn(
+                'group/tabs flex data-horizontal:flex-col',
+                variant === 'hug' ? 'gap-0' : 'gap-2',
+              ),
           className,
         )}
         value={value}
@@ -126,7 +129,10 @@ function TabsList({ className, children, ...props }: TabsPrimitive.List.Props) {
         'text-muted-foreground relative inline-flex items-center justify-center gap-1',
         variant === 'pill'
           ? 'bg-muted size-fit rounded-full p-2'
-          : 'border-input group/tabs-list w-full rounded-none border-b px-1.5 group-data-horizontal/tabs:h-12 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col',
+          : cn(
+              'border-input group/tabs-list w-full rounded-none border-b group-data-horizontal/tabs:h-12 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col',
+              variant === 'hug' ? 'gap-0 p-0' : 'px-1.5',
+            ),
         className,
       )}
       ref={listRef}
@@ -176,7 +182,10 @@ function TabsTrigger({ className, value, ...props }: TabsPrimitive.Tab.Props) {
       data-value={value}
       render={<RippleButton variant="surface" />}
       className={cn(
-        'data-active:bg-m3-surface-container-high border-input/80 size-full flex-1 rounded-none rounded-t-lg border border-b-0 px-3 py-1.5 text-sm font-medium transition-colors data-active:shadow-none',
+        'data-active:bg-m3-surface-container-high size-full flex-1 rounded-none px-3 py-1.5 text-sm font-medium transition-colors data-active:shadow-none',
+        variant === 'hug'
+          ? 'border-0'
+          : 'border-input/80 rounded-t-lg border border-b-0',
         className,
       )}
       value={value}

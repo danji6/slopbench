@@ -180,6 +180,9 @@ function MobileToggle({ side = 'left' }: { side?: 'left' | 'right' }) {
           <SearchIcon />
         </BouncyButton>
       )}
+      {side === 'right' && (
+        <NotificationInboxButton className="h-10 min-w-15" />
+      )}
       <BouncyButton
         onClick={open}
         variant="ghost"

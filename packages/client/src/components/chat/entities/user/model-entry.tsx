@@ -2,11 +2,13 @@ import { md } from '@/components/markdown'
 import {
   Checkbox,
   CodeEditor,
+  Collapsible,
   HelpPopoverLabel,
   Input,
   Label,
   RippleButton,
   Switch,
+  Tabs,
 } from '@/components/ui'
 import { expandNumber } from '@/lib/utils'
 import { parseModelExtraParameters } from '@sb/core/model-parameters'
@@ -23,6 +25,7 @@ import {
 import { Trash2Icon } from 'lucide-react'
 import { useState } from 'react'
 
+import { InferenceSettings } from '../../models'
 import type { ModelEntryFormValues } from './settings-schema'
 
 type ModelRowProps = {
@@ -30,6 +33,8 @@ type ModelRowProps = {
   editorId: string
   defaultReasoning?: ModelReasoning
   binaryReasoningParameter?: string
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
   onChange: (patch: Partial<ModelEntryFormValues>) => void
   onRemove: () => void
 }
@@ -39,9 +44,12 @@ export function ModelRow({
   editorId,
   defaultReasoning,
   binaryReasoningParameter,
+  open,
+  onOpenChange,
   onChange,
   onRemove,
 }: ModelRowProps) {
+  const [tab, setTab] = useState('configuration')
   const configuredReasoning =
     model.reasoning ?? defaultReasoning ?? defaultModelReasoning()
   const reasoning =
@@ -51,19 +59,28 @@ export function ModelRow({
     ) ?? configuredReasoning
 
   return (
-    <div className="bg-background/40 flex flex-col gap-4 rounded-lg border p-4">
-      <div className="flex items-center gap-4">
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <ModelIdentity model={model} onChange={onChange} />
-          <ContextWindowField
-            value={model.contextWindow}
-            onChange={(contextWindow) => onChange({ contextWindow })}
-          />
-        </div>
+    <Collapsible
+      open={open}
+      onOpenChange={onOpenChange}
+      className="bg-background/40 rounded-lg border"
+    >
+      <div className="flex min-w-0 items-center gap-1 p-1">
+        <Collapsible.Trigger className="h-10 min-w-0 flex-1 rounded-md border-0 px-2 text-left">
+          <span className="flex min-w-0 flex-col">
+            <span className="truncate text-sm font-semibold">
+              {model.label || model.id || 'New model'}
+            </span>
+            {model.label && model.id && (
+              <span className="text-muted-foreground truncate font-mono text-xs font-normal">
+                {model.id}
+              </span>
+            )}
+          </span>
+        </Collapsible.Trigger>
         <RippleButton
           variant="surface"
           size="icon"
-          className="text-muted-foreground hover:text-destructive size-10"
+          className="text-muted-foreground hover:text-destructive size-9 shrink-0"
           onClick={onRemove}
           aria-label="Remove model"
         >
@@ -71,19 +88,51 @@ export function ModelRow({
         </RippleButton>
       </div>
 
-      <ReasoningConfiguration
-        value={reasoning}
-        binaryParameter={
-          binaryReasoningParameter ?? DEFAULT_BINARY_REASONING_PARAMETER
-        }
-        onChange={(value) => onChange({ reasoning: value })}
-      />
-      <ExtraParametersField
-        editorId={editorId}
-        value={model.extraParameters ?? ''}
-        onChange={(value) => onChange({ extraParameters: value || undefined })}
-      />
-    </div>
+      <Collapsible.Content className="gap-4 pb-4" unmountOnClose>
+        <div className="flex min-w-0 flex-col gap-2">
+          <ModelIdentity model={model} onChange={onChange} />
+          <ContextWindowField
+            value={model.contextWindow}
+            onChange={(contextWindow) => onChange({ contextWindow })}
+          />
+        </div>
+
+        <Tabs value={tab} onValueChange={setTab}>
+          <Tabs.List>
+            <Tabs.Trigger value="configuration">Configuration</Tabs.Trigger>
+            <Tabs.Trigger value="inference">Inference</Tabs.Trigger>
+          </Tabs.List>
+          <Tabs.Panels>
+            <Tabs.Content value="configuration">
+              <div className="flex flex-col gap-4">
+                <ReasoningConfiguration
+                  value={reasoning}
+                  binaryParameter={
+                    binaryReasoningParameter ??
+                    DEFAULT_BINARY_REASONING_PARAMETER
+                  }
+                  onChange={(value) => onChange({ reasoning: value })}
+                />
+                <ExtraParametersField
+                  editorId={editorId}
+                  value={model.extraParameters ?? ''}
+                  onChange={(value) =>
+                    onChange({ extraParameters: value || undefined })
+                  }
+                />
+              </div>
+            </Tabs.Content>
+            <Tabs.Content value="inference">
+              <InferenceSettings
+                density="compact"
+                value={model.inference}
+                onChange={(inference) => onChange({ inference })}
+              />
+            </Tabs.Content>
+          </Tabs.Panels>
+        </Tabs>
+      </Collapsible.Content>
+    </Collapsible>
   )
 }
 
@@ -185,7 +234,7 @@ function ReasoningConfiguration({
   }
 
   return (
-    <div className="border-border flex flex-col gap-3 border-t pt-4">
+    <div className="flex flex-col gap-3 pt-4">
       <div className="flex items-center justify-between gap-4">
         <div>
           <Label className="text-sm">Reasoning</Label>

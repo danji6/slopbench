@@ -4,7 +4,6 @@ import type { Doc } from '../_generated/dataModel'
 import { generateId } from '../lib/utils'
 import type { PromptItem } from '../types'
 import type { ContextOptions } from '../types'
-import type { InferenceParameters } from '../types'
 import type { MathMode } from '../types'
 import type { WebSearchInstance } from '../types'
 
@@ -121,14 +120,6 @@ export type ResolvedSettings = Omit<
   [K in keyof typeof DEFAULT_SETTINGS]-?: NonNullable<
     Omit<Doc<'settings'>, 'ownerId'>[K]
   >
-}
-
-export const DEFAULT_INFERENCE_PARAMETERS: InferenceParameters = {
-  temperature: 1,
-  topP: 1,
-  frequencyPenalty: 0,
-  presencePenalty: 0,
-  repeatPenalty: 1.1,
 }
 
 export const DEFAULT_CONTEXT_OPTIONS: ContextOptions = {
