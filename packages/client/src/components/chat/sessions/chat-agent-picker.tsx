@@ -66,7 +66,7 @@ export function ChatAgentPicker({
         )
       }
       footer={
-        <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] items-center gap-2">
+        <div className="flex flex-col items-start gap-2">
           <PickerField label="Model">
             <ModelPicker
               className="w-full"

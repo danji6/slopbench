@@ -59,7 +59,7 @@ export function ReasoningPicker({
   if (model?.reasoning?.type === 'binary') {
     const checked = reasoning !== 'none'
     return (
-      <div className="flex w-full pl-2.5">
+      <div className="flex h-10 w-full items-center">
         <Switch
           checked={checked}
           disabled={disabled}
@@ -78,6 +78,7 @@ export function ReasoningPicker({
       disabled={disabled}
     >
       <Select.Trigger
+        variant="input"
         size={isMobile ? 'icon' : 'default'}
         className={cn('text-muted-foreground', className)}
         aria-label="Select reasoning effort"

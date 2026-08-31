@@ -50,7 +50,7 @@ export function AgentCombobox({
       onOpenChangeComplete={onOpenChangeComplete}
     >
       {trigger}
-      <Combobox.Content className="w-72 max-w-[calc(100dvw-2rem)]">
+      <Combobox.Content className="w-fit max-w-[calc(100dvw-2rem)]">
         {header}
         {agents.length > searchThreshold && <Combobox.Search />}
         <Combobox.List className="max-h-52">
