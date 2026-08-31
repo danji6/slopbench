@@ -27,6 +27,7 @@ export async function createAskTool() {
     .object({
       question: z.string().trim().min(1).max(MAX_ASK_QUESTION_CHARS),
       options: z.array(option).min(2).max(MAX_ASK_OPTIONS),
+      multiple: z.boolean().optional(),
     })
     .superRefine(({ options }, ctx) => {
       const labels = new Set(options.map(({ label }) => label.toLowerCase()))
@@ -54,14 +55,25 @@ export async function createAskTool() {
     outputSchema: z.object({
       answeredBy: z.string(),
       answers: z.array(
-        z.object({
-          questionIndex: z.number().int().nonnegative(),
-          question: z.string(),
-          answer: z.string().max(MAX_ASK_RESPONSE_CHARS),
-          selectedOptionIndex: z.number().int().nonnegative().optional(),
-          note: z.string().max(MAX_ASK_RESPONSE_CHARS).optional(),
-          skipped: z.boolean().optional(),
-        }),
+        z.union([
+          z.object({
+            questionIndex: z.number().int().nonnegative(),
+            question: z.string(),
+            skipped: z.literal(true),
+          }),
+          z.object({
+            questionIndex: z.number().int().nonnegative(),
+            question: z.string(),
+            answer: z.string().max(MAX_ASK_RESPONSE_CHARS),
+            selectedOptionIndices: z
+              .array(z.number().int().nonnegative())
+              .min(1)
+              .max(MAX_ASK_OPTIONS)
+              .optional(),
+            note: z.string().max(MAX_ASK_RESPONSE_CHARS).optional(),
+            skipped: z.literal(false).optional(),
+          }),
+        ]),
       ),
     }),
   })

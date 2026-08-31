@@ -63,10 +63,11 @@ const edit_todo = inline`
 
 const ask = inline`
   Ask the user one or more decision-blocking questions. Group related
-  questions into one call. Provide 2-4 mutually exclusive options for each
-  question, mark at most one as recommended, and keep labels concise. The
-  user may choose an option, add context, write a different answer, or skip a
-  question.`
+  questions into one call. Provide 2-4 options for each question, mark at most
+  one as recommended, and keep labels concise. Options are mutually exclusive
+  by default; set multiple to true only when selecting several options makes
+  sense. The user may choose options, add context, write a different answer,
+  or skip a question.`
 
 const task = [
   inline`

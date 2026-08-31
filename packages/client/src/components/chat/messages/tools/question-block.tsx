@@ -1,3 +1,4 @@
+import { askBlockLabel } from '@/lib/chat/ask-tool'
 import type { AskToolInput, AskToolOutput } from '@sb/core/types'
 
 import type { ToolRendererProps } from './tool-part-block'
@@ -12,18 +13,14 @@ export function QuestionBlock(props: ToolRendererProps) {
       : undefined
   const questions = input?.questions ?? []
   const count = questions.length
+  const label = askBlockLabel(props.part.state, count, Boolean(output))
 
   return (
     <ToolShell
       data-slot="question-block"
       {...props}
       dense
-      label={
-        <span className="text-foreground font-medium">
-          {output ? 'Answered' : 'Asked'} {count}{' '}
-          {count === 1 ? 'question' : 'questions'}
-        </span>
-      }
+      label={<span className="text-foreground font-medium">{label}</span>}
     >
       {output ? (
         <ol className="space-y-3">

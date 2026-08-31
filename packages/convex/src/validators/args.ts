@@ -443,7 +443,7 @@ export const approveToolArgsValidator = v.object({
 
 export const userAnswerDraftValidator = v.object({
   questionIndex: v.number(),
-  selectedOptionIndex: v.optional(v.number()),
+  selectedOptionIndices: v.optional(v.array(v.number())),
   customAnswer: v.optional(v.string()),
   note: v.optional(v.string()),
   skipped: v.optional(v.boolean()),

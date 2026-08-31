@@ -1,6 +1,7 @@
 import {
   useActiveSession,
   useChatMessage,
+  useSettings,
   useStreamAwaitingAnswer,
   useStreamProcessingMessageId,
 } from '@/hooks/chat'
@@ -12,6 +13,7 @@ import {
   isPendingQuestion,
   optimisticallyAnswer,
   toAnswerDrafts,
+  toggleAnswerOption,
   updateAnswer,
 } from '@/lib/chat/ask-tool'
 import {
@@ -26,6 +28,7 @@ import { cn } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import type { AgentQuestion } from '@sb/core/types'
+import { toDisplayName } from '@sb/core/utils/names'
 import { useMutation } from 'convex/react'
 import {
   type RefObject,
@@ -96,7 +99,9 @@ function AnswerForm({
   className,
 }: AnswerFormProps) {
   const rootRef = useRef<HTMLDivElement>(null)
-  const picker = usePickerState(part.input.questions, draftKey, rootRef)
+  const choicesRef = useRef<HTMLDivElement>(null)
+  const textRef = useRef<HTMLTextAreaElement>(null)
+  const picker = usePickerState(part.input.questions, draftKey, choicesRef)
 
   const submission = useAnswerSubmission({
     sessionId,
@@ -116,10 +121,12 @@ function AnswerForm({
     else picker.goTo(picker.questionIndex + 1)
   }, [lastQuestion, picker, answer, submission])
 
-  usePickerFocus(rootRef, restoreFocusRef)
+  usePickerFocus(choicesRef, restoreFocusRef)
 
   useAnswerPickerKeybinds({
     rootRef,
+    choicesRef,
+    textRef,
     question,
     answer,
     questionIndex: picker.questionIndex,
@@ -153,6 +160,8 @@ function AnswerForm({
       <AnswerPickerBody
         question={question}
         answer={answer}
+        choicesRef={choicesRef}
+        textRef={textRef}
         onSelectOption={picker.selectOption}
         onTextChange={picker.updateText}
       />
@@ -175,7 +184,7 @@ function AnswerForm({
 function usePickerState(
   questions: AgentQuestion[],
   draftKey: string,
-  rootRef: RefObject<HTMLDivElement | null>,
+  choicesRef: RefObject<HTMLDivElement | null>,
 ) {
   const saved = useMemo(() => getQuestionDraft(draftKey), [draftKey])
   const [questionIndex, setQuestionIndex] = useState(() =>
@@ -194,10 +203,10 @@ function usePickerState(
       setQuestionIndex(clampQuestionIndex(index, questions.length))
       // Navigation buttons should hand keyboard shortcuts back to the picker.
       requestAnimationFrame(() =>
-        rootRef.current?.focus({ preventScroll: true }),
+        choicesRef.current?.focus({ preventScroll: true }),
       )
     },
-    [questions.length, rootRef],
+    [choicesRef, questions.length],
   )
 
   const updateCurrent = useCallback(
@@ -209,22 +218,16 @@ function usePickerState(
 
   const selectOption = useCallback(
     (optionIndex: number) => {
-      updateCurrent((value) => ({
-        ...value,
-        skipped: false,
-        selectedOptionIndex:
-          !value.skipped && value.selectedOptionIndex === optionIndex
-            ? undefined
-            : optionIndex,
-      }))
+      const multiple = questions[questionIndex]?.multiple === true
+      updateCurrent((value) => toggleAnswerOption(value, optionIndex, multiple))
     },
-    [updateCurrent],
+    [questionIndex, questions, updateCurrent],
   )
 
   const updateText = useCallback(
     (text: string) => {
       updateCurrent((value) =>
-        value.selectedOptionIndex === undefined
+        value.selectedOptionIndices.length === 0
           ? { ...value, skipped: false, customAnswer: text }
           : { ...value, skipped: false, note: text },
       )
@@ -261,10 +264,14 @@ function useAnswerSubmission({
   answers,
 }: SubmissionArgs) {
   const [submitting, setSubmitting] = useState(false)
+  const settings = useSettings()
+  const answeredBy = toDisplayName(settings?.displayName)
 
   const answerQuestions = useMutation(
     api.chat.answerQuestions,
-  ).withOptimisticUpdate(optimisticallyAnswer)
+  ).withOptimisticUpdate((store, args) =>
+    optimisticallyAnswer(store, args, answeredBy),
+  )
 
   const submit = useCallback(async () => {
     if (!answers.every(isAnswerComplete) || submitting) return
@@ -300,6 +307,8 @@ function usePickerFocus(
 
 type KeybindArgs = {
   rootRef: RefObject<HTMLDivElement | null>
+  choicesRef: RefObject<HTMLDivElement | null>
+  textRef: RefObject<HTMLTextAreaElement | null>
   question: AgentQuestion
   answer: AnswerDraft
   questionIndex: number
@@ -312,6 +321,8 @@ type KeybindArgs = {
 /** Keeps picker shortcuts out of the adaptive text field. */
 function useAnswerPickerKeybinds({
   rootRef,
+  choicesRef,
+  textRef,
   question,
   answer,
   questionIndex,
@@ -336,6 +347,13 @@ function useAnswerPickerKeybinds({
         onAdvance()
         return
       }
+      if (event.key === 'Tab') {
+        event.preventDefault()
+        event.stopPropagation()
+        if (typing) choicesRef.current?.focus({ preventScroll: true })
+        else textRef.current?.focus({ preventScroll: true })
+        return
+      }
       if (typing) return
 
       const optionIndex = Number(event.key) - 1
@@ -346,7 +364,7 @@ function useAnswerPickerKeybinds({
         event.preventDefault()
         onSelectOption(
           adjacentOptionIndex(
-            answer.skipped ? undefined : answer.selectedOptionIndex,
+            answer.skipped ? undefined : answer.selectedOptionIndices.at(-1),
             question.options.length,
             event.key === 'ArrowDown' ? 1 : -1,
           ),
@@ -376,7 +394,9 @@ function useAnswerPickerKeybinds({
     questionCount,
     questionIndex,
     answer,
+    choicesRef,
     rootRef,
+    textRef,
   ])
 }
 

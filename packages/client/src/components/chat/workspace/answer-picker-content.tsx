@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { MAX_ASK_RESPONSE_CHARS } from '@sb/core/limits'
 import type { AgentQuestion } from '@sb/core/types'
 import { ChevronLeftIcon, ChevronRightIcon, XIcon } from 'lucide-react'
+import type { RefObject } from 'react'
 
 type PickerHeaderProps = {
   questionIndex: number
@@ -20,9 +21,10 @@ export function AnswerPickerHeader({
   onAbort,
 }: PickerHeaderProps) {
   return (
-    <header className="flex min-h-11 shrink-0 items-center justify-between gap-2 border-b px-2">
+    <header className="flex min-h-11 shrink-0 items-center justify-between gap-2 px-2 pt-2">
       <div className="text-muted-foreground flex items-center text-sm tabular-nums">
         <RippleButton
+          tabIndex={-1}
           variant="stealth"
           size="icon-lg"
           aria-label="Previous question"
@@ -35,6 +37,7 @@ export function AnswerPickerHeader({
           {questionIndex + 1} of {questionCount}
         </span>
         <RippleButton
+          tabIndex={-1}
           variant="stealth"
           size="icon-lg"
           aria-label="Next question"
@@ -45,6 +48,7 @@ export function AnswerPickerHeader({
         </RippleButton>
       </div>
       <RippleButton
+        tabIndex={-1}
         variant="stealth"
         size="icon-lg"
         aria-label="Abort agent turn"
@@ -59,6 +63,8 @@ export function AnswerPickerHeader({
 type QuestionBodyProps = {
   question: AgentQuestion
   answer: AnswerDraft
+  choicesRef: RefObject<HTMLDivElement | null>
+  textRef: RefObject<HTMLTextAreaElement | null>
   onSelectOption: (optionIndex: number) => void
   onTextChange: (text: string) => void
 }
@@ -67,22 +73,33 @@ type QuestionBodyProps = {
 export function AnswerPickerBody({
   question,
   answer,
+  choicesRef,
+  textRef,
   onSelectOption,
   onTextChange,
 }: QuestionBodyProps) {
-  const selectedOptionIndex = answer.skipped
-    ? undefined
-    : answer.selectedOptionIndex
-  const selectionMode = answer.selectedOptionIndex !== undefined
+  const selected = answer.skipped
+    ? new Set<number>()
+    : new Set(answer.selectedOptionIndices)
+  const selectionMode = answer.selectedOptionIndices.length > 0
 
   return (
-    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
-      <h2 className="text-foreground text-sm font-medium whitespace-pre-wrap">
-        {question.question}
-      </h2>
+    <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 pt-1 pb-3">
+      <div>
+        <h2 className="text-foreground text-sm font-medium whitespace-pre-wrap">
+          {question.question}
+        </h2>
+        {question.multiple && (
+          <div className="text-muted-foreground mt-1 text-xs">
+            Select one or more
+          </div>
+        )}
+      </div>
       <div
+        ref={choicesRef}
+        tabIndex={-1}
         className="space-y-1.5"
-        role="radiogroup"
+        role={question.multiple ? 'group' : 'radiogroup'}
         aria-label={question.question}
       >
         {question.options.map((option, optionIndex) => (
@@ -90,14 +107,17 @@ export function AnswerPickerBody({
             key={`${optionIndex}:${option.label}`}
             option={option}
             optionIndex={optionIndex}
-            selected={selectedOptionIndex === optionIndex}
+            multiple={question.multiple === true}
+            selected={selected.has(optionIndex)}
             onSelect={onSelectOption}
           />
         ))}
       </div>
 
       <Textarea
+        ref={textRef}
         variant="outline"
+        rows={1}
         maxLength={MAX_ASK_RESPONSE_CHARS}
         disabled={answer.skipped}
         value={
@@ -116,7 +136,7 @@ export function AnswerPickerBody({
               : 'Say something else…'
         }
         aria-label={selectionMode ? 'Additional context' : 'Custom answer'}
-        className="max-h-28 min-h-16 rounded-lg text-sm"
+        className="max-h-20 min-h-8! rounded-lg text-sm"
       />
     </div>
   )
@@ -125,6 +145,7 @@ export function AnswerPickerBody({
 type OptionCardProps = {
   option: AgentQuestion['options'][number]
   optionIndex: number
+  multiple: boolean
   selected: boolean
   onSelect: (optionIndex: number) => void
 }
@@ -133,13 +154,15 @@ type OptionCardProps = {
 function OptionCard({
   option,
   optionIndex,
+  multiple,
   selected,
   onSelect,
 }: OptionCardProps) {
   return (
     <RippleButton
+      tabIndex={-1}
       variant="input"
-      role="radio"
+      role={multiple ? 'checkbox' : 'radio'}
       aria-checked={selected}
       onClick={() => onSelect(optionIndex)}
       className={cn(
@@ -194,12 +217,13 @@ export function AnswerPickerFooter({
   onAdvance,
 }: PickerFooterProps) {
   return (
-    <footer className="flex shrink-0 items-center justify-between gap-3 border-t p-3">
+    <footer className="flex shrink-0 items-center justify-between gap-3 px-5 pb-3">
       <span className="text-muted-foreground text-xs tabular-nums">
         {completeCount}/{questionCount} complete
       </span>
       <div className="flex items-center gap-2">
         <RippleButton
+          tabIndex={-1}
           variant="stealth"
           aria-pressed={skipped}
           onClick={onToggleSkip}
@@ -208,6 +232,7 @@ export function AnswerPickerFooter({
           {skipped ? 'Skipped' : 'Skip'}
         </RippleButton>
         <RippleButton
+          tabIndex={-1}
           disabled={
             !currentComplete || (lastQuestion && !allComplete) || submitting
           }

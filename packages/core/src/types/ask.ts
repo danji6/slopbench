@@ -9,6 +9,8 @@ export type AskOption = {
 export type AgentQuestion = {
   question: string
   options: AskOption[]
+  /** Allows the user to select more than one offered option. */
+  multiple?: boolean
 }
 
 /** Input for the ask tool. */
@@ -19,21 +21,33 @@ export type AskToolInput = {
 /** Untrusted response submitted by the client for one question. */
 export type UserAnswerDraft = {
   questionIndex: number
-  selectedOptionIndex?: number
+  selectedOptionIndices?: number[]
   customAnswer?: string
   note?: string
   skipped?: boolean
 }
 
 /** Server-derived response returned to the model. */
-export type UserAnswer = {
+type UserAnswerBase = {
   questionIndex: number
   question: string
-  answer: string
-  selectedOptionIndex?: number
-  note?: string
-  skipped?: boolean
 }
+
+export type UserAnswer = UserAnswerBase &
+  (
+    | {
+        answer: string
+        selectedOptionIndices?: number[]
+        note?: string
+        skipped?: false
+      }
+    | {
+        skipped: true
+        answer?: never
+        selectedOptionIndices?: never
+        note?: never
+      }
+  )
 
 /** Complete response batch returned to the requesting agent. */
 export type AskToolOutput = {

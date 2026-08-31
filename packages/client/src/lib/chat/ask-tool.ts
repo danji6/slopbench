@@ -3,10 +3,9 @@ import type { AnswerQuestionsArgs } from '@sb/convex/types'
 import type {
   AgentQuestion,
   AskToolInput,
-  AskToolOutput,
   UserAnswerDraft,
 } from '@sb/core/types'
-import { hasPendingQuestions } from '@sb/core/utils/ask'
+import { deriveAskToolOutput, hasPendingQuestions } from '@sb/core/utils/ask'
 import type { ToolUIPart } from 'ai'
 import type { OptimisticLocalStore } from 'convex/browser'
 
@@ -31,11 +30,12 @@ export function initialAnswers(
 ): AnswerDraft[] {
   return questions.map((question, index) => {
     const value = saved?.[index]
-    const selected = value?.selectedOptionIndex
+    const selected = validSelectedOptions(
+      question,
+      value?.selectedOptionIndices,
+    )
     return {
-      ...(Number.isInteger(selected) && question.options[selected!]
-        ? { selectedOptionIndex: selected }
-        : {}),
+      selectedOptionIndices: selected,
       customAnswer: value?.customAnswer ?? '',
       note: value?.note ?? '',
       skipped: value?.skipped === true,
@@ -56,7 +56,7 @@ export function updateAnswer(
 export function isAnswerComplete(answer: AnswerDraft) {
   return (
     answer.skipped ||
-    answer.selectedOptionIndex !== undefined ||
+    answer.selectedOptionIndices.length > 0 ||
     Boolean(answer.customAnswer.trim())
   )
 }
@@ -67,13 +67,32 @@ export function toAnswerDrafts(answers: AnswerDraft[]): UserAnswerDraft[] {
     questionIndex,
     ...(answer.skipped
       ? { skipped: true }
-      : answer.selectedOptionIndex === undefined
+      : answer.selectedOptionIndices.length === 0
         ? { customAnswer: answer.customAnswer.trim() }
         : {
-            selectedOptionIndex: answer.selectedOptionIndex,
+            selectedOptionIndices: answer.selectedOptionIndices,
             ...(answer.note.trim() && { note: answer.note.trim() }),
           }),
   }))
+}
+
+/** Toggles one option according to the question's selection mode. */
+export function toggleAnswerOption(
+  answer: AnswerDraft,
+  optionIndex: number,
+  multiple: boolean,
+): AnswerDraft {
+  const selected = new Set(answer.selectedOptionIndices)
+  if (selected.has(optionIndex)) selected.delete(optionIndex)
+  else if (multiple) selected.add(optionIndex)
+  else
+    return { ...answer, skipped: false, selectedOptionIndices: [optionIndex] }
+
+  return {
+    ...answer,
+    skipped: false,
+    selectedOptionIndices: [...selected].sort((a, b) => a - b),
+  }
 }
 
 /** Keeps restored navigation within the current request's bounds. */
@@ -82,10 +101,18 @@ export function clampQuestionIndex(index: number, length: number) {
   return Math.max(0, Math.min(index, length - 1))
 }
 
+/** Labels a streamed question block without exposing an incomplete count. */
+export function askBlockLabel(state: string, count: number, answered: boolean) {
+  if (answered) return questionCountLabel('Answered', count)
+  if (state === 'input-available') return questionCountLabel('Asked', count)
+  return 'Asking questions…'
+}
+
 /** Mirrors a successful answer locally until query arrives. */
 export function optimisticallyAnswer(
   store: OptimisticLocalStore,
   args: AnswerQuestionsArgs,
+  answeredBy: string,
 ) {
   const stream = store.getQuery(api.chat.getActiveStream, {
     sessionId: args.sessionId,
@@ -104,7 +131,9 @@ export function optimisticallyAnswer(
         ...message,
         segments: message.segments.map((segment) => ({
           ...segment,
-          parts: segment.parts.map((part) => optimisticPart(part, args)),
+          parts: segment.parts.map((part) =>
+            optimisticPart(part, args, answeredBy),
+          ),
         })),
       }
     })
@@ -130,31 +159,33 @@ export function optimisticallyAnswer(
   )
 }
 
-function optimisticPart(part: unknown, args: AnswerQuestionsArgs): unknown {
+function optimisticPart(
+  part: unknown,
+  args: AnswerQuestionsArgs,
+  answeredBy: string,
+): unknown {
   if (!isPendingQuestion(part) || part.toolCallId !== args.toolCallId) {
     return part
   }
 
-  const output: AskToolOutput = {
-    answeredBy: 'You',
-    answers: args.answers.map((answer) => {
-      const question = part.input.questions[answer.questionIndex]!
-      const selected = answer.selectedOptionIndex
-      return {
-        questionIndex: answer.questionIndex,
-        question: question.question,
-        answer: answer.skipped
-          ? 'Skipped'
-          : selected === undefined
-            ? (answer.customAnswer?.trim() ?? '')
-            : (question.options[selected]?.label ?? ''),
-        ...(selected !== undefined && { selectedOptionIndex: selected }),
-        ...(answer.note?.trim() && { note: answer.note.trim() }),
-        ...(answer.skipped && { skipped: true }),
-      }
-    }),
-  }
+  const output = deriveAskToolOutput(part.input, args.answers, answeredBy)
   return { ...part, state: 'output-available', output }
+}
+
+/** Keeps only unique in-range selections supported by this question. */
+function validSelectedOptions(
+  question: AgentQuestion,
+  selected: number[] | undefined,
+) {
+  if (!Array.isArray(selected)) return []
+  const valid = [...new Set(selected)].filter(
+    (index) => Number.isInteger(index) && question.options[index],
+  )
+  return question.multiple ? valid : valid.slice(0, 1)
+}
+
+function questionCountLabel(prefix: string, count: number) {
+  return `${prefix} ${count} ${count === 1 ? 'question' : 'questions'}`
 }
 
 function isPendingApproval(part: unknown) {

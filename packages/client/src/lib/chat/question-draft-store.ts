@@ -6,7 +6,7 @@ const STORAGE_KEY = `${APP_ID}-question-drafts`
 const MAX_ENTRIES = 100
 
 export type AnswerDraft = {
-  selectedOptionIndex?: number
+  selectedOptionIndices: number[]
   customAnswer: string
   note: string
   skipped: boolean

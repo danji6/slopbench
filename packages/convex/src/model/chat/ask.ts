@@ -10,10 +10,9 @@ import type {
   AgentQuestion,
   AskToolInput,
   AskToolOutput,
-  UserAnswer,
   UserAnswerDraft,
 } from '@sb/core/types'
-import { isPendingAskPart } from '@sb/core/utils/ask'
+import { deriveAskToolOutput, isPendingAskPart } from '@sb/core/utils/ask'
 import { toDisplayName } from '@sb/core/utils/names'
 
 import { error } from '../../errors'
@@ -89,13 +88,13 @@ export function buildAskToolOutput(
     byQuestion.set(draft.questionIndex, draft)
   }
 
-  const answers = input.questions.map((question, questionIndex) => {
+  input.questions.forEach((question, questionIndex) => {
     const draft = byQuestion.get(questionIndex)
     if (!draft) error('Every question must be answered')
-    return buildAnswer(question, questionIndex, draft)
+    validateAnswer(question, draft)
   })
 
-  return { answeredBy, answers }
+  return deriveAskToolOutput(input, drafts, answeredBy)
 }
 
 function validateQuestions(questions: AgentQuestion[] | undefined) {
@@ -150,18 +149,21 @@ function validateQuestions(questions: AgentQuestion[] | undefined) {
       if (option.recommended) recommended++
     }
     if (recommended > 1) error('At most one option may be recommended')
+    if (
+      question.multiple !== undefined &&
+      typeof question.multiple !== 'boolean'
+    ) {
+      error('Multiple must be a boolean')
+    }
   }
 }
 
-/** Validates one response and derives labels only from trusted tool input. */
-function buildAnswer(
-  question: AgentQuestion,
-  questionIndex: number,
-  draft: UserAnswerDraft,
-): UserAnswer {
+/** Validates one response against its trusted question definition. */
+function validateAnswer(question: AgentQuestion, draft: UserAnswerDraft): void {
   const customAnswer = draft.customAnswer?.trim() ?? ''
   const note = draft.note?.trim() ?? ''
-  const hasSelection = draft.selectedOptionIndex !== undefined
+  const selected = draft.selectedOptionIndices ?? []
+  const hasSelection = selected.length > 0
   const skipped = draft.skipped === true
 
   if (
@@ -176,42 +178,31 @@ function buildAnswer(
   if (draft.skipped !== undefined && typeof draft.skipped !== 'boolean') {
     error('Skipped must be a boolean')
   }
+  if (
+    draft.selectedOptionIndices !== undefined &&
+    !Array.isArray(draft.selectedOptionIndices)
+  ) {
+    error('Selected option indices must be an array')
+  }
   // prettier-ignore
   if (Number(hasSelection) + Number(Boolean(customAnswer)) + Number(skipped) !== 1) {
-    error('Choose an option, provide a custom answer, or skip the question')
+    error('Choose options, provide a custom answer, or skip the question')
   }
   if (!hasSelection && note) {
     error('Notes require a selected option')
   }
-
-  if (skipped) {
-    return {
-      questionIndex,
-      question: question.question.trim(),
-      answer: 'Skipped',
-      skipped: true,
-    }
+  if (!question.multiple && selected.length > 1) {
+    error('This question only allows one selected option')
   }
 
-  if (!hasSelection) {
-    return {
-      questionIndex,
-      question: question.question.trim(),
-      answer: customAnswer,
-    }
-  }
-
-  const selected = draft.selectedOptionIndex!
-  if (!Number.isInteger(selected) || !question.options[selected]) {
+  const unique = new Set(selected)
+  if (
+    unique.size !== selected.length ||
+    selected.some(
+      (index) => !Number.isInteger(index) || !question.options[index],
+    )
+  ) {
     error('Selected option is invalid')
-  }
-
-  return {
-    questionIndex,
-    question: question.question.trim(),
-    answer: question.options[selected]!.label.trim(),
-    selectedOptionIndex: selected,
-    ...(note && { note }),
   }
 }
 

@@ -35,6 +35,14 @@ describe('ask tool', () => {
         schema: tool.inputSchema as never,
       }),
     ).toMatchObject({ success: true })
+    expect(
+      await safeValidateTypes({
+        value: {
+          questions: [{ ...input.questions[0], multiple: true }],
+        },
+        schema: tool.inputSchema as never,
+      }),
+    ).toMatchObject({ success: true })
   })
 
   test('rejects duplicate labels and multiple recommendations', async () => {
@@ -106,7 +114,11 @@ describe('ask tool output derivation', () => {
       buildAskToolOutput(
         input,
         [
-          { questionIndex: 0, selectedOptionIndex: 0, note: 'Use Neon.' },
+          {
+            questionIndex: 0,
+            selectedOptionIndices: [0],
+            note: 'Use Neon.',
+          },
           { questionIndex: 1, customAnswer: 'Purple' },
         ],
         'Ada',
@@ -118,7 +130,7 @@ describe('ask tool output derivation', () => {
           questionIndex: 0,
           question: 'Which database?',
           answer: 'PostgreSQL',
-          selectedOptionIndex: 0,
+          selectedOptionIndices: [0],
           note: 'Use Neon.',
         },
         {
@@ -143,7 +155,6 @@ describe('ask tool output derivation', () => {
         {
           questionIndex: 0,
           question: 'Which database?',
-          answer: 'Skipped',
           skipped: true,
         },
       ],
@@ -166,7 +177,11 @@ describe('ask tool output derivation', () => {
       buildAskToolOutput(
         input,
         [
-          { questionIndex: 0, selectedOptionIndex: 0, customAnswer: 'Both' },
+          {
+            questionIndex: 0,
+            selectedOptionIndices: [0],
+            customAnswer: 'Both',
+          },
           { questionIndex: 1, customAnswer: 'Purple' },
         ],
         'Ada',
@@ -176,7 +191,7 @@ describe('ask tool output derivation', () => {
       buildAskToolOutput(
         input,
         [
-          { questionIndex: 0, selectedOptionIndex: 99 },
+          { questionIndex: 0, selectedOptionIndices: [99] },
           {
             questionIndex: 1,
             customAnswer: 'x'.repeat(MAX_ASK_RESPONSE_CHARS + 1),
@@ -189,9 +204,60 @@ describe('ask tool output derivation', () => {
       buildAskToolOutput(
         input,
         [
-          { questionIndex: 0, selectedOptionIndex: 0, skipped: true },
+          { questionIndex: 0, selectedOptionIndices: [0], skipped: true },
           { questionIndex: 1, customAnswer: 'Purple' },
         ],
+        'Ada',
+      ),
+    ).toThrow()
+  })
+
+  test('derives several labels only for explicitly multi-choice questions', () => {
+    const multi = {
+      questions: [
+        {
+          question: ' Which features? ',
+          options: [{ label: ' Search ' }, { label: 'Export' }],
+          multiple: true,
+        },
+      ],
+    }
+    expect(
+      buildAskToolOutput(
+        multi,
+        [
+          {
+            questionIndex: 0,
+            selectedOptionIndices: [0, 1],
+            note: ' Both matter. ',
+          },
+        ],
+        'Ada',
+      ),
+    ).toEqual({
+      answeredBy: 'Ada',
+      answers: [
+        {
+          questionIndex: 0,
+          question: 'Which features?',
+          answer: 'Search, Export',
+          selectedOptionIndices: [0, 1],
+          note: 'Both matter.',
+        },
+      ],
+    })
+
+    expect(() =>
+      buildAskToolOutput(
+        { questions: [{ ...multi.questions[0]!, multiple: false }] },
+        [{ questionIndex: 0, selectedOptionIndices: [0, 1] }],
+        'Ada',
+      ),
+    ).toThrow()
+    expect(() =>
+      buildAskToolOutput(
+        multi,
+        [{ questionIndex: 0, selectedOptionIndices: [0, 0] }],
         'Ada',
       ),
     ).toThrow()
@@ -265,7 +331,7 @@ describe('answerQuestions mutation', () => {
     const args = {
       sessionId: session._id as never,
       toolCallId: 'call_1',
-      answers: [{ questionIndex: 0, selectedOptionIndex: 0 }],
+      answers: [{ questionIndex: 0, selectedOptionIndices: [0] }],
     }
     await answerQuestions(ctx, args)
 
