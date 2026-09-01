@@ -800,6 +800,47 @@ describe('_finalizeStopped', () => {
     })
   })
 
+  test('settles an aborted question request as a model-readable result', async () => {
+    const stream = {
+      _id: 'stream_1',
+      status: 'stopping',
+      sessionId: 'session_1',
+      processingMessageId: 'message_1',
+      processingContentId: 'content_1',
+    }
+    const { ctx, patches } = fakeCtx({
+      docs: [stream, { _id: 'message_1', selectedVersion: 1 }],
+      contents: [
+        {
+          _id: 'content_1',
+          version: 1,
+          segmentIndex: 0,
+          parts: [
+            {
+              type: 'tool-ask',
+              toolCallId: 'ask_1',
+              state: 'input-available',
+              input: { questions: [] },
+            },
+          ],
+        },
+      ],
+    })
+
+    await _finalizeStopped(ctx, { streamId: stream._id as never })
+
+    const sealed = patches.find(
+      ({ id, patch }) => id === 'content_1' && Array.isArray(patch.parts),
+    )
+    expect((sealed?.patch.parts as unknown[])[0]).toMatchObject({
+      state: 'output-available',
+      output: {
+        aborted: true,
+        reason: 'The user aborted this question request.',
+      },
+    })
+  })
+
   test('a stopped compaction stops claiming to be a summary', async () => {
     const stream = {
       _id: 'stream_1',

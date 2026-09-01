@@ -15,6 +15,8 @@ type ScrollerOptions = {
 type AtBottomStickyOptions = {
   unstickDistance?: number
   suspended?: boolean
+  /** Reserved space below the visible viewport that is not user scrolling. */
+  bottomInset?: number
 }
 
 type StickyBottomState = {
@@ -23,6 +25,7 @@ type StickyBottomState = {
   unstickDistance: number
   autoScrolling: boolean
   suspended: boolean
+  bottomInset: number
 }
 
 const scrollCancelEvents = [
@@ -43,11 +46,13 @@ export function nextStickyBottomState({
   unstickDistance,
   autoScrolling,
   suspended,
+  bottomInset,
 }: StickyBottomState): boolean {
   if (suspended) return isStuck
-  if (distanceFromBottom < NEAR_BOTTOM_THRESHOLD) return true
+  const visibleDistance = Math.max(0, distanceFromBottom - bottomInset)
+  if (visibleDistance < NEAR_BOTTOM_THRESHOLD) return true
   if (autoScrolling) return isStuck
-  if (distanceFromBottom >= unstickDistance) return false
+  if (visibleDistance >= unstickDistance) return false
   return isStuck
 }
 
@@ -122,6 +127,7 @@ export function useAtBottomSticky(
 ) {
   const unstickDistance = options.unstickDistance ?? NEAR_BOTTOM_THRESHOLD
   const suspended = options.suspended ?? false
+  const bottomInset = options.bottomInset ?? 0
   const [isStuck, setIsStuck] = useState(true)
   const [distanceFromBottom, setDistanceFromBottom] = useState(
     INITIAL_BOTTOM_DISTANCE,
@@ -136,8 +142,9 @@ export function useAtBottomSticky(
   const onScroll = useCallback(
     (e?: Event, autoScrolling = false) => {
       const { distFromBottom, contentFits } = getScrollMetrics(e)
-      setDistanceFromBottom(distFromBottom)
-      const atBottom = distFromBottom < NEAR_BOTTOM_THRESHOLD
+      const visibleDistance = Math.max(0, distFromBottom - bottomInset)
+      setDistanceFromBottom(visibleDistance)
+      const atBottom = visibleDistance < NEAR_BOTTOM_THRESHOLD
 
       if (releasedRef.current) {
         // Stay released when there's nothing to scroll
@@ -152,12 +159,13 @@ export function useAtBottomSticky(
           unstickDistance,
           autoScrolling,
           suspended,
+          bottomInset,
         })
         if (next && !prev) onReachBottomRef.current?.()
         return next
       })
     },
-    [unstickDistance, suspended],
+    [bottomInset, unstickDistance, suspended],
   )
 
   const release = useCallback(() => {

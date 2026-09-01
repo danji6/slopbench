@@ -43,6 +43,15 @@ describe('ask tool', () => {
         schema: tool.inputSchema as never,
       }),
     ).toMatchObject({ success: true })
+    expect(
+      await safeValidateTypes({
+        value: {
+          aborted: true,
+          reason: 'The user aborted this question request.',
+        },
+        schema: tool.outputSchema as never,
+      }),
+    ).toMatchObject({ success: true })
   })
 
   test('rejects duplicate labels and multiple recommendations', async () => {

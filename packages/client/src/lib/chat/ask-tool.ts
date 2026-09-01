@@ -3,6 +3,7 @@ import type { AnswerQuestionsArgs } from '@sb/convex/types'
 import type {
   AgentQuestion,
   AskToolInput,
+  AskToolOutput,
   UserAnswerDraft,
 } from '@sb/core/types'
 import { deriveAskToolOutput, hasPendingQuestions } from '@sb/core/utils/ask'
@@ -102,8 +103,13 @@ export function clampQuestionIndex(index: number, length: number) {
 }
 
 /** Labels a streamed question block without exposing an incomplete count. */
-export function askBlockLabel(state: string, count: number, answered: boolean) {
-  if (answered) return questionCountLabel('Answered', count)
+export function askBlockLabel(
+  state: string,
+  count: number,
+  output?: AskToolOutput,
+) {
+  if (output?.aborted) return 'Questions aborted'
+  if (output) return questionCountLabel('Answered', count)
   if (state === 'input-available') return questionCountLabel('Asked', count)
   return 'Asking questions…'
 }

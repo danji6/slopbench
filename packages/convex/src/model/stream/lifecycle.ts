@@ -1,4 +1,5 @@
 import { MESSAGE_SPLIT_BUDGET_BYTES } from '@sb/core/const'
+import { settleAbortedAskParts } from '@sb/core/utils/ask'
 import { serializedSize } from '@sb/core/utils/size'
 
 import { internal } from '../../_generated/api'
@@ -762,9 +763,8 @@ export async function _finalizeStopped(
   const row = await getProcessingSegmentRow(ctx, stream)
   // Task calls the turn never got to spawn can't report back
   const rawParts = row?.parts ?? []
-  const parts = finalizeMessageParts(
-    settleAbandonedTaskParts(rawParts) ?? rawParts,
-  )
+  const taskSettled = settleAbandonedTaskParts(rawParts) ?? rawParts
+  const parts = finalizeMessageParts(settleAbortedAskParts(taskSettled))
   const metadata = preserveStoppedStreamError(row?.metadata, stream.retryError)
 
   if (row && message) {

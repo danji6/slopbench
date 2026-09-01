@@ -11,6 +11,7 @@ const state = (
     unstickDistance: 160,
     autoScrolling: false,
     suspended: false,
+    bottomInset: 0,
     ...overrides,
   })
 
@@ -25,6 +26,11 @@ describe('nextStickyBottomState', () => {
 
   test('does not unstick during active autoscrolling', () => {
     expect(state({ distanceFromBottom: 500, autoScrolling: true })).toBe(true)
+  })
+
+  test('does not treat virtual-keyboard padding as user scrolling', () => {
+    expect(state({ distanceFromBottom: 300, bottomInset: 300 })).toBe(true)
+    expect(state({ distanceFromBottom: 460, bottomInset: 300 })).toBe(false)
   })
 
   test('does not reveal an already hidden composer during autoscrolling', () => {

@@ -49,8 +49,17 @@ export type UserAnswer = UserAnswerBase &
       }
   )
 
-/** Complete response batch returned to the requesting agent. */
-export type AskToolOutput = {
-  answeredBy: string
-  answers: UserAnswer[]
+/** Result returned when the user dismisses the question batch. */
+export type AbortedAskToolOutput = {
+  aborted: true
+  reason: string
 }
+
+/** Complete response batch returned to the requesting agent. */
+export type AskToolOutput =
+  | {
+      answeredBy: string
+      answers: UserAnswer[]
+      aborted?: false
+    }
+  | AbortedAskToolOutput

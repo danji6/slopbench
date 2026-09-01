@@ -1,4 +1,4 @@
-import { useElementHeight, useKeyboardInset } from '@/hooks'
+import { useElementHeight, useKeyboardViewport } from '@/hooks'
 import {
   useActiveSession,
   useAgentPrompts,
@@ -148,7 +148,8 @@ export function ChatSessionView({
   // Layout
   const [alertHeight, setAlertHeight] = useState(0)
   const [widgetsRef, widgetsHeight] = useElementHeight<HTMLDivElement>()
-  const keyboardInset = useKeyboardInset()
+  const keyboardViewport = useKeyboardViewport()
+  const keyboardInset = keyboardViewport.bottomInset
   const chatWidth = useChatWidth()
   const avatarSize = useAvatarSize()
   const messageStyle = {
@@ -174,6 +175,7 @@ export function ChatSessionView({
     {
       unstickDistance: DOCK_HIDE_DISTANCE,
       suspended: !initialPositionSettled,
+      bottomInset: keyboardInset,
     },
   )
 
@@ -361,6 +363,7 @@ export function ChatSessionView({
                   <AnswerPicker
                     restoreFocusRef={composerRef}
                     onAbort={handleAbort}
+                    viewportHeight={keyboardViewport.height}
                     className="pointer-events-auto w-full"
                   />
                 )}

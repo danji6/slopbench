@@ -1,11 +1,18 @@
 import { ASK_TOOL_NAME } from '../const'
 import type {
+  AbortedAskToolOutput,
   AgentQuestion,
   AskToolInput,
   AskToolOutput,
   UserAnswer,
   UserAnswerDraft,
 } from '../types'
+
+/** Model-facing result used when the user stops a turn at the question picker. */
+export const ABORTED_ASK_TOOL_OUTPUT: AbortedAskToolOutput = {
+  aborted: true,
+  reason: 'The user aborted this question request.',
+}
 
 export type PendingAskPart = {
   type: `tool-${typeof ASK_TOOL_NAME}`
@@ -27,6 +34,19 @@ export function isPendingAskPart(part: unknown): part is PendingAskPart {
 /** Whether a provider step still contains any unanswered Q&A calls. */
 export function hasPendingQuestions(parts: readonly unknown[]): boolean {
   return parts.some(isPendingAskPart)
+}
+
+/** Gracefully settles pending questions when their turn is stopped by the user. */
+export function settleAbortedAskParts<T>(parts: readonly T[]): T[] {
+  return parts.map((part) =>
+    isPendingAskPart(part)
+      ? ({
+          ...part,
+          state: 'output-available',
+          output: ABORTED_ASK_TOOL_OUTPUT,
+        } as T)
+      : part,
+  )
 }
 
 /** Derives the trusted model-facing output after response validation. */

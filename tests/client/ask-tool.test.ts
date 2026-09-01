@@ -23,11 +23,20 @@ const questions = [
 
 describe('ask tool answer state', () => {
   test('hides the count until streamed question input is complete', () => {
-    expect(askBlockLabel('input-streaming', 0, false)).toBe('Asking questions…')
-    expect(askBlockLabel('input-available', 2, false)).toBe('Asked 2 questions')
-    expect(askBlockLabel('output-available', 1, true)).toBe(
-      'Answered 1 question',
-    )
+    expect(askBlockLabel('input-streaming', 0)).toBe('Asking questions…')
+    expect(askBlockLabel('input-available', 2)).toBe('Asked 2 questions')
+    expect(
+      askBlockLabel('output-available', 1, {
+        answeredBy: 'Ada',
+        answers: [],
+      }),
+    ).toBe('Answered 1 question')
+    expect(
+      askBlockLabel('output-available', 2, {
+        aborted: true,
+        reason: 'The user aborted this question request.',
+      }),
+    ).toBe('Questions aborted')
   })
 
   test('restores valid selection, custom-answer, and note drafts', () => {

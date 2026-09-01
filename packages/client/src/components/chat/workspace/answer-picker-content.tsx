@@ -21,12 +21,15 @@ export function AnswerPickerHeader({
   onAbort,
 }: PickerHeaderProps) {
   return (
-    <header className="flex min-h-11 shrink-0 items-center justify-between gap-2 px-2 pt-2">
+    <header
+      data-slot="answer-picker-header"
+      className="flex min-h-11 shrink-0 items-center justify-between gap-2 px-1.5"
+    >
       <div className="text-muted-foreground flex items-center text-sm tabular-nums">
         <RippleButton
           tabIndex={-1}
           variant="stealth"
-          size="icon-lg"
+          size="icon-sm"
           aria-label="Previous question"
           disabled={questionIndex === 0}
           onClick={() => onNavigate(questionIndex - 1)}
@@ -39,7 +42,7 @@ export function AnswerPickerHeader({
         <RippleButton
           tabIndex={-1}
           variant="stealth"
-          size="icon-lg"
+          size="icon-sm"
           aria-label="Next question"
           disabled={questionIndex === questionCount - 1}
           onClick={() => onNavigate(questionIndex + 1)}
@@ -50,7 +53,7 @@ export function AnswerPickerHeader({
       <RippleButton
         tabIndex={-1}
         variant="stealth"
-        size="icon-lg"
+        size="icon-sm"
         aria-label="Abort agent turn"
         onClick={onAbort}
       >
@@ -84,9 +87,15 @@ export function AnswerPickerBody({
   const selectionMode = answer.selectedOptionIndices.length > 0
 
   return (
-    <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 pt-1 pb-3">
+    <div
+      data-slot="answer-picker-body"
+      className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 pt-0.5"
+    >
       <div>
-        <h2 className="text-foreground text-sm font-medium whitespace-pre-wrap">
+        <h2
+          data-slot="answer-picker-question"
+          className="text-foreground text-sm font-medium whitespace-pre-wrap"
+        >
           {question.question}
         </h2>
         {question.multiple && (
@@ -98,7 +107,8 @@ export function AnswerPickerBody({
       <div
         ref={choicesRef}
         tabIndex={-1}
-        className="space-y-1.5"
+        data-slot="answer-picker-options"
+        className="space-y-1.5 outline-none"
         role={question.multiple ? 'group' : 'radiogroup'}
         aria-label={question.question}
       >
@@ -116,6 +126,7 @@ export function AnswerPickerBody({
 
       <Textarea
         ref={textRef}
+        data-slot="answer-picker-input"
         variant="outline"
         rows={1}
         maxLength={MAX_ASK_RESPONSE_CHARS}
@@ -161,12 +172,13 @@ function OptionCard({
   return (
     <RippleButton
       tabIndex={-1}
+      data-slot="answer-picker-option"
       variant="input"
       role={multiple ? 'checkbox' : 'radio'}
       aria-checked={selected}
       onClick={() => onSelect(optionIndex)}
       className={cn(
-        'h-auto min-h-11 w-full justify-start rounded-lg px-3 py-2 text-left whitespace-normal',
+        'h-auto min-h-11 w-full justify-start rounded-lg px-3 py-1.5 text-left whitespace-normal',
         selected && 'border-primary bg-primary/10 ring-primary ring-1',
       )}
     >
@@ -217,29 +229,33 @@ export function AnswerPickerFooter({
   onAdvance,
 }: PickerFooterProps) {
   return (
-    <footer className="flex shrink-0 items-center justify-between gap-3 px-5 pb-3">
+    <footer
+      data-slot="answer-picker-footer"
+      className="flex shrink-0 items-center justify-between gap-3 px-5 py-3"
+    >
       <span className="text-muted-foreground text-xs tabular-nums">
         {completeCount}/{questionCount} complete
       </span>
       <div className="flex items-center gap-2">
         <RippleButton
+          size="sm"
           tabIndex={-1}
           variant="stealth"
           aria-pressed={skipped}
           onClick={onToggleSkip}
-          className={cn('min-h-11', skipped && 'bg-muted')}
+          className={cn(skipped && 'bg-muted')}
         >
           {skipped ? 'Skipped' : 'Skip'}
         </RippleButton>
         <RippleButton
+          size="sm"
           tabIndex={-1}
           disabled={
             !currentComplete || (lastQuestion && !allComplete) || submitting
           }
           onClick={onAdvance}
-          className="min-h-11"
         >
-          {lastQuestion ? 'Submit answers' : 'Next'}
+          {lastQuestion ? 'Submit' : 'Next'}
         </RippleButton>
       </div>
     </footer>

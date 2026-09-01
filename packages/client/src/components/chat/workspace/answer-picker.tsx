@@ -47,6 +47,8 @@ import {
 
 export type AnswerPickerProps = {
   className?: string
+  /** Current visual viewport height, used to stay above mobile keyboards. */
+  viewportHeight?: number
   restoreFocusRef?: RefObject<{ focus(options?: FocusOptions): void } | null>
   onAbort?: () => void
 }
@@ -54,6 +56,7 @@ export type AnswerPickerProps = {
 /** Locates the first pending Q&A call and mounts its persisted picker. */
 export function AnswerPicker({
   className,
+  viewportHeight,
   restoreFocusRef,
   onAbort,
 }: AnswerPickerProps) {
@@ -75,6 +78,7 @@ export function AnswerPicker({
       draftKey={draftKey}
       restoreFocusRef={restoreFocusRef}
       onAbort={onAbort}
+      viewportHeight={viewportHeight}
       className={className}
     />
   )
@@ -86,6 +90,7 @@ type AnswerFormProps = {
   draftKey: string
   restoreFocusRef?: RefObject<{ focus(options?: FocusOptions): void } | null>
   onAbort?: () => void
+  viewportHeight?: number
   className?: string
 }
 
@@ -96,6 +101,7 @@ function AnswerForm({
   draftKey,
   restoreFocusRef,
   onAbort,
+  viewportHeight,
   className,
 }: AnswerFormProps) {
   const rootRef = useRef<HTMLDivElement>(null)
@@ -150,6 +156,13 @@ function AnswerForm({
         'bg-m3-surface-container-low flex max-h-[min(70dvh,36rem)] w-full flex-col overflow-hidden rounded-xl border shadow-lg outline-none',
         className,
       )}
+      style={
+        viewportHeight === undefined
+          ? undefined
+          : {
+              maxHeight: `min(70dvh, 36rem, ${Math.max(0, viewportHeight - 32)}px)`,
+            }
+      }
     >
       <AnswerPickerHeader
         questionIndex={picker.questionIndex}

@@ -13,7 +13,7 @@ export function QuestionBlock(props: ToolRendererProps) {
       : undefined
   const questions = input?.questions ?? []
   const count = questions.length
-  const label = askBlockLabel(props.part.state, count, Boolean(output))
+  const label = askBlockLabel(props.part.state, count, output)
 
   return (
     <ToolShell
@@ -22,7 +22,9 @@ export function QuestionBlock(props: ToolRendererProps) {
       dense
       label={<span className="text-foreground font-medium">{label}</span>}
     >
-      {output ? (
+      {output?.aborted ? (
+        <p className="text-muted-foreground text-xs">{output.reason}</p>
+      ) : output ? (
         <ol className="space-y-3">
           {output.answers.map((answer) => (
             <li key={answer.questionIndex} className="space-y-1 text-xs">
