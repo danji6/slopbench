@@ -78,8 +78,8 @@ export async function buildProviderHistory(
     // Maps shell outputs so replayed history never contains terminal scrollback
     tools: shellHistoryTools(),
   })
-  modelMessages = addApprovalNotes(modelMessages, approvalNotes)
   modelMessages = removeOrphanToolCalls(modelMessages)
+  modelMessages = insertApprovalNoteMessages(modelMessages, approvalNotes)
   modelMessages = buildPrompts(
     remainingPrompts,
     modelMessages,
@@ -115,35 +115,63 @@ export function collectApprovalNotes(
   return notes
 }
 
-/** Adds each note on the tool result it annotates. */
-export function addApprovalNotes(
+/** Notes waiting for an approved tool to execute in the current SDK call. */
+export function collectRespondedApprovalNotes(
+  parts: UIMessage['parts'],
+): Map<string, string> {
+  const notes = new Map<string, string>()
+  for (const part of parts) {
+    if (!part.type.startsWith('tool-')) continue
+    const typed = part as {
+      state?: string
+      toolCallId?: string
+      approval?: { note?: string }
+    }
+    if (typed.state !== 'approval-responded') continue
+    const note = typed.approval?.note?.trim()
+    if (note && typed.toolCallId) notes.set(typed.toolCallId, note)
+  }
+  return notes
+}
+
+/** Inserts user approval notes after their tool-result group. */
+export function insertApprovalNoteMessages(
   messages: ModelMessage[],
   notes: Map<string, string>,
 ): ModelMessage[] {
   if (notes.size === 0) return messages
 
-  return messages.map((message) => {
-    if (message.role !== 'tool') return message
-    return {
-      ...message,
-      content: message.content.map((part) => {
-        if (part.type !== 'tool-result') return part
+  const annotated: ModelMessage[] = []
+  let pendingNotes: string[] = []
+  for (const [index, message] of messages.entries()) {
+    annotated.push(message)
+    if (message.role !== 'tool') continue
+
+    pendingNotes.push(
+      ...message.content.flatMap((part) => {
+        if (part.type !== 'tool-result') return []
         const note = notes.get(part.toolCallId)
-        const output = part.output
-        // Approvable tools that don't emit plain text output can't carry a note for now
-        if (!note || (output.type !== 'text' && output.type !== 'error-text')) {
-          return part
-        }
-        return {
-          ...part,
-          output: {
-            ...output,
-            value: `${output.value}\n\n${block('user-note', note)}`,
-          },
-        }
+        return note
+          ? [
+              block('user-note', note, {
+                tool: part.toolName,
+                id: part.toolCallId,
+              }),
+            ]
+          : []
       }),
-    }
-  })
+    )
+    if (messages[index + 1]?.role === 'tool') continue
+    if (pendingNotes.length === 0) continue
+
+    annotated.push({
+      role: 'user',
+      content: pendingNotes.map((text) => ({ type: 'text', text })),
+    })
+    pendingNotes = []
+  }
+
+  return annotated
 }
 
 export function removeOrphanToolCalls(

@@ -35,6 +35,10 @@ import { resolveUsage } from '../../model/stream/usage'
 import { getFlaggedPaths } from '../../model/tool/shellTools'
 import type { ReasoningEffort } from '../../types'
 import { buildEvalContext } from './evalContext'
+import {
+  collectRespondedApprovalNotes,
+  insertApprovalNoteMessages,
+} from './history'
 import { createOperationPlan } from './operations'
 import type { PromptEvalResult } from './operations'
 
@@ -338,6 +342,9 @@ async function consumeProviderStep(
   } satisfies UIMessage
 
   const initialPartCount = initialMessage.parts.length
+  const respondedApprovalNotes = collectRespondedApprovalNotes(
+    initialMessage.parts,
+  )
 
   /** Everything a parts array needs before it can be persisted. */
   const prepareParts = async (parts: UIMessage['parts']) =>
@@ -367,6 +374,11 @@ async function consumeProviderStep(
       messages: setup.messages,
       tools: Object.keys(setup.tools).length ? setup.tools : undefined,
       stopWhen: stepCountIs(1),
+      // Approved tools execute before the first provider call. Add their notes
+      // once the SDK tool results exist, without disrupting the resume.
+      prepareStep: ({ messages }) => ({
+        messages: insertApprovalNoteMessages(messages, respondedApprovalNotes),
+      }),
       maxRetries: 0,
       maxOutputTokens:
         (setup.agent.outputTokens ?? 0) > 0
