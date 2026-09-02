@@ -2,7 +2,7 @@ import { APP_ID } from '@sb/core/const'
 
 import { createLocalStorageStore } from '../local-storage-store'
 
-const STORAGE_KEY = `${APP_ID}-chat-scroll-positions`
+const STORAGE_KEY = `${APP_ID}-scroll-positions`
 
 /** How many sessions retain a saved scroll position before the oldest is evicted. */
 const MAX_ENTRIES = 100

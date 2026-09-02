@@ -19,7 +19,7 @@ setupDom()
 
 /** Mirrors the store's own cap; exceeding it must evict the oldest entries. */
 const MAX_ENTRIES = 50
-const STORAGE_KEY = `${APP_ID}-chat-editor-drafts`
+const STORAGE_KEY = `${APP_ID}-editor-drafts`
 
 type PromptDraft = { name: string; content?: string }
 

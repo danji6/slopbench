@@ -10,7 +10,7 @@ import {
   requestDraftRestore,
 } from './draft-restore'
 
-const STORAGE_KEY = `${APP_ID}-chat-editor-drafts`
+const STORAGE_KEY = `${APP_ID}-editor-drafts`
 
 /** How many editors retain an unsaved draft before the oldest is evicted. */
 const MAX_ENTRIES = 50

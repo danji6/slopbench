@@ -4,7 +4,7 @@ import { useEffect, useMemo } from 'react'
 import { createLocalStorageStore } from '../local-storage-store'
 import { debounce } from '../utils'
 
-const STORAGE_KEY = `${APP_ID}-chat-composer-drafts`
+const STORAGE_KEY = `${APP_ID}-composer-drafts`
 
 /** How many sessions retain an unsent draft before the oldest is evicted. */
 const MAX_ENTRIES = 100
