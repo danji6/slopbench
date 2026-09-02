@@ -439,7 +439,9 @@ function getMessageContextMenuState(
   const blockText = getCopyableBlockText(blockPart)
   const hasBlockLevelStructure = hasBlockLevelParts(message.parts)
   const multiGroup = countGroups(slices) > 1
-  const canCopyBlock = multiGroup && blockText !== undefined
+  // Skip "Copy Block" when it would copy exactly the same text as "Copy Message"
+  const canCopyBlock =
+    multiGroup && blockText !== undefined && blockText !== messageText
 
   const blockAddresses =
     scope && slice && group

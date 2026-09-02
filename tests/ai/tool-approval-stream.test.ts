@@ -132,8 +132,9 @@ describe('tool approval stream resume', () => {
       {
         type: 'input_text',
         text:
-          'Approval note for tool "write_file" (call "call-1"):\n' +
-          'Use the shorter heading.',
+          '<user-note tool="write_file" id="call-1">\n' +
+          'Use the shorter heading.\n' +
+          '</user-note>',
       },
     ])
   })

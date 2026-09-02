@@ -98,7 +98,7 @@ export const DEFAULT_SETTINGS = {
   scrollMode: 'follow' as 'follow' | 'into-view',
   mathMode: 'single' as MathMode,
   autoTitle: true,
-  invertSend: true,
+  invertSend: false,
   groupBySender: true,
   avatarSize: 48,
   webSearchInstances: [] as WebSearchInstance[],

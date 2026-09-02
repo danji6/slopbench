@@ -123,7 +123,7 @@ describe('insertApprovalNoteMessages', () => {
         content: [
           {
             type: 'text',
-            text: 'Approval note for tool "exit_plan_mode" (call "c1"):\nship it',
+            text: '<user-note tool="exit_plan_mode" id="c1">\nship it\n</user-note>',
           },
         ],
       },
