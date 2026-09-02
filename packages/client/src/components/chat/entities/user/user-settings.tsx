@@ -436,6 +436,7 @@ function ChatSettingsDialog({
         apiKey: server.apiKey,
         tools: server.tools?.map((tool) => ({
           name: tool.name,
+          nameOverride: tool.nameOverride,
           description: tool.description,
           descriptionOverride: tool.descriptionOverride,
           inputSchema: tool.inputSchema,

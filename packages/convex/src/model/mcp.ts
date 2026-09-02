@@ -143,6 +143,7 @@ function sameTools(existing: Doc<'mcpTools'>[], next: McpToolMeta[]): boolean {
     existing.every(
       (row, index) =>
         row.name === next[index].name &&
+        row.nameOverride === next[index].nameOverride &&
         row.description === next[index].description &&
         row.descriptionOverride === next[index].descriptionOverride &&
         row.inputSchema === next[index].inputSchema,
@@ -192,8 +193,15 @@ async function listTools(
 ): Promise<McpToolMeta[]> {
   const rows = await toolRows(ctx, serverId)
   return rows.map(
-    ({ name, description, descriptionOverride, inputSchema }) => ({
+    ({
       name,
+      nameOverride,
+      description,
+      descriptionOverride,
+      inputSchema,
+    }) => ({
+      name,
+      nameOverride,
       description,
       descriptionOverride,
       inputSchema,

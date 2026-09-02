@@ -80,7 +80,7 @@ export async function listTools(ctx: AuthQueryCtx): Promise<ToolMeta[]> {
   for (const server of enabledMcpServers(servers)) {
     for (const meta of server.tools ?? []) {
       external.push({
-        name: mcpToolName(server, meta.name),
+        name: mcpToolName(server, meta),
         description: mcpToolDescription(meta),
         category: 'mcp',
       })

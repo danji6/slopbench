@@ -19,6 +19,7 @@ import {
   type McpToolMeta,
   type McpTransport,
   SUPPORTED_MCP_TRANSPORTS,
+  mcpToolAlias,
   mcpToolName,
 } from '@sb/core/types'
 import {
@@ -138,7 +139,7 @@ function useToolConflicts(servers: McpServerFormValues[]): Set<string> {
     for (const server of servers) {
       if (!server.enabled) continue
       for (const tool of server.tools ?? []) {
-        const name = mcpToolName(server, tool.name)
+        const name = mcpToolName(server, tool)
         counts.set(name, (counts.get(name) ?? 0) + 1)
       }
     }
@@ -210,7 +211,7 @@ function McpServerCard({
   }
 
   const isClashing = (tool: McpToolMetaFormValues) =>
-    item.enabled && conflicts.has(mcpToolName(item, tool.name))
+    item.enabled && conflicts.has(mcpToolName(item, tool))
 
   return (
     <Collapsible
@@ -347,10 +348,10 @@ function McpServerCard({
                 value={tool.name}
                 tool={tool}
                 clashing={isClashing(tool)}
-                onChange={(descriptionOverride) =>
+                onChange={(patch) =>
                   onChange({
                     tools: item.tools?.map((row, i) =>
-                      i === index ? { ...row, descriptionOverride } : row,
+                      i === index ? { ...row, ...patch } : row,
                     ),
                   })
                 }
@@ -367,17 +368,23 @@ function McpServerCard({
   )
 }
 
-/** Keeps the user's descriptions across a re-discovery, matched by tool name. */
+/** Keeps the user's custom metadata across discovery, matched by tool name. */
 function mergeOverrides(
   previous: McpToolMetaFormValues[] | undefined,
   discovered: McpToolMeta[],
 ): McpToolMetaFormValues[] {
   const overrides = new Map(
-    (previous ?? []).map((tool) => [tool.name, tool.descriptionOverride]),
+    (previous ?? []).map((tool) => [
+      tool.name,
+      {
+        nameOverride: tool.nameOverride,
+        descriptionOverride: tool.descriptionOverride,
+      },
+    ]),
   )
   return discovered.map((tool) => ({
     ...tool,
-    descriptionOverride: overrides.get(tool.name),
+    ...overrides.get(tool.name),
   }))
 }
 
@@ -385,10 +392,11 @@ type McpToolRowProps = {
   value: string
   tool: McpToolMetaFormValues
   clashing: boolean
-  onChange: (descriptionOverride?: string) => void
+  onChange: (patch: Partial<McpToolMetaFormValues>) => void
 }
 
 function McpToolRow({ value, tool, clashing, onChange }: McpToolRowProps) {
+  const nameOverridden = tool.nameOverride !== undefined
   const overridden = tool.descriptionOverride !== undefined
   const description = tool.descriptionOverride ?? tool.description ?? ''
 
@@ -398,7 +406,7 @@ function McpToolRow({ value, tool, clashing, onChange }: McpToolRowProps) {
         <span
           className={cn('flex-1 text-left', clashing && 'text-destructive')}
         >
-          {tool.name}
+          {mcpToolAlias(tool)}
         </span>
       </Accordion.Trigger>
       <Accordion.Content className="flex flex-col gap-1.5 px-3">
@@ -406,6 +414,31 @@ function McpToolRow({ value, tool, clashing, onChange }: McpToolRowProps) {
           <span className="text-destructive text-sm">
             Conflict: another enabled tool resolves to the same name. Only one
             will be used.
+          </span>
+        )}
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground text-xs">Tool name:</span>
+          <RippleButton
+            type="button"
+            size="sm"
+            variant="stealth"
+            disabled={!nameOverridden}
+            className="text-muted-foreground hover:text-foreground h-6 px-2 text-xs"
+            onClick={() => onChange({ nameOverride: undefined })}
+          >
+            <RotateCcwIcon className="size-3.5" />
+            Reset
+          </RippleButton>
+        </div>
+        <Input
+          value={tool.nameOverride ?? tool.name}
+          placeholder={tool.name}
+          onValueChange={(nameOverride) => onChange({ nameOverride })}
+          className="h-9 text-sm"
+        />
+        {nameOverridden && (
+          <span className="text-muted-foreground text-xs">
+            Original name: {tool.name}
           </span>
         )}
         <div className="flex items-center justify-between">
@@ -418,7 +451,7 @@ function McpToolRow({ value, tool, clashing, onChange }: McpToolRowProps) {
             variant="stealth"
             disabled={!overridden}
             className="text-muted-foreground hover:text-foreground h-6 px-2 text-xs"
-            onClick={() => onChange(undefined)}
+            onClick={() => onChange({ descriptionOverride: undefined })}
           >
             <RotateCcwIcon className="size-3.5" />
             Reset
@@ -427,7 +460,7 @@ function McpToolRow({ value, tool, clashing, onChange }: McpToolRowProps) {
         <Textarea
           value={description}
           placeholder="No description provided"
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => onChange({ descriptionOverride: e.target.value })}
           className="max-h-48 min-h-20 text-sm"
         />
       </Accordion.Content>

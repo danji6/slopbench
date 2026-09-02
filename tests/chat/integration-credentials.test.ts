@@ -191,7 +191,7 @@ describe('MCP servers', () => {
     expect(tables.mcpTools[0]._id).toBe(before)
   })
 
-  test('a description override rides along with the tool set', async () => {
+  test('tool metadata overrides ride along with the tool set', async () => {
     const { ctx, tables } = makeCtx()
 
     await replaceMcp(ctx, {
@@ -201,12 +201,19 @@ describe('MCP servers', () => {
       servers: [
         {
           ...SERVER,
-          tools: [{ name: 'search', descriptionOverride: 'Mine' }],
+          tools: [
+            {
+              name: 'search',
+              nameOverride: 'find',
+              descriptionOverride: 'Mine',
+            },
+          ],
         },
       ],
     })
 
     expect(tables.mcpTools).toHaveLength(1)
+    expect(tables.mcpTools[0].nameOverride).toBe('find')
     expect(tables.mcpTools[0].descriptionOverride).toBe('Mine')
   })
 

@@ -61,6 +61,32 @@ describe('tool manifest', () => {
     ])
   })
 
+  test('an MCP alias changes the provider name but keeps the wire name', () => {
+    const aliased = {
+      ...mcpServer,
+      tools: [
+        {
+          name: 'search',
+          nameOverride: 'find',
+          description: 'Search the docs',
+        },
+      ],
+    }
+    const manifest = resolveToolManifest({
+      agent: { tools: ['docs_find'] } as never,
+      invoker: { role: 'admin' } as never,
+      session,
+      resources: { settings: null, mcpServers: [aliased] },
+      spawnableAgents: [],
+    } as never)
+
+    expect(manifest.names).toContain('docs_find')
+    expect(manifest.mcp?.[0]).toMatchObject({
+      name: 'docs_find',
+      toolName: 'search',
+    })
+  })
+
   test('a disabled server drops out of the manifest', () => {
     const manifest = manifestFor({
       mcpServers: [{ ...mcpServer, enabled: false }],

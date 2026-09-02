@@ -113,6 +113,7 @@ export const mcpServerSchema = v.object({
 export const mcpToolSchema = v.object({
   serverId: v.id('mcpServers'),
   name: v.string(),
+  nameOverride: v.optional(v.string()),
   description: v.optional(v.string()),
   descriptionOverride: v.optional(v.string()),
   /** The tool's JSON schema, kept as a string to avoid Convex rejections. */

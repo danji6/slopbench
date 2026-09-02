@@ -146,6 +146,7 @@ export const mcpTransportValidator = v.union(
 
 export const mcpToolMetaValidator = v.object({
   name: v.string(),
+  nameOverride: v.optional(v.string()),
   description: v.optional(v.string()),
   descriptionOverride: v.optional(v.string()),
   inputSchema: v.optional(v.string()),

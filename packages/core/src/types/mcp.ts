@@ -41,6 +41,7 @@ export function mcpTransportCandidates(
 /** A tool discovered from an external MCP server. */
 export const mcpToolMetaSchema = z.object({
   name: z.string(),
+  nameOverride: z.string().optional(), // user's custom alias
   description: z.string().optional(),
   descriptionOverride: z.string().optional(), // user's custom description
   inputSchema: z.string().optional(), // kept raw to avoid Convex rejections
@@ -70,6 +71,7 @@ export type McpConnection = {
 export function clampMcpTools(tools: McpToolMeta[]): McpToolMeta[] {
   return tools.slice(0, MAX_SERVER_MCP_TOOLS).map((tool) => ({
     name: tool.name.slice(0, MAX_MCP_DESCRIPTION_CHARS),
+    nameOverride: clamp(tool.nameOverride, MAX_MCP_DESCRIPTION_CHARS),
     description: clamp(tool.description, MAX_MCP_DESCRIPTION_CHARS),
     descriptionOverride: clamp(
       tool.descriptionOverride,
@@ -85,9 +87,21 @@ export function isMcpTransport(value: unknown): value is McpTransport {
   )
 }
 
-/** Sanitized name prefixed with its label. */
-export function mcpToolName(server: { label: string }, tool: string): string {
-  const suffix = tool.replace(/[^A-Za-z0-9_-]+/g, '_')
+/** The user-facing alias, falling back to the name discovered from the server. */
+export function mcpToolAlias(tool: {
+  name: string
+  nameOverride?: string
+}): string {
+  return tool.nameOverride?.trim() || tool.name
+}
+
+/** Sanitized user-facing name prefixed with its server label. */
+export function mcpToolName(
+  server: { label: string },
+  tool: string | { name: string; nameOverride?: string },
+): string {
+  const value = typeof tool === 'string' ? tool : mcpToolAlias(tool)
+  const suffix = value.replace(/[^A-Za-z0-9_-]+/g, '_')
   const prefix = slugify(server.label)
   return prefix ? `${prefix}_${suffix}` : suffix
 }
