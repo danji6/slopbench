@@ -43,7 +43,11 @@ export function EmptyChat({
   const isAdmin = useIsAdmin()
   const topPadding = useNavPadding()
   const keyboardInset = useKeyboardInset()
-  const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null)
+  const [workspaceRootOverride, setWorkspaceRoot] = useState<string | null>()
+  const workspaceRoot =
+    workspaceRootOverride === undefined
+      ? (settings?.recentWorkspaces?.[0] ?? null)
+      : workspaceRootOverride
   const fileIndex = useWorkspaceFileIndexByRoot(workspaceRoot)
 
   // Manual mode tracking since no session is available here
