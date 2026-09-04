@@ -282,6 +282,8 @@ export const streamSchema = v.object({
   preserveContextBoundary: v.optional(v.boolean()),
   /** Resume a deferred invoke only after this compaction succeeds. */
   followUpAfterCompact: v.optional(v.boolean()),
+  /** This compaction was scheduled by /autoCompact and gets bounded retries. */
+  autoCompact: v.optional(v.boolean()),
   suppressFollowUp: v.optional(v.boolean()),
   /** True for child (sub-agent) streams stopped from above. */
   suppressReport: v.optional(v.boolean()),

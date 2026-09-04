@@ -20,6 +20,7 @@ import {
 } from '../../model/stream/generatedFiles'
 import {
   assertProviderStepOutput,
+  getAutoCompactRetryDelay,
   getProviderRetryDelay,
   hasReplayableToolOutputSince,
 } from '../../model/stream/retry'
@@ -174,12 +175,15 @@ export async function _stream(
       ? failure.hasOutput && !failure.hasReplayableToolOutput
       : hasGeneratedOutput
 
-    const retryDelay = getProviderRetryDelay({
+    const retryOptions = {
       error,
       retryAttempt: attempt + 1,
       hasOutput: failedStepHasOutput,
       aborted: failure?.aborted ?? false,
-    })
+    }
+    const retryDelay = claimed.autoCompact
+      ? getAutoCompactRetryDelay(retryOptions)
+      : getProviderRetryDelay(retryOptions)
 
     if (retryDelay !== null) {
       await ctx.runMutation(internal.streams._scheduleRetry, {

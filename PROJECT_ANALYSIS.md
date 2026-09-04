@@ -855,8 +855,10 @@ not the idle-only command queue. Repeating either command replaces the prior
 same-key event and directly marks its stored chip id as `cancelled`; it never
 scans transcript messages. Deleting a scheduled command chip cancels its event.
 A timeout is tied to the exact active stream and is cancelled if that turn
-finishes first. Auto-compact remains armed across a stopped invoke, and fires
-after either successful invoke completion or a fatal invoke error.
+finishes first. Auto-compact fires after either successful invoke completion or
+a fatal invoke error, but is cancelled if the user stops the invoke. Its
+compaction retries any provider failure up to three times with backoff before
+giving up.
 
 The command palette and the agent combobox score cmdk `keywords` rather than
 the option's `value` (`lib/command-filter.ts`), so an opaque id can never
@@ -1153,7 +1155,7 @@ The stream action flow is:
 8. Stream-terminal hooks cancel obsolete timeout events and dispatch an armed
    auto-compaction. A successful source invoke defers its ordinary follow-up
    until compaction succeeds; a fatal source invoke compacts without creating a
-   follow-up. A stopped invoke leaves auto-compaction armed for the next one.
+   follow-up. A stopped invoke cancels its pending auto-compaction.
 
 Important stream behavior:
 

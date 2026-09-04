@@ -21,6 +21,7 @@ export async function reserveStream(
     delayMs?: number
     preserveContextBoundary?: boolean
     followUpAfterCompact?: boolean
+    autoCompact?: boolean
   },
 ) {
   if (await Memberships.getActiveStream(ctx, args.sessionId)) return null
@@ -58,6 +59,7 @@ export async function reserveStream(
     leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
     preserveContextBoundary: args.preserveContextBoundary,
     followUpAfterCompact: args.followUpAfterCompact,
+    autoCompact: args.autoCompact,
     ...(delayMs > 0 ? { fireAt: Date.now() + delayMs } : {}),
   })
 

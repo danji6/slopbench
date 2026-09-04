@@ -2,6 +2,7 @@
 const RETRY_DELAY_MS = 1000
 const MAX_RETRY_DELAY_MS = 600000
 const MAX_EMPTY_RESPONSE_RETRIES = 2
+const MAX_AUTO_COMPACT_RETRIES = 3
 
 /** A provider stream that closed normally without producing model output. */
 export class EmptyProviderResponseError extends Error {
@@ -96,6 +97,15 @@ export function getProviderRetryDelay({
     getRateLimitRetryDelay(error, retryAttempt) ??
     getTransientRetryDelay(error, retryAttempt)
   )
+}
+
+/** Retries an automatic compaction on any provider failure, within a bound. */
+export function getAutoCompactRetryDelay(options: ProviderRetryOptions) {
+  if (options.aborted || options.retryAttempt > MAX_AUTO_COMPACT_RETRIES) {
+    return null
+  }
+
+  return getProviderRetryDelay(options) ?? backoffDelay(options.retryAttempt)
 }
 
 export function hasReplayableToolOutputSince(

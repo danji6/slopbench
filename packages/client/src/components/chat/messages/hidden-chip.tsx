@@ -111,7 +111,14 @@ function commandPresentation(
           : `Cancelled • ${invocation}`,
       }
     default:
-      return { ...base, icon: TerminalIcon, label: invocation }
+      return {
+        ...base,
+        icon: TerminalIcon,
+        label:
+          command?.name === 'timeout'
+            ? `Triggered • ${invocation}`
+            : invocation,
+      }
   }
 }
 

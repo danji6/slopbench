@@ -3,6 +3,7 @@ import { reserveRetryStream } from '@sb/convex/model/chat/reserve'
 import {
   EmptyProviderResponseError,
   assertProviderStepOutput,
+  getAutoCompactRetryDelay,
   getProviderRateLimitRetryDelay,
   getProviderRetryDelay,
   getRateLimitRetryDelay,
@@ -196,6 +197,33 @@ describe('getProviderRetryDelay', () => {
         hasOutput: false,
       }),
     ).toBe(7000)
+  })
+})
+
+describe('getAutoCompactRetryDelay', () => {
+  test('retries any failure three times before giving up', () => {
+    const options = {
+      error: new Error('Invalid provider response'),
+      hasOutput: false,
+    }
+
+    expect(getAutoCompactRetryDelay({ ...options, retryAttempt: 1 })).toBe(1000)
+    expect(getAutoCompactRetryDelay({ ...options, retryAttempt: 2 })).toBe(1250)
+    expect(getAutoCompactRetryDelay({ ...options, retryAttempt: 3 })).toBe(
+      1562.5,
+    )
+    expect(getAutoCompactRetryDelay({ ...options, retryAttempt: 4 })).toBeNull()
+  })
+
+  test('does not retry an aborted compaction', () => {
+    expect(
+      getAutoCompactRetryDelay({
+        error: new Error('aborted'),
+        retryAttempt: 1,
+        hasOutput: false,
+        aborted: true,
+      }),
+    ).toBeNull()
   })
 })
 

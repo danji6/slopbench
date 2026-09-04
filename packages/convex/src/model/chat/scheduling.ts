@@ -159,9 +159,7 @@ export async function handleStreamEnd(
   }
 
   if (outcome === 'stopped') {
-    if (event.targetStreamId) {
-      await ctx.db.patch(event._id, { targetStreamId: undefined })
-    }
+    await Events.cancel(ctx, event, 'Turn was stopped')
     return false
   }
 
@@ -182,6 +180,7 @@ export async function handleStreamEnd(
         preserveContextBoundary: Boolean(stream.processingMessageId),
         followUpAfterCompact:
           outcome === 'complete' && !stream.suppressFollowUp,
+        autoCompact: true,
       },
     )
     if (!compactStreamId) error('Session is busy', 409)

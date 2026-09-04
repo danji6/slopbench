@@ -229,20 +229,26 @@ describe('/timeout schedules', () => {
 })
 
 describe('/autoCompact schedules', () => {
-  test('a manual stop re-arms it for the next invoke', async () => {
+  test('a manual stop cancels the pending compaction', async () => {
     const state = fakeCtx(baseRows())
     await autoCompact(state.ctx, { sessionId: 'session_1' as never })
-    const event = state.rows('scheduledEvents')[0]
-    const stream = state.rows('streams')[0]
+    const source = state.rows('streams')[0]
+    await state.remove(source._id)
 
-    await handleStreamEnd(state.ctx, stream as never, 'stopped')
+    const handled = await handleStreamEnd(
+      state.ctx,
+      source as never,
+      'stopped',
+    )
 
-    expect(state.rows('scheduledEvents')).toHaveLength(1)
-    expect(event.targetStreamId).toBeUndefined()
+    expect(handled).toBe(false)
+    expect(state.rows('scheduledEvents')).toHaveLength(0)
     expect(state.rows('messages')[0].extra).toEqual({
       name: 'autoCompact',
-      status: 'queued',
+      status: 'cancelled',
+      reason: 'Turn was stopped',
     })
+    expect(state.rows('streams')).toHaveLength(0)
   })
 
   test('success reserves compaction at the source boundary before follow-up', async () => {
@@ -281,6 +287,7 @@ describe('/autoCompact schedules', () => {
         contextBoundaryMessageId: 'source_message',
         preserveContextBoundary: true,
         followUpAfterCompact: true,
+        autoCompact: true,
       }),
     )
   })

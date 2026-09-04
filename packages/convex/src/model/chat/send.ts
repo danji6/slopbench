@@ -226,6 +226,7 @@ export async function executeCompact(
     boundaryId?: Id<'messages'>
     preserveContextBoundary?: boolean
     followUpAfterCompact?: boolean
+    autoCompact?: boolean
   },
 ) {
   if (!session.activeAgentId) error('No active agent', 409)
@@ -239,6 +240,7 @@ export async function executeCompact(
     instructions,
     preserveContextBoundary: options?.preserveContextBoundary,
     followUpAfterCompact: options?.followUpAfterCompact,
+    autoCompact: options?.autoCompact,
   })
 }
 
