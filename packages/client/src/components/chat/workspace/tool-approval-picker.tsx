@@ -22,6 +22,7 @@ import {
   commandReferencesForbiddenPath,
   isPathForbidden,
   isReadOnlyShellCommand,
+  toolNamesForApproval,
 } from '@sb/convex/lib/tool/approval'
 import type { Editor } from '@tiptap/react'
 import type { ToolUIPart } from 'ai'
@@ -590,7 +591,11 @@ function alwaysLabel(
   input: unknown,
   approvals: ToolApprovals | undefined,
 ): string | null {
-  if (toolName !== 'shell') return 'Always allow for this session'
+  if (toolName !== 'shell') {
+    return toolNamesForApproval(toolName).length > 1
+      ? 'Allow edits for this session'
+      : 'Always allow for this session'
+  }
 
   const command = getCommand(input)
   if (command === null) return null

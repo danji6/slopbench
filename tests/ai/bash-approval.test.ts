@@ -488,6 +488,10 @@ describe('isToolAutoApproved', () => {
     expect(
       isToolAutoApproved('edit_file', undefined, { tools: ['edit_file'] }),
     ).toBe(true)
+    // write_file and edit_file share one approval grant
+    expect(
+      isToolAutoApproved('write_file', undefined, { tools: ['edit_file'] }),
+    ).toBe(true)
   })
 })
 

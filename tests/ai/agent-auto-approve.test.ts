@@ -65,7 +65,13 @@ describe('merged approvals through the approval checks', () => {
   test('agent-approved tools skip the approval prompt', () => {
     const merged = mergeToolApprovals(undefined, { tools: ['write_file'] })
     expect(isToolAutoApproved('write_file', undefined, merged)).toBe(true)
-    expect(isToolAutoApproved('edit_file', undefined, merged)).toBe(false)
+    expect(isToolAutoApproved('read_file', undefined, merged)).toBe(false)
+  })
+
+  test('write_file and edit_file share one approval', () => {
+    const merged = mergeToolApprovals(undefined, { tools: ['write_file'] })
+    expect(isToolAutoApproved('edit_file', undefined, merged)).toBe(true)
+    expect(isToolAutoApproved('write_file', undefined, merged)).toBe(true)
   })
 
   test('agent shell patterns extend the session allowlist', () => {

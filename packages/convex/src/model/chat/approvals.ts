@@ -3,7 +3,10 @@ import type { Doc } from '../../_generated/dataModel'
 import { error } from '../../errors'
 import type { AuthMutationCtx } from '../../functions'
 import { requireRole } from '../../functions'
-import { analyzeShellCommand } from '../../lib/tool/approval'
+import {
+  analyzeShellCommand,
+  toolNamesForApproval,
+} from '../../lib/tool/approval'
 import type { ApproveToolArgs, RememberScope } from '../../types'
 import { getProcessingSegmentRow, patchSegmentParts } from '../messageContents'
 import { applyModeTransition } from '../plans'
@@ -193,9 +196,12 @@ async function rememberApproval(
   }
 
   const tools = approvals.tools ?? []
-  if (!matched.toolName || tools.includes(matched.toolName)) return
+  const additions = toolNamesForApproval(matched.toolName).filter(
+    (toolName) => !tools.includes(toolName),
+  )
+  if (additions.length === 0) return
 
-  await appendApprovals(ctx, session._id, 'tools', [matched.toolName])
+  await appendApprovals(ctx, session._id, 'tools', additions)
 }
 
 export function hasPendingToolApprovals(parts: unknown[]) {

@@ -161,7 +161,20 @@ export function isToolAutoApproved(
     )
   }
 
-  return (approvals?.tools ?? []).includes(name)
+  return toolNamesForApproval(name).some((toolName) =>
+    (approvals?.tools ?? []).includes(toolName),
+  )
+}
+
+/**
+ * Tools that share one approval grant. Approving one of these remembers
+ * (and covers) the whole group.
+ */
+const FILE_EDIT_TOOLS = ['write_file', 'edit_file']
+
+/** All tool names covered by approving `name`. */
+export function toolNamesForApproval(name: string): string[] {
+  return FILE_EDIT_TOOLS.includes(name) ? FILE_EDIT_TOOLS : [name]
 }
 
 export function isPathAllowed(path: string, allowed: string[]): boolean {
