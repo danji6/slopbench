@@ -3,6 +3,7 @@
  */
 
 export * from './assistant'
+export * from './auto-compact'
 export * from './compact'
 export * from './eval'
 export * from './impersonate'
@@ -11,4 +12,5 @@ export * from './registry'
 export * from './resume'
 export * from './shortcuts'
 export * from './system'
+export * from './timeout'
 export * from './types'

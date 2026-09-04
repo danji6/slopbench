@@ -128,6 +128,12 @@ export async function _getProviderHistory(
     .order('desc')
     .first()
 
+  const upper = stream.contextBoundaryCreationTime ?? Number.MAX_SAFE_INTEGER
+  const summaryFloor = summary
+    ? (summary.summaryBoundaryCreationTime ?? summary._creationTime)
+    : 0
+  const summaryApplies = summary !== null && summaryFloor <= upper
+
   const messages = await ctx.db
     .query('messages')
     .withIndex('by_sessionId_status_contextEligible', (q) =>
@@ -135,16 +141,16 @@ export async function _getProviderHistory(
         .eq('sessionId', stream.sessionId)
         .eq('status', 'done')
         .eq('contextEligible', true)
-        .gte('_creationTime', summary?._creationTime ?? 0)
-        .lte(
-          '_creationTime',
-          stream.contextBoundaryCreationTime ?? Number.MAX_SAFE_INTEGER,
-        ),
+        .gt('_creationTime', summaryApplies ? summaryFloor : 0)
+        .lte('_creationTime', upper),
     )
     .order('asc')
     .collect()
 
-  const history = await withPartsMany(ctx, messages)
+  const ordered = summaryApplies
+    ? [summary, ...messages.filter((message) => message._id !== summary._id)]
+    : messages
+  const history = await withPartsMany(ctx, ordered)
 
   // The in-flight turn joins the history with all its segments concatenated
   // (sealed split segments are only reachable through the processing doc)
@@ -159,7 +165,6 @@ export async function _getProviderHistory(
     const joined = await withParts(ctx, current)
     if (joined.parts.length > 0) {
       history.push(joined)
-      history.sort((a, b) => a._creationTime - b._creationTime)
     }
   }
 

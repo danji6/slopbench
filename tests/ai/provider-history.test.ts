@@ -42,7 +42,9 @@ function historyCtx(fixture: HistoryFixture) {
       order: () => obj,
       first: async () =>
         table === 'messages' && index === 'by_sessionId_type_status'
-          ? (summary && matches(summary) ? summary : null)
+          ? summary && matches(summary)
+            ? summary
+            : null
           : null,
       collect: async () => {
         if (
@@ -51,8 +53,16 @@ function historyCtx(fixture: HistoryFixture) {
         ) {
           const creationTime = (message: Record<string, unknown>) =>
             message._creationTime as number
-          return doneMessages.filter(
+          const candidates = [
+            ...doneMessages,
+            ...(summary?.contextEligible && !doneMessages.includes(summary)
+              ? [summary]
+              : []),
+          ]
+          return candidates.filter(
             (message) =>
+              creationTime(message) >
+                ((captured.gt as number | undefined) ?? -Infinity) &&
               creationTime(message) >=
                 ((captured.gte as number | undefined) ?? -Infinity) &&
               creationTime(message) <=
@@ -89,6 +99,10 @@ function historyCtx(fixture: HistoryFixture) {
             },
             gte: (_field: string, value: unknown) => {
               captured.gte = value
+              return q
+            },
+            gt: (_field: string, value: unknown) => {
+              captured.gt = value
               return q
             },
             lte: (_field: string, value: unknown) => {
@@ -210,7 +224,62 @@ describe('_getProviderHistory', () => {
     })
 
     // Everything before the successful compaction stays out
-    expect(history.map((m) => m._id)).toEqual(['m_current' as never])
+    expect(history.map((m) => m._id)).toEqual([
+      'm_summary' as never,
+      'm_current' as never,
+    ])
+  })
+
+  test('a logical summary boundary preserves a message created before the summary', async () => {
+    const fixture = baseFixture('invoke')
+    fixture.stream.contextBoundaryCreationTime = 150
+    fixture.summary = {
+      _id: 'm_summary',
+      _creationTime: 200,
+      summaryBoundaryCreationTime: 100,
+      role: 'assistant',
+      type: 'summary',
+      status: 'done',
+      selectedVersion: 1,
+      contextEligible: true,
+    }
+    fixture.doneMessages = [
+      userMessage,
+      {
+        _id: 'm_late_user',
+        _creationTime: 150,
+        role: 'user',
+        selectedVersion: 1,
+      },
+    ]
+    fixture.segmentsByMessage.m_summary = {
+      1: [
+        {
+          _id: 'c_summary',
+          segmentIndex: 0,
+          parts: [{ type: 'text', text: 'summary' }],
+        },
+      ],
+    }
+    fixture.segmentsByMessage.m_late_user = {
+      1: [
+        {
+          _id: 'c_late_user',
+          segmentIndex: 0,
+          parts: [{ type: 'text', text: 'one more request' }],
+        },
+      ],
+    }
+
+    const history = await _getProviderHistory(historyCtx(fixture), {
+      streamId: 'stream_1' as never,
+    })
+
+    expect(history.map((message) => message._id)).toEqual([
+      'm_summary' as never,
+      'm_late_user' as never,
+      'm_current' as never,
+    ])
   })
 
   test('an empty failed summary never becomes the context floor', async () => {

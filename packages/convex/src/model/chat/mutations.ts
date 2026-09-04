@@ -13,6 +13,7 @@ import {
   setSegmentParts,
 } from '../messageContents'
 import { scheduleMessageEval } from '../messages'
+import { cancelByMessage } from '../scheduledEvents'
 import * as Memberships from '../session/memberships'
 import { collectToolOutputStorageIds } from '../stream/toolOutput'
 import { clearAnnouncedMode } from './notes'
@@ -196,6 +197,8 @@ async function deleteMessageDoc(
   message: Doc<'messages'>,
   deferredAvatarIds?: Set<Id<'avatars'>>,
 ) {
+  await cancelByMessage(ctx, message._id)
+
   const attachments = await ctx.db
     .query('attachments')
     .withIndex('by_messageId', (q) => q.eq('messageId', message._id))

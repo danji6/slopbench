@@ -18,6 +18,7 @@ import {
   promptSchema,
   releaseStateSchema,
   reminderSchema,
+  scheduledEventSchema,
   sessionAgentSchema,
   sessionCacheSchema,
   sessionSchema,
@@ -42,6 +43,12 @@ export default defineSchema({
 
   sessionState: defineTable(sessionStateSchema)
     .index('by_sessionId', ['sessionId']),
+
+  scheduledEvents: defineTable(scheduledEventSchema)
+    .index('by_sessionId', ['sessionId'])
+    .index('by_sessionId_dedupeKey', ['sessionId', 'dedupeKey'])
+    .index('by_targetStreamId', ['targetStreamId'])
+    .index('by_messageId', ['messageId']),
 
   plans: defineTable(planSchema)
     .index('by_sessionId', ['sessionId']),

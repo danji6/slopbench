@@ -18,6 +18,7 @@ import type { UIMessage } from 'ai'
 import type { LucideIcon } from 'lucide-react'
 import {
   AlarmClockIcon,
+  CircleXIcon,
   ClipboardListIcon,
   CopyIcon,
   EyeOffIcon,
@@ -100,6 +101,14 @@ function commandPresentation(
         label: command.error
           ? `${invocation} — ${command.error}`
           : `Failed • ${invocation}`,
+      }
+    case 'cancelled':
+      return {
+        ...base,
+        icon: CircleXIcon,
+        label: command.reason
+          ? `Cancelled • ${invocation} — ${command.reason}`
+          : `Cancelled • ${invocation}`,
       }
     default:
       return { ...base, icon: TerminalIcon, label: invocation }

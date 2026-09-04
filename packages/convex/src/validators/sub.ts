@@ -31,17 +31,24 @@ export const messageTypeValidator = v.union(
   v.literal('mode'),
 )
 
-/** Slash commands the server runs, and may defer while a stream is active. */
-export const commandNameValidator = v.union(
+/** Slash commands that wait for an idle session before they execute. */
+export const deferredCommandNameValidator = v.union(
   v.literal('compact'),
   v.literal('eval'),
   v.literal('impersonate'),
   v.literal('resume'),
 )
 
+/** Slash commands represented by hidden command chips. */
+export const commandNameValidator = v.union(
+  deferredCommandNameValidator,
+  v.literal('timeout'),
+  v.literal('autoCompact'),
+)
+
 /** One command awaiting an idle session, optionally with an announcing chip. */
 export const queuedCommandValidator = v.object({
-  name: commandNameValidator,
+  name: deferredCommandNameValidator,
   argument: v.optional(v.string()),
   invokedBy: v.id('users'),
   requestId: v.optional(v.string()),
@@ -361,6 +368,7 @@ export const commandStatusValidator = v.union(
   v.literal('queued'),
   v.literal('ran'),
   v.literal('failed'),
+  v.literal('cancelled'),
 )
 
 export const reminderExtraValidator = v.object({
@@ -382,6 +390,7 @@ export const commandExtraValidator = v.object({
   argument: v.optional(v.string()),
   status: commandStatusValidator,
   error: v.optional(v.string()),
+  reason: v.optional(v.string()),
 })
 
 export const shellReportExtraValidator = v.object({
@@ -524,3 +533,18 @@ export const settingsMutableFields = {
   recentReasoning: v.optional(v.string()),
   recentWorkspaces: v.optional(v.array(v.string())),
 }
+
+export const eventDedupeKeyValidator = v.union(
+  v.literal('timeout'),
+  v.literal('autoCompact'),
+)
+
+export const eventTriggerValidator = v.union(
+  v.object({ type: v.literal('at'), at: v.number() }),
+  v.object({ type: v.literal('stream_end') }),
+)
+
+export const eventActionValidator = v.union(
+  v.object({ type: v.literal('soft_stop_stream') }),
+  v.object({ type: v.literal('compact_session') }),
+)

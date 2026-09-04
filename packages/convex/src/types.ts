@@ -72,6 +72,7 @@ export type MessageExtra = {
 export type ReasoningPart = ReasoningUIPart & { duration?: number }
 
 export type CommandName = Infer<typeof V.commandNameValidator>
+export type DeferredCommandName = Infer<typeof V.deferredCommandNameValidator>
 export type CommandStatus = Infer<typeof V.commandStatusValidator>
 export type QueuedCommand = Infer<typeof V.queuedCommandValidator>
 

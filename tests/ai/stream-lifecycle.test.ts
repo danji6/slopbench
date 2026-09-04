@@ -5,6 +5,7 @@ import {
   _fail,
   _finalizeStopped,
   _handoff,
+  _honorSoftStop,
   _recordStep,
   pruneOrphanedOutputs,
 } from '@sb/convex/model/stream/lifecycle'
@@ -115,6 +116,30 @@ function fakeCtx({
 
   return { ctx, patches, inserts, deletes, scheduled, deletedBlobs }
 }
+
+describe('_honorSoftStop', () => {
+  test('moves a timed-out stream to stopped finalization exactly once', async () => {
+    const stream = {
+      _id: 'stream_1',
+      status: 'streaming',
+      sessionId: 'session_1',
+      stopAt: Date.now(),
+    }
+    const { ctx, patches, scheduled } = fakeCtx({ docs: [stream] })
+
+    expect(await _honorSoftStop(ctx, { streamId: stream._id as never })).toBe(
+      true,
+    )
+    expect(patches).toContainEqual({
+      id: 'stream_1',
+      patch: { status: 'stopping', suppressFollowUp: true },
+    })
+    expect(scheduled).toHaveLength(1)
+
+    await _honorSoftStop(ctx, { streamId: stream._id as never })
+    expect(scheduled).toHaveLength(1)
+  })
+})
 
 describe('_claim', () => {
   test('computes the boundary for a fresh (empty) processing message', async () => {

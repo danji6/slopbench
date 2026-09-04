@@ -222,6 +222,11 @@ export async function executeCompact(
   session: Doc<'sessions'>,
   invokedBy: Id<'users'>,
   instructions?: string,
+  options?: {
+    boundaryId?: Id<'messages'>
+    preserveContextBoundary?: boolean
+    followUpAfterCompact?: boolean
+  },
 ) {
   if (!session.activeAgentId) error('No active agent', 409)
 
@@ -229,9 +234,11 @@ export async function executeCompact(
     sessionId: session._id,
     agentId: session.activeAgentId,
     invokedBy,
-    boundaryId: await latestMessageId(ctx, session._id),
+    boundaryId: options?.boundaryId ?? (await latestMessageId(ctx, session._id)), // prettier-ignore
     operation: 'compact',
     instructions,
+    preserveContextBoundary: options?.preserveContextBoundary,
+    followUpAfterCompact: options?.followUpAfterCompact,
   })
 }
 

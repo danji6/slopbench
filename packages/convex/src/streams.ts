@@ -67,6 +67,11 @@ export const _complete = internalMutation({
   handler: StreamLifecycle._complete,
 })
 
+export const _honorSoftStop = internalMutation({
+  args: { streamId: v.id('streams') },
+  handler: StreamLifecycle._honorSoftStop,
+})
+
 export const _suspendStep = internalMutation({
   args: { streamId: v.id('streams') },
   handler: StreamSubagents._suspendStep,

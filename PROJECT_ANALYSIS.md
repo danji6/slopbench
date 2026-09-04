@@ -8,7 +8,7 @@ the data model, settings, and query sections below are re-derived rather than
 patched.
 
 This document describes the project as it exists now. The test suite is green
-at this revision (1102 tests across 114 files).
+at this revision (1448 tests across 155 files).
 
 ## Executive Summary
 
@@ -351,6 +351,12 @@ subscribes to.
   `stepCount`, `reminderState`, `commandQueue`, cumulative `usage`, and `log`
   (a storage id holding the last provider request/response body). Created
   lazily on first write.
+- `scheduledEvents`: durable, one-shot session work keyed by
+  `(sessionId, dedupeKey)`. Each row stores its trigger, action, exact target
+  stream (when applicable), announcing command-chip message id, and optional
+  Convex scheduler job id. The current trigger variants are wall-clock time
+  and stream termination; the current actions are graceful stream stop and
+  post-turn compaction.
 - `userSessions`: per-user session membership/list rows for owners and shared
   members; denormalizes title and activity for listing and search, holds the
   user's last send time for slow mode, and carries `hidden` (sub-agent child
@@ -377,8 +383,9 @@ subscribes to.
   `appearanceId`, optional `type` (`summary`, `reminder`, `todo`, `workspace`,
   `command`, `mode`), `hidden`, a typed `extra` payload (a discriminated union
   over the note types, no longer `v.any()`), context eligibility,
-  `selectedVersion`, `versionCount`, and denormalized whole-turn metadata for
-  the selected version. **No content lives here.**
+  `selectedVersion`, `versionCount`, an optional logical summary boundary, and
+  denormalized whole-turn metadata for the selected version. **No content
+  lives here.**
 - `messageContents`: the content side table. One row per
   `(messageId, version, segmentIndex)` holding UI-message `parts`, a
   per-segment metadata slice, per-segment `searchText`, denormalized
@@ -389,9 +396,9 @@ subscribes to.
   `search_contents` over `searchText` filtered by `sessionId`.
 - `streams`: durable in-flight agent turns with lease, operation
   (invoke/compact/impersonate/retry), mode, blocking flag, retry state,
-  debounce `fireAt`, follow-up and report suppression, optional instructions,
-  context boundary, `processingMessageId`, and `processingContentId` (the
-  active segment row)
+  debounce `fireAt`, graceful timeout state, fixed-boundary compaction state,
+  follow-up and report suppression, optional instructions, context boundary,
+  `processingMessageId`, and `processingContentId` (the active segment row)
 - `attachments`: user-uploaded or AI-generated files in Convex storage
 - `offloadedOutputs`: storage tracking rows for large tool outputs
 
@@ -826,6 +833,9 @@ Commands are registered in `packages/client/src/lib/chat/commands`:
 - `/system`
 - `/plan`
 - `/eval` (resets the session's frozen prompt/tool snapshot)
+- `/timeout <duration>` (gracefully stops the active turn after bare seconds or
+  an `s`, `m`, or `h` duration)
+- `/autoCompact` (one-shot compaction after the active or next invoke turn)
 - `/shortcuts`
 
 Commands that the server runs — `compact`, `eval`, `impersonate`, `resume` —
@@ -839,6 +849,14 @@ because it only invalidates the frozen prompt/tool snapshot; the invoking
 client tracks queued eval completion by request ID and shows an environment
 update toast. Client code filters legacy and current command chips out of
 normal rendering paths.
+
+`timeout` and `autoCompact` use the separate durable `scheduledEvents` engine,
+not the idle-only command queue. Repeating either command replaces the prior
+same-key event and directly marks its stored chip id as `cancelled`; it never
+scans transcript messages. Deleting a scheduled command chip cancels its event.
+A timeout is tied to the exact active stream and is cancelled if that turn
+finishes first. Auto-compact remains armed across a stopped invoke, and fires
+after either successful invoke completion or a fatal invoke error.
 
 The command palette and the agent combobox score cmdk `keywords` rather than
 the option's `value` (`lib/command-filter.ts`), so an opaque id can never
@@ -1005,8 +1023,10 @@ Key backend domains:
 
 - `model/chat`: message sends, user shell commands, command invocation and
   queueing, stream reservation, queries/windowing, search, approvals, controls,
-  starters, identities, retry/version selection, injected notes, reminders, and
-  segment-scoped evaluation
+  scheduled-command dispatch, starters, identities, retry/version selection,
+  injected notes, reminders, and segment-scoped evaluation
+- `model/scheduledEvents`: indexed one-shot event replacement, consumption,
+  failure, chip updates, scheduler cancellation, and session/message cleanup
 - `model/session`: session creation/listing/update/removal, the `sessionState`
   side table, memberships, sharing, workspace metadata, the denormalized active
   model, title generation, archive import/export, session agents, request logs,
@@ -1130,6 +1150,10 @@ The stream action flow is:
    approval, schedules a provider-rate-limit retry, or fails with sanitized
    metadata — writing error/usage metadata to both the segment row and the
    doc's accumulated metadata.
+8. Stream-terminal hooks cancel obsolete timeout events and dispatch an armed
+   auto-compaction. A successful source invoke defers its ordinary follow-up
+   until compaction succeeds; a fatal source invoke compacts without creating a
+   follow-up. A stopped invoke leaves auto-compaction armed for the next one.
 
 Important stream behavior:
 
@@ -1140,6 +1164,10 @@ Important stream behavior:
   longer lease.
 - Stopped streams finalize the turn, preserve retry errors, kill foreground
   shell jobs, and remove the stream row.
+- Timed stops are graceful: an in-flight provider/tool step may finish, then
+  the engine stops atomically before another step, retry, approval park, or
+  action handoff. Pending, retrying, and parked streams stop immediately. If
+  the completed step naturally ends the whole turn, it completes normally.
 - Completed invoke streams update activity, schedule title generation, drain
   the session's command queue, and may reserve a follow-up turn if a user
   message arrived during the previous agent response (suppressible via
@@ -1153,6 +1181,10 @@ Important stream behavior:
   `retry` streams when it has any content across its segments (`withParts`
   concatenates them), preserving approved tool calls across retry/continue
   steps and across segment boundaries.
+- Auto-compaction records the source turn's logical boundary on its summary,
+  so user messages arriving after that source remain after the summary even
+  though the summary row itself is created later. Failed or stopped compaction
+  is demoted and schedules nothing further.
 
 ## Prompt and Tool Snapshotting
 

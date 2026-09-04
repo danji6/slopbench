@@ -81,6 +81,8 @@ export async function _stream(
 
   try {
     for (let step = 0; step < MAX_STEPS; step++) {
+      if (await honorSoftStop(ctx, streamId)) return
+
       // Hand off between steps to stay below the deadline
       if (Date.now() >= windowDeadline) {
         await ctx.runMutation(internal.streams._handoff, { streamId })
@@ -116,6 +118,10 @@ export async function _stream(
         warnings: hasOutput.warnings,
         usage,
       })
+
+      // A final provider step is still a normal completion. Otherwise stop at
+      // this safe seam before suspending, retrying, or starting another step.
+      if (shouldContinue && (await honorSoftStop(ctx, streamId))) return
 
       if (awaitingApproval || awaitingQuestions || awaitingTasks) {
         const suspended = await ctx.runMutation(internal.streams._suspendStep, {
@@ -154,6 +160,10 @@ export async function _stream(
 
     hasGeneratedOutput = hasGeneratedOutput || (failure?.hasOutput ?? false)
 
+    // Once the timeout has elapsed, provider errors do not start another
+    // attempt or handoff; preserve the completed part of the step and stop.
+    if (await honorSoftStop(ctx, streamId)) return
+
     if (failure?.deadlineHit) {
       // Our own time window elapsed, hand off the turn
       await ctx.runMutation(internal.streams._handoff, { streamId })
@@ -185,6 +195,10 @@ export async function _stream(
       message: sanitizeChatError(error),
     })
   }
+}
+
+function honorSoftStop(ctx: ActionCtx, streamId: Id<'streams'>) {
+  return ctx.runMutation(internal.streams._honorSoftStop, { streamId })
 }
 
 function recordStep(

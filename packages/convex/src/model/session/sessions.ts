@@ -28,6 +28,7 @@ import {
   getBySession as getPlan,
   upsert as upsertPlan,
 } from '../plans'
+import { cancelForSession as cancelScheduledEvents } from '../scheduledEvents'
 import {
   ensureForUser as ensureSettingsForUser,
   getByOwnerId as getSettings,
@@ -545,6 +546,7 @@ export async function remove(
 ) {
   await requireOwner(ctx, sessionId, ctx.userId)
   await stopForSession(ctx, sessionId)
+  await cancelScheduledEvents(ctx, sessionId)
 
   // Read before the state row is deleted below
   const log = (await getState(ctx, sessionId))?.log

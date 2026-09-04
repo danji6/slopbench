@@ -94,6 +94,8 @@ function ChatSessionContent({
   const invokeAgent = useMutation(api.chat.invokeAgent)
   const resumeAgentMessage = useMutation(api.chat.resumeAgentMessage)
   const impersonate = useMutation(api.chat.impersonate)
+  const timeout = useMutation(api.chat.timeout)
+  const autoCompact = useMutation(api.chat.autoCompact)
   const resetSessionCache = useMutation(api.chat.resetSessionCache)
   const pendingProcessed = useRef(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
@@ -170,6 +172,14 @@ function ChatSessionContent({
         case 'compact':
           await compact(argument).catch(handleError)
           break
+        case 'timeout':
+          await timeout({ sessionId: session._id, duration: argument }).catch(
+            handleError,
+          )
+          break
+        case 'autoCompact':
+          await autoCompact({ sessionId: session._id }).catch(handleError)
+          break
         case 'plan':
           await toggleMode('plan').catch(handleError)
           break
@@ -218,6 +228,8 @@ function ChatSessionContent({
     [
       session,
       compact,
+      timeout,
+      autoCompact,
       toggleMode,
       resumeAgentMessage,
       impersonate,

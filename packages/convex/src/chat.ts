@@ -95,6 +95,16 @@ export const compact = authMutation({
   handler: Chat.compact,
 })
 
+export const timeout = authMutation({
+  args: { sessionId: v.id('sessions'), duration: v.string() },
+  handler: Chat.timeout,
+})
+
+export const autoCompact = authMutation({
+  args: { sessionId: v.id('sessions') },
+  handler: Chat.autoCompact,
+})
+
 export const impersonate = authMutation({
   args: {
     sessionId: v.id('sessions'),
@@ -146,6 +156,11 @@ export const listMessageVersions = authQuery({
 export const _drainCommandQueue = internalMutation({
   args: { sessionId: v.id('sessions') },
   handler: Chat.drainCommandQueue,
+})
+
+export const _runScheduledEvent = internalMutation({
+  args: { eventId: v.id('scheduledEvents') },
+  handler: Chat.runScheduledEvent,
 })
 
 export const _getMessageEvalContext = internalQuery({

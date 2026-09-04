@@ -165,6 +165,8 @@ export const messageSchema = v.object({
   hidden: v.optional(v.boolean()),
   /** Extra payload keyed by `type` (see MessageExtra). */
   extra: v.optional(V.messageExtraValidator),
+  /** Last transcript row represented by a completed summary. */
+  summaryBoundaryCreationTime: v.optional(v.number()),
   selectedVersion: v.number(),
   versionCount: v.number(),
   /** Metadata accumulated in a full turn for the selected version. */
@@ -272,12 +274,29 @@ export const streamSchema = v.object({
   jobId: v.optional(v.id('_scheduled_functions')),
   /** When a pending stream should claim. */
   fireAt: v.optional(v.number()),
+  /** A stop to honor after the current provider step. */
+  stopAt: v.optional(v.number()),
   retryAt: v.optional(v.number()),
   retryError: v.optional(v.string()),
+  /** Preserve the reservation's boundary instead of refreshing it on claim. */
+  preserveContextBoundary: v.optional(v.boolean()),
+  /** Resume a deferred invoke only after this compaction succeeds. */
+  followUpAfterCompact: v.optional(v.boolean()),
   suppressFollowUp: v.optional(v.boolean()),
   /** True for child (sub-agent) streams stopped from above. */
   suppressReport: v.optional(v.boolean()),
   instructions: v.optional(v.string()),
+})
+
+export const scheduledEventSchema = v.object({
+  sessionId: v.id('sessions'),
+  invokedBy: v.id('users'),
+  dedupeKey: V.eventDedupeKeyValidator,
+  trigger: V.eventTriggerValidator,
+  action: V.eventActionValidator,
+  targetStreamId: v.optional(v.id('streams')),
+  messageId: v.id('messages'),
+  jobId: v.optional(v.id('_scheduled_functions')),
 })
 
 /**

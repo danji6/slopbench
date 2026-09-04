@@ -2,15 +2,10 @@ import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import { error, sanitizeChatError } from '../../errors'
 import type { AuthMutationCtx, AuthQueryCtx } from '../../functions'
-import type {
-  CommandName,
-  CommandStatus,
-  MessageExtra,
-  QueuedCommand,
-} from '../../types'
-import { insertMessage } from '../messageContents'
+import type { DeferredCommandName, QueuedCommand } from '../../types'
 import * as Memberships from '../session/memberships'
 import { getState, patchState } from '../session/state'
+import { insertCommandChip, markCommandChip } from './commandChips'
 import { executeEval } from './controls'
 import { executeCompact, executeImpersonate, executeResume } from './send'
 
@@ -18,7 +13,7 @@ import { executeCompact, executeImpersonate, executeResume } from './send'
 const MAX_QUEUED_COMMANDS = 10
 
 type CommandInvocation = {
-  name: CommandName
+  name: DeferredCommandName
   argument?: string
   requestId?: string
 }
@@ -120,7 +115,7 @@ async function invokeCommand(
 }
 
 /** Whether the command creates a new message after its invocation boundary. */
-function commandCreatesMessage(name: CommandName) {
+function commandCreatesMessage(name: DeferredCommandName) {
   return name === 'compact' || name === 'impersonate'
 }
 
@@ -154,10 +149,15 @@ async function runQueuedCommand(
 
   try {
     await executeCommand(ctx, session, entry)
-    if (entry.messageId) await markChip(ctx, entry.messageId, 'ran')
+    if (entry.messageId) await markCommandChip(ctx, entry.messageId, 'ran')
   } catch (err) {
     if (entry.messageId) {
-      await markChip(ctx, entry.messageId, 'failed', sanitizeChatError(err))
+      await markCommandChip(
+        ctx,
+        entry.messageId,
+        'failed',
+        sanitizeChatError(err),
+      )
     }
   }
 }
@@ -177,51 +177,4 @@ function executeCommand(
     case 'eval':
       return executeEval(ctx, session)
   }
-}
-
-/**
- * Announces a command as a hidden, part-less message. Carrying no parts keeps
- * it out of the model's context while the user still sees it as a chip.
- */
-async function insertCommandChip(
-  ctx: MutationCtx,
-  session: Doc<'sessions'>,
-  invokedBy: Id<'users'>,
-  command: CommandInvocation,
-  status: CommandStatus,
-) {
-  const { messageId } = await insertMessage(
-    ctx,
-    {
-      sessionId: session._id,
-      sender: { type: 'user', id: invokedBy },
-      role: 'user',
-      status: 'done',
-      type: 'command',
-      hidden: true,
-      extra: {
-        name: command.name,
-        argument: command.argument,
-        status,
-      } satisfies MessageExtra['command'],
-    },
-    [],
-  )
-
-  return messageId
-}
-
-async function markChip(
-  ctx: MutationCtx,
-  messageId: Id<'messages'>,
-  status: CommandStatus,
-  failure?: string,
-) {
-  const message = await ctx.db.get(messageId)
-  const extra = message?.extra as MessageExtra['command'] | undefined
-  if (!extra) return
-
-  await ctx.db.patch(messageId, {
-    extra: { ...extra, status, ...(failure && { error: failure }) },
-  })
 }

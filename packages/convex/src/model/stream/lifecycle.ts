@@ -15,6 +15,7 @@ import {
 } from '../chat/identities'
 import { clearAnnouncedMode, injectModeNote } from '../chat/notes'
 import { injectDueReminders } from '../chat/reminders'
+import { handleStreamEnd } from '../chat/scheduling'
 import {
   allVersionParts,
   appendSegment,
@@ -42,6 +43,7 @@ import { createPlanLinkPart, getBySession as getPlan } from '../plans'
 import { advanceStepCount, getState, patchState } from '../session/state'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 import { releaseForSession } from '../shellJobs'
+import { honorSoftStop } from './stop'
 import { deliverChildReport } from './subagents'
 import { collectToolOutputStorageIds } from './toolOutput'
 
@@ -80,7 +82,7 @@ export async function _claim(
   let boundaryCreationTime = stream.contextBoundaryCreationTime
   let processingMessageId = stream.processingMessageId
 
-  if (fresh) {
+  if (fresh && !stream.preserveContextBoundary) {
     // Only compute the context boundary for a fresh segment to preserve tool approvals
     const boundary = await latestContextMessage(ctx, stream.sessionId)
     boundaryId = boundary?._id
@@ -131,6 +133,7 @@ export async function _handoff(
 ) {
   const stream = await ctx.db.get(streamId)
   if (!stream || stream.status === 'stopping') return false
+  if (await honorSoftStop(ctx, stream)) return false
 
   const jobId = await ctx.scheduler.runAfter(
     0,
@@ -172,7 +175,15 @@ async function claimFreshTurn(ctx: MutationCtx, stream: Doc<'streams'>) {
     }
   }
 
-  const boundary = await latestContextMessage(ctx, stream.sessionId)
+  const boundary = stream.preserveContextBoundary
+    ? null
+    : await latestContextMessage(ctx, stream.sessionId)
+  const boundaryId = stream.preserveContextBoundary
+    ? stream.contextBoundaryMessageId
+    : boundary?._id
+  const boundaryCreationTime = stream.preserveContextBoundary
+    ? stream.contextBoundaryCreationTime
+    : boundary?._creationTime
   const output = await streamOutputIdentity(ctx, stream)
 
   const { messageId, contentId } = await insertMessage(
@@ -183,6 +194,8 @@ async function claimFreshTurn(ctx: MutationCtx, stream: Doc<'streams'>) {
       role: output.role,
       ...output.identity,
       type: stream.operation === 'compact' ? 'summary' : undefined,
+      summaryBoundaryCreationTime:
+        stream.operation === 'compact' ? boundaryCreationTime : undefined,
       status: 'processing',
     },
     [],
@@ -192,8 +205,8 @@ async function claimFreshTurn(ctx: MutationCtx, stream: Doc<'streams'>) {
     status: 'streaming',
     processingMessageId: messageId,
     processingContentId: contentId,
-    contextBoundaryMessageId: boundary?._id,
-    contextBoundaryCreationTime: boundary?._creationTime,
+    contextBoundaryMessageId: boundaryId,
+    contextBoundaryCreationTime: boundaryCreationTime,
     leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
     jobId: undefined,
     retryAt: undefined,
@@ -205,9 +218,18 @@ async function claimFreshTurn(ctx: MutationCtx, stream: Doc<'streams'>) {
     status: 'streaming' as const,
     processingMessageId: messageId,
     processingContentId: contentId,
-    contextBoundaryMessageId: boundary?._id,
-    contextBoundaryCreationTime: boundary?._creationTime,
+    contextBoundaryMessageId: boundaryId,
+    contextBoundaryCreationTime: boundaryCreationTime,
   }
+}
+
+/** Stops a timed out stream at the seam after its current provider step. */
+export async function _honorSoftStop(
+  ctx: MutationCtx,
+  { streamId }: { streamId: Id<'streams'> },
+) {
+  const stream = await ctx.db.get(streamId)
+  return stream ? honorSoftStop(ctx, stream) : false
 }
 
 function latestContextMessage(ctx: MutationCtx, sessionId: Id<'sessions'>) {
@@ -561,6 +583,7 @@ export async function _complete(
     await cleanUpOffloadedOutputs(ctx, streamId)
     await cleanUpGeneratedAttachments(ctx, streamId)
     await ctx.db.delete(streamId)
+    await handleStreamEnd(ctx, stream, 'complete')
     await scheduleCommandDrain(ctx, stream.sessionId)
     return
   }
@@ -593,6 +616,12 @@ export async function _complete(
   await cleanUpGeneratedAttachments(ctx, streamId)
   await ctx.db.delete(streamId)
 
+  const scheduledCompact = await handleStreamEnd(
+    ctx,
+    stream,
+    'complete',
+  )
+
   await scheduleMessageEval(ctx, {
     messageId: processingMessageId,
     invokerId: stream.invokedBy,
@@ -601,13 +630,15 @@ export async function _complete(
     segmentIndex: row?.segmentIndex ?? 0,
   })
 
-  let followUpReserved = false
+  let followUpReserved = scheduledCompact
   if (stream.operation === 'invoke') {
     await syncActivity(ctx, stream.sessionId, parts)
     await scheduleTitle(ctx, stream.sessionId)
-    if (!stream.suppressFollowUp) {
+    if (!scheduledCompact && !stream.suppressFollowUp) {
       followUpReserved = await reserveFollowUp(ctx, stream)
     }
+  } else if (stream.operation === 'compact' && stream.followUpAfterCompact) {
+    followUpReserved = await reserveFollowUp(ctx, stream)
   } else if (await isLatestRetry(ctx, stream, message)) {
     // A retry of the newest message becomes the session's tail
     await syncActivity(ctx, stream.sessionId, parts)
@@ -700,6 +731,8 @@ export async function _fail(
   await cleanUpGeneratedAttachments(ctx, streamId)
   await ctx.db.delete(streamId)
 
+  await handleStreamEnd(ctx, stream, 'failed')
+
   await notifyAgentEvent(ctx, {
     sessionId: stream.sessionId,
     agentId: stream.agentId,
@@ -723,6 +756,7 @@ export async function _scheduleRetry(
 ) {
   const stream = await ctx.db.get(streamId)
   if (!stream || stream.status === 'stopping') return
+  if (await honorSoftStop(ctx, stream)) return
 
   const jobId = await ctx.scheduler.runAt(
     retryAt,
@@ -754,6 +788,7 @@ export async function _finalizeStopped(
     await cleanUpOffloadedOutputs(ctx, streamId)
     await cleanUpGeneratedAttachments(ctx, streamId)
     await ctx.db.delete(streamId)
+    await handleStreamEnd(ctx, stream, 'stopped')
     await scheduleCommandDrain(ctx, stream.sessionId)
     return
   }
@@ -783,6 +818,8 @@ export async function _finalizeStopped(
   await cleanUpOffloadedOutputs(ctx, streamId)
   await cleanUpGeneratedAttachments(ctx, streamId)
   await ctx.db.delete(streamId)
+
+  await handleStreamEnd(ctx, stream, 'stopped')
 
   await scheduleMessageEval(ctx, {
     messageId: processingMessageId,

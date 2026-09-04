@@ -31,6 +31,7 @@ import {
   STREAM_LEASE_MS,
   reserveInvokeTurn,
 } from './lifecycle'
+import { honorSoftStop } from './stop'
 
 /** Reports stay under the segment split budget. The full transcript lives in the child session. */
 const REPORT_MAX_CHARS = 32 * 1024
@@ -61,6 +62,7 @@ export async function _suspendStep(
   if (!stream || stream.status === 'stopping' || !stream.processingMessageId) {
     return 'abort'
   }
+  if (await honorSoftStop(ctx, stream)) return 'abort'
 
   const session = await ctx.db.get(stream.sessionId)
   const row = await getProcessingSegmentRow(ctx, stream)
