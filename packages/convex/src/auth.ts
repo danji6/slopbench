@@ -43,6 +43,9 @@ export function createAuth(
       requireEmailVerification: false,
       disableSignUp: process.env.DISABLE_SIGNUP === 'true',
     },
+    rateLimit: {
+      enabled: false, // done through our own HTTP handlers
+    },
     plugins: [convex({ authConfig: getAuthConfig(siteUrl) }), username()],
   })
 }

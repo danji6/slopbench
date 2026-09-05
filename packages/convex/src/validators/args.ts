@@ -25,6 +25,12 @@ import {
   toolManifestValidator,
 } from './sub'
 
+export const rateLimitRuleArgsValidator = v.object({
+  key: v.string(),
+  limit: v.number(),
+  windowMs: v.number(),
+})
+
 export const saveSessionCacheArgsValidator = v.object({
   sessionId: v.id('sessions'),
   agentId: v.id('agents'),

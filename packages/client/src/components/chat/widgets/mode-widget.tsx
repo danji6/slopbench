@@ -55,7 +55,7 @@ export function ApprovalModeWidget({
   const Icon = unrestricted ? LockKeyholeOpenIcon : LockKeyholeIcon
 
   return (
-    <QuickTooltip text={label}>
+    <QuickTooltip text={label} className="max-w-dvw">
       <RippleButton
         onClick={() => void Result.from(onToggle).catch()}
         variant="stealth"

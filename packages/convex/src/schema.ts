@@ -16,6 +16,7 @@ import {
   offloadedOutputSchema,
   planSchema,
   promptSchema,
+  rateLimitSchema,
   releaseStateSchema,
   reminderSchema,
   scheduledEventSchema,
@@ -73,6 +74,10 @@ export default defineSchema({
   settings: defineTable(settingsSchema)
     .index('by_ownerId', ['ownerId'])
     .index('by_avatarId', ['avatarId']),
+
+  rateLimits: defineTable(rateLimitSchema)
+    .index('by_key', ['key'])
+    .index('by_expiresAt', ['expiresAt']),
 
   releaseState: defineTable(releaseStateSchema)
     .index('by_key', ['key']),

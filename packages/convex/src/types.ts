@@ -75,6 +75,7 @@ export type CommandName = Infer<typeof V.commandNameValidator>
 export type DeferredCommandName = Infer<typeof V.deferredCommandNameValidator>
 export type CommandStatus = Infer<typeof V.commandStatusValidator>
 export type QueuedCommand = Infer<typeof V.queuedCommandValidator>
+export type RateLimitRuleArgs = Infer<typeof V.rateLimitRuleArgsValidator>
 
 /** The projection the sidebar renders. */
 export type SessionSummary = Pick<

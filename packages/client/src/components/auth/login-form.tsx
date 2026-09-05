@@ -6,8 +6,10 @@ import {
   LoadingButton,
   RippleButton,
 } from '@/components/ui'
+import { useCountdown } from '@/hooks/countdown'
 import { signIn, signUp } from '@/lib/auth/client'
 import { extractErrorMessage } from '@/lib/errors'
+import { cn } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import { useQuery } from 'convex/react'
 import { useState } from 'react'
@@ -19,11 +21,23 @@ export function LoginForm() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null)
 
   const isSignup = mode === 'signup'
+  const remaining = useCountdown(lockedUntil)
+  const locked = remaining > 0
+
+  function lockForRetryWindow({ response }: { response: Response }) {
+    const seconds = retryAfterSeconds(response)
+    if (seconds) setLockedUntil(Date.now() + seconds * 1000)
+  }
+
+  // The lockout window is owned by the server, the form only obeys it
+  const fetchOptions = { onError: lockForRetryWindow }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (locked || loading) return
     setError(null)
     setLoading(true)
     try {
@@ -33,10 +47,11 @@ export function LoginForm() {
           password,
           name: username,
           username,
+          fetchOptions,
         })
         if (res.error) setError(res.error.message ?? 'Sign up failed')
       } else {
-        const res = await signIn.username({ username, password })
+        const res = await signIn.username({ username, password, fetchOptions })
         if (res.error) setError(res.error.message ?? 'Sign in failed')
       }
     } catch (err) {
@@ -95,7 +110,8 @@ export function LoginForm() {
               type="submit"
               variant="primary"
               loading={loading}
-              className="mt-2 w-full"
+              disabled={locked}
+              className={cn(locked && 'opacity-40!')}
             >
               {isSignup ? 'Create account' : 'Sign in'}
             </LoadingButton>
@@ -118,4 +134,10 @@ export function LoginForm() {
       </Card.Root>
     </div>
   )
+}
+
+/** Seconds to wait, as decided by the server after an auth failure. */
+function retryAfterSeconds(response: Response): number {
+  const seconds = Number(response.headers.get('X-Retry-After'))
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : 0
 }

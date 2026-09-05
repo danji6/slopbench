@@ -74,6 +74,15 @@ export const settingsSchema = v.object({
   ...V.settingsMutableFields,
 })
 
+export const rateLimitSchema = v.object({
+  key: v.string(),
+  count: v.number(),
+  limit: v.number(),
+  windowMs: v.number(),
+  startedAt: v.number(),
+  expiresAt: v.number(),
+})
+
 /** A prompt of any kind, kept in a separate table due to its unbounded nature. */
 export const promptSchema = v.object({
   ownerId: v.id('users'),

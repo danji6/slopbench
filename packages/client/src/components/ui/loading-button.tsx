@@ -16,7 +16,7 @@ export function LoadingButton({
     <RippleButton
       disabled={disabled || loading}
       className={cn(
-        'disabled:text-m3-on-tertiary disabled:bg-m3-tertiary gap-0! disabled:opacity-100',
+        'disabled:text-m3-on-tertiary disabled:bg-m3-tertiary gap-0! disabled:opacity-80',
         className,
       )}
       {...props}

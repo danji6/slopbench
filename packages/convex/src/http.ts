@@ -8,6 +8,16 @@ import { uploadAvatar } from './actions/io/avatar'
 import { createAuth } from './auth'
 import { type ErrorPayload, extractErrorMessage } from './errors'
 import { authorizeAdmin } from './functions'
+import {
+  authFailureRateLimit,
+  isAuthFailure,
+  withRetryAfter,
+} from './lib/authFailureRateLimit'
+import {
+  checkRateLimit,
+  clearRateLimit,
+  recordRateLimit,
+} from './lib/rateLimits'
 import { sidecarUrl } from './model/sidecar'
 import { isAllowedOrigin, siteUrl } from './origins'
 
@@ -37,6 +47,7 @@ const corsHeaders = (origin: string | null) => ({
     : {}),
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Expose-Headers': 'X-Retry-After',
   Vary: 'Origin',
 })
 
@@ -47,11 +58,36 @@ const authHandler = httpAction(async (ctx, req) => {
     return new Response(null, { status: 204, headers: corsHeaders(origin) })
   }
 
+  const { ip } = await ctx.meta.getRequestMetadata()
+  const rule = authFailureRateLimit(new URL(req.url).pathname, ip)
+  if (rule) {
+    const status = await checkRateLimit(ctx, rule.key)
+    if (status.limited) {
+      return withRetryAfter(
+        jsonResponse(
+          { message: 'Too many requests. Please try again later.' },
+          429,
+          origin,
+        ),
+        status.retryAfter,
+      )
+    }
+  }
+
   const auth = createAuth(ctx, {
     siteUrl: siteUrl(req.url),
     trustedOrigin: origin,
   })
-  const response = await auth.handler(req)
+  let response = await auth.handler(req)
+
+  if (rule && isAuthFailure(response)) {
+    const status = await recordRateLimit(ctx, rule)
+    if (status.limited) {
+      response = withRetryAfter(response, status.retryAfter)
+    }
+  } else if (rule && response.ok) {
+    await clearRateLimit(ctx, rule.key)
+  }
 
   const headers = new Headers(response.headers)
   for (const [k, v] of Object.entries(corsHeaders(origin))) {
