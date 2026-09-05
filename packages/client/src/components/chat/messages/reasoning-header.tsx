@@ -108,15 +108,17 @@ export function ReasoningHeader({
         style={{ gridTemplateRows: showBody ? '1fr' : '0fr' }}
       >
         <div className="min-h-0 overflow-hidden">
-          <div
-            className="pt-2 wrap-break-word whitespace-pre-wrap opacity-70"
-            style={{
-              fontFamily: 'var(--chat-font-family)',
-              fontSize: 'var(--chat-font-size)',
-            }}
-          >
-            <SmoothText part={part} />
-          </div>
+          {showBody && (
+            <div
+              className="pt-2 wrap-break-word whitespace-pre-wrap opacity-70"
+              style={{
+                fontFamily: 'var(--chat-font-family)',
+                fontSize: 'var(--chat-font-size)',
+              }}
+            >
+              <SmoothText part={part} />
+            </div>
+          )}
         </div>
       </div>
     </div>

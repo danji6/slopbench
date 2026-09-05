@@ -169,6 +169,8 @@ export const messageSchema = v.object({
   summaryBoundaryCreationTime: v.optional(v.number()),
   selectedVersion: v.number(),
   versionCount: v.number(),
+  /** Mutable tail while processing; lets history queries skip hot content. */
+  activeSegmentIndex: v.optional(v.number()),
   /** Metadata accumulated in a full turn for the selected version. */
   metadata: v.optional(V.messageMetaValidator),
 })

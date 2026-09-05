@@ -75,7 +75,18 @@ const EMPTY_TAIL: JobTail = {
 }
 
 // Cache tails to keep the DOM stable
+const MAX_CACHED_TAILS = 32
 const tailCache = new Map<string, JobTail>()
+
+function cacheTail(key: string, tail: JobTail) {
+  tailCache.delete(key)
+  tailCache.set(key, tail)
+  while (tailCache.size > MAX_CACHED_TAILS) {
+    const oldest = tailCache.keys().next().value
+    if (oldest === undefined) break
+    tailCache.delete(oldest)
+  }
+}
 
 /**
  * Tails a running job's output via SSE stream proxied by Convex.
@@ -104,7 +115,7 @@ export function useJobTail(
 
     const update = (next: JobTail) => {
       const prev = tailCache.get(key)
-      tailCache.set(key, next)
+      cacheTail(key, next)
 
       // Skip re-renders when nothing changed
       if (

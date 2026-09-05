@@ -45,6 +45,8 @@ function StreamingCodeBlock({
       : getCachedHighlight(text, language)
 
   useEffect(() => {
+    // Highlight only once the block is stable
+    if (cursor) return
     if (getCachedHighlight(text, language)) return
 
     let mounted = true
@@ -60,7 +62,7 @@ function StreamingCodeBlock({
       mounted = false
       clearTimeout(timeout)
     }
-  }, [text, language])
+  }, [text, language, cursor])
 
   if (!html) {
     return (

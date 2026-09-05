@@ -22,6 +22,10 @@ function fakeCtx(segmentRows: Row[]) {
             captured[field] = value
             return q
           },
+          lt: (field: string, value: unknown) => {
+            captured[`lt:${field}`] = value
+            return q
+          },
         }
         return {
           withIndex: (_index: string, fn: (query: typeof q) => typeof q) => {
@@ -32,7 +36,10 @@ function fakeCtx(segmentRows: Row[]) {
                   .filter(
                     (row) =>
                       row.messageId === captured.messageId &&
-                      row.version === captured.version,
+                      row.version === captured.version &&
+                      (captured['lt:segmentIndex'] === undefined ||
+                        row.segmentIndex <
+                          (captured['lt:segmentIndex'] as number)),
                   )
                   .sort((a, b) => a.segmentIndex - b.segmentIndex),
             }
@@ -45,6 +52,15 @@ function fakeCtx(segmentRows: Row[]) {
 
 const doc = (id: string) =>
   ({ _id: id, selectedVersion: 1 }) as unknown as Doc<'messages'>
+
+const processingDoc = (id: string, activeSegmentIndex: number) =>
+  ({
+    _id: id,
+    sessionId: 's_1',
+    selectedVersion: 1,
+    status: 'processing',
+    activeSegmentIndex,
+  }) as unknown as Doc<'messages'>
 
 const text = (value: string) => ({ type: 'text', text: value })
 const partSize = serializedSize([text('xxxx')])
@@ -71,6 +87,29 @@ describe('joinSegmentsWithinBudget', () => {
     expect(messages[0].sizeBytes).toBe(partSize * 2)
     expect(messages[0].hasOlderSegments).toBe(false)
     expect(messages[0].hasNewerSegments).toBe(false)
+  })
+
+  test('replaces a processing tail with a stable live placeholder', async () => {
+    const ctx = fakeCtx([
+      segment('m_1', 0),
+      { ...segment('m_1', 1), parts: [text('mutable')] },
+    ])
+
+    const { messages } = await joinSegmentsWithinBudget(
+      ctx,
+      [processingDoc('m_1', 1)],
+      1000,
+      { direction: 'newer' },
+    )
+
+    expect(messages[0].segments).toEqual([
+      {
+        segmentIndex: 0,
+        parts: [text('xxxx')],
+        sizeBytes: partSize,
+      },
+      { segmentIndex: 1, parts: [], sizeBytes: 2, live: true },
+    ])
   })
 
   test('an older-edge budget stop keeps the newest segments', async () => {

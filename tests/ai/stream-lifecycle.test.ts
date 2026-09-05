@@ -513,8 +513,11 @@ describe('_continue', () => {
       segmentIndex: 1,
       parts: [],
     })
-    // The doc stays processing and the context boundary doesn't move
-    expect(patches.some(({ id }) => id === 'message_1')).toBe(false)
+    // The doc stays processing and exposes the new mutable tail to readers
+    expect(patches).toContainEqual({
+      id: 'message_1',
+      patch: { activeSegmentIndex: 1 },
+    })
     expect(patches).toContainEqual({
       id: 'stream_1',
       patch: expect.objectContaining({

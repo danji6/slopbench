@@ -3,6 +3,7 @@ import type { WorkerApi } from '@/workers'
 
 import { isClient } from '../utils'
 import { runDiffHighlighter, runHighlighter } from './core'
+import { StringCache } from './string-cache'
 
 let worker: WorkerApi<ShikiWorkerApi> | null = null
 
@@ -12,7 +13,10 @@ function getWorker(): WorkerApi<ShikiWorkerApi> {
 }
 
 const MAX_CACHE_ENTRIES = 500
-const cache = new Map<string, string>()
+const MAX_CACHE_BYTES = 16 * 1024 * 1024
+const cache = new StringCache(MAX_CACHE_ENTRIES, MAX_CACHE_BYTES)
+const inFlight = new Map<string, Promise<string>>()
+let workerQueue: Promise<unknown> = Promise.resolve()
 
 /** Synchronously returns a previously highlighted result, if any. */
 export function getCachedHighlight(
@@ -27,35 +31,55 @@ export function getCachedHighlight(
 export async function highlight(code: string, lang: string = 'typescript') {
   const key = cacheKey(code, lang, false)
   const cached = cache.get(key)
-  if (cached) return cached
+  if (cached !== undefined) return cached
 
-  const result = isClient
-    ? await getWorker().api.highlight(code, lang)
-    : await runHighlighter(code, lang)
-  setCached(key, result)
-  return result
+  return runOnce(key, () =>
+    isClient
+      ? getWorker().api.highlight(code, lang)
+      : runHighlighter(code, lang),
+  )
 }
 
 export async function highlightDiff(diff: string, lang?: string) {
   const key = cacheKey(diff, lang, true)
   const cached = cache.get(key)
-  if (cached) return cached
+  if (cached !== undefined) return cached
 
-  const result = isClient
-    ? await getWorker().api.highlightDiff(diff, lang)
-    : await runDiffHighlighter(diff, lang)
-  setCached(key, result)
-  return result
+  return runOnce(key, () =>
+    isClient
+      ? getWorker().api.highlightDiff(diff, lang)
+      : runDiffHighlighter(diff, lang),
+  )
 }
 
 function cacheKey(code: string, lang: string | undefined, diff: boolean) {
   return `${diff ? 'd' : 'c'}\0${lang ?? ''}\0${code}`
 }
 
-function setCached(key: string, value: string) {
-  if (cache.size >= MAX_CACHE_ENTRIES) {
-    const oldest = cache.keys().next().value
-    if (oldest !== undefined) cache.delete(oldest)
-  }
-  cache.set(key, value)
+function runOnce(key: string, run: () => Promise<string>): Promise<string> {
+  const pending = inFlight.get(key)
+  if (pending) return pending
+
+  const promise = schedule(run)
+    .then((result) => {
+      cache.set(key, result)
+      return result
+    })
+    .finally(() => {
+      inFlight.delete(key)
+    })
+
+  inFlight.set(key, promise)
+  return promise
+}
+
+function schedule(run: () => Promise<string>) {
+  if (!isClient) return run()
+
+  // A single worker cannot execute highlights concurrently. Serialize calls
+  // here so the browser doesn't retain a native structured clone buffer for
+  // every code block while those calls wait in the worker's message queue.
+  const result = workerQueue.then(run, run)
+  workerQueue = result.catch(() => undefined)
+  return result
 }

@@ -62,6 +62,23 @@ export function listSelectedSegments(ctx: QueryCtx, message: Doc<'messages'>) {
   return listSegments(ctx, message._id, message.selectedVersion)
 }
 
+/** Stable rows before a processing message's mutable tail. */
+export function listSegmentsBefore(
+  ctx: QueryCtx,
+  message: Doc<'messages'>,
+  segmentIndex: number,
+) {
+  return ctx.db
+    .query('messageContents')
+    .withIndex('by_messageId_version_segment', (q) =>
+      q
+        .eq('messageId', message._id)
+        .eq('version', message.selectedVersion)
+        .lt('segmentIndex', segmentIndex),
+    )
+    .collect()
+}
+
 /** The last segment row of the selected version (the one a stream writes to). */
 export function getActiveSegmentRow(ctx: QueryCtx, message: Doc<'messages'>) {
   return ctx.db
@@ -154,6 +171,9 @@ export async function insertMessage(
     ...fields,
     selectedVersion: 1,
     versionCount: 1,
+    ...(fields.status === 'processing' && {
+      activeSegmentIndex: segments.length - 1,
+    }),
     contextEligible: isContextEligible(parts),
   })
 
@@ -227,17 +247,20 @@ export async function addVersion(
 }
 
 /** Appends an empty segment after the active one (used by the byte-cap split). */
-export function appendSegment(
+export async function appendSegment(
   ctx: MutationCtx,
   activeRow: Doc<'messageContents'>,
 ) {
-  return ctx.db.insert('messageContents', {
+  const segmentIndex = activeRow.segmentIndex + 1
+  const contentId = await ctx.db.insert('messageContents', {
     messageId: activeRow.messageId,
     sessionId: activeRow.sessionId,
     version: activeRow.version,
-    segmentIndex: activeRow.segmentIndex + 1,
+    segmentIndex,
     parts: [],
   })
+  await ctx.db.patch(activeRow.messageId, { activeSegmentIndex: segmentIndex })
+  return contentId
 }
 
 /** Streams a segment row's parts, re-deriving the doc's eligibility cheaply. */
@@ -248,10 +271,11 @@ export async function patchSegmentParts(
   parts: unknown[],
 ) {
   await ctx.db.patch(row._id, { parts })
-  await ctx.db.patch(messageId, {
-    // Earlier sealed segments always carry parts
-    contextEligible: row.segmentIndex > 0 || isContextEligible(parts),
-  })
+  const contextEligible = row.segmentIndex > 0 || isContextEligible(parts)
+  const message = await ctx.db.get(messageId)
+  if (message && message.contextEligible !== contextEligible) {
+    await ctx.db.patch(messageId, { contextEligible })
+  }
 }
 
 /** Writes a segment's final parts, search text and metadata slice. */

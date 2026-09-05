@@ -1,7 +1,11 @@
+import {
+  MESSAGE_WINDOW_BUDGET_BYTES,
+  MESSAGE_WINDOW_MAX_ROWS,
+} from '@sb/core/const'
 import type { UIMessage } from 'ai'
 import { dequal } from 'dequal'
 
-import { mergeRetained } from './message-merge'
+import { limitRetained, mergeRetained } from './message-merge'
 import { type MessageRow, buildRows, rowKeysEqual } from './rows'
 import type { MessageRecord, PartMetadata } from './types'
 
@@ -136,9 +140,15 @@ export function createMessageStore() {
     lastResetKey = input.resetKey
 
     const merged = merge
-      ? mergeRetained(
-          { ids, messagesById, messageMetaByMessage, partMetaByMessage },
-          input,
+      ? limitRetained(
+          mergeRetained(
+            { ids, messagesById, messageMetaByMessage, partMetaByMessage },
+            input,
+          ),
+          {
+            maxBytes: MESSAGE_WINDOW_BUDGET_BYTES,
+            maxMessages: MESSAGE_WINDOW_MAX_ROWS,
+          },
         )
       : input
 

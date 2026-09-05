@@ -4,6 +4,7 @@ import {
   createMessageStore,
 } from '@sb/client/lib/chat/message-store'
 import type { MessageRecord, PartMetadata } from '@sb/client/lib/chat/types'
+import { MESSAGE_PAGE_BUDGET_BYTES } from '@sb/core/const'
 import type { UIMessage } from 'ai'
 import { describe, expect, test } from 'bun:test'
 
@@ -47,6 +48,35 @@ function input(ids: string[]): MessageStoreInput {
     messageMetaByMessage: new Map(ids.map((id) => [id, record(id)])),
     partMetaByMessage: new Map(ids.map((id) => [id, {} as PartMetadata])),
     groupBySender: false,
+  }
+}
+
+function segmentedInput(indices: number[]): MessageStoreInput {
+  const messageId = 'streaming-message'
+  const sizeBytes = indices.length * MESSAGE_PAGE_BUDGET_BYTES
+  return {
+    ...input([messageId]),
+    results: [
+      {
+        ...message(messageId),
+        parts: indices.map((index) => ({ type: 'text', text: String(index) })),
+      },
+    ],
+    messageMetaByMessage: new Map([
+      [
+        messageId,
+        {
+          ...record(messageId),
+          sizeBytes,
+          segments: indices.map((index) => ({
+            index,
+            partCount: 1,
+            sizeBytes: MESSAGE_PAGE_BUDGET_BYTES,
+          })),
+          hasOlderSegments: indices[0] > 0,
+        },
+      ],
+    ]),
   }
 }
 
@@ -99,5 +129,38 @@ describe('message store evict', () => {
     // The live page updates again; A must stay gone
     store.sync(input(['B', 'C', 'D']))
     expect(store.getIds()).toEqual(['B', 'C', 'D'])
+  })
+
+  test('caps messages retained across overlapping live pages', () => {
+    const store = createMessageStore()
+    const initial = Array.from({ length: 160 }, (_, index) => `M${index}`)
+    store.sync(input(initial))
+
+    store.sync(input([...initial.slice(1), 'M160']))
+
+    expect(store.getIds()).toHaveLength(160)
+    expect(store.getIds()[0]).toBe('M1')
+    expect(store.getIds().at(-1)).toBe('M160')
+  })
+
+  test('caps segments retained from one long-running turn', () => {
+    const store = createMessageStore()
+    store.sync(segmentedInput([0, 1, 2, 3]))
+
+    store.sync(segmentedInput([2, 3, 4, 5]))
+
+    expect(store.getMessage('streaming-message')?.parts).toEqual([
+      { type: 'text', text: '2' },
+      { type: 'text', text: '3' },
+      { type: 'text', text: '4' },
+      { type: 'text', text: '5' },
+    ])
+    expect(store.getMessageMetadata('streaming-message')).toMatchObject({
+      hasOlderSegments: true,
+      segments: [{ index: 2 }, { index: 3 }, { index: 4 }, { index: 5 }],
+    })
+    expect(store.getMessageMetadata('streaming-message')?.sizeBytes).toBe(
+      MESSAGE_PAGE_BUDGET_BYTES * 4,
+    )
   })
 })

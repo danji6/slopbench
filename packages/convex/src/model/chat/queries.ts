@@ -10,7 +10,13 @@ import type { PaginationOptions } from 'convex/server'
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { AuthQueryCtx } from '../../functions'
 import schema from '../../schema'
-import { listSelectedSegments, withParts } from '../messageContents'
+import {
+  getActiveSegmentRow,
+  getSegmentRow,
+  listSegmentsBefore,
+  listSelectedSegments,
+  withParts,
+} from '../messageContents'
 import { notACommandChip, textFromParts } from '../messages'
 import * as Memberships from '../session/memberships'
 import { hasOutputRef } from '../stream/toolOutput'
@@ -20,6 +26,8 @@ export type WindowSegment = {
   segmentIndex: number
   parts: unknown[]
   sizeBytes: number
+  /** Placeholder hydrated by the dedicated processing segment query. */
+  live?: boolean
 }
 
 /** A window message carrying an ascending contiguous slice of its segments. */
@@ -40,6 +48,55 @@ export type MessagesWindowResult = {
   hasNewer: boolean
   /** Whether the window is pinned to the newest message (live mode). */
   atTail: boolean
+}
+
+export type ProcessingMessageSegment = {
+  messageId: Id<'messages'>
+  selectedVersion: number
+  segment: WindowSegment
+}
+
+/** The bounded mutable tails excluded from the stable message window. */
+export async function processingMessageSegments(
+  ctx: AuthQueryCtx,
+  { sessionId }: { sessionId: Id<'sessions'> },
+): Promise<ProcessingMessageSegment[]> {
+  const member = await Memberships.getMember(ctx, sessionId, ctx.userId)
+  if (!member) return []
+
+  const messages = await ctx.db
+    .query('messages')
+    .withIndex('by_sessionId_status_contextEligible', (q) =>
+      q.eq('sessionId', sessionId).eq('status', 'processing'),
+    )
+    .collect()
+
+  const segments = await Promise.all(
+    messages.map(async (message) => {
+      const row =
+        message.activeSegmentIndex === undefined
+          ? await getActiveSegmentRow(ctx, message)
+          : await getSegmentRow(
+              ctx,
+              message._id,
+              message.selectedVersion,
+              message.activeSegmentIndex,
+            )
+      if (!row) return null
+      const parts = stripLinkSnapshotParts(row.parts)
+      return {
+        messageId: message._id,
+        selectedVersion: message.selectedVersion,
+        segment: {
+          segmentIndex: row.segmentIndex,
+          parts,
+          sizeBytes: serializedSize(parts),
+        },
+      }
+    }),
+  )
+
+  return segments.filter((segment) => segment !== null)
 }
 
 /** A bounded, reactive slice of a session's messages backed by `getPage`. */
@@ -160,7 +217,25 @@ export async function joinSegmentsWithinBudget(
   for (const [index, row] of rows.entries()) {
     if (exhausted()) return { messages, trimmed: true }
 
-    const allSegments = await listSelectedSegments(ctx, row)
+    const activeSegmentIndex =
+      row.status === 'processing' ? row.activeSegmentIndex : undefined
+    const stableSegments =
+      activeSegmentIndex === undefined
+        ? await listSelectedSegments(ctx, row)
+        : await listSegmentsBefore(ctx, row, activeSegmentIndex)
+    const allSegments =
+      activeSegmentIndex === undefined
+        ? stableSegments
+        : [
+            ...stableSegments,
+            {
+              messageId: row._id,
+              sessionId: row.sessionId,
+              version: row.selectedVersion,
+              segmentIndex: activeSegmentIndex,
+              parts: [],
+            },
+          ]
 
     // The anchor message may enter the page mid message
     const sliced =
@@ -186,7 +261,12 @@ export async function joinSegmentsWithinBudget(
       }
       const parts = stripLinkSnapshotParts(segment.parts)
       const sizeBytes = serializedSize(parts)
-      loaded.push({ segmentIndex: segment.segmentIndex, parts, sizeBytes })
+      loaded.push({
+        segmentIndex: segment.segmentIndex,
+        parts,
+        sizeBytes,
+        ...(segment.segmentIndex === activeSegmentIndex && { live: true }),
+      })
       total += sizeBytes
       loadedCount++
     }

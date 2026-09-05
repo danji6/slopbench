@@ -15,7 +15,8 @@ import type { MessageRecord, PartMetadata } from './types'
 export type Message = UIMessage & { status: 'processing' | 'done' }
 
 type MessageDoc = Doc<'messages'> & {
-  segments: { segmentIndex: number; parts: unknown[] }[]
+  segments: { segmentIndex: number; parts: unknown[]; sizeBytes: number }[]
+  sizeBytes: number
   hasOlderSegments: boolean
   hasNewerSegments: boolean
 }
@@ -66,9 +67,11 @@ function convertDoc(doc: MessageDoc): ConvertedEntry {
       extra: doc.extra,
       selectedVersion: doc.selectedVersion,
       versionCount: doc.versionCount,
+      sizeBytes: doc.sizeBytes,
       segments: doc.segments.map((segment) => ({
         index: segment.segmentIndex,
         partCount: segment.parts.length,
+        sizeBytes: segment.sizeBytes,
       })),
       hasOlderSegments: doc.hasOlderSegments,
       hasNewerSegments: doc.hasNewerSegments,

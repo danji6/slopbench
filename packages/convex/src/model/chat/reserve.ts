@@ -179,6 +179,7 @@ export async function reserveResumableStream(
 
   await ctx.db.patch(args.messageId, {
     status: 'processing',
+    activeSegmentIndex: active?.segmentIndex ?? 0,
     metadata: stripMessageError(message.metadata),
   })
   if (active) {
@@ -250,7 +251,10 @@ export async function reserveRetryStream(
     message,
     identity: await agentIdentity(ctx, agent, agentSettings),
   })
-  await ctx.db.patch(args.messageId, { status: 'processing' })
+  await ctx.db.patch(args.messageId, {
+    status: 'processing',
+    activeSegmentIndex: 0,
+  })
 
   const streamId = await ctx.db.insert('streams', {
     sessionId: args.sessionId,

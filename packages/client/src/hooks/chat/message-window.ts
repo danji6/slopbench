@@ -1,3 +1,4 @@
+import { hydrateLiveSegments } from '@/lib/chat/live-segments'
 import type {
   MessageWindowMetadata,
   WindowAnchor,
@@ -99,6 +100,10 @@ export function useMessageWindow(
   }, [sessionId, state])
 
   const result = useQuery(api.chat.messagesWindow, args)
+  const liveSegments = useQuery(
+    api.chat.processingMessageSegments,
+    sessionId ? { sessionId } : 'skip',
+  )
 
   const [held, setHeld] = useState<{
     session: Id<'sessions'> | null
@@ -135,10 +140,10 @@ export function useMessageWindow(
   const messages = useMemo(() => {
     const page = data?.page
     if (!page) return []
-    return state.kind === 'live'
-      ? sliceTailByBudget(page, state.capBytes)
-      : page
-  }, [data, state])
+    const sliced =
+      state.kind === 'live' ? sliceTailByBudget(page, state.capBytes) : page
+    return hydrateLiveSegments(sliced, liveSegments ?? [])
+  }, [data, state, liveSegments])
 
   const keyOf = useCallback(
     (msg: WindowAnchor): AnchorKey | null =>

@@ -12,6 +12,11 @@ export const messagesWindow = authQuery({
   handler: Chat.messagesWindow,
 })
 
+export const processingMessageSegments = authQuery({
+  args: { sessionId: v.id('sessions') },
+  handler: Chat.processingMessageSegments,
+})
+
 export const listFirstHumanMessage = authQuery({
   args: { sessionId: v.id('sessions') },
   handler: Chat.listFirstHumanMessage,

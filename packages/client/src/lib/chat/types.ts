@@ -67,6 +67,8 @@ export type MessageSegmentInfo = {
   index: number
   /** How many of the message's flattened parts belong to this segment. */
   partCount: number
+  /** Serialized size of the segment's parts. */
+  sizeBytes: number
 }
 
 export type MessageRecord = Pick<
@@ -83,6 +85,8 @@ export type MessageRecord = Pick<
   | '_creationTime'
 > & {
   metadata?: Pick<MessageMetadata, 'error' | 'warnings' | 'usage'>
+  /** Sum of the loaded segments' serialized sizes. */
+  sizeBytes: number
   segments: MessageSegmentInfo[]
   /** Whether older segments of this message exist but aren't loaded. */
   hasOlderSegments: boolean

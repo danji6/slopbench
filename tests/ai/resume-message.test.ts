@@ -164,7 +164,11 @@ describe('executeResume', () => {
     expect(streamId).toBe('streams_1' as never)
     expect(patches).toContainEqual({
       id: 'assistant_1',
-      patch: { status: 'processing', metadata: { duration: 100 } },
+      patch: {
+        status: 'processing',
+        activeSegmentIndex: 0,
+        metadata: { duration: 100 },
+      },
     })
     expect(inserts).toContainEqual({
       table: 'streams',

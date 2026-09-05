@@ -1,6 +1,7 @@
 /// <reference types="bun-types" />
 import {
   type RetainedState,
+  limitRetained,
   mergeRetained,
 } from '@sb/client/lib/chat/message-merge'
 import type { MessageRecord, PartMetadata } from '@sb/client/lib/chat/types'
@@ -12,7 +13,8 @@ const record = (id: string): MessageRecord =>
   ({
     sender: { type: 'user', id },
     selectedVersion: 1,
-    segments: [{ index: 0, partCount: 0 }],
+    sizeBytes: 0,
+    segments: [{ index: 0, partCount: 0, sizeBytes: 0 }],
     hasOlderSegments: false,
     hasNewerSegments: false,
   }) as unknown as MessageRecord
@@ -104,9 +106,14 @@ describe('mergeRetained boundary segments', () => {
       record: {
         sender: { type: 'agent', id: 'agent_1' },
         selectedVersion: 1,
+        sizeBytes: slices.reduce(
+          (sum, slice) => sum + slice.texts.join('').length,
+          0,
+        ),
         segments: slices.map((slice) => ({
           index: slice.index,
           partCount: slice.texts.length,
+          sizeBytes: slice.texts.join('').length,
         })),
         hasOlderSegments: false,
         hasNewerSegments: false,
@@ -115,7 +122,9 @@ describe('mergeRetained boundary segments', () => {
     }
   }
 
-  function stateFor(entries: Array<[string, ReturnType<typeof segmented>]>) {
+  function stateFor(
+    entries: ReadonlyArray<readonly [string, ReturnType<typeof segmented>]>,
+  ) {
     const retainedState: RetainedState = {
       ids: entries.map(([id]) => id),
       messagesById: new Map(entries.map(([id, e]) => [id, e.message])),
@@ -125,7 +134,9 @@ describe('mergeRetained boundary segments', () => {
     return retainedState
   }
 
-  function inputFor(entries: Array<[string, ReturnType<typeof segmented>]>) {
+  function inputFor(
+    entries: ReadonlyArray<readonly [string, ReturnType<typeof segmented>]>,
+  ) {
     return {
       results: entries.map(([, e]) => e.message),
       messageMetaByMessage: new Map(entries.map(([id, e]) => [id, e.record])),
@@ -165,9 +176,9 @@ describe('mergeRetained boundary segments', () => {
       merged.results[0].parts.map((p) => (p as { text: string }).text),
     ).toEqual(['a', 'b', 'c', 'd'])
     expect(merged.messageMetaByMessage.get('S')?.segments).toEqual([
-      { index: 0, partCount: 2 },
-      { index: 1, partCount: 1 },
-      { index: 2, partCount: 1 },
+      { index: 0, partCount: 2, sizeBytes: 2 },
+      { index: 1, partCount: 1, sizeBytes: 1 },
+      { index: 2, partCount: 1, sizeBytes: 1 },
     ])
     // The retained set had the turn's start loaded
     expect(merged.messageMetaByMessage.get('S')?.hasOlderSegments).toBe(false)
@@ -198,7 +209,7 @@ describe('mergeRetained boundary segments', () => {
       merged.results[0].parts.map((p) => (p as { text: string }).text),
     ).toEqual(['regenerated'])
     expect(merged.messageMetaByMessage.get('S')?.segments).toEqual([
-      { index: 0, partCount: 1 },
+      { index: 0, partCount: 1, sizeBytes: 11 },
     ])
   })
 
@@ -213,5 +224,61 @@ describe('mergeRetained boundary segments', () => {
     const merged = mergeRetained(prev, next)
 
     expect(merged).toBe(next)
+  })
+
+  describe('limitRetained', () => {
+    test('drops the oldest messages once the retained byte budget is full', () => {
+      const entries = ['A', 'B', 'C'].map(
+        (id) =>
+          [id, segmented(id, [{ index: 0, texts: [id.repeat(4)] }])] as const,
+      )
+
+      const limited = limitRetained(inputFor(entries), {
+        maxBytes: 8,
+        maxMessages: 10,
+      })
+
+      expect(idsOf(limited)).toEqual(['B', 'C'])
+      expect([...limited.messageMetaByMessage]).toHaveLength(2)
+      expect([...limited.partMetaByMessage]).toHaveLength(2)
+    })
+
+    test('trims old segments from a single long-running turn', () => {
+      const longTurn = segmented('S', [
+        { index: 0, texts: ['aa', 'bb'] },
+        { index: 1, texts: ['cccc'] },
+        { index: 2, texts: ['dddd'] },
+      ])
+
+      const limited = limitRetained(inputFor([['S', longTurn]]), {
+        maxBytes: 8,
+        maxMessages: 10,
+      })
+
+      expect(limited.results[0].parts).toEqual([
+        { type: 'text', text: 'cccc' },
+        { type: 'text', text: 'dddd' },
+      ])
+      expect(limited.messageMetaByMessage.get('S')).toMatchObject({
+        sizeBytes: 8,
+        hasOlderSegments: true,
+        segments: [
+          { index: 1, partCount: 1, sizeBytes: 4 },
+          { index: 2, partCount: 1, sizeBytes: 4 },
+        ],
+      })
+    })
+
+    test('keeps one oversized newest segment so the window is never empty', () => {
+      const latest = segmented('S', [{ index: 0, texts: ['oversized'] }])
+
+      const limited = limitRetained(inputFor([['S', latest]]), {
+        maxBytes: 1,
+        maxMessages: 10,
+      })
+
+      expect(idsOf(limited)).toEqual(['S'])
+      expect(limited.results[0].parts).toHaveLength(1)
+    })
   })
 })
