@@ -1,13 +1,18 @@
 'use node'
 
 import { hasPendingQuestions } from '@sb/core/utils/ask'
+import { pathApprovalStatus } from '@sb/core/workspace/path-policy'
 import type { UIMessage } from 'ai'
 
 import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { sanitizeChatError } from '../../errors'
-import { hasPendingTaskParts } from '../../lib/subagent'
+import { hasPendingTaskParts, sharedSessionId } from '../../lib/subagent'
+import {
+  analyzeShellPathCandidates,
+  mergeToolApprovals,
+} from '../../lib/tool/approval'
 import { applyPromptCaching } from '../../model/provider/cache'
 import { getProviderOptions } from '../../model/provider/options'
 import { findCredentialsForModel } from '../../model/provider/providers'
@@ -33,7 +38,7 @@ import {
 } from '../../model/stream/toolOutput'
 import { stopWhenInactive } from '../../model/stream/transformers'
 import { resolveUsage } from '../../model/stream/usage'
-import { getFlaggedPaths } from '../../model/tool/shellTools'
+import { checkToolPaths } from '../../model/tool/paths'
 import type { ReasoningEffort } from '../../types'
 import { buildEvalContext } from './evalContext'
 import {
@@ -300,6 +305,7 @@ async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
     agent: data.agent,
     output: data.output,
     workspace: data.session.workspace,
+    workspaceSessionId: sharedSessionId(data.session),
     isSubagent: !!data.session.parent,
     evalResult,
     systemPrompt: request.systemPrompt,
@@ -474,7 +480,7 @@ async function consumeProviderStep(
     const awaitingTasks = hasPendingTaskParts(latestParts)
     // Sub-agent approvals are auto-denied
     if (awaitingApproval && !setup.isSubagent) {
-      latestParts = await attachApprovalPreviews(setup, latestParts)
+      latestParts = await attachApprovalPreviews(ctx, setup, latestParts)
     }
     await patchMessage(ctx, streamId, latestParts)
 
@@ -706,20 +712,35 @@ function hasAwaitingApproval(parts: UIMessage['parts']) {
 
 const FILE_MUTATION_TOOL_TYPES = new Set(['tool-write_file', 'tool-edit_file'])
 
-type ApprovalContext = { sessionId: Id<'sessions'>; workspaceId: string }
+type ApprovalContext = {
+  sessionId: Id<'sessions'>
+  workspaceId: string
+  allowedPaths?: string[]
+}
 
 /**
  * Attach what an approval request needs beyond its input: a simulated diff for
  * file mutations, and the sensitive paths a shell command references.
  */
 async function attachApprovalPreviews(
+  ctx: ActionCtx,
   setup: NonNullable<Awaited<ReturnType<typeof prepare>>>,
   parts: UIMessage['parts'],
 ): Promise<UIMessage['parts']> {
   const workspaceId = setup.workspace?.workspaceId
   if (!workspaceId) return parts
 
-  const context = { sessionId: setup.stream.sessionId, workspaceId }
+  const approvals = await ctx.runQuery(internal.sessions._getApprovals, {
+    sessionId: setup.stream.sessionId,
+  })
+  const context = {
+    sessionId: setup.workspaceSessionId,
+    workspaceId,
+    allowedPaths: mergeToolApprovals(
+      approvals ?? undefined,
+      setup.agent.autoApprove,
+    )?.paths,
+  }
   const result = await Promise.all(
     parts.map((part) => {
       if ((part as { state?: string }).state !== 'approval-requested') {
@@ -771,9 +792,18 @@ async function withApprovalPaths(
   const command = (part as { input?: { command?: string } }).input?.command
   if (typeof command !== 'string') return part
 
-  const flagged = await getFlaggedPaths(command, context)
-  if (!flagged?.length) return part
-  return { ...part, approvalPaths: flagged }
+  const { candidates, complete } = analyzeShellPathCandidates(command)
+  const result = complete
+    ? await checkToolPaths(candidates, context, context.allowedPaths)
+    : null
+
+  return {
+    ...part,
+    approvalPathStatus: pathApprovalStatus(result),
+    ...(result?.complete && result.uncovered.length
+      ? { approvalPaths: result.uncovered }
+      : {}),
+  }
 }
 
 async function patchMessage(

@@ -7,32 +7,31 @@ import {
   restoreLineEndings,
   stripBom,
 } from '@sb/core/workspace/edit'
-import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import {
   mkdir,
   readFile,
   realpath,
-  rename,
   rm,
   stat,
   writeFile,
 } from 'node:fs/promises'
 import path from 'node:path'
-import { glob } from 'tinyglobby'
 import { z } from 'zod'
 
+import { assertCheckpointTarget, resolveToolPath } from './access'
+import { checkPaths } from './check-paths'
 import { runCommand } from './command'
-import { assertInside, expandHome } from './paths'
+import { expandHome } from './paths'
+import {
+  createCheckpoint,
+  readSnapshot,
+  readStore,
+  updateStore,
+  withFileQueue,
+} from './store'
 
-const DATA_DIR = process.env.CHAT_SIDECAR_DATA_DIR
-if (!DATA_DIR) throw new Error('Sidecar data directory must be set.')
-
-const STORE_PATH =
-  process.env.CHAT_WORKSPACE_STORE ?? path.join(DATA_DIR, 'workspaces.json')
-
-const CHECKPOINT_DIR =
-  process.env.CHAT_WORKSPACE_CHECKPOINTS ?? path.join(DATA_DIR, 'checkpoints')
+export type { WorkspaceRef } from './store'
 
 const MAX_READ_BYTES = 50_000
 
@@ -55,43 +54,12 @@ export const previewDiffSchema = z.object({
   sessionId: z.string(),
   workspaceId: z.string(),
   filePath: z.string(),
+  allowedPaths: z.array(z.string()).optional(),
   content: z.string().optional(),
   edits: z
     .array(z.object({ oldText: z.string(), newText: z.string() }))
     .optional(),
 })
-
-export type WorkspaceRef = {
-  workspaceId: string
-  label: string
-}
-
-type WorkspaceRecord = WorkspaceRef & {
-  sessionId: string
-  root: string
-  createdAt: number
-  updatedAt: number
-}
-
-type CheckpointRecord = {
-  checkpointId: string
-  sessionId: string
-  workspaceId: string
-  relativePath: string
-  absolutePath: string
-  existed: boolean
-  contentPath?: string
-  createdAt: number
-}
-
-type StoreState = {
-  workspaces: Record<string, WorkspaceRecord>
-  checkpoints: CheckpointRecord[]
-}
-
-const defaultState: StoreState = { workspaces: {}, checkpoints: [] }
-const fileQueues = new Map<string, Promise<void>>()
-let storeQueue = Promise.resolve()
 
 export async function bindWorkspace(
   input: z.infer<typeof bindWorkspaceSchema>,
@@ -144,11 +112,16 @@ export async function readWorkspaceFile(input: {
   sessionId: string
   workspaceId: string
   filePath: string
+  allowedPaths?: string[]
   offset?: number
   limit?: number
 }) {
   const workspace = await requireWorkspace(input.sessionId, input.workspaceId)
-  const target = await resolveExistingFile(workspace.root, input.filePath)
+  const target = await resolveExistingFile(
+    workspace.root,
+    input.filePath,
+    input.allowedPaths,
+  )
   const buffer = await readFile(target.absolutePath)
   const raw = buffer.toString('utf-8')
   const lines = raw.split(/\r?\n/)
@@ -179,12 +152,22 @@ export async function writeWorkspaceFile(input: {
   sessionId: string
   workspaceId: string
   filePath: string
+  allowedPaths?: string[]
   content: string
 }) {
   const workspace = await requireWorkspace(input.sessionId, input.workspaceId)
-  const target = await resolveWritablePath(workspace.root, input.filePath)
+  const target = await resolveWritablePath(
+    workspace.root,
+    input.filePath,
+    input.allowedPaths,
+  )
 
   return withFileQueue(target.absolutePath, async () => {
+    await assertCheckpointTarget(
+      workspace.root,
+      target.absolutePath,
+      target.external,
+    )
     const snapshot = await readSnapshot(target.absolutePath)
 
     // Reject empty diffs
@@ -201,10 +184,16 @@ export async function writeWorkspaceFile(input: {
       sessionId: input.sessionId,
       workspaceId: input.workspaceId,
       absolutePath: target.absolutePath,
+      external: target.external,
       relativePath: target.relativePath,
       snapshot,
     })
 
+    await assertCheckpointTarget(
+      workspace.root,
+      target.absolutePath,
+      target.external,
+    )
     await mkdir(path.dirname(target.absolutePath), { recursive: true })
     await writeFile(target.absolutePath, input.content, 'utf-8')
 
@@ -227,12 +216,22 @@ export async function editWorkspaceFile(input: {
   sessionId: string
   workspaceId: string
   filePath: string
+  allowedPaths?: string[]
   edits: Array<{ oldText: string; newText: string }>
 }) {
   const workspace = await requireWorkspace(input.sessionId, input.workspaceId)
-  const target = await resolveExistingFile(workspace.root, input.filePath)
+  const target = await resolveExistingFile(
+    workspace.root,
+    input.filePath,
+    input.allowedPaths,
+  )
 
   return withFileQueue(target.absolutePath, async () => {
+    await assertCheckpointTarget(
+      workspace.root,
+      target.absolutePath,
+      target.external,
+    )
     const snapshot = await readSnapshot(target.absolutePath)
     const { bom, text } = stripBom(snapshot.content ?? '')
     const ending = detectLineEnding(text)
@@ -243,10 +242,16 @@ export async function editWorkspaceFile(input: {
       sessionId: input.sessionId,
       workspaceId: input.workspaceId,
       absolutePath: target.absolutePath,
+      external: target.external,
       relativePath: target.relativePath,
       snapshot,
     })
 
+    await assertCheckpointTarget(
+      workspace.root,
+      target.absolutePath,
+      target.external,
+    )
     await writeFile(
       target.absolutePath,
       bom + restoreLineEndings(newContent, ending),
@@ -272,7 +277,11 @@ export async function previewWorkspaceDiff(
 
   try {
     if (input.edits?.length) {
-      const target = await resolveExistingFile(workspace.root, input.filePath)
+      const target = await resolveExistingFile(
+        workspace.root,
+        input.filePath,
+        input.allowedPaths,
+      )
       const snapshot = await readSnapshot(target.absolutePath)
       const baseContent = normalizeToLf(stripBom(snapshot.content ?? '').text)
       const newContent = applyEdits(
@@ -290,7 +299,11 @@ export async function previewWorkspaceDiff(
     }
 
     if (input.content !== undefined) {
-      const target = await resolveWritablePath(workspace.root, input.filePath)
+      const target = await resolveWritablePath(
+        workspace.root,
+        input.filePath,
+        input.allowedPaths,
+      )
       const snapshot = await readSnapshot(target.absolutePath)
       const baseContent = normalizeToLf(stripBom(snapshot.content ?? '').text)
       const newContent = normalizeToLf(stripBom(input.content).text)
@@ -325,95 +338,16 @@ export async function runWorkspaceCommand(input: {
   )
 }
 
-const MAX_GLOB_MATCHES = 256
-const GLOB_CHARS = /[*?[\]{}]/
-
-const SAFE_DEVICE_PATHS = new Set([
-  '/dev/null',
-  '/dev/stdin',
-  '/dev/stdout',
-  '/dev/stderr',
-  '/dev/tty',
-])
-
-/**
- * Check which paths are ignored by git, or live outside the
- * workspace root, including `~` and `$VAR`-based paths that cannot
- * be resolved statically. Globs are expanded (e.g. `cat .env*`).
- */
+/** Inspect paths using the same resolver as dedicated file tools. */
 export async function checkFlaggedPaths(input: {
   sessionId: string
   workspaceId: string
   paths: string[]
+  allowedPaths?: string[]
+  literal?: boolean
 }) {
   const workspace = await requireWorkspace(input.sessionId, input.workspaceId)
-  const flagged = new Set<string>()
-  const inside = new Set<string>()
-
-  for (const candidate of input.paths) {
-    if (candidate.startsWith('~') || isVariablePath(candidate)) {
-      flagged.add(candidate)
-      continue
-    }
-
-    const absolute = path.isAbsolute(candidate)
-      ? path.resolve(candidate)
-      : path.resolve(workspace.root, candidate)
-    const relative = path.relative(workspace.root, absolute)
-
-    if (relative.startsWith('..') || path.isAbsolute(relative)) {
-      if (!SAFE_DEVICE_PATHS.has(absolute)) flagged.add(absolute)
-      continue
-    }
-
-    if (relative) inside.add(relative.split(path.sep).join('/'))
-    if (GLOB_CHARS.test(candidate)) {
-      for (const match of await expandGlob(workspace.root, candidate))
-        inside.add(match)
-    }
-  }
-
-  if (inside.size > 0) {
-    for (const ignored of await gitCheckIgnore(workspace.root, [...inside]))
-      flagged.add(ignored)
-  }
-
-  return { flagged: [...flagged] }
-}
-
-/** Paths like `$HOME/.ssh` expand at runtime and cannot be verified. */
-function isVariablePath(candidate: string) {
-  return /\$[A-Za-z_{]/.test(candidate) && candidate.includes('/')
-}
-
-async function expandGlob(root: string, pattern: string): Promise<string[]> {
-  try {
-    const matches = await glob(pattern, { cwd: root, dot: true })
-    return matches
-      .slice(0, MAX_GLOB_MATCHES)
-      .map((match) => match.split(path.sep).join('/'))
-  } catch {
-    // Invalid patterns expand to nothing
-    return []
-  }
-}
-
-function gitCheckIgnore(root: string, paths: string[]): Promise<string[]> {
-  return new Promise((resolve) => {
-    const child = spawn('git', ['check-ignore', '-z', '--stdin'], {
-      cwd: root,
-      stdio: ['pipe', 'pipe', 'ignore'],
-      timeout: 10_000,
-    })
-
-    let stdout = ''
-    child.stdout.on('data', (chunk: Buffer) => (stdout += chunk.toString()))
-    child.on('close', () => resolve(stdout.split('\0').filter(Boolean)))
-    child.on('error', () => resolve([]))
-
-    child.stdin.write(paths.join('\0') + '\0')
-    child.stdin.end()
-  })
+  return checkPaths(workspace.root, input)
 }
 
 export async function restoreLatestCheckpoint(
@@ -430,7 +364,11 @@ export async function restoreLatestCheckpoint(
       )
 
     if (!checkpoint) throw new Error('No checkpoint to restore')
-    assertInside(workspace.root, checkpoint.absolutePath)
+    await assertCheckpointTarget(
+      workspace.root,
+      checkpoint.absolutePath,
+      checkpoint.external === true,
+    )
 
     if (!checkpoint.existed) {
       await rm(checkpoint.absolutePath, { force: true })
@@ -459,84 +397,34 @@ export async function requireWorkspace(sessionId: string, workspaceId: string) {
   return { ...workspace, root: await realpath(workspace.root) }
 }
 
-export async function resolveExistingFile(root: string, filePath: string) {
-  const absolutePath = await resolveWorkspacePath(root, filePath, true)
-  const fileStat = await stat(absolutePath)
+export async function resolveExistingFile(
+  root: string,
+  filePath: string,
+  allowedPaths?: string[],
+) {
+  const target = await resolveToolPath(root, filePath, allowedPaths)
+  const fileStat = await stat(target.absolutePath)
   if (!fileStat.isFile()) throw new Error('Path is not a file')
-  return { absolutePath, relativePath: toRelativePath(root, absolutePath) }
+  return target
 }
 
-/** Resolve an existing file or directory, reporting which kind it is. */
+/** Browsing and mentions remain confined to the workspace. */
 export async function resolveExistingPath(root: string, filePath: string) {
-  const absolutePath = await resolveWorkspacePath(root, filePath, true)
-  const pathStat = await stat(absolutePath)
+  const target = await resolveToolPath(root, filePath)
+  const pathStat = await stat(target.absolutePath)
   return {
-    absolutePath,
-    relativePath: toRelativePath(root, absolutePath),
+    ...target,
     isDirectory: pathStat.isDirectory(),
     isFile: pathStat.isFile(),
   }
 }
 
-async function resolveWritablePath(root: string, filePath: string) {
-  const absolutePath = await resolveWorkspacePath(root, filePath, false)
-  return { absolutePath, relativePath: toRelativePath(root, absolutePath) }
-}
-
-async function resolveWorkspacePath(
+async function resolveWritablePath(
   root: string,
   filePath: string,
-  mustExist: boolean,
+  allowedPaths?: string[],
 ) {
-  const rootReal = await realpath(root)
-  const candidate = path.isAbsolute(filePath)
-    ? path.resolve(filePath)
-    : path.resolve(rootReal, filePath)
-
-  assertInside(rootReal, candidate)
-
-  if (mustExist) {
-    const targetReal = await realpath(candidate)
-    assertInside(rootReal, targetReal)
-    return targetReal
-  }
-
-  try {
-    const targetReal = await realpath(candidate)
-    assertInside(rootReal, targetReal)
-  } catch (err) {
-    if (!isMissingPathError(err)) throw err
-  }
-
-  const parentReal = await nearestExistingParent(candidate)
-  assertInside(rootReal, parentReal)
-  return candidate
-}
-
-async function nearestExistingParent(filePath: string): Promise<string> {
-  let current = path.dirname(filePath)
-  while (true) {
-    try {
-      return await realpath(current)
-    } catch {
-      const next = path.dirname(current)
-      if (next === current) throw new Error('No writable parent directory')
-      current = next
-    }
-  }
-}
-
-function isMissingPathError(error: unknown) {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error.code === 'ENOENT' || error.code === 'ENOTDIR')
-  )
-}
-
-function toRelativePath(root: string, absolutePath: string) {
-  return path.relative(root, absolutePath).split(path.sep).join('/')
+  return resolveToolPath(root, filePath, allowedPaths)
 }
 
 const MAX_DIFF_BYTES = 50_000
@@ -544,99 +432,4 @@ const MAX_DIFF_BYTES = 50_000
 function capDiff(diff: string): string {
   if (diff.length <= MAX_DIFF_BYTES) return diff
   return `${diff.slice(0, MAX_DIFF_BYTES)}\n[diff truncated]`
-}
-
-type FileSnapshot = { existed: boolean; content?: string }
-
-/** Reads the current file state used both to detect no-ops and to checkpoint. */
-async function readSnapshot(absolutePath: string): Promise<FileSnapshot> {
-  try {
-    const targetStat = await stat(absolutePath)
-    if (!targetStat.isFile()) return { existed: false }
-    return { existed: true, content: await readFile(absolutePath, 'utf-8') }
-  } catch {
-    // Missing files are valid for create/overwrite checkpoints
-    return { existed: false }
-  }
-}
-
-async function createCheckpoint(input: {
-  sessionId: string
-  workspaceId: string
-  absolutePath: string
-  relativePath: string
-  snapshot: FileSnapshot
-}) {
-  const checkpointId = randomUUID()
-  await mkdir(CHECKPOINT_DIR, { recursive: true })
-
-  let contentPath: string | undefined
-  if (input.snapshot.existed && input.snapshot.content !== undefined) {
-    contentPath = path.join(CHECKPOINT_DIR, `${checkpointId}.txt`)
-    await writeFile(contentPath, input.snapshot.content, 'utf-8')
-  }
-
-  const checkpoint: CheckpointRecord = {
-    checkpointId,
-    sessionId: input.sessionId,
-    workspaceId: input.workspaceId,
-    relativePath: input.relativePath,
-    absolutePath: input.absolutePath,
-    existed: input.snapshot.existed,
-    contentPath,
-    createdAt: Date.now(),
-  }
-  await updateStore((state) => {
-    state.checkpoints.push(checkpoint)
-  })
-  return checkpoint
-}
-
-async function withFileQueue<T>(filePath: string, fn: () => Promise<T>) {
-  const current = fileQueues.get(filePath) ?? Promise.resolve()
-  let release!: () => void
-  const next = new Promise<void>((resolve) => {
-    release = resolve
-  })
-  const queued = current.then(() => next)
-  fileQueues.set(filePath, queued)
-  await current
-  try {
-    return await fn()
-  } finally {
-    release()
-    if (fileQueues.get(filePath) === queued) fileQueues.delete(filePath)
-  }
-}
-
-async function readStore(): Promise<StoreState> {
-  try {
-    return JSON.parse(await readFile(STORE_PATH, 'utf-8')) as StoreState
-  } catch {
-    return { ...defaultState, workspaces: {}, checkpoints: [] }
-  }
-}
-
-async function writeStore(state: StoreState) {
-  const dir = path.dirname(STORE_PATH)
-  await mkdir(dir, { recursive: true })
-  const tmp = path.join(dir, `workspaces-${randomUUID()}.json.tmp`)
-  await writeFile(tmp, JSON.stringify(state, null, 2), 'utf-8')
-  await rename(tmp, STORE_PATH)
-}
-
-async function updateStore<T>(
-  fn: (state: StoreState) => T | Promise<T>,
-): Promise<T> {
-  const run = storeQueue.then(async () => {
-    const state = await readStore()
-    const result = await fn(state)
-    await writeStore(state)
-    return result
-  })
-  storeQueue = run.then(
-    () => undefined,
-    () => undefined,
-  )
-  return run
 }

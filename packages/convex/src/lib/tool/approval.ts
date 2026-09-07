@@ -1,3 +1,5 @@
+import { isPathForbidden } from '@sb/core/workspace/path-policy'
+
 import type { AgentAutoApprove, ToolApprovals } from '../../types'
 import { GIT_VALUE_FLAGS, hasReadOnlyArguments } from './read_only_args'
 import {
@@ -9,6 +11,12 @@ import {
 } from './shell_config'
 import { type ShellToken, splitShellChain, tokenizeShell } from './shell_parse'
 import { analyzeShellPathCandidates } from './shell_path_analysis'
+
+export {
+  isPathAllowed,
+  isPathForbidden,
+  foldPaths,
+} from '@sb/core/workspace/path-policy'
 
 export { DEFAULT_SAFE_SHELL_PATTERNS } from './shell_config'
 export {
@@ -122,12 +130,14 @@ export function mergeToolApprovals(
   session: ToolApprovals | undefined,
   agent: AgentAutoApprove | undefined,
 ): ToolApprovals | undefined {
-  if (!agent?.tools?.length && !agent?.shell?.length) return session
+  if (!agent?.tools?.length && !agent?.shell?.length && !agent?.paths?.length) {
+    return session
+  }
   return {
     ...(session?.mode && { mode: session.mode }),
     tools: unionLists(session?.tools, agent.tools),
     shell: unionLists(session?.shell, agent.shell),
-    paths: session?.paths,
+    paths: unionLists(session?.paths, agent.paths),
   }
 }
 
@@ -175,25 +185,6 @@ const FILE_EDIT_TOOLS = ['write_file', 'edit_file']
 /** All tool names covered by approving `name`. */
 export function toolNamesForApproval(name: string): string[] {
   return FILE_EDIT_TOOLS.includes(name) ? FILE_EDIT_TOOLS : [name]
-}
-
-export function isPathAllowed(path: string, allowed: string[]): boolean {
-  return allowed.some((entry) => path === entry || path.startsWith(`${entry}/`))
-}
-
-/** Drops redundant paths another entry already covers. */
-export function foldPaths(paths: string[]): string[] {
-  const unique = [...new Set(paths)]
-  return unique.filter(
-    (path) =>
-      !unique.some((entry) => entry !== path && isPathAllowed(path, [entry])),
-  )
-}
-
-const FORBIDDEN_PATH_SEGMENT = /(^|[\\/])\.git([\\/]|$)/
-
-export function isPathForbidden(path: string): boolean {
-  return FORBIDDEN_PATH_SEGMENT.test(path)
 }
 
 /** Whether an explicit path operand references a forbidden path. */

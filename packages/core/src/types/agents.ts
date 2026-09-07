@@ -19,6 +19,7 @@ export type OverridableFields = {
 export type AgentAutoApprove = {
   tools?: string[]
   shell?: string[]
+  paths?: string[]
 }
 
 export type AgentSubAgentsMode = 'allow' | 'deny'

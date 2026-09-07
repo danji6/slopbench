@@ -86,13 +86,18 @@ function buildMcpServer(): McpServer {
     'read_file',
     {
       description: TOOL_DESCRIPTIONS.read_file,
-      inputSchema: { ...workspaceFields, ...readFileFields },
+      inputSchema: {
+        ...workspaceFields,
+        ...readFileFields,
+        allowedPaths: z.array(z.string()).optional(),
+      },
     },
-    async ({ sessionId, workspaceId, path, offset, limit }) => {
+    async ({ sessionId, workspaceId, path, offset, limit, allowedPaths }) => {
       const result = await readWorkspaceFile({
         sessionId,
         workspaceId,
         filePath: path,
+        allowedPaths,
         offset,
         limit,
       })
@@ -104,13 +109,18 @@ function buildMcpServer(): McpServer {
     'write_file',
     {
       description: TOOL_DESCRIPTIONS.write_file,
-      inputSchema: { ...workspaceFields, ...writeFileFields },
+      inputSchema: {
+        ...workspaceFields,
+        ...writeFileFields,
+        allowedPaths: z.array(z.string()).optional(),
+      },
     },
-    async ({ sessionId, workspaceId, path, content }) => {
+    async ({ sessionId, workspaceId, path, content, allowedPaths }) => {
       const result = await writeWorkspaceFile({
         sessionId,
         workspaceId,
         filePath: path,
+        allowedPaths,
         content,
       })
       return { content: [{ type: 'text' as const, text: formatJson(result) }] }
@@ -121,13 +131,18 @@ function buildMcpServer(): McpServer {
     'edit_file',
     {
       description: TOOL_DESCRIPTIONS.edit_file,
-      inputSchema: { ...workspaceFields, ...editFileFields },
+      inputSchema: {
+        ...workspaceFields,
+        ...editFileFields,
+        allowedPaths: z.array(z.string()).optional(),
+      },
     },
-    async ({ sessionId, workspaceId, path, edits }) => {
+    async ({ sessionId, workspaceId, path, edits, allowedPaths }) => {
       const result = await editWorkspaceFile({
         sessionId,
         workspaceId,
         filePath: path,
+        allowedPaths,
         edits,
       })
       return { content: [{ type: 'text' as const, text: formatJson(result) }] }
@@ -161,10 +176,21 @@ function buildMcpServer(): McpServer {
     {
       description:
         'Report which of the given paths are sensitive (git-ignored or outside the workspace). Globs are expanded.',
-      inputSchema: { ...workspaceFields, paths: z.array(z.string()) },
+      inputSchema: {
+        ...workspaceFields,
+        paths: z.array(z.string()),
+        allowedPaths: z.array(z.string()).optional(),
+        literal: z.boolean().optional(),
+      },
     },
-    async ({ sessionId, workspaceId, paths }) => {
-      const result = await checkFlaggedPaths({ sessionId, workspaceId, paths })
+    async ({ sessionId, workspaceId, paths, allowedPaths, literal }) => {
+      const result = await checkFlaggedPaths({
+        sessionId,
+        workspaceId,
+        paths,
+        allowedPaths,
+        literal,
+      })
       return { content: [{ type: 'text' as const, text: formatJson(result) }] }
     },
   )

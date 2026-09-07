@@ -87,10 +87,12 @@ function sanitizeAutoApprove(value: unknown) {
   if (!isRecord(value)) return null
   const tools = toArray(value.tools).filter((t) => typeof t === 'string')
   const shell = toArray(value.shell).filter((t) => typeof t === 'string')
-  if (!tools.length && !shell.length) return null
+  const paths = toArray(value.paths).filter((t) => typeof t === 'string')
+  if (!tools.length && !shell.length && !paths.length) return null
   return {
     ...(tools.length && { tools }),
     ...(shell.length && { shell }),
+    ...(paths.length && { paths }),
   }
 }
 

@@ -69,6 +69,7 @@ The `package.json` contains most scripts you will need, including running tests.
    - If a line of code isn't obvious, comment what it does but keep the comment short
    - Multiline comments are justified when the code is complex or needs important info/notes
    - Comments must be easy to understand and convey essential context to the reader
+   - Function comments should explain what the function does, which usually means starting with a verb
 
 5. **React & UI**
    - React components should be pure and reusable.

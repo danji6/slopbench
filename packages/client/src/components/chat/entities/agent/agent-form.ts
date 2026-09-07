@@ -49,6 +49,7 @@ export type AgentDocValues = {
   shell: string
   autoApproveTools: string[]
   autoApproveShell: string[]
+  autoApprovePaths: string[]
   subAgentsMode: AgentSubAgentsMode
   subAgentIds: Id<'agents'>[]
   // Context
@@ -81,6 +82,7 @@ export const EMPTY_AGENT_FORM: AgentFormValues = {
   shell: '',
   autoApproveTools: [],
   autoApproveShell: [],
+  autoApprovePaths: [],
   subAgentsMode: 'allow',
   subAgentIds: [],
   trimContext: false,
@@ -145,6 +147,7 @@ export function agentToFormValues(
     shell: agent.shell ?? '',
     autoApproveTools: agent.autoApprove?.tools ?? [],
     autoApproveShell: agent.autoApprove?.shell ?? [],
+    autoApprovePaths: agent.autoApprove?.paths ?? [],
     subAgentsMode: agent.subAgents?.mode ?? 'allow',
     subAgentIds: agent.subAgents?.agentIds ?? [],
     trimContext: agent.trimContext ?? false,
@@ -212,6 +215,7 @@ export async function formValuesToPatch(
     shell,
     autoApproveTools,
     autoApproveShell,
+    autoApprovePaths,
     subAgentsMode,
     subAgentIds,
     ...rest
@@ -224,10 +228,13 @@ export async function formValuesToPatch(
     shell: shell.trim() || null,
     theme: themeColor ? await snapshotTheme(themeColor) : null,
     autoApprove:
-      autoApproveTools.length || autoApproveShell.length
+      autoApproveTools.length ||
+      autoApproveShell.length ||
+      autoApprovePaths.length
         ? {
             ...(autoApproveTools.length && { tools: autoApproveTools }),
             ...(autoApproveShell.length && { shell: autoApproveShell }),
+            ...(autoApprovePaths.length && { paths: autoApprovePaths }),
           }
         : null,
     // allow + empty means "nothing spawnable", the unset default

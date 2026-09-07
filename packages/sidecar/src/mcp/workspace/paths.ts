@@ -17,7 +17,9 @@ export function assertInside(root: string, candidate: string) {
   const relative = path.relative(root, candidate)
   if (
     relative === '' ||
-    (!relative.startsWith('..') && !path.isAbsolute(relative))
+    (relative !== '..' &&
+      !relative.startsWith(`..${path.sep}`) &&
+      !path.isAbsolute(relative))
   ) {
     return
   }
@@ -28,7 +30,11 @@ export function assertInside(root: string, candidate: string) {
 export function collapseHome(input: string): string {
   const relative = path.relative(HOME, input)
   if (relative === '') return '~'
-  if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
+  if (
+    relative !== '..' &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative)
+  ) {
     return `~${path.sep}${relative}`
   }
   return input

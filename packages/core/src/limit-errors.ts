@@ -73,6 +73,12 @@ const LIMITS = {
     max: L.MAX_ENVIRONMENT_BYTES,
     unit: 'bytes',
   },
+  approvalPaths: { subject: 'Approval paths', max: L.MAX_APPROVAL_PATHS },
+  approvalPathBytes: {
+    subject: 'Approval paths size',
+    max: L.MAX_APPROVAL_PATH_BYTES,
+    unit: 'bytes',
+  },
   todos: {
     subject: 'Todos',
     max: L.MAX_TODO_ITEMS,

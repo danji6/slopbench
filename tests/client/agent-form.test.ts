@@ -166,3 +166,24 @@ describe('agent update payload', () => {
     expect(patch.unset).not.toContain('chatWidth')
   })
 })
+
+describe('agent path grants', () => {
+  test('round-trips a paths-only agent and clears its last grant', async () => {
+    const values = agentToFormValues(
+      bareAgent({ autoApprove: { paths: ['src', '/tmp/shared'] } }),
+      EMPTY_AGENT_PROMPT_SETS,
+    )
+    expect((await formValuesToPatch(AGENT_ID, values)).autoApprove).toEqual({
+      paths: ['src', '/tmp/shared'],
+    })
+    const cleared = await formValuesToPatch(AGENT_ID, {
+      ...values,
+      autoApprovePaths: [],
+    })
+    expect(cleared.unset).toContain('autoApprove')
+    expect(cleared.autoApprove).toBeUndefined()
+    expect(
+      agentToFormValues(bareAgent(), EMPTY_AGENT_PROMPT_SETS).autoApprovePaths,
+    ).toEqual([])
+  })
+})

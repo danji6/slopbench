@@ -2,8 +2,6 @@ import { TOOL_DESCRIPTIONS, shellToolDescription } from '@sb/core/types'
 
 import {
   analyzeShellPathCandidates,
-  commandReferencesForbiddenPath,
-  isPathAllowed,
   isReadOnlyShellCommand,
   isToolAutoApproved,
   isUnrestrictedAccess,
@@ -14,7 +12,7 @@ import {
   type WorkspaceToolContext,
   workspaceArgs,
 } from './context'
-import { callMcpTool } from './mcp'
+import { checkToolPaths } from './paths'
 import {
   type ShellJobInput,
   type ShellOutputInput,
@@ -126,15 +124,15 @@ async function shellNeedsApproval(
 ): Promise<boolean> {
   const approvals = await context.approvals?.()
   if (isUnrestrictedAccess(approvals)) return false
-  if (commandReferencesForbiddenPath(command)) return true
   if (!isReadOnlyShellCommand(command) && (await context.isPlanMode?.())) {
     return true
   }
   if (!isToolAutoApproved('shell', { command }, approvals)) return true
-  const flagged = await getFlaggedPaths(command, context)
-  if (flagged === null) return true
-  const allowed = approvals?.paths ?? []
-  return flagged.some((path) => !isPathAllowed(path, allowed))
+  const { candidates, complete } = analyzeShellPathCandidates(command)
+  if (!complete) return true
+  if (!candidates.length) return false
+  const result = await checkToolPaths(candidates, context, approvals?.paths)
+  return !result?.complete || result.uncovered.length > 0
 }
 
 /**
@@ -149,15 +147,6 @@ export async function getFlaggedPaths(
   if (!complete) return null
   if (paths.length === 0) return []
 
-  try {
-    const text = await callMcpTool('check_paths', {
-      sessionId: context.sessionId,
-      workspaceId: context.workspaceId,
-      paths,
-    })
-    const result = JSON.parse(text) as { flagged?: string[] }
-    return result.flagged ?? []
-  } catch {
-    return null
-  }
+  const result = await checkToolPaths(paths, context)
+  return result?.complete ? result.flagged : null
 }

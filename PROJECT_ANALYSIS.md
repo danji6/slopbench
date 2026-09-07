@@ -549,7 +549,7 @@ Agents are user-owned entities with their own behavior and presentation:
 - own reminders (rows in `reminders`) and referenced library reminders
 - context window, output token cap, and context trimming
 - enabled tool names (including the single `todo` and `plan` toggles)
-- auto-approve rules for tools and shell command patterns, merged into every
+- auto-approve rules for tools, shell command patterns, and literal path subtrees, merged into every
   session's approvals
 - a spawnable sub-agent policy (`allow`/`deny` plus an agent id list)
 - display name, avatar, and sharing/masking rules for other participants
@@ -1413,14 +1413,14 @@ Failure durations and tool errors are accumulated into turn metadata.
 
 Tool approval is enforced in Convex:
 
-- `write_file` and `edit_file` require approval unless auto-approved.
+- `write_file` and `edit_file` require approval unless their tool or target path is auto-approved.
 - `shell` requires approval unless the command and referenced paths are
   allowed. Safe-listed programs with mutating arguments (`find -delete`,
   `sed -i`, sed exec/write scripts) are argument-gated back to approval.
 - Nothing hard-fails: `.git` access (detected by path checks and
   command-reference checks, with match/exclusion flag arguments like
   `-not -path` globs exempt) and non-read-only commands in plan mode always
-  surface an approval dialog instead. Sub-agent sessions auto-deny those
+  surface an approval dialog instead, except that an explicit matching `.git` path grant covers `.git` access. Sub-agent sessions auto-deny those
   requests.
 - The sidecar reports paths that are git-ignored or outside the workspace so
   Convex can require approval for risky commands.
@@ -1432,6 +1432,21 @@ Tool approval is enforced in Convex:
   past the cap rather than failing an approval the user already gave);
   agent-level `autoApprove` rules are merged in on top, and a sub-agent child
   inherits a copy of its parent's approvals at spawn.
+- Agent `autoApprove.paths` and session path grants share permissions: exact
+  files and directory descendants may be edited without approval. Shell command
+  approval remains independent. Relative entries follow the bound workspace;
+  absolute entries stay fixed. `.` covers the workspace but not `.git`, which
+  requires an explicit matching `.git` entry. Entries are literal (no glob,
+  home, or variable expansion). Parent-relative entries such as `../project_2`
+  grant access to sibling directories and follow workspace rebinds too.
+- Path checks and file execution share sidecar canonicalization, including
+  symlinks and new-file parents. Unresolvable targets never establish a grant.
+  Dedicated file tools accept external paths only with a matching grant, even
+  in unrestricted mode. Browsing, mentions, and prompt helpers remain confined.
+- External edits support absolute display paths, diff previews, and checkpoints.
+  Undo is authorized for the recorded canonical target and rejects substituted
+  symlinks. New path-list writes are capped at 500 entries and 128 KiB of UTF-8
+  JSON; remembered approvals drop excess entries silently.
 - Approvals carry an optional note. The picker's note editor shares one
   per-session composer draft: aborting ("Keep planning" / "Abort") preserves
   the note back into the composer, while a non-abort answer delivers it as an

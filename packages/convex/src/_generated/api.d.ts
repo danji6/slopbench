@@ -142,6 +142,7 @@ import type * as model_tool_files from "../model/tool/files.js";
 import type * as model_tool_manifest from "../model/tool/manifest.js";
 import type * as model_tool_mcp from "../model/tool/mcp.js";
 import type * as model_tool_metas from "../model/tool/metas.js";
+import type * as model_tool_paths from "../model/tool/paths.js";
 import type * as model_tool_plan from "../model/tool/plan.js";
 import type * as model_tool_repair from "../model/tool/repair.js";
 import type * as model_tool_settings from "../model/tool/settings.js";
@@ -321,6 +322,7 @@ declare const fullApi: ApiFromModules<{
   "model/tool/manifest": typeof model_tool_manifest;
   "model/tool/mcp": typeof model_tool_mcp;
   "model/tool/metas": typeof model_tool_metas;
+  "model/tool/paths": typeof model_tool_paths;
   "model/tool/plan": typeof model_tool_plan;
   "model/tool/repair": typeof model_tool_repair;
   "model/tool/settings": typeof model_tool_settings;

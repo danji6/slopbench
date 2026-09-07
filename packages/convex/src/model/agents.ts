@@ -4,7 +4,11 @@ import type { AuthMutationCtx, AuthQueryCtx } from '../functions'
 import type { CreateAgentArgs, Prompt, UpdateAgentArgs } from '../types'
 import { sanitizeSubAgents } from './agent/subagents'
 import * as Avatars from './avatars'
-import { assertCustomCssCap, assertShellPathCap } from './caps'
+import {
+  assertCustomCssCap,
+  assertShellPathCap,
+  normalizeAgentPaths,
+} from './caps'
 import { DEFAULT_CONTEXT_OPTIONS, createDefaultAgent } from './defaults'
 import * as Prompts from './prompts'
 import * as Reminders from './reminders'
@@ -75,6 +79,13 @@ export async function create(ctx: AuthMutationCtx, args: CreateAgentArgs) {
   assertCustomCssCap(rest.customCss)
   assertShellPathCap(rest.shell)
 
+  if (rest.autoApprove?.paths) {
+    rest.autoApprove = {
+      ...rest.autoApprove,
+      paths: normalizeAgentPaths(rest.autoApprove.paths),
+    }
+  }
+
   const agentId = await ctx.db.insert('agents', {
     ownerId: ctx.userId,
     tools: [],
@@ -108,6 +119,11 @@ export async function update(
   await requireOwned(ctx, agentId)
   assertCustomCssCap(patch.customCss)
   assertShellPathCap(patch.shell)
+  if (patch.autoApprove?.paths)
+    patch.autoApprove = {
+      ...patch.autoApprove,
+      paths: normalizeAgentPaths(patch.autoApprove.paths),
+    }
   if (patch.subAgents) {
     patch.subAgents = await sanitizeSubAgents(ctx, ctx.userId, patch.subAgents)
   }

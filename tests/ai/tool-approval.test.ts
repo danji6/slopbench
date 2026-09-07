@@ -6,13 +6,22 @@ import {
 } from '@sb/convex/model/chat'
 import { getEnabledTools } from '@sb/convex/model/tool/build'
 import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
-import { describe, expect, test } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 
-describe('.git access requires approval instead of failing', () => {
+import { startPathSidecar } from '../helpers/path-sidecar'
+
+describe('.git access requires approval without explicit path grants', () => {
+  let sidecar: Awaited<ReturnType<typeof startPathSidecar>>
+  beforeAll(async () => {
+    sidecar = await startPathSidecar()
+  })
+  afterAll(async () => {
+    await sidecar.close()
+  })
   const session = {
     _id: 'session_1',
     workspace: { workspaceId: 'ws_1' },
-    // Auto-approvals never cover .git access
+    // Tool and command approvals do not cover .git access
     toolApprovals: { tools: ['write_file', 'edit_file'], shell: ['cat'] },
   } as never
 
@@ -31,13 +40,12 @@ describe('.git access requires approval instead of failing', () => {
       null,
     )
 
-  test('shell commands referencing .git always request approval', async () => {
+  test('shell commands referencing .git request approval without a path grant', async () => {
     const tools = await getTools()
     const needsApproval = tools.shell.needsApproval as (
       input: unknown,
     ) => Promise<boolean>
 
-    // Short-circuits before the sidecar path check
     expect(await needsApproval({ command: 'cat .git/config' })).toBe(true)
   })
 

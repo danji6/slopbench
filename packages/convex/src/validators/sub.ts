@@ -248,6 +248,7 @@ export const toolApprovalsValidator = v.object({
 
 /** Agent approvals merged into every session's approvals. */
 export const agentAutoApproveValidator = v.object({
+  paths: v.optional(v.array(v.string())),
   tools: v.optional(v.array(v.string())),
   shell: v.optional(v.array(v.string())),
 })

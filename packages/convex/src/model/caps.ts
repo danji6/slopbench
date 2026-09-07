@@ -11,6 +11,7 @@ import {
   MAX_WEB_SEARCH_INSTANCES,
 } from '@sb/core/limits'
 import { serializedSize } from '@sb/core/utils/size'
+import { approvalPathsError, foldPaths } from '@sb/core/workspace/path-policy'
 
 import { error } from '../errors'
 import type { TodoItem } from '../types'
@@ -69,4 +70,12 @@ export function assertSegmentFits(parts: unknown[]) {
   if (serializedSize(parts) > MAX_SEGMENT_BYTES) {
     error(limitError('messageContent'), 400)
   }
+}
+
+export function normalizeAgentPaths(paths: string[] | undefined) {
+  if (paths === undefined) return undefined
+  const values = [...new Set(paths.map((value) => value.trim()))]
+  const message = approvalPathsError(values)
+  if (message) error(message, 400)
+  return foldPaths(values)
 }

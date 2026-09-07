@@ -24,7 +24,7 @@ describe('mergeToolApprovals', () => {
     expect(merged?.shell).toEqual(['git checkout', 'find'])
   })
 
-  test('keeps paths session-only', () => {
+  test('preserves session paths when the agent only grants tools', () => {
     const merged = mergeToolApprovals(
       { paths: ['/workspace/dist'] },
       { tools: ['edit_file'] },
@@ -89,4 +89,19 @@ describe('merged approvals through the approval checks', () => {
       isShellCommandAutoApproved('cargo publish', merged?.shell ?? []),
     ).toBe(false)
   })
+})
+
+test('agent-only paths merge with session paths without mutating either', () => {
+  const session = { mode: 'ask' as const, paths: ['src'] }
+  const agent = { paths: ['src', '.git/config', '/tmp/shared'] }
+  expect(mergeToolApprovals(session, agent)).toEqual({
+    mode: 'ask',
+    tools: undefined,
+    shell: undefined,
+    paths: ['src', '.git/config', '/tmp/shared'],
+  })
+  expect(session.paths).toEqual(['src'])
+  expect(mergeToolApprovals(undefined, { paths: ['src'] })?.paths).toEqual([
+    'src',
+  ])
 })

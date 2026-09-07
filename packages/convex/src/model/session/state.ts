@@ -1,4 +1,5 @@
 import { MAX_APPROVAL_PATHS, MAX_APPROVAL_PATTERNS } from '@sb/core/limits'
+import { capApprovalPaths } from '@sb/core/workspace/path-policy'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../../_generated/server'
@@ -139,6 +140,12 @@ export async function setApprovals(
   const approvals = await getApprovals(ctx, sessionId)
 
   await patchState(ctx, sessionId, {
-    toolApprovals: { ...approvals, [list]: values.slice(0, approvalCap(list)) },
+    toolApprovals: {
+      ...approvals,
+      [list]:
+        list === 'paths'
+          ? capApprovalPaths(values)
+          : values.slice(0, approvalCap(list)),
+    },
   })
 }

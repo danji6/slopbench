@@ -148,3 +148,13 @@ describe('agent import data normalization', () => {
     ).toThrow('Unsupported agent archive version: 2')
   })
 })
+
+test('path-only approvals survive archive export and import', () => {
+  const archive = createAgentArchive({
+    name: 'Agent',
+    autoApprove: { paths: ['src', '/tmp/shared', 42] },
+  })
+  expect(agentArchiveToCreateArgs(archive).autoApprove).toEqual({
+    paths: ['src', '/tmp/shared'],
+  })
+})

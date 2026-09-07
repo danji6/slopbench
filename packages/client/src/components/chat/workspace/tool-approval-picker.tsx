@@ -18,12 +18,11 @@ import { cn } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import {
   analyzeShellCommand,
-  analyzeShellPathCandidates,
-  commandReferencesForbiddenPath,
   isPathForbidden,
   isReadOnlyShellCommand,
   toolNamesForApproval,
 } from '@sb/convex/lib/tool/approval'
+import type { PathApprovalStatus } from '@sb/core/workspace/path-policy'
 import type { Editor } from '@tiptap/react'
 import type { ToolUIPart } from 'ai'
 import type { OptimisticLocalStore } from 'convex/browser'
@@ -103,13 +102,18 @@ export function ToolApprovalPicker({
   const [selectedAction, setSelectedAction] = useState('')
 
   const part = message?.parts.find(isApprovalRequested) as
-    ToolUIPart | undefined
+    (ToolUIPart & { approvalPathStatus?: PathApprovalStatus }) | undefined
   const toolName = part?.type.replace('tool-', '') ?? ''
   const planApproval = PLAN_APPROVALS[toolName]
   const description = getDescription(part?.input)
   const hold =
     session && part && !planApproval
-      ? approvalHold(toolName, part.input, session.mode, approvals)
+      ? approvalHold(
+          toolName,
+          part.input,
+          session.mode,
+          part.approvalPathStatus,
+        )
       : null
   const rememberLabel =
     session && part && !planApproval && hold !== 'forbidden'
@@ -335,7 +339,7 @@ function buildApprovalActions(
   if (hold === 'paths') {
     items.push({
       id: 'remember-paths',
-      label: 'Always allow these paths for this session',
+      label: 'Allow access and edits to these paths for this session',
       shortcut: getKey(),
       approved: true,
       remember: 'paths',
@@ -621,7 +625,7 @@ function approvalHold(
   toolName: string,
   input: unknown,
   mode: string | undefined,
-  approvals: ToolApprovals | undefined,
+  pathStatus?: PathApprovalStatus,
 ): ApprovalHold {
   if (toolName !== 'shell') {
     const path = (input as { path?: string } | undefined)?.path
@@ -632,15 +636,7 @@ function approvalHold(
 
   const command = getCommand(input)
   if (command === null) return null
-  if (commandReferencesForbiddenPath(command)) return 'forbidden'
+  if (pathStatus === 'forbidden') return 'forbidden'
   if (mode === 'plan' && !isReadOnlyShellCommand(command)) return 'plan'
-  if (!analyzeShellPathCandidates(command).complete) return 'analysis'
-
-  const { patterns, unapproved, unsafe } = analyzeShellCommand(
-    command,
-    approvals?.shell ?? [],
-  )
-  return !unsafe && patterns.length > 0 && unapproved.length === 0
-    ? 'paths'
-    : null
+  return pathStatus ?? null
 }

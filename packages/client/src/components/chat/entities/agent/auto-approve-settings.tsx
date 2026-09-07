@@ -1,10 +1,10 @@
-import { Button, Input, SettingsList } from '@/components/ui'
-import { PlusIcon, XIcon } from 'lucide-react'
-import { useState } from 'react'
+import { SettingsList } from '@/components/ui'
+import { approvalPathsError } from '@sb/core/workspace/path-policy'
 import type { Control } from 'react-hook-form'
 import { useController } from 'react-hook-form'
 
 import type { AgentFormValues } from './agent-form'
+import { ApprovalList } from './approval-list'
 
 /** Approval-gated tools an agent can be trusted to run unprompted. */
 const APPROVAL_GATED_TOOLS = [
@@ -25,10 +25,12 @@ export function AutoApproveSettings({
     control,
     name: 'autoApproveShell',
   })
-  const [pattern, setPattern] = useState('')
+  const { field: pathsField } = useController({
+    control,
+    name: 'autoApprovePaths',
+  })
 
   const tools = toolsField.value
-  const patterns = shellField.value
 
   function toggleTool(name: string) {
     toolsField.onChange(
@@ -36,17 +38,6 @@ export function AutoApproveSettings({
         ? tools.filter((tool) => tool !== name)
         : [...tools, name],
     )
-  }
-
-  function addPattern() {
-    const trimmed = pattern.trim()
-    if (!trimmed || patterns.includes(trimmed)) return
-    shellField.onChange([...patterns, trimmed])
-    setPattern('')
-  }
-
-  function removePattern(value: string) {
-    shellField.onChange(patterns.filter((entry) => entry !== value))
   }
 
   return (
@@ -75,50 +66,28 @@ export function AutoApproveSettings({
         unclickable
         unhoverable
       >
-        <div className="flex gap-2">
-          <Input
-            value={pattern}
-            onChange={(e) => setPattern(e.currentTarget.value)}
-            onKeyDown={(e) => {
-              if (e.key !== 'Enter') return
-              e.preventDefault()
-              addPattern()
-            }}
-            placeholder="git checkout"
-            variant="outline"
-            className="h-9 max-w-70 font-mono text-sm"
-          />
-          <Button
-            type="button"
-            variant="surface"
-            size="icon"
-            aria-label="Add pattern"
-            disabled={!pattern.trim()}
-            onClick={addPattern}
-          >
-            <PlusIcon />
-          </Button>
-        </div>
-        {patterns.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {patterns.map((entry) => (
-              <span
-                key={entry}
-                className="bg-m3-surface-container-high flex items-center gap-1.5 rounded-full py-1 pr-2 pl-3 font-mono text-xs"
-              >
-                {entry}
-                <button
-                  type="button"
-                  aria-label={`Remove ${entry}`}
-                  className="text-muted-foreground hover:text-foreground flex items-center transition-colors"
-                  onClick={() => removePattern(entry)}
-                >
-                  <XIcon className="size-3.5" />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
+        <ApprovalList
+          values={shellField.value}
+          onChange={shellField.onChange}
+          placeholder="git checkout"
+          label="Command pattern"
+        />
+      </SettingsList.Item>
+      <SettingsList.Item
+        className="pl-8"
+        label="Paths"
+        description="Files and directories this agent may read or edit without approval, relative to the workspace."
+        orientation="vertical"
+        unclickable
+        unhoverable
+      >
+        <ApprovalList
+          values={pathsField.value ?? []}
+          onChange={pathsField.onChange}
+          placeholder="path"
+          label="Path"
+          validate={approvalPathsError}
+        />
       </SettingsList.Item>
     </SettingsList>
   )
