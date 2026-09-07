@@ -1,7 +1,7 @@
-import { SettingsList } from '@/components/ui'
+import { Input, Tabs } from '@/components/ui'
 import { useTools } from '@/hooks/chat'
 import type { ToolMetadata } from '@/lib/chat'
-import { Fragment } from 'react'
+import { type RefObject, useLayoutEffect, useState } from 'react'
 import type { Control } from 'react-hook-form'
 import { useController } from 'react-hook-form'
 
@@ -9,130 +9,125 @@ import { ShellSettings } from '../shell-settings'
 import type { AgentFormValues } from './agent-form'
 import { getEnabledToolNames, toToolSelection } from './agent-form'
 import { AutoApproveSettings } from './auto-approve-settings'
-
-const CATEGORY_LABELS: Record<string, string> = {
-  web: 'Web',
-  workspace: 'Workspace',
-  mcp: 'MCP',
-}
-
-function categoryLabel(key: string): string {
-  return CATEGORY_LABELS[key] ?? key.charAt(0).toUpperCase() + key.slice(1)
-}
-
-function groupByCategory(
-  tools: readonly ToolMetadata[],
-): [string, ToolMetadata[]][] {
-  const groups = new Map<string, ToolMetadata[]>()
-  for (const tool of tools) {
-    const key = tool.category ?? 'general'
-    const list = groups.get(key) ?? []
-    list.push(tool)
-    groups.set(key, list)
-  }
-  return [...groups.entries()]
-}
+import { ToolSelectionList } from './tool-selection-list'
 
 export function ToolSettings({
   control,
+  scrollContainerRef,
 }: {
   control: Control<AgentFormValues>
+  scrollContainerRef: RefObject<HTMLDivElement | null>
 }) {
-  const { tools: availableTools } = useTools()
+  const [tab, setTab] = useState('tools')
+
+  useLayoutEffect(() => {
+    // Reset the shared scroller before the newly selected panel paints.
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'instant' })
+  }, [tab, scrollContainerRef])
+
+  const { tools: availableTools, isLoading } = useTools()
   const { field: toolsField } = useController({ control, name: 'tools' })
   const { field: shellField } = useController({ control, name: 'shell' })
-
   const enabled = new Set(getEnabledToolNames(toolsField.value, availableTools))
+  const builtinTools = availableTools.filter((tool) => tool.category !== 'mcp')
+  const mcpTools = availableTools.filter((tool) => tool.category === 'mcp')
 
-  function setEnabled(names: Iterable<string>) {
-    toolsField.onChange(toToolSelection([...names], availableTools))
-  }
-
-  function toggleTool(name: string) {
+  function toggleTools(tools: readonly ToolMetadata[]) {
+    const allOn = tools.every((tool) => enabled.has(tool.name))
     const next = new Set(enabled)
-    if (next.has(name)) next.delete(name)
-    else next.add(name)
-    setEnabled(next)
-  }
-
-  function toggleCategory(tools: ToolMetadata[]) {
-    const names = tools.map((tool) => tool.name)
-    const allOn = names.every((name) => enabled.has(name))
-    const next = new Set(enabled)
-    for (const name of names) {
+    for (const { name } of tools) {
       if (allOn) next.delete(name)
       else next.add(name)
     }
-    setEnabled(next)
+    toolsField.onChange(toToolSelection(next, availableTools))
   }
 
-  function toggleAllTools() {
-    const allOn =
-      availableTools.length > 0 &&
-      availableTools.every((tool) => enabled.has(tool.name))
-    setEnabled(allOn ? [] : availableTools.map((tool) => tool.name))
-  }
+  return (
+    <Tabs variant="hug" value={tab} onValueChange={setTab} className="min-w-0">
+      <Tabs.List
+        aria-label="Tool settings"
+        className="bg-background sticky top-0 z-20 shrink-0"
+      >
+        <Tabs.Trigger value="tools">Tools</Tabs.Trigger>
+        <Tabs.Trigger value="mcp">MCP</Tabs.Trigger>
+        <Tabs.Trigger value="approvals">Approvals</Tabs.Trigger>
+      </Tabs.List>
+      <Tabs.Panels className="overflow-x-clip">
+        <Tabs.Content value="tools">
+          <ToolSelectionList
+            tools={builtinTools}
+            enabled={enabled}
+            onToggle={toggleTools}
+            label="All built-in tools"
+            grouped
+          />
+        </Tabs.Content>
+        <Tabs.Content value="mcp">
+          <McpToolSettings
+            tools={mcpTools}
+            enabled={enabled}
+            onToggle={toggleTools}
+            isLoading={isLoading}
+          />
+        </Tabs.Content>
+        <Tabs.Content value="allowlists">
+          <ShellSettings
+            override
+            value={shellField.value}
+            onChange={shellField.onChange}
+          />
+          <AutoApproveSettings control={control} />
+        </Tabs.Content>
+      </Tabs.Panels>
+    </Tabs>
+  )
+}
 
-  const enabledCount = availableTools.filter((tool) =>
-    enabled.has(tool.name),
-  ).length
-
-  const allToolsOn =
-    availableTools.length > 0 && enabledCount === availableTools.length
+function McpToolSettings({
+  tools,
+  enabled,
+  onToggle,
+  isLoading,
+}: {
+  tools: ToolMetadata[]
+  enabled: Set<string>
+  onToggle: (tools: readonly ToolMetadata[]) => void
+  isLoading: boolean
+}) {
+  const [search, setSearch] = useState('')
+  const query = search.trim().toLowerCase()
+  const filtered = tools.filter((tool) =>
+    `${tool.name} ${tool.description ?? ''}`.toLowerCase().includes(query),
+  )
 
   return (
     <>
-      <SettingsList>
-        <SettingsList.Checkbox
-          label={<span className="font-semibold">All tools</span>}
-          checked={allToolsOn}
-          indeterminate={enabledCount > 0 && !allToolsOn}
-          onCheckedChange={toggleAllTools}
+      <div className="px-4 py-3">
+        <Input
+          type="search"
+          aria-label="Search discovered MCP tools"
+          placeholder="Search MCP tools…"
+          value={search}
+          onChange={(event) => setSearch(event.currentTarget.value)}
+          variant="outline"
         />
-        {groupByCategory(availableTools).map(([category, tools]) => {
-          const enabledCount = tools.filter((tool) =>
-            enabled.has(tool.name),
-          ).length
-          const allOn = enabledCount === tools.length
-
-          return (
-            <Fragment key={category}>
-              <SettingsList.Checkbox
-                label={
-                  <span className="font-semibold">
-                    {categoryLabel(category)}
-                  </span>
-                }
-                checked={allOn}
-                indeterminate={enabledCount > 0 && !allOn}
-                onCheckedChange={() => toggleCategory(tools)}
-              />
-              {tools.map((meta) => (
-                <SettingsList.Checkbox
-                  key={meta.name}
-                  className="pl-8"
-                  label={meta.name}
-                  description={
-                    meta.description && (
-                      <span className="line-clamp-1" title={meta.description}>
-                        {meta.description}
-                      </span>
-                    )
-                  }
-                  checked={enabled.has(meta.name)}
-                  onCheckedChange={() => toggleTool(meta.name)}
-                />
-              ))}
-            </Fragment>
-          )
-        })}
-      </SettingsList>
-      <ShellSettings
-        override
-        value={shellField.value}
-        onChange={shellField.onChange}
-      />
-      <AutoApproveSettings control={control} />
+      </div>
+      {filtered.length > 0 ? (
+        <ToolSelectionList
+          tools={filtered}
+          enabled={enabled}
+          onToggle={onToggle}
+          label={query ? 'All matching MCP tools' : 'All MCP tools'}
+        />
+      ) : (
+        <p className="text-muted-foreground px-4 py-3 text-sm" role="status">
+          {isLoading
+            ? 'Loading MCP tools…'
+            : tools.length === 0
+              ? 'No MCP tools discovered.'
+              : 'No MCP tools match your search.'}
+        </p>
+      )}
     </>
   )
 }

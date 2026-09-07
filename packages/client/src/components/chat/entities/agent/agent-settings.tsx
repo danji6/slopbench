@@ -47,7 +47,7 @@ import {
   UserIcon,
   WrenchIcon,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 
 import {
@@ -108,6 +108,7 @@ function AgentSettingsFallback({ error }: FallbackProps) {
 }
 
 function AgentSettingsDialog() {
+  const toolsScrollRef = useRef<HTMLDivElement>(null)
   const view = useAgentEditorView()
   const open = view.active
   const activeTab = view.value ?? AGENT_EDITOR_DEFAULT_TAB
@@ -310,8 +311,15 @@ function AgentSettingsDialog() {
                 <SettingsTabs.Content value="context" title="Context">
                   <ContextSettings control={form.control} />
                 </SettingsTabs.Content>
-                <SettingsTabs.Content value="tools" title="Tools">
-                  <ToolSettings control={form.control} />
+                <SettingsTabs.Content
+                  ref={toolsScrollRef}
+                  value="tools"
+                  className="min-w-0"
+                >
+                  <ToolSettings
+                    control={form.control}
+                    scrollContainerRef={toolsScrollRef}
+                  />
                 </SettingsTabs.Content>
                 <SettingsTabs.Content value="subagents" title="Sub-agents">
                   <SubagentSettings control={form.control} />

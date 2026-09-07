@@ -2,20 +2,13 @@ import { createUsableContext } from '@/hooks/context'
 import { cn } from '@/lib/utils'
 import { Tabs as TabsPrimitive } from '@base-ui/react/tabs'
 import { motion } from 'motion/react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import type { ButtonProps } from './button'
 import { Button } from './button'
 import { RippleButton } from './ripple-button'
 
 const PANEL_OFFSET = 20
-
-type Position = {
-  left: number
-  top: number
-  right: number
-  bottom: number
-}
 
 type Direction = 'left' | 'right'
 
@@ -120,7 +113,6 @@ function TabsRoot({
 
 function TabsList({ className, children, ...props }: TabsPrimitive.List.Props) {
   const { variant } = useTabsContext()
-  const listRef = useRef<HTMLDivElement>(null)
 
   return (
     <TabsPrimitive.List
@@ -135,10 +127,9 @@ function TabsList({ className, children, ...props }: TabsPrimitive.List.Props) {
             ),
         className,
       )}
-      ref={listRef}
       {...props}
     >
-      <TabsIndicator listRef={listRef} />
+      <TabsIndicator />
       {children}
     </TabsPrimitive.List>
   )
@@ -194,57 +185,8 @@ function TabsTrigger({ className, value, ...props }: TabsPrimitive.Tab.Props) {
   )
 }
 
-function TabsIndicator({
-  listRef,
-}: {
-  listRef: React.RefObject<HTMLDivElement | null>
-}) {
-  const { currentValue, direction, isInitial, variant } = useTabsContext()
-  const [position, setPosition] = useState<Position>({
-    left: 4,
-    top: 4,
-    right: 4,
-    bottom: 4,
-  })
-  const [pendingPosition, setPendingPosition] = useState<Position | null>(null)
-
-  useEffect(() => {
-    const list = listRef.current
-    if (!list || !currentValue) return
-
-    const tabs = list.querySelectorAll('[data-slot="tabs-trigger"]')
-    const activeIndex = Array.from(tabs).findIndex(
-      (tab) => tab.getAttribute('data-value') === currentValue,
-    )
-
-    if (activeIndex === -1) return
-
-    const activeTab = tabs[activeIndex] as HTMLElement
-
-    const newPosition: Position =
-      variant === 'pill'
-        ? {
-            left: activeTab.offsetLeft,
-            top: activeTab.offsetTop,
-            right:
-              list.offsetWidth - activeTab.offsetLeft - activeTab.offsetWidth,
-            bottom:
-              list.offsetHeight - activeTab.offsetTop - activeTab.offsetHeight,
-          }
-        : {
-            left: activeTab.offsetLeft,
-            top: list.offsetHeight - 3,
-            right:
-              list.offsetWidth - activeTab.offsetLeft - activeTab.offsetWidth,
-            bottom: 0,
-          }
-
-    if (isInitial) {
-      setPosition(newPosition)
-    } else {
-      setPendingPosition(newPosition)
-    }
-  }, [currentValue, isInitial, listRef, variant])
+function TabsIndicator() {
+  const { direction, variant } = useTabsContext()
 
   const getTransitionDelays = () => {
     const STAGGER_DELAY = variant === 'pill' ? 0.2 : 0.08
@@ -262,27 +204,41 @@ function TabsIndicator({
     }
   }
 
-  const handleAnimationComplete = () => {
-    if (pendingPosition) {
-      setPosition(pendingPosition)
-      setPendingPosition(null)
-    }
-  }
-
-  const activePosition = pendingPosition ?? position
   const { duration, ...delays } = getTransitionDelays()
 
   return (
     <TabsPrimitive.Indicator
-      render={() => (
+      render={(
+        {
+          onAnimationStart: _onAnimationStart,
+          onAnimationEnd: _onAnimationEnd,
+          onDrag: _onDrag,
+          onDragStart: _onDragStart,
+          onDragEnd: _onDragEnd,
+          ...renderProps
+        },
+        { activeTabPosition, activeTabSize },
+      ) => (
         <motion.span
+          {...renderProps}
           className={cn(
             'absolute',
             variant === 'pill'
               ? 'bg-m3-secondary rounded-full'
               : 'bg-primary pointer-events-none z-10',
           )}
-          animate={activePosition}
+          animate={
+            activeTabPosition && activeTabSize
+              ? {
+                  ...activeTabPosition,
+                  top:
+                    variant === 'pill'
+                      ? activeTabPosition.top
+                      : activeTabPosition.top + activeTabSize.height - 3,
+                  bottom: variant === 'pill' ? activeTabPosition.bottom : 0,
+                }
+              : undefined
+          }
           initial={false}
           transition={{
             left: {
@@ -306,7 +262,6 @@ function TabsIndicator({
               delay: delays.bottom,
             },
           }}
-          onAnimationComplete={handleAnimationComplete}
         />
       )}
     />
