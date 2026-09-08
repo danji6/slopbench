@@ -210,7 +210,7 @@ function AgentSettingsDialog() {
     if (!agentId || loading) return
 
     if (pendingAvatar) {
-      await uploadAvatar.call(avatarUploadForm(agentId, pendingAvatar))
+      await uploadAvatar.call(await avatarUploadForm(agentId, pendingAvatar))
       setPendingAvatar(null)
     } else if (avatarCleared) {
       await clearAvatar({ agentId })

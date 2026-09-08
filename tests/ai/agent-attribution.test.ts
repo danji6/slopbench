@@ -771,10 +771,9 @@ describe('buildProviderHistory', () => {
     ])
   })
 
-  test('surfaces an unanswered approval-request as a denied result', async () => {
+  test('surfaces an unanswered approval-request as an interrupted result', async () => {
     // Left as a bare tool-call the AI SDK would drop it, blinding the model
-    // and driving a retry loop (notably auto-denied sub-agent calls). It must
-    // reach the model as a denied tool-result instead.
+    // and driving a retry loop. Report that approval was interrupted instead.
     const data = {
       stream: { _id: 'stream_1' },
       agent: agent(),
@@ -810,7 +809,8 @@ describe('buildProviderHistory', () => {
 
     expect(history[0]).toMatchObject({ role: 'assistant' })
     expect(toolResult?.output.type).toBe('error-text')
-    expect(toolResult?.output.value).toContain('denied')
+    expect(toolResult?.output.value).toContain('before approval was received')
+    expect(toolResult?.output.value).not.toContain('denied')
   })
 
   test('keeps approved tool calls so they can execute', async () => {

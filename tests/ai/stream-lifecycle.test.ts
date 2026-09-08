@@ -118,6 +118,52 @@ function fakeCtx({
 }
 
 describe('_honorSoftStop', () => {
+  test('a timeout cancels unanswered approval without recording a denial', async () => {
+    const stream = {
+      _id: 'stream_1',
+      status: 'streaming',
+      sessionId: 'session_1',
+      processingMessageId: 'message_1',
+      processingContentId: 'content_1',
+      stopAt: Date.now(),
+    }
+    const { ctx, patches, deletes } = fakeCtx({
+      docs: [stream, { _id: 'message_1', selectedVersion: 1 }],
+      contents: [
+        {
+          _id: 'content_1',
+          version: 1,
+          segmentIndex: 0,
+          parts: [
+            {
+              type: 'tool-shell',
+              toolCallId: 'shell_1',
+              state: 'approval-requested',
+              approval: { id: 'approval_1' },
+              input: { command: 'pwd' },
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(await _honorSoftStop(ctx, { streamId: stream._id as never })).toBe(
+      true,
+    )
+    await _finalizeStopped(ctx, { streamId: stream._id as never })
+
+    const sealed = patches.find(
+      ({ id, patch }) => id === 'content_1' && Array.isArray(patch.parts),
+    )
+    expect((sealed?.patch.parts as unknown[])[0]).toMatchObject({
+      state: 'output-error',
+      approval: undefined,
+      errorText:
+        'The turn ended before approval was received. This tool call never ran.',
+    })
+    expect(deletes).toContain(stream._id)
+  })
+
   test('moves a timed-out stream to stopped finalization exactly once', async () => {
     const stream = {
       _id: 'stream_1',

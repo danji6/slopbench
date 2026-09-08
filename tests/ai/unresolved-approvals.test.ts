@@ -1,7 +1,10 @@
 /// <reference types="bun-types" />
 import { removeOrphanToolCalls } from '@sb/convex/actions/stream/history'
 import { shellHistoryTools } from '@sb/convex/model/tool/shell'
-import { settleUnansweredToolParts } from '@sb/core/utils/tool-parts'
+import {
+  UNRESOLVED_APPROVAL_REASON,
+  settleUnansweredToolParts,
+} from '@sb/core/utils/tool-parts'
 import { type UIMessage, convertToModelMessages } from 'ai'
 import { describe, expect, test } from 'bun:test'
 
@@ -42,10 +45,9 @@ const shellPart = (
   }) as unknown as UIMessage['parts'][number]
 
 /**
- * An approval-request that reaches history unanswered (e.g. a sub-agent's
- * auto-denied tool call that never got flipped to output-denied) must not
- * vanish: the AI SDK drops the orphan tool-call, leaving the model blind and
- * looping. Settling it converts it to a visible denied result.
+ * An approval-request that reaches history unanswered must not vanish: the
+ * AI SDK drops the orphan tool-call, leaving the model blind and looping.
+ * Settling it reports an interrupted approval without inventing a denial.
  */
 describe('settleUnansweredToolParts', () => {
   const pending = (): UIMessage['parts'] => [
@@ -57,13 +59,31 @@ describe('settleUnansweredToolParts', () => {
     expect(toolResults(await toModel(pending()))).toHaveLength(0)
   })
 
-  test('settling it surfaces a denied tool-result to the model', async () => {
+  test('settling it reports an interrupted approval without forbidding a retry', async () => {
     const [result] = toolResults(
       await toModel(settleUnansweredToolParts(pending())),
     )
 
     expect(result?.output.type).toBe('error-text')
-    expect(result?.output.value).toContain('denied')
+    expect(result?.output.value).toBe(UNRESOLVED_APPROVAL_REASON)
+    expect(result?.output.value).not.toContain('denied')
+    expect(result?.output.value).not.toContain('Do not retry')
+  })
+
+  test('preserves an explicit denial and its reason', async () => {
+    const denied = shellPart({
+      state: 'output-denied',
+      approval: {
+        id: 'a1',
+        approved: false,
+        reason: 'Do not run this command.',
+      },
+    })
+    const settled = settleUnansweredToolParts([denied])
+
+    expect(settled[0]).toBe(denied)
+    const [result] = toolResults(await toModel(settled))
+    expect(result?.output.value).toContain('Do not run this command.')
   })
 
   /**

@@ -16,6 +16,7 @@ import { ChatSearchProvider } from './search'
 export type { ChatProps } from './chat-types'
 
 export function Chat(props: ChatProps) {
+  const [pendingWorkspaceRoot, setPendingWorkspaceRoot] = useState<string | null>(null) // prettier-ignore
   const [pendingMessage, setPendingMessage] = useState<PendingMessage | null>(
     null,
   )
@@ -41,6 +42,8 @@ export function Chat(props: ChatProps) {
           />
         ) : (
           <EmptyChat
+            workspaceRoot={pendingWorkspaceRoot}
+            onWorkspaceChange={setPendingWorkspaceRoot}
             onFirstMessage={setPendingMessage}
             activeAgentName={activeAgentName}
             activeAgentDisplay={activeAgentDisplay}

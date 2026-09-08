@@ -84,7 +84,10 @@ export function ProviderCard({
     }
 
     onChange({
-      models: [{ id: '', reasoning, _clientId: clientId }, ...provider.models],
+      models: [
+        { id: '', contextWindow: 256_000, reasoning, _clientId: clientId },
+        ...provider.models,
+      ],
     })
     setExpandedModelIds((current) => new Set(current).add(clientId))
     setExpanded(true)

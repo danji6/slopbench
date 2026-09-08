@@ -35,7 +35,7 @@ export function useUploadProfileAvatar() {
     '/io/avatar/upload',
   )
   return useCallback(
-    (file: File) => call(profileAvatarUploadForm(file)),
+    async (file: File) => call(await profileAvatarUploadForm(file)),
     [call],
   )
 }

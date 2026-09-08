@@ -1,6 +1,6 @@
 /** Reason attached to an approval request that was never answered. */
 export const UNRESOLVED_APPROVAL_REASON =
-  'This tool call was denied and never ran. Do not retry the same call.'
+  'The turn ended before approval was received. This tool call never ran.'
 
 /** Error attached to a tool call the turn ended on top of. */
 export const UNFINISHED_TOOL_ERROR =
@@ -38,12 +38,9 @@ export function settleUnansweredToolPart<T>(part: T): T {
     if (!tool.approval?.id) return part
     return {
       ...tool,
-      state: 'output-denied',
-      approval: {
-        id: tool.approval.id,
-        approved: false,
-        reason: UNRESOLVED_APPROVAL_REASON,
-      },
+      state: 'output-error',
+      approval: undefined,
+      errorText: UNRESOLVED_APPROVAL_REASON,
     } as T
   }
 

@@ -25,12 +25,16 @@ type EmptyChatProps = React.ComponentProps<'div'> & {
   width?: string
   layoutConstraint?: 'dvw' | '%'
   onError?: (error: Error) => void
+  workspaceRoot: string | null
+  onWorkspaceChange: (root: string | null) => void
   onFirstMessage: (msg: PendingMessage) => void
   activeAgentName?: string
   activeAgentDisplay?: AgentItem
 }
 
 export function EmptyChat({
+  workspaceRoot,
+  onWorkspaceChange,
   onFirstMessage,
   activeAgentName,
   activeAgentDisplay,
@@ -43,23 +47,21 @@ export function EmptyChat({
   const isAdmin = useIsAdmin()
   const topPadding = useNavPadding()
   const keyboardInset = useKeyboardInset()
-  const [workspaceRootOverride, setWorkspaceRoot] = useState<string | null>()
-  const workspaceRoot =
-    workspaceRootOverride === undefined
-      ? (settings?.recentWorkspaces?.[0] ?? null)
-      : workspaceRootOverride
   const fileIndex = useWorkspaceFileIndexByRoot(workspaceRoot)
 
   // Manual mode tracking since no session is available here
   const [mode, setMode] = useState<SessionMode>('normal')
   const [approvalMode, setApprovalMode] = useState<ApprovalMode>('ask')
-  const handleWorkspaceChange = useCallback((root: string | null) => {
-    setWorkspaceRoot(root)
-    if (!root) {
-      setMode('normal')
-      setApprovalMode('ask')
-    }
-  }, [])
+  const handleWorkspaceChange = useCallback(
+    (root: string | null) => {
+      onWorkspaceChange(root)
+      if (!root) {
+        setMode('normal')
+        setApprovalMode('ask')
+      }
+    },
+    [onWorkspaceChange],
+  )
 
   const handleSubmit = useCallback(
     async (message: PendingMessage) => {
@@ -69,11 +71,13 @@ export function EmptyChat({
         mode: mode === 'normal' ? undefined : mode,
         approvalMode: approvalMode === 'ask' ? undefined : approvalMode,
       })
+      handleWorkspaceChange(null)
       onFirstMessage(message)
       navigate(`/?id=${sessionId}`, { replace: true })
     },
     [
       createSession,
+      handleWorkspaceChange,
       workspaceRoot,
       mode,
       approvalMode,
