@@ -5,8 +5,9 @@ export function useReasoningOpen(
   messageId: string,
   segmentIndex: number,
   groupIndex: number,
+  version = 1,
 ) {
   return useCollapsible(
-    `${messageId}:s${segmentIndex}:g${groupIndex}:reasoning`,
+    `${messageId}:v${version}:s${segmentIndex}:g${groupIndex}:reasoning`,
   )
 }

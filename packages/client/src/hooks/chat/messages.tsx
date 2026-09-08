@@ -18,6 +18,8 @@ import {
 } from '@/lib/chat/messages'
 import type { MessageRow } from '@/lib/chat/rows'
 import type { UIMetadata } from '@/lib/chat/types'
+import { projectWorkRows } from '@/lib/chat/work-rows'
+import { workExpansion } from '@/lib/chat/work-state'
 import { DEFAULT_SETTINGS } from '@sb/convex/model/defaults'
 import type { UIMessage } from 'ai'
 import {
@@ -29,6 +31,9 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
+
+import { useSessionJobs } from './terminals'
+import { useIsWorkspaceAdmin } from './tools'
 
 const [MessageStoreContext, useMessageStore] =
   createUsableContext<MessageStore>('MessageStore')
@@ -93,7 +98,24 @@ export function useMessageIds(): string[] {
 
 export function useMessageRows(): MessageRow[] {
   const store = useMessageStore()
-  return useSyncExternalStore(store.subscribe, store.getRows)
+  const rows = useSyncExternalStore(store.subscribe, store.getRows)
+  const open = useSyncExternalStore(workExpansion.subscribe, workExpansion.getSnapshot) // prettier-ignore
+  const transitions = useSyncExternalStore(workExpansion.subscribe, workExpansion.getTransitions) // prettier-ignore
+  const session = useActiveSession()
+  const isAdmin = useIsWorkspaceAdmin()
+  const { jobs } = useSessionJobs(session?._id ?? null, isAdmin)
+
+  return useMemo(
+    () =>
+      projectWorkRows(rows, {
+        open,
+        transitions,
+        jobs,
+        getMessage: store.getMessage,
+        getMetadata: store.getMessageMetadata,
+      }),
+    [rows, open, transitions, jobs, store],
+  )
 }
 
 export function useWindowMetadata(): MessageWindowMetadata {

@@ -28,7 +28,7 @@ describe('message rows', () => {
         kind: 'header',
         key: 'h:message-1',
         messageId: 'message-1',
-        reasoningGroupIndex: undefined,
+        reasoning: undefined,
       },
       {
         kind: 'group',
@@ -195,7 +195,7 @@ describe('segment rows', () => {
     expect(afterKeys.slice(-beforeKeys.length)).toEqual(beforeKeys)
   })
 
-  test('the header owns leading reasoning only when the turn start is loaded', () => {
+  test('the header displays latest loaded reasoning even for a partial turn', () => {
     const reasoning = {
       type: 'reasoning',
       text: 'thinking',
@@ -213,8 +213,8 @@ describe('segment rows', () => {
     )
     expect(complete[0]).toMatchObject({
       kind: 'header',
-      key: 'h:message-1:r',
-      reasoningGroupIndex: 0,
+      key: 'h:message-1',
+      reasoning: { messageId: 'message-1', segmentIndex: 0, groupIndex: 0 },
     })
 
     const partial = buildRows(
@@ -222,8 +222,12 @@ describe('segment rows', () => {
       () => message([reasoning, part('answer')]),
       () => named(true),
     )
-    // Mid-turn reasoning is not the turn's opening thought
-    expect(partial[0]).toMatchObject({ kind: 'header', key: 'h:message-1' })
+    // The header uses the latest loaded thought without creating an isolated block.
+    expect(partial[0]).toMatchObject({
+      kind: 'header',
+      key: 'h:message-1',
+      reasoning: { messageId: 'message-1', segmentIndex: 1, groupIndex: 0 },
+    })
     expect(partial[1]).toMatchObject({ kind: 'group', segmentIndex: 1 })
   })
 })

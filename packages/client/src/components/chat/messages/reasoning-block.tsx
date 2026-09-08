@@ -10,6 +10,7 @@ export type ReasoningBlockProps = {
   messageId: string
   segmentIndex: number
   groupIndex: number
+  version?: number
 }
 
 export function ReasoningBlock({
@@ -17,12 +18,14 @@ export function ReasoningBlock({
   messageId,
   segmentIndex,
   groupIndex,
+  version,
 }: ReasoningBlockProps) {
   const { label, isStreaming } = useReasoningLabel(part)
   const [open, onOpenChange] = useReasoningOpen(
     messageId,
     segmentIndex,
     groupIndex,
+    version,
   )
 
   if (!part.text) return null

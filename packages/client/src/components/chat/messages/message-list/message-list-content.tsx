@@ -1,5 +1,7 @@
 import { RippleButton, WavyProgressCircle } from '@/components/ui'
 import type { MessageRow } from '@/lib/chat/rows'
+import { type WorkTransition, workExpansion } from '@/lib/chat/work-state'
+import { cn } from '@/lib/utils'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   type CSSProperties,
@@ -9,7 +11,9 @@ import {
   createContext,
   useContext,
   useEffect,
+  useLayoutEffect,
   useState,
+  useSyncExternalStore,
 } from 'react'
 import {
   type CustomItemComponentProps,
@@ -22,6 +26,9 @@ import { EmptyMessage } from '../../empty-message'
 const CONTENT_FADE_TRANSITION = { duration: 0.18, ease: 'easeOut' } as const
 
 const VirtualizedRowsContext = createContext<readonly MessageRow[]>([])
+const WorkTransitionsContext = createContext<
+  ReadonlyMap<string, WorkTransition>
+>(new Map())
 
 export type OverlayInset = { top: number; bottom: number }
 
@@ -176,6 +183,7 @@ function MessageRows({
   renderRow,
   virtuaRef,
 }: MessageRowsProps) {
+  const transitions = useWorkTransitions()
   return (
     <>
       {hasHeaderContainer && (
@@ -206,14 +214,16 @@ function MessageRows({
         }
       >
         <VirtualizedRowsContext value={rows}>
-          <WindowVirtualizer
-            ref={virtuaRef}
-            data={rows}
-            item={VirtualizedItem}
-            shift={shiftItems}
-          >
-            {renderRow}
-          </WindowVirtualizer>
+          <WorkTransitionsContext value={transitions}>
+            <WindowVirtualizer
+              ref={virtuaRef}
+              data={rows}
+              item={VirtualizedItem}
+              shift={shiftItems}
+            >
+              {renderRow}
+            </WindowVirtualizer>
+          </WorkTransitionsContext>
         </VirtualizedRowsContext>
       </div>
       {hasNewer && (
@@ -248,6 +258,7 @@ function VirtualizedItem({
   ref,
 }: CustomItemComponentProps) {
   const rows = useContext(VirtualizedRowsContext)
+  const transitions = useContext(WorkTransitionsContext)
   const row = rows[index]
   const previousRow = rows[index - 1]
 
@@ -270,11 +281,75 @@ function VirtualizedItem({
       data-row-kind={row?.kind}
       data-message-id={row?.messageId}
       data-row-key={row?.key}
+      data-work-id={row?.kind === 'group' ? row.workId : undefined}
       data-segment-index={row?.kind === 'group' ? row.segmentIndex : undefined}
       style={overhang}
     >
       {spacing && <div aria-hidden className={row.grouped ? 'h-3' : 'h-10'} />}
-      {children}
+      {row?.kind === 'group' && row.workId ? (
+        <WorkRowTransition
+          state={
+            row.promotedToolCallIds
+              ? undefined
+              : transitions.get(row.workId)?.phase
+          }
+        >
+          {children}
+        </WorkRowTransition>
+      ) : (
+        children
+      )}
     </div>
   )
+}
+
+/** Animates each measured row so work keeps using the shared virtualizer. */
+function WorkRowTransition({
+  state,
+  children,
+}: {
+  state?: WorkTransition['phase']
+  children: ReactNode
+}) {
+  return (
+    <div
+      data-slot="work-row-transition"
+      inert={state === 'closing' || state === 'preparing'}
+      className={cn(
+        'grid',
+        (state === 'opening' || state === 'closing') &&
+          'transition-[grid-template-rows,opacity,translate] duration-200 ease-in-out motion-reduce:transition-none',
+        state === 'closing'
+          ? 'grid-rows-[0fr] opacity-0'
+          : 'grid-rows-[1fr] opacity-100',
+        state === 'preparing' && '-translate-y-2 opacity-0',
+      )}
+    >
+      <div className={cn('min-h-0', state && 'overflow-hidden')}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+/** Lets initial tool rendering and Virtua's first measurements finish before revealing. */
+function useWorkTransitions() {
+  const transitions = useSyncExternalStore(
+    workExpansion.subscribe,
+    workExpansion.getTransitions,
+  )
+  useLayoutEffect(() => {
+    const preparing = [...transitions].filter(
+      ([, transition]) => transition.phase === 'preparing',
+    )
+    if (!preparing.length) return
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        for (const [id, transition] of preparing)
+          workExpansion.startOpening(id, transition)
+      })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [transitions])
+  return transitions
 }

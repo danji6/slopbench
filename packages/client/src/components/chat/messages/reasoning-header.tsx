@@ -4,15 +4,16 @@ import { cn } from '@/lib/utils'
 import type { ReasoningPart } from '@sb/convex/types'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
+import { useCollapsible } from './collapsible-store'
 import { useGrowOnly } from './grow-only'
 import { MessageHeader, type MessageSender } from './message-header'
 import { useMessageHighlight } from './message-highlight-context'
 import { useMessageList } from './message-list/message-list-context'
-import { useReasoningOpen } from './reasoning-collapsible'
 import { useReasoningLabel } from './reasoning-label'
 import { SmoothText } from './smooth-text'
 
 export type ReasoningHeaderProps = {
+  openKey: string
   sender: MessageSender
   role: MessageRole
   part: ReasoningPart
@@ -23,6 +24,7 @@ export type ReasoningHeaderProps = {
 
 export function ReasoningHeader({
   sender,
+  openKey,
   role,
   part,
   messageId,
@@ -30,13 +32,13 @@ export function ReasoningHeader({
   groupIndex,
 }: ReasoningHeaderProps) {
   const { label, isStreaming } = useReasoningLabel(part)
-  const [open, setOpen] = useReasoningOpen(messageId, segmentIndex, groupIndex)
+  const [open, setOpen] = useCollapsible(openKey)
   const messageList = useMessageList()
 
   const registerElement = useMessageHighlight()?.registerElement
 
   const target = useMemo(
-    () => ({ messageId, segmentIndex, groupIndex }),
+    () => ({ messageId, segmentIndex, groupIndex, surface: 'header' as const }),
     [messageId, segmentIndex, groupIndex],
   )
 
@@ -57,6 +59,9 @@ export function ReasoningHeader({
     if (wasShowing.current && !showBody) release?.()
     wasShowing.current = showBody
   }, [showBody, release])
+  useEffect(() => {
+    release?.()
+  }, [messageId, segmentIndex, groupIndex, release])
 
   const toggle = useCallback(() => {
     setOpen(!open)
@@ -80,7 +85,10 @@ export function ReasoningHeader({
             variant="plain"
             size={null}
             onClick={hasText ? toggle : undefined}
+            aria-expanded={showBody}
+            aria-label="Toggle latest thinking"
             data-slot="reasoning-highlight"
+            data-reasoning-address=""
             className="flex min-h-0 min-w-0 items-center justify-start gap-1 rounded-none py-0 text-left focus-visible:ring-0"
           >
             <span
@@ -110,13 +118,17 @@ export function ReasoningHeader({
         <div className="min-h-0 overflow-hidden">
           {showBody && (
             <div
+              data-reasoning-address=""
               className="pt-2 wrap-break-word whitespace-pre-wrap opacity-70"
               style={{
                 fontFamily: 'var(--chat-font-family)',
                 fontSize: 'var(--chat-font-size)',
               }}
             >
-              <SmoothText part={part} />
+              <SmoothText
+                key={`${messageId}:${segmentIndex}:${groupIndex}`}
+                part={part}
+              />
             </div>
           )}
         </div>

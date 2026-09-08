@@ -119,7 +119,7 @@ export function MessageContextMenu({
     // Preload the editor in case the user intends to edit the message
     if (canMutate) prefetchRichTextEditor()
     editSelectionRef.current = captureMessageEditSelection(message.id, x, y)
-    const next = resolveScope(row, slices, x, y)
+    const next = resolveScope(row, x, y)
     scopeRef.current = next
     setScope(next)
   }
@@ -136,6 +136,8 @@ export function MessageContextMenu({
         messageId: message.id,
         segmentIndex: blockScoped ? scopeRef.current!.segmentIndex : null,
         groupIndex: blockScoped ? scopeRef.current!.groupIndex : null,
+        ...(blockScoped &&
+          row.kind === 'header' && { surface: 'header' as const }),
       })
     } else if (ownsHighlightRef.current) {
       ownsHighlightRef.current = false
@@ -160,8 +162,7 @@ export function MessageContextMenu({
     })
   }
 
-  const ownsReasoning =
-    row.kind === 'header' && row.reasoningGroupIndex !== undefined
+  const ownsReasoning = row.kind === 'header' && row.reasoning !== undefined
 
   if (isEditing) return children
   if (
@@ -389,19 +390,18 @@ function DeleteMenu({
 /** Which group the menu acts on for a given right-click, or null for message-wide. */
 function resolveScope(
   row: MessageRow,
-  slices: SegmentGroups[],
   x: number,
   y: number,
 ): GroupScope | null {
   if (row.kind === 'group') {
     return { segmentIndex: row.segmentIndex, groupIndex: row.groupIndex }
   }
-  if (row.kind === 'header' && row.reasoningGroupIndex !== undefined) {
+  if (row.kind === 'header' && row.reasoning !== undefined) {
     const element = document.elementFromPoint(x, y)
-    if (element?.closest('[data-slot="reasoning-highlight"]')) {
+    if (element?.closest('[data-reasoning-address]')) {
       return {
-        segmentIndex: slices[0]?.segmentIndex ?? 0,
-        groupIndex: row.reasoningGroupIndex,
+        segmentIndex: row.reasoning!.segmentIndex,
+        groupIndex: row.reasoning!.groupIndex,
       }
     }
   }

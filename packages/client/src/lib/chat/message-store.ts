@@ -8,6 +8,7 @@ import { dequal } from 'dequal'
 import { limitRetained, mergeRetained } from './message-merge'
 import { type MessageRow, buildRows, rowKeysEqual } from './rows'
 import type { MessageRecord, PartMetadata } from './types'
+import { createWorkIdentity } from './work-layout'
 
 export type PaginationStatus =
   'LoadingFirstPage' | 'CanLoadMore' | 'LoadingMore' | 'Exhausted'
@@ -91,6 +92,7 @@ export function createMessageStore() {
   let lastWasLive = false
   let lastResetKey = 0
   let groupBySender = false
+  const resolveWorkId = createWorkIdentity()
 
   const listeners = new Set<() => void>()
 
@@ -105,7 +107,7 @@ export function createMessageStore() {
       (id) => messagesById.get(id) ?? null,
       (id) => messageMetaByMessage.get(id),
       (id) => partMetaByMessage.get(id),
-      { groupBySender },
+      { groupBySender, resolveWorkId },
     )
     if (rowKeysEqual(rows, nextRows)) return false
     rows = nextRows

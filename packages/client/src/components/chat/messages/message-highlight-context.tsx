@@ -11,6 +11,7 @@ export type HighlightTarget = {
   segmentIndex: number | null
   /** The block to highlight, or null to highlight the whole message. */
   groupIndex: number | null
+  surface?: 'header'
 }
 
 export type MessageHighlightValue = {
@@ -61,7 +62,7 @@ const HIGHLIGHT_PAD_Y = 12
 
 function keyForTarget(target: HighlightTarget): string {
   if (target.groupIndex === null) return `${target.messageId}:message`
-  return `${target.messageId}:s${target.segmentIndex ?? 0}:${target.groupIndex}`
+  return `${target.messageId}:s${target.segmentIndex ?? 0}:${target.groupIndex}${target.surface ? ':header' : ''}`
 }
 
 export function MessageHighlightProvider({

@@ -1,9 +1,11 @@
 import type { useMessageStore } from '@/hooks/chat'
 import { getNavPaddingPx } from '@/hooks/nav-padding'
 import { type MessageRow, findToolRow } from '@/lib/chat/rows'
+import { workExpansion } from '@/lib/chat/work-state'
 import { trackUntilSettled } from '@/lib/scroll-settle'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { openToolBlock } from '../../tools/tool-shell'
 import type { ScrollDeps } from '../deps'
 
 type AnchorAround = (target: {
@@ -197,13 +199,13 @@ export function useSeek(
       const message = messageStore.getMessage(messageId)
       if (!message) return undefined
       return findToolRow(
-        rowsRef.current,
+        messageStore.getRows(),
         message,
         messageStore.getMessageMetadata(messageId),
         toolCallId,
       )
     },
-    [messageStore, rowsRef],
+    [messageStore],
   )
 
   // Resolve a pending scroll target, anchoring the window around it if needed
@@ -214,21 +216,35 @@ export function useSeek(
     const loaded =
       target.segmentIndex === undefined
         ? rows.some((row) => row.messageId === target.id)
-        : rows.some(
-            (row) =>
-              row.messageId === target.id &&
-              row.kind === 'group' &&
-              row.segmentIndex === target.segmentIndex,
-          )
+        : messageStore
+            .getRows()
+            .some(
+              (row) =>
+                row.messageId === target.id &&
+                row.kind === 'group' &&
+                row.segmentIndex === target.segmentIndex,
+            )
 
     if (loaded) {
       clearNotFoundTimer()
-      pendingTargetRef.current = null
-
       // Now that the message is in the window, narrow the target to the block
       const toolRow = target.toolCallId
         ? resolveToolRow(target.id, target.toolCallId)
         : undefined
+      const savedRow = target.rowKey
+        ? messageStore.getRows().find((row) => row.key === target.rowKey)
+        : undefined
+      const hiddenRow = toolRow ?? savedRow
+      if (
+        hiddenRow?.kind === 'group' &&
+        hiddenRow.workId &&
+        !workExpansion.getSnapshot().has(hiddenRow.workId)
+      ) {
+        workExpansion.setOpen(hiddenRow.workId, true)
+        return
+      }
+      if (target.toolCallId) openToolBlock(target.id, target.toolCallId)
+      pendingTargetRef.current = null
       target.onLocated?.(toolRow ?? null)
 
       scrollToTargetSettled({
@@ -259,6 +275,7 @@ export function useSeek(
     anchorAround,
     abandonTarget,
     clearNotFoundTimer,
+    messageStore,
   ])
 
   return { scrollToMessage, requestScrollToMessage }

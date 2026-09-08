@@ -1,28 +1,27 @@
-import { type UIMessage, isReasoningUIPart } from 'ai'
+import type { UIMessage } from 'ai'
+import { dequal } from 'dequal'
 
 import {
   type PartGroup,
   groupHasToolCall,
   groupKey,
   groupPartsCached,
-  isRenderablePartGroup,
 } from './parts'
 import type { MessageRecord, PartMetadata } from './types'
-
-function isReasoningGroup(group: PartGroup): boolean {
-  return group.type === 'single' && isReasoningUIPart(group.part)
-}
+import {
+  type ReasoningAddress,
+  type ResolveWorkId,
+  type WorkGroup,
+  buildWorkLayout,
+  latestReasoning,
+} from './work-layout'
 
 export type MessageRow =
   | {
       kind: 'header'
       key: string
       messageId: string
-      /**
-       * When set, the header owns and renders this leading reasoning group
-       * (a group index within the message's first loaded segment).
-       */
-      reasoningGroupIndex?: number
+      reasoning?: ReasoningAddress
       grouped?: boolean
     }
   | {
@@ -31,6 +30,15 @@ export type MessageRow =
       messageId: string
       segmentIndex: number
       groupIndex: number
+      workId?: string
+      promotedToolCallIds?: string[]
+      grouped?: boolean
+    }
+  | {
+      kind: 'work'
+      key: string
+      messageId: string
+      work: WorkGroup
       grouped?: boolean
     }
   | { kind: 'footer'; key: string; messageId: string; grouped?: boolean }
@@ -94,6 +102,7 @@ export function segmentGroupsFor(
 export type BuildRowsOptions = {
   /** Collapse consecutive messages by the same sender under one header. */
   groupBySender?: boolean
+  resolveWorkId?: ResolveWorkId
 }
 
 /** Whether a footer row would render anything. */
@@ -114,10 +123,11 @@ export function buildRows(
   getMessage: (id: string) => UIMessage | null,
   getMessageMetadata: (id: string) => MessageRecord | undefined,
   getPartMetadata: (id: string) => PartMetadata | undefined = () => undefined,
-  { groupBySender = false }: BuildRowsOptions = {},
+  { groupBySender = false, resolveWorkId }: BuildRowsOptions = {},
 ): MessageRow[] {
   const rows: MessageRow[] = []
   let previousSenderKey: string | null = null
+  let senderHeader: Extract<MessageRow, { kind: 'header' }> | undefined
 
   for (const id of ids) {
     const message = getMessage(id)
@@ -149,20 +159,10 @@ export function buildRows(
     const hasHeader = !meta?.type && !grouped
 
     const slices = segmentGroupsFor(message, meta)
-    const firstGroups = slices[0]?.groups ?? []
-    // The leading group is the first reasoning or otherwise renderable group,
-    // skipping inert parts like `step-start` that the SDK prepends. It only
-    // folds into the header when the turn's actual start is loaded.
-    const leadIndex = firstGroups.findIndex(
-      (group) => isReasoningGroup(group) || isRenderablePartGroup(group),
-    )
-    const reasoningGroupIndex =
-      hasHeader &&
-      !meta?.hasOlderSegments &&
-      leadIndex >= 0 &&
-      isReasoningGroup(firstGroups[leadIndex])
-        ? leadIndex
-        : undefined
+    const reasoning = !meta?.type ? latestReasoning(id, slices) : undefined
+    const layout = buildWorkLayout(message, meta, slices, resolveWorkId)
+    if (!grouped) senderHeader = undefined
+    if (grouped && senderHeader && reasoning) senderHeader.reasoning = reasoning
 
     // A `:grp` suffix on the first emitted row's key lets `rowKeysEqual`
     // catch grouping toggles even when no header row appears or vanishes
@@ -170,31 +170,42 @@ export function buildRows(
     const firstKey = (key: string) => (first && grouped ? `${key}:grp` : key)
 
     if (hasHeader) {
-      rows.push({
+      senderHeader = {
         kind: 'header',
-        key: reasoningGroupIndex !== undefined ? `h:${id}:r` : `h:${id}`,
+        key: `h:${id}`,
         messageId: id,
-        reasoningGroupIndex,
-      })
+        reasoning,
+      }
+      rows.push(senderHeader)
       first = false
     }
 
-    for (const [sliceIndex, slice] of slices.entries()) {
-      for (let i = 0; i < slice.groups.length; i++) {
-        if (sliceIndex === 0 && i === reasoningGroupIndex) continue
-        if (!isRenderablePartGroup(slice.groups[i])) continue
+    const emitted = new Set<string>()
+    for (const entry of layout.groups) {
+      if (entry.workId && !emitted.has(entry.workId)) {
+        const work = layout.work.find((work) => work.id === entry.workId)!
         rows.push({
-          kind: 'group',
-          key: firstKey(
-            `g:${id}:s${slice.segmentIndex}:${groupKey(slice.groups[i])}`,
-          ),
+          kind: 'work',
+          key: firstKey(`w:${work.id}`),
           messageId: id,
-          segmentIndex: slice.segmentIndex,
-          groupIndex: i,
+          work,
           ...(first && grouped && { grouped }),
         })
+        emitted.add(work.id)
         first = false
       }
+      rows.push({
+        kind: 'group',
+        key: firstKey(
+          `g:${id}:s${entry.segmentIndex}:${groupKey(entry.group)}`,
+        ),
+        messageId: id,
+        segmentIndex: entry.segmentIndex,
+        groupIndex: entry.groupIndex,
+        ...(entry.workId && { workId: entry.workId }),
+        ...(first && grouped && { grouped }),
+      })
+      first = false
     }
 
     // Only render a footer if it has something to show or is the first row
@@ -227,12 +238,20 @@ export function findToolRow(
     )
     if (groupIndex < 0) continue
 
-    return rows.find(
-      (row) =>
-        row.kind === 'group' &&
-        row.messageId === message.id &&
-        row.segmentIndex === slice.segmentIndex &&
-        row.groupIndex === groupIndex,
+    return (
+      rows.find(
+        (row) =>
+          row.kind === 'group' &&
+          row.messageId === message.id &&
+          row.segmentIndex === slice.segmentIndex &&
+          row.groupIndex === groupIndex,
+      ) ??
+      rows.find(
+        (row) =>
+          row.kind === 'work' &&
+          row.messageId === message.id &&
+          row.work.toolCallIds.includes(toolCallId),
+      )
     )
   }
 }
@@ -240,7 +259,7 @@ export function findToolRow(
 export function rowKeysEqual(a: MessageRow[], b: MessageRow[]): boolean {
   if (a.length !== b.length) return false
   for (let i = 0; i < a.length; i++) {
-    if (a[i].key !== b[i].key) return false
+    if (!dequal(a[i], b[i])) return false
   }
   return true
 }

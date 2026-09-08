@@ -32,6 +32,7 @@ import { MessageVersionSwitcher } from './message-version-switcher'
 import { ReasoningHeader } from './reasoning-header'
 import { RenderGroup } from './render-group'
 import { WaitingIndicator } from './waiting-indicator'
+import { WorkBlock } from './work-block'
 
 export type MessageRowViewProps = {
   row: MessageRow
@@ -41,7 +42,9 @@ export const MessageRowView = memo(function MessageRowView({
   row,
 }: MessageRowViewProps) {
   const { message, isLast, messageMeta, partMeta } = useChatMessage(
-    row.messageId,
+    row.kind === 'header'
+      ? (row.reasoning?.messageId ?? row.messageId)
+      : row.messageId,
   )
 
   if (!message) return null
@@ -59,6 +62,13 @@ export const MessageRowView = memo(function MessageRowView({
           row={row}
           message={message}
           messageMeta={messageMeta}
+          partMeta={partMeta}
+        />
+      ) : row.kind === 'work' ? (
+        <WorkBlock
+          row={row}
+          message={message}
+          record={messageMeta}
           partMeta={partMeta}
         />
       ) : row.kind === 'footer' ? (
@@ -90,12 +100,19 @@ function RowShell({ message, messageMeta, row, children }: RowShellProps) {
     [message.parts],
   )
 
-  // Only group rows hold parts that can legitimately shrink. Header/footer keep
-  // the plain version key to keep their height stable.
-  const growKey =
-    row.kind === 'group'
-      ? `${messageMeta?.selectedVersion}:${isStreaming}:${structureSig}`
-      : messageMeta?.selectedVersion
+  // Release retained height when a group changes shape or the header replaces
+  // its reasoning, including when the last thinking part is deleted.
+  let growKey
+  switch (row.kind) {
+    case 'group':
+      growKey = `${messageMeta?.selectedVersion}:${isStreaming}:${structureSig}:${row.promotedToolCallIds?.join() ?? ''}`
+      break
+    case 'header':
+      growKey = `${messageMeta?.selectedVersion}:${row.reasoning?.messageId}:${row.reasoning?.segmentIndex}:${row.reasoning?.groupIndex}`
+      break
+    default:
+      growKey = messageMeta?.selectedVersion
+  }
 
   const canMutate = canMutateMessage(message, messageMeta, session, profile)
   const canEdit = useMemo(
@@ -180,11 +197,7 @@ function HeaderRow({ row, message, messageMeta }: HeaderRowProps) {
     [highlightTarget, registerElement],
   )
 
-  const reasoning = useReasoningHeader(
-    message,
-    messageMeta,
-    row.reasoningGroupIndex,
-  )
+  const reasoning = useReasoningHeader(message, messageMeta, row.reasoning)
 
   const sender = {
     name: toDisplayName(
@@ -204,6 +217,7 @@ function HeaderRow({ row, message, messageMeta }: HeaderRowProps) {
         <ReasoningHeader
           sender={sender}
           role={message.role}
+          openKey={`${row.messageId}:v${messageMeta?.selectedVersion ?? 1}:header-reasoning`}
           part={reasoning.part}
           messageId={message.id}
           segmentIndex={reasoning.segmentIndex}
@@ -219,19 +233,25 @@ function HeaderRow({ row, message, messageMeta }: HeaderRowProps) {
 function useReasoningHeader(
   message: UIMessage,
   messageMeta: MessageRecord | undefined,
-  reasoningGroupIndex: number | undefined,
+  address: Extract<MessageRow, { kind: 'header' }>['reasoning'],
 ) {
   return useMemo(() => {
-    if (reasoningGroupIndex === undefined) return null
-    const slice = segmentGroupsFor(message, messageMeta)[0]
-    const group = slice?.groups[reasoningGroupIndex]
-    if (group?.type !== 'single' || !isReasoningUIPart(group.part)) return null
+    if (!address) return null
+
+    const slice = segmentGroupsFor(message, messageMeta).find(
+      (slice) => slice.segmentIndex === address.segmentIndex,
+    )
+    const group = slice?.groups[address.groupIndex]
+
+    if (group?.type !== 'single' || !isReasoningUIPart(group.part)) {
+      return null
+    }
     return {
       part: group.part,
-      segmentIndex: slice.segmentIndex,
-      groupIndex: reasoningGroupIndex,
+      segmentIndex: address.segmentIndex,
+      groupIndex: address.groupIndex,
     }
-  }, [message, messageMeta, reasoningGroupIndex])
+  }, [message, messageMeta, address])
 }
 
 type GroupRowProps = {
@@ -268,7 +288,12 @@ function GroupRow({ row, message, messageMeta, partMeta }: GroupRowProps) {
   return (
     <div
       data-slot="message-group"
-      className={cn('w-full max-w-full wrap-break-word')}
+      className={cn(
+        'w-full max-w-full wrap-break-word',
+        row.workId &&
+          !row.promotedToolCallIds &&
+          'border-border/60 border-l pl-3',
+      )}
     >
       <div
         ref={highlightRef}
@@ -278,9 +303,19 @@ function GroupRow({ row, message, messageMeta, partMeta }: GroupRowProps) {
         <RenderGroup
           message={message}
           type={messageMeta?.type}
-          group={group}
+          group={
+            row.promotedToolCallIds && group.type === 'tools'
+              ? {
+                  ...group,
+                  parts: group.parts.filter((part) =>
+                    row.promotedToolCallIds!.includes(part.toolCallId),
+                  ),
+                }
+              : group
+          }
           segmentIndex={row.segmentIndex}
           groupIndex={row.groupIndex}
+          version={messageMeta?.selectedVersion ?? 1}
           attachmentIds={attachmentIds}
           partMeta={partMeta}
         />

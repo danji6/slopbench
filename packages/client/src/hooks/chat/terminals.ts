@@ -2,6 +2,7 @@ import { convexSiteUrl, getConvexToken } from '@/hooks/http'
 import type { ShellJobStatus, ShellJobSummary } from '@/lib/chat'
 import {
   type ListShellJobs,
+  NO_JOBS,
   dropShellJob,
   findShellJob,
   getShellJobs,
@@ -38,7 +39,7 @@ export function useSessionJobs(
     [sessionId, enabled, list],
   )
 
-  return { jobs: sessionId && enabled ? jobs : [], dropJob: dropShellJob }
+  return { jobs: sessionId && enabled ? jobs : NO_JOBS, dropJob: dropShellJob }
 }
 
 /**
