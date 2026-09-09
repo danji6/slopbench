@@ -1,3 +1,4 @@
+import { keepMarksOnOneLine } from '@/lib/tiptap/markdown-lines'
 import type { MarkdownToken } from '@tiptap/core'
 import { MarkdownManager, Markdown as TiptapMarkdown } from '@tiptap/markdown'
 
@@ -89,6 +90,7 @@ export function recoverAbsorbedBlankLines(target: MarkdownManager): void {
 serializeTextLiterally(MarkdownManager.prototype)
 keepHtmlLiteral(MarkdownManager.prototype)
 recoverAbsorbedBlankLines(MarkdownManager.prototype)
+keepMarksOnOneLine(MarkdownManager.prototype)
 
 /**
  * Markdown support that stores exactly what was typed, matching how assistant

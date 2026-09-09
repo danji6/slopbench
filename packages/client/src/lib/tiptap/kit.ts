@@ -6,8 +6,11 @@ import { HtmlDecoration } from '@/lib/tiptap/decorations/html'
 import { MathDecoration } from '@/lib/tiptap/decorations/math'
 import { BlockOpeners } from '@/lib/tiptap/extensions/block-openers'
 import { CodeEdit } from '@/lib/tiptap/extensions/code-edit'
+import { EditableLines } from '@/lib/tiptap/extensions/editable-lines'
 import { HardBreakKeys } from '@/lib/tiptap/extensions/hard-break'
 import { LineBreaks } from '@/lib/tiptap/extensions/line-breaks'
+import { LineStarterKit } from '@/lib/tiptap/extensions/line-starter-kit'
+import { MarkExit } from '@/lib/tiptap/extensions/mark-exit'
 import { Markdown } from '@/lib/tiptap/extensions/markdown'
 import { MarkdownClipboard } from '@/lib/tiptap/extensions/markdown-clipboard'
 import { MarkdownMath } from '@/lib/tiptap/extensions/markdown-math'
@@ -19,7 +22,6 @@ import { Table } from '@tiptap/extension-table'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
 import { TableRow } from '@tiptap/extension-table-row'
-import { StarterKit } from '@tiptap/starter-kit'
 
 export type EditorKitOptions = {
   /**
@@ -50,7 +52,7 @@ export function editorKit({
   collapseBlocks = false,
 }: EditorKitOptions = {}): Extensions {
   return [
-    StarterKit.configure({ codeBlock: false, hardBreak: false }),
+    LineStarterKit.configure({ codeBlock: false, hardBreak: false }),
     CodeBlockShiki.configure({
       themes: { light: themeName, dark: themeName },
       customThemes: [theme],
@@ -59,6 +61,7 @@ export function editorKit({
       ...(debounce == null ? {} : { debounce }),
     }),
     Markdown,
+    EditableLines.configure({ collapseBlocks }),
     ...(math
       ? [MarkdownMath, MathDecoration.configure({ mathMode: math })]
       : []),
@@ -74,6 +77,7 @@ export function editorKit({
     MarkdownClipboard.configure({ collapseBlocks }),
     CodeEdit,
     LineBreaks,
+    MarkExit,
     HardBreakKeys,
     BlockOpeners,
     RevealInsert,

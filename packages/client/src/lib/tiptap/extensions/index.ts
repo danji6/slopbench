@@ -4,9 +4,12 @@
 
 export * from './block-openers'
 export * from './code-edit'
+export * from './editable-lines'
 export * from './hard-break'
 export * from './interpreter-input'
 export * from './line-breaks'
+export * from './line-starter-kit'
+export * from './mark-exit'
 export * from './markdown-clipboard'
 export * from './markdown-math'
 export * from './markdown'
