@@ -31,6 +31,9 @@ const LAYOUT_SHIFT_SETTLE_MS = 250
 /** How close to the bottom (px) before autoscroll should trigger again. */
 const FOLLOW_RESUME_DISTANCE = 80
 
+/** Bottom tolerance for preserving the tail when the dock or keyboard grows. */
+const BOTTOM_ANCHOR_TOLERANCE = 20
+
 /** Which events should always cancel a follow. */
 const SCROLL_CANCEL_EVENTS = ['wheel', 'touchmove'] as const
 
@@ -128,11 +131,37 @@ export class Scroller {
   setBottomInset(px: number) {
     const value = Math.max(0, Math.round(px))
     if (this._bottomInset === value) return
+    this._compensateBottomInset(value - this._bottomInset)
     this._bottomInset = value
     if (this.observer && this.sentinel) {
       this.observer.disconnect()
       this.observer = this._createIntersectionObserver()
       this.observer.observe(this.sentinel)
+    }
+  }
+
+  /** Preserves a visible tail after its bottom padding has grown in the DOM. */
+  private _compensateBottomInset(delta: number) {
+    const target = this.target
+    if (
+      !target ||
+      !this._ready ||
+      delta <= 0 ||
+      this._manualScrollActive ||
+      this._shiftInProgress ||
+      this._userScrollIntent === 'up'
+    )
+      return
+
+    const bottom = Math.max(
+      0,
+      target.getScrollHeight() - target.getClientHeight(),
+    )
+    const distance = bottom - target.getScrollTop()
+    // Subtract the added padding to recover the distance before the resize
+    if (distance > 0 && distance - delta < BOTTOM_ANCHOR_TOLERANCE) {
+      target.setScrollTop(bottom)
+      this.onPositionChange?.(this.autoScrolling)
     }
   }
 
@@ -220,6 +249,9 @@ export class Scroller {
 
   private _stopFollowing(lock: boolean) {
     dbg(`stopFollowing lock=${lock}`)
+    // Explicit positioning/interaction ends initialization even if the bottom
+    // sentinel has not been observed yet (e.g. during a thinking stream)
+    this.hasScrolled = true
     this.isFollowing = false
     this.scrollLock = lock
     this._updateOverflowAnchor()
@@ -274,6 +306,8 @@ export class Scroller {
   scrollToElementTop(element: HTMLElement, topPadding = 16) {
     const target = this.target
     if (!target) return
+
+    this.hasScrolled = true
 
     this.isFollowing = false
     if (this.rafId !== null) {
@@ -536,19 +570,7 @@ export class Scroller {
     dbg('holdPosition')
     this._userScrollIntent = 'up'
     this._stopCondition = null
-    this.scrollLock = true
-    this.isFollowing = false
-    this._updateOverflowAnchor()
-
-    if (this.rafId !== null) {
-      cancelAnimationFrame(this.rafId)
-      this.rafId = null
-    }
-
-    if (this.cancelListeners) {
-      this.cancelListeners()
-      this.cancelListeners = null
-    }
+    this._stopFollowing(true)
   }
 
   scrollToBottom = (immediate = false) => {
@@ -806,7 +828,7 @@ export class Scroller {
     const onWheel = (event: Event) => {
       const deltaY = (event as WheelEvent).deltaY
       if (deltaY < 0) {
-        this._userScrollIntent = 'up'
+        this.pauseFollow(-1)
         releaseOnUserScrollUp()
       } else if (deltaY > 0) {
         this._userScrollIntent = 'down'
@@ -818,7 +840,7 @@ export class Scroller {
     const onTouchMove = (event: Event) => {
       const y = (event as TouchEvent).touches[0]?.clientY ?? 0
       if (y - touchY > 0) {
-        this._userScrollIntent = 'up'
+        this.pauseFollow(-1)
         releaseOnUserScrollUp()
       } else if (y - touchY < 0) {
         this._userScrollIntent = 'down'

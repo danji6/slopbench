@@ -171,6 +171,30 @@ describe('work stretches', () => {
   })
 })
 
+test('impersonated thinking appears only in the header while user tools stay inline', () => {
+  const msg = {
+    ...message([thinking(), tool('shell', 's'), text('on your behalf')]),
+    role: 'user' as const,
+  }
+  expect(project(msg).map((row) => row.kind)).toEqual([
+    'header',
+    'group',
+    'group',
+  ])
+  expect(rows(msg)[0]).toMatchObject({ reasoning: { groupIndex: 0 } })
+  expect(layout(msg).groups.map((group) => group.groupIndex)).toEqual([1, 2])
+  expect(layout(msg).work).toHaveLength(0)
+})
+
+test('typed messages without reasoning headers retain their body reasoning', () => {
+  const msg = message([thinking(), text()])
+  const record = { type: 'summary' } as MessageRecord
+  expect(rows(msg, record).some((row) => row.kind === 'header')).toBe(false)
+  expect(layout(msg, record).groups.map((group) => group.groupIndex)).toEqual([
+    0, 1,
+  ])
+})
+
 describe('work summaries', () => {
   test('deduplicates file paths per category, combines writes/edits, and excludes output polls', () => {
     const msg = message([

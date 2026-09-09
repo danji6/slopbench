@@ -67,8 +67,18 @@ export function buildWorkLayout(
 ): WorkLayout {
   const all = renderableGroups(slices)
 
-  if (message.role !== 'assistant' || record?.type)
-    return { groups: all, work: [] }
+  if (record?.type) return { groups: all, work: [] }
+  if (message.role !== 'assistant') {
+    // Impersonated messages also show thinking in their sender header, while
+    // user tool calls keep their inline presentation
+    return {
+      groups: all.filter(
+        ({ group }) =>
+          !(group.type === 'single' && isReasoningUIPart(group.part)),
+      ),
+      work: [],
+    }
+  }
 
   const layout: WorkLayout = { groups: [], work: [] }
   const claimed = new Set<string>()
@@ -113,7 +123,6 @@ export function latestReasoning(
     }
   }
 }
-
 
 function renderableGroups(slices: SegmentGroups[]): LayoutGroup[] {
   return slices.flatMap((slice) =>
