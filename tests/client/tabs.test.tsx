@@ -40,13 +40,29 @@ function mockLayout(element: HTMLElement, left: number, width: number) {
   element.getBoundingClientRect = () => new DOMRect(left, 0, width, 48)
 }
 
-async function resize() {
-  await act(async () => {
-    resizeCallbacks.forEach((callback) => callback())
-  })
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 50))
-  })
+const SETTLE_TIMEOUT = 2000
+const cssVar = (element: HTMLElement, name: string) =>
+  element.style.getPropertyValue(name)
+
+/** Retries the assertion while React and BaseUI commit the new layout. */
+async function settle(assertion: () => void) {
+  const deadline = Date.now() + SETTLE_TIMEOUT
+  let lastError: unknown
+
+  while (Date.now() < deadline) {
+    try {
+      await act(async () => {
+        resizeCallbacks.forEach((callback) => callback())
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      })
+      assertion()
+      return
+    } catch (error) {
+      lastError = error
+    }
+  }
+
+  throw lastError
 }
 
 test('indicator follows layout changes after mount without changing tabs', async () => {
@@ -89,11 +105,18 @@ test('indicator follows layout changes after mount without changing tabs', async
     triggers.forEach((trigger, index) => {
       mockLayout(trigger, (index * width) / 3, width / 3)
     })
-    await resize()
-    expect(indicator.hidden).toBe(false)
-    expect(indicator.style.left).toBe('0px')
-    expect(indicator.style.right).toBe(`${(width * 2) / 3}px`)
-    expect(indicator.style.top).toBe('45px')
-    expect(indicator.style.bottom).toBe('0px')
+    // The --active-tab-* variables are committed by BaseUI itself. The inline
+    // left/right the indicator animates to comes from motion's frame loop, which
+    // stays bound to the happy-dom window that was live when motion was imported,
+    // so it never ticks once another DOM file has registered a new one.
+    await settle(() => {
+      expect(indicator.hidden).toBe(false)
+      expect(cssVar(indicator, '--active-tab-left')).toBe('0px')
+      expect(cssVar(indicator, '--active-tab-right')).toBe(
+        `${(width * 2) / 3}px`,
+      )
+      expect(cssVar(indicator, '--active-tab-width')).toBe(`${width / 3}px`)
+      expect(cssVar(indicator, '--active-tab-height')).toBe('48px')
+    })
   }
 })
