@@ -3,10 +3,10 @@
  */
 
 export * from './add-from-library'
+export * from './operation-prompt-list'
 export * from './prompt-clipboard'
 export * from './prompt-editor'
 export * from './prompt-list'
 export * from './reminder-clipboard'
 export * from './reminder-editor'
 export * from './reminder-prompt-list'
-export * from './resettable-prompt-list'

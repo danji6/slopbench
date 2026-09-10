@@ -22,8 +22,7 @@ export type ReminderPrompt = {
   eager?: boolean
 }
 
-export type PromptMarkerType =
-  'message-history' | 'system-boundary' | 'agent-prompts'
+export type PromptMarkerType = 'message-history' | 'system-boundary'
 
 export type PromptMarker = {
   type: PromptMarkerType
@@ -32,13 +31,10 @@ export type PromptMarker = {
 export type PromptItem = Prompt | PromptMarker
 
 export type OrderedItem =
-  | { kind: 'own'; id: string }
-  | { kind: 'global'; id: string }
-  | { kind: 'library'; id: string }
+  { kind: 'own'; id: string } | { kind: 'library'; id: string }
 
 /** How an agent interleaves its prompts. */
 export type PromptOrdering = {
-  globalPromptsEnabled?: boolean
   promptOrder?: OrderedItem[]
 }
 

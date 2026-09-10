@@ -1,6 +1,7 @@
 import type {
   MathMode,
   OrderedItem,
+  Prompt,
   PromptItem,
   PromptMarkerType,
   ReminderPrompt,
@@ -18,8 +19,8 @@ export type AgentPromptSets = {
   prompts: PromptItem[]
   reminderPrompts: ReminderPrompt[]
   // `null` means "inherit the user's set"
-  compactionPrompts: PromptItem[] | null
-  impersonationPrompts: PromptItem[] | null
+  compactionPrompts: Prompt[] | null
+  impersonationPrompts: Prompt[] | null
 }
 
 export const EMPTY_AGENT_PROMPT_SETS: AgentPromptSets = {
@@ -43,7 +44,6 @@ export type AgentDocValues = {
   name: string
   description: string
   promptOrder: OrderedItem[] | null
-  globalPromptsEnabled: boolean
   libraryReminderIds: string[]
   tools: AgentToolSelection
   shell: string
@@ -75,7 +75,6 @@ export const EMPTY_AGENT_FORM: AgentFormValues = {
   description: '',
   prompts: ensurePromptMarkers([], AGENT_PROMPT_MARKERS),
   promptOrder: null,
-  globalPromptsEnabled: true,
   reminderPrompts: [],
   libraryReminderIds: [],
   tools: [],
@@ -140,7 +139,6 @@ export function agentToFormValues(
     description: agent.description ?? '',
     prompts: ensurePromptMarkers(sets.prompts, AGENT_PROMPT_MARKERS),
     promptOrder: (agent.promptOrder as OrderedItem[] | undefined) ?? null,
-    globalPromptsEnabled: agent.globalPromptsEnabled ?? true,
     reminderPrompts: sets.reminderPrompts,
     libraryReminderIds: agent.libraryReminderIds ?? [],
     tools: agent.tools ?? [],

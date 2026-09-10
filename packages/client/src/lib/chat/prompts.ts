@@ -18,7 +18,6 @@ export function evaluatePromptPreview(
 
 export type MergedPromptItem = {
   item: PromptItem
-  isGlobal: boolean
   isLibrary?: boolean
 }
 
@@ -76,35 +75,24 @@ export function upsertPrompt<T extends PromptItem>(
 
 export function mergePrompts(
   source: PromptSource,
-  globalPrompts: Prompt[],
   libraryPrompts: Prompt[] = [],
 ): MergeResult {
-  const globals = source.globalPromptsEnabled === false ? [] : globalPrompts
-
-  if (!source.promptOrder) {
+  if (!source.promptOrder?.length) {
     return {
-      items: [
-        ...globals.map((p) => ({
-          item: p as PromptItem,
-          isGlobal: true,
-        })),
-        ...source.prompts.map((p) => ({ item: p, isGlobal: false })),
-      ],
+      items: [...source.prompts.map((item) => ({ item }))],
       cleanedOrder: null,
     }
   }
 
   const result = mergeOrderedPromptItems({
     ownItems: source.prompts,
-    globalItems: globals,
     libraryItems: libraryPrompts,
     order: source.promptOrder,
     getOwnId: promptItemKey,
-    getGlobalId: (item) => item.id,
+    getLibraryId: (item) => item.id,
   })
   const items = result.items.map((entry): MergedPromptItem => ({
     item: entry.item as PromptItem,
-    isGlobal: entry.kind === 'global',
     isLibrary: entry.kind === 'library',
   }))
   const cleanedOrder: OrderedItem[] | null = result.changed

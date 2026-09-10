@@ -1,41 +1,34 @@
-export type PromptOrderRef = { kind: 'own' | 'global' | 'library'; id: string }
+export type PromptOrderRef = { kind: 'own' | 'library'; id: string }
 
-export type PromptMergeInput<OwnItem, GlobalItem> = {
+export type PromptMergeInput<OwnItem, LibraryItem> = {
   ownItems: OwnItem[]
-  globalItems: GlobalItem[]
-  libraryItems?: GlobalItem[]
+  libraryItems?: LibraryItem[]
   order: PromptOrderRef[]
   getOwnId: (item: OwnItem) => string
-  getGlobalId: (item: GlobalItem) => string
+  getLibraryId: (item: LibraryItem) => string
 }
 
-export type PromptMergeEntry<OwnItem, GlobalItem> =
-  | { kind: 'own'; item: OwnItem }
-  | { kind: 'global'; item: GlobalItem }
-  | { kind: 'library'; item: GlobalItem }
+export type PromptMergeEntry<OwnItem, LibraryItem> =
+  { kind: 'own'; item: OwnItem } | { kind: 'library'; item: LibraryItem }
 
-export type PromptMergeResult<OwnItem, GlobalItem> = {
-  items: PromptMergeEntry<OwnItem, GlobalItem>[]
+export type PromptMergeResult<OwnItem, LibraryItem> = {
+  items: PromptMergeEntry<OwnItem, LibraryItem>[]
   order: PromptOrderRef[]
   changed: boolean
 }
 
-export function mergeOrderedPromptItems<OwnItem, GlobalItem>({
+export function mergeOrderedPromptItems<OwnItem, LibraryItem>({
   ownItems,
-  globalItems,
   libraryItems = [],
   order,
   getOwnId,
-  getGlobalId,
-}: PromptMergeInput<OwnItem, GlobalItem>): PromptMergeResult<
+  getLibraryId,
+}: PromptMergeInput<OwnItem, LibraryItem>): PromptMergeResult<
   OwnItem,
-  GlobalItem
+  LibraryItem
 > {
-  const globalById = new Map(
-    globalItems.map((item) => [getGlobalId(item), item]),
-  )
   const libraryById = new Map(
-    libraryItems.map((item) => [getGlobalId(item), item]),
+    libraryItems.map((item) => [getLibraryId(item), item]),
   )
   const ownById = new Map(ownItems.map((item) => [getOwnId(item), item]))
   const ownIndexById = new Map(
@@ -44,10 +37,9 @@ export function mergeOrderedPromptItems<OwnItem, GlobalItem>({
   const orderedOwnIds = new Set(
     order.filter((ref) => ref.kind === 'own').map((ref) => ref.id),
   )
-  const seenGlobalIds = new Set<string>()
   const seenOwnIds = new Set<string>()
   const staleKeys = new Set<string>()
-  const resolved: PromptMergeEntry<OwnItem, GlobalItem>[] = []
+  const resolved: PromptMergeEntry<OwnItem, LibraryItem>[] = []
   let nextOwnIndex = 0
 
   function pushUnorderedOwnBefore(index: number) {
@@ -64,17 +56,6 @@ export function mergeOrderedPromptItems<OwnItem, GlobalItem>({
 
   for (const ref of order) {
     const key = `${ref.kind}:${ref.id}`
-    if (ref.kind === 'global') {
-      const item = globalById.get(ref.id)
-      if (!item) {
-        staleKeys.add(key)
-        continue
-      }
-      seenGlobalIds.add(ref.id)
-      resolved.push({ kind: 'global', item })
-      continue
-    }
-
     if (ref.kind === 'library') {
       const item = libraryById.get(ref.id)
       if (!item) {
@@ -97,21 +78,11 @@ export function mergeOrderedPromptItems<OwnItem, GlobalItem>({
     nextOwnIndex = Math.max(nextOwnIndex, index + 1)
   }
 
-  const newGlobals = globalItems.filter(
-    (item) => !seenGlobalIds.has(getGlobalId(item)),
-  )
   pushUnorderedOwnBefore(ownItems.length)
-
-  const items: PromptMergeEntry<OwnItem, GlobalItem>[] = [
-    ...newGlobals.map((item): PromptMergeEntry<OwnItem, GlobalItem> => ({
-      kind: 'global',
-      item,
-    })),
-    ...resolved,
-  ]
+  const items = resolved
   const cleanedOrder = items.map((entry): PromptOrderRef => ({
     kind: entry.kind,
-    id: entry.kind === 'own' ? getOwnId(entry.item) : getGlobalId(entry.item),
+    id: entry.kind === 'own' ? getOwnId(entry.item) : getLibraryId(entry.item),
   }))
   const changed =
     staleKeys.size > 0 ||

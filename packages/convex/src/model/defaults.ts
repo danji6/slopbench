@@ -2,7 +2,7 @@ import { inline } from '@sb/core/utils/strings'
 
 import type { Doc } from '../_generated/dataModel'
 import { generateId } from '../lib/utils'
-import type { PromptItem } from '../types'
+import type { Prompt, PromptItem } from '../types'
 import type { ContextOptions } from '../types'
 import type { MathMode } from '../types'
 import type { WebSearchInstance } from '../types'
@@ -30,17 +30,8 @@ export const DEFAULT_IMPERSONATION_SENTINEL_PROMPT = inline`
 (TASK: Write {{user ?? 'the user'}}'s next message according to the previous system instructions.)
 `
 
-export function createDefaultImpersonationPrompts(): PromptItem[] {
+export function createDefaultImpersonationPrompts(): Prompt[] {
   return [
-    {
-      type: 'agent-prompts',
-    },
-    {
-      type: 'system-boundary',
-    },
-    {
-      type: 'message-history',
-    },
     {
       id: 'default-impersonation-prompt',
       name: 'Prompt',
@@ -62,17 +53,8 @@ export function createDefaultImpersonationPrompts(): PromptItem[] {
   ]
 }
 
-export function createDefaultCompactionPrompts(): PromptItem[] {
+export function createDefaultCompactionPrompts(): Prompt[] {
   return [
-    {
-      type: 'agent-prompts',
-    },
-    {
-      type: 'system-boundary',
-    },
-    {
-      type: 'message-history',
-    },
     {
       id: 'default-compaction-prompt',
       name: 'Prompt',

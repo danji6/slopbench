@@ -11,8 +11,6 @@ import {
   removeStarterPrompts,
   resolveCompactionPrompts,
   resolveImpersonationPrompts,
-  spliceAgentPrompts,
-  splitAtMessageHistory,
 } from '../../model/prompt/prompts'
 import type { PromptItem } from '../../model/prompt/prompts'
 import {
@@ -24,7 +22,7 @@ import {
   resolveToolManifest,
 } from '../../model/tool/manifest'
 import type { ToolResources } from '../../model/tool/settings'
-import type { StreamContext } from '../../types'
+import type { Prompt, StreamContext } from '../../types'
 import { buildProviderHistory } from './history'
 
 export type PromptEvalResult = {
@@ -66,17 +64,22 @@ export function createOperationPlan(
   const prompts = removeStarterPrompts(
     mergePrompts(
       { ...data.agent, prompts: data.prompts.own },
-      data.prompts.global,
       data.prompts.library,
     ),
   )
 
   if (data.stream.operation === 'compact') {
-    return createCompactPlan(data, prompts)
+    return createAppendPlan(
+      prompts,
+      resolveCompactionPrompts(data.prompts.compaction),
+    )
   }
 
   if (data.stream.operation === 'impersonate') {
-    return createImpersonatePlan(data, prompts)
+    return createAppendPlan(
+      prompts,
+      resolveImpersonationPrompts(data.prompts.impersonation),
+    )
   }
 
   return createInvokePlan(data, prompts, defaultShell)
@@ -117,35 +120,22 @@ function createInvokePlan(
   }
 }
 
-function createCompactPlan(
-  data: StreamContext,
+/** Evaluates the agent context first, then the operation's trailing prompts. */
+function createAppendPlan(
   prompts: PromptItem[],
+  operationPrompts: Prompt[],
 ): OperationPlan {
-  const compactionPrompts = resolveCompactionPrompts(data.prompts.compaction)
-
   return {
-    evalItems: spliceAgentPrompts(compactionPrompts, prompts),
+    evalItems: [...prompts, ...operationPrompts],
     toolNames: [],
     snapshotPatch: () => null,
     buildRequest: (ctx, data, evalResult) =>
-      buildFramedRequest(ctx, data, evalResult.items),
-  }
-}
-
-function createImpersonatePlan(
-  data: StreamContext,
-  prompts: PromptItem[],
-): OperationPlan {
-  const impersonationPrompts = resolveImpersonationPrompts(
-    data.prompts.impersonation,
-  )
-
-  return {
-    evalItems: spliceAgentPrompts(impersonationPrompts, prompts),
-    toolNames: [],
-    snapshotPatch: () => null,
-    buildRequest: (ctx, data, evalResult) =>
-      buildFramedRequest(ctx, data, evalResult.items),
+      buildAppendRequest(
+        ctx,
+        data,
+        evalResult.items.slice(0, prompts.length),
+        evalResult.items.slice(prompts.length),
+      ),
   }
 }
 
@@ -183,24 +173,20 @@ async function buildInvokeRequest(
   }
 }
 
-/**
- * Builds a request whose history is framed by operation prompts (system + a
- * message-history marker + a trailing task command), used by both compaction
- * and impersonation. The agent's own prompts are already spliced in.
- */
-async function buildFramedRequest(
+/** Appends operation instructions after the complete agent/history layout. */
+async function buildAppendRequest(
   ctx: ActionCtx,
   data: StreamContext,
   prompts: PromptItem[],
+  operationPrompts: PromptItem[],
 ): Promise<ProviderRequest> {
-  const { beforeHistory, afterHistory } = splitAtMessageHistory(prompts)
   const { systemPrompt, remainingPrompts } = buildSystemPrompt(
-    beforeHistory,
+    prompts,
     (value) => value,
   )
   const messages = await buildProviderHistory(ctx, data, remainingPrompts)
 
-  messages.push(...buildPromptMessages(afterHistory, (value) => value))
+  messages.push(...buildPromptMessages(operationPrompts, (value) => value))
 
   const extraInstructions = buildExtraInstructions(data.stream.instructions)
   if (extraInstructions) {

@@ -1,7 +1,14 @@
 /// <reference types="bun-types" />
 import { promptItemKey } from '@sb/convex/model/prompt/markers'
 import { mergePrompts } from '@sb/convex/model/prompt/prompts'
-import { list, replaceScope, resolveSets } from '@sb/convex/model/prompts'
+import {
+  create,
+  list,
+  replaceScope,
+  resolveSets,
+  seed,
+  update,
+} from '@sb/convex/model/prompts'
 import { list as listReminders } from '@sb/convex/model/reminders'
 import type { Prompt, PromptItem, PromptScope } from '@sb/convex/types'
 import { MAX_PROMPT_CONTENT_CHARS, MAX_SCOPE_PROMPTS } from '@sb/core/limits'
@@ -78,16 +85,31 @@ function makeCtx(rows: Row[] = []) {
             index === 'by_agentId_scope_order'
               ? row.agentId === captured.agentId && row.scope === captured.scope
               : row.ownerId === captured.ownerId &&
-                row.agentId === undefined &&
                 row.scope === captured.scope,
           )
 
-          return {
-            order: () => ({
-              collect: async () =>
-                [...matches].sort((a, b) => a.order - b.order),
-            }),
+          const query = {
+            order: () => query,
+            filter: (
+              predicate: (q: {
+                eq: (field: string, value: unknown) => (row: Row) => boolean
+                field: (name: string) => string
+              }) => (row: Row) => boolean,
+            ) => {
+              const test = predicate({
+                field: (name) => name,
+                eq: (field, value) => (row) =>
+                  row[field as keyof Row] === value,
+              })
+              return {
+                ...query,
+                collect: async () =>
+                  matches.filter(test).sort((a, b) => a.order - b.order),
+              }
+            },
+            collect: async () => [...matches].sort((a, b) => a.order - b.order),
           }
+          return query
         },
       }),
     },
@@ -116,38 +138,28 @@ function row(
 describe('prompt rows', () => {
   test('merge from rows matches merging the old inline arrays', async () => {
     const own = prompt({ id: 'own' })
-    const global = prompt({ id: 'global' })
     const library = prompt({ id: 'lib' })
     const order = [
       { kind: 'library' as const, id: 'lib' },
       { kind: 'own' as const, id: 'own' },
-      { kind: 'global' as const, id: 'global' },
     ]
 
     const { ctx } = makeCtx([
       row('own', own, 0, true),
-      row('global', global, 0),
       row('library', library, 0),
     ])
     const sets = await resolveSets(ctx, { _id: AGENT, ownerId: OWNER } as never)
 
     const fromRows = mergePrompts(
       { prompts: sets.own, promptOrder: order },
-      sets.global,
       sets.library,
     )
-    const fromArrays = mergePrompts(
-      { prompts: [own], promptOrder: order },
-      [global],
-      [library],
-    )
+    const fromArrays = mergePrompts({ prompts: [own], promptOrder: order }, [
+      library,
+    ])
 
     expect(fromRows).toEqual(fromArrays)
-    expect(fromRows.map((item) => promptItemKey(item))).toEqual([
-      'lib',
-      'own',
-      'global',
-    ])
+    expect(fromRows.map((item) => promptItemKey(item))).toEqual(['lib', 'own'])
   })
 
   test('compaction falls back to the owner when the agent overrides nothing', async () => {
@@ -199,7 +211,7 @@ describe('a stale agent reference', () => {
 
     await expect(list(ctx, { scope: 'own' })).rejects.toThrow(/need an agent/)
     await expect(
-      list(ctx, { scope: 'global', agentId: AGENT as never }),
+      list(ctx, { scope: 'library', agentId: AGENT as never }),
     ).rejects.toThrow(/user-owned/)
   })
 })
@@ -209,12 +221,12 @@ describe('replaceScope', () => {
     const keep = prompt({ id: 'keep' })
     const drop = prompt({ id: 'drop' })
     const { ctx, store } = makeCtx([
-      row('global', keep, 0),
-      row('global', drop, 1),
+      row('library', keep, 0),
+      row('library', drop, 1),
     ])
 
     const added = prompt({ id: 'added' })
-    await replaceScope(ctx, { scope: 'global', items: [added, keep] })
+    await replaceScope(ctx, { scope: 'library', items: [added, keep] })
 
     expect(store.map((entry) => entry.key)).toEqual(['keep', 'added'])
     expect(store.find((entry) => entry.key === 'keep')?.order).toBe(1)
@@ -239,9 +251,9 @@ describe('replaceScope', () => {
       prompt({ id: `p${i}` }),
     )
 
-    await expect(replaceScope(ctx, { scope: 'global', items })).rejects.toThrow(
-      /Prompts limit exceeded/,
-    )
+    await expect(
+      replaceScope(ctx, { scope: 'library', items }),
+    ).rejects.toThrow(/Prompts limit exceeded/)
   })
 
   test('rejects a prompt over the content cap', async () => {
@@ -250,8 +262,98 @@ describe('replaceScope', () => {
       prompt({ content: 'x'.repeat(MAX_PROMPT_CONTENT_CHARS + 1) }),
     ]
 
-    await expect(replaceScope(ctx, { scope: 'global', items })).rejects.toThrow(
-      /Prompt content limit exceeded/,
-    )
+    await expect(
+      replaceScope(ctx, { scope: 'library', items }),
+    ).rejects.toThrow(/Prompt content limit exceeded/)
   })
 })
+
+for (const scope of ['compaction', 'impersonation'] as const) {
+  describe(`${scope} scope isolation`, () => {
+    test('user settings and fallback exclude every agent override', async () => {
+      const user = row(scope, prompt({ id: 'user' }), 0)
+      const other = {
+        ...row(scope, prompt({ id: 'other' }), 1, true),
+        agentId: 'agent_other',
+      }
+      const { ctx } = makeCtx([user, other])
+      expect((await list(ctx, { scope })).map((r) => r.key)).toEqual([user.key])
+      expect(
+        (await resolveSets(ctx, { _id: AGENT, ownerId: OWNER } as never))[
+          scope
+        ],
+      ).toEqual([user.item as Prompt])
+    })
+
+    test('replacing user settings preserves the agent override', async () => {
+      const own = row(scope, prompt({ id: 'override' }), 1, true)
+      const { ctx, store } = makeCtx([
+        row(scope, prompt({ id: 'user' }), 0),
+        own,
+      ])
+      await replaceScope(ctx, { scope, items: [prompt({ id: 'replacement' })] })
+      expect(store.find((r) => r.agentId === AGENT)).toEqual(own)
+      expect(store.filter((r) => !r.agentId).map((r) => r.key)).toEqual([
+        'replacement',
+      ])
+    })
+
+    test('all-disabled agent prompts remain an explicit override', async () => {
+      const disabled = prompt({ id: 'disabled', enabled: false })
+      const { ctx } = makeCtx([
+        row(scope, prompt({ id: 'user' }), 0),
+        row(scope, disabled, 1, true),
+      ])
+      expect(
+        (await resolveSets(ctx, { _id: AGENT, ownerId: OWNER } as never))[
+          scope
+        ],
+      ).toEqual([disabled])
+      await replaceScope(ctx, { scope, agentId: AGENT as never, items: [] })
+      expect(
+        (await resolveSets(ctx, { _id: AGENT, ownerId: OWNER } as never))[
+          scope
+        ][0].id,
+      ).toBe('user')
+    })
+
+    test('normalizes starter and visibility flags on every write path', async () => {
+      const { ctx, store } = makeCtx()
+      const raw = prompt({ visible: true, starter: true })
+      const id = await create(ctx, { scope, item: raw })
+      await update(ctx, { promptId: id, item: raw })
+      expect(store[0].item).toMatchObject({ visible: false, starter: false })
+      await replaceScope(ctx, { scope, items: [{ ...raw, id: 'replacement' }] })
+      await seed(ctx, {
+        ownerId: OWNER as never,
+        scope,
+        items: [{ ...raw, id: 'seeded' }],
+      })
+      expect(
+        store.every(
+          (r) => !('type' in r.item) && !r.item.visible && !r.item.starter,
+        ),
+      ).toBe(true)
+    })
+  })
+}
+
+for (const scope of ['library', 'compaction', 'impersonation'] as const) {
+  test(`${scope} rejects markers on create, update, replace and seed`, async () => {
+    const marker = { type: 'message-history' } as const
+    const existing = row(scope, prompt(), 0)
+    const { ctx } = makeCtx([existing])
+    await expect(create(ctx, { scope, item: marker })).rejects.toThrow(
+      'Only agent prompts',
+    )
+    await expect(
+      update(ctx, { promptId: existing._id as never, item: marker }),
+    ).rejects.toThrow('Only agent prompts')
+    await expect(replaceScope(ctx, { scope, items: [marker] })).rejects.toThrow(
+      'Only agent prompts',
+    )
+    await expect(
+      seed(ctx, { ownerId: OWNER as never, scope, items: [marker] }),
+    ).rejects.toThrow('Only agent prompts')
+  })
+}

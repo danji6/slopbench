@@ -20,15 +20,6 @@ const systemBoundary = inline`
   sent as ordinary system messages instead.
 `
 
-const agentPrompts =
-  "- **Agent Prompts**: where the agent's own prompt list is merged at."
-
-export function promptHelp(withAgentPromps?: boolean) {
-  const buf = [start, messageHistory, systemBoundary]
-
-  if (withAgentPromps) {
-    buf.push(agentPrompts)
-  }
-
-  return md`${buf.join('\n')}`
+export function promptHelp() {
+  return md`${[start, messageHistory, systemBoundary].join('\n')}`
 }

@@ -37,11 +37,11 @@ const secondSystem: Prompt = {
 const messageHistory: PromptItem = { type: 'message-history' }
 const historyKey = promptItemKey(messageHistory)
 
-const globalSystem: Prompt = {
-  id: 'global-system',
-  name: 'Global System',
+const sharedSystem: Prompt = {
+  id: 'shared-system',
+  name: 'Shared System',
   role: 'system',
-  content: 'Global system prompt.',
+  content: 'Shared system prompt.',
   enabled: true,
   visible: false,
   starter: false,
@@ -53,16 +53,16 @@ describe('prompt merging', () => {
       {
         prompts: [firstSystem, secondSystem, messageHistory],
         promptOrder: [
-          { kind: 'global', id: globalSystem.id },
+          { kind: 'library', id: sharedSystem.id },
           { kind: 'own', id: firstSystem.id },
           { kind: 'own', id: historyKey },
         ],
       },
-      [globalSystem],
+      [sharedSystem],
     )
 
     expect(merged.map(promptItemKey)).toEqual([
-      globalSystem.id,
+      sharedSystem.id,
       firstSystem.id,
       secondSystem.id,
       historyKey,
@@ -74,22 +74,22 @@ describe('prompt merging', () => {
       {
         prompts: [firstSystem, secondSystem, messageHistory],
         promptOrder: [
-          { kind: 'global', id: globalSystem.id },
+          { kind: 'library', id: sharedSystem.id },
           { kind: 'own', id: firstSystem.id },
           { kind: 'own', id: historyKey },
         ],
       },
-      [globalSystem],
+      [sharedSystem],
     )
 
     expect(merged.items.map((m) => promptItemKey(m.item))).toEqual([
-      globalSystem.id,
+      sharedSystem.id,
       firstSystem.id,
       secondSystem.id,
       historyKey,
     ])
     expect(merged.cleanedOrder).toEqual([
-      { kind: 'global', id: globalSystem.id },
+      { kind: 'library', id: sharedSystem.id },
       { kind: 'own', id: firstSystem.id },
       { kind: 'own', id: secondSystem.id },
       { kind: 'own', id: historyKey },
@@ -101,24 +101,24 @@ describe('prompt merging', () => {
       {
         prompts: [firstSystem, secondSystem, messageHistory],
         promptOrder: [
-          { kind: 'global', id: globalSystem.id },
+          { kind: 'library', id: sharedSystem.id },
           { kind: 'own', id: historyKey },
           { kind: 'own', id: firstSystem.id },
           { kind: 'own', id: secondSystem.id },
         ],
       },
-      [globalSystem],
+      [sharedSystem],
     )
 
     expect(merged.map(promptItemKey)).toEqual([
-      globalSystem.id,
+      sharedSystem.id,
       historyKey,
       firstSystem.id,
       secondSystem.id,
     ])
   })
 
-  test('server applies prompt order when there are no global prompts', () => {
+  test('server applies prompt order with only own prompts', () => {
     const merged = mergeServerPrompts(
       {
         prompts: [firstSystem, secondSystem, messageHistory],
@@ -150,8 +150,8 @@ describe('prompt merging', () => {
       enabled: false,
       starter: true,
     }
-    const globalStarter: Prompt = {
-      ...globalSystem,
+    const sharedStarter: Prompt = {
+      ...sharedSystem,
       starter: true,
     }
     const merged = mergeServerPrompts(
@@ -159,15 +159,15 @@ describe('prompt merging', () => {
         prompts: [disabledStarter, ownStarter],
         promptOrder: [
           { kind: 'own', id: disabledStarter.id },
-          { kind: 'global', id: globalStarter.id },
+          { kind: 'library', id: sharedStarter.id },
           { kind: 'own', id: ownStarter.id },
         ],
       },
-      [globalStarter],
+      [sharedStarter],
     )
 
     expect(collectStarterPrompts(merged).map((item) => item.id)).toEqual([
-      globalStarter.id,
+      sharedStarter.id,
       ownStarter.id,
     ])
   })
@@ -228,7 +228,6 @@ describe('library prompts', () => {
           { kind: 'own', id: historyKey },
         ],
       },
-      [],
       [libraryPrompt],
     )
 
@@ -248,14 +247,12 @@ describe('library prompts', () => {
           { kind: 'own', id: historyKey },
         ],
       },
-      [],
       [libraryPrompt],
     )
     expect(ordered.map(promptItemKey)).toEqual([firstSystem.id, historyKey])
 
     const unordered = mergeServerPrompts(
       { prompts: [firstSystem, messageHistory] },
-      [],
       [libraryPrompt],
     )
     expect(unordered.map(promptItemKey)).toEqual([firstSystem.id, historyKey])
@@ -270,54 +267,24 @@ describe('library prompts', () => {
           { kind: 'library', id: 'missing-library-prompt' },
         ],
       },
-      [],
       [libraryPrompt],
     )
 
     expect(merged.map(promptItemKey)).toEqual([firstSystem.id])
   })
 
-  test('library prompts resolve even when global prompts are disabled', () => {
-    const merged = mergeServerPrompts(
-      {
-        globalPromptsEnabled: false,
-        prompts: [firstSystem],
-        promptOrder: [
-          { kind: 'own', id: firstSystem.id },
-          { kind: 'library', id: libraryPrompt.id },
-          { kind: 'global', id: globalSystem.id },
-        ],
-      },
-      [globalSystem],
-      [libraryPrompt],
-    )
-
-    expect(merged.map(promptItemKey)).toEqual([
-      firstSystem.id,
-      libraryPrompt.id,
-    ])
-  })
-
-  test('client flags library items distinctly from globals', () => {
+  test('client identifies library references as read-only items', () => {
     const merged = mergeClientPrompts(
       {
         prompts: [firstSystem],
         promptOrder: [
-          { kind: 'global', id: globalSystem.id },
           { kind: 'own', id: firstSystem.id },
           { kind: 'library', id: libraryPrompt.id },
         ],
       },
-      [globalSystem],
       [libraryPrompt],
     )
-
-    const byId = new Map(merged.items.map((m) => [promptItemKey(m.item), m]))
-    expect(byId.get(libraryPrompt.id)?.isLibrary).toBe(true)
-    expect(byId.get(libraryPrompt.id)?.isGlobal).toBe(false)
-    expect(byId.get(globalSystem.id)?.isGlobal).toBe(true)
-    expect(byId.get(globalSystem.id)?.isLibrary).toBe(false)
-    expect(byId.get(firstSystem.id)?.isLibrary).toBe(false)
+    expect(merged.items.map((entry) => entry.isLibrary)).toEqual([false, true])
   })
 })
 
@@ -369,7 +336,6 @@ describe('merge order integrity', () => {
         promptOrder: [{ kind: 'own', id: firstSystem.id }],
       },
       [],
-      [],
     )
 
     expect(merged.items).toHaveLength(0)
@@ -382,7 +348,6 @@ describe('merge order integrity', () => {
         prompts: [firstSystem],
         promptOrder: [{ kind: 'own', id: firstSystem.id }],
       },
-      [],
       [],
     )
 

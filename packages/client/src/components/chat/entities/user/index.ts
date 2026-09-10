@@ -4,7 +4,6 @@
 
 export * from './appearance-settings'
 export * from './behavior-settings'
-export * from './global-prompt-list'
 export * from './library-prompt-list'
 export * from './mcp-settings'
 export * from './model-entry'

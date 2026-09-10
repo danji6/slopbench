@@ -1,7 +1,7 @@
 import { ModelPicker } from '@/components/chat/models'
 import {
+  OperationPromptList,
   ReminderPromptList,
-  ResettablePromptList,
 } from '@/components/chat/prompts'
 import { SettingsList } from '@/components/ui'
 import {
@@ -11,8 +11,6 @@ import {
 import type { Control } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
 
-import { promptHelp } from '../prompt-help'
-import { GlobalPromptList } from './global-prompt-list'
 import { LibraryPromptList } from './library-prompt-list'
 import type { SettingsFormValues } from './settings-schema'
 
@@ -110,30 +108,15 @@ export function BehaviorSettings({ control }: BehaviorSettingsProps) {
         unclickable
         unhoverable
         orientation="vertical"
-        label="Global prompts"
-        description="Prompts included in agents that have global prompts enabled."
-      >
-        <Controller
-          control={control}
-          name="globalPrompts"
-          render={({ field }) => (
-            <GlobalPromptList prompts={field.value} onChange={field.onChange} />
-          )}
-        />
-      </SettingsList.Item>
-      <SettingsList.Item
-        unclickable
-        unhoverable
-        orientation="vertical"
         label="Compaction prompts"
         description="Prompts used when compacting conversation history."
-        help={promptHelp(true)}
+        help="Enabled prompts are appended after the agent prompts and conversation history, in the order shown."
       >
         <Controller
           control={control}
           name="compactionPrompts"
           render={({ field }) => (
-            <ResettablePromptList
+            <OperationPromptList
               prompts={field.value}
               onChange={field.onChange}
               kind="compaction"
@@ -148,13 +131,13 @@ export function BehaviorSettings({ control }: BehaviorSettingsProps) {
         orientation="vertical"
         label="Impersonation prompts"
         description="Prompts used when the agent sends a message on your behalf."
-        help={promptHelp(true)}
+        help="Enabled prompts are appended after the agent prompts and conversation history, in the order shown."
       >
         <Controller
           control={control}
           name="impersonationPrompts"
           render={({ field }) => (
-            <ResettablePromptList
+            <OperationPromptList
               prompts={field.value}
               onChange={field.onChange}
               kind="impersonation"

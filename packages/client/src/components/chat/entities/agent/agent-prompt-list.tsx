@@ -1,5 +1,5 @@
 import { AddFromLibrary, PromptList } from '@/components/chat/prompts'
-import { useGlobalPrompts, useLibraryPrompts } from '@/hooks/chat'
+import { useLibraryPrompts } from '@/hooks/chat'
 import type { OrderedItem, Prompt, PromptItem } from '@/lib/chat'
 import { mergePrompts, newPrompt, upsertPrompt } from '@/lib/chat/prompts'
 import type { MergedPromptItem } from '@/lib/chat/prompts'
@@ -8,7 +8,7 @@ import {
   promptItemKey,
 } from '@sb/convex/model/prompt/markers'
 import type { Control } from 'react-hook-form'
-import { useController, useWatch } from 'react-hook-form'
+import { useController } from 'react-hook-form'
 
 import { AGENT_PROMPT_MARKERS, type AgentFormValues } from './agent-form'
 
@@ -19,28 +19,21 @@ type AgentPromptListProps = {
 function toOrderedItem(m: MergedPromptItem): OrderedItem {
   const id = promptItemKey(m.item)
   if (m.isLibrary) return { kind: 'library', id }
-  if (m.isGlobal) return { kind: 'global', id }
   return { kind: 'own', id }
 }
 
 export function AgentPromptList({ control }: AgentPromptListProps) {
-  const globalPrompts = useGlobalPrompts()
   const libraryPrompts = useLibraryPrompts()
 
   const { field: promptsField } = useController({ control, name: 'prompts' })
   const { field: orderField } = useController({ control, name: 'promptOrder' })
-  const globalPromptsEnabled = useWatch({
-    control,
-    name: 'globalPromptsEnabled',
-  })
 
   // Display-only normalisation
   const prompts = ensurePromptMarkers(promptsField.value, AGENT_PROMPT_MARKERS)
   const promptOrder = orderField.value
 
   const mergeResult = mergePrompts(
-    { globalPromptsEnabled, prompts, promptOrder: promptOrder ?? undefined },
-    globalPrompts,
+    { prompts, promptOrder: promptOrder ?? undefined },
     libraryPrompts,
   )
 

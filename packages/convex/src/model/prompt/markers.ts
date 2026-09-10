@@ -3,7 +3,6 @@ import type { PromptItem, PromptMarker, PromptMarkerType } from '../../types'
 // Declaration order is the insertion order
 export const PROMPT_MARKER_LABELS = {
   'message-history': 'Message History',
-  'agent-prompts': 'Agent Prompts',
   'system-boundary': 'System Boundary',
 } satisfies Record<PromptMarkerType, string>
 
@@ -59,15 +58,11 @@ const MARKER_POSITION: Record<
 > = {
   // The system block already ends at the first item that cannot extend it
   'system-boundary': (items) => items.findIndex((i) => !extendsSystemBlock(i)),
-  // Agent prompts are spliced in just before the history when unmarked
-  'agent-prompts': (items) => findPromptMarker(items, 'message-history'),
   // The history trails every prompt when unmarked
   'message-history': () => -1,
 }
 
 /** Whether the leading system block absorbs `item` instead of ending at it. */
 function extendsSystemBlock(item: PromptItem): boolean {
-  return isPromptMarker(item)
-    ? item.type === 'agent-prompts'
-    : item.role === 'system'
+  return !isPromptMarker(item) && item.role === 'system'
 }

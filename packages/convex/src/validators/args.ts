@@ -99,7 +99,6 @@ export const sendMessageArgsValidator = v.object({
 export const agentMutableFieldsValidator = {
   description: v.optional(v.string()),
   tools: v.optional(v.array(v.string())),
-  globalPromptsEnabled: v.optional(v.boolean()),
   libraryReminderIds: v.optional(v.array(v.string())),
   promptOrder: v.optional(v.array(promptOrderRefValidator)),
   trimContext: v.optional(v.boolean()),

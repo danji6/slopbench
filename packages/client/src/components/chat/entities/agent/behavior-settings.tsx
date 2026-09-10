@@ -1,4 +1,4 @@
-import { ResettablePromptList } from '@/components/chat/prompts'
+import { OperationPromptList } from '@/components/chat/prompts'
 import { md } from '@/components/markdown'
 import { SettingsList } from '@/components/ui'
 import { usePromptItems } from '@/hooks/chat'
@@ -36,18 +36,6 @@ export function BehaviorSettings({
         <AgentPromptList control={control} />
       </SettingsList.Item>
 
-      <Controller
-        control={control}
-        name="globalPromptsEnabled"
-        render={({ field }) => (
-          <SettingsList.Switch
-            label="Inject global prompts"
-            checked={field.value}
-            onCheckedChange={(v) => field.onChange(v)}
-          />
-        )}
-      />
-
       <SettingsList.Item
         unclickable
         unhoverable
@@ -73,7 +61,7 @@ export function BehaviorSettings({
         }
       >
         {(value, onChange) => (
-          <ResettablePromptList
+          <OperationPromptList
             prompts={value}
             onChange={onChange}
             kind="compaction"
@@ -93,7 +81,7 @@ export function BehaviorSettings({
         }
       >
         {(value, onChange) => (
-          <ResettablePromptList
+          <OperationPromptList
             prompts={value}
             onChange={onChange}
             kind="impersonation"

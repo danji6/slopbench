@@ -18,7 +18,7 @@ import { useQuery as useCachedQuery } from 'convex-helpers/react/cache/hooks'
 import { useMutation, useQuery } from 'convex/react'
 import { useCallback, useMemo, useSyncExternalStore } from 'react'
 
-import { useGlobalPrompts, useLibraryPrompts, usePromptItems } from './prompts'
+import { useLibraryPrompts, usePromptItems } from './prompts'
 import { useActiveSession, useActiveSessionId } from './session'
 import { useSettings, useSettingsUpdate } from './settings'
 import { useIsAdmin } from './tools'
@@ -98,18 +98,15 @@ export function useAgentPrompts(workDir?: string) {
   const isAdmin = useIsAdmin()
   const agent = activeAgent && 'ownerId' in activeAgent ? activeAgent : null
   const ownPrompts = usePromptItems('own', agent?._id)
-  const globalPrompts = useGlobalPrompts()
   const libraryPrompts = useLibraryPrompts()
 
   return useMemo(() => {
     const merged = agent
       ? mergePrompts(
           {
-            globalPromptsEnabled: agent.globalPromptsEnabled,
             prompts: ownPrompts,
             promptOrder: agent.promptOrder,
           },
-          globalPrompts,
           libraryPrompts,
         ).items.map((m) => m.item)
       : []
@@ -154,7 +151,6 @@ export function useAgentPrompts(workDir?: string) {
     sessionId,
     settings?.displayName,
     ownPrompts,
-    globalPrompts,
     libraryPrompts,
     isAdmin,
     workDir,

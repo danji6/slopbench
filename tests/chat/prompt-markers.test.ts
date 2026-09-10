@@ -9,12 +9,6 @@ import type { Prompt, PromptItem, PromptMarkerType } from '@sb/convex/types'
 import { describe, expect, test } from 'bun:test'
 
 const AGENT_MARKERS: PromptMarkerType[] = ['message-history', 'system-boundary']
-const OPERATION_MARKERS: PromptMarkerType[] = [
-  'message-history',
-  'agent-prompts',
-  'system-boundary',
-]
-
 function prompt(overrides: Partial<Prompt> & { id: string }): Prompt {
   return {
     name: 'Prompt',
@@ -37,7 +31,7 @@ describe('ensurePromptMarkers', () => {
       createDefaultCompactionPrompts(),
       createDefaultImpersonationPrompts(),
     ]) {
-      expect(ensurePromptMarkers(defaults, OPERATION_MARKERS)).toEqual(defaults)
+      expect(defaults.every((item) => !('type' in item))).toBe(true)
     }
   })
 
@@ -58,30 +52,6 @@ describe('ensurePromptMarkers', () => {
       system,
       { type: 'system-boundary' },
       user,
-    ])
-  })
-
-  test('the system block reaches past spliced-in agent prompts', () => {
-    const items: PromptItem[] = [
-      { type: 'agent-prompts' },
-      { type: 'message-history' },
-    ]
-
-    expect(ensurePromptMarkers(items, ['system-boundary'])).toEqual([
-      { type: 'agent-prompts' },
-      { type: 'system-boundary' },
-      { type: 'message-history' },
-    ])
-  })
-
-  test('agent prompts land just before the history', () => {
-    const task = prompt({ id: 'task' })
-    const items: PromptItem[] = [{ type: 'message-history' }, task]
-
-    expect(ensurePromptMarkers(items, ['agent-prompts'])).toEqual([
-      { type: 'agent-prompts' },
-      { type: 'message-history' },
-      task,
     ])
   })
 

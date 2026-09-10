@@ -153,7 +153,6 @@ function ChatSettingsDialog({
   const mcpServers = useMcpServers()
   const saveMcpServers = useMcpServersSave()
   const savePromptSets = useUserPromptSetsSave()
-  const globalPrompts = usePromptItems('global')
   const libraryPrompts = usePromptItems('library')
   const libraryReminders = useReminderItems('library')
   const compactionPrompts = usePromptItems('compaction')
@@ -197,7 +196,6 @@ function ChatSettingsDialog({
       shell: DEFAULT_SETTINGS.shell,
       themeColor: SOURCE_COLOR,
       themeMode: DEFAULT_SETTINGS.themeMode,
-      globalPrompts: [],
       libraryPrompts: [],
       libraryReminders: [],
       compactionPrompts: createDefaultCompactionPrompts(),
@@ -272,7 +270,6 @@ function ChatSettingsDialog({
       shell: settings.shell,
       themeColor: settings.theme?.source ?? SOURCE_COLOR,
       themeMode: settings.themeMode,
-      globalPrompts: globalPrompts as SettingsFormValues['globalPrompts'],
       libraryPrompts: libraryPrompts as SettingsFormValues['libraryPrompts'],
       libraryReminders: libraryReminders,
       compactionPrompts: compactionPrompts.length
@@ -403,7 +400,6 @@ function ChatSettingsDialog({
       },
     })
     await savePromptSets({
-      globalPrompts: values.globalPrompts,
       libraryPrompts: values.libraryPrompts,
       libraryReminders: values.libraryReminders,
       compactionPrompts: values.compactionPrompts,

@@ -4,6 +4,7 @@ import {
   MAX_PROMPT_NAME_CHARS,
   MAX_SCOPE_PROMPTS,
 } from '@sb/core/limits'
+import { isPrompt, normalizeOperationPrompt } from '@sb/core/prompts'
 
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
@@ -17,10 +18,9 @@ const AGENT_SCOPES = ['own', 'compaction', 'impersonation'] as const
 
 export type PromptSets = {
   own: PromptItem[]
-  global: Prompt[]
   library: Prompt[]
-  compaction: PromptItem[]
-  impersonation: PromptItem[]
+  compaction: Prompt[]
+  impersonation: Prompt[]
 }
 
 export async function list(
@@ -46,6 +46,7 @@ export async function listOwned(
       q.eq('ownerId', ownerId).eq('scope', scope),
     )
     .order('asc')
+    .filter((q) => q.eq(q.field('agentId'), undefined))
     .collect()
 }
 
@@ -71,14 +72,14 @@ export async function resolveSets(
   ctx: QueryCtx | MutationCtx,
   agent: Pick<Doc<'agents'>, '_id' | 'ownerId'>,
 ): Promise<PromptSets> {
-  const [own, global, library, agentCompaction, agentImpersonation] =
-    await Promise.all([
+  const [own, library, agentCompaction, agentImpersonation] = await Promise.all(
+    [
       listForAgent(ctx, agent._id, 'own'),
-      listOwned(ctx, agent.ownerId, 'global'),
       listOwned(ctx, agent.ownerId, 'library'),
       listForAgent(ctx, agent._id, 'compaction'),
       listForAgent(ctx, agent._id, 'impersonation'),
-    ])
+    ],
+  )
 
   const compaction = agentCompaction.length
     ? agentCompaction
@@ -89,10 +90,9 @@ export async function resolveSets(
 
   return {
     own: toItems(own),
-    global: toItems(global) as Prompt[],
-    library: toItems(library) as Prompt[],
-    compaction: toItems(compaction),
-    impersonation: toItems(impersonation),
+    library: toItems(library).filter(isPrompt),
+    compaction: toItems(compaction).filter(isPrompt),
+    impersonation: toItems(impersonation).filter(isPrompt),
   }
 }
 
@@ -115,7 +115,7 @@ export async function create(
   },
 ) {
   await requireScopeOwner(ctx, scope, agentId)
-  assertItemWithinCaps(item)
+  item = prepareItem(scope, item)
 
   const rows = await listScope(ctx, ctx.userId, scope, agentId)
   if (rows.length >= MAX_SCOPE_PROMPTS) {
@@ -149,7 +149,7 @@ export async function update(
   { promptId, item }: { promptId: Id<'prompts'>; item: PromptItem },
 ) {
   const row = await requireOwned(ctx, promptId)
-  assertItemWithinCaps(item)
+  item = prepareItem(row.scope, item)
   await ctx.db.patch(row._id, { key: promptItemKey(item), item })
 }
 
@@ -203,7 +203,7 @@ export async function replaceScope(
   if (items.length > MAX_SCOPE_PROMPTS) {
     error(limitError('prompts'), 400)
   }
-  for (const item of items) assertItemWithinCaps(item)
+  items = items.map((item) => prepareItem(scope, item))
 
   const existing = await listScope(ctx, ctx.userId, scope, agentId)
   const byKey = new Map(existing.map((row) => [row.key, row]))
@@ -249,7 +249,7 @@ export async function copyForAgent(
         scope,
         order: row.order,
         key: row.key,
-        item: row.item,
+        item: prepareItem(scope, row.item),
       })
     }
   }
@@ -278,7 +278,8 @@ export async function seed(
     items: PromptItem[]
   },
 ) {
-  for (const [order, item] of items.entries()) {
+  for (const [order, original] of items.entries()) {
+    const item = prepareItem(scope, original)
     await ctx.db.insert('prompts', {
       ownerId,
       ...(agentId ? { agentId } : {}),
@@ -347,4 +348,15 @@ function assertItemWithinCaps(item: PromptItem) {
   if (item.name.length > MAX_PROMPT_NAME_CHARS) {
     error(limitError('promptName'), 400)
   }
+}
+
+/** Enforces scope-specific prompt behavior for every write path. */
+function prepareItem(scope: PromptScope, item: PromptItem): PromptItem {
+  if (!isPrompt(item) && scope !== 'own') {
+    error('Only agent prompts can contain markers', 400)
+  }
+  assertItemWithinCaps(item)
+  return isPrompt(item) && (scope === 'compaction' || scope === 'impersonation')
+    ? normalizeOperationPrompt(item)
+    : item
 }

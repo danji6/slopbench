@@ -311,13 +311,14 @@ subscribes to.
   fields. Prompts, reminders, providers, MCP servers, and API keys are no
   longer here.
 - `agents`: user-owned agents with `promptOrder` (refs into the `prompts`
-  table), `globalPromptsEnabled`, `libraryReminderIds`, enabled tool names,
+  table), `libraryReminderIds`, enabled tool names,
   context settings, sharing
   and masking behavior, auto-approve rules, spawnable sub-agent policy, and
   their own copy of the overridable fields (agent overrides user)
-- `prompts`: one row per prompt, scoped `own` | `global` | `library` |
+- `prompts`: one row per prompt, scoped `own` | `library` |
   `compaction` | `impersonation`, owned by a user and optionally attached to an
-  agent, carrying an `order` and the `item` (a prompt or a history marker).
+  agent, carrying an `order` and the `item`. Only the `own` scope accepts
+  history/system markers; operation scopes contain plain prompts.
   Indexed `by_ownerId_scope_order` and `by_agentId_scope_order`.
 - `reminders`: the same shape for interval reminders, scoped `own` | `library`
 - `mcpServers` / `mcpTools`: an external MCP server (client-generated `key`
@@ -544,7 +545,7 @@ agent invocations while preserving the data.
 
 Agents are user-owned entities with their own behavior and presentation:
 
-- prompt ordering across own/global/library sources (`promptOrder`), with the
+- prompt ordering across own/library sources (`promptOrder`), with the
   prompt items themselves living in the `prompts` table
 - own reminders (rows in `reminders`) and referenced library reminders
 - context window, output token cap, and context trimming
@@ -1062,7 +1063,7 @@ Key backend domains:
 `migrations.ts` holds the `@convex-dev/migrations` runner, the append-only
 public release migration list, and stable internal endpoints for boot
 coordination. `packages/core/src/migration-version.ts` establishes pre-release
-schema version 5 as the public baseline; later manifest entries advance the
+schema version 7 as the pre-release baseline; later manifest entries advance the
 version from that baseline. The public migration manifest is currently empty.
 A singleton
 `releaseState` document records the last strictly completed version and any
@@ -1318,12 +1319,24 @@ banner marks a session that is itself a sub-agent child.
 
 Prompt construction is operation-specific:
 
-- `invoke`: normal agent prompts plus global/library prompts, frozen through
+- `invoke`: normal agent prompts plus referenced library prompts, frozen through
   the session snapshot
-- `compact`: compaction prompts frame the history and produce a summary
+- `compact`: compaction prompts append after the complete agent/history layout and produce a summary
   message
-- `impersonate`: impersonation prompts frame the history and produce a
+- `impersonate`: impersonation prompts append after the complete agent/history layout and produce a
   user-role message from the active user identity
+
+Compaction and impersonation use plain, fully visible ordered lists in settings,
+with dnd-kit drag handles and inline edit/copy/delete/enabled controls. Their
+prompts preserve role and order and never become starter messages or header
+previews. Empty agent lists inherit the user's list; empty user lists use built-in
+defaults. An all-disabled nonempty list remains an override. User-scope queries
+exclude agent-owned rows. Global prompts have been removed.
+
+For these operations, agent prompts are evaluated first, then operation prompts,
+in one interpreter pass. The agent's markers control its own layout only.
+Operation prompts follow that entire layout, with optional command instructions
+last; neither operation uses tools or writes the invoke snapshot.
 
 Prompt items are evaluated through the sidecar interpreter so prompts can read
 and mutate the session environment. If evaluation dirties the environment,
@@ -1361,7 +1374,7 @@ conversion to model messages:
   still stripped
 - incomplete or orphaned tool calls/results are sanitized
 - prompt messages are inserted around history markers
-  (`message-history`, `system-boundary`, `agent-prompts`)
+  (`message-history`, `system-boundary`)
 - optional context trimming applies when the agent has a context window
 
 Workspace `AGENTS.md` instructions are read through the sidecar when an admin

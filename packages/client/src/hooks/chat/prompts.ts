@@ -3,6 +3,7 @@ import { EMPTY_AGENT_PROMPT_SETS } from '@/components/chat/entities/agent/agent-
 import { api } from '@sb/convex/_generated/api'
 import type { Doc, Id } from '@sb/convex/_generated/dataModel'
 import type { PromptScope } from '@sb/convex/types'
+import { isPrompt } from '@sb/core/prompts'
 import type { Prompt, PromptItem, ReminderPrompt } from '@sb/core/types'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { useMutation } from 'convex/react'
@@ -12,15 +13,19 @@ export type PromptRow = Doc<'prompts'>
 export type ReminderRow = Doc<'reminders'>
 
 export function usePromptItems(
+  scope: 'own',
+  agentId?: Id<'agents'>,
+): PromptItem[]
+export function usePromptItems(
+  scope: Exclude<PromptScope, 'own'>,
+  agentId?: Id<'agents'>,
+): Prompt[]
+export function usePromptItems(
   scope: PromptScope,
   agentId?: Id<'agents'>,
 ): PromptItem[] {
   const rows = usePromptRows(scope, agentId)
   return useMemo(() => (rows ?? []).map((row) => row.item), [rows])
-}
-
-export function useGlobalPrompts(): Prompt[] {
-  return usePromptItems('global') as Prompt[]
 }
 
 export function useLibraryPrompts(): Prompt[] {
@@ -54,10 +59,10 @@ export function useAgentPromptSets(
       reminderPrompts: reminders.map((row) => row.item),
       // An empty scope means the agent inherits the user's set
       compactionPrompts: compaction.length
-        ? compaction.map((row) => row.item)
+        ? compaction.map((row) => row.item).filter(isPrompt)
         : null,
       impersonationPrompts: impersonation.length
-        ? impersonation.map((row) => row.item)
+        ? impersonation.map((row) => row.item).filter(isPrompt)
         : null,
     }
   }, [agentId, prompts, reminders, compaction, impersonation])
@@ -96,11 +101,10 @@ export function useAgentPromptSetsSave() {
 
 /** The user-level prompt sets the settings dialog edits. */
 export type UserPromptSets = {
-  globalPrompts: Prompt[]
   libraryPrompts: Prompt[]
   libraryReminders: ReminderPrompt[]
-  compactionPrompts: PromptItem[]
-  impersonationPrompts: PromptItem[]
+  compactionPrompts: Prompt[]
+  impersonationPrompts: Prompt[]
 }
 
 /** Persists the settings dialog's prompt sets, one mutation per scope. */
@@ -111,7 +115,6 @@ export function useUserPromptSetsSave() {
   return useCallback(
     async (sets: UserPromptSets) => {
       await Promise.all([
-        replacePrompts({ scope: 'global', items: sets.globalPrompts }),
         replacePrompts({ scope: 'library', items: sets.libraryPrompts }),
         replaceReminders({
           scope: 'library',

@@ -28,7 +28,6 @@ describe('agent import data normalization', () => {
         name: 'Assistant',
         prompts: [{ type: 'message-history' }],
         tools: undefined,
-        globalPromptsEnabled: undefined,
         promptOrder: undefined,
         trimContext: undefined,
         contextWindow: undefined,

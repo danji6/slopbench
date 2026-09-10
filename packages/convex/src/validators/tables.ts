@@ -48,7 +48,6 @@ export const agentSchema = v.object({
   description: v.optional(v.string()),
   avatarId: v.optional(v.id('avatars')),
   promptOrder: v.optional(v.array(V.promptOrderRefValidator)),
-  globalPromptsEnabled: v.optional(v.boolean()),
   libraryReminderIds: v.optional(v.array(v.string())),
   /** Names of the selected tools. */
   tools: v.optional(v.array(v.string())),

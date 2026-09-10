@@ -16,7 +16,6 @@ import {
   ClipboardPasteIcon,
   CopyIcon,
   EllipsisVerticalIcon,
-  GlobeIcon,
   GripVerticalIcon,
   PencilIcon,
   Trash2Icon,
@@ -63,7 +62,6 @@ export function PromptList({
     const order = reordered.map((m): OrderedItem => {
       const id = promptItemKey(m.item)
       if (m.isLibrary) return { kind: 'library', id }
-      if (m.isGlobal) return { kind: 'global', id }
       return { kind: 'own', id }
     })
     onReorder(order)
@@ -166,12 +164,12 @@ function PromptListItem({
   onRemove?: () => void
   showVisibleSwitch: boolean
 }) {
-  const { item, isGlobal, isLibrary } = merged
+  const { item, isLibrary } = merged
   const view = usePromptEditorView()
   const itemKey = promptItemKey(item)
   const editOpen = view.value === itemKey
   const isMarker = isPromptMarker(item)
-  const isEditable = !isMarker && !isGlobal && !isLibrary
+  const isEditable = !isMarker && !isLibrary
   const hasMenu = isEditable || isLibrary
   const label = isMarker ? getPromptMarkerLabel(item.type) : item.name
 
@@ -181,8 +179,7 @@ function PromptListItem({
         'bg-m3-surface-container-low border-input flex w-fit max-w-full items-center gap-4 rounded-full border py-1 pl-2.5',
         hasMenu ? 'pr-1' : 'pr-5',
         !('enabled' in item) || item.enabled ? '' : 'opacity-50',
-        (isGlobal || isLibrary || isMarker) &&
-          'bg-muted border-dashed opacity-60',
+        (isLibrary || isMarker) && 'bg-muted border-dashed opacity-60',
       )}
     >
       <button
@@ -194,9 +191,6 @@ function PromptListItem({
         <GripVerticalIcon className="size-6" />
       </button>
       <span className="min-w-0 flex-1 truncate text-sm">{label}</span>
-      {isGlobal && !isMarker && (
-        <GlobeIcon className="text-muted-foreground/80 size-5" />
-      )}
       {isLibrary && !isMarker && (
         <BookmarkIcon className="text-muted-foreground/80 size-5" />
       )}

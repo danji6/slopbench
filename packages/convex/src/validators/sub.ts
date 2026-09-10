@@ -173,7 +173,6 @@ export const mcpServerValidator = v.object({
 /** Which set a prompt row belongs to. */
 export const promptScopeValidator = v.union(
   v.literal('own'), // an agent's own prompts
-  v.literal('global'), // injected into every agent
   v.literal('library'), // referenced by id from `promptOrder`
   v.literal('compaction'),
   v.literal('impersonation'),
@@ -291,7 +290,6 @@ export const promptValidator = v.object({
 export const promptMarkerTypeValidator = v.union(
   v.literal('message-history'),
   v.literal('system-boundary'),
-  v.literal('agent-prompts'),
 )
 
 export const promptMarkerValidator = v.object({
@@ -304,7 +302,7 @@ export const promptItemValidator = v.union(
 )
 
 export const promptOrderRefValidator = v.object({
-  kind: v.union(v.literal('own'), v.literal('global'), v.literal('library')),
+  kind: v.union(v.literal('own'), v.literal('library')),
   id: v.string(),
 })
 

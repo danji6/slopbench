@@ -24,7 +24,6 @@ const PASSTHROUGH_KEYS = [
   'name',
   'description',
   'tools',
-  'globalPromptsEnabled',
   'trimContext',
   'contextWindow',
   'outputTokens',
@@ -157,9 +156,7 @@ function isPromptMarkerType(value: unknown): value is PromptMarkerType {
 function isPromptOrderRef(value: unknown): value is PromptOrderRef {
   return (
     isRecord(value) &&
-    (value.kind === 'own' ||
-      value.kind === 'global' ||
-      value.kind === 'library') &&
+    (value.kind === 'own' || value.kind === 'library') &&
     typeof value.id === 'string'
   )
 }

@@ -29,11 +29,7 @@ export async function maybeInsertStarters(
   const settings = await getSettings(ctx)
   const sets = await resolvePromptSets(ctx, agent)
 
-  const prompts = mergePrompts(
-    { ...agent, prompts: sets.own },
-    sets.global,
-    sets.library,
-  )
+  const prompts = mergePrompts({ ...agent, prompts: sets.own }, sets.library)
   const starters = collectStarterPrompts(prompts)
   if (starters.length === 0) return
 
