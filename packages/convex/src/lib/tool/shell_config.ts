@@ -44,7 +44,7 @@ export function isInterpreterPayloadFlag(program: string, arg: string) {
 // prettier-ignore
 export const DEFAULT_SAFE_SHELL_PATTERNS: ReadonlySet<string> = new Set([
   // Shell basics
-  ...['cd', 'echo', 'printf', 'true', 'false', 'sleep', 'seq', 'expr'],
+  ...['cd', 'echo', 'printf', 'true', 'false', 'sleep', 'seq', 'expr', 'for', 'do', 'done'],
   // Files & paths (read-only; find is argument-gated)
   ...['ls', 'pwd', 'cat', 'head', 'tail', 'wc', 'stat', 'file', 'du', 'df'],
   ...['tree', 'basename', 'dirname', 'realpath', 'readlink', 'find'],

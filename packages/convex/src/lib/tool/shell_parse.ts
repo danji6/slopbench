@@ -9,6 +9,12 @@ export interface ShellToken {
   quoted: boolean
 }
 
+/** Keeps a loop's `do` keyword from hiding an inline body command. */
+export function expandShellControlSegment(text: string): string[] {
+  const match = /^do\s+([\s\S]+)$/.exec(text)
+  return match ? ['do', match[1]!] : [text]
+}
+
 /** Split a command into chain segments, tracking unsafe constructs. */
 export function splitShellChain(command: string): ChainSegment[] {
   const segments: ChainSegment[] = []

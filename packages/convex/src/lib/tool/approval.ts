@@ -9,7 +9,12 @@ import {
   WRAPPER_PROGRAMS,
   isInterpreterPayloadFlag,
 } from './shell_config'
-import { type ShellToken, splitShellChain, tokenizeShell } from './shell_parse'
+import {
+  type ShellToken,
+  expandShellControlSegment,
+  splitShellChain,
+  tokenizeShell,
+} from './shell_parse'
 import { analyzeShellPathCandidates } from './shell_path_analysis'
 
 export {
@@ -96,15 +101,17 @@ export function analyzeShellCommand(
     }
     if (!segment.text) continue
 
-    const { pattern, helpOnly, readOnlyArgs } = patternFromSegment(segment.text)
-    if (!pattern) continue
-    if (!patterns.includes(pattern)) patterns.push(pattern)
+    for (const text of expandShellControlSegment(segment.text)) {
+      const { pattern, helpOnly, readOnlyArgs } = patternFromSegment(text)
+      if (!pattern) continue
+      if (!patterns.includes(pattern)) patterns.push(pattern)
 
-    const covered =
-      helpOnly ||
-      (readOnlyArgs && DEFAULT_SAFE_SHELL_PATTERNS.has(pattern)) ||
-      allowlist.includes(pattern)
-    if (!covered && !unapproved.includes(pattern)) unapproved.push(pattern)
+      const covered =
+        helpOnly ||
+        (readOnlyArgs && DEFAULT_SAFE_SHELL_PATTERNS.has(pattern)) ||
+        allowlist.includes(pattern)
+      if (!covered && !unapproved.includes(pattern)) unapproved.push(pattern)
+    }
   }
 
   return { patterns, unapproved, unsafe }

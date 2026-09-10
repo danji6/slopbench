@@ -174,6 +174,7 @@ function ChatSettingsDialog({
       autoTitle: DEFAULT_SETTINGS.autoTitle,
       invertSend: DEFAULT_SETTINGS.invertSend,
       groupBySender: DEFAULT_SETTINGS.groupBySender,
+      followAgentThemeColor: DEFAULT_SETTINGS.followAgentThemeColor,
       avatarSize: DEFAULT_SETTINGS.avatarSize,
       titleModel: null,
       webSearchInstances: DEFAULT_SETTINGS.webSearchInstances,
@@ -235,6 +236,7 @@ function ChatSettingsDialog({
       autoTitle: settings.autoTitle,
       invertSend: settings.invertSend,
       groupBySender: settings.groupBySender,
+      followAgentThemeColor: settings.followAgentThemeColor,
       avatarSize: settings.avatarSize,
       titleModel: settings.titleModel ?? null,
       webSearchInstances: settings.webSearchInstances.map((i) => ({
@@ -381,6 +383,7 @@ function ChatSettingsDialog({
         autoTitle: values.autoTitle,
         invertSend: values.invertSend,
         groupBySender: values.groupBySender,
+        followAgentThemeColor: values.followAgentThemeColor,
         avatarSize: values.avatarSize,
         titleModel: values.titleModel ?? undefined,
         webSearchInstances: normalizeWebSearchInstances(
@@ -467,7 +470,10 @@ function ChatSettingsDialog({
             themeScope,
           )}
         >
-          <LoadingOverlay show={saving} className="rounded-lg" />
+          <LoadingOverlay
+            show={saving}
+            className="bg-background/40 rounded-lg backdrop-blur-none"
+          />
 
           <form className="flex min-h-0 flex-1 flex-col" onSubmit={apply}>
             <Dialog.Header className="px-6 py-4">

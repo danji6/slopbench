@@ -189,6 +189,25 @@ describe('argument-gated safe programs', () => {
 })
 
 describe('command chains', () => {
+  test('shell loop keywords are always approved', () => {
+    const readOnlyLoop = 'for file in a b; do echo "$file"; done'
+    expect(isShellCommandAutoApproved(readOnlyLoop, [])).toBe(true)
+    expect(analyzeShellCommand(readOnlyLoop, []).patterns).toEqual([
+      'for',
+      'do',
+      'echo',
+      'done',
+    ])
+    expect(analyzeShellPathCandidates(readOnlyLoop)).toEqual({
+      candidates: [],
+      complete: true,
+    })
+
+    const mutatingLoop = 'for file in a b; do rm "$file"; done'
+    expect(analyzeShellCommand(mutatingLoop, []).unapproved).toEqual(['rm'])
+    expect(isShellCommandAutoApproved(mutatingLoop, [])).toBe(false)
+  })
+
   test('every segment must be covered', () => {
     expect(isShellCommandAutoApproved('git status && git log', [])).toBe(true)
     expect(isShellCommandAutoApproved('git status && git checkout x', [])).toBe(

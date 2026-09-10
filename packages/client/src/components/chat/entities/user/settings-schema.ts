@@ -155,6 +155,7 @@ export const settingsFormSchema = z.object({
   autoTitle: z.boolean(),
   invertSend: z.boolean(),
   groupBySender: z.boolean(),
+  followAgentThemeColor: z.boolean(),
   avatarSize: z.number(),
   titleModel: z.string().nullable(),
   webSearchInstances: z.array(webSearchInstanceSchema),

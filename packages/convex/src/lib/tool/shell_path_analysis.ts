@@ -6,7 +6,12 @@ import {
   WRAPPER_PROGRAMS,
   isInterpreterPayloadFlag,
 } from './shell_config'
-import { type ShellToken, splitShellChain, tokenizeShell } from './shell_parse'
+import {
+  type ShellToken,
+  expandShellControlSegment,
+  splitShellChain,
+  tokenizeShell,
+} from './shell_parse'
 
 export interface ShellPathAnalysis {
   /** Explicit path operands found in the command. */
@@ -32,7 +37,7 @@ const DEFAULT_SAFE_PROGRAMS = new Set(
 /** Safe programs whose arguments are data rather than filesystem operands. */
 // prettier-ignore
 const NO_PATH_PROGRAMS = new Set([
-  ...['echo', 'printf', 'true', 'false', 'sleep', 'seq', 'expr', 'pwd'],
+  ...['echo', 'printf', 'true', 'false', 'sleep', 'seq', 'expr', 'pwd', 'for', 'do', 'done'],
   ...['which', 'whereis', 'type', 'tr', 'column'],
   ...['date', 'cal', 'uptime', 'whoami', 'id', 'groups', 'hostname'],
   ...['uname', 'arch', 'nproc', 'free', 'ps'],
@@ -82,9 +87,11 @@ export function analyzeShellPathCandidates(command: string): ShellPathAnalysis {
     }
     if (!segment.text) continue
 
-    const analysis = pathValuesFromSegment(segment.text)
-    complete &&= analysis.complete
-    for (const value of analysis.values) addPathCandidate(candidates, value)
+    for (const text of expandShellControlSegment(segment.text)) {
+      const analysis = pathValuesFromSegment(text)
+      complete &&= analysis.complete
+      for (const value of analysis.values) addPathCandidate(candidates, value)
+    }
   }
 
   if (candidates.length > MAX_PATH_CANDIDATES) complete = false

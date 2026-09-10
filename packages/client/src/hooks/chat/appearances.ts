@@ -1,4 +1,5 @@
 import { useIsDarkMode } from '@/hooks/theme'
+import { resolveMessageTheme } from '@/lib/chat/message-theme'
 import type { Look } from '@/lib/chat/scoped-appearance'
 import type { MessageRecord } from '@/lib/chat/types'
 import { schemeToCssVars, themeVars } from '@/lib/theme'
@@ -45,7 +46,13 @@ export function useMessageLook(
 
   const userCss = (fromAgent ? undefined : own?.css) ?? settings?.customCss
   const agentCss = fromAgent ? own?.css : agent?.customCss
-  const theme = own?.theme ?? (fromAgent ? undefined : settings?.theme)
+  const theme = resolveMessageTheme({
+    fromAgent,
+    followAgentThemeColor: settings?.followAgentThemeColor ?? false,
+    snapshot: own?.theme,
+    userTheme: settings?.theme,
+    agentTheme: agent?.theme,
+  })
 
   const vars = useMemo(() => {
     const scheme = theme && (isDark ? theme.dark : theme.light)

@@ -215,6 +215,18 @@ export function AppearanceSettings({
           </SettingsList.Item>
         )}
       />
+      <Controller
+        control={control}
+        name="followAgentThemeColor"
+        render={({ field }) => (
+          <SettingsList.Switch
+            label="Follow agent’s theme color"
+            description="Use the active agent’s theme color for your messages."
+            checked={field.value}
+            onCheckedChange={field.onChange}
+          />
+        )}
+      />
     </SettingsList>
   )
 }

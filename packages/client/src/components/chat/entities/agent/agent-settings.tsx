@@ -240,7 +240,10 @@ function AgentSettingsDialog() {
             themeScope,
           )}
         >
-          <LoadingOverlay show={saving} className="rounded-lg" />
+          <LoadingOverlay
+            show={saving}
+            className="rounded-lg bg-transparent backdrop-blur-none"
+          />
 
           <Dialog.Header className="flex flex-col justify-between border-b px-6 py-4 text-left sm:flex-row sm:items-center">
             <div className="flex flex-col gap-2 text-left">

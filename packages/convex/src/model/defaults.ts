@@ -82,6 +82,7 @@ export const DEFAULT_SETTINGS = {
   autoTitle: true,
   invertSend: false,
   groupBySender: true,
+  followAgentThemeColor: false,
   avatarSize: 48,
   webSearchInstances: [] as WebSearchInstance[],
   uiFont: 'Roboto',
