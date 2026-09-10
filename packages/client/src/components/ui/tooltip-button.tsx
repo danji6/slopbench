@@ -1,4 +1,3 @@
-import { isTouchDevice } from '@/lib/utils'
 import { mergeProps } from '@base-ui/react/merge-props'
 import type { Tooltip as TooltipPrimitive } from '@base-ui/react/tooltip'
 
@@ -17,8 +16,6 @@ export type TooltipButtonProps = RippleButtonProps &
   }
 
 export function TooltipButton(props: TooltipButtonProps) {
-  const isTouch = isTouchDevice()
-
   const {
     tooltip,
     tooltipSide,
@@ -36,13 +33,9 @@ export function TooltipButton(props: TooltipButtonProps) {
     </RippleButton>
   )
 
-  if (isTouch) {
-    return button
-  }
-
   return (
     <Tooltip.Provider delay={200}>
-      <Tooltip>
+      <Tooltip longPress>
         <Tooltip.Trigger
           {...mergeProps(
             { onMouseEnter, onMouseLeave, render },

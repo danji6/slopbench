@@ -288,7 +288,7 @@ const IconCell = memo(function IconCell({
   onSelect: (name: IconName) => void
 }) {
   return (
-    <Tooltip>
+    <Tooltip longPress>
       <Tooltip.Trigger
         className={cn(
           'flex size-8 cursor-pointer items-center justify-center rounded-md transition-colors',

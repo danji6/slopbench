@@ -1,4 +1,4 @@
-import { Button, ContextMenu } from '@/components/ui'
+import { Button, ContextMenu, QuickTooltip } from '@/components/ui'
 import {
   useActiveSession,
   useLinkedAgents,
@@ -31,23 +31,27 @@ export function AgentsStrip({
       {linked.map((agent) => (
         <ContextMenu key={agent._id}>
           <ContextMenu.Trigger>
-            <Button
-              variant="plain"
-              size="icon"
-              aria-label={`${
-                session?.activeAgentId === agent._id ? 'Deactivate' : 'Activate'
-              } ${agent.name}`}
-              onClick={() => void activate(agent._id)}
-            >
-              <SessionAvatar
-                avatarId={agent.avatarId}
-                className={cn(
-                  'size-11 border-2 border-transparent opacity-60 hover:opacity-100 focus-visible:opacity-80',
-                  session?.activeAgentId === agent._id &&
-                    'border-ring/80 opacity-100 focus-visible:opacity-100',
-                )}
-              />
-            </Button>
+            <QuickTooltip text={agent.name} side="left" longPress={false}>
+              <Button
+                variant="plain"
+                size="icon"
+                aria-label={`${
+                  session?.activeAgentId === agent._id
+                    ? 'Deactivate'
+                    : 'Activate'
+                } ${agent.name}`}
+                onClick={() => void activate(agent._id)}
+              >
+                <SessionAvatar
+                  avatarId={agent.avatarId}
+                  className={cn(
+                    'size-11 border-2 border-transparent opacity-60 hover:opacity-100 focus-visible:opacity-80',
+                    session?.activeAgentId === agent._id &&
+                      'border-ring/80 opacity-100 focus-visible:opacity-100',
+                  )}
+                />
+              </Button>
+            </QuickTooltip>
           </ContextMenu.Trigger>
           <ContextMenu.Content>
             <ContextMenu.Item onSelect={() => void continueAgent(agent._id)}>

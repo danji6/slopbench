@@ -1,5 +1,6 @@
 import { Popover } from '@/components/ui/popover'
 import { ProgressCircle } from '@/components/ui/progress-circle'
+import { QuickTooltip } from '@/components/ui/quick-tooltip'
 import {
   useActiveModel,
   useActiveSessionState,
@@ -14,15 +15,17 @@ export function TokenWidget({ className }: { className?: string }) {
 
   return (
     <Popover>
-      <Popover.Trigger
-        className={cn(
-          'focus-visible:ring-ring flex h-full cursor-pointer items-center justify-center rounded-full p-1 outline-0 transition-colors focus-visible:ring-1',
-          className,
-        )}
-        aria-label={`Context: ${context.percentage}%`}
-      >
-        <ProgressCircle value={context.value} max={context.max ?? Infinity} />
-      </Popover.Trigger>
+      <QuickTooltip text={context.tooltip}>
+        <Popover.Trigger
+          className={cn(
+            'focus-visible:ring-ring flex h-full cursor-pointer items-center justify-center rounded-full p-1 outline-0 transition-colors focus-visible:ring-1',
+            className,
+          )}
+          aria-label={`Context: ${context.tooltip}`}
+        >
+          <ProgressCircle value={context.value} max={context.max ?? Infinity} />
+        </Popover.Trigger>
+      </QuickTooltip>
       <Popover.Content align="end" side="top" className="w-64">
         <Popover.Header>
           <Popover.Title>Token usage</Popover.Title>
@@ -81,7 +84,7 @@ function UsageSection({
 
   const input = usage.inputTokens ?? 0
   const output = usage.outputTokens ?? 0
-  const total = usage.totalTokens ?? input + output
+  const total = getUsageTotal(usage)
 
   return (
     <div className="border-foreground/10 flex flex-col gap-1 border-t pt-2">
@@ -116,8 +119,9 @@ function useTokenData() {
   return useMemo(() => {
     const lastRequest = metadata?.usage
     const sessionUsage = state?.usage
-    const max = model?.contextWindow
-    const value = lastRequest?.totalTokens ?? 0
+    const configuredMax = model?.contextWindow
+    const max = configuredMax && configuredMax > 0 ? configuredMax : undefined
+    const value = getUsageTotal(lastRequest)
     const percentage = Math.round(max ? (value / max) * 100 : 0)
 
     return {
@@ -127,8 +131,23 @@ function useTokenData() {
         value,
         max,
         percentage,
+        tooltip: formatContextUsage(value, max, percentage),
         modelLabel: model?.label ?? model?.id,
       },
     }
   }, [metadata, state, model])
+}
+
+function getUsageTotal(usage: UsageTotals | undefined) {
+  return (
+    usage?.totalTokens ?? (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0)
+  )
+}
+
+export function formatContextUsage(
+  value: number,
+  max: number | undefined,
+  percentage: number,
+) {
+  return `${abbreviateNumber(value)}/${max ? abbreviateNumber(max) : '∞'} (${percentage}%)`
 }

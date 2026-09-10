@@ -1,6 +1,29 @@
 import { cn } from '@/lib/utils'
 import { useThemeScope } from '@/providers/theme-scope'
+import { mergeProps } from '@base-ui/react/merge-props'
 import { Tooltip as TooltipPrimitive } from '@base-ui/react/tooltip'
+import { createContext, useContext, useId, useMemo } from 'react'
+
+import { useTooltipLongPress } from './tooltip-long-press'
+
+const DEFAULT_LONG_PRESS_DELAY = 500
+const DEFAULT_LONG_PRESS_CLOSE_DELAY = 1500
+
+type TooltipLongPressContextValue = {
+  enabled: boolean
+  delay: number
+  closeDelay: number
+  handle: TooltipPrimitive.Handle<unknown>
+}
+
+const TooltipLongPressContext =
+  createContext<TooltipLongPressContextValue | null>(null)
+
+type TooltipRootProps = TooltipPrimitive.Root.Props & {
+  longPress?: boolean
+  longPressDelay?: number
+  longPressCloseDelay?: number
+}
 
 function TooltipProvider({
   delay = 0,
@@ -15,12 +38,56 @@ function TooltipProvider({
   )
 }
 
-function TooltipRoot({ ...props }: TooltipPrimitive.Root.Props) {
-  return <TooltipPrimitive.Root data-slot="tooltip" {...props} />
+function TooltipRoot({
+  longPress = false,
+  longPressDelay = DEFAULT_LONG_PRESS_DELAY,
+  longPressCloseDelay = DEFAULT_LONG_PRESS_CLOSE_DELAY,
+  handle: handleProp,
+  ...props
+}: TooltipRootProps) {
+  const internalHandle = useMemo(() => TooltipPrimitive.createHandle(), [])
+  const handle = handleProp ?? internalHandle
+
+  return (
+    <TooltipLongPressContext.Provider
+      value={{
+        enabled: longPress,
+        delay: longPressDelay,
+        closeDelay: longPressCloseDelay,
+        handle,
+      }}
+    >
+      <TooltipPrimitive.Root data-slot="tooltip" handle={handle} {...props} />
+    </TooltipLongPressContext.Provider>
+  )
 }
 
-function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+function TooltipTrigger({
+  id: idProp,
+  handle: handleProp,
+  ...props
+}: TooltipPrimitive.Trigger.Props) {
+  const context = useContext(TooltipLongPressContext)
+  const generatedId = useId()
+  const internalHandle = useMemo(() => TooltipPrimitive.createHandle(), [])
+  const id = idProp ?? generatedId
+  const handle = handleProp ?? context?.handle ?? internalHandle
+  const longPressProps = useTooltipLongPress({
+    enabled: context?.enabled ?? false,
+    delay: context?.delay ?? DEFAULT_LONG_PRESS_DELAY,
+    closeDelay: context?.closeDelay ?? DEFAULT_LONG_PRESS_CLOSE_DELAY,
+    handle,
+    triggerId: id,
+  })
+
+  return (
+    <TooltipPrimitive.Trigger
+      data-slot="tooltip-trigger"
+      id={id}
+      handle={handle}
+      {...mergeProps(longPressProps, props)}
+    />
+  )
 }
 
 function TooltipContent({
