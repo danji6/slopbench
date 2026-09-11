@@ -56,6 +56,7 @@ function fakeCtx(initial: Record<string, InputRow[]>) {
         conditions = index.conditions
         return chain
       },
+      order: () => chain,
       first: async () => matching()[0] ?? null,
       unique: async () => {
         const rows = matching()
@@ -235,11 +236,7 @@ describe('/autoCompact schedules', () => {
     const source = state.rows('streams')[0]
     await state.remove(source._id)
 
-    const handled = await handleStreamEnd(
-      state.ctx,
-      source as never,
-      'stopped',
-    )
+    const handled = await handleStreamEnd(state.ctx, source as never, 'stopped')
 
     expect(handled).toBe(false)
     expect(state.rows('scheduledEvents')).toHaveLength(0)
@@ -249,6 +246,89 @@ describe('/autoCompact schedules', () => {
       reason: 'Turn was stopped',
     })
     expect(state.rows('streams')).toHaveLength(0)
+  })
+
+  test('a timeout runs the pending compaction without a follow-up', async () => {
+    const state = fakeCtx({
+      ...baseRows(),
+      messages: [
+        {
+          _id: 'source_message',
+          sessionId: 'session_1',
+          sender: { type: 'agent', id: 'agent_1' },
+          role: 'assistant',
+          status: 'done',
+        },
+      ],
+    })
+    await autoCompact(state.ctx, { sessionId: 'session_1' as never })
+    await timeout(state.ctx, {
+      sessionId: 'session_1' as never,
+      duration: '0',
+    })
+    const timeoutEvent = state
+      .rows('scheduledEvents')
+      .find((event) => event.dedupeKey === 'timeout')
+
+    await runScheduledEvent(state.ctx, {
+      eventId: timeoutEvent?._id as never,
+    })
+
+    const source = state.rows('streams')[0]
+    source.processingMessageId = 'source_message'
+    await state.remove(source._id)
+    const handled = await handleStreamEnd(state.ctx, source as never, 'stopped')
+
+    expect(handled).toBe(true)
+    expect(state.rows('scheduledEvents')).toHaveLength(0)
+    expect(
+      state
+        .rows('messages')
+        .slice(-2)
+        .map((message) => message.extra),
+    ).toEqual([
+      { name: 'autoCompact', status: 'ran' },
+      { name: 'timeout', argument: '0', status: 'ran' },
+    ])
+    expect(state.rows('streams')).toContainEqual(
+      expect.objectContaining({
+        operation: 'compact',
+        contextBoundaryMessageId: 'source_message',
+        preserveContextBoundary: true,
+        followUpAfterCompact: false,
+        autoCompact: true,
+      }),
+    )
+  })
+
+  test('a timeout before streaming still runs the pending compaction', async () => {
+    const state = fakeCtx(baseRows())
+    state.rows('streams')[0].status = 'pending'
+    await autoCompact(state.ctx, { sessionId: 'session_1' as never })
+    await timeout(state.ctx, {
+      sessionId: 'session_1' as never,
+      duration: '0',
+    })
+    const timeoutEvent = state
+      .rows('scheduledEvents')
+      .find((event) => event.dedupeKey === 'timeout')
+
+    await runScheduledEvent(state.ctx, {
+      eventId: timeoutEvent?._id as never,
+    })
+
+    expect(state.rows('scheduledEvents')).toHaveLength(0)
+    expect(state.rows('messages').map((message) => message.extra)).toEqual([
+      { name: 'autoCompact', status: 'ran' },
+      { name: 'timeout', argument: '0', status: 'ran' },
+    ])
+    expect(state.rows('streams')).toContainEqual(
+      expect.objectContaining({
+        operation: 'compact',
+        followUpAfterCompact: false,
+        autoCompact: true,
+      }),
+    )
   })
 
   test('success reserves compaction at the source boundary before follow-up', async () => {

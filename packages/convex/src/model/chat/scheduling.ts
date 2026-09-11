@@ -120,15 +120,18 @@ export async function runScheduledEvent(
     return
   }
 
+  const timedStream = { ...stream, stopAt: Date.now() }
+  await ctx.db.patch(stream._id, { stopAt: timedStream.stopAt })
+
   if (stream.status === 'streaming') {
-    await ctx.db.patch(stream._id, { stopAt: Date.now() })
     await Events.consume(ctx, event, { cancelJob: false })
-  } else {
-    const result = await requestImmediateStop(ctx, stream)
-    await Events.consume(ctx, event, { cancelJob: false })
-    if (result === 'deleted') {
-      await handleStreamEnd(ctx, stream, 'stopped')
-    }
+    return
+  }
+
+  const result = await requestImmediateStop(ctx, timedStream)
+  await Events.consume(ctx, event, { cancelJob: false })
+  if (result === 'deleted') {
+    await handleStreamEnd(ctx, timedStream, 'stopped')
   }
 }
 
@@ -158,7 +161,7 @@ export async function handleStreamEnd(
     await ctx.db.patch(event._id, { targetStreamId: undefined })
   }
 
-  if (outcome === 'stopped') {
+  if (outcome === 'stopped' && !stream.stopAt) {
     await Events.cancel(ctx, event, 'Turn was stopped')
     return false
   }
