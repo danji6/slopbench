@@ -98,6 +98,7 @@ function ChatSessionContent({
   const autoCompact = useMutation(api.chat.autoCompact)
   const resetSessionCache = useMutation(api.chat.resetSessionCache)
   const pendingProcessed = useRef(false)
+  const [failedPending, setFailedPending] = useState<PendingMessage | null>(null) // prettier-ignore
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [dismissedKeys, setDismissedKeys] = useState(() => new Set<string>())
   const [pendingEvalRequestIds, setPendingEvalRequestIds] = useState<string[]>([]) // prettier-ignore
@@ -134,15 +135,29 @@ function ChatSessionContent({
   useEffect(() => {
     if (!pendingMessage || pendingProcessed.current || !session) return
     pendingProcessed.current = true
-    sendMessage(pendingMessage).then(onPendingSent).catch(handleError)
+    sendMessage(pendingMessage)
+      .then(onPendingSent)
+      .catch((error) => {
+        setFailedPending(pendingMessage)
+        handleError(error)
+      })
   }, [pendingMessage, sendMessage, onPendingSent, session, handleError])
 
   const handleSubmit = useCallback(
-    (msg: PendingMessage) => {
+    async (msg: PendingMessage) => {
       setLocalError(null)
-      sendMessage(msg).catch(handleError)
+      try {
+        await sendMessage(msg)
+        if (failedPending) {
+          setFailedPending(null)
+          onPendingSent()
+        }
+      } catch (error) {
+        handleError(error)
+        throw error
+      }
     },
-    [sendMessage, handleError],
+    [sendMessage, handleError, failedPending, onPendingSent],
   )
 
   const handleAbort = useCallback(() => {
@@ -268,6 +283,7 @@ function ChatSessionContent({
         activeAgentName={activeAgentName}
         activeAgentDisplay={activeAgentDisplay}
         focusComposerOnMount={Boolean(pendingMessage)}
+        restoreMessage={failedPending}
         onDismissError={handleDismissError}
         fileIndex={fileIndex}
       />

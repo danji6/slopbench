@@ -6,6 +6,7 @@ import type { DeleteMessagePartsArgs, EditMessagePartArgs } from '../../types'
 import * as Attachments from '../attachments'
 import * as Avatars from '../avatars'
 import {
+  allVersionParts,
   deleteVersions,
   getSegmentRow,
   listSelectedSegments,
@@ -26,11 +27,10 @@ export async function editMessage(
   const parts = [{ type: 'text', text: args.content }]
 
   const segments = await listSelectedSegments(ctx, message)
-  await deleteToolOutput(
-    ctx,
-    segments.flatMap((segment) => segment.parts),
-  )
+  const removed = segments.flatMap((segment) => segment.parts)
+  await deleteToolOutput(ctx, removed)
   await replaceSelectedContent(ctx, message, parts)
+  await removeUnreferencedAttachmentsForParts(ctx, message._id, removed)
 
   await scheduleMessageEval(ctx, {
     messageId: message._id,
@@ -112,7 +112,6 @@ export async function deleteMessageParts(
     return true
   }
 
-  await removeAttachmentsForParts(ctx, message._id, removed)
   await deleteToolOutput(ctx, removed)
 
   for (const { row, kept } of plans) {
@@ -125,6 +124,8 @@ export async function deleteMessageParts(
       await setSegmentParts(ctx, message, row, kept)
     }
   }
+
+  await removeUnreferencedAttachmentsForParts(ctx, message._id, removed)
 
   return false
 }
@@ -226,15 +227,19 @@ async function deleteToolOutput(ctx: AuthMutationCtx, parts: unknown[]) {
   }
 }
 
-async function removeAttachmentsForParts(
+async function removeUnreferencedAttachmentsForParts(
   ctx: AuthMutationCtx,
   messageId: Id<'messages'>,
   removedParts: unknown[],
 ) {
-  for (const part of removedParts) {
-    const attachmentId = filePartAttachmentId(part)
-    if (!attachmentId) continue
-    const attachment = await ctx.db.get(attachmentId)
+  const candidates = Attachments.unreferencedAttachmentIds(
+    removedParts,
+    await allVersionParts(ctx, messageId),
+  )
+  if (candidates.size === 0) return
+
+  for (const attachmentId of candidates) {
+    const attachment = await ctx.db.get(attachmentId as Id<'attachments'>)
     if (attachment && attachment.messageId === messageId) {
       await Attachments.removeAttachment(ctx, attachment)
     }
@@ -250,19 +255,6 @@ function isEditablePart(
     'type' in part &&
     (part.type === 'text' || part.type === 'reasoning')
   )
-}
-
-function filePartAttachmentId(part: unknown): Id<'attachments'> | undefined {
-  if (
-    typeof part === 'object' &&
-    part !== null &&
-    'type' in part &&
-    part.type === 'file' &&
-    'attachmentId' in part
-  ) {
-    return (part as { attachmentId: Id<'attachments'> }).attachmentId
-  }
-  return undefined
 }
 
 async function requireMessageMutation(

@@ -31,6 +31,10 @@ export const sanitizeSchema: SanitizeSchema = {
     // Allow HTML with inline styling
     '*': [...(defaultSchema.attributes?.['*'] ?? []), 'style', 'className'],
   },
+  protocols: {
+    ...defaultSchema.protocols,
+    href: [...(defaultSchema.protocols?.href ?? []), 'attachment'],
+  },
 }
 
 /** Tags the sanitizer keeps; anything else renders as literal text. */

@@ -78,7 +78,7 @@ type ChatSessionViewProps = {
   topPadding: number
   status: ReturnType<typeof useChatStatus>
   error: Error | null
-  onSubmit: (msg: PendingMessage) => void
+  onSubmit: (msg: PendingMessage) => void | Promise<void>
   onStop: () => void
   onRunCommand: (
     name: string,
@@ -90,6 +90,7 @@ type ChatSessionViewProps = {
   activeAgentName?: string
   activeAgentDisplay?: AgentItem
   focusComposerOnMount?: boolean
+  restoreMessage?: PendingMessage | null
   onDismissError: () => void
   fileIndex: ReturnType<typeof useWorkspaceFileIndex>
 }
@@ -107,6 +108,7 @@ export function ChatSessionView({
   activeAgentName,
   activeAgentDisplay,
   focusComposerOnMount,
+  restoreMessage,
   onDismissError,
   fileIndex,
 }: ChatSessionViewProps) {
@@ -232,8 +234,8 @@ export function ChatSessionView({
   }, [completedEditRevision, showDock, showInteractionPicker])
 
   const handleSubmit = useCallback(
-    (msg: PendingMessage) => {
-      onSubmit(msg)
+    async (msg: PendingMessage) => {
+      await onSubmit(msg)
       clearTyping()
       messageListRef.current?.revealLatest()
     },
@@ -414,6 +416,7 @@ export function ChatSessionView({
                       sendDisabled={sendDisabled}
                       shellAvailable={canUseWorkspace}
                       draftKey={session?._id}
+                      restoreMessage={restoreMessage}
                       className={cn(
                         'w-full',
                         showInteractionPicker && 'hidden',

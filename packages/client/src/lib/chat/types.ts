@@ -128,6 +128,7 @@ export type PendingMessage = {
   files: FileUIPart[]
   role?: MessageRole
   originalFiles?: Record<string, File>
+  pastedText?: Record<string, { text: string; position: number }>
   silent?: boolean
 }
 

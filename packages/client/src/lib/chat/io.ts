@@ -48,6 +48,7 @@ export async function processFileForUpload(file: File): Promise<ProcessedFile> {
 
   url = await fileToDataUrl(file)
   return {
+    originalFile: file,
     part: {
       type: 'file',
       url,

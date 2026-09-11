@@ -46,22 +46,33 @@ function isThinking(group: PartGroup): boolean {
 
 function activityLabel(tools: ToolUIPart[]): string {
   const reads = new Set<string>()
+  let attachmentReadCalls = 0
   const changes = new Set<string>()
   let commands = 0
   let other = 0
 
   for (const part of tools) {
     const path = toolPath(part)
-    if (part.type === 'tool-read_file' && path) reads.add(path)
-    else if (['tool-write_file', 'tool-edit_file'].includes(part.type) && path)
+    if (part.type === 'tool-read_file' && path) {
+      reads.add(path)
+    } else if (part.type === 'tool-read_attachment') {
+      attachmentReadCalls++
+    } else if (
+      ['tool-write_file', 'tool-edit_file'].includes(part.type) &&
+      path
+    ) {
       changes.add(path)
-    else if (part.type === 'tool-shell') commands++
-    else if (part.type !== 'tool-shell_output') other++
+    } else if (part.type === 'tool-shell') {
+      commands++
+    } else if (part.type !== 'tool-shell_output') {
+      other++
+    }
   }
 
   return (
     [
       countLabel(reads.size, 'Read', 'file'),
+      attachmentReadLabel(attachmentReadCalls),
       countLabel(changes.size, 'edited', 'file'),
       countLabel(commands, 'ran', 'command'),
       other ? `${other} other tool ${other === 1 ? 'call' : 'calls'}` : '',
@@ -69,6 +80,11 @@ function activityLabel(tools: ToolUIPart[]): string {
       .filter(Boolean)
       .join(', ') || 'Tool activity'
   )
+}
+
+function attachmentReadLabel(reads: number): string {
+  if (!reads) return ''
+  return reads === 1 ? 'read attachment' : `read attachment ×${reads}`
 }
 
 function countLabel(count: number, verb: string, noun: string): string {

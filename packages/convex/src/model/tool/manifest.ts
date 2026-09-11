@@ -1,6 +1,7 @@
 import {
   ASK_TOOL_NAME,
   PLAN_TOOL_TOGGLE,
+  READ_ATTACHMENT_TOOL_NAME,
   TODO_TOOL_TOGGLE,
 } from '@sb/core/const'
 import { mcpToolDescription, mcpToolName } from '@sb/core/types'
@@ -86,7 +87,13 @@ export function resolveToolManifest(data: ManifestInput): ToolManifest {
       : []
 
   // Reserved up front so an external MCP tool can never shadow a built-in
-  const builtins = ['web_fetch', 'web_search', ASK_TOOL_NAME, ...workspaceTools]
+  const builtins = [
+    'web_fetch',
+    'web_search',
+    READ_ATTACHMENT_TOOL_NAME,
+    ASK_TOOL_NAME,
+    ...workspaceTools,
+  ]
   const reserved = new Set([...builtins, 'shell_output', 'kill_shell'])
 
   const names: string[] = []
@@ -98,6 +105,7 @@ export function resolveToolManifest(data: ManifestInput): ToolManifest {
   if (!subagent) take(ASK_TOOL_NAME)
 
   take('web_fetch')
+  take(READ_ATTACHMENT_TOOL_NAME)
   const instances = data.resources.settings?.webSearchInstances
   if (normalizeWebSearchInstances(instances).length) {
     take('web_search')

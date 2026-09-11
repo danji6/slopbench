@@ -239,6 +239,37 @@ describe('work summaries', () => {
       ).label,
     ).toBe('1 other tool call')
   })
+
+  test('counts attachment read operations without implying unique files', () => {
+    const reference = 'attachment:token/notes.txt'
+    const msg = message([
+      tool('read_attachment', 'a', { reference, offset: 0, limit: 65_536 }),
+      tool('read_attachment', 'b', {
+        reference,
+        offset: 65_536,
+        limit: 65_536,
+      }),
+    ])
+
+    expect(
+      summarizeWork(layout(msg).work[0], segmentGroupsFor(msg, undefined))
+        .label,
+    ).toBe('Read attachment ×2')
+  })
+
+  test('distinguishes workspace files from attachments', () => {
+    const msg = message([
+      tool('read_file', 'file', { path: 'notes.txt' }),
+      tool('read_attachment', 'attachment', {
+        reference: 'attachment:token/notes.txt',
+      }),
+    ])
+
+    expect(
+      summarizeWork(layout(msg).work[0], segmentGroupsFor(msg, undefined))
+        .label,
+    ).toBe('Read 1 file, read attachment')
+  })
 })
 
 describe('work visibility and identity', () => {

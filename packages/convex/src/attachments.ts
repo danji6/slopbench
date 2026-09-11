@@ -33,6 +33,11 @@ export const _get = internalQuery({
   handler: Attachments._get,
 })
 
+export const _getSharedFile = internalQuery({
+  args: { token: v.string() },
+  handler: Attachments._getSharedFile,
+})
+
 export const _createGenerated = internalMutation({
   args: createGeneratedAttachmentArgsValidator.fields,
   handler: Attachments._createGenerated,

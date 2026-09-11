@@ -8,6 +8,7 @@ import type { MutationCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import type { AuthMutationCtx } from '../../functions'
 import type { SendMessageArgs } from '../../types'
+import * as Attachments from '../attachments'
 import { insertMessage } from '../messageContents'
 import { scheduleMessageEval, syncActivity } from '../messages'
 import { notifyUserMessage } from '../notifications'
@@ -57,7 +58,7 @@ export async function sendMessage(ctx: AuthMutationCtx, args: SendMessageArgs) {
     ctx,
     args.sessionId,
   )
-  const attachments = await loadStagedAttachments(ctx, args)
+  const attachments = await loadAttachments(ctx, args)
 
   if (!args.content.trim() && attachments.length === 0) {
     error('Message is empty')
@@ -262,11 +263,9 @@ export async function executeImpersonate(
   })
 }
 
-async function loadStagedAttachments(
-  ctx: AuthMutationCtx,
-  args: SendMessageArgs,
-) {
-  const staged = []
+async function loadAttachments(ctx: AuthMutationCtx, args: SendMessageArgs) {
+  const staged: { attachment: Doc<'attachments'> }[] = []
+  const seenFiles = new Set<string>()
   for (const { id } of args.attachments ?? []) {
     const attachment = await ctx.db.get(id)
     if (
@@ -277,6 +276,28 @@ async function loadStagedAttachments(
     ) {
       error('Invalid staged attachment', 409)
     }
+    seenFiles.add(attachment.fileId)
+    staged.push({ attachment })
+  }
+
+  const linked = new Map(
+    (args.attachmentLinks ?? []).map((reference) => [
+      JSON.stringify(reference),
+      reference,
+    ]),
+  )
+  for (const { token, filename } of linked.values()) {
+    const file = await Attachments._getSharedFile(ctx, { token })
+    if (!file || file.filename !== filename)
+      error('Attachment link is invalid or has expired', 404)
+    if (seenFiles.has(file._id)) continue
+
+    const attachment = await Attachments.createReference(ctx, {
+      token,
+      sessionId: args.sessionId,
+      uploaderId: ctx.userId,
+    })
+    seenFiles.add(file._id)
     staged.push({ attachment })
   }
   return staged

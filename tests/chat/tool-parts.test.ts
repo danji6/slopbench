@@ -26,6 +26,13 @@ function readPart(id: string): UIMessage['parts'][number] {
   } as Partial<ToolUIPart>) as UIMessage['parts'][number]
 }
 
+function attachmentReadPart(id: string): UIMessage['parts'][number] {
+  return toolPart({
+    type: 'tool-read_attachment',
+    toolCallId: id,
+  } as Partial<ToolUIPart>) as UIMessage['parts'][number]
+}
+
 const textPart = { type: 'text', text: 'hi' } as UIMessage['parts'][number]
 const stepPart = { type: 'step-start' } as UIMessage['parts'][number]
 
@@ -124,6 +131,20 @@ describe('tool part grouping', () => {
     const groups = groupParts([readPart('a')])
 
     expect(groups[0].type).toBe('tools')
+  })
+
+  test('groups attachment reads for their dedicated presentation', () => {
+    const groups = groupParts([
+      attachmentReadPart('a'),
+      stepPart,
+      attachmentReadPart('b'),
+    ])
+
+    expect(groups).toHaveLength(1)
+    expect(groups[0]).toMatchObject({
+      type: 'tools',
+      toolName: 'read_attachment',
+    })
   })
 
   test('does not group across other parts', () => {

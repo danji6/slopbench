@@ -30,6 +30,16 @@ export const PLAN_TOOL_TOGGLE = 'plan'
 /** Built-in client-executed tool used to pause for human decisions. */
 export const ASK_TOOL_NAME = 'ask'
 
+/** Built-in tool for reading attachments. */
+export const READ_ATTACHMENT_TOOL_NAME = 'read_attachment'
+
+/** Large plain text pastes become attachments at this UTF-8 byte size. */
+export const LARGE_PASTE_BYTES = 16 * 1024
+
+/** Default and maximum byte windows returned by read_attachment. */
+export const ATTACHMENT_READ_MAX_BYTES = 64 * 1024
+export const ATTACHMENT_READ_DEFAULT_BYTES = ATTACHMENT_READ_MAX_BYTES
+
 /** Compact edit_todo statuses mapped to their stored counterparts. */
 export const TODO_EDIT_STATUSES = {
   todo: 'pending',

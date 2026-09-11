@@ -28,6 +28,7 @@ import {
   getAutoCompactRetryDelay,
   getProviderRetryDelay,
   hasReplayableToolOutputSince,
+  isProviderRequestSizeError,
 } from '../../model/stream/retry'
 import {
   OFFLOAD_THRESHOLD,
@@ -83,6 +84,7 @@ export async function _stream(
 
   let attempt = claimed.attempt
   let hasGeneratedOutput = false
+  let lastSetup: Awaited<ReturnType<typeof prepare>> = null
   const windowDeadline = Date.now() + STREAM_WINDOW_MS
 
   try {
@@ -97,6 +99,7 @@ export async function _stream(
 
       const setup = await prepare(ctx, streamId)
       if (!setup) return
+      lastSetup = setup
 
       const {
         shouldContinue,
@@ -186,6 +189,24 @@ export async function _stream(
       hasOutput: failedStepHasOutput,
       aborted: failure?.aborted ?? false,
     }
+
+    if (
+      !failedStepHasOutput &&
+      lastSetup &&
+      !lastSetup.stream.omitActiveMedia &&
+      isProviderRequestSizeError(error) &&
+      (lastSetup.hasActiveMedia ||
+        (await ctx.runQuery(internal.streams._hasActiveMedia, { streamId })))
+    ) {
+      await ctx.runMutation(internal.streams._omitActiveMedia, { streamId })
+      await ctx.runMutation(internal.streams._scheduleRetry, {
+        streamId,
+        retryAt: Date.now(),
+        retryError: 'Provider rejected the active media payload as too large',
+      })
+      return
+    }
+
     const retryDelay = claimed.autoCompact
       ? getAutoCompactRetryDelay(retryOptions)
       : getProviderRetryDelay(retryOptions)
@@ -313,6 +334,7 @@ async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
     resolved,
     requestLog,
     tools,
+    hasActiveMedia: data.hasActiveMedia,
   }
 }
 

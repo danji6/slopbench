@@ -8,6 +8,11 @@ const web_search = 'Search the web and return a list of results.'
 const read_file =
   'Read a text file. Use this instead of cat/sed for file inspection.'
 
+const read_attachment = inline`
+  Read a bounded UTF-8 byte range from an attachment reference. Use the returned
+  nextOffset to continue without loading the entire file at once. You may call
+  this tool in parallel with disjoint offsets when several ranges are needed.`
+
 const write_file = inline`
   Create or overwrite a text file in the configured coding workspace.
   Prefer edit_file for targeted changes.`
@@ -89,6 +94,7 @@ export const TOOL_DESCRIPTIONS = {
   web_fetch,
   web_search,
   read_file,
+  read_attachment,
   write_file,
   edit_file,
   shell_output,

@@ -79,6 +79,11 @@ describe('editor markdown serialization', () => {
     expect(roundTrip('**bold** and *italic*')).toBe('**bold** and *italic*')
   })
 
+  test('preserves host-independent attachment links', () => {
+    const link = '[📎 notes.txt](attachment:token/notes.txt)'
+    expect(roundTrip(link)).toBe(link)
+  })
+
   test('is stable across repeated edits', () => {
     const once = roundTrip('Use <system-reminder> for run_id')
     expect(roundTrip(once)).toBe(once)
@@ -272,6 +277,11 @@ describe('clipboard text', () => {
     expect(copy(selectAll(open('# Head\n\n- one\n- two')))).toBe(
       '# Head\n\n- one\n- two',
     )
+  })
+
+  test('keeps an attachment target when copying its rendered link', () => {
+    const link = '[📎 notes.txt](attachment:token/notes.txt)'
+    expect(copy(selectAll(open(link)))).toBe(link)
   })
 
   test('keeps literal html', () => {

@@ -1,6 +1,7 @@
 import {
   ASK_TOOL_NAME,
   PLAN_TOOL_TOGGLE,
+  READ_ATTACHMENT_TOOL_NAME,
   TODO_TOOL_TOGGLE,
 } from '@sb/core/const'
 import { mcpToolDescription, mcpToolName } from '@sb/core/types'
@@ -23,6 +24,11 @@ export const TOOL_METAS = [
     name: 'web_search',
     description: 'Search the web through configured search engine instances.',
     category: 'web',
+  },
+  {
+    name: READ_ATTACHMENT_TOOL_NAME,
+    description: 'Read text attachments in bounded byte ranges.',
+    category: 'general',
   },
   {
     name: 'read_file',

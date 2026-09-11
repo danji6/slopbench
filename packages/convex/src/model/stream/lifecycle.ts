@@ -616,11 +616,7 @@ export async function _complete(
   await cleanUpGeneratedAttachments(ctx, streamId)
   await ctx.db.delete(streamId)
 
-  const scheduledCompact = await handleStreamEnd(
-    ctx,
-    stream,
-    'complete',
-  )
+  const scheduledCompact = await handleStreamEnd(ctx, stream, 'complete')
 
   await scheduleMessageEval(ctx, {
     messageId: processingMessageId,
@@ -774,6 +770,16 @@ export async function _scheduleRetry(
     jobId,
     leaseExpiresAt: retryAt + STREAM_LEASE_MS,
   })
+}
+
+export async function _omitActiveMedia(
+  ctx: MutationCtx,
+  { streamId }: { streamId: Id<'streams'> },
+) {
+  const stream = await ctx.db.get(streamId)
+  if (stream && stream.status !== 'stopping') {
+    await ctx.db.patch(streamId, { omitActiveMedia: true })
+  }
 }
 
 export async function _finalizeStopped(

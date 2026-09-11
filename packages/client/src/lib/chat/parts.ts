@@ -88,7 +88,7 @@ export function isShellReportPart(part: unknown): part is ShellReportPart {
 }
 
 // Tools whose consecutive calls collapse into a single grouped block
-const GROUPED_TOOLS = new Set(['read_file', 'shell', 'task'])
+const GROUPED_TOOLS = new Set(['read_file', 'read_attachment', 'shell', 'task'])
 
 export function groupParts(parts: UIMessage['parts']): PartGroup[] {
   const groups: PartGroup[] = []
@@ -274,6 +274,8 @@ export function buildFileItemFromPart(
   part: FileUIPart,
   originalUrl?: string,
   previewUrl?: string,
+  permaUrl?: string,
+  byteLength?: number,
 ): FileItem {
   const isPlaceholder = part.url.startsWith('attachment:')
   const isDataUrl = part.url.startsWith('data:')
@@ -306,6 +308,8 @@ export function buildFileItemFromPart(
   return {
     url,
     originalUrl,
+    permaUrl,
+    byteLength,
     file: new File([], filename, { type }),
   }
 }

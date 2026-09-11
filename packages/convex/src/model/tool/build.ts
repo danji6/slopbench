@@ -1,4 +1,5 @@
 import { ASK_TOOL_NAME } from '@sb/core/const'
+import { READ_ATTACHMENT_TOOL_NAME } from '@sb/core/const'
 import type { ToolSet } from 'ai'
 
 import { internal } from '../../_generated/api'
@@ -8,6 +9,7 @@ import { TASK_TOOL_NAME, sharedSessionId } from '../../lib/subagent'
 import { mergeToolApprovals } from '../../lib/tool/approval'
 import type { AgentAutoApprove, ToolApprovals } from '../../types'
 import { createAskTool } from './ask'
+import { createReadAttachmentTool } from './attachments'
 import type { PlanToolContext, WorkspaceToolContext } from './context'
 import {
   createEditFileTool,
@@ -174,6 +176,8 @@ async function createManifestTool(
       return createWebFetchTool()
     case 'web_search':
       return createWebSearchTool(build.resources.settings)
+    case READ_ATTACHMENT_TOOL_NAME:
+      return (planContext && (createReadAttachmentTool(planContext.ctx) as Promise<AnyTool>)) // prettier-ignore
     case 'read_file':
       return workspace && createReadFileTool(workspace)
     case 'write_file':

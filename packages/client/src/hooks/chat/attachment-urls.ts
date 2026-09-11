@@ -13,6 +13,8 @@ export const AttachmentUrlProvider = store.Provider
 export type AttachmentUrls = {
   url: string | null
   previewUrl: string | null
+  permaUrl: string | null
+  byteLength: number | null
 }
 
 /** Resolves many attachments to their normalized URLs from the shared cache. */
@@ -33,6 +35,8 @@ export function useAttachmentUrls(
         previewUrl: normalizeBrowserUrl(
           entry?.previewUrl ?? entry?.url ?? null,
         ),
+        permaUrl: normalizeBrowserUrl(entry?.permaUrl ?? null),
+        byteLength: entry?.byteLength ?? null,
       }
     }
 

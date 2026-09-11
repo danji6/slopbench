@@ -1,8 +1,14 @@
-import type { Id } from '../../_generated/dataModel'
+import { isKnownTextFile } from '@sb/core/workspace/files'
+
+import type { Doc, Id } from '../../_generated/dataModel'
 import type { QueryCtx } from '../../_generated/server'
 import type { AuthQueryCtx } from '../../functions'
 import { sharedSessionId } from '../../lib/subagent'
 import { resolveSpawnableAgents } from '../agent/subagents'
+import {
+  activeAttachmentMessages,
+  hasLoadedAttachmentMedia,
+} from '../attachmentMedia'
 import { resolve as resolveMcpServers } from '../mcp'
 import {
   getProcessingSegmentRow,
@@ -62,6 +68,7 @@ export async function _getContext(
     prompts,
     mcpServers,
     modelProviders,
+    hasActiveMedia,
   ] = await Promise.all([
     getSettings(ctx, agent.ownerId),
     getSettings(ctx, invoker._id),
@@ -71,6 +78,7 @@ export async function _getContext(
     resolvePromptSets(ctx, agent),
     resolveMcpServers(ctx, agent.ownerId, { withCredentials: true }),
     resolveProviders(ctx, agent.ownerId),
+    getActiveMediaState(ctx, stream),
   ])
 
   // Sub-agent sessions never spawn further sub-agents (flat only)
@@ -89,6 +97,7 @@ export async function _getContext(
 
   return {
     sessionCache,
+    hasActiveMedia,
     environment: state?.environment ?? {},
     toolApprovals: state?.toolApprovals,
     spawnableAgents,
@@ -177,4 +186,60 @@ export async function _isActive(
 ) {
   const stream = await ctx.db.get(streamId)
   return !!stream && stream.status !== 'stopping'
+}
+
+/** Detects media loaded anywhere in the active debounced turn or tool step. */
+async function getActiveMediaState(ctx: QueryCtx, stream: Doc<'streams'>) {
+  const processing = stream.processingMessageId
+    ? await ctx.db.get(stream.processingMessageId)
+    : null
+  if (processing) {
+    const joined = await withParts(ctx, processing)
+    if (hasLoadedAttachmentMedia(joined.parts)) return true
+  }
+
+  if (!stream.contextBoundaryMessageId) return false
+
+  const history = await ctx.db
+    .query('messages')
+    .withIndex('by_sessionId', (q) =>
+      q
+        .eq('sessionId', stream.sessionId)
+        .lte(
+          '_creationTime',
+          stream.contextBoundaryCreationTime ?? Number.MAX_SAFE_INTEGER,
+        ),
+    )
+    .order('asc')
+    .collect()
+
+  const activeIds = activeAttachmentMessages(
+    history,
+    stream.contextBoundaryMessageId,
+  )
+  if (activeIds.size === 0) return false
+
+  const attachments = await Promise.all(
+    [...activeIds].map((messageId) =>
+      ctx.db
+        .query('attachments')
+        .withIndex('by_messageId', (q) => q.eq('messageId', messageId))
+        .collect(),
+    ),
+  )
+
+  return attachments
+    .flat()
+    .some(
+      (attachment) =>
+        !isKnownTextFile(attachment.mediaType, attachment.filename),
+    )
+}
+
+export async function _hasActiveMedia(
+  ctx: QueryCtx,
+  { streamId }: { streamId: Id<'streams'> },
+) {
+  const stream = await ctx.db.get(streamId)
+  return stream ? getActiveMediaState(ctx, stream) : false
 }

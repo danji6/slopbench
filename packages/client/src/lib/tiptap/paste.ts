@@ -1,3 +1,4 @@
+import { attachmentReferences } from '@sb/core/attachments'
 import type { Editor } from '@tiptap/react'
 
 /** Whether the clipboard contains a slice written by an editor. */
@@ -11,7 +12,12 @@ function pastedText(editor: Editor, event: ClipboardEvent): string | null {
   if (editor.state.selection.$from.parent.type.spec.code) return null
   if (hasEditorSlice(event)) return null
   const text = event.clipboardData?.getData('text/plain')
-  if (!text || !/\r|\n/.test(text)) return null
+  if (
+    !text ||
+    (!/\r|\n/.test(text) && attachmentReferences(text).length === 0)
+  ) {
+    return null
+  }
   return text.replace(/\r\n?/g, '\n')
 }
 

@@ -1,7 +1,18 @@
 import { type FileItem, useFilePreviews } from '@/hooks/file-previews'
+import { toast, toastError } from '@/lib/notifications'
 import { cn } from '@/lib/utils'
+import {
+  attachmentMarkdownLink,
+  attachmentReference,
+} from '@sb/core/attachments'
 import { truncateToExtension } from '@sb/core/utils/strings'
-import { FileIcon, XIcon } from 'lucide-react'
+import {
+  DownloadIcon,
+  FileIcon,
+  LinkIcon,
+  TextCursorInputIcon,
+  XIcon,
+} from 'lucide-react'
 import { AnimatePresence } from 'motion/react'
 import { useEffect, useRef } from 'react'
 
@@ -16,6 +27,7 @@ export type FileStripProps = Omit<
 > & {
   files: FileItem[]
   onRemove?: (url: string) => void
+  onInsertInline?: (url: string) => void
   size?: number
   noAnimation?: boolean
 }
@@ -25,6 +37,7 @@ export function FileStrip(props: FileStripProps) {
     className,
     files,
     onRemove,
+    onInsertInline,
     size = DEFAULT_SIZE,
     noAnimation = false,
     ...rest
@@ -87,9 +100,19 @@ export function FileStrip(props: FileStripProps) {
             ) : preview?.isThumbnailable ? (
               <Skeleton className="size-full shrink-0 rounded-lg" />
             ) : (
-              <UnknownFile name={item.file.name} />
+              <UnknownFile
+                name={item.file.name}
+                byteLength={item.byteLength ?? item.file.size}
+              />
             )}
             <RemoveButton item={item} onRemove={onRemove} />
+            {(item.byteLength ?? item.file.size) > 0 &&
+              preview?.thumbnailUrl && (
+                <span className="bg-m3-surface-container/90 absolute top-1 left-1 rounded-full px-2 py-0.5 text-[10px]">
+                  {formatBytes(item.byteLength ?? item.file.size)}
+                </span>
+              )}
+            <FileActions item={item} onInsertInline={onInsertInline} />
           </div>
         )
       }}
@@ -99,6 +122,66 @@ export function FileStrip(props: FileStripProps) {
 
   if (noAnimation) return list || null
   return <AnimatePresence mode="wait">{list}</AnimatePresence>
+}
+
+function FileActions({
+  item,
+  onInsertInline,
+}: {
+  item: FileItem
+  onInsertInline?: (url: string) => void
+}) {
+  const downloadUrl = item.permaUrl ?? item.originalUrl
+  const reference = item.permaUrl ? attachmentReference(item.permaUrl) : null
+  const copyText = reference
+    ? attachmentMarkdownLink(reference.token, reference.filename)
+    : null
+  if (!downloadUrl && !item.canInsertInline) return null
+
+  return (
+    <div className="absolute right-1 bottom-1 flex gap-1">
+      {item.canInsertInline && onInsertInline && (
+        <RippleButton
+          size="icon"
+          variant="surface"
+          className="size-7 rounded-full"
+          aria-label={`Insert ${item.file.name} inline`}
+          onClick={() => onInsertInline(item.url)}
+        >
+          <TextCursorInputIcon className="size-3" />
+        </RippleButton>
+      )}
+      {copyText && (
+        <RippleButton
+          size="icon"
+          variant="surface"
+          className="size-7 rounded-full"
+          aria-label={`Copy link to ${item.file.name}`}
+          onClick={() => {
+            void navigator.clipboard
+              .writeText(copyText)
+              .then(() => toast.success('Attachment link copied'))
+              .catch((error) =>
+                toastError(error, 'Failed to copy attachment link'),
+              )
+          }}
+        >
+          <LinkIcon className="size-3" />
+        </RippleButton>
+      )}
+      {downloadUrl && (
+        <RippleButton
+          size="icon"
+          variant="surface"
+          className="size-7 rounded-full"
+          aria-label={`Download ${item.file.name}`}
+          render={<a href={downloadUrl} download={item.file.name} />}
+        >
+          <DownloadIcon className="size-3" />
+        </RippleButton>
+      )}
+    </div>
+  )
 }
 
 function Thumbnail({
@@ -123,7 +206,13 @@ function Thumbnail({
   )
 }
 
-function UnknownFile({ name }: { name: string }) {
+function UnknownFile({
+  name,
+  byteLength,
+}: {
+  name: string
+  byteLength: number
+}) {
   return (
     <div className="bg-m3-surface-container-high/70 border-input flex size-full items-center justify-center rounded-lg border">
       <div className="flex flex-col items-center gap-1">
@@ -131,9 +220,20 @@ function UnknownFile({ name }: { name: string }) {
         <span className="text-m3-on-surface-variant max-w-20 truncate text-xs">
           {truncateToExtension(name, 12)}
         </span>
+        {byteLength > 0 && (
+          <span className="text-m3-on-surface-variant/70 text-[10px]">
+            {formatBytes(byteLength)}
+          </span>
+        )}
       </div>
     </div>
   )
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`
 }
 
 function RemoveButton({

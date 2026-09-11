@@ -171,6 +171,32 @@ test('multiline composer paste preserves its blank lines', () => {
   expect(serializeBlocksToMarkdown(e)).toBe('one\n\ntwo')
 })
 
+test('single-line attachment paste renders its link immediately', () => {
+  const e = open('', { collapseBlocks: true })
+  const link = '[📎 notes.txt](attachment:token/notes.txt)'
+  const clipboardData = new DataTransfer()
+  clipboardData.setData('text/plain', link)
+
+  expect(
+    pasteCollapsedText(e, new ClipboardEvent('paste', { clipboardData })),
+  ).toBe(true)
+  expect(serializeBlocksToMarkdown(e)).toBe(link)
+  expect(e.getAttributes('link').href).toBe('attachment:token/notes.txt')
+  expect(e.view.dom.querySelector('a')?.getAttribute('href')).toBe(
+    'attachment:token/notes.txt',
+  )
+})
+
+test('ordinary single-line paste stays with the native handler', () => {
+  const e = open('', { collapseBlocks: true })
+  const clipboardData = new DataTransfer()
+  clipboardData.setData('text/plain', '**ordinary text**')
+
+  expect(
+    pasteCollapsedText(e, new ClipboardEvent('paste', { clipboardData })),
+  ).toBe(false)
+})
+
 test('standalone HTML previews retain their own block', () => {
   const source = 'intro\n\n<div>\n<b>test</b>\n</div>'
   const e = open(source)

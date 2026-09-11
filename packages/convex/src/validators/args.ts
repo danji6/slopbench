@@ -86,6 +86,10 @@ export const sendMessageArgsValidator = v.object({
       }),
     ),
   ),
+  /** Permanent attachment references parsed from URLs in the message. */
+  attachmentLinks: v.optional(
+    v.array(v.object({ token: v.string(), filename: v.string() })),
+  ),
   fileLinks: v.optional(
     v.array(
       v.object({

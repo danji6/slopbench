@@ -207,6 +207,8 @@ export const appearanceSchema = v.object({
 })
 
 export const attachmentSchema = v.object({
+  /** Shared file identity backing this session attachment. */
+  fileId: v.id('attachmentFiles'),
   storageId: v.id('_storage'),
   previewStorageId: v.optional(v.id('_storage')),
   uploaderId: v.id('users'),
@@ -216,6 +218,17 @@ export const attachmentSchema = v.object({
   streamId: v.optional(v.id('streams')),
   filename: v.string(),
   mediaType: v.string(),
+})
+
+/** Blob metadata shared by every message reference to the same file. */
+export const attachmentFileSchema = v.object({
+  storageId: v.id('_storage'),
+  previewStorageId: v.optional(v.id('_storage')),
+  previewMediaType: v.optional(v.string()),
+  filename: v.string(),
+  mediaType: v.string(),
+  byteLength: v.number(),
+  shareToken: v.string(),
 })
 
 export const userSessionSchema = v.object({
@@ -294,6 +307,8 @@ export const streamSchema = v.object({
   followUpAfterCompact: v.optional(v.boolean()),
   /** This compaction was scheduled by /autoCompact and gets bounded retries. */
   autoCompact: v.optional(v.boolean()),
+  /** Retry this logical turn without automatically materializing media. */
+  omitActiveMedia: v.optional(v.boolean()),
   suppressFollowUp: v.optional(v.boolean()),
   /** True for child (sub-agent) streams stopped from above. */
   suppressReport: v.optional(v.boolean()),

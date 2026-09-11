@@ -45,6 +45,27 @@ const TRANSIENT_PATTERNS = [
   /request timeout/i,
 ]
 
+const REQUEST_SIZE_PATTERNS = [
+  /\b413\b/,
+  /(?:request|payload|body|context).*(?:too large|size limit|maximum size)/i,
+  /(?:too large|size limit|maximum size).*(?:request|payload|body|context)/i,
+]
+
+/** Whether a provider unambiguously rejected the total request size. */
+export function isProviderRequestSizeError(error: unknown): boolean {
+  return getErrorChain(error).some((value) => {
+    if (value != null && typeof value === 'object') {
+      const { status, statusCode } = value as {
+        status?: unknown
+        statusCode?: unknown
+      }
+      if (status === 413 || statusCode === 413) return true
+    }
+    const message = stringifyErrorCandidate(value)
+    return REQUEST_SIZE_PATTERNS.some((pattern) => pattern.test(message))
+  })
+}
+
 function backoffDelay(retryAttempt: number) {
   return Math.min(
     RETRY_DELAY_MS * 1.25 ** Math.max(0, retryAttempt - 1),

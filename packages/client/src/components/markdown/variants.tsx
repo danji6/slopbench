@@ -1,8 +1,9 @@
 import { Code, T } from '@/components/ui'
-import { cn } from '@/lib'
 import type { MarkdownComponents } from '@/lib/markdown/remark'
+import { cn } from '@/lib/utils'
 
 import { MarkdownAnchor } from './anchor'
+import { AttachmentAnchor } from './attachment-anchor'
 import { MarkdownListItem } from './list-item'
 import { KatexMath, matchMathClass } from './math'
 
@@ -57,7 +58,9 @@ function MarkdownMention({
 }
 
 function DefaultAnchor({ href, ...props }: React.ComponentProps<'a'>) {
-  return href?.startsWith('#') ? (
+  return href?.startsWith('attachment:') ? (
+    <AttachmentAnchor href={href} {...props} />
+  ) : href?.startsWith('#') ? (
     <MarkdownAnchor href={href} {...props} />
   ) : (
     <T.a href={href} {...props} />

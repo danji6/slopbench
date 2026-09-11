@@ -28,6 +28,7 @@ import { ReasoningBlock } from './reasoning-block'
 import { ShellReportBlock } from './shell-report-block'
 import { SummaryBlock } from './summary-block'
 import { TextBlock } from './text-block'
+import { ReadAttachmentBlock } from './tools/read-attachment-block'
 import { ReadFileBlock } from './tools/read-file-block'
 import { ShellBlock } from './tools/shell-block'
 import { ShellGroupBlock } from './tools/shell-group-block'
@@ -81,6 +82,14 @@ export const RenderGroup = memo(function RenderGroup(props: RenderGroupProps) {
         <SubagentGroupBlock
           parts={group.parts}
           messageId={props.message.id}
+          toolErrors={partMeta?.toolErrors}
+        />
+      )
+    }
+    if (group.toolName === 'read_attachment') {
+      return (
+        <ReadAttachmentBlock
+          parts={group.parts}
           toolErrors={partMeta?.toolErrors}
         />
       )

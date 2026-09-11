@@ -27,6 +27,11 @@ export const _getProviderHistory = internalQuery({
   handler: StreamReads._getProviderHistory,
 })
 
+export const _hasActiveMedia = internalQuery({
+  args: { streamId: v.id('streams') },
+  handler: StreamReads._hasActiveMedia,
+})
+
 export const _isActive = internalQuery({
   args: { streamId: v.id('streams') },
   handler: StreamReads._isActive,
@@ -85,6 +90,11 @@ export const _fail = internalMutation({
 export const _scheduleRetry = internalMutation({
   args: scheduleStreamRetryArgsValidator.fields,
   handler: StreamLifecycle._scheduleRetry,
+})
+
+export const _omitActiveMedia = internalMutation({
+  args: { streamId: v.id('streams') },
+  handler: StreamLifecycle._omitActiveMedia,
 })
 
 export const _handoff = internalMutation({

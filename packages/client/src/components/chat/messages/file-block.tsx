@@ -30,6 +30,8 @@ export function FileBlock({ parts, attachmentIds }: FileBlockProps) {
           part,
           resolved?.url ?? undefined,
           resolved?.previewUrl ?? undefined,
+          resolved?.permaUrl ?? undefined,
+          resolved?.byteLength ?? undefined,
         )
       }),
     [parts, attachmentIds, urls],

@@ -1,9 +1,6 @@
 /// <reference types="bun-types" />
 import type { Id } from '@sb/convex/_generated/dataModel'
-import {
-  foreignStorageIds,
-  removeAttachment,
-} from '@sb/convex/model/attachments'
+import { removeAttachment } from '@sb/convex/model/attachments'
 import { activate } from '@sb/convex/model/session/agents'
 import { refreshForOwner } from '@sb/convex/model/session/models'
 import {
@@ -33,6 +30,7 @@ function makeCtx() {
     messages: [],
     messageContents: [],
     attachments: [],
+    attachmentFiles: [],
     streams: [],
     agents: [],
     settings: [],
@@ -340,6 +338,7 @@ describe('sessions.duplicate', () => {
     ])
     tables.attachments.push({
       _id: 'att_used',
+      fileId: 'file_used',
       storageId: 'blob_1',
       uploaderId: OWNER,
       sessionId: 'session_1',
@@ -349,6 +348,7 @@ describe('sessions.duplicate', () => {
     })
     tables.attachments.push({
       _id: 'att_staged',
+      fileId: 'file_staged',
       storageId: 'blob_2',
       uploaderId: OWNER,
       sessionId: 'session_1',
@@ -585,26 +585,27 @@ describe('refcount-safe attachment removal', () => {
     tables.attachments.push(
       {
         _id: 'att_src',
+        fileId: 'file_shared',
         sessionId: 's_src',
         storageId: 'blob_shared',
         previewStorageId: 'thumb_shared',
       },
       {
         _id: 'att_copy',
+        fileId: 'file_shared',
         sessionId: 's_copy',
         storageId: 'blob_shared',
         previewStorageId: 'thumb_shared',
       },
     )
+    tables.attachmentFiles.push({
+      _id: 'file_shared',
+      storageId: 'blob_shared',
+      previewStorageId: 'thumb_shared',
+    })
 
     const srcRow = tables.attachments[0]
-    const shared = await foreignStorageIds(
-      ctx as never,
-      's_src' as Id<'sessions'>,
-    )
-    expect(shared.has('blob_shared' as never)).toBe(true)
-
-    await removeAttachment(ctx as never, srcRow as never, shared)
+    await removeAttachment(ctx as never, srcRow as never)
     expect(deletedBlobs).not.toContain('blob_shared')
     expect(deletedBlobs).not.toContain('thumb_shared')
     expect(tables.attachments.some((row) => row._id === 'att_src')).toBe(false)
@@ -620,15 +621,16 @@ describe('refcount-safe attachment removal', () => {
     tables.sessions.push({ _id: 's_solo', ownerId: OWNER })
     tables.attachments.push({
       _id: 'att_solo',
+      fileId: 'file_private',
       sessionId: 's_solo',
       storageId: 'blob_private',
     })
+    tables.attachmentFiles.push({
+      _id: 'file_private',
+      storageId: 'blob_private',
+    })
 
-    const shared = await foreignStorageIds(
-      ctx as never,
-      's_solo' as Id<'sessions'>,
-    )
-    await removeAttachment(ctx as never, tables.attachments[0] as never, shared)
+    await removeAttachment(ctx as never, tables.attachments[0] as never)
     expect(deletedBlobs).toEqual(['blob_private'])
   })
 })

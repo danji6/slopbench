@@ -5,6 +5,9 @@ export type FileItem = {
   url: string
   file: File
   originalUrl?: string
+  permaUrl?: string
+  byteLength?: number
+  canInsertInline?: boolean
 }
 
 export type FilePreview = {

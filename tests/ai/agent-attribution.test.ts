@@ -47,12 +47,13 @@ function note(
   return { ...stored(sender, role, name), type, hidden: true }
 }
 
-function providerData() {
+function providerData(boundaryId?: string) {
   return {
-    stream: { _id: 'stream_1' },
+    stream: { _id: 'stream_1', contextBoundaryMessageId: boundaryId },
     session: {},
     agent: agent(),
     settings: {},
+    sessionCache: { tools: { names: ['read_attachment'] } },
   } as never
 }
 
@@ -108,8 +109,11 @@ function attachmentHistoryCtx({
   attachment: {
     storageId: string
     previewStorageId?: string
+    previewMediaType?: string
     mediaType: string
     filename: string
+    shareToken?: string
+    byteLength?: number
   }
   blobs: Record<string, Blob>
 }) {
@@ -506,7 +510,7 @@ describe('buildProviderHistory', () => {
     ])
   })
 
-  test('embeds text/plain attachments as file blocks', async () => {
+  test('describes text attachments without reading their contents', async () => {
     const message = attachmentMessage('att_text', 'text/plain', 'notes.txt')
     const ctx = attachmentHistoryCtx({
       message,
@@ -514,6 +518,8 @@ describe('buildProviderHistory', () => {
         storageId: 'blob_text',
         mediaType: 'text/plain',
         filename: 'notes.txt',
+        shareToken: 'share-text',
+        byteLength: 11,
       },
       blobs: { blob_text: new Blob(['hello\nworld']) },
     })
@@ -526,7 +532,10 @@ describe('buildProviderHistory', () => {
         content: [
           {
             type: 'text',
-            text: '<file path="notes.txt">\nhello\nworld\n</file>',
+            text:
+              '<attachment reference="attachment:share-text/notes.txt" filename="notes.txt" mediaType="text/plain" bytes="11">\n' +
+              'Use read_attachment with this reference to read the file in bounded ranges.\n' +
+              '</attachment>',
           },
         ],
       },
@@ -542,6 +551,8 @@ describe('buildProviderHistory', () => {
           storageId: 'blob_md',
           mediaType,
           filename: 'README.md',
+          shareToken: 'share-md',
+          byteLength: 9,
         },
         blobs: { blob_md: new Blob(['# Project']) },
       })
@@ -554,7 +565,10 @@ describe('buildProviderHistory', () => {
           content: [
             {
               type: 'text',
-              text: '<file path="README.md">\n# Project\n</file>',
+              text:
+                `<attachment reference="attachment:share-md/README.md" filename="README.md" mediaType="${mediaType}" bytes="9">\n` +
+                'Use read_attachment with this reference to read the file in bounded ranges.\n' +
+                '</attachment>',
             },
           ],
         },
@@ -569,6 +583,7 @@ describe('buildProviderHistory', () => {
       attachment: {
         storageId: 'blob_png',
         previewStorageId: 'blob_preview',
+        previewMediaType: 'image/jpeg',
         mediaType: 'image/png',
         filename: 'pixel.png',
       },
@@ -578,7 +593,11 @@ describe('buildProviderHistory', () => {
       },
     })
 
-    const history = await buildProviderHistory(ctx, providerData(), [])
+    const history = await buildProviderHistory(
+      ctx,
+      providerData(message._id),
+      [],
+    )
 
     expect(history).toEqual([
       {
@@ -586,9 +605,9 @@ describe('buildProviderHistory', () => {
         content: [
           {
             type: 'file',
-            mediaType: 'image/png',
+            mediaType: 'image/jpeg',
             filename: 'pixel.png',
-            data: { type: 'url', url: new URL('data:image/png;base64,AQID') },
+            data: { type: 'url', url: new URL('data:image/jpeg;base64,AQID') },
           },
         ],
       },
@@ -607,7 +626,11 @@ describe('buildProviderHistory', () => {
       blobs: { blob_pdf: new Blob([new Uint8Array([37, 80, 68, 70])]) },
     })
 
-    const history = await buildProviderHistory(ctx, providerData(), [])
+    const history = await buildProviderHistory(
+      ctx,
+      providerData(message._id),
+      [],
+    )
 
     expect(history).toEqual([
       {
@@ -636,6 +659,8 @@ describe('buildProviderHistory', () => {
         storageId: 'blob_escape',
         mediaType: 'text/plain',
         filename,
+        shareToken: 'share-escape',
+        byteLength: 7,
       },
       blobs: { blob_escape: new Blob(['content']) },
     })
@@ -648,14 +673,17 @@ describe('buildProviderHistory', () => {
         content: [
           {
             type: 'text',
-            text: '<file path="bad&quot; &lt;name&gt;.txt">\ncontent\n</file>',
+            text:
+              '<attachment reference="attachment:share-escape/bad%22%0A%3Cname%3E.txt" filename="bad&quot; &lt;name&gt;.txt" mediaType="text/plain" bytes="7">\n' +
+              'Use read_attachment with this reference to read the file in bounded ranges.\n' +
+              '</attachment>',
           },
         ],
       },
     ])
   })
 
-  test('truncates large text attachments in file blocks', async () => {
+  test('keeps large text attachments out of provider context', async () => {
     const message = attachmentMessage('att_long', 'text/plain', 'long.txt')
     const ctx = attachmentHistoryCtx({
       message,
@@ -663,6 +691,8 @@ describe('buildProviderHistory', () => {
         storageId: 'blob_long',
         mediaType: 'text/plain',
         filename: 'long.txt',
+        shareToken: 'share-long',
+        byteLength: 50_001,
       },
       blobs: { blob_long: new Blob(['x'.repeat(50_001)]) },
     })
@@ -671,13 +701,12 @@ describe('buildProviderHistory', () => {
     const part = firstContentPart(history)
 
     expect(part?.type).toBe('text')
-    expect(
-      part?.type === 'text' &&
-        part.text.startsWith(`<file path="long.txt">\n${'x'.repeat(50_000)}`),
-    ).toBe(true)
-    expect(
-      part?.type === 'text' && part.text.endsWith('\n[truncated]\n</file>'),
-    ).toBe(true)
+    expect(part?.type === 'text' && part.text.includes('bytes="50001"')).toBe(
+      true,
+    )
+    expect(part?.type === 'text' && part.text.includes('x'.repeat(100))).toBe(
+      false,
+    )
   })
 
   test('keeps completed tool outputs in provider history', async () => {

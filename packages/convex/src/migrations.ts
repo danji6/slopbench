@@ -3,11 +3,7 @@ import {
   Migrations,
   runToCompletion,
 } from '@convex-dev/migrations'
-import {
-  SCHEMA_MIGRATIONS,
-  SCHEMA_MIGRATION_VERSION,
-  type SchemaMigrationName,
-} from '@sb/core/migration-version'
+import { SCHEMA_MIGRATION_VERSION } from '@sb/core/migration-version'
 import { getFunctionName } from 'convex/server'
 import { v } from 'convex/values'
 
@@ -31,13 +27,7 @@ export const run = migrations.runner()
  *
  * Keep the shared manifest append-only and add its generated reference here.
  */
-const releaseMigrationByName: Record<
-  SchemaMigrationName,
-  MigrationFunctionReference
-> = {}
-const releaseMigrations = SCHEMA_MIGRATIONS.map(
-  (name) => releaseMigrationByName[name],
-)
+const releaseMigrations: MigrationFunctionReference[] = []
 
 /** Stable pre-deploy endpoint used by launchers from future releases. */
 export const _getReleaseState = internalQuery({

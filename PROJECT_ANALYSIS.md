@@ -866,9 +866,14 @@ the option's `value` (`lib/command-filter.ts`), so an opaque id can never
 fuzzily match the search and two identically named entries rank identically
 whatever their ids are.
 
-Normal user sends can include typed attachments, pasted files, and `@path`
-mentions. Mention parsing is shared through `packages/core`: paths with spaces
-use `@"path with spaces"`, escaped `@` signs are ignored, and markdown
+Normal user sends can include typed attachments, pasted files, durable
+attachment URLs, and `@path` mentions. Plain-text pastes at or above 16 KiB in
+UTF-8 become `.txt` attachments before the editor parses them; the attachment
+card can restore the paste inline. Converted paste drafts use IndexedDB so they
+survive reloads without consuming localStorage. Staged uploads are cleaned up
+when a send fails, and a failed first-message upload is restored into the newly
+created session's composer for retry. Mention parsing is shared through
+`packages/core`: paths with spaces use `@"path with spaces"`, escaped `@` signs are ignored, and markdown
 rendering wraps detected mentions in a styled node. If the session has a
 workspace, the client resolves file mentions once before sending, and the
 message stores `file-link` parts with immutable file, directory, or binary
@@ -1063,7 +1068,7 @@ Key backend domains:
 `migrations.ts` holds the `@convex-dev/migrations` runner, the append-only
 public release migration list, and stable internal endpoints for boot
 coordination. `packages/core/src/migration-version.ts` establishes pre-release
-schema version 7 as the pre-release baseline; later manifest entries advance the
+schema version 9 as the pre-release baseline; later manifest entries advance the
 version from that baseline. The public migration manifest is currently empty.
 A singleton
 `releaseState` document records the last strictly completed version and any
@@ -1363,7 +1368,11 @@ boundary, joined through each turn's selected-version segments in order. For
 parts so a multi-step stream can continue from its own tool calls. Before
 conversion to model messages:
 
-- file attachments are loaded from Convex storage as data URLs
+- text attachments become compact metadata blocks with host-independent
+  references and byte lengths; their contents are available through bounded
+  `read_attachment` calls
+- media attached since the preceding assistant turn is loaded from Convex
+  storage for the current response, then becomes metadata on later turns
 - offloaded tool outputs are loaded back from storage
 - snapshotted file-link parts are converted into file/directory/binary context
 - sender names may be prefixed according to agent sharing settings, except on
@@ -1390,6 +1399,7 @@ Builtin user-visible tools (what the settings UI lists):
 
 - `web_fetch`
 - `web_search`
+- `read_attachment`
 - `read_file`
 - `write_file`
 - `edit_file`
@@ -1417,6 +1427,16 @@ Workspace tool outputs are structured JSON through the builtin MCP bridge:
 truncation status; `write_file` and `edit_file` return checkpoint ids plus
 capped unified diffs; `shell` returns model-friendly text while retaining
 terminal tails for the UI.
+
+`read_attachment` is independent of the workspace and sidecar. It accepts a
+permanent bearer reference, validates both its token and filename, and reads
+UTF-8 text with zero-based byte offsets. It returns up to 64 KiB by default and
+per call, reports whether the result was truncated, and supports parallel calls
+at disjoint offsets. Media reads are exposed to the provider for the remainder
+of the current response; replayed tool history replaces that payload with
+metadata. Its transcript row is a compact, non-expandable `Read attachment`
+event that shows only the requested byte range, and work summaries report the
+number of attachment-read operations separately from workspace files.
 
 Tool failures are typed: adapters throw `ToolError`, which becomes an
 `output-error` part on the message — there is no string-matching failure
@@ -1634,9 +1654,25 @@ are actually waiting.
 
 ## Attachments, Generated Files, and Large Output
 
-User uploads are stored in Convex storage and represented as `attachments`
-rows. Image uploads can have preview storage ids. Before provider calls,
-attachments are resolved into data URLs so providers can consume them.
+User uploads are stored in Convex storage. `attachmentFiles` owns the blob,
+preview metadata, authoritative byte length, and unguessable sharing token;
+`attachments` rows are session/message references to that durable identity.
+The canonical `/attachments/<token>/<filename>` URL serves bounded files or
+redirects larger ones to the current storage URL. Copying an attachment instead
+produces a clickable `[📎 filename](attachment:<token>/<filename>)` Markdown
+reference without a deployment hostname. Sending such a reference creates a
+new session-local reference to the same file, and clicking it resolves the
+current deployment's download endpoint. The blob and preview survive until the
+final reference is removed; abandoned staged uploads retain the existing
+24-hour cleanup policy. File size and preview MIME type come from Convex storage
+metadata rather than client claims.
+
+Text attachments are never expanded automatically into provider history.
+Their metadata tells the agent whether `read_attachment` is available and lets
+it page through UTF-8 byte ranges. Freshly attached images and other media are
+materialized for one logical response, including its tool steps and retries;
+later responses retain the durable metadata and can load the media again by
+reading or reattaching its reference. Image previews carry their own MIME type.
 
 AI-generated file parts are offloaded during streaming: data URLs are parsed,
 bytes are stored in Convex storage, an attachment row is created with

@@ -210,6 +210,7 @@ export async function duplicate(
   for (const attachment of oldAttachments) {
     if (!referencedAttachmentIds.has(attachment._id)) continue
     const copyId = await ctx.db.insert('attachments', {
+      fileId: attachment.fileId,
       storageId: attachment.storageId,
       previewStorageId: attachment.previewStorageId,
       uploaderId: attachment.uploaderId,
@@ -598,11 +599,8 @@ export async function remove(
     .withIndex('by_sessionId', (q) => q.eq('sessionId', sessionId))
     .collect()
 
-  // Blobs other sessions (e.g. duplicates) still reference
-  const sharedBlobs = await Attachments.foreignStorageIds(ctx, sessionId)
-
   for (const attachment of attachments) {
-    await Attachments.removeAttachment(ctx, attachment, sharedBlobs)
+    await Attachments.removeAttachment(ctx, attachment)
   }
 
   await deleteStorageIfPresent(ctx, log)

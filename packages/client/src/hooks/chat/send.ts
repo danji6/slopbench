@@ -9,6 +9,8 @@ import type { MessageRole, PendingMessage } from '@/lib/chat'
 import { api } from '@sb/convex/_generated/api'
 import type { Doc, Id } from '@sb/convex/_generated/dataModel'
 import type { ResolvedSettings } from '@sb/convex/model/defaults'
+import { attachmentReferences } from '@sb/core/attachments'
+import type { AttachmentReference } from '@sb/core/attachments'
 import { parseFileMentions } from '@sb/core/mentions/parse'
 import { parseShellCommand, unescapeShellPrefix } from '@sb/core/shell/command'
 import type { WorkspaceLinkSnapshot } from '@sb/core/types/workspace'
@@ -36,6 +38,7 @@ type SendArgs = {
   content: string
   role?: MessageRole
   attachments?: StagedAttachment[]
+  attachmentLinks?: AttachmentReference[]
   fileLinks?: ResolvedFileLink[]
 }
 
@@ -62,6 +65,7 @@ export function useSendMessage() {
   const agent = useActiveAgent()
   const generateUploadUrl = useMutation(api.attachments.generateUploadUrl)
   const confirmAttachment = useMutation(api.attachments.confirm)
+  const removeAttachment = useMutation(api.attachments.remove)
   const resolveFileLinks = useAction(api.actions.workspaces.resolveFileLinks)
   const isWorkspaceAdmin = useIsWorkspaceAdmin()
 
@@ -99,32 +103,48 @@ export function useSendMessage() {
         // Don't resolve `@path` links if this is a shell command
         parseShellCommand(content) === null
 
-      const [attachments, fileLinks] = await Promise.all([
-        uploadFiles(pending.files, pending.originalFiles, storeBlob, (args) =>
-          confirmAttachment({ ...args, sessionId: session._id }),
-        ),
-        resolveMentionedFileLinks(
+      let attachments: StagedAttachment[] = []
+      try {
+        const result = await Promise.all([
+          uploadFiles(
+            pending.files,
+            pending.originalFiles,
+            storeBlob,
+            (args) => confirmAttachment({ ...args, sessionId: session._id }),
+            (id) => removeAttachment({ attachmentId: id }),
+          ),
+          resolveMentionedFileLinks(
+            content,
+            session._id,
+            canResolveLinks,
+            resolveFileLinks,
+          ),
+        ])
+        attachments = result[0]
+        const fileLinks = result[1]
+        const attachmentLinks = attachmentReferences(content)
+        await sendMutation({
+          sessionId: session._id,
           content,
-          session._id,
-          canResolveLinks,
-          resolveFileLinks,
-        ),
-      ])
-
-      await sendMutation({
-        sessionId: session._id,
-        content,
-        ...(messageRole !== 'user' ? { role: messageRole } : {}),
-        ...(pending.silent ? { silent: true } : {}),
-        ...(attachments.length > 0 ? { attachments } : {}),
-        ...(fileLinks !== undefined ? { fileLinks } : {}),
-      })
+          ...(messageRole !== 'user' ? { role: messageRole } : {}),
+          ...(pending.silent ? { silent: true } : {}),
+          ...(attachments.length > 0 ? { attachments } : {}),
+          ...(attachmentLinks.length > 0 ? { attachmentLinks } : {}),
+          ...(fileLinks !== undefined ? { fileLinks } : {}),
+        })
+      } catch (error) {
+        await Promise.allSettled(
+          attachments.map(({ id }) => removeAttachment({ attachmentId: id })),
+        )
+        throw error
+      }
     },
     [
       session,
       sendMutation,
       generateUploadUrl,
       confirmAttachment,
+      removeAttachment,
       resolveFileLinks,
       isWorkspaceAdmin,
     ],
@@ -136,33 +156,39 @@ async function uploadFiles(
   originalFiles: Record<string, File> | undefined,
   storeBlob: StoreBlob,
   confirm: ConfirmAttachment,
+  remove: (id: Id<'attachments'>) => Promise<unknown>,
 ): Promise<StagedAttachment[]> {
-  const results = await Promise.all(
+  const settled = await Promise.allSettled(
     files.map(async (part) => {
-      try {
-        const original = originalFiles?.[part.url]
-        const meta = fileMeta(part, original)
-        const isImage = meta.mediaType.startsWith('image/')
+      const original = originalFiles?.[part.url]
+      const meta = fileMeta(part, original)
+      const isImage = meta.mediaType.startsWith('image/')
+      const blob = original ?? (await dataUrlToBlob(part.url))
 
-        const storageId = await storeBlob(
-          original ?? (await dataUrlToBlob(part.url)),
-          meta.mediaType,
-        )
-        const previewStorageId =
-          isImage && original
-            ? await storeBlob(await dataUrlToBlob(part.url), 'image/jpeg')
-            : undefined
+      const storageId = await storeBlob(blob, meta.mediaType)
+      const previewStorageId =
+        isImage && original
+          ? await storeBlob(await dataUrlToBlob(part.url), 'image/jpeg')
+          : undefined
 
-        const id = await confirm({ storageId, previewStorageId, ...meta })
-        // Reuse the resized data for the optimistic update
-        return isImage ? { id, data: part.url } : { id }
-      } catch (err) {
-        console.error('Failed to upload attachment:', err)
-        return null
-      }
+      const id = await confirm({
+        storageId,
+        previewStorageId,
+        ...meta,
+      })
+      // Reuse the resized data for the optimistic update
+      return isImage ? { id, data: part.url } : { id }
     }),
   )
-  return results.filter((r): r is StagedAttachment => r !== null)
+  const uploaded = settled.flatMap((result) =>
+    result.status === 'fulfilled' ? [result.value] : [],
+  )
+  const failed = settled.find((result) => result.status === 'rejected')
+  if (failed?.status === 'rejected') {
+    await Promise.allSettled(uploaded.map(({ id }) => remove(id)))
+    throw failed.reason
+  }
+  return uploaded
 }
 
 function fileMeta(part: FileUIPart, original: File | undefined): UploadMeta {

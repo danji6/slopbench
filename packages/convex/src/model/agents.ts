@@ -88,7 +88,6 @@ export async function create(ctx: AuthMutationCtx, args: CreateAgentArgs) {
 
   const agentId = await ctx.db.insert('agents', {
     ownerId: ctx.userId,
-    tools: [],
     ...DEFAULT_CONTEXT_OPTIONS,
     ...rest,
     subAgents: await sanitizeSubAgents(ctx, ctx.userId, args.subAgents),

@@ -52,7 +52,11 @@ export function editorKit({
   collapseBlocks = false,
 }: EditorKitOptions = {}): Extensions {
   return [
-    LineStarterKit.configure({ codeBlock: false, hardBreak: false }),
+    LineStarterKit.configure({
+      codeBlock: false,
+      hardBreak: false,
+      link: { protocols: ['attachment'] },
+    }),
     CodeBlockShiki.configure({
       themes: { light: themeName, dark: themeName },
       customThemes: [theme],

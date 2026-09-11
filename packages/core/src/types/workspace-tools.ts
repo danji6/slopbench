@@ -1,5 +1,28 @@
 import { z } from 'zod'
 
+import { ATTACHMENT_READ_MAX_BYTES } from '../const'
+
+export const readAttachmentFields = {
+  reference: z
+    .string()
+    .describe('Attachment reference to read'),
+  offset: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .describe('Zero-based UTF-8 byte offset'),
+  limit: z
+    .number()
+    .int()
+    .positive()
+    .max(ATTACHMENT_READ_MAX_BYTES)
+    .optional()
+    .describe(
+      `Maximum UTF-8 bytes to return (default and max ${ATTACHMENT_READ_MAX_BYTES})`,
+    ),
+} as const
+
 export const readFileFields = {
   path: z.string().describe('Workspace-relative path to read'),
   offset: z.number().optional().describe('1-indexed line offset'),

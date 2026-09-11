@@ -1,4 +1,5 @@
 import type { MathMode } from '@/lib/chat'
+import { attachmentUrlTransform } from '@/lib/markdown/attachment-link'
 import { normalizeMathDelimiters } from '@/lib/markdown/helpers'
 import {
   type MarkdownComponents,
@@ -61,6 +62,7 @@ export function MarkdownRenderer({
   enableAnchorHashes,
   remarkPlugins: extraRemarkPlugins = [],
   rehypePlugins: extraRehypePlugins = [],
+  urlTransform = attachmentUrlTransform,
   children,
   ...props
 }: MarkdownRendererProps) {
@@ -118,6 +120,7 @@ export function MarkdownRenderer({
         rehypeSlug,
         ...(extraRehypePlugins as []),
       ]}
+      urlTransform={urlTransform}
       {...props}
     >
       {content}

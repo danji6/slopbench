@@ -9,6 +9,7 @@ import {
   getRateLimitRetryDelay,
   getTransientRetryDelay,
   hasReplayableToolOutputSince,
+  isProviderRequestSizeError,
 } from '@sb/convex/model/stream/retry'
 import { trackGeneratedOutput } from '@sb/convex/model/stream/transformers'
 import { describe, expect, test } from 'bun:test'
@@ -140,6 +141,22 @@ describe('getTransientRetryDelay', () => {
     expect(getTransientRetryDelay({ statusCode: 400 }, 1)).toBeNull()
     expect(getTransientRetryDelay(new Error('Invalid API key'), 1)).toBeNull()
     expect(getTransientRetryDelay(new Error('Terminated'), 1)).toBe(1000)
+  })
+})
+
+describe('isProviderRequestSizeError', () => {
+  test('recognizes structured and textual request-size failures', () => {
+    expect(isProviderRequestSizeError({ status: 413 })).toBe(true)
+    expect(
+      isProviderRequestSizeError(
+        new Error('Request body exceeds the maximum size'),
+      ),
+    ).toBe(true)
+  })
+
+  test('does not classify ordinary context or provider errors', () => {
+    expect(isProviderRequestSizeError(new Error('Invalid API key'))).toBe(false)
+    expect(isProviderRequestSizeError({ status: 400 })).toBe(false)
   })
 })
 

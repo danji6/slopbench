@@ -3,6 +3,7 @@ import { defineSchema, defineTable } from 'convex/server'
 import {
   agentSchema,
   appearanceSchema,
+  attachmentFileSchema,
   attachmentSchema,
   avatarSchema,
   credentialSchema,
@@ -153,7 +154,12 @@ export default defineSchema({
   attachments: defineTable(attachmentSchema)
     .index('by_sessionId', ['sessionId'])
     .index('by_messageId', ['messageId'])
-    .index('by_streamId', ['streamId']),
+    .index('by_streamId', ['streamId'])
+    .index('by_fileId', ['fileId']),
+
+  attachmentFiles: defineTable(attachmentFileSchema)
+    .index('by_storageId', ['storageId'])
+    .index('by_shareToken', ['shareToken']),
 
   offloadedOutputs: defineTable(offloadedOutputSchema)
     .index('by_streamId', ['streamId']),

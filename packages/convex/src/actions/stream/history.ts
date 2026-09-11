@@ -6,6 +6,7 @@ import {
   toFileBlock,
   toPlanBlock,
 } from '@sb/convex/lib/workspace'
+import { READ_ATTACHMENT_TOOL_NAME } from '@sb/core/const'
 import type {
   WorkspaceBinaryRefLink,
   WorkspaceFileLink,
@@ -14,10 +15,6 @@ import type {
 import { block } from '@sb/core/utils/blocks'
 import { settleUnansweredToolParts } from '@sb/core/utils/tool-parts'
 import { blockPath } from '@sb/core/workspace/blocks'
-import {
-  MAX_TEXT_SNAPSHOT_CHARS,
-  isKnownTextFile,
-} from '@sb/core/workspace/files'
 import type { ModelMessage, UIMessage } from 'ai'
 
 import { internal } from '../../_generated/api'
@@ -37,6 +34,11 @@ import { buildPrompts } from '../../model/prompt/prompts'
 import { hasOutputRef } from '../../model/stream/toolOutput'
 import type { MessageRole, StreamContext } from '../../types'
 import { readWorkspaceFileLink } from '../session/workspace'
+import {
+  type AttachmentResolveOptions,
+  activeAttachmentMessages,
+  resolveAttachmentPart,
+} from './attachmentHistory'
 
 export async function buildProviderHistory(
   ctx: ActionCtx,
@@ -46,13 +48,30 @@ export async function buildProviderHistory(
   const history = await ctx.runQuery(internal.streams._getProviderHistory, {
     streamId: data.stream._id,
   })
+  const activeMediaMessages = activeAttachmentMessages(
+    history,
+    data.stream.omitActiveMedia
+      ? undefined
+      : data.stream.contextBoundaryMessageId,
+  )
+  const readerEnabled = (
+    data.sessionCache?.tools?.names ??
+    data.agent.tools ??
+    []
+  ).includes(READ_ATTACHMENT_TOOL_NAME)
 
   const messages: UIMessage[] = []
   for (const message of history) {
     const { role, parts } = representMessage(
       message,
       data.agent,
-      await resolveParts(ctx, message.parts, data.session, message.role),
+      await resolveParts(ctx, message.parts, data.session, message.role, {
+        mediaActive: activeMediaMessages.has(message._id),
+        readerEnabled,
+        toolMediaActive:
+          !data.stream.omitActiveMedia &&
+          message._id === data.stream.processingMessageId,
+      }),
     )
     messages.push({
       id: message._id,
@@ -70,16 +89,32 @@ export async function buildProviderHistory(
   }))
   const approvalNotes = collectApprovalNotes(attributed)
 
-  const [{ convertToModelMessages }, { shellHistoryTools: shellHistoryTools }] =
-    await Promise.all([import('ai'), import('../../model/tool/shell')])
+  const [
+    { convertToModelMessages },
+    { shellHistoryTools },
+    { attachmentHistoryTools },
+  ] = await Promise.all([
+    import('ai'),
+    import('../../model/tool/shell'),
+    import('../../model/tool/attachments'),
+  ])
 
   let modelMessages = await convertToModelMessages(attributed, {
     ignoreIncompleteToolCalls: true,
     // Maps shell outputs so replayed history never contains terminal scrollback
-    tools: shellHistoryTools(),
+    tools: { ...shellHistoryTools(), ...attachmentHistoryTools() },
   })
   modelMessages = removeOrphanToolCalls(modelMessages)
   modelMessages = insertApprovalNoteMessages(modelMessages, approvalNotes)
+  if (data.stream.omitActiveMedia) {
+    modelMessages.push({
+      role: 'system',
+      content: block(
+        'attachment-error',
+        'The provider rejected the active media payload as too large. Continue without it; its attachment link remains available.',
+      ),
+    })
+  }
   modelMessages = buildPrompts(
     remainingPrompts,
     modelMessages,
@@ -318,9 +353,21 @@ async function resolveParts(
   parts: unknown[],
   session: Doc<'sessions'>,
   role: MessageRole,
+  attachmentOptions: AttachmentResolveOptions,
 ) {
+  const expire = attachmentOptions.toolMediaActive
+    ? undefined
+    : (await import('../../model/tool/attachments')).expireAttachmentToolPart
   const resolved = await Promise.all(
-    parts.map((part) => resolvePart(ctx, part, session, role)),
+    parts.map((part) =>
+      resolvePart(
+        ctx,
+        expire?.(part) ?? part,
+        session,
+        role,
+        attachmentOptions,
+      ),
+    ),
   )
   return resolved as UIMessage['parts']
 }
@@ -330,6 +377,7 @@ async function resolvePart(
   part: unknown,
   session: Doc<'sessions'>,
   role: MessageRole,
+  attachmentOptions: AttachmentResolveOptions,
 ) {
   if (role === 'user' && isShellToolPart(part)) {
     // Tool parts are stripped off user messages, so this becomes a text part
@@ -350,52 +398,7 @@ async function resolvePart(
   if (isFileLinkPart(part)) {
     return resolveFileLink(ctx, part, session)
   }
-  if (!isAttachmentPart(part)) {
-    return part
-  }
-  if (part.url.startsWith('data:')) {
-    return part
-  }
-
-  const attachment = await ctx.runQuery(internal.attachments._get, {
-    attachmentId: part.attachmentId,
-  })
-  if (!attachment) return part
-
-  if (isKnownTextFile(attachment.mediaType, attachment.filename)) {
-    const blob = await ctx.storage.get(attachment.storageId)
-    if (!blob) return part
-
-    const raw = await blob.text()
-    const truncated = raw.length > MAX_TEXT_SNAPSHOT_CHARS
-    const content = truncated
-      ? `${raw.slice(0, MAX_TEXT_SNAPSHOT_CHARS)}\n[truncated]`
-      : raw
-
-    return {
-      type: 'text' as const,
-      text: toFileBlock({
-        kind: 'text',
-        path: attachment.filename,
-        content,
-        truncated,
-      }),
-    }
-  }
-
-  const blob = await ctx.storage.get(
-    attachment.previewStorageId ?? attachment.storageId,
-  )
-  if (!blob) return part
-
-  const base64 = encodeBase64(new Uint8Array(await blob.arrayBuffer()))
-  const mediaType = attachment.mediaType || 'application/octet-stream'
-  return {
-    type: 'file' as const,
-    url: `data:${mediaType};base64,${base64}`,
-    mediaType,
-    filename: attachment.filename,
-  }
+  return resolveAttachmentPart(ctx, part, attachmentOptions)
 }
 
 async function resolveOffloadedOutput(
@@ -603,19 +606,5 @@ function isWorkspaceFileLink(value: unknown): value is WorkspaceFileLink {
     typeof link.base64 === 'string' &&
     typeof link.mediaType === 'string' &&
     typeof link.filename === 'string'
-  )
-}
-
-function isAttachmentPart(
-  part: unknown,
-): part is { type: 'file'; url: string; attachmentId: Id<'attachments'> } {
-  return (
-    typeof part === 'object' &&
-    part !== null &&
-    'type' in part &&
-    part.type === 'file' &&
-    'attachmentId' in part &&
-    'url' in part &&
-    typeof (part as { url: unknown }).url === 'string'
   )
 }

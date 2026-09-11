@@ -40,6 +40,7 @@ export type StreamContext = {
   plan: Doc<'plans'> | null
   sessionCache: Doc<'sessionCache'> | null
   spawnableAgents: SpawnableAgent[]
+  hasActiveMedia: boolean
 }
 
 export type SessionMember = CoreSessionMember<
@@ -114,6 +115,8 @@ export type TokenUsage = Infer<typeof V.tokenUsageValidator>
 
 export type SaveSessionCacheArgs = Infer<typeof V.saveSessionCacheArgsValidator>
 export type SendMessageArgs = Infer<typeof V.sendMessageArgsValidator>
+export type ConfirmAttachmentArgs = Infer<typeof V.confirmAttachmentArgsValidator> // prettier-ignore
+export type CreateGeneratedAttachmentArgs = Infer<typeof V.createGeneratedAttachmentArgsValidator> // prettier-ignore
 export type CreateAgentArgs = Infer<typeof V.createAgentArgsValidator>
 export type UpdateAgentArgs = Infer<typeof V.updateAgentArgsValidator>
 export type UpdateSessionArgs = Infer<typeof V.updateSessionArgsValidator>
