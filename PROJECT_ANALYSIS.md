@@ -1674,6 +1674,12 @@ materialized for one logical response, including its tool steps and retries;
 later responses retain the durable metadata and can load the media again by
 reading or reattaching its reference. Image previews carry their own MIME type.
 
+Text entries in the file strip open a line-numbered, monospace viewer for both
+composer drafts and stored message attachments. The browser streams at most the
+first 1 MiB, preserves UTF-8 character boundaries, and marks a bounded preview
+so very large attachments do not overwhelm the page. Known media types keep
+using the existing thumbnail and lightbox path.
+
 AI-generated file parts are offloaded during streaming: data URLs are parsed,
 bytes are stored in Convex storage, an attachment row is created with
 `streamId` and `messageId`, and the message part is replaced with an

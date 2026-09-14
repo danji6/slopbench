@@ -1,4 +1,5 @@
 import { isDisplayableUrl, thumbnail } from '@/lib/io'
+import { isKnownTextFile } from '@sb/core/workspace/files'
 import { useEffect, useRef, useState } from 'react'
 
 export type FileItem = {
@@ -22,6 +23,15 @@ type ThumbnailResult = {
   thumbnailUrl: string | null
 }
 
+/** Identifies file strip entries that can be opened in the text viewer. */
+export function isTextFileItem(item: FileItem): boolean {
+  const mediaType = item.file.type.split(';', 1)[0]?.toLowerCase()
+  return (
+    !mediaType.startsWith('image/') &&
+    isKnownTextFile(item.file.type, item.file.name)
+  )
+}
+
 export function useFilePreviews(items: FileItem[]): FilePreview[] {
   const [thumbnailMap, setThumbnailMap] = useState<
     Map<string, ThumbnailResult>
@@ -41,13 +51,14 @@ export function useFilePreviews(items: FileItem[]): FilePreview[] {
     }
 
     for (const item of items) {
+      if (isTextFileItem(item)) continue
       if (!isDisplayableUrl(item.url)) continue
-
       if (
         inflightRef.current.has(item.url) ||
         finishedRef.current.has(item.url)
-      )
+      ) {
         continue
+      }
 
       const controller = new AbortController()
       inflightRef.current.set(item.url, controller)
@@ -72,6 +83,15 @@ export function useFilePreviews(items: FileItem[]): FilePreview[] {
   }, [items])
 
   return items.map((item) => {
+    if (isTextFileItem(item)) {
+      return {
+        url: item.originalUrl ?? item.url,
+        previewUrl: item.url,
+        isThumbnailable: false,
+        thumbnailUrl: null,
+      }
+    }
+
     const pending = !isDisplayableUrl(item.url)
     const result = thumbnailMap.get(item.url)
     return {

@@ -2,6 +2,13 @@ export function serializedSize(value: unknown): number {
   return JSON.stringify(value)?.length ?? 0
 }
 
+/** Formats a byte count with binary units for compact UI labels. */
+export function formatByteLength(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`
+}
+
 /**
  * Groups parts into segments, the same way long streaming turns are split.
  * Callers are responsible for rejecting parts that exceed the budget.

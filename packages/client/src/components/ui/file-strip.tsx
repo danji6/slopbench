@@ -1,10 +1,15 @@
-import { type FileItem, useFilePreviews } from '@/hooks/file-previews'
+import {
+  type FileItem,
+  isTextFileItem,
+  useFilePreviews,
+} from '@/hooks/file-previews'
 import { toast, toastError } from '@/lib/notifications'
 import { cn } from '@/lib/utils'
 import {
   attachmentMarkdownLink,
   attachmentReference,
 } from '@sb/core/attachments'
+import { formatByteLength } from '@sb/core/utils/size'
 import { truncateToExtension } from '@sb/core/utils/strings'
 import {
   DownloadIcon,
@@ -18,6 +23,7 @@ import { useEffect, useRef } from 'react'
 
 import { FilterableList, RippleButton, Skeleton, useLightbox } from '../ui'
 import type { FilterableListProps } from '../ui'
+import { TextFileViewer } from './text-file-viewer'
 
 const DEFAULT_SIZE = 120
 
@@ -99,6 +105,13 @@ export function FileStrip(props: FileStripProps) {
               />
             ) : preview?.isThumbnailable ? (
               <Skeleton className="size-full shrink-0 rounded-lg" />
+            ) : isTextFileItem(item) ? (
+              <TextFileViewer item={item}>
+                <UnknownFile
+                  name={item.file.name}
+                  byteLength={item.byteLength ?? item.file.size}
+                />
+              </TextFileViewer>
             ) : (
               <UnknownFile
                 name={item.file.name}
@@ -109,7 +122,7 @@ export function FileStrip(props: FileStripProps) {
             {(item.byteLength ?? item.file.size) > 0 &&
               preview?.thumbnailUrl && (
                 <span className="bg-m3-surface-container/90 absolute top-1 left-1 rounded-full px-2 py-0.5 text-[10px]">
-                  {formatBytes(item.byteLength ?? item.file.size)}
+                  {formatByteLength(item.byteLength ?? item.file.size)}
                 </span>
               )}
             <FileActions item={item} onInsertInline={onInsertInline} />
@@ -222,18 +235,12 @@ function UnknownFile({
         </span>
         {byteLength > 0 && (
           <span className="text-m3-on-surface-variant/70 text-[10px]">
-            {formatBytes(byteLength)}
+            {formatByteLength(byteLength)}
           </span>
         )}
       </div>
     </div>
   )
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`
 }
 
 function RemoveButton({
