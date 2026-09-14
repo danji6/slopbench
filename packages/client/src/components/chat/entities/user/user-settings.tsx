@@ -8,6 +8,7 @@ import {
   RippleButton,
   type RippleButtonProps,
   SettingsFooter,
+  SettingsList,
   SettingsTabs,
 } from '@/components/ui'
 import { getFontFamily } from '@/fonts'
@@ -195,6 +196,7 @@ function ChatSettingsDialog({
       chatWidth: DEFAULT_SETTINGS.chatWidth,
       customCss: DEFAULT_SETTINGS.customCss,
       shell: DEFAULT_SETTINGS.shell,
+      allowInteractiveShells: DEFAULT_SETTINGS.allowInteractiveShells,
       themeColor: SOURCE_COLOR,
       themeMode: DEFAULT_SETTINGS.themeMode,
       libraryPrompts: [],
@@ -270,6 +272,7 @@ function ChatSettingsDialog({
       chatWidth: settings.chatWidth,
       customCss: settings.customCss,
       shell: settings.shell,
+      allowInteractiveShells: settings.allowInteractiveShells,
       themeColor: settings.theme?.source ?? SOURCE_COLOR,
       themeMode: settings.themeMode,
       libraryPrompts: libraryPrompts as SettingsFormValues['libraryPrompts'],
@@ -396,6 +399,7 @@ function ChatSettingsDialog({
         chatWidth: values.chatWidth,
         customCss: values.customCss,
         shell: values.shell.trim(),
+        allowInteractiveShells: values.allowInteractiveShells,
         theme: values.themeColor
           ? await snapshotTheme(values.themeColor)
           : undefined,
@@ -529,6 +533,20 @@ function ChatSettingsDialog({
               </SettingsTabs.Content>
 
               <SettingsTabs.Content value="tools" title="Tools">
+                <SettingsList>
+                  <Controller
+                    control={form.control}
+                    name="allowInteractiveShells"
+                    render={({ field }) => (
+                      <SettingsList.Switch
+                        label="Allow interactive shells"
+                        description="Allow shell commands to wait for your input."
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    )}
+                  />
+                </SettingsList>
                 <Controller
                   control={form.control}
                   name="shell"

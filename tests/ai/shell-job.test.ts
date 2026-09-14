@@ -132,6 +132,23 @@ async function collect(generator: AsyncGenerator<ShellToolOutput>) {
 const fast = { pollIntervalMs: 1 }
 
 describe('executeShellJob', () => {
+  test('passes the interactive-shell opt-in to the sidecar', async () => {
+    const { calls, post, openStream } = mockSidecar([
+      { chunk: 'done', status: 'done', exitCode: 0 },
+    ])
+    await collect(
+      executeShellJob(
+        { ...context, allowInteractiveShells: true },
+        { command: 'read line' },
+        { post, openStream },
+      ),
+    )
+    expect(calls[0]).toMatchObject({
+      path: '/shell/start',
+      body: { allowInteractiveShells: true },
+    })
+  })
+
   test('streams preliminary terminal output and a final text', async () => {
     const { post, openStream, calls } = mockSidecar([
       { chunk: 'hello ' },
@@ -155,6 +172,7 @@ describe('executeShellJob', () => {
         command: 'echo hi',
         timeoutSeconds: undefined,
         background: undefined,
+        allowInteractiveShells: false,
       },
     })
 

@@ -92,6 +92,7 @@ export const DEFAULT_SETTINGS = {
   chatWidth: 800,
   customCss: '',
   shell: '',
+  allowInteractiveShells: false,
   themeMode: 'system' as 'light' | 'dark' | 'system',
 } satisfies Partial<Doc<'settings'>>
 

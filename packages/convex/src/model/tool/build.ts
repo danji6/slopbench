@@ -81,6 +81,8 @@ export async function getEnabledTools(
           messageCreatedAt: options?.messageCreatedAt,
           workspaceId: session.workspace.workspaceId,
           shell: manifest.shell,
+          allowInteractiveShells:
+            resources?.settings?.allowInteractiveShells ?? false,
           approvals,
           // Plan mode can be entered or approved mid-turn
           isPlanMode: ctx ? () => isPlanMode(ctx, sessionId) : undefined,

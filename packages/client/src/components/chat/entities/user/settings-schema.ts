@@ -168,6 +168,7 @@ export const settingsFormSchema = z.object({
   chatWidth: z.number(),
   customCss: z.string(),
   shell: z.string(),
+  allowInteractiveShells: z.boolean().default(false),
   themeColor: z.string(),
   themeMode: z.enum(['system', 'light', 'dark']),
   libraryPrompts: z.array(promptSchema),

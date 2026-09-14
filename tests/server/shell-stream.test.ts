@@ -30,10 +30,11 @@ beforeAll(async () => {
 afterAll(() => server?.stop(true))
 
 /** Starts the job here, so the tool only has to watch it over real HTTP. */
-async function startedJob(command: string) {
+async function startedJob(command: string, allowInteractiveShells = false) {
   const { jobId } = await registry.startShellJob({
     ...context,
     command,
+    allowInteractiveShells,
     cwd: process.cwd(),
   })
   return { jobId, post: async () => ({ jobId, mode: 'script' }) }
@@ -100,7 +101,10 @@ describe('shell job streaming over http', () => {
   })
 
   test('reports a job waiting on terminal input', async () => {
-    const { jobId, post } = await startedJob('read -r line; echo "got:$line"')
+    const { jobId, post } = await startedJob(
+      'read -r line; echo "got:$line"',
+      true,
+    )
 
     const seen = await collect(
       shellTool.executeShellJob(context, { command: 'ignored' }, {
@@ -112,6 +116,24 @@ describe('shell job streaming over http', () => {
     expect(seen.at(-1)?.waiting).toBe(true)
 
     registry.killShellJob(jobId, context.sessionId)
+  })
+
+  test('returns a non-interactive retry error to the agent without requesting input', async () => {
+    const { post } = await startedJob('read -r line; echo "got:$line"')
+    const seen = await collect(
+      shellTool.executeShellJob(context, { command: 'ignored' }, {
+        post,
+      } as Parameters<typeof shellTool.executeShellJob>[2]),
+      (part) => part.status !== 'running',
+    )
+
+    expect(seen.some((part) => part.waiting)).toBe(false)
+    const final = seen.at(-1)!
+    expect(final.status).toBe('killed')
+    expect(shellTool.shellToModelOutput({ output: final })).toMatchObject({
+      type: 'text',
+      value: expect.stringContaining('Try a non-interactive command instead'),
+    })
   })
 })
 

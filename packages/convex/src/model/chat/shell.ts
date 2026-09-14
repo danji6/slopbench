@@ -167,6 +167,7 @@ export async function _beginUserShellWindow(
     messageId,
     workspaceId: session.workspace.workspaceId,
     shell: sender?.shell || undefined,
+    allowInteractiveShells: sender?.allowInteractiveShells ?? false,
     command: part.input.command,
     toolCallId: part.toolCallId,
     startedAt: message._creationTime,

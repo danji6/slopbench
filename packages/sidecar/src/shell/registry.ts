@@ -28,6 +28,7 @@ export type StartShellJobInput = {
   cols?: number
   rows?: number
   shell?: string
+  allowInteractiveShells?: boolean
 }
 
 export type ShellJobSummary = {
@@ -183,6 +184,7 @@ type ShellJob = {
   endReason?: 'killed' | 'timeout'
   exitCode: number | null
   background: boolean
+  allowInteractiveShells: boolean
   /** Job is waiting on terminal input (blocked stdin read or alt screen). */
   waiting: boolean
   stdinWait: boolean
@@ -256,6 +258,7 @@ export async function startShellJob(
     status: 'running',
     exitCode: null,
     background: input.background ?? false,
+    allowInteractiveShells: input.allowInteractiveShells ?? false,
     waiting: false,
     stdinWait: false,
     altScreen: false,
@@ -334,8 +337,20 @@ function trackAltScreen(job: ShellJob, chunk: string) {
   updateWaiting(job)
 }
 
+const interactiveError =
+  '\r\nError: Interactive shells are disabled. This command requires terminal' +
+  ' input. Try a non-interactive command instead (for example, supply input' +
+  ' or use non-interactive flags).\r\n'
+
 function updateWaiting(job: ShellJob) {
   const waiting = job.status === 'running' && (job.stdinWait || job.altScreen)
+  if (waiting && !job.allowInteractiveShells) {
+    if (job.endReason) return
+    job.endReason = 'killed'
+    job.ring.append(interactiveError)
+    job.proc.kill()
+    return
+  }
   if (waiting === job.waiting) return
   job.waiting = waiting
   for (const sub of job.subscribers) sub.onMeta(job.background, waiting)

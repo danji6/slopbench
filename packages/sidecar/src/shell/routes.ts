@@ -37,6 +37,7 @@ const startSchema = z.object({
   cols: z.number().int().min(20).max(500).optional(),
   rows: z.number().int().min(5).max(300).optional(),
   shell: z.string().optional(),
+  allowInteractiveShells: z.boolean().optional(),
 })
 
 const pollSchema = z.object({ ...jobFields, offset: z.number().min(0) })

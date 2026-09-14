@@ -8,9 +8,12 @@ import type { Doc } from '../../_generated/dataModel'
 
 export type WebToolSettings = Pick<Doc<'settings'>, 'webSearchInstances'> | null
 
-/** Everything outside the agent that the web and MCP tools need to build. */
+/** Everything outside the agent that its tools need to build. */
 export type ToolResources = {
-  settings: WebToolSettings
+  settings: Pick<
+    Doc<'settings'>,
+    'webSearchInstances' | 'allowInteractiveShells'
+  > | null
   mcpServers: McpServer[]
 }
 

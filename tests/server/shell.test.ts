@@ -78,7 +78,9 @@ describe('job registry', () => {
   })
 
   test('round-trips stdin', async () => {
-    const { jobId } = await start('read line; echo "got:$line"')
+    const { jobId } = await start('read line; echo "got:$line"', {
+      allowInteractiveShells: true,
+    })
     await Bun.sleep(200)
     writeStdin(jobId, session.sessionId, 'ping\n')
 
@@ -93,6 +95,45 @@ describe('job registry', () => {
 
     const result = await waitForExit(jobId)
     expect(result.status).toBe('killed')
+  })
+
+  test.each([undefined, false])(
+    'rejects terminal input when allowed is %s',
+    async (allowInteractiveShells) => {
+      const { jobId } = await start('read line; echo "got:$line"', {
+        allowInteractiveShells,
+      })
+      const result = await waitForExit(jobId)
+      expect(result.status).toBe('killed')
+      expect(result.waiting).toBe(false)
+      expect(result.output).toContain('Error: Interactive shells are disabled.')
+      expect(result.output).toContain('Try a non-interactive command instead')
+    },
+  )
+
+  test('rejects interactive background jobs without a watcher', async () => {
+    const { jobId } = await start('read line', { background: true })
+    const result = await waitForExit(jobId)
+    expect(result.status).toBe('killed')
+    expect(result.output).toContain('Interactive shells are disabled')
+  })
+
+  test('rejects alternate-screen programs by default', async () => {
+    const { jobId } = await start("printf '\\033[?1049h'; sleep 30")
+    const result = await waitForExit(jobId)
+    expect(result.status).toBe('killed')
+    expect(result.waiting).toBe(false)
+    expect(result.output).toContain('Interactive shells are disabled')
+  })
+
+  test('allows commands with supplied input by default', async () => {
+    const { jobId } = await start(
+      'printf "ping\\n" | { read line; echo "got:$line"; }',
+    )
+    const result = await waitForExit(jobId)
+    expect(result.status).toBe('done')
+    expect(result.exitCode).toBe(0)
+    expect(result.output).toContain('got:ping')
   })
 
   test('times out a job', async () => {
@@ -199,7 +240,9 @@ describe('job registry', () => {
   })
 
   test('reports waiting while a job blocks reading stdin', async () => {
-    const { jobId } = await start('read line; echo "got:$line"')
+    const { jobId } = await start('read line; echo "got:$line"', {
+      allowInteractiveShells: true,
+    })
     await waitFor(() => pollShellJob(jobId, session.sessionId, 0).waiting)
 
     writeStdin(jobId, session.sessionId, 'ping\n')
@@ -209,7 +252,9 @@ describe('job registry', () => {
   })
 
   test('reports waiting when a job enters the alternate screen', async () => {
-    const { jobId } = await start("printf '\\033[?1049h'; sleep 30")
+    const { jobId } = await start("printf '\\033[?1049h'; sleep 30", {
+      allowInteractiveShells: true,
+    })
     await waitFor(() => pollShellJob(jobId, session.sessionId, 0).waiting)
 
     killShellJob(jobId, session.sessionId)

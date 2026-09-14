@@ -13,6 +13,7 @@ export type WorkspaceToolContext = {
   workspaceId: string
   /** Shell used to execute commands (system's default when absent). */
   shell?: string
+  allowInteractiveShells?: boolean
   /** Tool approvals, resolved on every call since they update often. */
   approvals?: () => Promise<ToolApprovals | undefined>
   isPlanMode?: () => Promise<boolean>
@@ -48,5 +49,6 @@ export function workspaceArgs(context: WorkspaceToolContext) {
     owner: context.ownerId,
     workspaceId: context.workspaceId,
     shell: context.shell,
+    allowInteractiveShells: context.allowInteractiveShells ?? false,
   }
 }

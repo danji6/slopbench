@@ -26,6 +26,7 @@ export type ShellJobContext = {
   owner?: string
   workspaceId: string
   shell?: string
+  allowInteractiveShells?: boolean
   /** Tool call the job's terminal belongs to. */
   messageId?: string
   messageCreatedAt?: number
@@ -97,6 +98,7 @@ export async function* executeShellJob(
     timeoutSeconds: input.timeout,
     background: input.run_in_background,
     shell: context.shell,
+    allowInteractiveShells: context.allowInteractiveShells ?? false,
   })
 
   if (input.run_in_background) {
