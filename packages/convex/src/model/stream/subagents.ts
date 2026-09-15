@@ -36,10 +36,6 @@ import { honorSoftStop } from './stop'
 /** Reports stay under the segment split budget. The full transcript lives in the child session. */
 const REPORT_MAX_CHARS = 32 * 1024
 
-const SUBAGENT_DENIAL_REASON =
-  'Denied automatically: sub-agent sessions cannot request user approval. ' +
-  'Continue with auto-approved tools only, or report what you could not do.'
-
 export type SuspendStepResult = 'suspended' | 'continue' | 'abort'
 
 /**
@@ -51,8 +47,7 @@ export type SuspendStepResult = 'suspended' | 'continue' | 'abort'
  * via deliverChildReport. The stream only suspends when approvals are also
  * pending.
  *
- * Sub-agent sessions: approvals can't be answered by anyone, so every
- * pending one is denied with a typed reason and the stream continues.
+ * Sub-agent approvals park the child while the parent session collects responses.
  */
 export async function _suspendStep(
   ctx: MutationCtx,
@@ -68,17 +63,9 @@ export async function _suspendStep(
   const row = await getProcessingSegmentRow(ctx, stream)
   if (!session || !row) return 'abort'
 
-  if (session.parent) {
-    const denied = denyPendingApprovals(row.parts)
-    if (denied) {
-      await patchSegmentParts(ctx, stream.processingMessageId, row, denied)
-    }
-    return 'continue'
-  }
-
   let parts = row.parts
   const pending = pendingTaskParts(parts)
-  if (pending.length > 0) {
+  if (!session.parent && pending.length > 0) {
     const agent = await ctx.db.get(stream.agentId)
     const spawnable = agent ? await resolveSpawnableAgents(ctx, agent) : []
     for (const part of pending) {
@@ -93,7 +80,7 @@ export async function _suspendStep(
     await patchSegmentParts(ctx, stream.processingMessageId, row, parts)
   }
 
-  if (hasPendingQuestions(parts)) {
+  if (!session.parent && hasPendingQuestions(parts)) {
     await park(ctx, stream, 'awaiting_input')
     return 'suspended'
   }
@@ -106,7 +93,7 @@ export async function _suspendStep(
   return 'continue'
 }
 
-/** Parks a root turn and notifies every session member that can respond. */
+/** Parks a turn and routes sub-agent approval notifications to the parent. */
 async function park(
   ctx: MutationCtx,
   stream: Doc<'streams'>,
@@ -118,40 +105,13 @@ async function park(
     jobId: undefined,
     leaseExpiresAt: Date.now() + APPROVAL_LEASE_MS,
   })
+  const session = await ctx.db.get(stream.sessionId)
   await notifyAgentEvent(ctx, {
-    sessionId: stream.sessionId,
+    sessionId: session?.parent?.sessionId ?? stream.sessionId,
     agentId: stream.agentId,
     kind: status === 'awaiting_input' ? 'input_required' : 'approval_required',
-    sourceMessageId: stream.processingMessageId,
+    sourceMessageId: session?.parent ? undefined : stream.processingMessageId,
   })
-}
-
-function denyPendingApprovals(parts: unknown[]): unknown[] | null {
-  let changed = false
-  const next = parts.map((part) => {
-    const typed = part as {
-      type?: string
-      state?: string
-      approval?: { id?: string }
-    }
-    if (typeof typed.type !== 'string' || !typed.type.startsWith('tool-')) {
-      return part
-    }
-    if (typed.state !== 'approval-requested' || !typed.approval?.id) {
-      return part
-    }
-    changed = true
-    return {
-      ...typed,
-      state: 'output-denied',
-      approval: {
-        id: typed.approval.id,
-        approved: false,
-        reason: SUBAGENT_DENIAL_REASON,
-      },
-    }
-  })
-  return changed ? next : null
 }
 
 type SpawnTaskArgs = {
@@ -446,7 +406,7 @@ function truncateReport(text: string): string {
 }
 
 /**
- * Reschedules the parent once every approval in the step is settled,
+ * Reschedules the turn once every approval in the step is settled,
  * otherwise just refreshes the lease.
  */
 export async function resumeIfSettled(

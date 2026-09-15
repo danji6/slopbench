@@ -27,13 +27,23 @@ type ApprovedTool = {
 export async function approveTool(ctx: AuthMutationCtx, args: ApproveToolArgs) {
   requireRole(ctx.role, 'admin')
 
-  const { session } = await Memberships.requireMember(
+  const { session: parentSession } = await Memberships.requireMember(
     ctx,
     args.sessionId,
     ctx.userId,
   )
 
-  const stream = await Memberships.getActiveStream(ctx, args.sessionId)
+  const session = args.childSessionId
+    ? await ctx.db.get(args.childSessionId)
+    : parentSession
+  if (
+    !session ||
+    (args.childSessionId && session.parent?.sessionId !== args.sessionId)
+  ) {
+    error('Not found', 404)
+  }
+
+  const stream = await Memberships.getActiveStream(ctx, session._id)
   if (
     !stream ||
     stream.status !== 'awaiting_approval' ||
@@ -71,7 +81,7 @@ export async function approveTool(ctx: AuthMutationCtx, args: ApproveToolArgs) {
     return
   }
 
-  // Resumes now, or keeps waiting for sub-agents spawned in the same step
+  // Resume the session that owns the approved call
   await resumeIfSettled(ctx, stream, parts)
 }
 

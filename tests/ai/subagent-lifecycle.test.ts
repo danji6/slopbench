@@ -13,136 +13,7 @@ import {
 } from '@sb/convex/model/subagent/manage'
 import { describe, expect, test } from 'bun:test'
 
-type Row = Record<string, unknown> & { _id: string }
-
-/**
- * Stateful db fake tuned for the sub-agent flows: patches merge into docs,
- * inserts land in `byId`, and index queries capture the messageId filter so
- * per-message content lookups work.
- */
-function fakeCtx({
-  docs = [],
-  agents = [],
-  plans = [],
-  sessionAgents = [],
-  contentsByMessage = {},
-  sessionsByParent = {},
-  streamsBySession = {},
-  membershipsBySession = {},
-  sessionStates = [],
-}: {
-  docs?: Row[]
-  /** Rows returned by the owner's agents index scan. */
-  agents?: Row[]
-  /** Rows returned by the plans index scan. */
-  plans?: Row[]
-  /** Rows returned by the sessionAgents index scan. */
-  sessionAgents?: Row[]
-  contentsByMessage?: Record<string, Row[]>
-  /** Child session rows keyed by parent.sessionId. */
-  sessionsByParent?: Record<string, Row[]>
-  /** Stream rows keyed by sessionId. */
-  streamsBySession?: Record<string, Row[]>
-  /** userSessions rows keyed by sessionId. */
-  membershipsBySession?: Record<string, Row[]>
-  /** sessionState rows, matched on their `sessionId`. */
-  sessionStates?: Row[]
-}) {
-  const patches: Array<{ id: string; patch: Record<string, unknown> }> = []
-  const inserts: Array<{ table: string; fields: Record<string, unknown> }> = []
-  const scheduled: Array<{ args: unknown[] }> = []
-  const cancelled: unknown[] = []
-  const byId = new Map<string, Row>(docs.map((row) => [row._id, row]))
-
-  const makeQuery = (table: string) => {
-    const captured: Array<[string, unknown]> = []
-    const q = {
-      eq: (field: string, value: unknown) => {
-        captured.push([field, value])
-        return q
-      },
-      gt: () => q,
-      lt: () => q,
-      gte: () => q,
-      lte: () => q,
-    }
-    const chain = {
-      withIndex: (_name: string, fn?: (query: typeof q) => unknown) => {
-        fn?.(q)
-        return chain
-      },
-      filter: () => chain,
-      order: () => chain,
-      take: async (n: number) => (await chain.collect()).slice(0, n),
-      first: async () => (await chain.collect())[0] ?? null,
-      unique: async () => (await chain.collect())[0] ?? null,
-      collect: async () => {
-        if (table === 'agents') return agents
-        if (table === 'plans') return plans
-        if (table === 'sessionAgents') return sessionAgents
-        if (table === 'messageContents') {
-          const messageId = captured.find(([field]) => field === 'messageId')
-          return messageId
-            ? (contentsByMessage[String(messageId[1])] ?? [])
-            : []
-        }
-        if (table === 'sessions') {
-          const parent = captured.find(
-            ([field]) => field === 'parent.sessionId',
-          )
-          return parent ? (sessionsByParent[String(parent[1])] ?? []) : []
-        }
-        if (table === 'streams') {
-          const sessionId = captured.find(([field]) => field === 'sessionId')
-          return sessionId ? (streamsBySession[String(sessionId[1])] ?? []) : []
-        }
-        if (table === 'userSessions') {
-          const sessionId = captured.find(([field]) => field === 'sessionId')
-          return sessionId
-            ? (membershipsBySession[String(sessionId[1])] ?? [])
-            : []
-        }
-        if (table === 'sessionState') {
-          const sessionId = captured.find(([field]) => field === 'sessionId')
-          return sessionStates.filter((row) => row.sessionId === sessionId?.[1])
-        }
-        return []
-      },
-    }
-    return chain
-  }
-
-  const ctx = {
-    userId: owner,
-    db: {
-      get: async (id: string) => byId.get(id) ?? null,
-      patch: async (id: string, patch: Record<string, unknown>) => {
-        patches.push({ id, patch })
-        const doc = byId.get(id)
-        if (doc) Object.assign(doc, patch)
-      },
-      insert: async (table: string, fields: Record<string, unknown>) => {
-        inserts.push({ table, fields })
-        const id = `inserted_${table}_${inserts.length}`
-        byId.set(id, { _id: id, ...fields })
-        return id
-      },
-      delete: async () => {},
-      query: (table: string) => makeQuery(table),
-    },
-    scheduler: {
-      runAfter: async (...args: unknown[]) => {
-        scheduled.push({ args })
-        return `job_${scheduled.length}`
-      },
-      cancel: async (jobId: unknown) => {
-        cancelled.push(jobId)
-      },
-    },
-  } as never
-
-  return { ctx, patches, inserts, scheduled, cancelled, byId }
-}
+import { fakeCtx } from '../setup/subagents'
 
 const owner = 'user_1'
 const parentAgent = {
@@ -184,7 +55,7 @@ function parentDocs(
   ]
 }
 
-const parentApprovals = { shell: ['git checkout'] }
+const parentApprovals = { mode: 'unrestricted', shell: ['git checkout'] }
 
 function taskPart(overrides: Record<string, unknown> = {}) {
   return {
@@ -437,7 +308,7 @@ describe('_suspendStep', () => {
     })
   })
 
-  test('denies pending approvals in sub-agent sessions and continues', async () => {
+  test('parks sub-agent approvals and notifies the parent session', async () => {
     const approvalPart = {
       type: 'tool-write_file',
       toolCallId: 'tc_2',
@@ -453,18 +324,28 @@ describe('_suspendStep', () => {
         agentId: 'agent_coder',
       },
     })
-    const { ctx, patches, inserts } = fakeCtx({ docs })
+    docs.push({ _id: 'session_0', ownerId: owner } as never)
+    const { ctx, patches, inserts } = fakeCtx({
+      docs,
+      membershipsBySession: {
+        session_0: [{ _id: 'membership_0', userId: owner }],
+      },
+    })
 
     const result = await _suspendStep(ctx, { streamId: 'stream_1' as never })
 
-    expect(result).toBe('continue')
-    expect(inserts).toHaveLength(0)
-    const partsPatch = patches.find(({ id }) => id === 'content_1')
-    expect((partsPatch?.patch.parts as unknown[])[0]).toMatchObject({
-      state: 'output-denied',
-      approval: expect.objectContaining({
-        approved: false,
-        reason: expect.stringContaining('cannot request user approval'),
+    expect(result).toBe('suspended')
+    expect(patches.find(({ id }) => id === 'content_1')).toBeUndefined()
+    expect(patches).toContainEqual({
+      id: 'stream_1',
+      patch: expect.objectContaining({ status: 'awaiting_approval' }),
+    })
+    expect(inserts).toContainEqual({
+      table: 'notifications',
+      fields: expect.objectContaining({
+        sessionId: 'session_0',
+        recipientId: owner,
+        kind: 'approval_required',
       }),
     })
   })

@@ -133,6 +133,7 @@ import type * as model_stream_subagents from "../model/stream/subagents.js";
 import type * as model_stream_toolOutput from "../model/stream/toolOutput.js";
 import type * as model_stream_transformers from "../model/stream/transformers.js";
 import type * as model_stream_usage from "../model/stream/usage.js";
+import type * as model_subagent_approvals from "../model/subagent/approvals.js";
 import type * as model_subagent_manage from "../model/subagent/manage.js";
 import type * as model_subagent_usage from "../model/subagent/usage.js";
 import type * as model_subagent_watch from "../model/subagent/watch.js";
@@ -316,6 +317,7 @@ declare const fullApi: ApiFromModules<{
   "model/stream/toolOutput": typeof model_stream_toolOutput;
   "model/stream/transformers": typeof model_stream_transformers;
   "model/stream/usage": typeof model_stream_usage;
+  "model/subagent/approvals": typeof model_subagent_approvals;
   "model/subagent/manage": typeof model_subagent_manage;
   "model/subagent/usage": typeof model_subagent_usage;
   "model/subagent/watch": typeof model_subagent_watch;

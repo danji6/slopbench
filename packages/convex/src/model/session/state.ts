@@ -103,6 +103,19 @@ export async function getApprovals(
   return (await getState(ctx, sessionId))?.toolApprovals ?? {}
 }
 
+/** Resolves the live parent access mode while retaining the child's remembered grants. */
+export async function getEffectiveApprovals(
+  ctx: QueryCtx,
+  sessionId: Id<'sessions'>,
+): Promise<NonNullable<SessionState['toolApprovals']>> {
+  const approvals = await getApprovals(ctx, sessionId)
+  const session = await ctx.db.get(sessionId)
+  if (!session?.parent) return approvals
+
+  const parent = await getApprovals(ctx, session.parent.sessionId)
+  return { ...approvals, mode: parent.mode }
+}
+
 type ApprovalList = 'tools' | 'shell' | 'paths'
 
 const approvalCap = (list: ApprovalList) =>

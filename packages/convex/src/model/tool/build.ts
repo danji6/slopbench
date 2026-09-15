@@ -140,8 +140,8 @@ function jobWatch(
 }
 
 /**
- * The session's current approvals, read from the (sub-)session that owns the
- * turn and falls back to the snapshot the caller loaded when there is no ctx.
+ * Reads live approval grants and the parent's access mode for sub-agent turns.
+ * Falls back to the caller's snapshot when there is no ctx.
  */
 async function resolveApprovals(
   session: ToolSession,

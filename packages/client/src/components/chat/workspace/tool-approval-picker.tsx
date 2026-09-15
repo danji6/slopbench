@@ -6,8 +6,9 @@ import {
   useStreamAwaitingApproval,
   useStreamProcessingMessageId,
 } from '@/hooks/chat'
-import type { ApproveToolArgs, RememberScope, ToolApprovals } from '@/lib/chat'
+import type { RememberScope, ToolApprovals } from '@/lib/chat'
 import { formatAlwaysAllowLabel } from '@/lib/chat/approval-label'
+import { optimisticallyRespondApproval } from '@/lib/chat/approval-optimistic'
 import { useComposerDraft } from '@/lib/chat/composer-draft-store'
 import { toastError } from '@/lib/notifications'
 import {
@@ -25,8 +26,8 @@ import {
 import type { PathApprovalStatus } from '@sb/core/workspace/path-policy'
 import type { Editor } from '@tiptap/react'
 import type { ToolUIPart } from 'ai'
-import type { OptimisticLocalStore } from 'convex/browser'
 import { useMutation } from 'convex/react'
+import type { FunctionReturnType } from 'convex/server'
 import {
   type RefObject,
   Suspense,
@@ -78,17 +79,24 @@ const PLAN_APPROVALS: Record<string, PlanApprovalMeta> = {
   },
 }
 
+export type SubagentApproval = FunctionReturnType<
+  typeof api.subagents.pendingApprovals
+>[number]
+
 export function ToolApprovalPicker({
   className,
   restoreFocusRef,
   onAbort,
+  childApproval,
 }: {
   className?: string
   restoreFocusRef?: RefObject<{ focus(options?: FocusOptions): void } | null>
   onAbort?: () => void
+  childApproval?: SubagentApproval
 }) {
   const session = useActiveSession()
-  const approvals = useActiveSessionState()?.toolApprovals
+  const state = useActiveSessionState()
+  const approvals = childApproval?.toolApprovals ?? state?.toolApprovals
   const isAdmin = useIsAdmin()
   const processingMessageId = useStreamProcessingMessageId()
   const awaitingApproval = useStreamAwaitingApproval()
@@ -98,11 +106,12 @@ export function ToolApprovalPicker({
   const { message } = useChatMessage(processingMessageId ?? '')
   const rootRef = useRef<HTMLDivElement>(null)
   const noteEditorRef = useRef<Editor | null>(null)
-  const draft = useComposerDraft(session?._id)
+  const draft = useComposerDraft(childApproval?.sessionId ?? session?._id)
   const [selectedAction, setSelectedAction] = useState('')
 
-  const part = message?.parts.find(isApprovalRequested) as
-    (ToolUIPart & { approvalPathStatus?: PathApprovalStatus }) | undefined
+  const part = (childApproval?.parts ?? message?.parts)?.find(
+    isApprovalRequested,
+  ) as (ToolUIPart & { approvalPathStatus?: PathApprovalStatus }) | undefined
   const toolName = part?.type.replace('tool-', '') ?? ''
   const planApproval = PLAN_APPROVALS[toolName]
   const description = getDescription(part?.input)
@@ -111,7 +120,7 @@ export function ToolApprovalPicker({
       ? approvalHold(
           toolName,
           part.input,
-          session.mode,
+          childApproval ? childApproval.mode : session.mode,
           part.approvalPathStatus,
         )
       : null
@@ -120,7 +129,9 @@ export function ToolApprovalPicker({
       ? alwaysLabel(toolName, part.input, approvals)
       : null
   const visible =
-    isAdmin && awaitingApproval && Boolean(session && message && part)
+    isAdmin &&
+    Boolean(childApproval || awaitingApproval) &&
+    Boolean(session && part)
 
   const respond = useCallback(
     async (approved: boolean, remember?: RememberScope, note?: string) => {
@@ -129,6 +140,7 @@ export function ToolApprovalPicker({
       try {
         await approveTool({
           sessionId: session._id,
+          ...(childApproval ? { childSessionId: childApproval.sessionId } : {}),
           toolCallId: part.toolCallId,
           approved,
           ...(remember ? { remember } : {}),
@@ -144,7 +156,7 @@ export function ToolApprovalPicker({
         toastError(err)
       }
     },
-    [approveTool, part, session, draft],
+    [approveTool, part, session, draft, childApproval],
   )
   const actions = useMemo(
     () =>
@@ -222,6 +234,15 @@ export function ToolApprovalPicker({
       )}
     >
       <div className="space-y-2 p-3">
+        {childApproval && (
+          <div className="text-muted-foreground text-xs">
+            Sub-agent:{' '}
+            <span className="text-foreground font-medium">
+              {childApproval.agentName}
+            </span>
+            {childApproval.title && ` · ${childApproval.title}`}
+          </div>
+        )}
         {planApproval ? (
           <div className="text-foreground text-sm font-medium">
             {planApproval.heading}
@@ -478,90 +499,6 @@ function useApprovalKeybinds({
     visible,
     focusNote,
   ])
-}
-
-function optimisticallyRespondApproval(
-  store: OptimisticLocalStore,
-  args: ApproveToolArgs,
-) {
-  const stream = store.getQuery(api.chat.getActiveStream, {
-    sessionId: args.sessionId,
-  })
-  if (!stream || stream.status !== 'awaiting_approval') return
-
-  let pendingRemains = false
-  for (const { args: queryArgs, value } of store.getAllQueries(
-    api.chat.messagesWindow,
-  )) {
-    if (!value || queryArgs.sessionId !== args.sessionId) continue
-
-    const page = value.page.map((message) => {
-      if (message._id !== stream.processingMessageId) return message
-      return {
-        ...message,
-        segments: message.segments.map((segment) => ({
-          ...segment,
-          parts: respondToPart(segment.parts, args),
-        })),
-      }
-    })
-    store.setQuery(api.chat.messagesWindow, queryArgs, { ...value, page })
-
-    const target = page.find((m) => m._id === stream.processingMessageId)
-    if (
-      target &&
-      target.segments.some((segment) => hasApprovalRequested(segment.parts))
-    ) {
-      pendingRemains = true
-    }
-  }
-
-  if (!pendingRemains) {
-    store.setQuery(
-      api.chat.getActiveStream,
-      { sessionId: args.sessionId },
-      { ...stream, status: 'pending' },
-    )
-  }
-}
-
-function respondToPart(parts: unknown[], args: ApproveToolArgs): unknown[] {
-  return parts.map((part) => {
-    if (
-      typeof part !== 'object' ||
-      part === null ||
-      !('toolCallId' in part) ||
-      part.toolCallId !== args.toolCallId
-    ) {
-      return part
-    }
-    const typed = part as { state?: string; approval?: { id?: string } }
-    if (typed.state !== 'approval-requested') return part
-
-    return {
-      ...typed,
-      state: args.approved ? 'approval-responded' : 'output-denied',
-      approval: {
-        id: typed.approval?.id,
-        approved: args.approved,
-        ...(args.reason && { reason: args.reason }),
-        ...(args.note?.trim() && { note: args.note.trim() }),
-      },
-    }
-  })
-}
-
-function hasApprovalRequested(parts: unknown[]): boolean {
-  return parts.some(
-    (part) =>
-      typeof part === 'object' &&
-      part !== null &&
-      'type' in part &&
-      typeof part.type === 'string' &&
-      part.type.startsWith('tool-') &&
-      'state' in part &&
-      part.state === 'approval-requested',
-  )
 }
 
 function isApprovalRequested(part: { type: string; state?: string }) {

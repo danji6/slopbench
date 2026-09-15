@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 
 import { authMutation, authQuery } from './functions'
+import * as SubagentApprovals from './model/subagent/approvals'
 import * as SubagentManage from './model/subagent/manage'
 import * as SubagentWatch from './model/subagent/watch'
 
@@ -25,4 +26,9 @@ export const stop = authMutation({
 export const stopAll = authMutation({
   args: { sessionId: v.id('sessions') },
   handler: SubagentManage.stopAll,
+})
+
+export const pendingApprovals = authQuery({
+  args: { sessionId: v.id('sessions') },
+  handler: SubagentApprovals.pendingApprovals,
 })

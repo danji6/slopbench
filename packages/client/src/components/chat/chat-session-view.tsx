@@ -24,7 +24,10 @@ import {
   columnWidth,
 } from '@/lib/chat/message-geometry'
 import { isOngoingStream } from '@/lib/chat/stream'
+import { toastError } from '@/lib/notifications'
 import { cn } from '@/lib/utils'
+import { api } from '@sb/convex/_generated/api'
+import { useMutation, useQuery } from 'convex/react'
 import { AnimatePresence } from 'motion/react'
 import {
   useCallback,
@@ -139,7 +142,17 @@ export function ChatSessionView({
   const { mode, setMode } = useSessionMode()
   const approval = useSessionApprovalMode()
   const canUseWorkspace = canApproveTools && workspaceAvailable
-  const showApproval = awaitingApproval && canApproveTools
+  const childApprovals = useQuery(
+    api.subagents.pendingApprovals,
+    session && !subagentParent && canApproveTools
+      ? { sessionId: session._id }
+      : 'skip',
+  )
+  const stopSubagent = useMutation(api.subagents.stop)
+  const childApproval =
+    !awaitingApproval && !awaitingAnswer ? childApprovals?.[0] : undefined
+  const showApproval =
+    (awaitingApproval || Boolean(childApproval)) && canApproveTools
   const showAnswerPicker = awaitingAnswer
   const showInteractionPicker = showApproval || showAnswerPicker
 
@@ -356,8 +369,19 @@ export function ChatSessionView({
                 )}
                 {!subagentParent && showApproval && (
                   <ToolApprovalPicker
+                    key={childApproval?.sessionId ?? session?._id}
+                    childApproval={childApproval}
                     restoreFocusRef={composerRef}
-                    onAbort={handleAbort}
+                    onAbort={
+                      childApproval && session
+                        ? () => {
+                            void stopSubagent({
+                              sessionId: session._id,
+                              childSessionId: childApproval.sessionId,
+                            }).catch(toastError)
+                          }
+                        : handleAbort
+                    }
                     className="pointer-events-auto w-full"
                   />
                 )}

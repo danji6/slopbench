@@ -7,6 +7,7 @@ export type ToolApprovals = Infer<typeof V.toolApprovalsValidator>
 
 export type ApproveToolArgs<SessionId extends string = string> = {
   sessionId: SessionId
+  childSessionId?: SessionId
   toolCallId: string
   approved: boolean
   reason?: string

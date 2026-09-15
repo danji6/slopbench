@@ -442,6 +442,7 @@ export const deleteMessagePartsArgsValidator = v.object({
 
 export const approveToolArgsValidator = v.object({
   sessionId: v.id('sessions'),
+  childSessionId: v.optional(v.id('sessions')),
   toolCallId: v.string(),
   approved: v.boolean(),
   reason: v.optional(v.string()),
