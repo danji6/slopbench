@@ -3,7 +3,7 @@ import type { AuthQueryCtx } from '../../functions'
 import { hasPendingToolApprovals } from '../chat/approvals'
 import { getProcessingSegmentRow } from '../messageContents'
 import { getActiveStream, requireMember } from '../session/memberships'
-import { getEffectiveApprovals } from '../session/state'
+import { getApprovals } from '../session/state'
 
 /** Lists child approval requests for members of the main session. */
 export async function pendingApprovals(
@@ -28,7 +28,7 @@ export async function pendingApprovals(
         title: child.title,
         agentName: agent?.name ?? 'Sub-agent',
         mode: child.mode,
-        toolApprovals: await getEffectiveApprovals(ctx, child._id),
+        toolApprovals: await getApprovals(ctx, child._id),
         parts: row.parts.filter((part) => hasPendingToolApprovals([part])),
       }
     }),

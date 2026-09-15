@@ -64,22 +64,14 @@ export async function patchState(
   })
 }
 
-/** Copies a parent's approval settings onto a session it spawns. */
-export async function cloneApprovals(
-  ctx: MutationCtx,
-  { from, to }: { from: Id<'sessions'>; to: Id<'sessions'> },
-): Promise<void> {
-  const approvals = (await getState(ctx, from))?.toolApprovals
-  if (!approvals) return
-
-  await patchState(ctx, to, {
-    toolApprovals: {
-      mode: approvals.mode,
-      tools: approvals.tools?.slice(),
-      shell: approvals.shell?.slice(),
-      paths: approvals.paths?.slice(),
-    },
-  })
+/** Resolves the main session that owns approvals for the whole task. */
+async function getApprovalSessionId(ctx: QueryCtx, sessionId: Id<'sessions'>) {
+  let session = await ctx.db.get(sessionId)
+  while (session?.parent) {
+    sessionId = session.parent.sessionId
+    session = await ctx.db.get(sessionId)
+  }
+  return sessionId
 }
 
 export async function setApprovalMode(
@@ -87,6 +79,7 @@ export async function setApprovalMode(
   sessionId: Id<'sessions'>,
   mode: ApprovalMode,
 ): Promise<void> {
+  sessionId = await getApprovalSessionId(ctx, sessionId)
   const approvals = await getApprovals(ctx, sessionId)
   const { mode: _current, ...remembered } = approvals
 
@@ -96,24 +89,13 @@ export async function setApprovalMode(
   })
 }
 
+/** Reads the shared approval policy, ignoring legacy child snapshots. */
 export async function getApprovals(
   ctx: QueryCtx,
   sessionId: Id<'sessions'>,
 ): Promise<NonNullable<SessionState['toolApprovals']>> {
-  return (await getState(ctx, sessionId))?.toolApprovals ?? {}
-}
-
-/** Resolves the live parent access mode while retaining the child's remembered grants. */
-export async function getEffectiveApprovals(
-  ctx: QueryCtx,
-  sessionId: Id<'sessions'>,
-): Promise<NonNullable<SessionState['toolApprovals']>> {
-  const approvals = await getApprovals(ctx, sessionId)
-  const session = await ctx.db.get(sessionId)
-  if (!session?.parent) return approvals
-
-  const parent = await getApprovals(ctx, session.parent.sessionId)
-  return { ...approvals, mode: parent.mode }
+  const ownerId = await getApprovalSessionId(ctx, sessionId)
+  return (await getState(ctx, ownerId))?.toolApprovals ?? {}
 }
 
 type ApprovalList = 'tools' | 'shell' | 'paths'
@@ -150,6 +132,7 @@ export async function setApprovals(
   list: ApprovalList,
   values: string[],
 ): Promise<void> {
+  sessionId = await getApprovalSessionId(ctx, sessionId)
   const approvals = await getApprovals(ctx, sessionId)
 
   await patchState(ctx, sessionId, {

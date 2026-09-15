@@ -414,7 +414,7 @@ export async function getStateView(
 
   const state = await getState(ctx, sessionId)
   return {
-    toolApprovals: state?.toolApprovals,
+    toolApprovals: await getApprovals(ctx, sessionId),
     usage: state?.usage,
     hasLog: Boolean(state?.log),
   }

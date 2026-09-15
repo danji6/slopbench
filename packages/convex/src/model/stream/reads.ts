@@ -20,7 +20,7 @@ import { resolveSets as resolvePromptSets } from '../prompts'
 import { resolve as resolveProviders } from '../providers'
 import { getBySessionAgent as getSessionCache } from '../session/cache'
 import { countParticipants, getMembership } from '../session/memberships'
-import { getEffectiveApprovals, getState } from '../session/state'
+import { getApprovals, getState } from '../session/state'
 import { getByOwnerId as getSettings } from '../settings'
 
 /** Returns a list of session ids that have ongoing streams. */
@@ -99,7 +99,7 @@ export async function _getContext(
     sessionCache,
     hasActiveMedia,
     environment: state?.environment ?? {},
-    toolApprovals: await getEffectiveApprovals(ctx, stream.sessionId),
+    toolApprovals: await getApprovals(ctx, stream.sessionId),
     spawnableAgents,
     stream,
     session,

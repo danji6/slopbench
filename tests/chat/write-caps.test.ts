@@ -151,6 +151,7 @@ describe('appendApprovals', () => {
   function makeCtx(state: ReturnType<typeof fakeSessionState>) {
     return {
       db: {
+        get: async () => ({ _id: SESSION }),
         query: () => ({ withIndex: () => state.query() }),
         insert: async (_table: string, doc: Record<string, unknown>) =>
           state.insert(doc),

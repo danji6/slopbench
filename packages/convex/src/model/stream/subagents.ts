@@ -24,7 +24,6 @@ import { syncActivity } from '../messages'
 import { notifyAgentEvent } from '../notifications'
 import { createPlanLinkPart, getBySession as getPlan } from '../plans'
 import { getActiveStream } from '../session/memberships'
-import { cloneApprovals } from '../session/state'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 import {
   APPROVAL_LEASE_MS,
@@ -229,8 +228,6 @@ async function spawnChild(
     agentId: agent._id,
     addedBy: session.ownerId,
   })
-
-  await cloneApprovals(ctx, { from: session._id, to: childSessionId })
 
   const parentAgent = await ctx.db.get(stream.agentId)
   const parentSettings = parentAgent

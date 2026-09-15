@@ -1,5 +1,6 @@
 /// <reference types="bun-types" />
 import { settleAbandonedTaskParts } from '@sb/convex/lib/subagent'
+import { getApprovals } from '@sb/convex/model/session/state'
 import { _fail, stopChildSessions } from '@sb/convex/model/stream/lifecycle'
 import {
   _suspendStep,
@@ -55,7 +56,10 @@ function parentDocs(
   ]
 }
 
-const parentApprovals = { mode: 'unrestricted', shell: ['git checkout'] }
+const parentApprovals = {
+  mode: 'unrestricted' as const,
+  shell: ['git checkout'],
+}
 
 function taskPart(overrides: Record<string, unknown> = {}) {
   return {
@@ -100,16 +104,15 @@ describe('_suspendStep', () => {
       },
     })
 
-    // The parent's approvals are copied onto the child's own state row
-    const state = inserts.find(({ table }) => table === 'sessionState')
-    expect(state?.fields).toMatchObject({ toolApprovals: parentApprovals })
+    expect(await getApprovals(ctx, 'inserted_sessions_1' as never)).toEqual(
+      parentApprovals,
+    )
 
-    // Owner membership + agent link + approvals + prompt turn + child stream
+    // Owner membership + agent link + prompt turn + child stream
     expect(inserts.map(({ table }) => table)).toEqual([
       'sessions',
       'userSessions',
       'sessionAgents',
-      'sessionState',
       'messages',
       'messageContents',
       'streams',

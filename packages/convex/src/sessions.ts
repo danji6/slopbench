@@ -118,8 +118,7 @@ export const _getMode = internalQuery({
 
 export const _getApprovals = internalQuery({
   args: { sessionId: v.id('sessions') },
-  handler: (ctx, { sessionId }) =>
-    SessionState.getEffectiveApprovals(ctx, sessionId),
+  handler: (ctx, { sessionId }) => SessionState.getApprovals(ctx, sessionId),
 })
 
 export const _getTitleContext = internalQuery({

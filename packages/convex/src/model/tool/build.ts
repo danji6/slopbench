@@ -140,7 +140,7 @@ function jobWatch(
 }
 
 /**
- * Reads live approval grants and the parent's access mode for sub-agent turns.
+ * Reads the main session's live approval policy for every agent in the task.
  * Falls back to the caller's snapshot when there is no ctx.
  */
 async function resolveApprovals(
