@@ -91,6 +91,12 @@ export function useRipples(
       const element = event.currentTarget as HTMLElement
       if (!element) return
 
+      const ignored =
+        event.target instanceof Element
+          ? event.target.closest('[data-ripple-ignore]')
+          : null
+      if (ignored && ignored !== element && element.contains(ignored)) return
+
       const rect = element.getBoundingClientRect()
       const x = clientX - rect.left
       const y = clientY - rect.top
