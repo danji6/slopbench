@@ -2,7 +2,7 @@ import { RippleButton, SettingsList } from '@/components/ui'
 import { generateId } from '@/lib/utils'
 import { PlusIcon } from 'lucide-react'
 import { useState } from 'react'
-import type { Control, FieldErrors } from 'react-hook-form'
+import type { Control, FieldErrors, UseFormSetValue } from 'react-hook-form'
 import { useFieldArray, useFormState, useWatch } from 'react-hook-form'
 
 import { ProviderCard } from './provider-card'
@@ -16,11 +16,16 @@ export type {
 
 type ModelSettingsProps = {
   control: Control<SettingsFormValues>
+  setValue: UseFormSetValue<SettingsFormValues>
   providers?: ProviderOption[]
 }
 
-export function ModelSettings({ control, providers }: ModelSettingsProps) {
-  const { fields, append, remove, update } = useFieldArray<
+export function ModelSettings({
+  control,
+  setValue,
+  providers,
+}: ModelSettingsProps) {
+  const { fields, append, remove } = useFieldArray<
     SettingsFormValues,
     'providers',
     'rhfKey'
@@ -71,7 +76,14 @@ export function ModelSettings({ control, providers }: ModelSettingsProps) {
                 baseURLError={
                   providerErrors[index]?.baseURL?.message as string | undefined
                 }
-                onChange={(patch) => update(index, { ...provider, ...patch })}
+                // Field array update remounts the row, resetting selection and undo
+                onChange={(patch) =>
+                  setValue(
+                    `providers.${index}`,
+                    { ...provider, ...patch },
+                    { shouldDirty: true },
+                  )
+                }
                 onRemove={() => remove(index)}
               />
             )
