@@ -146,6 +146,7 @@ const SettingsListCheckbox = ({
   description,
   checked,
   indeterminate,
+  actions,
   onCheckedChange,
   className,
   disabled,
@@ -153,6 +154,7 @@ const SettingsListCheckbox = ({
 }: SettingsListItemProps & {
   checked?: boolean
   indeterminate?: boolean
+  actions?: React.ReactNode
   onCheckedChange?: (checked: boolean) => void
 }) => {
   return (
@@ -164,12 +166,19 @@ const SettingsListCheckbox = ({
       disabled={disabled}
       {...props}
     >
-      <Checkbox
-        checked={checked}
-        indeterminate={indeterminate}
-        disabled={disabled}
-        readOnly
-      />
+      <div className="flex items-center gap-3">
+        {actions && (
+          <div data-ripple-ignore onClick={(event) => event.stopPropagation()}>
+            {actions}
+          </div>
+        )}
+        <Checkbox
+          checked={checked}
+          indeterminate={indeterminate}
+          disabled={disabled}
+          readOnly
+        />
+      </div>
     </SettingsListItem>
   )
 }

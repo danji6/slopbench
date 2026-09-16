@@ -1,5 +1,5 @@
 import type { PromptItem, PromptOrdering, ReminderPrompt } from './prompts'
-import type { ContextOptions } from './providers'
+import type { ContextOptions, ReasoningEffort } from './providers'
 import type { ThemeSnapshot } from './theme'
 
 export type ScrollMode = 'follow' | 'into-view'
@@ -24,10 +24,18 @@ export type AgentAutoApprove = {
 
 export type AgentSubAgentsMode = 'allow' | 'deny'
 
+/** Model settings used by one parent when spawning an owned agent. */
+export type AgentSubagentOverride<AgentId extends string = string> = {
+  agentId: AgentId
+  modelId?: string
+  reasoningEffort?: ReasoningEffort
+}
+
 /** Which owned agents an agent may spawn as sub-agents. */
 export type AgentSubAgents<AgentId extends string = string> = {
   mode: AgentSubAgentsMode
   agentIds: AgentId[]
+  overrides?: AgentSubagentOverride<AgentId>[]
 }
 
 /**

@@ -26,15 +26,16 @@ export function ModeWidget({ mode, onDisable }: ModeWidgetProps) {
       confirmText="Disable"
       onConfirm={() => void Result.from(onDisable).catch()}
     >
-      <RippleButton
-        variant="stealth"
-        size="icon"
-        className="text-m3-primary size-10"
-        aria-label="Disable plan mode"
-        title="Plan mode is active"
-      >
-        <LightbulbIcon />
-      </RippleButton>
+      <QuickTooltip text="Plan mode is active">
+        <RippleButton
+          variant="stealth"
+          size="icon"
+          className="text-m3-primary size-10"
+          aria-label="Disable plan mode"
+        >
+          <LightbulbIcon />
+        </RippleButton>
+      </QuickTooltip>
     </ConfirmDialog>
   )
 }

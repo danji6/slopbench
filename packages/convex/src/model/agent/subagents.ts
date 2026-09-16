@@ -1,3 +1,5 @@
+import { normalizeSubagentOverrides } from '@sb/core/subagent-settings'
+
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { QueryCtx } from '../../_generated/server'
 import type { AgentSubAgents } from '../../types'
@@ -22,7 +24,17 @@ export async function sanitizeSubAgents(
     if (agent?.ownerId === ownerId) agentIds.push(id)
   }
 
-  return { mode: subAgents.mode, agentIds }
+  const overrides = []
+  for (const entry of normalizeSubagentOverrides(subAgents.overrides)) {
+    const agent = await ctx.db.get(entry.agentId)
+    if (agent?.ownerId === ownerId) overrides.push(entry)
+  }
+
+  return {
+    mode: subAgents.mode,
+    agentIds,
+    ...(overrides.length && { overrides }),
+  }
 }
 
 /**

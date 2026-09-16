@@ -2,11 +2,13 @@ import { md } from '@/components/markdown'
 import { SettingsList } from '@/components/ui'
 import { useOwnedAgents } from '@/hooks/chat'
 import type { Id } from '@sb/convex/_generated/dataModel'
+import { useState } from 'react'
 import type { Control } from 'react-hook-form'
 import { useController } from 'react-hook-form'
 
 import { AgentItemLabel } from '../../sessions/agent-combobox'
 import type { AgentFormValues } from './agent-form'
+import { SubagentModelPopover } from './subagent-model-popover'
 
 export function SubagentSettings({
   control,
@@ -14,6 +16,7 @@ export function SubagentSettings({
   control: Control<AgentFormValues>
 }) {
   const agents = useOwnedAgents() ?? []
+  const [openAgentId, setOpenAgentId] = useState<Id<'agents'> | null>(null)
   const { field: modeField } = useController({ control, name: 'subAgentsMode' })
   const { field: idsField } = useController({ control, name: 'subAgentIds' })
 
@@ -92,6 +95,18 @@ export function SubagentSettings({
                 {agent.description}
               </span>
             )
+          }
+          actions={
+            <SubagentModelPopover
+              control={control}
+              agent={agent}
+              open={openAgentId === agent._id}
+              onOpenChange={(open) =>
+                setOpenAgentId((current) =>
+                  open ? agent._id : current === agent._id ? null : current,
+                )
+              }
+            />
           }
           checked={isSpawnable(agent._id)}
           onCheckedChange={() => toggle(agent._id)}

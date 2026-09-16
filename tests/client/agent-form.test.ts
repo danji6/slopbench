@@ -187,3 +187,62 @@ describe('agent path grants', () => {
     ).toEqual([])
   })
 })
+
+describe('subagent model form settings', () => {
+  const override = {
+    agentId: 'child' as Id<'agents'>,
+    modelId: 'fast',
+    reasoningEffort: 'low' as const,
+  }
+
+  test('round-trips independent overrides even with an empty whitelist', async () => {
+    const values = agentToFormValues(
+      bareAgent({
+        subAgents: { mode: 'allow', agentIds: [], overrides: [override] },
+      }),
+      EMPTY_AGENT_PROMPT_SETS,
+    )
+    expect(values.subAgentOverrides).toEqual([override])
+    const patch = await formValuesToPatch(AGENT_ID, values)
+    expect(patch.subAgents).toEqual({
+      mode: 'allow',
+      agentIds: [],
+      overrides: [override],
+    })
+    expect(patch.unset).not.toContain('subAgents')
+    expect(
+      agentToFormValues(bareAgent(), EMPTY_AGENT_PROMPT_SETS).subAgentOverrides,
+    ).toEqual([])
+  })
+
+  test('clears empty overrides and retains reasoning-only overrides', async () => {
+    const patch = await formValuesToPatch(AGENT_ID, {
+      ...EMPTY_AGENT_FORM,
+      subAgentOverrides: [{ agentId: override.agentId, modelId: '  ' }],
+    })
+    expect(patch.unset).toContain('subAgents')
+    const reasoningOnly = {
+      agentId: override.agentId,
+      reasoningEffort: 'auto' as const,
+    }
+    const next = await formValuesToPatch(AGENT_ID, {
+      ...EMPTY_AGENT_FORM,
+      subAgentOverrides: [reasoningOnly],
+    })
+    expect(next.subAgents?.overrides).toEqual([reasoningOnly])
+  })
+
+  test('preserves overrides through selection and list-mode changes', async () => {
+    for (const mode of ['allow', 'deny'] as const) {
+      for (const agentIds of [[], [override.agentId]]) {
+        const patch = await formValuesToPatch(AGENT_ID, {
+          ...EMPTY_AGENT_FORM,
+          subAgentsMode: mode,
+          subAgentIds: agentIds,
+          subAgentOverrides: [override],
+        })
+        expect(patch.subAgents?.overrides).toEqual([override])
+      }
+    }
+  })
+})

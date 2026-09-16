@@ -8,6 +8,7 @@ export type Row = Record<string, unknown> & { _id: string }
 export function fakeCtx({
   docs = [],
   agents = [],
+  modelProviders = [],
   plans = [],
   sessionAgents = [],
   contentsByMessage = {},
@@ -19,6 +20,7 @@ export function fakeCtx({
   docs?: Row[]
   /** Rows returned by the owner's agents index scan. */
   agents?: Row[]
+  modelProviders?: Row[]
   /** Rows returned by the plans index scan. */
   plans?: Row[]
   /** Rows returned by the sessionAgents index scan. */
@@ -63,6 +65,10 @@ export function fakeCtx({
       unique: async () => (await chain.collect())[0] ?? null,
       collect: async () => {
         if (table === 'agents') return agents
+        if (table === 'modelProviders') {
+          const owner = captured.find(([field]) => field === 'ownerId')
+          return modelProviders.filter((row) => row.ownerId === owner?.[1])
+        }
         if (table === 'plans') return plans
         if (table === 'sessionAgents') return sessionAgents
         if (table === 'messageContents') {

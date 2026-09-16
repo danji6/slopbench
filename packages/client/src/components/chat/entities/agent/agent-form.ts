@@ -12,7 +12,8 @@ import type {
 import { snapshotTheme } from '@/lib/theme-worker'
 import type { Doc, Id } from '@sb/convex/_generated/dataModel'
 import { ensurePromptMarkers } from '@sb/convex/model/prompt/markers'
-import type { AgentSubAgentsMode } from '@sb/core/types'
+import { normalizeSubagentOverrides } from '@sb/core/subagent-settings'
+import type { AgentSubAgentsMode, AgentSubagentOverride } from '@sb/core/types'
 
 /** The agent's prompt rows, grouped by scope. */
 export type AgentPromptSets = {
@@ -52,6 +53,7 @@ export type AgentDocValues = {
   autoApprovePaths: string[]
   subAgentsMode: AgentSubAgentsMode
   subAgentIds: Id<'agents'>[]
+  subAgentOverrides: AgentSubagentOverride<Id<'agents'>>[]
   // Context
   trimContext: boolean
   contextWindow: number
@@ -84,6 +86,7 @@ export const EMPTY_AGENT_FORM: AgentFormValues = {
   autoApprovePaths: [],
   subAgentsMode: 'allow',
   subAgentIds: [],
+  subAgentOverrides: [],
   trimContext: false,
   contextWindow: -1,
   outputTokens: -1,
@@ -148,6 +151,7 @@ export function agentToFormValues(
     autoApprovePaths: agent.autoApprove?.paths ?? [],
     subAgentsMode: agent.subAgents?.mode ?? 'allow',
     subAgentIds: agent.subAgents?.agentIds ?? [],
+    subAgentOverrides: agent.subAgents?.overrides ?? [],
     trimContext: agent.trimContext ?? false,
     contextWindow: agent.contextWindow ?? -1,
     outputTokens: agent.outputTokens ?? -1,
@@ -216,9 +220,11 @@ export async function formValuesToPatch(
     autoApprovePaths,
     subAgentsMode,
     subAgentIds,
+    subAgentOverrides,
     ...rest
   } = values
 
+  const overrides = normalizeSubagentOverrides(subAgentOverrides)
   const fields: PatchFields = {
     ...rest,
     description: description.trim() || null,
@@ -235,10 +241,14 @@ export async function formValuesToPatch(
             ...(autoApprovePaths.length && { paths: autoApprovePaths }),
           }
         : null,
-    // allow + empty means "nothing spawnable", the unset default
+    // Keep overrides even when no agents are enabled
     subAgents:
-      subAgentsMode === 'deny' || subAgentIds.length
-        ? { mode: subAgentsMode, agentIds: subAgentIds }
+      subAgentsMode === 'deny' || subAgentIds.length || overrides.length
+        ? {
+            mode: subAgentsMode,
+            agentIds: subAgentIds,
+            ...(overrides.length && { overrides }),
+          }
         : null,
   }
 

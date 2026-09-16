@@ -176,3 +176,60 @@ describe('task tool', () => {
     expect(manifest.taskRoster).toBe('- Explore')
   })
 })
+
+describe('subagent override sanitization', () => {
+  test('keeps last overrides for owned agents independently of spawn permissions', async () => {
+    const ctx = fakeCtx([
+      coder,
+      explorer,
+      { _id: 'foreign', ownerId: 'user_2' },
+    ])
+    const result = await sanitizeSubAgents(
+      ctx,
+      owner as never,
+      {
+        mode: 'allow',
+        agentIds: [],
+        overrides: [
+          { agentId: coder._id, modelId: 'old' },
+          { agentId: explorer._id, reasoningEffort: 'auto' },
+          {
+            agentId: coder._id,
+            modelId: '  unavailable-model  ',
+            reasoningEffort: 'high',
+          },
+          { agentId: 'foreign', modelId: 'model' },
+          { agentId: 'missing', modelId: 'model' },
+        ],
+      } as never,
+    )
+    expect(result).toEqual({
+      mode: 'allow',
+      agentIds: [],
+      overrides: [
+        {
+          agentId: coder._id,
+          modelId: 'unavailable-model',
+          reasoningEffort: 'high',
+        },
+        { agentId: explorer._id, reasoningEffort: 'auto' },
+      ],
+    } as never)
+  })
+
+  test('an empty last entry clears an earlier override', async () => {
+    const result = await sanitizeSubAgents(
+      fakeCtx([coder]),
+      owner as never,
+      {
+        mode: 'deny',
+        agentIds: [],
+        overrides: [
+          { agentId: coder._id, modelId: 'old' },
+          { agentId: coder._id, modelId: ' ' },
+        ],
+      } as never,
+    )
+    expect(result).toEqual({ mode: 'deny', agentIds: [] } as never)
+  })
+})

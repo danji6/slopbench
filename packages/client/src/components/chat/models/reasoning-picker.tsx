@@ -16,9 +16,10 @@ const REASONING_OPTIONS: { value: ReasoningEffort; label: string }[] = [
 ]
 
 export type ReasoningPickerProps = SelectTriggerProps & {
-  value: ReasoningEffort
+  value: ReasoningEffort | undefined
   onValueChange: (value: ReasoningEffort) => void
   model: UIModel | null
+  onInherit?: () => void
   /** Hide the label on mobile. */
   compactMobile?: boolean
 }
@@ -30,11 +31,16 @@ export function ReasoningPicker({
   onValueChange,
   model,
   compactMobile,
+  onInherit,
   ...props
 }: ReasoningPickerProps) {
   const isMobile = useBreakpoint('sm') && !!compactMobile
 
-  const reasoning = normalizeReasoningEffort(value, model?.reasoning)
+  const reasoning =
+    onInherit && !model
+      ? (value ?? 'auto')
+      : normalizeReasoningEffort(value, model?.reasoning)
+  const inherited = !!onInherit && value === undefined
 
   const supported =
     model?.reasoning?.type === 'effort'
@@ -46,17 +52,31 @@ export function ReasoningPicker({
       option.value === 'none' ||
       supported.has(option.value),
   )
-  const items = options.map((option) => ({
-    value: option.value,
-    label: option.label,
-  }))
-  const selectedLabel = options.find(
-    (option) => option.value === (reasoning ?? 'auto'),
+  const inheritedOptions =
+    model?.reasoning?.type === 'none'
+      ? [{ value: 'none', label: 'None' }]
+      : model?.reasoning?.type === 'binary'
+        ? [
+            { value: 'auto', label: 'On' },
+            { value: 'none', label: 'Off' },
+          ]
+        : !model
+          ? REASONING_OPTIONS
+          : options
+  const items = onInherit
+    ? [
+        { value: '__inherit__', label: 'Inherit' },
+        ...inheritedOptions,
+      ]
+    : options
+  const selectedValue = inherited ? '__inherit__' : reasoning
+  const selectedLabel = items.find(
+    (option) => option.value === selectedValue,
   )?.label
 
-  if (model?.reasoning?.type === 'none') return null
+  if (!onInherit && model?.reasoning?.type === 'none') return null
 
-  if (model?.reasoning?.type === 'binary') {
+  if (!onInherit && model?.reasoning?.type === 'binary') {
     const checked = reasoning !== 'none'
     return (
       <div className="flex h-10 w-full items-center">
@@ -73,8 +93,11 @@ export function ReasoningPicker({
   return (
     <Select
       items={items}
-      value={reasoning ?? 'auto'}
-      onValueChange={(value) => onValueChange(value as ReasoningEffort)}
+      value={selectedValue}
+      onValueChange={(value) => {
+        if (value === '__inherit__') onInherit?.()
+        else onValueChange(value as ReasoningEffort)
+      }}
       disabled={disabled}
     >
       <Select.Trigger
@@ -89,7 +112,11 @@ export function ReasoningPicker({
       </Select.Trigger>
       <Select.Content
         alignItemWithTrigger={false}
-        className="w-[calc(min(fit-content,100%,120px))]"
+        className={
+          onInherit
+            ? 'w-72 max-w-[calc(100dvw-2rem)]'
+            : 'w-[calc(min(fit-content,100%,120px))]'
+        }
       >
         <Select.Group>
           <Select.Label>Reasoning effort</Select.Label>

@@ -10,6 +10,7 @@ export type ModelPickerProps = ComboboxTriggerProps & {
   value: string
   onValueChange: (value: string) => void
   selectedModel?: UIModel | null
+  inheritLabel?: string
 }
 
 export function ModelPicker({
@@ -18,6 +19,7 @@ export function ModelPicker({
   value,
   onValueChange,
   selectedModel,
+  inheritLabel,
   ...props
 }: ModelPickerProps) {
   const { models, isLoading } = useModels()
@@ -46,8 +48,10 @@ export function ModelPicker({
 
   return (
     <Combobox
-      value={value}
-      onValueChange={(v) => onValueChange(v || '')}
+      value={inheritLabel && !value ? '__inherit__' : value}
+      onValueChange={(v) =>
+        onValueChange(inheritLabel && v === '__inherit__' ? '' : v || '')
+      }
       noDeselect
     >
       <Combobox.Trigger
@@ -56,11 +60,14 @@ export function ModelPicker({
           'text-muted-foreground w-[calc(min(fit-content,100%,200px))]',
           className,
         )}
-        disabled={disabled || isLoading || models.length === 0}
+        disabled={
+          disabled || (!inheritLabel && (isLoading || models.length === 0))
+        }
         {...props}
       >
         <Combobox.DisplayValue placeholder="Select model…">
           {(val) => {
+            if (inheritLabel && val === '__inherit__') return inheritLabel
             const m =
               models.find((candidate) => candidate.id === val) ??
               (selectedModel?.id === val ? selectedModel : undefined)
@@ -70,11 +77,18 @@ export function ModelPicker({
       </Combobox.Trigger>
       <Combobox.Content
         align="start"
-        className="w-[calc(min(fit-content,100%,200px))]"
+        className={
+          inheritLabel
+            ? 'w-72 max-w-[calc(100dvw-2rem)]'
+            : 'w-[calc(min(fit-content,100%,200px))]'
+        }
       >
         <Combobox.Search />
         <Combobox.List>
           <Combobox.Empty>No models found.</Combobox.Empty>
+          {inheritLabel && (
+            <Combobox.Item value="__inherit__">{inheritLabel}</Combobox.Item>
+          )}
           <Combobox.Group heading="Cloud Models">{cloudModels}</Combobox.Group>
           {localModels.length > 0 && (
             <>

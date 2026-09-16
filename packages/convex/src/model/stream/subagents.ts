@@ -26,6 +26,10 @@ import { createPlanLinkPart, getBySession as getPlan } from '../plans'
 import { getActiveStream } from '../session/memberships'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 import {
+  type SubagentModelSettings,
+  resolveSubagentModel,
+} from '../subagent/models'
+import {
   APPROVAL_LEASE_MS,
   STREAM_LEASE_MS,
   reserveInvokeTurn,
@@ -146,7 +150,18 @@ async function spawnChildForTask(
     })
   }
 
+  const parent = await ctx.db.get(stream.agentId)
+  const resolved = await resolveSubagentModel(ctx, { parent, session, agent })
+  if (resolved.error !== undefined) {
+    return replacePart(parts, part, {
+      ...part,
+      state: 'output-error',
+      errorText: resolved.error,
+    })
+  }
+
   const childSessionId = await spawnChild(ctx, {
+    settings: resolved.settings,
     stream,
     session,
     agent,
@@ -174,6 +189,7 @@ function replacePart(
 }
 
 type SpawnChildArgs = {
+  settings: SubagentModelSettings
   stream: Doc<'streams'>
   session: Doc<'sessions'>
   agent: Doc<'agents'>
@@ -188,7 +204,7 @@ type SpawnChildArgs = {
  */
 async function spawnChild(
   ctx: MutationCtx,
-  { stream, session, agent, input, toolCallId }: SpawnChildArgs,
+  { stream, session, agent, input, toolCallId, settings }: SpawnChildArgs,
 ): Promise<Id<'sessions'>> {
   const now = Date.now()
   // A preset title keeps scheduleTitle from running for hidden sessions
@@ -202,8 +218,7 @@ async function spawnChild(
     title,
     activeAgentId: agent._id,
     workspace: session.workspace,
-    model: session.model,
-    reasoningEffort: session.reasoningEffort,
+    ...settings,
     mode,
     parent: {
       sessionId: session._id,

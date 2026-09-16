@@ -252,10 +252,23 @@ export const agentAutoApproveValidator = v.object({
   shell: v.optional(v.array(v.string())),
 })
 
+export const reasoningEffortValidator = v.union(
+  reasoningTierValidator,
+  v.literal('auto'),
+  v.literal('none'),
+)
+
+export const agentSubagentOverrideValidator = v.object({
+  agentId: v.id('agents'),
+  modelId: v.optional(v.string()),
+  reasoningEffort: v.optional(reasoningEffortValidator),
+})
+
 /** Which owned agents an agent may spawn as sub-agents. */
 export const agentSubAgentsValidator = v.object({
   mode: v.union(v.literal('allow'), v.literal('deny')),
   agentIds: v.array(v.id('agents')),
+  overrides: v.optional(v.array(agentSubagentOverrideValidator)),
 })
 
 export const messageMetaValidator = v.object({
