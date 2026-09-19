@@ -21,7 +21,8 @@ export function useWindowSlide(
 ) {
   const { scroller, virtuaRef, rowsRef, metaRef, docScrollRef, topPadding } =
     deps
-  const { setShiftInProgress } = scroller
+  const { setShiftInProgress, coordinator } = scroller
+  const layoutCurrent = useRef<() => boolean>(() => true)
 
   // Tracks the position of a message across a window slide so it can be restored
   const slideAnchorRef = useRef<{ id: string; top: number } | null>(null)
@@ -49,30 +50,47 @@ export function useWindowSlide(
   const loadOlder = useCallback(() => {
     const m = metaRef.current
     if (!m.canLoadOlder || m.isLoadingOlder) return
+    layoutCurrent.current = coordinator.checkpoint()
     const anchor = captureSlideAnchor()
     setShiftInProgress(true)
     if (extendOlder() && anchor) {
       slideAnchorRef.current = anchor
       slidePendingRef.current = true
     }
-  }, [extendOlder, setShiftInProgress, captureSlideAnchor, metaRef])
+  }, [
+    extendOlder,
+    setShiftInProgress,
+    captureSlideAnchor,
+    metaRef,
+    coordinator,
+  ])
 
   const loadNewer = useCallback(() => {
     const m = metaRef.current
     if (!m.canLoadNewer || m.isLoadingNewer) return
+    layoutCurrent.current = coordinator.checkpoint()
     const anchor = captureSlideAnchor()
     setShiftInProgress(true)
     if (extendNewer() && anchor) {
       slideAnchorRef.current = anchor
       slidePendingRef.current = true
     }
-  }, [extendNewer, setShiftInProgress, captureSlideAnchor, metaRef])
+  }, [
+    extendNewer,
+    setShiftInProgress,
+    captureSlideAnchor,
+    metaRef,
+    coordinator,
+  ])
 
   // Restore the anchor to preserve the scroll position
   const restoreSlideAnchor = useCallback(() => {
     const anchor = slideAnchorRef.current
     slideAnchorRef.current = null
-    if (!anchor) return
+    if (!anchor || !layoutCurrent.current()) {
+      pendingPageRef.current = null
+      return
+    }
 
     const topPaddingPx = getNavPaddingPx(topPadding)
     const page = pendingPageRef.current
@@ -83,6 +101,7 @@ export function useWindowSlide(
     slideRestoreRef.current?.()
     // Converge on the anchor's real position
     slideRestoreRef.current = trackUntilSettled(() => {
+      if (!layoutCurrent.current()) return 0
       const index = rowsRef.current.findIndex(
         (row) => row.messageId === anchor.id,
       )

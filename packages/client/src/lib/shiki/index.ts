@@ -5,4 +5,5 @@
 export * from './core'
 export * from './diff'
 export * from './highlighter'
+export * from './string-cache'
 export * from './theme'

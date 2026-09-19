@@ -1,10 +1,8 @@
-import { SESSION_ENV_NAMES } from './env'
 import { CONSUMED_LINE, formatOutput } from './format'
 import { parse } from './parse'
+import { createSandbox } from './sandbox'
 import { createVariableStore } from './store'
-import type { Condition, EvalContext, JsonValue, VariableStore } from './types'
-
-type CompiledFn = (...args: unknown[]) => unknown
+import type { Condition, EvalContext, VariableStore } from './types'
 
 /** Host-provided functions exposed to dynamic blocks (all synchronous). */
 export type EvalHelpers = {
@@ -21,16 +19,22 @@ export function evaluate(
   const segments = parse(text)
   if (segments.length === 0) return ''
 
-  const get = (key: string) => store.get(key)
-  const set = (key: string, value: JsonValue) => store.set(key, value)
-  const bindings = sessionBindings(context, get, set, helpers)
-  const args = SESSION_ENV_NAMES.map((name) => bindings[name])
+  const sandbox = createSandbox(context, store, helpers)
+  try {
+    return render(text, sandbox.run)
+  } finally {
+    sandbox.dispose()
+  }
+}
 
+/** Renders parsed directives using the supplied isolated guest. */
+export function render(text: string, run: (body: string) => unknown): string {
+  const segments = parse(text)
   const parts: string[] = []
   const stack: BranchFrame[] = []
   const currentActive = () =>
     stack.length === 0 || stack[stack.length - 1].branchActive
-  const truthy = (cond: Condition) => Boolean(run(conditionBody(cond), args))
+  const truthy = (cond: Condition) => Boolean(run(conditionBody(cond)))
 
   for (const segment of segments) {
     switch (segment.type) {
@@ -76,7 +80,7 @@ export function evaluate(
         }
         const body =
           segment.type === 'inline' ? `return (${segment.expr})` : segment.code
-        const str = stringify(run(body, args))
+        const str = stringify(run(body))
         // An eval block that renders nothing takes its own line with it
         const empty = segment.type === 'block' && str === ''
         parts.push(empty ? CONSUMED_LINE : str)
@@ -95,53 +99,6 @@ type BranchFrame = {
 
 const conditionBody = (cond: Condition) =>
   cond.kind === 'expr' ? `return (${cond.expr})` : cond.code
-
-/** Compile and run a body with the session args; any error yields undefined. */
-function run(body: string, args: unknown[]): unknown {
-  const fn = compile(body)
-  if (!fn) return undefined
-  try {
-    return fn(...args)
-  } catch (error) {
-    console.error('[interpreter] runtime error', error)
-    return undefined
-  }
-}
-
-function sessionBindings(
-  context: EvalContext,
-  get: (key: string) => JsonValue | undefined,
-  set: (key: string, value: JsonValue) => void,
-  helpers: EvalHelpers,
-): Record<string, unknown> {
-  const agent = context.assistant
-  return {
-    readFile: helpers.readFile ?? (() => ''),
-    fileExists: helpers.fileExists ?? (() => false),
-    user: context.user,
-    owner: context.owner,
-    agent,
-    assistant: agent,
-    char: agent,
-    ai: agent,
-    tools: context.tools ?? [],
-    isAdmin: context.isAdmin ?? false,
-    userCount: context.userCount ?? 0,
-    agentCount: context.agentCount ?? 0,
-    workDir: context.workDir,
-    getVar: get,
-    setVar: set,
-  }
-}
-
-function compile(body: string): CompiledFn | null {
-  try {
-    return new Function(...SESSION_ENV_NAMES, body) as CompiledFn
-  } catch (error) {
-    console.error('[interpreter] compile error', error)
-    return null
-  }
-}
 
 function stringify(value: unknown): string {
   if (value === null || value === undefined) return ''

@@ -13,41 +13,22 @@ import {
 } from '@/components/ui'
 import { getFontFamily } from '@/fonts'
 import {
-  useClearProfileAvatar,
   useMcpServers,
-  useMcpServersSave,
   useModelProviders,
-  useModelProvidersSave,
   usePromptItems,
   useReminderItems,
   useSettings,
-  useSettingsUpdate,
-  useUploadProfileAvatar,
-  useUserPromptSetsSave,
 } from '@/hooks/chat'
 import { useFormDraft } from '@/hooks/chat/form-draft'
 import { useSettingsSave } from '@/hooks/chat/settings-save'
-import { FONT_OVERRIDE_KEYS } from '@/hooks/font'
 import { useScopedTheme } from '@/hooks/theme'
 import { useView, useViewCloseGuard } from '@/hooks/view'
 import { USER_SETTINGS_DRAFT_KEY } from '@/lib/chat/editor-draft-store'
 import { extractErrorMessage } from '@/lib/errors'
-import {
-  type SettingsOverride,
-  getSettingsOverride,
-  setSettingsOverride,
-} from '@/lib/settings-override'
-import { snapshotTheme } from '@/lib/theme-worker'
-import { cn, generateId } from '@/lib/utils'
+import { getSettingsOverride } from '@/lib/settings-override'
+import { cn } from '@/lib/utils'
 import { ThemeScope } from '@/providers/theme-scope'
 import { api } from '@sb/convex/_generated/api'
-import {
-  DEFAULT_SETTINGS,
-  SOURCE_COLOR,
-  createDefaultCompactionPrompts,
-  createDefaultImpersonationPrompts,
-} from '@sb/convex/model/defaults'
-import { type WebSearchInstance, isSearchEngineId } from '@sb/core/types'
 import { useQuery } from 'convex/react'
 import {
   ActivityIcon,
@@ -66,10 +47,13 @@ import { BehaviorSettings } from './behavior-settings'
 import { McpSettings } from './mcp-settings'
 import { ModelSettings } from './model-settings'
 import { ProfileSettings } from './profile-settings'
-import type {
-  SettingsFormValues,
-  WebSearchInstanceFormValues,
-} from './settings-schema'
+import type { SettingsFormValues } from './settings-schema'
+import { useUserSettingsPersistence } from './user-settings-persistence'
+import {
+  defaultSettingsValues,
+  loadedSettingsValues,
+  withoutSecrets,
+} from './user-settings-values'
 import { WebSearchSettings } from './web-search-settings'
 
 /** `?view=` segment owned by user settings; its value is the active tab. */
@@ -145,15 +129,9 @@ function ChatSettingsDialog({
   const activeTab = view.value ?? USER_SETTINGS_DEFAULT_TAB
 
   const settings = useSettings()
-  const updateSettings = useSettingsUpdate()
-  const uploadAvatar = useUploadProfileAvatar()
-  const clearAvatar = useClearProfileAvatar()
   const providerIds = useQuery(api.models.providerIds)
   const providers = useModelProviders()
-  const saveProviders = useModelProvidersSave()
   const mcpServers = useMcpServers()
-  const saveMcpServers = useMcpServersSave()
-  const savePromptSets = useUserPromptSetsSave()
   const libraryPrompts = usePromptItems('library')
   const libraryReminders = useReminderItems('library')
   const compactionPrompts = usePromptItems('compaction')
@@ -168,43 +146,7 @@ function ChatSettingsDialog({
   }
 
   const form = useForm<SettingsFormValues>({
-    defaultValues: {
-      displayName: '',
-      scrollMode: DEFAULT_SETTINGS.scrollMode,
-      mathMode: DEFAULT_SETTINGS.mathMode,
-      autoTitle: DEFAULT_SETTINGS.autoTitle,
-      invertSend: DEFAULT_SETTINGS.invertSend,
-      groupBySender: DEFAULT_SETTINGS.groupBySender,
-      followAgentThemeColor: DEFAULT_SETTINGS.followAgentThemeColor,
-      avatarSize: DEFAULT_SETTINGS.avatarSize,
-      titleModel: null,
-      webSearchInstances: DEFAULT_SETTINGS.webSearchInstances,
-      mcpServers: [],
-      uiFont: DEFAULT_SETTINGS.uiFont,
-      chatFont: DEFAULT_SETTINGS.chatFont,
-      monoFont: DEFAULT_SETTINGS.monoFont,
-      chatFontSize: DEFAULT_SETTINGS.chatFontSize,
-      override: {
-        fonts: {
-          enabled: false,
-          uiFont: DEFAULT_SETTINGS.uiFont,
-          chatFont: DEFAULT_SETTINGS.chatFont,
-          monoFont: DEFAULT_SETTINGS.monoFont,
-          chatFontSize: DEFAULT_SETTINGS.chatFontSize,
-        },
-      },
-      chatWidth: DEFAULT_SETTINGS.chatWidth,
-      customCss: DEFAULT_SETTINGS.customCss,
-      shell: DEFAULT_SETTINGS.shell,
-      allowInteractiveShells: DEFAULT_SETTINGS.allowInteractiveShells,
-      themeColor: SOURCE_COLOR,
-      themeMode: DEFAULT_SETTINGS.themeMode,
-      libraryPrompts: [],
-      libraryReminders: [],
-      compactionPrompts: createDefaultCompactionPrompts(),
-      impersonationPrompts: createDefaultImpersonationPrompts(),
-      providers: [],
-    },
+    defaultValues: defaultSettingsValues(),
   })
 
   const draft = useFormDraft(
@@ -226,76 +168,18 @@ function ChatSettingsDialog({
     // Every source needs to be available since the form owns the whole payload
     if (initialized.current || !settings || !providers || !mcpServers) return
 
-    const override = getSettingsOverride()
-    const fontsEnabled = FONT_OVERRIDE_KEYS.some(
-      (key) => override[key] !== undefined,
+    draft.sync(
+      loadedSettingsValues({
+        settings,
+        providers,
+        mcpServers,
+        libraryPrompts,
+        libraryReminders,
+        compactionPrompts,
+        impersonationPrompts,
+        override: getSettingsOverride(),
+      }),
     )
-
-    draft.sync({
-      displayName: settings.displayName ?? '',
-      scrollMode: settings.scrollMode,
-      mathMode: settings.mathMode,
-      autoTitle: settings.autoTitle,
-      invertSend: settings.invertSend,
-      groupBySender: settings.groupBySender,
-      followAgentThemeColor: settings.followAgentThemeColor,
-      avatarSize: settings.avatarSize,
-      titleModel: settings.titleModel ?? null,
-      webSearchInstances: settings.webSearchInstances.map((i) => ({
-        ...i,
-        _clientId: generateId(),
-      })),
-      mcpServers: (mcpServers ?? []).map((server) => ({
-        id: server.id,
-        serverId: server._id,
-        label: server.label,
-        url: server.url,
-        transport: server.transport,
-        enabled: server.enabled,
-        hasKey: server.hasKey,
-        tools: server.tools,
-        _clientId: generateId(),
-      })),
-      uiFont: settings.uiFont,
-      chatFont: settings.chatFont,
-      monoFont: settings.monoFont,
-      chatFontSize: settings.chatFontSize,
-      override: {
-        fonts: {
-          enabled: fontsEnabled,
-          uiFont: override.uiFont ?? settings.uiFont,
-          chatFont: override.chatFont ?? settings.chatFont,
-          monoFont: override.monoFont ?? settings.monoFont,
-          chatFontSize: override.chatFontSize ?? settings.chatFontSize,
-        },
-      },
-      chatWidth: settings.chatWidth,
-      customCss: settings.customCss,
-      shell: settings.shell,
-      allowInteractiveShells: settings.allowInteractiveShells,
-      themeColor: settings.theme?.source ?? SOURCE_COLOR,
-      themeMode: settings.themeMode,
-      libraryPrompts: libraryPrompts as SettingsFormValues['libraryPrompts'],
-      libraryReminders: libraryReminders,
-      compactionPrompts: compactionPrompts.length
-        ? compactionPrompts
-        : createDefaultCompactionPrompts(),
-      impersonationPrompts: impersonationPrompts.length
-        ? impersonationPrompts
-        : createDefaultImpersonationPrompts(),
-      providers: (providers ?? []).map((p) => ({
-        id: p.id,
-        baseURL: p.baseURL,
-        extraHeaders: p.extraHeaders,
-        enabled: p.enabled,
-        models: p.models.map((model) => ({
-          ...model,
-          _clientId: generateId(),
-        })),
-        hasKey: p.hasKey,
-        _clientId: generateId(),
-      })),
-    })
     initialized.current = true
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, settings, providers, mcpServers])
@@ -370,93 +254,14 @@ function ChatSettingsDialog({
     onDiscard: discard,
   })
 
-  async function persist(values: SettingsFormValues) {
-    if (pendingAvatar) {
-      await uploadAvatar(pendingAvatar)
-      setPendingAvatar(null)
-    } else if (avatarCleared) {
-      await clearAvatar()
-    }
-    setAvatarCleared(false)
-    await updateSettings({
-      patch: {
-        displayName: values.displayName,
-        scrollMode: values.scrollMode,
-        mathMode: values.mathMode,
-        autoTitle: values.autoTitle,
-        invertSend: values.invertSend,
-        groupBySender: values.groupBySender,
-        followAgentThemeColor: values.followAgentThemeColor,
-        avatarSize: values.avatarSize,
-        titleModel: values.titleModel ?? undefined,
-        webSearchInstances: normalizeWebSearchInstances(
-          values.webSearchInstances,
-        ),
-        uiFont: values.uiFont,
-        chatFont: values.chatFont,
-        monoFont: values.monoFont,
-        chatFontSize: values.chatFontSize,
-        chatWidth: values.chatWidth,
-        customCss: values.customCss,
-        shell: values.shell.trim(),
-        allowInteractiveShells: values.allowInteractiveShells,
-        theme: values.themeColor
-          ? await snapshotTheme(values.themeColor)
-          : undefined,
-        themeMode: values.themeMode,
-      },
-    })
-    await savePromptSets({
-      libraryPrompts: values.libraryPrompts,
-      libraryReminders: values.libraryReminders,
-      compactionPrompts: values.compactionPrompts,
-      impersonationPrompts: values.impersonationPrompts,
-    })
-    await saveProviders({
-      providers: values.providers.map((p) => ({
-        key: p.id,
-        baseURL: p.baseURL,
-        extraHeaders: p.extraHeaders,
-        enabled: p.enabled,
-        models: p.models.map((model) => ({
-          id: model.id,
-          label: model.label,
-          contextWindow: model.contextWindow,
-          reasoning: model.reasoning,
-          inference: model.inference,
-          extraParameters: model.extraParameters,
-        })),
-        apiKey: p.apiKey,
-      })),
-    })
-    await saveMcpServers({
-      servers: values.mcpServers.map((server) => ({
-        key: server.id,
-        label: server.label,
-        url: server.url,
-        transport: server.transport,
-        enabled: server.enabled,
-        apiKey: server.apiKey,
-        tools: server.tools?.map((tool) => ({
-          name: tool.name,
-          nameOverride: tool.nameOverride,
-          description: tool.description,
-          descriptionOverride: tool.descriptionOverride,
-          inputSchema: tool.inputSchema,
-        })),
-      })),
-    })
-    const { enabled, ...fontOverride } = values.override.fonts
-    if (enabled) {
-      setSettingsOverride(fontOverride)
-    } else {
-      const cleared: SettingsOverride = {}
-      for (const key of FONT_OVERRIDE_KEYS) cleared[key] = undefined
-      setSettingsOverride(cleared)
-    }
-    form.reset(values)
-    draft.clear()
-  }
+  const persist = useUserSettingsPersistence({
+    pendingAvatar,
+    avatarCleared,
+    setPendingAvatar,
+    setAvatarCleared,
+    form,
+    draft,
+  })
 
   const { saving, apply, save } = useSettingsSave(form, persist, handleClose)
 
@@ -592,29 +397,3 @@ function ChatSettingsDialog({
 }
 
 /** Drops API keys before the draft is written to local storage. */
-function withoutSecrets(values: SettingsFormValues): SettingsFormValues {
-  return {
-    ...values,
-    providers: values.providers.map(({ apiKey: _, ...p }) => p),
-    mcpServers: values.mcpServers.map(({ apiKey: _, ...server }) => server),
-  }
-}
-
-function normalizeWebSearchInstances(
-  instances: WebSearchInstanceFormValues[],
-): WebSearchInstance[] {
-  const seen = new Set<string>()
-  const normalized: WebSearchInstance[] = []
-
-  for (const instance of instances) {
-    const url = instance.url.trim()
-    if (!url || !isSearchEngineId(instance.engine)) continue
-
-    const key = `${instance.engine}:${url}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    normalized.push({ engine: instance.engine, url })
-  }
-
-  return normalized
-}

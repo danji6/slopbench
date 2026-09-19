@@ -23,7 +23,8 @@
     "format": "prettier --write",
     "barrels": "barrelsby -c ./barrels.json",
     "gen:icons": "node scripts/misc/generate-icons-data.mjs",
-    "server": "bun scripts/sidecar.ts"
+    "server": "bun scripts/sidecar.ts",
+    "test:browser": "playwright test --config tests/browser/playwright.config.ts"
   },
   "dependencies": {
     "@ai-sdk/alibaba": "^2.0.35",
@@ -94,6 +95,7 @@
     "prosemirror-tables": "^1.8.5",
     "prosemirror-transform": "^1.12.0",
     "prosemirror-view": "^1.42.3",
+    "quickjs-emscripten": "^0.32.0",
     "react": "^19.2.8",
     "react-colorful": "^5.8.0",
     "react-dom": "^19.2.8",
@@ -129,6 +131,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@happy-dom/global-registrator": "^20.11.6",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.3.3",
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
     "@types/hast": "^3.0.5",

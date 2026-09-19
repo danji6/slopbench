@@ -20,6 +20,11 @@ export const _getApiKey = internalQuery({
   handler: Mcp._getApiKey,
 })
 
+export const _getExecution = internalQuery({
+  args: V.mcpExecutionArgsValidator.fields,
+  handler: Mcp._getExecution,
+})
+
 export const replaceAll = authMutation({
   args: V.replaceMcpServersArgsValidator.fields,
   handler: Mcp.replaceAll,

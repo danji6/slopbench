@@ -20,6 +20,7 @@ import {
   recordRateLimit,
 } from './lib/rateLimits'
 import { sidecarUrl } from './model/sidecar'
+import { sidecarRequest } from './model/sidecarTransport'
 import { isAllowedOrigin, siteUrl } from './origins'
 
 const http = httpRouter()
@@ -229,10 +230,13 @@ const termStreamHandler = httpAction(async (ctx, req) => {
   })
   let upstream: Response
   try {
-    upstream = await fetch(`${sidecarUrl()}/shell/stream?${query.toString()}`, {
-      headers: { Accept: 'text/event-stream' },
-      signal: req.signal,
-    })
+    upstream = await fetch(
+      `${sidecarUrl()}/shell/stream?${query.toString()}`,
+      sidecarRequest({
+        headers: { Accept: 'text/event-stream' },
+        signal: req.signal,
+      }),
+    )
   } catch {
     return jsonResponse({ error: 'Sidecar unavailable' }, 502, origin)
   }

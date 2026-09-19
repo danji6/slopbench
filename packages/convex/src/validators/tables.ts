@@ -121,6 +121,7 @@ export const mcpServerSchema = v.object({
 export const mcpToolSchema = v.object({
   serverId: v.id('mcpServers'),
   name: v.string(),
+  allowInReadOnly: v.optional(v.boolean()),
   nameOverride: v.optional(v.string()),
   description: v.optional(v.string()),
   descriptionOverride: v.optional(v.string()),

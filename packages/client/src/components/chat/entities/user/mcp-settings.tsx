@@ -378,6 +378,7 @@ function mergeOverrides(
       tool.name,
       {
         nameOverride: tool.nameOverride,
+        allowInReadOnly: tool.allowInReadOnly,
         descriptionOverride: tool.descriptionOverride,
       },
     ]),
@@ -410,6 +411,17 @@ function McpToolRow({ value, tool, clashing, onChange }: McpToolRowProps) {
         </span>
       </Accordion.Trigger>
       <Accordion.Content className="flex flex-col gap-1.5 px-3">
+        <label className="flex items-center justify-between gap-2 text-sm">
+          Allow in plan/read-only mode
+          <Switch
+            checked={tool.allowInReadOnly ?? true}
+            onCheckedChange={(allowInReadOnly) => onChange({ allowInReadOnly })}
+          />
+        </label>
+        <p className="text-muted-foreground text-xs">
+          For security reasons, disable when the tool can make changes to the
+          system.
+        </p>
         {clashing && (
           <span className="text-destructive text-sm">
             Conflict: another enabled tool resolves to the same name. Only one

@@ -6,31 +6,37 @@ import type { WindowSlide } from './window-slide'
 /** Page Up/Down scrolling that pulls in the next window at the edges. */
 export function usePageScroll(deps: ScrollDeps, slide: WindowSlide) {
   const { scroller, metaRef, docScrollRef } = deps
-  const { holdPosition, pauseFollow } = scroller
+  const { holdPosition, pauseFollow, coordinator } = scroller
   const { loadOlder, loadNewer, slidePendingRef, pendingPageRef } = slide
 
   const growScrollRef = useRef(0)
   // Continue scrolling compensating for height recalculations
-  const continueScrollAfterGrow = useCallback((direction: 1 | -1) => {
-    cancelAnimationFrame(growScrollRef.current)
-    const startHeight = document.documentElement.scrollHeight
-    let frames = 0
-    const tick = () => {
-      if (document.documentElement.scrollHeight !== startHeight) {
-        window.scrollBy({ top: window.innerHeight * 0.9 * direction })
-        return
+  const continueScrollAfterGrow = useCallback(
+    (direction: 1 | -1) => {
+      cancelAnimationFrame(growScrollRef.current)
+      const current = coordinator.checkpoint()
+      const startHeight = document.documentElement.scrollHeight
+      let frames = 0
+      const tick = () => {
+        if (!current()) return
+        if (document.documentElement.scrollHeight !== startHeight) {
+          window.scrollBy({ top: window.innerHeight * 0.9 * direction })
+          return
+        }
+        if (++frames > 40) return
+        growScrollRef.current = requestAnimationFrame(tick)
       }
-      if (++frames > 40) return
       growScrollRef.current = requestAnimationFrame(tick)
-    }
-    growScrollRef.current = requestAnimationFrame(tick)
-  }, [])
+    },
+    [coordinator],
+  )
   useEffect(() => () => cancelAnimationFrame(growScrollRef.current), [])
 
   const scrollByPage = useCallback(
     (direction: 1 | -1) => {
       const doc = docScrollRef.current
       if (!doc) return
+      coordinator.interrupt()
 
       const max = Math.max(0, doc.scrollHeight - window.innerHeight)
       const atTop = direction === -1 && window.scrollY <= 1
@@ -66,6 +72,7 @@ export function usePageScroll(deps: ScrollDeps, slide: WindowSlide) {
       docScrollRef,
       slidePendingRef,
       pendingPageRef,
+      coordinator,
     ],
   )
 

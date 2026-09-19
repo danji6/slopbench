@@ -18,6 +18,7 @@ const mcpTransportSchema = z.enum(MCP_TRANSPORTS)
 
 export const mcpToolMetaSchema = z.object({
   name: z.string(),
+  allowInReadOnly: z.boolean().optional(),
   nameOverride: z.string().optional(),
   description: z.string().optional(),
   descriptionOverride: z.string().optional(),

@@ -1,6 +1,7 @@
 import { errorMessage } from '@sb/core/utils/errors'
 
 import { error } from '../errors'
+import { sidecarRequest } from './sidecarTransport'
 
 const DEFAULT_SIDECAR_URL = 'http://localhost:3212'
 
@@ -9,11 +10,14 @@ export function sidecarUrl(): string {
 }
 
 export async function postSidecar<T>(path: string, body: unknown): Promise<T> {
-  const response = await fetch(`${sidecarUrl()}${path}`, {
-    method: 'POST',
-    body: JSON.stringify(body),
-    headers: { 'Content-Type': 'application/json' },
-  })
+  const response = await fetch(
+    `${sidecarUrl()}${path}`,
+    sidecarRequest({
+      method: 'POST',
+      body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/json' },
+    }),
+  )
 
   if (!response.ok) await sidecarError(response)
 
@@ -21,7 +25,7 @@ export async function postSidecar<T>(path: string, body: unknown): Promise<T> {
 }
 
 export async function getSidecar<T>(path: string): Promise<T> {
-  const response = await fetch(`${sidecarUrl()}${path}`)
+  const response = await fetch(`${sidecarUrl()}${path}`, sidecarRequest())
 
   if (!response.ok) await sidecarError(response)
 
@@ -35,7 +39,7 @@ export async function sidecarDefaultShell(): Promise<string | undefined> {
   if (defaultShell) return defaultShell
 
   try {
-    const response = await fetch(`${sidecarUrl()}/shell/info`)
+    const response = await fetch(`${sidecarUrl()}/shell/info`, sidecarRequest())
     if (!response.ok) return undefined
     const { shell } = (await response.json()) as { shell?: string }
     defaultShell = shell
@@ -54,10 +58,13 @@ export async function* openShellStream(
   signal?: AbortSignal,
 ): AsyncGenerator<ShellStreamEvent> {
   const url = `${sidecarUrl()}${path}?${new URLSearchParams(query).toString()}`
-  const response = await fetch(url, {
-    headers: { Accept: 'text/event-stream' },
-    signal,
-  })
+  const response = await fetch(
+    url,
+    sidecarRequest({
+      headers: { Accept: 'text/event-stream' },
+      signal,
+    }),
+  )
 
   if (response.status === 404) error('Job not found for this session', 404)
   if (!response.ok) await sidecarError(response)

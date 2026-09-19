@@ -142,6 +142,8 @@ export function useScrollPersistence(
       saved.creationTime,
       saved.segmentIndex,
       {
+        kind: 'restore',
+        onCancelled: () => onRestoreSettledRef.current(),
         offset: saved.offset,
         rowKey: saved.rowKey,
         onSettled: () => onRestoreSettledRef.current(),

@@ -4,3 +4,6 @@ minimumReleaseAge = 259200
 
 [test]
 root = "tests"
+# Browser tests run separately through Playwright.
+pathIgnorePatterns = ["**/browser/**"]
+preload = ["./tests/setup/services.ts"]

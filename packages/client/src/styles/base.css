@@ -1,0 +1,22 @@
+@layer base {
+  * {
+    @apply border-border outline-ring ring-offset-background;
+  }
+  html {
+    height: 100%;
+    font-family: var(--font-sans);
+    @apply bg-background;
+  }
+  #root {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+  body {
+    min-height: 100%;
+    @apply bg-background text-foreground;
+  }
+  button {
+    @apply cursor-pointer;
+  }
+}

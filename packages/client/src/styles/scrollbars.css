@@ -1,0 +1,24 @@
+/* --- Scrollbar --- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar) transparent;
+}
+
+html {
+  scrollbar-width: none;
+}
+html::-webkit-scrollbar {
+  display: none;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar);
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background-color: transparent;
+}
+/* ----------------- */

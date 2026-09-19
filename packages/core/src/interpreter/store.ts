@@ -19,7 +19,10 @@ export function environmentCapError(
 export function createVariableStore(
   initial: Record<string, JsonValue> = {},
 ): VariableStore {
-  const data: Record<string, JsonValue> = { ...initial }
+  const data: Record<string, JsonValue> = Object.assign(
+    Object.create(null),
+    initial,
+  )
   let dirty = false
 
   return {

@@ -4,6 +4,7 @@ import { api, internal } from '../_generated/api'
 import { action } from '../_generated/server'
 import { error } from '../errors'
 import { sidecarUrl } from '../model/sidecar'
+import { sidecarRequest } from '../model/sidecarTransport'
 import type { McpDialedTransport, McpToolMeta } from '../types'
 import * as V from '../validators/args'
 
@@ -24,11 +25,14 @@ export const discoverMcpTools = action({
     }
 
     const base = sidecarUrl()
-    const response = await fetch(new URL('/mcp-ext/list', base).toString(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, transport, apiKey: key }),
-    })
+    const response = await fetch(
+      new URL('/mcp-ext/list', base).toString(),
+      sidecarRequest({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, transport, apiKey: key }),
+      }),
+    )
 
     const data = (await response.json()) as {
       tools?: McpToolMeta[]

@@ -1,0 +1,177 @@
+/* --- Streaming caret --- */
+.streaming-cursor::after,
+.streaming-cursor-code
+  [data-slot='code-surface']
+  .shiki
+  .line:last-child::after,
+.streaming-cursor-code
+  [data-slot='code-surface']
+  pre:not(.shiki)
+  > code::after {
+  content: '▍';
+  display: inline;
+  color: var(--base-muted-foreground);
+}
+
+.streaming-cursor-idle .streaming-cursor::after,
+.streaming-cursor-idle
+  .streaming-cursor-code
+  [data-slot='code-surface']
+  .shiki
+  .line:last-child::after,
+.streaming-cursor-idle
+  .streaming-cursor-code
+  [data-slot='code-surface']
+  pre:not(.shiki)
+  > code::after {
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* --- Message version switch cross-fade --- */
+@keyframes version-swap-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+[data-version-swap='1'] {
+  animation: version-swap-fade 200ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-version-swap='1'] {
+    animation: none;
+  }
+}
+
+/* --- Shimmer (running tool labels) --- */
+@keyframes text-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@utility text-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--base-muted-foreground) 35%,
+    var(--base-foreground) 50%,
+    var(--base-muted-foreground) 65%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: text-shimmer 3s linear infinite;
+}
+
+/* --- Diff line highlighting --- */
+.shiki-diff code {
+  display: inline-block;
+  min-width: 100%;
+}
+
+.shiki-diff .line {
+  display: inline-block;
+  min-width: 100%;
+}
+
+.shiki-diff .line::before {
+  content: attr(data-gutter);
+  white-space: pre;
+  display: inline-block;
+  margin-right: 1rem;
+  padding-right: 1rem;
+  text-align: right;
+  color: var(--base-muted-foreground);
+  border-right: 1px solid var(--base-border);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.shiki-diff .line.diff-add {
+  background-color: color-mix(in oklab, #22c55e 16%, transparent);
+}
+
+.shiki-diff .line.diff-remove {
+  background-color: color-mix(in oklab, #ef4444 16%, transparent);
+}
+
+.shiki-diff .line.diff-meta {
+  color: var(--base-muted-foreground);
+}
+
+/* --- Line number gutter --- */
+.shiki-numbered .shiki {
+  position: relative;
+}
+
+.shiki-numbered pre {
+  /* Match the editor's line-height. */
+  line-height: calc(var(--spacing) * 4.5);
+}
+
+.shiki-numbered .shiki::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--line-number-digits, 2) * 1ch + 1rem);
+  border-left: 1px solid var(--base-border);
+  pointer-events: none;
+}
+
+.shiki-numbered .shiki code {
+  counter-reset: step;
+  counter-increment: step 0;
+  display: inline-block;
+  min-width: 100%;
+}
+
+.shiki-numbered .shiki .line::before {
+  content: counter(step);
+  counter-increment: step;
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  box-sizing: content-box;
+  width: calc(var(--line-number-digits, 2) * 1ch);
+  padding-right: 1rem;
+  text-align: right;
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+  color: var(--base-muted-foreground);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Remove numbering from Shiki's empty trailing line. */
+.shiki-numbered .shiki .line:last-child:empty::before {
+  content: none;
+}
+
+.shiki-numbered .shiki .line {
+  position: relative;
+  display: inline-block;
+  vertical-align: top;
+  min-width: 100%;
+  min-height: 1lh;
+  box-sizing: border-box;
+  padding-left: calc(var(--line-number-digits, 2) * 1ch + 2rem);
+}

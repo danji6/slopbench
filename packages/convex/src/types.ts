@@ -19,6 +19,8 @@ import type * as V from './validators'
 export type { Role } from './lib/roles'
 export type * from '@sb/core/types'
 
+export type McpExecutionArgs = Infer<typeof V.mcpExecutionArgsValidator>
+
 export type StreamContext = {
   stream: Doc<'streams'>
   session: Doc<'sessions'>

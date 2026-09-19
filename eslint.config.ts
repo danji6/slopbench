@@ -16,6 +16,8 @@ export default defineConfig(
       'dist',
       'build',
       'packages/client/dist',
+      'tests/browser/dist',
+      'test-results',
       'packages/client/src/tests',
       'packages/convex/src/_generated',
       'packages/client/public/assets',

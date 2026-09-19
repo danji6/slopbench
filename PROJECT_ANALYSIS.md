@@ -1,14 +1,62 @@
 # Project Analysis
 
-Updated after inspecting the current codebase at commit `0d6092b`
-(2026-08-05), including the uncommitted working tree. The previous revision of
-this document described the tree at `960dd83` (2026-07-29); since then the
-backend has been substantially restructured (`bda987e` and its follow-ups), so
-the data model, settings, and query sections below are re-derived rather than
-patched.
+Updated on 2026-09-18 for the uncommitted maintainability and security work.
+The architectural overview below was originally audited at `0d6092b` on
+2026-08-05. This update covers the refactored modules and changed security
+boundaries; it is not a fresh audit of every product feature or outstanding bug.
+See `REFACTOR_PLAN.md` for scope, verification, and remaining release checks.
 
-This document describes the project as it exists now. The test suite is green
-at this revision (1448 tests across 155 files).
+## Maintainability update
+
+The major orchestration files now delegate to modules with distinct owners:
+
+| Area                   | Coordinator / public API                           | Extracted responsibilities                                                                                                                                                                    |
+| ---------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stream engine          | `actions/stream/engine.ts`                         | `engine_setup`, `engine_step`, `engine_output`, `engine_approval`, `engine_log`, `engine_watchdog`                                                                                            |
+| Provider history       | `actions/stream/history.ts`                        | Ordered content conversion, tool pairing, approval preview, and sender handling in `history_*`                                                                                                |
+| Provider options       | `model/provider/options.ts`                        | `model_factory`, `reasoning_options`, `reasoning_replay`, `inference_options`                                                                                                                 |
+| Durable streams        | `model/stream/lifecycle.ts`                        | Claims, progress, metadata, terminal transitions, cleanup, control, and reservations in `lifecycle_*`                                                                                         |
+| Sessions               | `model/session/sessions.ts`                        | Access, queries, settings, duplication, workspace, and teardown in `session_*`                                                                                                                |
+| Shell                  | `model/tool/shell.ts`, sidecar `shell/registry.ts` | Transport watching, deadlines, output accumulation, process interaction, output ring, subscribers, and shared `core/shell/job-protocol.ts`                                                    |
+| Settings / approval UI | `user-settings.tsx`, `tool-approval-picker.tsx`    | Pure form mappings, ordered save orchestration, approval policy, mutation controller, and keyboard interaction                                                                                |
+| Scrolling              | `lib/scroller.ts`, message-list hooks              | `scroll-coordinator` owns operation priority/cancellation; bindings own DOM subscriptions; observers measure changes; follow/frame modules own animation; initial-position owns first restore |
+| Styles                 | `globals.css`                                      | Ordered imports of theme, base, messages, scrollbars, variants, popups, editors, and utilities                                                                                                |
+
+The public entry points, core package, path aliases, transaction ordering, and
+lazy provider/action boundaries are retained. Generated barrels exclude
+internal settings helpers. The scroller remains a substantial policy class;
+its DOM subscriptions, animation, and operation ownership now live separately.
+Further splitting should follow actual responsibilities rather than line count.
+
+Three intentional compatibility changes accompany the refactors:
+
+- Operational sidecar HTTP, MCP, and SSE requests require a dedicated
+  `SIDECAR_SECRET`. The runner provisions matching backend and sidecar values;
+  only readiness at `/health` is public. Internal requests reject redirects,
+  and shell job environments strip this credential. External MCP credentials
+  and arbitrary configured URLs retain their existing behavior.
+- Dynamic JavaScript executes in a fresh QuickJS guest inside a disposable
+  browser or Node worker. Defaults are 64 MiB guest heap, 1 MiB guest stack,
+  a one-second guest execution budget, and a five-second worker deadline.
+  Sidecar concurrency is two workers plus 32 queued requests. Guest code has
+  no host process, DOM, network, or ambient filesystem access. Backend file
+  helpers require separately authorized workspace context; browser previews
+  have no file authority. Errors abort the batch, without committing partial
+  environment changes. Preview results are asynchronous and stale results
+  are discarded. Direct synchronous interpreter callers must initialize the
+  evaluator first; production callers use the async request/worker boundary.
+- External MCP tools default to allowed in plan/read-only mode unless their
+  saved tool metadata explicitly sets `allowInReadOnly` to false. The wrapper reloads
+  mode and configuration before each invocation, including during a running
+  turn. This setting controls permission to run, not whether the external
+  server can make changes. The new
+  field is optional, so existing databases need no backfill.
+
+These changes improve isolation and maintainability; they do not resolve all
+product TODOs or establish public-release readiness. Authenticated end-to-end
+smoke testing against real providers and WebKit execution remain release checks.
+The browser fixture exercises production hooks and bundled workers with local
+rows; it does not exercise the whole authenticated application.
 
 ## Executive Summary
 
@@ -19,7 +67,7 @@ workspace with four main packages:
 - `packages/client`: React 19 and Vite frontend
 - `packages/convex`: Convex backend, data model, actions, and business logic
 - `packages/core`: shared runtime-neutral types and helpers
-- `packages/sidecar`: local Bun/Hono service for MCP, workspace, shell jobs,
+- `packages/sidecar`: local Node/Hono service for MCP, workspace, shell jobs,
   and image/agent I/O
 
 The application is organized around sessions. A session can contain humans,
@@ -149,7 +197,7 @@ flowchart LR
   Convex --> DB[(Convex tables)]
   Convex --> Storage[(Convex storage)]
   Convex --> Providers[AI providers]
-  Convex <-->|HTTP + SSE| Sidecar[Local Bun/Hono sidecar]
+  Convex <-->|HTTP + SSE| Sidecar[Local Node/Hono sidecar]
   Sidecar --> BuiltinMCP[Builtin MCP tools]
   Sidecar --> ExternalMCP[External MCP servers]
   Sidecar --> Shell[PTY shell job registry]
@@ -213,7 +261,7 @@ workspace while Convex still finds its root configuration.
 
 The project is TypeScript-first and Bun-first:
 
-- Bun for package management, scripts, tests, sidecar execution, and workspace
+- Bun for package management, scripts, tests, sidecar bundling, and workspace
   orchestration
 - React 19, Vite, Wouter, and Tailwind CSS v4 for the frontend
 - Base UI for headless UI primitives, plus `vaul-base` (a Base UI dialog based
@@ -1552,7 +1600,8 @@ AI SDK tool call
 ```
 
 Only text content is returned to the model. MCP error results are converted
-into tool failures.
+into tool failures. Each invocation rechecks the live server/tool configuration
+and session mode; plan/read-only mode blocks tools explicitly opted out.
 
 ## Workspace and Sidecar
 
@@ -1582,7 +1631,8 @@ approval previews, path sensitivity checks, workspace instructions discovery,
 and checkpoint restoration.
 
 Convex never reads arbitrary local files directly. It calls the sidecar only
-after auth and role checks. The sidecar does not hot-reload; changes to it
+after auth and role checks, using the dedicated internal Bearer credential.
+The sidecar rejects unauthenticated operational requests. The sidecar does not hot-reload; changes to it
 require a restart.
 
 ## Shell Jobs
@@ -1794,7 +1844,7 @@ Focus and viewport handling are centralized:
   (`useLocationProperty`) rather than a whole-search hook, so a widely-read
   hook cannot re-render the app on every navigation.
 
-The frontend uses workers for Shiki highlighting and theme work, and a shared
+The frontend uses workers for Shiki highlighting, theme work, and dynamic prompt previews, and a shared
 KaTeX cache for math, so expensive rendering support does not block chat
 interactions. The same Shiki/Tiptap editing primitives serve visible message
 code, prompt directives, user scripts, and custom CSS settings.
@@ -1803,7 +1853,10 @@ code, prompt directives, user scripts, and custom CSS settings.
 
 Tests are Bun-based and focused around behavior rather than broad snapshots,
 organized as `tests/{ai,auth,chat,client,core,markdown,mcp,server}` —
-114 files, 1102 tests, currently all passing. Coverage includes:
+183 files, 1705 tests passing in the final refactor verification. Chromium
+also passes eight Playwright checks using production scrolling hooks and
+bundled evaluation workers. WebKit is configured in the same suite and CI,
+but could not launch locally because system libraries are missing. Coverage includes:
 
 - stream lifecycle: claim freshness, over-cap segment splitting, rollover,
   retry, resume, debounce, slow mode, and reasoning durations

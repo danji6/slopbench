@@ -1,205 +1,41 @@
-import { probeStdinWait, scanAltScreen } from './interactive'
-import { type PtyMode, type ShellJobProcess, spawnJob } from './pty'
+import { startWaitProbe } from './job-interaction'
+import { trackAltScreen } from './job-interaction'
+import { type ShellJobStatus } from './job-protocol'
+import { type StartShellJobInput } from './job-protocol'
+import { type ShellJobSummary } from './job-protocol'
+import { type PollResult } from './job-protocol'
+import { type ShellStreamEvent } from './job-protocol'
+import { type ShellJob } from './job-state'
+import { OutputRing } from './output-ring'
+import { type PtyMode, spawnJob } from './pty'
+import { ShellJobSubscriber } from './subscriber'
 
-const MAX_BUFFER_CHARS = 1_000_000
+export type { ShellJobStatus } from './job-protocol'
+export type { StartShellJobInput } from './job-protocol'
+export type { ShellJobSummary } from './job-protocol'
+export type { PollResult } from './job-protocol'
+export type { RingSnapshot } from './output-ring'
+export type { RingSubscription } from './output-ring'
+export { OutputRing } from './output-ring'
+export type { ShellStreamEvent } from './job-protocol'
+export { ShellJobSubscriber } from './subscriber'
+
 const MAX_RUNNING_PER_SESSION = 8
+
 const DEFAULT_FOREGROUND_TIMEOUT_S = 120
+
 const MAX_TIMEOUT_S = 1800
+
 const FINISHED_JOB_TTL_MS = 30 * 60 * 1000
+
 const SWEEP_INTERVAL_MS = 60 * 1000
+
 const EXIT_FLUSH_MS = 50
-const WAIT_PROBE_MS = 700
-
-export type ShellJobStatus = 'running' | 'done' | 'killed' | 'timeout'
-
-export type StartShellJobInput = {
-  sessionId: string
-  /** Whoever's stop terminates this job. */
-  owner?: string
-  /** Message (tool call) this job belongs to. */
-  messageId?: string
-  messageCreatedAt?: number
-  toolCallId?: string
-  workspaceId: string
-  command: string
-  cwd: string
-  timeoutSeconds?: number
-  background?: boolean
-  cols?: number
-  rows?: number
-  shell?: string
-  allowInteractiveShells?: boolean
-}
-
-export type ShellJobSummary = {
-  jobId: string
-  messageId?: string
-  messageCreatedAt?: number
-  toolCallId?: string
-  command: string
-  status: ShellJobStatus
-  exitCode: number | null
-  background: boolean
-  waiting: boolean
-  startedAt: number
-  exitedAt?: number
-  mode: PtyMode
-}
-
-export type PollResult = {
-  chunk: string
-  nextOffset: number
-  bufferStart: number
-  status: ShellJobStatus
-  exitCode: number | null
-  background: boolean
-  waiting: boolean
-}
-
-type ChunkListener = (chunk: string) => void
-
-export type RingSnapshot = { text: string; start: number; end: number }
-
-export type RingSubscription = {
-  initial: RingSnapshot
-  unsubscribe: () => void
-}
-
-/**
- * Scrollback buffer addressed by absolute character offsets to let readers
- * detect gaps after the head is dropped.
- */
-export class OutputRing {
-  private buffer = ''
-  private startOffset = 0
-  private listeners = new Set<ChunkListener>()
-
-  append(text: string) {
-    this.buffer += text
-    if (this.buffer.length > MAX_BUFFER_CHARS) {
-      const drop = this.buffer.length - MAX_BUFFER_CHARS
-      this.buffer = this.buffer.slice(drop)
-      this.startOffset += drop
-    }
-    for (const listener of this.listeners) listener(text)
-  }
-
-  read(from: number): RingSnapshot {
-    const start = Math.max(from, this.startOffset)
-    return {
-      text: this.buffer.slice(start - this.startOffset),
-      start,
-      end: this.startOffset + this.buffer.length,
-    }
-  }
-
-  subscribe(from: number, onChunk: ChunkListener): RingSubscription {
-    const initial = this.read(from)
-    this.listeners.add(onChunk)
-    return { initial, unsubscribe: () => this.listeners.delete(onChunk) }
-  }
-}
-
-export type ShellStreamEvent =
-  | { type: 'chunk'; text: string; nextOffset: number }
-  | { type: 'meta'; background: boolean; waiting: boolean }
-  | { type: 'end'; status: ShellJobStatus; exitCode: number | null }
-
-/** Buffers a shell's live output/status into an async iterator for the SSE route. */
-export class ShellJobSubscriber {
-  private pendingChunk = ''
-  private pendingMeta: { background: boolean; waiting: boolean } | null = null
-  private ended: { status: ShellJobStatus; exitCode: number | null } | null =
-    null
-  private wake: (() => void) | null = null
-  private cancelled = false
-
-  constructor(private offset: number) {}
-
-  readonly onChunk = (chunk: string) => {
-    this.pendingChunk += chunk
-    this.signal()
-  }
-
-  onMeta(background: boolean, waiting: boolean) {
-    this.pendingMeta = { background, waiting }
-    this.signal()
-  }
-
-  onEnd(status: ShellJobStatus, exitCode: number | null) {
-    this.ended = { status, exitCode }
-    this.signal()
-  }
-
-  cancel() {
-    this.cancelled = true
-    this.signal()
-  }
-
-  private signal() {
-    if (this.wake) {
-      const wake = this.wake
-      this.wake = null
-      wake()
-    }
-  }
-
-  async *events(): AsyncGenerator<ShellStreamEvent> {
-    while (true) {
-      if (this.pendingChunk) {
-        const text = this.pendingChunk
-        this.pendingChunk = ''
-        this.offset += text.length
-        yield { type: 'chunk', text, nextOffset: this.offset }
-        continue
-      }
-      if (this.pendingMeta) {
-        const { background, waiting } = this.pendingMeta
-        this.pendingMeta = null
-        yield { type: 'meta', background, waiting }
-        continue
-      }
-      if (this.ended) {
-        yield { type: 'end', ...this.ended }
-        return
-      }
-      if (this.cancelled) return
-      await new Promise<void>((resolve) => (this.wake = resolve))
-    }
-  }
-}
-
-type ShellJob = {
-  jobId: string
-  sessionId: string
-  owner?: string
-  messageId?: string
-  messageCreatedAt?: number
-  toolCallId?: string
-  workspaceId: string
-  command: string
-  proc: ShellJobProcess
-  ring: OutputRing
-  status: ShellJobStatus
-  endReason?: 'killed' | 'timeout'
-  exitCode: number | null
-  background: boolean
-  allowInteractiveShells: boolean
-  /** Job is waiting on terminal input (blocked stdin read or alt screen). */
-  waiting: boolean
-  stdinWait: boolean
-  altScreen: boolean
-  altCarry: string
-  waitProbe?: ReturnType<typeof setInterval>
-  startedAt: number
-  exitedAt?: number
-  /** Absent when the job runs without a timeout. */
-  timeoutTimer?: ReturnType<typeof setTimeout>
-  subscribers: Set<ShellJobSubscriber>
-}
 
 const jobs = new Map<string, ShellJob>()
+
 let sweeper: ReturnType<typeof setInterval> | undefined
+
 let jobCounter = 0
 
 function nextJobId(): string {
@@ -310,50 +146,6 @@ function resolveTimeoutMs(input: StartShellJobInput): number | null {
     MAX_TIMEOUT_S,
   )
   return seconds * 1000
-}
-
-/**
- * Periodically probes /proc for a blocked stdin read while the job runs.
- * Skipped in pipe mode, where there is no pty to wait on.
- */
-function startWaitProbe(job: ShellJob) {
-  const pid = job.proc.pid
-  if (pid === undefined || job.proc.mode === 'pipe') return
-  job.waitProbe = setInterval(() => {
-    if (job.status !== 'running') return
-    const stdinWait = probeStdinWait(pid)
-    if (stdinWait === job.stdinWait) return
-    job.stdinWait = stdinWait
-    updateWaiting(job)
-  }, WAIT_PROBE_MS)
-  job.waitProbe.unref?.()
-}
-
-function trackAltScreen(job: ShellJob, chunk: string) {
-  const scanned = scanAltScreen(job.altCarry + chunk, job.altScreen)
-  job.altCarry = scanned.carry
-  if (scanned.active === job.altScreen) return
-  job.altScreen = scanned.active
-  updateWaiting(job)
-}
-
-const interactiveError =
-  '\r\nError: Interactive shells are disabled. This command requires terminal' +
-  ' input. Try a non-interactive command instead (for example, supply input' +
-  ' or use non-interactive flags).\r\n'
-
-function updateWaiting(job: ShellJob) {
-  const waiting = job.status === 'running' && (job.stdinWait || job.altScreen)
-  if (waiting && !job.allowInteractiveShells) {
-    if (job.endReason) return
-    job.endReason = 'killed'
-    job.ring.append(interactiveError)
-    job.proc.kill()
-    return
-  }
-  if (waiting === job.waiting) return
-  job.waiting = waiting
-  for (const sub of job.subscribers) sub.onMeta(job.background, waiting)
 }
 
 function requireJob(jobId: string, sessionId: string): ShellJob {

@@ -1,5 +1,12 @@
 import { fileBlock } from '@sb/core/workspace/blocks'
-import { readFileSync, realpathSync, statSync } from 'node:fs'
+import {
+  closeSync,
+  fstatSync,
+  openSync,
+  readSync,
+  realpathSync,
+  statSync,
+} from 'node:fs'
 import path from 'node:path'
 
 import { assertInside, expandHome } from '../mcp/workspace/paths'
@@ -57,7 +64,7 @@ export function createFileHelper(
 
     let content: string
     try {
-      content = readFileSync(target, 'utf-8')
+      content = readBoundedFile(target)
     } catch {
       return ''
     }
@@ -65,6 +72,22 @@ export function createFileHelper(
       content = `${content.slice(0, MAX_FILE_BYTES)}\n[truncated]`
     }
     return wrap ? fileBlock(filePath, content) : content
+  }
+}
+
+/** Reads only regular files and caps allocation before reading. */
+function readBoundedFile(target: string): string {
+  const fd = openSync(target, 'r')
+  try {
+    if (!fstatSync(fd).isFile()) return ''
+    const buffer = Buffer.alloc(MAX_FILE_BYTES + 1)
+    const count = readSync(fd, buffer, 0, buffer.length, 0)
+    const text = buffer
+      .subarray(0, Math.min(count, MAX_FILE_BYTES))
+      .toString('utf8')
+    return count > MAX_FILE_BYTES ? text + '\n[truncated]' : text
+  } finally {
+    closeSync(fd)
   }
 }
 

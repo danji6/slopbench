@@ -41,6 +41,7 @@ export function mcpTransportCandidates(
 /** A tool discovered from an external MCP server. */
 export const mcpToolMetaSchema = z.object({
   name: z.string(),
+  allowInReadOnly: z.boolean().optional(),
   nameOverride: z.string().optional(), // user's custom alias
   description: z.string().optional(),
   descriptionOverride: z.string().optional(), // user's custom description
@@ -71,6 +72,7 @@ export type McpConnection = {
 export function clampMcpTools(tools: McpToolMeta[]): McpToolMeta[] {
   return tools.slice(0, MAX_SERVER_MCP_TOOLS).map((tool) => ({
     name: tool.name.slice(0, MAX_MCP_DESCRIPTION_CHARS),
+    allowInReadOnly: tool.allowInReadOnly,
     nameOverride: clamp(tool.nameOverride, MAX_MCP_DESCRIPTION_CHARS),
     description: clamp(tool.description, MAX_MCP_DESCRIPTION_CHARS),
     descriptionOverride: clamp(

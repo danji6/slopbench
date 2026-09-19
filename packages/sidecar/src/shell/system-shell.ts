@@ -125,11 +125,12 @@ function signalGroup(pid: number, signal: NodeJS.Signals): boolean {
 
 /** Environment shared by every job. */
 export function jobEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
+  const env = { ...process.env, ...extra }
+  delete env.SIDECAR_SECRET
   return {
-    ...process.env,
+    ...env,
     PAGER: 'cat',
     GIT_PAGER: 'cat',
     GIT_TERMINAL_PROMPT: '0',
-    ...extra,
   }
 }

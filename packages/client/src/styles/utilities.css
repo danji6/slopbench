@@ -1,0 +1,45 @@
+/* ---------------------------------------------- */
+
+@utility bg-scrim-to-t {
+  background: linear-gradient(
+    to top,
+    var(--tw-gradient-from) 0%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 1.3%) 8.1%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 4.9%) 15.5%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 10.4%) 22.5%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 17.5%) 29%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 25.9%) 35.3%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 35.2%) 41.2%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 45%) 47.1%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 55%) 52.9%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 64.8%) 58.8%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 74.1%) 64.7%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 82.5%) 71%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 89.6%) 77.5%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 95.1%) 84.5%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 98.7%) 91.9%,
+    transparent 100%
+  );
+}
+@utility bg-scrim-to-b {
+  background: linear-gradient(
+    to bottom,
+    var(--tw-gradient-from) 0%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 1.3%) 8.1%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 4.9%) 15.5%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 10.4%) 22.5%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 17.5%) 29%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 25.9%) 35.3%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 35.2%) 41.2%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 45%) 47.1%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 55%) 52.9%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 64.8%) 58.8%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 74.1%) 64.7%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 82.5%) 71%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 89.6%) 77.5%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 95.1%) 84.5%,
+    color-mix(in srgb, var(--tw-gradient-from), transparent 98.7%) 91.9%,
+    transparent 100%
+  );
+}
+/* ----------------- */

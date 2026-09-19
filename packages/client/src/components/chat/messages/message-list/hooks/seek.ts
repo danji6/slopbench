@@ -2,6 +2,7 @@ import type { useMessageStore } from '@/hooks/chat'
 import { getNavPaddingPx } from '@/hooks/nav-padding'
 import { type MessageRow, findToolRow } from '@/lib/chat/rows'
 import { workExpansion } from '@/lib/chat/work-state'
+import type { ScrollOperation } from '@/lib/scroll-coordinator'
 import { trackUntilSettled } from '@/lib/scroll-settle'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -21,6 +22,8 @@ type SeekOptions = {
 }
 
 export type SeekTargetOptions = {
+  kind?: 'restore' | 'navigate'
+  onCancelled?: () => void
   /** Offset (px) of the anchor row's top from the nav-padding line. */
   offset?: number
   /** Stable key of the exact row to align to, for sub-message precision. */
@@ -86,18 +89,27 @@ export function useSeek(
   { anchorAround, rows, messageStore }: SeekOptions,
 ) {
   const { scroller, virtuaRef, rowsRef, topPadding } = deps
-  const { holdPosition } = scroller
+  const { holdPosition, coordinator } = scroller
+  const operationRef = useRef<ScrollOperation | null>(null)
+  const seekSettleRef = useRef<(() => void) | null>(null)
 
   const scrollToMessage = useCallback(
     (id: string) => {
+      const operation = coordinator.begin('navigate')
+      if (!operation) return
+      holdPosition()
       const index = rows.findIndex((row) => row.messageId === id)
-      if (index < 0) return
+      if (index < 0) {
+        operation.finish()
+        return
+      }
       virtuaRef.current?.scrollToIndex(index, {
         align: 'nearest',
         offset: -getNavPaddingPx(topPadding),
       })
+      operation.finish()
     },
-    [rows, topPadding, virtuaRef],
+    [rows, topPadding, virtuaRef, coordinator, holdPosition],
   )
 
   const pendingTargetRef = useRef<
@@ -123,6 +135,7 @@ export function useSeek(
     clearNotFoundTimer()
     const target = pendingTargetRef.current
     pendingTargetRef.current = null
+    operationRef.current?.finish()
     target?.onNotFound?.()
   }, [clearNotFoundTimer])
 
@@ -134,6 +147,18 @@ export function useSeek(
       segmentIndex?: number,
       options?: SeekTargetOptions,
     ) => {
+      const operation = coordinator.begin(options?.kind ?? 'navigate')
+      if (!operation) {
+        options?.onCancelled?.()
+        return
+      }
+      operationRef.current = operation
+      operation.onCancel(() => {
+        clearNotFoundTimer()
+        pendingTargetRef.current = null
+        seekSettleRef.current?.()
+        options?.onCancelled?.()
+      })
       clearNotFoundTimer()
       pendingTargetRef.current = {
         ...options,
@@ -146,10 +171,9 @@ export function useSeek(
       holdPosition() // disable autoscroller
       setSeekTick((tick) => tick + 1)
     },
-    [holdPosition, clearNotFoundTimer],
+    [holdPosition, clearNotFoundTimer, coordinator],
   )
 
-  const seekSettleRef = useRef<(() => void) | null>(null)
   // Scroll to a target until its top settles at the offset below the nav padding
   const scrollToTargetSettled = useCallback(
     (target: {
@@ -164,6 +188,7 @@ export function useSeek(
 
       seekSettleRef.current = trackUntilSettled(
         () => {
+          if (!operationRef.current?.isCurrent()) return 0
           const resolved = resolveAlignTarget(
             rowsRef.current,
             target.id,
@@ -186,12 +211,24 @@ export function useSeek(
           if (Math.abs(delta) > 1) window.scrollBy({ top: delta })
           return delta
         },
-        { onDone: target.onSettled },
+        {
+          onDone: () => {
+            if (!operationRef.current?.isCurrent()) return
+            operationRef.current.finish()
+            target.onSettled?.()
+          },
+        },
       )
     },
     [topPadding, rowsRef, virtuaRef],
   )
-  useEffect(() => () => seekSettleRef.current?.(), [])
+  useEffect(
+    () => () => {
+      seekSettleRef.current?.()
+      operationRef.current?.finish()
+    },
+    [],
+  )
   useEffect(() => clearNotFoundTimer, [clearNotFoundTimer])
 
   const resolveToolRow = useCallback(
@@ -211,7 +248,7 @@ export function useSeek(
   // Resolve a pending scroll target, anchoring the window around it if needed
   useEffect(() => {
     const target = pendingTargetRef.current
-    if (!target) return
+    if (!target || !operationRef.current?.isCurrent()) return
 
     const loaded =
       target.segmentIndex === undefined

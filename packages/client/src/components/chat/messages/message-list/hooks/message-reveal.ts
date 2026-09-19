@@ -33,13 +33,25 @@ export function useMessageReveal(
   }: RevealOptions,
 ) {
   const { virtuaRef, rowsRef, metaRef, topPadding } = deps
+  const { coordinator, holdPosition } = deps.scroller
+  const revealFrame = useRef(0)
+  useEffect(() => () => cancelAnimationFrame(revealFrame.current), [])
 
   const revealResolvedMessage = useCallback(
-    (resolveMessageId: () => string | undefined) => {
+    (
+      resolveMessageId: () => string | undefined,
+      kind: 'follow' | 'navigate' = 'follow',
+    ) => {
+      if (kind === 'follow' && coordinator.kind === 'follow') return
+      const operation = coordinator.begin(kind)
+      if (!operation) return
+      if (kind === 'navigate') holdPosition()
+      operation.onCancel(() => cancelAnimationFrame(revealFrame.current))
       const topPaddingPx = getNavPaddingPx(topPadding)
       let attempts = 0
 
       const tryReveal = () => {
+        if (!operation.isCurrent()) return
         const messageId = resolveMessageId()
         const index =
           messageId === undefined
@@ -54,14 +66,17 @@ export function useMessageReveal(
             align: 'start',
             offset: -topPaddingPx,
           })
+          operation.finish()
           return
         }
-        if (++attempts < 30) requestAnimationFrame(tryReveal)
+        if (++attempts < 30)
+          revealFrame.current = requestAnimationFrame(tryReveal)
+        else operation.finish()
       }
 
-      requestAnimationFrame(tryReveal)
+      revealFrame.current = requestAnimationFrame(tryReveal)
     },
-    [topPadding, rowsRef, virtuaRef],
+    [topPadding, rowsRef, virtuaRef, coordinator, holdPosition],
   )
 
   const revealMessage = useCallback(
@@ -78,7 +93,7 @@ export function useMessageReveal(
       return current.length > baselineLength
         ? current[current.length - 1]?.messageId
         : undefined
-    })
+    }, 'navigate')
   }, [returnToLatest, revealResolvedMessage, rowsRef, metaRef])
 
   const remoteRevealReadyRef = useRef(false)

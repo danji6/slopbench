@@ -43,13 +43,14 @@ describe('evaluate file helper', () => {
     expect(evaluate("{{ readFile('AGENTS.md') }}")).toBe('')
   })
 
-  test('renders empty when the helper throws', () => {
-    const result = evaluate("{{ readFile('../escape') }}", {}, undefined, {
-      readFile: () => {
-        throw new Error('Path escapes the configured workspace')
-      },
-    })
-    expect(result).toBe('')
+  test('rejects evaluation when the helper throws', () => {
+    const result = () =>
+      evaluate("{{ readFile('../escape') }}", {}, undefined, {
+        readFile: () => {
+          throw new Error('Path escapes the configured workspace')
+        },
+      })
+    expect(result).toThrow('Dynamic JavaScript')
   })
 })
 

@@ -1,19 +1,21 @@
+import { ScrollCoordinator } from '@/lib/scroll-coordinator'
 import { ElementScrollTarget, WindowScrollTarget } from '@/lib/scroll-target'
 import { type AutoScrollerOptions, Scroller } from '@/lib/scroller'
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 export type ScrollMode = 'element' | 'window'
 
 export function useScroller(
-  options?: AutoScrollerOptions & { mode?: ScrollMode },
+  options?: AutoScrollerOptions & { mode?: ScrollMode; editing?: boolean },
 ) {
   const mode = options?.mode ?? 'element'
+  const [coordinator] = useState(() => new ScrollCoordinator())
   const scrollerRef = useRef<Scroller | null>(null)
   const scrollRef = useRef<HTMLElement | null>(null)
   const sentinelRef = useRef<HTMLDivElement | null>(null)
 
   if (scrollerRef.current === null) {
-    scrollerRef.current = new Scroller(options)
+    scrollerRef.current = new Scroller({ ...options, coordinator })
   }
 
   const lockScroll = useCallback(() => {
@@ -67,6 +69,10 @@ export function useScroller(
   )
 
   useEffect(() => {
+    scrollerRef.current?.coordinator.setEditing(options?.editing ?? false)
+  }, [options?.editing])
+
+  useEffect(() => {
     if (scrollerRef.current && options?.enabled !== undefined) {
       scrollerRef.current.enabled = options.enabled
     }
@@ -113,6 +119,7 @@ export function useScroller(
   }, [mode])
 
   return {
+    coordinator,
     scrollRef,
     sentinelRef,
     lockScroll,

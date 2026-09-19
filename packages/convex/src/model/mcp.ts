@@ -7,7 +7,26 @@ import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 import { error } from '../errors'
 import type { AuthMutationCtx, AuthQueryCtx } from '../functions'
+import type { McpExecutionArgs } from '../types'
 import * as Credentials from './credentials'
+import { getMode } from './session/sessions'
+
+/** Resolves live server configuration and mode immediately before execution. */
+export async function _getExecution(
+  ctx: QueryCtx,
+  { agentId, sessionId, serverKey }: McpExecutionArgs,
+) {
+  const agent = await ctx.db.get(agentId)
+  const session = await ctx.db.get(sessionId)
+  if (!agent || !session) return null
+  const servers = await resolve(ctx, agent.ownerId, { withCredentials: true })
+  const server = servers.find(
+    (candidate) => candidate.id === serverKey && candidate.enabled,
+  )
+  return server
+    ? { server, readOnly: (await getMode(ctx, sessionId)) === 'plan' }
+    : null
+}
 
 /** What the settings UI renders. */
 export type McpServerView = Omit<McpServer, 'apiKey'> & {
@@ -143,6 +162,7 @@ function sameTools(existing: Doc<'mcpTools'>[], next: McpToolMeta[]): boolean {
     existing.every(
       (row, index) =>
         row.name === next[index].name &&
+        row.allowInReadOnly === next[index].allowInReadOnly &&
         row.nameOverride === next[index].nameOverride &&
         row.description === next[index].description &&
         row.descriptionOverride === next[index].descriptionOverride &&
@@ -196,12 +216,14 @@ async function listTools(
     ({
       name,
       nameOverride,
+      allowInReadOnly,
       description,
       descriptionOverride,
       inputSchema,
     }) => ({
       name,
       nameOverride,
+      allowInReadOnly,
       description,
       descriptionOverride,
       inputSchema,

@@ -14,7 +14,11 @@ const SIDECAR_ENTRY = resolve(projectRoot, 'packages/sidecar/src/main.ts')
 /** Bundles the sidecar to plain JS so it can run under Node. */
 export async function buildSidecar(): Promise<string> {
   const result = await Bun.build({
-    entrypoints: [SIDECAR_ENTRY],
+    entrypoints: [
+      SIDECAR_ENTRY,
+      resolve(projectRoot, 'packages/sidecar/src/eval/worker.ts'),
+    ],
+    naming: '[name].[ext]',
     external: [
       '@hono/node-server',
       '@modelcontextprotocol/sdk',
@@ -28,6 +32,7 @@ export async function buildSidecar(): Promise<string> {
       'tinyglobby',
       'turndown',
       'zod',
+      'quickjs-emscripten',
     ],
     format: 'esm',
     outdir: OUT_DIR,
@@ -48,6 +53,11 @@ export function resolveNodeBinary(): string {
 }
 
 if (import.meta.main) {
+  if (!process.env.SIDECAR_SECRET?.trim()) {
+    throw new Error(
+      'SIDECAR_SECRET must match the backend; run ./start.sh or ./dev.sh to provision it automatically',
+    )
+  }
   const entry = await buildSidecar()
   const child = Bun.spawn({
     cmd: [resolveNodeBinary(), entry],

@@ -1,43 +1,10 @@
-import {
-  useActiveSession,
-  useActiveSessionState,
-  useChatMessage,
-  useIsAdmin,
-  useStreamAwaitingApproval,
-  useStreamProcessingMessageId,
-} from '@/hooks/chat'
-import type { RememberScope, ToolApprovals } from '@/lib/chat'
-import { formatAlwaysAllowLabel } from '@/lib/chat/approval-label'
-import { optimisticallyRespondApproval } from '@/lib/chat/approval-optimistic'
-import { useComposerDraft } from '@/lib/chat/composer-draft-store'
-import { toastError } from '@/lib/notifications'
-import {
-  serializeBlocksToMarkdown,
-  setEditorMarkdown,
-} from '@/lib/tiptap/serialize'
+import { useToolApprovalPicker } from '@/hooks/chat/tool-approval'
+import { summarizeInput } from '@/lib/chat/tool-approval-policy'
+import { HOLD_HINTS } from '@/lib/chat/tool-approval-policy'
 import { cn } from '@/lib/utils'
-import { api } from '@sb/convex/_generated/api'
-import {
-  analyzeShellCommand,
-  isPathForbidden,
-  isReadOnlyShellCommand,
-  toolNamesForApproval,
-} from '@sb/convex/lib/tool/approval'
-import type { PathApprovalStatus } from '@sb/core/workspace/path-policy'
-import type { Editor } from '@tiptap/react'
-import type { ToolUIPart } from 'ai'
-import { useMutation } from 'convex/react'
+import { type api } from '@sb/convex/_generated/api'
 import type { FunctionReturnType } from 'convex/server'
-import {
-  type RefObject,
-  Suspense,
-  lazy,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { type RefObject, Suspense, lazy } from 'react'
 
 import { Code, T } from '../../ui'
 import { Command } from '../../ui/command'
@@ -48,37 +15,6 @@ const ComposerEditor = lazy(() =>
   })),
 )
 
-type ApprovalAction = {
-  id: string
-  label: string
-  shortcut: string
-  remember?: RememberScope
-  approved: boolean
-  abort?: boolean
-}
-
-type PlanApprovalMeta = {
-  heading: string
-  approveLabel: string
-  denyLabel: string
-  /** When true, the deny action aborts the turn instead of denying the tool. */
-  denyAborts?: boolean
-}
-
-const PLAN_APPROVALS: Record<string, PlanApprovalMeta> = {
-  exit_plan_mode: {
-    heading: 'The agent wants to start implementing the plan.',
-    approveLabel: 'Approve plan',
-    denyLabel: 'Keep planning',
-    denyAborts: true,
-  },
-  enter_plan_mode: {
-    heading: 'The agent wants to plan before making changes.',
-    approveLabel: 'Enter plan mode',
-    denyLabel: 'Decline',
-  },
-}
-
 export type SubagentApproval = FunctionReturnType<
   typeof api.subagents.pendingApprovals
 >[number]
@@ -88,138 +24,21 @@ export function ToolApprovalPicker({
   restoreFocusRef,
   onAbort,
   childApproval,
-}: {
-  className?: string
-  restoreFocusRef?: RefObject<{ focus(options?: FocusOptions): void } | null>
-  onAbort?: () => void
-  childApproval?: SubagentApproval
-}) {
-  const session = useActiveSession()
-  const state = useActiveSessionState()
-  const approvals = childApproval?.toolApprovals ?? state?.toolApprovals
-  const isAdmin = useIsAdmin()
-  const processingMessageId = useStreamProcessingMessageId()
-  const awaitingApproval = useStreamAwaitingApproval()
-  const approveTool = useMutation(api.chat.approveTool).withOptimisticUpdate(
-    optimisticallyRespondApproval,
-  )
-  const { message } = useChatMessage(processingMessageId ?? '')
-  const rootRef = useRef<HTMLDivElement>(null)
-  const noteEditorRef = useRef<Editor | null>(null)
-  const draft = useComposerDraft(childApproval?.sessionId ?? session?._id)
-  const [selectedAction, setSelectedAction] = useState('')
-
-  const part = (childApproval?.parts ?? message?.parts)?.find(
-    isApprovalRequested,
-  ) as (ToolUIPart & { approvalPathStatus?: PathApprovalStatus }) | undefined
-  const toolName = part?.type.replace('tool-', '') ?? ''
-  const planApproval = PLAN_APPROVALS[toolName]
-  const description = getDescription(part?.input)
-  const hold =
-    session && part && !planApproval
-      ? approvalHold(
-          toolName,
-          part.input,
-          childApproval ? childApproval.mode : session.mode,
-          part.approvalPathStatus,
-        )
-      : null
-  const rememberLabel =
-    session && part && !planApproval && hold !== 'forbidden'
-      ? alwaysLabel(toolName, part.input, approvals)
-      : null
-  const visible =
-    isAdmin &&
-    Boolean(childApproval || awaitingApproval) &&
-    Boolean(session && part)
-
-  const respond = useCallback(
-    async (approved: boolean, remember?: RememberScope, note?: string) => {
-      if (!session || !part) return
-      draft.clear()
-      try {
-        await approveTool({
-          sessionId: session._id,
-          ...(childApproval ? { childSessionId: childApproval.sessionId } : {}),
-          toolCallId: part.toolCallId,
-          approved,
-          ...(remember ? { remember } : {}),
-          ...(!approved ? { reason: 'Denied by user.' } : {}),
-          ...(note ? { note } : {}),
-        })
-        // Still mounted when further approvals are pending in the same turn
-        const editor = noteEditorRef.current
-        if (editor && !editor.isDestroyed) editor.commands.clearContent(true)
-      } catch (err) {
-        // The rolled back picker remounts its editor from the draft
-        if (note) draft.flush(note)
-        toastError(err)
-      }
-    },
-    [approveTool, part, session, draft, childApproval],
-  )
-  const actions = useMemo(
-    () =>
-      buildApprovalActions(
-        Boolean(isAdmin && session && part),
-        rememberLabel,
-        hold,
-        planApproval,
-      ),
-    [isAdmin, part, hold, planApproval, rememberLabel, session],
-  )
-  const selectAction = useCallback(
-    (action: ApprovalAction) => {
-      const editor = noteEditorRef.current
-      const note = editor ? serializeBlocksToMarkdown(editor).trim() : ''
-      if (action.abort) {
-        // Preserve the note so it reappears in the composer after the abort
-        draft.flush(note)
-        onAbort?.()
-        return
-      }
-      void respond(action.approved, action.remember, note || undefined)
-    },
-    [respond, onAbort, draft],
-  )
-
-  const handleNoteReady = useCallback(
-    (editor: Editor) => {
-      noteEditorRef.current = editor
-      editor.on('update', () => draft.save(serializeBlocksToMarkdown(editor)))
-      const saved = draft.read()
-      if (saved) setEditorMarkdown(editor, saved)
-    },
-    [draft],
-  )
-
-  useSelectedApprovalAction(actions, setSelectedAction)
-
-  useEffect(() => {
-    if (!visible || !restoreFocusRef) return
-    const restoreFocusTarget = restoreFocusRef.current
-    return () => restoreFocusTarget?.focus({ preventScroll: true })
-  }, [restoreFocusRef, visible])
-
-  // Keep the picker focused as it appears and as the request changes
-  useEffect(() => {
-    if (visible) rootRef.current?.focus({ preventScroll: true })
-  }, [visible, part?.toolCallId])
-
-  const focusNote = useCallback(
-    () => noteEditorRef.current?.commands.focus(),
-    [],
-  )
-
-  useApprovalKeybinds({
+}: ToolApprovalPickerProps) {
+  const {
+    visible,
+    part,
+    rootRef,
+    planApproval,
+    toolName,
+    description,
+    hold,
     actions,
-    onSelect: selectAction,
     selectedAction,
     setSelectedAction,
-    visible,
-    rootRef,
-    focusNote,
-  })
+    selectAction,
+    handleNoteReady,
+  } = useToolApprovalPicker({ restoreFocusRef, onAbort, childApproval })
 
   if (!visible || !part) return null
 
@@ -326,254 +145,9 @@ export function ToolApprovalPicker({
   )
 }
 
-function buildApprovalActions(
-  enabled: boolean,
-  rememberLabel: string | null,
-  hold: ApprovalHold,
-  planApproval?: PlanApprovalMeta,
-): ApprovalAction[] {
-  if (!enabled) return []
-
-  let key = 1
-  const getKey = () => String(key++)
-
-  const items: ApprovalAction[] = [
-    {
-      id: 'approve',
-      label: planApproval?.approveLabel ?? 'Allow',
-      shortcut: getKey(),
-      approved: true,
-    },
-  ]
-
-  if (planApproval) {
-    items.push({
-      id: 'deny',
-      label: planApproval.denyLabel,
-      shortcut: getKey(),
-      approved: false,
-      abort: planApproval.denyAborts,
-    })
-    return items
-  }
-
-  if (hold === 'paths') {
-    items.push({
-      id: 'remember-paths',
-      label: 'Allow access and edits to these paths for this session',
-      shortcut: getKey(),
-      approved: true,
-      remember: 'paths',
-    })
-  } else if (rememberLabel) {
-    items.push({
-      id: 'remember-patterns',
-      label: rememberLabel,
-      shortcut: getKey(),
-      approved: true,
-      remember: 'patterns',
-    })
-  }
-
-  items.push({
-    id: 'deny',
-    label: 'Deny',
-    shortcut: getKey(),
-    approved: false,
-  })
-
-  items.push({
-    id: 'abort',
-    label: 'Abort',
-    shortcut: getKey(),
-    approved: false,
-    abort: true,
-  })
-
-  return items
-}
-
-function useSelectedApprovalAction(
-  actions: ApprovalAction[],
-  setSelectedAction: (value: string) => void,
-) {
-  const actionSignature = actions.map((action) => action.id).join('|')
-  const [prevActionSignature, setPrevActionSignature] =
-    useState(actionSignature)
-
-  if (prevActionSignature !== actionSignature) {
-    setPrevActionSignature(actionSignature)
-    setSelectedAction(actions[0]?.id ?? '')
-  }
-}
-
-function useApprovalKeybinds({
-  actions,
-  onSelect,
-  selectedAction,
-  setSelectedAction,
-  visible,
-  rootRef,
-  focusNote,
-}: {
-  actions: ApprovalAction[]
-  onSelect: (action: ApprovalAction) => void
-  selectedAction: string
-  setSelectedAction: (value: string) => void
-  visible: boolean
-  rootRef: React.RefObject<HTMLDivElement | null>
-  focusNote: () => void
-}) {
-  useEffect(() => {
-    if (!visible || actions.length === 0) return
-
-    function handleKeyDown(e: KeyboardEvent) {
-      const root = rootRef.current
-      if (!root || !root.contains(document.activeElement)) return
-
-      // While typing a note, let the editor own its keys. Ctrl/Cmd+Enter still
-      // submits the highlighted action; Escape hands focus back to the list.
-      const typingNote =
-        (document.activeElement as HTMLElement | null)?.isContentEditable ===
-        true
-      if (typingNote) {
-        // Tab/Escape leave the note and hand focus to the options list
-        if (e.key === 'Tab' || e.key === 'Escape') {
-          e.preventDefault()
-          e.stopPropagation()
-          root.focus({ preventScroll: true })
-        } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-          e.preventDefault()
-          e.stopPropagation()
-          const action =
-            actions.find((item) => item.id === selectedAction) ?? actions[0]
-          if (action) onSelect(action)
-        }
-        return
-      }
-
-      // From the options, Tab/Shift+Tab moves into the note editor
-      if (e.key === 'Tab') {
-        e.preventDefault()
-        e.stopPropagation()
-        focusNote()
-        return
-      }
-
-      if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.length === 1) {
-        const key = e.key.toLowerCase()
-        const action = actions.find((item) => item.shortcut === key)
-        if (action) {
-          e.preventDefault()
-          onSelect(action)
-          return
-        }
-      }
-
-      if (e.key === 'ArrowDown') {
-        e.preventDefault()
-        const idx = actions.findIndex((action) => action.id === selectedAction)
-        setSelectedAction(actions[(idx + 1) % actions.length]!.id)
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault()
-        const idx = actions.findIndex((action) => action.id === selectedAction)
-        setSelectedAction(
-          actions[(idx - 1 + actions.length) % actions.length]!.id,
-        )
-      } else if (e.key === 'Enter') {
-        e.preventDefault()
-        const action = actions.find((item) => item.id === selectedAction)
-        if (action) onSelect(action)
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown, { capture: true })
-    return () =>
-      window.removeEventListener('keydown', handleKeyDown, { capture: true })
-  }, [
-    actions,
-    onSelect,
-    rootRef,
-    selectedAction,
-    setSelectedAction,
-    visible,
-    focusNote,
-  ])
-}
-
-function isApprovalRequested(part: { type: string; state?: string }) {
-  return part.type.startsWith('tool-') && part.state === 'approval-requested'
-}
-
-function summarizeInput(input: unknown): string {
-  if (input && typeof input === 'object') {
-    const record = input as Record<string, unknown>
-    if (typeof record.command === 'string') return record.command
-    if (typeof record.path === 'string') return record.path
-  }
-  return JSON.stringify(input ?? {}, null, 2)
-}
-
-function getDescription(input: unknown): string | null {
-  const description = (input as { description?: string } | undefined)
-    ?.description
-  return typeof description === 'string' && description.trim()
-    ? description.trim()
-    : null
-}
-
-function getCommand(input: unknown): string | null {
-  const command = (input as { command?: string } | undefined)?.command
-  return typeof command === 'string' ? command : null
-}
-
-function alwaysLabel(
-  toolName: string,
-  input: unknown,
-  approvals: ToolApprovals | undefined,
-): string | null {
-  if (toolName !== 'shell') {
-    return toolNamesForApproval(toolName).length > 1
-      ? 'Allow edits for this session'
-      : 'Always allow for this session'
-  }
-
-  const command = getCommand(input)
-  if (command === null) return null
-
-  const { unapproved } = analyzeShellCommand(command, approvals?.shell ?? [])
-  if (unapproved.length === 0) return null
-
-  return formatAlwaysAllowLabel(unapproved)
-}
-
-/** Why an otherwise covered call still needs approval. */
-type ApprovalHold = 'forbidden' | 'plan' | 'paths' | 'analysis' | null
-
-// prettier-ignore
-const HOLD_HINTS: Record<NonNullable<ApprovalHold>, string> = {
-  forbidden: 'This accesses a forbidden path and always requires approval.',
-  plan: 'Plan mode is active and this command is not read-only.',
-  paths: 'This command references git-ignored files or paths outside the workspace.',
-  analysis: 'This command’s path operands cannot be verified statically.',
-}
-
-function approvalHold(
-  toolName: string,
-  input: unknown,
-  mode: string | undefined,
-  pathStatus?: PathApprovalStatus,
-): ApprovalHold {
-  if (toolName !== 'shell') {
-    const path = (input as { path?: string } | undefined)?.path
-    return typeof path === 'string' && isPathForbidden(path)
-      ? 'forbidden'
-      : null
-  }
-
-  const command = getCommand(input)
-  if (command === null) return null
-  if (pathStatus === 'forbidden') return 'forbidden'
-  if (mode === 'plan' && !isReadOnlyShellCommand(command)) return 'plan'
-  return pathStatus ?? null
+export type ToolApprovalPickerProps = {
+  className?: string
+  restoreFocusRef?: RefObject<{ focus(options?: FocusOptions): void } | null>
+  onAbort?: () => void
+  childApproval?: SubagentApproval
 }

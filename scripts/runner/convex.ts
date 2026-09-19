@@ -1,11 +1,20 @@
-import { SCHEMA_MIGRATION_VERSION, type SchemaMigrationState } from '@sb/core/migration-version'
+import {
+  SCHEMA_MIGRATION_VERSION,
+  type SchemaMigrationState,
+} from '@sb/core/migration-version'
 import { randomBytes } from 'node:crypto'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { type RunnerConfig, browserOrigins } from './config'
 import { loadEnvFile, readEnvFile, updateEnvFile } from './env-file'
-import { type ProcessManager, bunx, commandResult, green, output } from './processes'
+import {
+  type ProcessManager,
+  bunx,
+  commandResult,
+  green,
+  output,
+} from './processes'
 
 // The backend gets the Convex URLs from flags
 const runnerOwnedEnvVars = new Set(['CONVEX_CLOUD_URL', 'CONVEX_SITE_URL'])
@@ -26,12 +35,15 @@ export async function prepareEnvironment(config: RunnerConfig) {
   config.instanceSecret = instanceSecret
   config.convexSelfHostedAdminKey = adminKey
   config.betterAuthSecret = betterAuthSecret
+  config.sidecarSecret =
+    process.env.SIDECAR_SECRET ?? randomBytes(32).toString('hex')
 
   const origins = browserOrigins(config)
   await updateEnvFile(
     config.envFile,
     {
       BETTER_AUTH_SECRET: betterAuthSecret,
+      SIDECAR_SECRET: config.sidecarSecret,
       CONVEX_SELF_HOSTED_ADMIN_KEY: adminKey,
       INSTANCE_SECRET: instanceSecret,
       VITE_CONVEX_SITE_URL: origins.siteUrl,
@@ -103,7 +115,7 @@ export async function startBackend(
 }
 
 export async function setConvexEnvironment(config: RunnerConfig) {
-  if (!config.betterAuthSecret) {
+  if (!config.betterAuthSecret || !config.sidecarSecret) {
     throw new Error('Convex credentials were not prepared')
   }
 
@@ -116,6 +128,7 @@ export async function setConvexEnvironment(config: RunnerConfig) {
     values.set(key, process.env[key] ?? value)
   }
   values.set('BETTER_AUTH_SECRET', config.betterAuthSecret)
+  values.set('SIDECAR_SECRET', config.sidecarSecret)
   values.set('SITE_URL', origins.siteUrl)
   values.set('FRONTEND_URL', origins.frontendUrl)
   values.set('TRUST_ALL_ORIGINS', config.trustAny ? 'true' : 'false')

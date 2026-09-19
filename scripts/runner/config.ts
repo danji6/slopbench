@@ -31,6 +31,7 @@ export type BrowserOrigins = {
 
 export type RunnerConfig = {
   betterAuthSecret?: string
+  sidecarSecret?: string
   binDir: string
   clientRoot: string
   convexBinary: string

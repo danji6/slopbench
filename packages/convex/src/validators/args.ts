@@ -212,6 +212,12 @@ export const replaceMcpServersArgsValidator = v.object({
   ),
 })
 
+export const mcpExecutionArgsValidator = v.object({
+  agentId: v.id('agents'),
+  sessionId: v.id('sessions'),
+  serverKey: v.string(),
+})
+
 export const discoverMcpToolsArgsValidator = v.object({
   url: v.string(),
   transport: mcpTransportValidator,

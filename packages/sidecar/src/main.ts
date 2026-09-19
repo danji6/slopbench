@@ -1,13 +1,11 @@
 import { serve } from '@hono/node-server'
-import { evaluate } from '@sb/core/interpreter/evaluate'
-import { createVariableStore } from '@sb/core/interpreter/store'
-import type { EvalContext, JsonValue } from '@sb/core/interpreter/types'
 import { mcpTransportSchema } from '@sb/core/types'
 import { errorMessage } from '@sb/core/utils/errors'
 import { type Context, Hono } from 'hono'
 import { ZodError, z } from 'zod'
 
-import { createFileExistsHelper, createFileHelper } from './eval/fileHelper'
+import { sidecarAuthentication } from './auth'
+import { evaluationRoutes } from './eval/routes'
 import {
   exportAgent,
   exportAgentSchema,
@@ -47,6 +45,10 @@ const PORT = Number(process.env.MCP_PORT ?? 3212)
 
 const app = new Hono()
 
+const authenticate = sidecarAuthentication(process.env.SIDECAR_SECRET)
+app.get('/health', (c) => c.json({ ready: true }))
+app.use('*', authenticate)
+
 app.post('/mcp', handleMcpRequest)
 
 const mcpConnectionSchema = z.object({
@@ -85,64 +87,7 @@ app.post('/mcp-ext/call', async (c) => {
 
 app.route('/shell', shellRoutes)
 
-app.post('/eval/prompts', async (c) => {
-  try {
-    const { items, context, environment } = (await c.req.json()) as {
-      items: Record<string, unknown>[]
-      context: EvalContext
-      environment: Record<string, JsonValue>
-    }
-    const store = createVariableStore(environment ?? {})
-    const helpers = {
-      readFile: createFileHelper(context.workDir),
-      fileExists: createFileExistsHelper(context.workDir),
-    }
-    const renderedItems = items.map((item) => {
-      if ('type' in item || !item.enabled) return item
-      return {
-        ...item,
-        content: evaluate(item.content as string, context, store, helpers),
-      }
-    })
-    return c.json({
-      items: renderedItems,
-      environment: store.toRecord(),
-      dirty: store.isDirty(),
-    })
-  } catch (err: unknown) {
-    return ioError(c, err)
-  }
-})
-
-app.post('/eval/message', async (c) => {
-  try {
-    const { parts, context, environment } = (await c.req.json()) as {
-      parts: Record<string, unknown>[]
-      context: EvalContext
-      environment: Record<string, JsonValue>
-    }
-    const store = createVariableStore(environment ?? {})
-    const helpers = {
-      readFile: createFileHelper(context.workDir),
-      fileExists: createFileExistsHelper(context.workDir),
-    }
-    const renderedParts = parts.map((part) =>
-      part.type === 'text'
-        ? {
-            ...part,
-            text: evaluate(part.text as string, context, store, helpers),
-          }
-        : part,
-    )
-    return c.json({
-      parts: renderedParts,
-      environment: store.toRecord(),
-      dirty: store.isDirty(),
-    })
-  } catch (err: unknown) {
-    return ioError(c, err)
-  }
-})
+app.route('/eval', evaluationRoutes)
 
 app.get('/update/status', async (c) => {
   try {

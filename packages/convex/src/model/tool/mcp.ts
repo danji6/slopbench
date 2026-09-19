@@ -2,6 +2,7 @@ import type { McpServer } from '@sb/core/types'
 
 import { ToolError, extractErrorMessage, toolFailure } from '../../errors'
 import { sidecarUrl as defaultSidecarUrl } from '../sidecar'
+import { sidecarRequest } from '../sidecarTransport'
 import type { McpManifestEntry } from './manifest'
 import { enabledMcpServers } from './settings'
 
@@ -34,7 +35,9 @@ export async function callMcpTool(
     ])
 
     const client = new Client({ name: 'convex', version: '1.0.0' })
-    const transport = new StreamableHTTPClientTransport(new URL(getMcpUrl()))
+    const transport = new StreamableHTTPClientTransport(new URL(getMcpUrl()), {
+      requestInit: sidecarRequest(),
+    })
 
     closeClient = () => client.close()
 
@@ -84,18 +87,21 @@ async function callExternalMcpTool(
   signal?: AbortSignal,
 ): Promise<string> {
   try {
-    const response = await fetch(getSidecarUrl('/mcp-ext/call'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url: server.url,
-        transport: server.transport,
-        apiKey: server.apiKey,
-        name,
-        args,
+    const response = await fetch(
+      getSidecarUrl('/mcp-ext/call'),
+      sidecarRequest({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: server.url,
+          transport: server.transport,
+          apiKey: server.apiKey,
+          name,
+          args,
+        }),
+        signal,
       }),
-      signal,
-    })
+    )
 
     const data = (await response.json()) as { text?: string; error?: string }
     if (!response.ok || data.error) {
@@ -110,6 +116,7 @@ async function callExternalMcpTool(
 export async function createExternalMcpTool(
   entry: McpManifestEntry,
   servers: McpServer[],
+  current?: () => Promise<{ server: McpServer; readOnly: boolean } | null>,
 ) {
   const { tool, jsonSchema } = await import('ai')
   const schema = parseInputSchema(entry.inputSchema) as Parameters<
@@ -119,14 +126,27 @@ export async function createExternalMcpTool(
     description: entry.description,
     inputSchema: jsonSchema(schema),
     execute: async (args, { abortSignal }) => {
-      const server = enabledMcpServers(servers).find(
-        (candidate) => candidate.id === entry.serverId,
-      )
+      const live = current ? await current() : undefined
+      const server = current
+        ? live?.server
+        : enabledMcpServers(servers).find(
+            (candidate) => candidate.id === entry.serverId,
+          )
       if (!server) {
         throw new ToolError(
           `The MCP server providing "${entry.name}" is no longer configured.`,
         )
       }
+      const configuredTool = server.tools?.find(
+        (candidate) => candidate.name === entry.toolName,
+      )
+      if (live?.readOnly && configuredTool?.allowInReadOnly === false) {
+        throw new ToolError(
+          'This external tool is not allowed in read-only mode.',
+        )
+      }
+      if (current && !configuredTool)
+        throw new ToolError('This external tool is no longer configured.')
       return callExternalMcpTool(server, entry.toolName, args, abortSignal)
     },
   })

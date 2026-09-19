@@ -68,14 +68,14 @@ describe('conditional blocks', () => {
     expect(evaluate(text, { userCount: 1 })).toBe('Head.')
   })
 
-  test('drops the branch silently when the condition throws', () => {
+  test('rejects evaluation when the condition throws', () => {
     const text = ['#if boom()', 'hidden', '#endif', 'shown'].join('\n')
-    expect(evaluate(text)).toBe('shown')
+    expect(() => evaluate(text)).toThrow('Dynamic JavaScript')
   })
 
-  test('drops the branch silently when the condition fails to compile', () => {
+  test('rejects evaluation when the condition fails to compile', () => {
     const text = ['#if )(', 'hidden', '#endif', 'shown'].join('\n')
-    expect(evaluate(text)).toBe('shown')
+    expect(() => evaluate(text)).toThrow('Dynamic JavaScript')
   })
 
   test('supports a multiline block as the condition', () => {

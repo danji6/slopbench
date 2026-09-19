@@ -2,18 +2,21 @@ import type { OrderedItem, Prompt, PromptItem } from '@/lib/chat'
 import type { PromptSource, ReminderPrompt } from '@/lib/chat'
 import { promptItemKey } from '@sb/convex/model/prompt/markers'
 import { mergeOrderedPromptItems } from '@sb/convex/model/prompt/merge'
-import { evaluate } from '@sb/core/interpreter/evaluate'
 import { hasInterpolation } from '@sb/core/interpreter/parse'
 import type { EvalContext } from '@sb/core/interpreter/types'
 
+import { evaluateInBrowser } from '../evaluation-worker'
 import { generateId } from '../utils'
 
 /** Preview eval outside of a session env. `getVar/setVar` are no-ops. */
-export function evaluatePromptPreview(
+export async function evaluatePromptPreview(
   content: string,
   context: EvalContext,
-): string {
-  return hasInterpolation(content) ? evaluate(content, context) : content
+  evaluate = evaluateInBrowser,
+): Promise<string> {
+  if (!hasInterpolation(content)) return content
+  const result = await evaluate({ texts: [content], context, kind: 'prompt' })
+  return result.texts[0]
 }
 
 export type MergedPromptItem = {

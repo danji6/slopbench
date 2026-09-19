@@ -25,3 +25,13 @@ jobs:
       - run: bun run typecheck
       - run: bun test
       - run: bun run build
+      - name: Install browser dependencies
+        run: bun x playwright install --with-deps chromium webkit
+      - run: bun run test:browser
+      - name: Upload browser failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-test-results
+          path: test-results/
+          if-no-files-found: ignore

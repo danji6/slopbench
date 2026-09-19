@@ -74,6 +74,10 @@ export async function _evalMessage(
   const result = await postSidecar<MessageEvalResult>('/eval/message', {
     parts: message.parts,
     context,
+    authorizedWorkDir:
+      context.isAdmin && context.tools?.includes('read_file')
+        ? context.workDir
+        : undefined,
     environment,
   })
 

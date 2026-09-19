@@ -195,9 +195,9 @@ async function readySidecar(
 ) {
   const sidecar = await startSidecar(manager, config)
   await waitForHttp(
-    `http://localhost:${config.sidecarPort}/mcp`,
+    `http://localhost:${config.sidecarPort}/health`,
     timeoutMs,
-    false,
+    true,
   )
   console.log('Sidecar server ready.')
   return sidecar
@@ -235,7 +235,11 @@ async function restartDashboard(manager: ProcessManager, config: RunnerConfig) {
 async function startSidecar(manager: ProcessManager, config: RunnerConfig) {
   const entry = await buildSidecar()
   const sidecar = await manager.spawn('sidecar', [config.nodeBinary, entry], {
-    env: { CHAT_SIDECAR_DATA_DIR: config.sidecarDataDir },
+    env: {
+      CHAT_SIDECAR_DATA_DIR: config.sidecarDataDir,
+      SIDECAR_SECRET: config.sidecarSecret,
+      MCP_PORT: String(config.sidecarPort),
+    },
   })
   console.log(`Started sidecar server (pid ${sidecar.pid})`)
   return sidecar

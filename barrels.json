@@ -28,6 +28,7 @@
     "\\/lib\\/code-block-editing\\.ts$",
     "\\/lib\\/dynamic-block\\.ts$",
     "\\/lib\\/editor-clear\\.ts$",
-    "\\/lib\\/command-filter\\.ts$"
+    "\\/lib\\/command-filter\\.ts$",
+    "\\/user-settings-(values|persistence)\\.ts$"
   ]
 }

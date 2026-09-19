@@ -103,6 +103,15 @@ export async function getEnabledTools(
       resources: resources ?? EMPTY_TOOL_RESOURCES,
       workspace,
       planContext,
+      mcpExecution:
+        ctx && sessionId && options?.agentId
+          ? (serverKey) =>
+              ctx.runQuery(internal.mcp._getExecution, {
+                sessionId,
+                agentId: options.agentId!,
+                serverKey,
+              })
+          : undefined,
     })
     if (built) tools[name] = built
   }
@@ -164,6 +173,9 @@ type BuildContext = {
   resources: ToolResources
   workspace?: WorkspaceToolContext
   planContext?: PlanToolContext
+  mcpExecution?: (
+    serverKey: string,
+  ) => ReturnType<NonNullable<Parameters<typeof createExternalMcpTool>[2]>>
 }
 
 /** Constructs one tool by its cached name. */
@@ -213,5 +225,9 @@ async function createManifestTool(
 
   const entry = build.mcpByName.get(name)
   if (!entry) return undefined
-  return createExternalMcpTool(entry, build.resources.mcpServers)
+  return createExternalMcpTool(
+    entry,
+    build.resources.mcpServers,
+    build.mcpExecution ? () => build.mcpExecution!(entry.serverId) : undefined,
+  )
 }

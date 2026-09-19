@@ -9,7 +9,7 @@ import {
   getEditingAgentId,
   subscribeEditingAgent,
 } from '@/lib/chat/agent-editor-store'
-import { evaluatePromptPreview, mergePrompts } from '@/lib/chat/prompts'
+import { mergePrompts } from '@/lib/chat/prompts'
 import { api } from '@sb/convex/_generated/api'
 import type { Doc, Id } from '@sb/convex/_generated/dataModel'
 import type { EvalContext } from '@sb/core/interpreter/types'
@@ -18,6 +18,7 @@ import { useQuery as useCachedQuery } from 'convex-helpers/react/cache/hooks'
 import { useMutation, useQuery } from 'convex/react'
 import { useCallback, useMemo, useSyncExternalStore } from 'react'
 
+import { usePromptPreviews } from './prompt-previews'
 import { useLibraryPrompts, usePromptItems } from './prompts'
 import { useActiveSession, useActiveSessionId } from './session'
 import { useSettings, useSettingsUpdate } from './settings'
@@ -100,7 +101,7 @@ export function useAgentPrompts(workDir?: string) {
   const ownPrompts = usePromptItems('own', agent?._id)
   const libraryPrompts = useLibraryPrompts()
 
-  return useMemo(() => {
+  const data = useMemo(() => {
     const merged = agent
       ? mergePrompts(
           {
@@ -136,7 +137,7 @@ export function useAgentPrompts(workDir?: string) {
         parts: [
           {
             type: 'text' as const,
-            text: evaluatePromptPreview(prompt.content, context),
+            text: prompt.content,
           },
         ],
       }))
@@ -145,7 +146,13 @@ export function useAgentPrompts(workDir?: string) {
       ? { name: agent.name, avatarId: agent.avatarId }
       : undefined
 
-    return { messages, sender, css: agent?.customCss || undefined }
+    return {
+      messages,
+      sender,
+      css: agent?.customCss || undefined,
+      context,
+      texts: messages.map((message) => message.parts[0].text),
+    }
   }, [
     agent,
     sessionId,
@@ -156,6 +163,14 @@ export function useAgentPrompts(workDir?: string) {
     workDir,
     session?.workspace?.path,
   ])
+  const values = usePromptPreviews(data.texts, data.context)
+  return {
+    ...data,
+    messages: data.messages.map((message, index) => ({
+      ...message,
+      parts: [{ type: 'text' as const, text: values[index] }],
+    })),
+  }
 }
 
 /** The id of the agent being edited. */

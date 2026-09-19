@@ -36,6 +36,7 @@ import { MessageRowView } from '../message-row-view'
 import type { ScrollDeps, WindowMeta } from './deps'
 import { useDelayedVisibility } from './hooks/delayed-visibility'
 import { useFollowEdges } from './hooks/follow-edges'
+import { useInitialPosition } from './hooks/initial-position'
 import { useMessageReveal } from './hooks/message-reveal'
 import { usePageScroll } from './hooks/page-scroll'
 import { useScrollPersistence } from './hooks/scroll-persistence'
@@ -187,6 +188,7 @@ export function MessageList({
 
   const scroller = useScroller({
     enabled: autoScroll && !isEditing,
+    editing: isEditing,
     onSettle: onIntoViewSettle,
     onFollowRelease: releaseFollowOverride,
     onPositionChange: handlePositionChange,
@@ -194,18 +196,21 @@ export function MessageList({
     mode: 'window',
   })
   const {
+    coordinator,
     scrollRef,
     sentinelRef,
     lockScroll,
     unlockScroll,
     setShiftInProgress,
-    setReady,
-    scrollToBottom,
     holdPosition,
     scrollUntilCondition,
-    setImmediate,
     isAutoScrolling,
   } = scroller
+
+  useLayoutEffect(() => {
+    coordinator.resumeFollow()
+    return () => coordinator.cancel()
+  }, [coordinator, sessionId])
 
   const handleScrollChange = useCallback(
     (event?: Event) => onScrollChange?.(event, isAutoScrolling()),
@@ -393,41 +398,12 @@ export function MessageList({
     [],
   )
 
-  const hasInitiallyScrolledRef = useRef(false)
-  const initialSettleRef = useRef<(() => void) | null>(null)
-  // Scroll to the bottom once the session is fully loaded
-  useLayoutEffect(() => {
-    if (isLoading) return
-    setReady(true)
-    if (!hasInitiallyScrolledRef.current && rows.length > 0) {
-      hasInitiallyScrolledRef.current = true
-      // Attempt scroll restore
-      if (restoreScroll()) return
-      // Snap immediately while the freshly mounted list re-measures its rows
-      setImmediate(true)
-      virtuaRef.current?.scrollToIndex(rows.length - 1, { align: 'end' })
-      initialSettleRef.current?.()
-      initialSettleRef.current = trackHeightSettle(
-        () => scrollToBottom(true),
-        document.documentElement,
-        () => {
-          setImmediate(false)
-          // Reveal the list only after the height settles
-          markRevealed()
-        },
-      )
-    }
-  }, [
+  useInitialPosition(deps, {
     isLoading,
-    setReady,
-    rows.length,
-    scrollToBottom,
-    setImmediate,
+    rowCount: rows.length,
     restoreScroll,
     markRevealed,
-  ])
-
-  useEffect(() => () => initialSettleRef.current?.(), [])
+  })
 
   useLayoutEffect(() => {
     if (isEmpty) markRevealed()
@@ -451,13 +427,22 @@ export function MessageList({
   const onLayoutChange = useCallback(() => {
     holdPosition()
     setShiftInProgress(true)
-    requestAnimationFrame(() => setShiftInProgress(shiftHoldRef.current))
+    const current = coordinator.checkpoint()
+    requestAnimationFrame(() => {
+      if (current()) setShiftInProgress(shiftHoldRef.current)
+    })
 
     settleCancelRef.current?.()
     settleCancelRef.current = onScrollChange
       ? trackHeightSettle(handleScrollChange)
       : null
-  }, [holdPosition, setShiftInProgress, onScrollChange, handleScrollChange])
+  }, [
+    holdPosition,
+    setShiftInProgress,
+    onScrollChange,
+    handleScrollChange,
+    coordinator,
+  ])
 
   useEffect(() => () => settleCancelRef.current?.(), [])
 
