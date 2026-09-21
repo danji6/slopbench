@@ -74,8 +74,8 @@ export function AppearanceSettings({
   return (
     <SettingsList className="pb-4">
       <SettingsList.Switch
-        label="Override device font settings"
-        description="Save font choices to this device only, instead of syncing them to your account."
+        label="Local font settings"
+        description="Save font settings to this device only."
         checked={overrideFonts}
         onCheckedChange={toggleOverride}
       />

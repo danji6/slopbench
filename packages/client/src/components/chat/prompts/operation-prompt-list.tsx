@@ -179,7 +179,7 @@ function OperationPromptRow({
   onDelete: () => void
 }) {
   return (
-    <div className="bg-m3-surface-container-low border-input flex w-full items-center gap-0.5 rounded-full border py-1.5 pr-1.5 pl-2">
+    <div className="bg-m3-surface-container-low border-input flex w-full items-center gap-1 rounded-full border py-1.5 pr-1.5 pl-2">
       <button
         type="button"
         {...handleProps}
@@ -196,6 +196,7 @@ function OperationPromptRow({
         checked={prompt.enabled}
         onCheckedChange={onToggle}
         aria-label={`Enable ${prompt.name}`}
+        size="sm"
         className="mr-1"
       />
       <TooltipButton

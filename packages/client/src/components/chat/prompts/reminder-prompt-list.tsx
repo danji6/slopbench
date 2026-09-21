@@ -140,7 +140,7 @@ export function ReminderPromptList({
         render={(r) => (
           <div
             className={cn(
-              'bg-m3-surface-container-low border-input flex w-full items-center gap-0.5 rounded-full border py-1.5 pr-1.5 pl-5',
+              'bg-m3-surface-container-low border-input flex w-full items-center gap-1 rounded-full border py-1.5 pr-1.5 pl-5',
               r.isLibrary && 'bg-muted border-dashed opacity-60',
             )}
           >
@@ -149,7 +149,7 @@ export function ReminderPromptList({
               {r.role}
             </span>
             <span className="text-muted-foreground mr-2 text-xs whitespace-nowrap">
-              every {r.interval} {r.interval === 1 ? 'step' : 'steps'}
+              {r.interval} {r.interval === 1 ? 'step' : 'steps'}
             </span>
             {r.isLibrary ? (
               <>
@@ -170,6 +170,7 @@ export function ReminderPromptList({
                   <Switch
                     checked={r.enabled}
                     onCheckedChange={(v) => handleToggle(r.id, v)}
+                    size="sm"
                     className="mr-1"
                   />
                 )}

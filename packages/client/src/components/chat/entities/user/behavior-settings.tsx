@@ -26,7 +26,7 @@ export function BehaviorSettings({ control }: BehaviorSettingsProps) {
         name="invertSend"
         render={({ field }) => (
           <SettingsList.Switch
-            label="Send behavior"
+            label="Invert send"
             description={
               field.value
                 ? 'Shift+Enter sends and Enter inserts a line break.'
@@ -37,115 +37,7 @@ export function BehaviorSettings({ control }: BehaviorSettingsProps) {
           />
         )}
       />
-      <Controller
-        control={control}
-        name="autoTitle"
-        render={({ field }) => (
-          <SettingsList.Switch
-            label="Title generation"
-            description="Automatically generate a title for new sessions."
-            checked={field.value}
-            onCheckedChange={field.onChange}
-          />
-        )}
-      />
-      <Controller
-        control={control}
-        name="titleModel"
-        render={({ field }) => (
-          <SettingsList.Item
-            label="Title model"
-            description="Model used to generate session titles."
-            unclickable
-            unhoverable
-          >
-            <ModelPicker
-              variant="input"
-              value={field.value ?? ''}
-              onValueChange={(v) => field.onChange(v || null)}
-            />
-          </SettingsList.Item>
-        )}
-      />
-      <SettingsList.Item
-        unclickable
-        unhoverable
-        orientation="vertical"
-        label="Prompt library"
-        description="A library of prompts that can be reused across agents."
-      >
-        <Controller
-          control={control}
-          name="libraryPrompts"
-          render={({ field }) => (
-            <LibraryPromptList
-              prompts={field.value}
-              onChange={field.onChange}
-            />
-          )}
-        />
-      </SettingsList.Item>
-      <SettingsList.Item
-        unclickable
-        unhoverable
-        orientation="vertical"
-        label="Reminder library"
-        description="A library of reminders that can be reused across agents."
-      >
-        <Controller
-          control={control}
-          name="libraryReminders"
-          render={({ field }) => (
-            <ReminderPromptList
-              reminders={field.value}
-              onChange={field.onChange}
-              showEnabledSwitch={false}
-            />
-          )}
-        />
-      </SettingsList.Item>
-      <SettingsList.Item
-        unclickable
-        unhoverable
-        orientation="vertical"
-        label="Compaction prompts"
-        description="Prompts used when compacting conversation history."
-        help="Enabled prompts are appended after the agent prompts and conversation history, in the order shown."
-      >
-        <Controller
-          control={control}
-          name="compactionPrompts"
-          render={({ field }) => (
-            <OperationPromptList
-              prompts={field.value}
-              onChange={field.onChange}
-              kind="compaction"
-              createDefaults={createDefaultCompactionPrompts}
-            />
-          )}
-        />
-      </SettingsList.Item>
-      <SettingsList.Item
-        unclickable
-        unhoverable
-        orientation="vertical"
-        label="Impersonation prompts"
-        description="Prompts used when the agent sends a message on your behalf."
-        help="Enabled prompts are appended after the agent prompts and conversation history, in the order shown."
-      >
-        <Controller
-          control={control}
-          name="impersonationPrompts"
-          render={({ field }) => (
-            <OperationPromptList
-              prompts={field.value}
-              onChange={field.onChange}
-              kind="impersonation"
-              createDefaults={createDefaultImpersonationPrompts}
-            />
-          )}
-        />
-      </SettingsList.Item>
+
       <Controller
         control={control}
         name="scrollMode"
@@ -171,6 +63,7 @@ export function BehaviorSettings({ control }: BehaviorSettingsProps) {
           </SettingsList.Select>
         )}
       />
+
       <Controller
         control={control}
         name="mathMode"
@@ -199,6 +92,121 @@ export function BehaviorSettings({ control }: BehaviorSettingsProps) {
           </SettingsList.Select>
         )}
       />
+
+      <Controller
+        control={control}
+        name="autoTitle"
+        render={({ field }) => (
+          <SettingsList.Switch
+            label="Title generation"
+            description="Automatically generate a title for new sessions."
+            checked={field.value}
+            onCheckedChange={field.onChange}
+          />
+        )}
+      />
+
+      <Controller
+        control={control}
+        name="titleModel"
+        render={({ field }) => (
+          <SettingsList.Item
+            label="Title model"
+            description="Model used to generate session titles."
+            unclickable
+            unhoverable
+          >
+            <ModelPicker
+              variant="input"
+              value={field.value ?? ''}
+              onValueChange={(v) => field.onChange(v || null)}
+            />
+          </SettingsList.Item>
+        )}
+      />
+
+      <SettingsList.Item
+        unclickable
+        unhoverable
+        orientation="vertical"
+        label="Prompt library"
+        description="A library of prompts that can be reused across agents."
+      >
+        <Controller
+          control={control}
+          name="libraryPrompts"
+          render={({ field }) => (
+            <LibraryPromptList
+              prompts={field.value}
+              onChange={field.onChange}
+            />
+          )}
+        />
+      </SettingsList.Item>
+
+      <SettingsList.Item
+        unclickable
+        unhoverable
+        orientation="vertical"
+        label="Reminder library"
+        description="A library of reminders that can be reused across agents."
+      >
+        <Controller
+          control={control}
+          name="libraryReminders"
+          render={({ field }) => (
+            <ReminderPromptList
+              reminders={field.value}
+              onChange={field.onChange}
+              showEnabledSwitch={false}
+            />
+          )}
+        />
+      </SettingsList.Item>
+
+      <SettingsList.Item
+        unclickable
+        unhoverable
+        orientation="vertical"
+        label="Compaction prompts"
+        description="Prompts used when compacting conversation history."
+        help="Enabled prompts are appended after the agent prompts and conversation history, in the order shown."
+      >
+        <Controller
+          control={control}
+          name="compactionPrompts"
+          render={({ field }) => (
+            <OperationPromptList
+              prompts={field.value}
+              onChange={field.onChange}
+              kind="compaction"
+              createDefaults={createDefaultCompactionPrompts}
+            />
+          )}
+        />
+      </SettingsList.Item>
+
+      <SettingsList.Item
+        unclickable
+        unhoverable
+        orientation="vertical"
+        label="Impersonation prompts"
+        description="Prompts used when the agent sends a message on your behalf."
+        help="Enabled prompts are appended after the agent prompts and conversation history, in the order shown."
+      >
+        <Controller
+          control={control}
+          name="impersonationPrompts"
+          render={({ field }) => (
+            <OperationPromptList
+              prompts={field.value}
+              onChange={field.onChange}
+              kind="impersonation"
+              createDefaults={createDefaultImpersonationPrompts}
+            />
+          )}
+        />
+      </SettingsList.Item>
     </SettingsList>
   )
 }
