@@ -152,7 +152,7 @@ export function useSendMessage() {
 }
 
 async function uploadFiles(
-  files: FileUIPart[],
+  files: PendingMessage['files'],
   originalFiles: Record<string, File> | undefined,
   storeBlob: StoreBlob,
   confirm: ConfirmAttachment,
@@ -160,7 +160,7 @@ async function uploadFiles(
 ): Promise<StagedAttachment[]> {
   const settled = await Promise.allSettled(
     files.map(async (part) => {
-      const original = originalFiles?.[part.url]
+      const original = originalFiles?.[part.id]
       const meta = fileMeta(part, original)
       const isImage = meta.mediaType.startsWith('image/')
       const blob = original ?? (await dataUrlToBlob(part.url))

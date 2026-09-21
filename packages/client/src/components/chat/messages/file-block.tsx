@@ -23,11 +23,12 @@ export function FileBlock({ parts, attachmentIds }: FileBlockProps) {
 
   const files = useMemo(
     () =>
-      parts.map((part) => {
+      parts.map((part, index) => {
         const attachmentId = attachmentIds?.[part.url]
         const resolved = attachmentId ? urls[attachmentId] : undefined
         return buildFileItemFromPart(
           part,
+          `${index}:${attachmentId ?? part.url}`,
           resolved?.url ?? undefined,
           resolved?.previewUrl ?? undefined,
           resolved?.permaUrl ?? undefined,

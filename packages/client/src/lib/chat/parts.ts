@@ -272,6 +272,7 @@ export function getToolErrorText(part: ToolUIPart) {
 
 export function buildFileItemFromPart(
   part: FileUIPart,
+  id: string,
   originalUrl?: string,
   previewUrl?: string,
   permaUrl?: string,
@@ -306,6 +307,7 @@ export function buildFileItemFromPart(
   }
 
   return {
+    id,
     url,
     originalUrl,
     permaUrl,

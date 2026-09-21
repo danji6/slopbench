@@ -8,7 +8,7 @@ function fileItem(
   type: string,
   url = 'data:text/plain,hello',
 ): FileItem {
-  return { url, file: new File([], name, { type }) }
+  return { id: name, url, file: new File([], name, { type }) }
 }
 
 describe('text file viewer', () => {

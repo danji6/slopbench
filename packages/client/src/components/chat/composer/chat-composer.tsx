@@ -338,6 +338,7 @@ export function ChatComposer({
         <DropZone
           ref={dropZoneRef}
           onDrop={handleFilePick}
+          noPaste // pasting is owned by the editor
           noInputEvents
           noFocus
           className={cn(

@@ -123,11 +123,16 @@ export type UIModelConfig = {
   models: UIModel[]
 }
 
+/** Identifies one attachment occurrence before it is uploaded. */
+export type PendingFilePart = FileUIPart & { id: string }
+
 export type PendingMessage = {
   content: string
-  files: FileUIPart[]
+  files: PendingFilePart[]
   role?: MessageRole
+  /** Original files keyed by attachment occurrence ID. */
   originalFiles?: Record<string, File>
+  /** Converted text pastes keyed by attachment occurrence ID. */
   pastedText?: Record<string, { text: string; position: number }>
   silent?: boolean
 }

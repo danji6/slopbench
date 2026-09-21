@@ -1,14 +1,15 @@
 import type { FileItem } from '@/hooks/file-previews'
-import type { PendingMessage } from '@/lib/chat'
-import { buildFileItemFromPart, processFileForUpload } from '@/lib/chat'
 import {
   clearComposerAttachmentDraft,
   readComposerAttachmentDraft,
   writeComposerAttachmentDraft,
 } from '@/lib/chat/composer-attachment-draft-store'
+import { processFileForUpload } from '@/lib/chat/io'
+import { buildFileItemFromPart } from '@/lib/chat/parts'
+import type { PendingFilePart, PendingMessage } from '@/lib/chat/types'
 import { toastError } from '@/lib/notifications'
+import { generateId } from '@/lib/utils'
 import type { Editor } from '@tiptap/react'
-import type { FileUIPart } from 'ai'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 
@@ -24,7 +25,7 @@ export function useComposerAttachments({
   draftKey,
   editorRef,
 }: UseComposerAttachmentsOptions) {
-  const [fileParts, setFileParts] = useState<FileUIPart[]>([])
+  const [fileParts, setFileParts] = useState<PendingFilePart[]>([])
   const [originalFiles, setOriginalFiles] = useState<Record<string, File>>({})
   const [pastedText, setPastedText] = useState<PastedText>({})
   const [restoredDraftKey, setRestoredDraftKey] = useState<string | null>(null)
@@ -58,9 +59,11 @@ export function useComposerAttachments({
     if (!draftKey || restoredDraftKey !== draftKey) return
     const timeout = window.setTimeout(() => {
       const attachments = fileParts.flatMap((part) => {
-        const file = originalFiles[part.url]
-        const pasted = pastedText[part.url]
-        return file && pasted ? [{ file, pastePosition: pasted.position }] : []
+        const file = originalFiles[part.id]
+        const pasted = pastedText[part.id]
+        return file && pasted
+          ? [{ id: part.id, file, pastePosition: pasted.position }]
+          : []
       })
       void writeComposerAttachmentDraft(draftKey, attachments)
     }, 300)
@@ -70,8 +73,8 @@ export function useComposerAttachments({
   const files = useMemo<FileItem[]>(
     () =>
       fileParts.map((part) => ({
-        ...buildFileItemFromPart(part),
-        canInsertInline: part.url in pastedText,
+        ...buildFileItemFromPart(part, part.id),
+        canInsertInline: part.id in pastedText,
       })),
     [fileParts, pastedText],
   )
@@ -97,12 +100,12 @@ export function useComposerAttachments({
   const addFiles = useCallback(async (picked: File[]): Promise<boolean> => {
     for (const file of picked) {
       try {
-        const { part, originalFile } = await processFileForUpload(file)
+        const { part, originalFile } = await processComposerFile(file)
         setFileParts((previous) => [...previous, part])
         if (originalFile) {
           setOriginalFiles((previous) => ({
             ...previous,
-            [part.url]: originalFile,
+            [part.id]: originalFile,
           }))
         }
       } catch (error) {
@@ -122,15 +125,15 @@ export function useComposerAttachments({
       })
 
       try {
-        const { part, originalFile } = await processFileForUpload(file)
+        const { part, originalFile } = await processComposerFile(file)
         setFileParts((previous) => [...previous, part])
         setOriginalFiles((previous) => ({
           ...previous,
-          [part.url]: originalFile ?? file,
+          [part.id]: originalFile ?? file,
         }))
         setPastedText((previous) => ({
           ...previous,
-          [part.url]: { text, position },
+          [part.id]: { text, position },
         }))
       } catch (error) {
         toastError(error, 'Failed to attach pasted text')
@@ -139,15 +142,15 @@ export function useComposerAttachments({
     [],
   )
 
-  const removeFile = useCallback((url: string) => {
-    setFileParts((previous) => previous.filter((item) => item.url !== url))
-    setOriginalFiles((previous) => omitKey(previous, url))
-    setPastedText((previous) => omitKey(previous, url))
+  const removeFile = useCallback((id: string) => {
+    setFileParts((previous) => previous.filter((item) => item.id !== id))
+    setOriginalFiles((previous) => omitKey(previous, id))
+    setPastedText((previous) => omitKey(previous, id))
   }, [])
 
   const insertInline = useCallback(
-    (url: string) => {
-      const saved = pastedText[url]
+    (id: string) => {
+      const saved = pastedText[id]
       const editor = editorRef.current
       if (!saved || !editor) return
       const position = Math.min(saved.position, editor.state.doc.content.size)
@@ -160,7 +163,7 @@ export function useComposerAttachments({
         )
         .focus()
         .run()
-      removeFile(url)
+      removeFile(id)
     },
     [editorRef, pastedText, removeFile],
   )
@@ -181,7 +184,7 @@ export function useComposerAttachments({
 }
 
 type RestoredAttachmentDraft = {
-  fileParts: FileUIPart[]
+  fileParts: PendingFilePart[]
   originalFiles: Record<string, File>
   pastedText: PastedText
 }
@@ -191,8 +194,8 @@ async function restoreAttachmentDraft(
 ): Promise<RestoredAttachmentDraft | null> {
   const saved = await readComposerAttachmentDraft(draftKey)
   const processed = await Promise.allSettled(
-    saved.map(async ({ file, pastePosition }) => ({
-      ...(await processFileForUpload(file)),
+    saved.map(async ({ id, file, pastePosition }) => ({
+      ...(await processComposerFile(file, id)),
       file,
       pastePosition,
     })),
@@ -210,8 +213,7 @@ async function restoreAttachmentDraft(
             file
               .text()
               .then(
-                (text) =>
-                  [part.url, { text, position: pastePosition }] as const,
+                (text) => [part.id, { text, position: pastePosition }] as const,
               ),
           ],
     ),
@@ -220,7 +222,7 @@ async function restoreAttachmentDraft(
   return {
     fileParts: restored.map(({ part }) => part),
     originalFiles: Object.fromEntries(
-      restored.map(({ part, file }) => [part.url, file]),
+      restored.map(({ part, file }) => [part.id, file]),
     ),
     pastedText: Object.fromEntries(
       pastedEntries.flatMap((result) =>
@@ -228,6 +230,12 @@ async function restoreAttachmentDraft(
       ),
     ),
   }
+}
+
+/** Assigns an occurrence ID independently of the processed file's content. */
+async function processComposerFile(file: File, id = generateId()) {
+  const processed = await processFileForUpload(file)
+  return { ...processed, part: { ...processed.part, id } }
 }
 
 function omitKey<T>(record: Record<string, T>, key: string): Record<string, T> {

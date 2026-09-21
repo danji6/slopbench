@@ -3,6 +3,7 @@ import { isKnownTextFile } from '@sb/core/workspace/files'
 import { useEffect, useRef, useState } from 'react'
 
 export type FileItem = {
+  id: string
   url: string
   file: File
   originalUrl?: string

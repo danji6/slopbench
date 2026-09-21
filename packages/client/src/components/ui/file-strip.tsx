@@ -18,7 +18,7 @@ import {
   TextCursorInputIcon,
   XIcon,
 } from 'lucide-react'
-import { AnimatePresence } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef } from 'react'
 
 import { FilterableList, RippleButton, Skeleton, useLightbox } from '../ui'
@@ -32,8 +32,8 @@ export type FileStripProps = Omit<
   'items' | 'keys' | 'empty' | 'placeholder' | 'render'
 > & {
   files: FileItem[]
-  onRemove?: (url: string) => void
-  onInsertInline?: (url: string) => void
+  onRemove?: (id: string) => void
+  onInsertInline?: (id: string) => void
   size?: number
   noAnimation?: boolean
 }
@@ -62,7 +62,7 @@ export function FileStrip(props: FileStripProps) {
       data-slot="file-strip"
       ref={listRef}
       items={[...files].reverse()}
-      keys={(item) => item.url}
+      keys={(item) => item.id}
       empty={() => null}
       placeholder={[
         files.length,
@@ -74,7 +74,7 @@ export function FileStrip(props: FileStripProps) {
         ),
       ]}
       className={cn(
-        'flex w-full items-start gap-4 overflow-x-auto p-4',
+        'flex w-full items-start gap-4 overflow-x-auto overflow-y-hidden p-4',
         className,
       )}
       itemProps={
@@ -86,10 +86,6 @@ export function FileStrip(props: FileStripProps) {
               exit: { scale: 0.5, opacity: 0 },
             }
       }
-      initial={noAnimation ? undefined : { height: 0, opacity: 0 }}
-      animate={noAnimation ? undefined : { height: 'auto', opacity: 1 }}
-      exit={noAnimation ? undefined : { height: 0, opacity: 0 }}
-      transition={{ duration: 0.2, ease: 'easeInOut' }}
       render={(item) => {
         const preview = previews?.find((p) => p.previewUrl === item.url)
         return (
@@ -134,7 +130,21 @@ export function FileStrip(props: FileStripProps) {
   )
 
   if (noAnimation) return list || null
-  return <AnimatePresence mode="wait">{list}</AnimatePresence>
+  return (
+    <AnimatePresence mode="wait">
+      {list && (
+        <motion.div
+          className="w-full shrink-0 overflow-hidden"
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.2, ease: 'easeInOut' }}
+        >
+          {list}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
 }
 
 function FileActions({
@@ -142,7 +152,7 @@ function FileActions({
   onInsertInline,
 }: {
   item: FileItem
-  onInsertInline?: (url: string) => void
+  onInsertInline?: (id: string) => void
 }) {
   const downloadUrl = item.permaUrl ?? item.originalUrl
   const reference = item.permaUrl ? attachmentReference(item.permaUrl) : null
@@ -159,7 +169,7 @@ function FileActions({
           variant="surface"
           className="size-7 rounded-full"
           aria-label={`Insert ${item.file.name} inline`}
-          onClick={() => onInsertInline(item.url)}
+          onClick={() => onInsertInline(item.id)}
         >
           <TextCursorInputIcon className="size-3" />
         </RippleButton>
@@ -248,7 +258,7 @@ function RemoveButton({
   onRemove,
 }: {
   item: FileItem
-  onRemove?: (url: string) => void
+  onRemove?: (id: string) => void
 }) {
   if (!onRemove) return null
 
@@ -256,7 +266,7 @@ function RemoveButton({
     <RippleButton
       size="icon"
       variant="surface"
-      onClick={() => onRemove(item.url)}
+      onClick={() => onRemove(item.id)}
       className="absolute -top-2 -right-2 flex size-8 items-center justify-center rounded-full"
       aria-label={`Remove file ${item.file.name}`}
     >

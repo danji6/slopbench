@@ -5,6 +5,7 @@ const STORE_NAME = 'attachments'
 
 /** A converted large text paste retained outside localStorage size limits. */
 export type ComposerAttachmentDraft = {
+  id?: string
   file: File
   pastePosition?: number
 }
