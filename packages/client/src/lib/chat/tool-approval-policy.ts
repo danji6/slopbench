@@ -78,7 +78,7 @@ export function buildApprovalActions(
       approved: true,
       remember: 'paths',
     })
-  } else if (rememberLabel) {
+  } else if (rememberLabel && hold === null) {
     items.push({
       id: 'remember-patterns',
       label: rememberLabel,
@@ -158,9 +158,9 @@ export type ApprovalHold = 'forbidden' | 'plan' | 'paths' | 'analysis' | null
 // prettier-ignore
 export const HOLD_HINTS: Record<NonNullable<ApprovalHold>, string> = {
   forbidden: 'This accesses a forbidden path and always requires approval.',
-  plan: 'Plan mode is active and this command is not read-only.',
+  plan: 'This command is not recognized as read-only. Plan mode requires approval each time, even if it is allowed for this session.',
   paths: 'This command references git-ignored files or paths outside the workspace.',
-  analysis: 'This command’s path operands cannot be verified statically.',
+  analysis: 'This command’s file paths cannot be verified. Approval is required each time, even if the command is allowed for this session.',
 }
 
 export function approvalHold(

@@ -172,9 +172,8 @@ export async function consumeProviderStep(
       },
     })) {
       latestParts = message.parts
-      // Defer surfacing the approval-requested state to the client until the
-      // sidecar preview diff is available
-      if (hasAwaitingApproval(latestParts) && !setup.isSubagent) continue
+      // Publish approval requests only after path details and previews are attached
+      if (hasAwaitingApproval(latestParts)) continue
       // Tool state transitions bypass the throttle to avoid staleness
       const toolStates = toolStateSignature(latestParts)
       const throttled = Date.now() - lastPatch < PATCH_INTERVAL_MS
@@ -203,8 +202,7 @@ export async function consumeProviderStep(
     const awaitingApproval = hasAwaitingApproval(latestParts)
     const awaitingQuestions = hasPendingQuestions(latestParts)
     const awaitingTasks = hasPendingTaskParts(latestParts)
-    // Sub-agent approvals are auto-denied
-    if (awaitingApproval && !setup.isSubagent) {
+    if (awaitingApproval) {
       latestParts = await attachApprovalPreviews(ctx, setup, latestParts)
     }
     await patchMessage(ctx, streamId, latestParts)

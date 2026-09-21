@@ -1,4 +1,4 @@
-import { sidecarRequest } from '@sb/convex/model/sidecar_transport'
+import { sidecarRequest } from '@sb/convex/model/sidecarTransport'
 import { sidecarAuthentication } from '@sb/sidecar/auth'
 import { jobEnv } from '@sb/sidecar/shell/system-shell'
 import { describe, expect, test } from 'bun:test'

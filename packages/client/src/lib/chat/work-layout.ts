@@ -54,7 +54,10 @@ export function toolsInGroup(group: PartGroup): ToolUIPart[] {
 function isWorkContent(group: PartGroup): boolean {
   if (group.type === 'single' && isReasoningUIPart(group.part)) return true
   const tools = toolsInGroup(group)
-  return tools.length > 0 && tools.every((part) => part.type !== 'tool-ask')
+  return (
+    tools.length > 0 &&
+    tools.every((part) => part.type !== 'tool-ask' && part.type !== 'tool-task')
+  )
 }
 
 /** Groups activity without changing the original segment/group addresses. */

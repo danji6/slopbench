@@ -1,17 +1,18 @@
-import { isReadOnlySedScript } from './read_only_args'
+import { gitSubcommandIndex, hasGitRefOperands } from './gitReadOnly'
+import { isReadOnlySedScript } from './readOnlyArgs'
 import {
   DEFAULT_SAFE_SHELL_PATTERNS,
   ENV_ASSIGNMENT,
   INTERPRETER_PROGRAMS,
   WRAPPER_PROGRAMS,
   isInterpreterPayloadFlag,
-} from './shell_config'
+} from './shellConfig'
 import {
   type ShellToken,
   expandShellControlSegment,
   splitShellChain,
   tokenizeShell,
-} from './shell_parse'
+} from './shellParse'
 
 export interface ShellPathAnalysis {
   /** Explicit path operands found in the command. */
@@ -122,6 +123,15 @@ function pathValuesFromSegment(text: string): SegmentPathAnalysis {
   }
   if (program === 'find') return mergePathValues(values, findPathValues(args))
   if (NO_PATH_PROGRAMS.has(program)) return { values, complete: true }
+  if (
+    program === 'git' &&
+    hasGitRefOperands(args.map((token) => token.value))
+  ) {
+    return {
+      values: [...values, ...gitGlobalPathValues(args)],
+      complete: true,
+    }
+  }
   if (!DEFAULT_SAFE_PROGRAMS.has(program)) {
     return {
       values: [...values, ...genericPathValues(args)],
@@ -130,6 +140,16 @@ function pathValuesFromSegment(text: string): SegmentPathAnalysis {
   }
 
   return { values: [...values, ...genericPathValues(args)], complete: true }
+}
+
+/** Preserve global repository paths, including Git's attached `-Cpath` form. */
+function gitGlobalPathValues(args: ShellToken[]): string[] {
+  const index = gitSubcommandIndex(args.map((token) => token.value))
+  const globals = args.slice(0, index)
+  const attachedDirectories = globals
+    .filter((token) => token.value.startsWith('-C') && token.value.length > 2)
+    .map((token) => token.value.slice(2))
+  return [...genericPathValues(globals), ...attachedDirectories]
 }
 
 /** Locate the effective program through simple wrapper and env prefixes. */

@@ -4,28 +4,13 @@
  * as built-in safe when its arguments pass the gate, otherwise it needs
  * approval like any unlisted program.
  */
+import { isReadOnlyGitInvocation } from './gitReadOnly'
 
 type ArgumentGate = (args: string[]) => boolean
 
 /** find actions that delete, execute commands, or write files. */
 const FIND_MUTATING_ARGS =
   /^(-delete|-exec(dir)?|-ok(dir)?|-fprint0?|-fprintf|-fls)$/
-
-/** `git remote` actions that only read (no local ref/config mutation). */
-const GIT_REMOTE_READ_ONLY = /^(show|get-url)$/
-
-/**
- * git global flags that consume the following token as their value (e.g.
- * `git -C /path`). They must be skipped along with their value when locating
- * the subcommand, or the value is mistaken for the subcommand.
- */
-export const GIT_VALUE_FLAGS: ReadonlySet<string> = new Set([
-  '-C',
-  '-c',
-  '--git-dir',
-  '--work-tree',
-  '--namespace',
-])
 
 /** GNU sed long options that keep an invocation read-only. */
 const SAFE_SED_LONG_FLAGS = new Set([
@@ -55,26 +40,6 @@ const GATES = new Map<string, ArgumentGate>([
 export function hasReadOnlyArguments(program: string, args: string[]): boolean {
   const gate = GATES.get(program)
   return gate ? gate(args) : true
-}
-
-/**
- * git is gated by subcommand in the safe-list. Only `git remote` needs
- * argument inspection, since `git remote`/`-v`/`show`/`get-url` read while
- * `add`, `rename`, `set-url`, `prune`, ... mutate. Any other subcommand passes
- * through (its read-only-ness is decided by the safe list pattern).
- */
-function isReadOnlyGitInvocation(args: string[]): boolean {
-  const positionals: string[] = []
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i]!
-    if (arg.startsWith('-')) {
-      if (GIT_VALUE_FLAGS.has(arg)) i++ // Skip the flag's value token
-      continue
-    }
-    positionals.push(arg)
-  }
-  if (positionals[0] !== 'remote') return true
-  return positionals.length < 2 || GIT_REMOTE_READ_ONLY.test(positionals[1]!)
 }
 
 /**

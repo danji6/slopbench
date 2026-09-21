@@ -95,15 +95,62 @@ describe('work stretches', () => {
 
   test.each([
     tool('ask', 'q'),
+    tool('task', 't'),
     { type: 'file', mediaType: 'image/png', url: 'attachment:image' } as Part,
     { type: 'plan-link', snapshot: { status: 'draft' } } as unknown as Part,
     { type: 'file-link', path: 'a.ts' } as unknown as Part,
-  ])('keeps questions and deliverables outside work', (separator) => {
-    const result = layout(
-      message([tool('shell', 'a'), separator, tool('shell', 'b')]),
+  ])(
+    'keeps questions, sub-agents, and deliverables outside work',
+    (separator) => {
+      const result = layout(
+        message([tool('shell', 'a'), separator, tool('shell', 'b')]),
+      )
+      expect(result.work).toHaveLength(2)
+      expect(result.groups[1].workId).toBeUndefined()
+    },
+  )
+
+  test('keeps consecutive sub-agents visible between folded work across segments', () => {
+    const msg = message([
+      tool('shell', 'before'),
+      tool('task', 'first'),
+      { type: 'step-start' },
+      tool('task', 'second'),
+      tool('read_file', 'after', { path: 'a' }),
+    ])
+    const record = meta([1, 3, 1])
+    const result = layout(msg, record)
+    expect(result.work.map((work) => work.toolCallIds)).toEqual([
+      ['before'],
+      ['after'],
+    ])
+    const folded = project(msg, new Set(), [], record)
+    expect(folded.map((row) => row.kind)).toEqual([
+      'header',
+      'work',
+      'group',
+      'work',
+    ])
+    for (const id of ['first', 'second']) {
+      expect(findToolRow(folded, msg, record, id)).toMatchObject({
+        kind: 'group',
+        segmentIndex: 1,
+        groupIndex: 0,
+      })
+    }
+    const opened = project(
+      msg,
+      new Set(result.work.map((work) => work.id)),
+      [],
+      record,
     )
-    expect(result.work).toHaveLength(2)
-    expect(result.groups[1].workId).toBeUndefined()
+    expect(findToolRow(opened, msg, record, 'first')).toEqual(folded[2])
+  })
+
+  test('task-only messages create no work block', () => {
+    const msg = message([tool('task', 't')])
+    expect(layout(msg).work).toHaveLength(0)
+    expect(project(msg).map((row) => row.kind)).toEqual(['header', 'group'])
   })
 
   test('thinking-only stretches never create body blocks', () => {
@@ -205,7 +252,7 @@ describe('work summaries', () => {
       tool('edit_file', 'e2', { path: 'b' }),
       tool('shell', 's'),
       tool('shell_output', 'o'),
-      tool('task', 't'),
+      tool('custom', 'c'),
     ])
     const result = summarizeWork(
       layout(msg).work[0],

@@ -1,21 +1,22 @@
 import { isPathForbidden } from '@sb/core/workspace/path-policy'
 
 import type { AgentAutoApprove, ToolApprovals } from '../../types'
-import { GIT_VALUE_FLAGS, hasReadOnlyArguments } from './read_only_args'
+import { gitSubcommandIndex } from './gitReadOnly'
+import { hasReadOnlyArguments } from './readOnlyArgs'
 import {
   DEFAULT_SAFE_SHELL_PATTERNS,
   ENV_ASSIGNMENT,
   INTERPRETER_PROGRAMS,
   WRAPPER_PROGRAMS,
   isInterpreterPayloadFlag,
-} from './shell_config'
+} from './shellConfig'
 import {
   type ShellToken,
   expandShellControlSegment,
   splitShellChain,
   tokenizeShell,
-} from './shell_parse'
-import { analyzeShellPathCandidates } from './shell_path_analysis'
+} from './shellParse'
+import { analyzeShellPathCandidates } from './shellPathAnalysis'
 
 export {
   isPathAllowed,
@@ -23,12 +24,12 @@ export {
   foldPaths,
 } from '@sb/core/workspace/path-policy'
 
-export { DEFAULT_SAFE_SHELL_PATTERNS } from './shell_config'
+export { DEFAULT_SAFE_SHELL_PATTERNS } from './shellConfig'
 export {
   analyzeShellPathCandidates,
   extractPathCandidates,
-} from './shell_path_analysis'
-export type { ShellPathAnalysis } from './shell_path_analysis'
+} from './shellPathAnalysis'
+export type { ShellPathAnalysis } from './shellPathAnalysis'
 
 /**
  * Shell approval matching.
@@ -74,13 +75,9 @@ const SUBCOMMAND_PROGRAMS = new Set([
 
 /** Programs whose selected subcommands need a second subcommand for safety. */
 const NESTED_SUBCOMMAND_PROGRAMS = new Map([
+  ['git', new Set(['stash', 'worktree', 'reflog'])],
   ['bun', new Set(['pm'])],
   ['uv', new Set(['cache', 'pip', 'python', 'tool'])],
-])
-
-/** Global flags that consume the next token (e.g. `git -C dir`). */
-const VALUE_FLAGS_BEFORE_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
-  ['git', GIT_VALUE_FLAGS],
 ])
 
 const VERSION_OR_HELP = /^(-v|-V|--version|-h|--help)$/
@@ -204,16 +201,14 @@ export function commandReferencesForbiddenPath(command: string): boolean {
  * values of flags that accept values (e.g. `git -C dir status` → `status`).
  */
 function subcommandIndex(program: string, rest: ShellToken[]): number {
-  const valueFlags = VALUE_FLAGS_BEFORE_SUBCOMMAND.get(program)
+  if (program === 'git')
+    return gitSubcommandIndex(rest.map((token) => token.value))
   for (let i = 0; i < rest.length; i++) {
     const token = rest[i]!.value
     if (ENV_ASSIGNMENT.test(token)) continue
     // pacman is special as its operation is itself a flag (`-Q`)
     if (program === 'pacman') return i
-    if (token.startsWith('-')) {
-      if (valueFlags?.has(token)) i++ // skip the flag's value token
-      continue
-    }
+    if (token.startsWith('-')) continue
     return i
   }
   return -1

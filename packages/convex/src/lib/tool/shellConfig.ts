@@ -52,17 +52,20 @@ export const DEFAULT_SAFE_SHELL_PATTERNS: ReadonlySet<string> = new Set([
   // Text processing (pure filters; sed is argument-gated)
   ...['grep', 'egrep', 'fgrep', 'rg', 'sort', 'uniq', 'cut', 'tr', 'column'],
   ...['sed'],
+  ...['nl', 'tac', 'paste', 'join', 'fold', 'fmt', 'expand', 'unexpand', 'od'],
   ...['diff', 'cmp', 'comm', 'jq', 'yq', 'xxd', 'hexdump', 'strings'],
   // Checksums
   ...['md5sum', 'sha1sum', 'sha256sum', 'sha512sum', 'cksum', 'b2sum'],
   // System info
   ...['date', 'cal', 'uptime', 'whoami', 'id', 'groups', 'hostname'],
   ...['uname', 'arch', 'nproc', 'free', 'ps'],
-  // git (read-only subcommands; remote is argument-gated)
+  // git (mixed read/write subcommands are argument-gated)
   ...['git status', 'git log', 'git diff', 'git show', 'git blame'],
   ...['git shortlog', 'git describe', 'git rev-parse', 'git rev-list'],
   ...['git ls-files', 'git ls-tree', 'git cat-file', 'git grep'],
   ...['git show-ref', 'git count-objects', 'git remote'],
+  ...['git branch', 'git tag', 'git for-each-ref', 'git ls-remote'],
+  ...['git stash list', 'git worktree list', 'git reflog show'],
   // Package managers (read-only subcommands)
   ...['npm ls', 'npm list', 'npm view', 'npm info', 'npm outdated'],
   ...['npm ping', 'npm root', 'npm prefix'],

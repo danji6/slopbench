@@ -124,6 +124,33 @@ describe('tool path approvals', () => {
     expect(await needs(shell, { command: 'cat .git/config' })).toBe(true)
   })
 
+  test('plan mode auto-approves readers and listings but preserves sensitive path checks', async () => {
+    plan = true
+    live = {}
+    try {
+      const shell = await createShellTool(context)
+      for (const command of [
+        "nl -ba src/file.txt | sed -n '1,240p'; printf '\\n--- file ---\\n'; nl -ba src/file.txt",
+        'git branch -a && git tag --sort=-creatordate | head -20',
+        'git stash list && git worktree list && git reflog show',
+      ])
+        expect(await needs(shell, { command })).toBe(false)
+      for (const command of [
+        'nl -ba .git/config',
+        'nl -ba /tmp/external-fixture/new',
+        'git -C /tmp/external-fixture branch -a',
+        'git -C/tmp/external-fixture branch -a',
+      ])
+        expect(await needs(shell, { command })).toBe(true)
+      live = { shell: ['git branch', 'git tag'] }
+      expect(await needs(shell, { command: 'git branch new' })).toBe(true)
+      expect(await needs(shell, { command: 'git tag v1' })).toBe(true)
+    } finally {
+      plan = false
+      live = {}
+    }
+  })
+
   test('plan mode blocks edits even with path grants or unrestricted approval', async () => {
     plan = true
     try {
