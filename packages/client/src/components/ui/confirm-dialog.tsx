@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils'
 import type { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog'
 import { useState } from 'react'
 
@@ -27,6 +28,7 @@ export type ConfirmDialogProps = Omit<
   layer?: number
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  onOpenChangeComplete?: (open: boolean) => void
   disabled?: boolean
   children?: React.ReactElement
 }
@@ -42,8 +44,10 @@ export function ConfirmDialog({
   extraAction,
   open,
   onOpenChange,
+  onOpenChangeComplete,
   disabled,
   children,
+  className,
   ...props
 }: ConfirmDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false)
@@ -69,9 +73,19 @@ export function ConfirmDialog({
   }
 
   return (
-    <AlertDialog open={openState} onOpenChange={handleOpenChange}>
+    <AlertDialog
+      open={openState}
+      onOpenChange={handleOpenChange}
+      onOpenChangeComplete={onOpenChangeComplete}
+    >
       {children && <AlertDialog.Trigger render={children} />}
-      <AlertDialog.Content {...props}>
+      <AlertDialog.Content
+        className={cn(
+          extraAction && 'data-[size=default]:sm:max-w-md',
+          className,
+        )}
+        {...props}
+      >
         {(title || description) && (
           <AlertDialog.Header>
             {title && <AlertDialog.Title>{title}</AlertDialog.Title>}
@@ -81,7 +95,9 @@ export function ConfirmDialog({
           </AlertDialog.Header>
         )}
         <AlertDialog.Footer
-          className={extraAction ? undefined : 'grid grid-cols-2'}
+          className={
+            extraAction ? 'grid grid-cols-2 sm:grid-cols-3' : 'grid grid-cols-2'
+          }
         >
           <AlertDialog.Cancel onClick={handleCancel}>
             {cancelText}
@@ -97,7 +113,15 @@ export function ConfirmDialog({
               {extraAction.text}
             </AlertDialog.Action>
           )}
-          <AlertDialog.Action variant={variant} onClick={handleConfirm}>
+          <AlertDialog.Action
+            variant={variant}
+            className={
+              extraAction
+                ? 'col-span-2 w-[calc(50%-0.25rem)] justify-self-center sm:col-span-1 sm:w-auto sm:justify-self-stretch'
+                : undefined
+            }
+            onClick={handleConfirm}
+          >
             {confirmText}
           </AlertDialog.Action>
         </AlertDialog.Footer>

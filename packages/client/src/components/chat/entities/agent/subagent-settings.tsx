@@ -1,5 +1,4 @@
-import { md } from '@/components/markdown'
-import { SettingsList } from '@/components/ui'
+import { SearchInput, SettingsList } from '@/components/ui'
 import { useOwnedAgents } from '@/hooks/chat'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { useState } from 'react'
@@ -16,6 +15,7 @@ export function SubagentSettings({
   control: Control<AgentFormValues>
 }) {
   const agents = useOwnedAgents() ?? []
+  const [search, setSearch] = useState('')
   const [openAgentId, setOpenAgentId] = useState<Id<'agents'> | null>(null)
   const { field: modeField } = useController({ control, name: 'subAgentsMode' })
   const { field: idsField } = useController({ control, name: 'subAgentIds' })
@@ -32,51 +32,50 @@ export function SubagentSettings({
     )
   }
 
-  function setMode(mode: string) {
-    if (mode === modeField.value) return
-    const inverted = agents
-      .map((agent) => agent._id)
-      .filter((id) => !listed.has(id))
-    modeField.onChange(mode)
-    idsField.onChange(inverted)
-  }
-
-  const spawnableCount = agents.filter((agent) => isSpawnable(agent._id)).length
-  const allOn = agents.length > 0 && spawnableCount === agents.length
+  const query = search.trim().toLowerCase()
+  const filteredAgents = agents.filter((agent) =>
+    `${agent.name} ${agent.description ?? ''}`.toLowerCase().includes(query),
+  )
+  const spawnableCount = filteredAgents.filter((agent) =>
+    isSpawnable(agent._id),
+  ).length
+  const allOn =
+    filteredAgents.length > 0 && spawnableCount === filteredAgents.length
 
   function toggleAll() {
-    idsField.onChange(
-      (whitelist ? !allOn : allOn) ? agents.map((agent) => agent._id) : [],
-    )
+    const next = new Set(listed)
+    const enable = !allOn
+    for (const agent of filteredAgents) {
+      if (whitelist === enable) next.add(agent._id)
+      else next.delete(agent._id)
+    }
+    idsField.onChange([...next])
   }
 
   return (
     <SettingsList>
-      <SettingsList.Select
-        label="List mode"
-        description="How the selection below treats agents you create later."
-        help={md`
-          **Whitelist**: only the checked agents can be spawned.
-          **Blacklist**: every agent can be spawned unless unchecked.
-        `}
-        value={modeField.value}
-        onValueChange={setMode}
-      >
-        <SettingsList.Select.Item value="allow">
-          Whitelist
-        </SettingsList.Select.Item>
-        <SettingsList.Select.Item value="deny">
-          Blacklist
-        </SettingsList.Select.Item>
-      </SettingsList.Select>
+      <div className="px-4 py-3">
+        <SearchInput
+          aria-label="Search agents"
+          clearLabel="Clear agent search"
+          placeholder="Search agents…"
+          value={search}
+          onValueChange={setSearch}
+        />
+      </div>
 
       <SettingsList.Checkbox
-        label={<span className="font-semibold">All agents</span>}
+        label={
+          <span className="font-semibold">
+            {query ? 'All matching agents' : 'All agents'}
+          </span>
+        }
         checked={allOn}
         indeterminate={spawnableCount > 0 && !allOn}
+        disabled={filteredAgents.length === 0}
         onCheckedChange={toggleAll}
       />
-      {agents.map((agent) => (
+      {filteredAgents.map((agent) => (
         <SettingsList.Checkbox
           key={agent._id}
           className="pl-8"
@@ -112,6 +111,11 @@ export function SubagentSettings({
           onCheckedChange={() => toggle(agent._id)}
         />
       ))}
+      {query && filteredAgents.length === 0 && (
+        <p className="text-muted-foreground px-4 py-3 text-sm" role="status">
+          No agents match your search.
+        </p>
+      )}
     </SettingsList>
   )
 }

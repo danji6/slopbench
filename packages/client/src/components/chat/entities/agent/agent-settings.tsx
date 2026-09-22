@@ -107,6 +107,12 @@ function AgentSettingsFallback({ error }: FallbackProps) {
   )
 }
 
+type PendingAction = {
+  proceed: () => void
+  canSave: boolean
+  open: boolean
+}
+
 function AgentSettingsDialog() {
   const toolsScrollRef = useRef<HTMLDivElement>(null)
   const view = useAgentEditorView()
@@ -126,7 +132,7 @@ function AgentSettingsDialog() {
 
   const [pendingAvatar, setPendingAvatar] = useState<File | null>(null)
   const [avatarCleared, setAvatarCleared] = useState(false)
-  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null)
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
 
   const [prevAgentId, setPrevAgentId] = useState(agentId)
   if (agentId !== prevAgentId) {
@@ -189,14 +195,13 @@ function AgentSettingsDialog() {
     onDiscard: discard,
   })
 
-  function guard(action: () => void) {
+  function guard(action: () => void, canSave = false) {
     if (!isDirty) return action()
-    setPendingAction(() => action)
+    setPendingAction({ proceed: action, canSave, open: true })
   }
 
   function confirmPending() {
-    const action = pendingAction
-    setPendingAction(null)
+    const action = pendingAction?.proceed
     discard()
     action?.()
   }
@@ -227,6 +232,11 @@ function AgentSettingsDialog() {
   // Apply persists but keeps the editor open; Save persists then closes.
   const { saving, apply, save } = useSettingsSave(form, persist, close)
 
+  async function savePending() {
+    const action = pendingAction?.proceed
+    if (action && (await apply())) action()
+  }
+
   return (
     <Dialog
       open={open}
@@ -254,7 +264,7 @@ function AgentSettingsDialog() {
             </div>
             <AgentPicker
               className="mt-2 w-fit max-w-full min-w-80"
-              confirmSwitch={guard}
+              confirmSwitch={(action) => guard(action, true)}
             />
           </Dialog.Header>
 
@@ -351,17 +361,40 @@ function AgentSettingsDialog() {
       </ThemeScope>
 
       <ConfirmDialog
-        open={pendingAction !== null || closeGuard.pending}
+        open={pendingAction?.open === true || closeGuard.pending}
         onOpenChange={(o) => {
           if (o) return
-          setPendingAction(null)
+          setPendingAction((pending) =>
+            pending ? { ...pending, open: false } : null,
+          )
           closeGuard.cancel()
         }}
+        onOpenChangeComplete={(o) => {
+          if (o) return
+          setPendingAction((pending) => (pending?.open ? pending : null))
+        }}
         variant="destructive"
-        title="Discard changes?"
-        description="Your unsaved changes will be lost."
+        title={
+          pendingAction?.canSave
+            ? 'Save changes before switching?'
+            : 'Discard changes?'
+        }
+        description={
+          pendingAction?.canSave
+            ? 'You have unsaved changes to this agent.'
+            : 'Your unsaved changes will be lost.'
+        }
         confirmText="Discard"
         cancelText="Keep editing"
+        extraAction={
+          pendingAction?.canSave
+            ? {
+                text: 'Save and switch',
+                variant: 'primary',
+                onConfirm: savePending,
+              }
+            : undefined
+        }
         onConfirm={closeGuard.pending ? closeGuard.confirm : confirmPending}
       />
     </Dialog>

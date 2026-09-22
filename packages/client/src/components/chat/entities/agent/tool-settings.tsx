@@ -1,4 +1,4 @@
-import { Input, Tabs } from '@/components/ui'
+import { SearchInput, Tabs } from '@/components/ui'
 import { useTools } from '@/hooks/chat'
 import type { ToolMetadata } from '@/lib/chat'
 import { type RefObject, useLayoutEffect, useState } from 'react'
@@ -103,13 +103,12 @@ function McpToolSettings({
   return (
     <>
       <div className="px-4 py-3">
-        <Input
-          type="search"
+        <SearchInput
           aria-label="Search discovered MCP tools"
+          clearLabel="Clear MCP tool search"
           placeholder="Search MCP tools…"
           value={search}
-          onChange={(event) => setSearch(event.currentTarget.value)}
-          variant="outline"
+          onValueChange={setSearch}
         />
       </div>
       {filtered.length > 0 ? (

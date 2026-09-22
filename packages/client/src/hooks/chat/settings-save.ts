@@ -7,8 +7,8 @@ import { toast } from 'sonner'
 export type SettingsSave = {
   /** Whether a save is in flight. */
   saving: boolean
-  /** Persists and keeps the dialog open. Bind to the form's `onSubmit`. */
-  apply: (event?: BaseSyntheticEvent) => Promise<void>
+  /** Persists and keeps the dialog open. Returns whether the save succeeded. */
+  apply: (event?: BaseSyntheticEvent) => Promise<boolean>
   /** Persists, then closes once it went through. */
   save: (event?: BaseSyntheticEvent) => Promise<void>
 }
@@ -42,7 +42,11 @@ export function useSettingsSave<T extends FieldValues>(
   return {
     saving,
     apply: async (event) => {
-      await form.handleSubmit(run)(event)
+      let succeeded = false
+      await form.handleSubmit(async (values) => {
+        succeeded = await run(values)
+      })(event)
+      return succeeded
     },
     save: (event) =>
       form.handleSubmit(async (values) => {
