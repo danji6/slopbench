@@ -6,6 +6,8 @@ import { injectModeNote } from '../chat/notes'
 import { injectDueReminders } from '../chat/reminders'
 import { insertMessage } from '../messageContents'
 import { notACommandChip, notAUserKilledReport } from '../messages'
+import { announceFolderContext } from '../session/folderAnnouncement'
+import { getSessionWithWorkspace } from '../session/folderContext'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 import { STREAM_LEASE_MS } from './lifecycleClaims'
 
@@ -13,7 +15,7 @@ export async function reserveFollowUp(
   ctx: MutationCtx,
   stream: Doc<'streams'>,
 ): Promise<boolean> {
-  const session = await ctx.db.get(stream.sessionId)
+  const session = await getSessionWithWorkspace(ctx, stream.sessionId)
   if (!session) return false
 
   const boundaryMessage = await earliestUnconsumedMessage(ctx, stream)
@@ -82,7 +84,15 @@ export async function reserveInvokeTurn(
   ctx: MutationCtx,
   { session, boundaryMessage, invokedBy }: ReserveInvokeTurnArgs,
 ) {
-  if (session.settings?.disabled || !session.activeAgentId) return
+  if (
+    session.contextLock ||
+    session.settings?.disabled ||
+    !session.activeAgentId
+  ) {
+    return
+  }
+  const announcement = await announceFolderContext(ctx, session)
+  boundaryMessage = announcement ?? boundaryMessage
 
   const agent = await ctx.db.get(session.activeAgentId)
   if (!agent) return

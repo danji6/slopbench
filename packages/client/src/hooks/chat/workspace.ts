@@ -1,7 +1,7 @@
 import { toastError } from '@/lib/notifications'
 import { api } from '@sb/convex/_generated/api'
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { useAction } from 'convex/react'
+import type { Doc, Id } from '@sb/convex/_generated/dataModel'
+import { useAction, useQuery } from 'convex/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useSettings, useSettingsUpdate } from './settings'
@@ -133,12 +133,19 @@ export function useWorkspaceFileIndex(
   sessionId: Id<'sessions'> | undefined,
   enabled: boolean,
 ): WorkspaceFileIndex {
+  const session = useQuery(api.sessions.get, sessionId ? { sessionId } : 'skip')
   const listFiles = useAction(api.actions.workspaces.listFiles)
   const load = useCallback(
-    (id: string) => listFiles({ sessionId: id as Id<'sessions'> }),
-    [listFiles],
+    () => listFiles({ sessionId: sessionId! }),
+    [listFiles, sessionId],
   )
-  return useLazyFileIndex(sessionId ?? null, enabled, load)
+  return useLazyFileIndex(
+    sessionId
+      ? `${sessionId}:${session?.workspace?.workspaceId ?? ''}:${session?.workspace?.revision ?? 0}`
+      : null,
+    enabled,
+    load,
+  )
 }
 
 /** File index that works without an active session. */
@@ -248,4 +255,34 @@ export function useWorkspaceBrowser() {
     goUp,
     goHome,
   }
+}
+
+export function useWorkspaceFileIndexByFolder(
+  folder: Doc<'sessionFolders'> | undefined,
+): WorkspaceFileIndex {
+  const isAdmin = useIsWorkspaceAdmin()
+  const listFiles = useAction(api.actions.workspaces.listFilesByRoot)
+  const load = useCallback(async () => {
+    const sources = folder?.sources ?? []
+    const lists = await Promise.all(
+      sources.map((source) => listFiles({ root: source.path })),
+    )
+    const files = new Map<string, string>()
+    for (const [index, list] of lists.entries()) {
+      for (const file of list.files) {
+        const absolute = `${sources[index]!.path.replace(/\/$/, '')}/${file}`
+        if (!files.has(absolute))
+          files.set(absolute, index === 0 ? file : absolute)
+      }
+    }
+    return {
+      files: [...files.values()].slice(0, 10000),
+      truncated: files.size > 10000 || lists.some((list) => list.truncated),
+    }
+  }, [folder, listFiles])
+  return useLazyFileIndex(
+    folder ? `${folder._id}:${folder.revision}` : null,
+    isAdmin && Boolean(folder?.sources.length),
+    load,
+  )
 }

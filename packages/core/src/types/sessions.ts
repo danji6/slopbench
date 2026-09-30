@@ -16,6 +16,11 @@ export type SessionListItem<
   AvatarId extends string = string,
 > = Session & {
   participants: SessionParticipant<UserId, AgentId, AvatarId>[]
+  pinned?: boolean
+  owned?: boolean
+  folderId?: string
+  folderName?: string
+  folderIcon?: string
   hidden?: boolean // the current user hid this session from their sidebar
 }
 

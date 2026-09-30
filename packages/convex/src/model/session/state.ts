@@ -5,6 +5,7 @@ import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../../_generated/server'
 import type { ApprovalMode } from '../../types'
 import { assertEnvironmentCap } from '../caps'
+import { getSessionWithWorkspace, workspaceKey } from './folderContext'
 
 export type SessionState = Doc<'sessionState'>
 
@@ -95,7 +96,12 @@ export async function getApprovals(
   sessionId: Id<'sessions'>,
 ): Promise<NonNullable<SessionState['toolApprovals']>> {
   const ownerId = await getApprovalSessionId(ctx, sessionId)
-  return (await getState(ctx, ownerId))?.toolApprovals ?? {}
+  const state = await getState(ctx, ownerId)
+  const session = await getSessionWithWorkspace(ctx, ownerId)
+  const approvals = state?.toolApprovals ?? {}
+  return state?.pathApprovalRevision === workspaceKey(session?.workspace)
+    ? approvals
+    : { ...approvals, paths: undefined }
 }
 
 type ApprovalList = 'tools' | 'shell' | 'paths'
@@ -136,6 +142,9 @@ export async function setApprovals(
   const approvals = await getApprovals(ctx, sessionId)
 
   await patchState(ctx, sessionId, {
+    pathApprovalRevision: workspaceKey(
+      (await getSessionWithWorkspace(ctx, sessionId))?.workspace,
+    ),
     toolApprovals: {
       ...approvals,
       [list]:

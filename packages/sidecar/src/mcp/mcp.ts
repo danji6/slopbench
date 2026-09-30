@@ -13,6 +13,7 @@ import { z } from 'zod'
 
 import { fetchWeb } from './fetch/web_fetch'
 import { searchWeb } from './web_search'
+import { workspaceContextSchema } from './workspace/context'
 import {
   checkFlaggedPaths,
   editWorkspaceFile,
@@ -80,6 +81,7 @@ function buildMcpServer(): McpServer {
   const workspaceFields = {
     sessionId: z.string(),
     workspaceId: z.string(),
+    workspace: workspaceContextSchema,
   }
 
   server.registerTool(
@@ -92,10 +94,19 @@ function buildMcpServer(): McpServer {
         allowedPaths: z.array(z.string()).optional(),
       },
     },
-    async ({ sessionId, workspaceId, path, offset, limit, allowedPaths }) => {
+    async ({
+      sessionId,
+      workspaceId,
+      workspace,
+      path,
+      offset,
+      limit,
+      allowedPaths,
+    }) => {
       const result = await readWorkspaceFile({
         sessionId,
         workspaceId,
+        workspace,
         filePath: path,
         allowedPaths,
         offset,
@@ -115,10 +126,18 @@ function buildMcpServer(): McpServer {
         allowedPaths: z.array(z.string()).optional(),
       },
     },
-    async ({ sessionId, workspaceId, path, content, allowedPaths }) => {
+    async ({
+      sessionId,
+      workspaceId,
+      workspace,
+      path,
+      content,
+      allowedPaths,
+    }) => {
       const result = await writeWorkspaceFile({
         sessionId,
         workspaceId,
+        workspace,
         filePath: path,
         allowedPaths,
         content,
@@ -137,10 +156,18 @@ function buildMcpServer(): McpServer {
         allowedPaths: z.array(z.string()).optional(),
       },
     },
-    async ({ sessionId, workspaceId, path, edits, allowedPaths }) => {
+    async ({
+      sessionId,
+      workspaceId,
+      workspace,
+      path,
+      edits,
+      allowedPaths,
+    }) => {
       const result = await editWorkspaceFile({
         sessionId,
         workspaceId,
+        workspace,
         filePath: path,
         allowedPaths,
         edits,
@@ -160,10 +187,11 @@ function buildMcpServer(): McpServer {
         timeout: z.number().optional(),
       },
     },
-    async ({ sessionId, workspaceId, command, timeout }) => {
+    async ({ sessionId, workspaceId, workspace, command, timeout }) => {
       const result = await runWorkspaceCommand({
         sessionId,
         workspaceId,
+        workspace,
         command,
         timeout,
       })
@@ -183,10 +211,18 @@ function buildMcpServer(): McpServer {
         literal: z.boolean().optional(),
       },
     },
-    async ({ sessionId, workspaceId, paths, allowedPaths, literal }) => {
+    async ({
+      sessionId,
+      workspaceId,
+      workspace,
+      paths,
+      allowedPaths,
+      literal,
+    }) => {
       const result = await checkFlaggedPaths({
         sessionId,
         workspaceId,
+        workspace,
         paths,
         allowedPaths,
         literal,

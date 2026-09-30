@@ -5,6 +5,7 @@ import { inline } from '@sb/core/utils/strings'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
+import type { Session } from '../../types'
 import type { MessageExtra, SessionMode } from '../../types'
 import { deleteVersions, insertMessage } from '../messageContents'
 import { scheduleMessageEval } from '../messages'
@@ -28,7 +29,7 @@ export type HiddenNote = {
 /** Resolves the session's active agent as the sender of injected notes. */
 export async function resolveNoteSender(
   ctx: MutationCtx,
-  session: Doc<'sessions'>,
+  session: Session,
 ): Promise<NoteSender | null> {
   if (!session.activeAgentId) return null
 
@@ -45,7 +46,7 @@ export async function resolveNoteSender(
  */
 export async function insertHiddenNote(
   ctx: MutationCtx,
-  session: Doc<'sessions'>,
+  session: Session,
   invokerId: Id<'users'>,
   sender: NoteSender,
   note: HiddenNote,
@@ -72,6 +73,7 @@ export async function insertHiddenNote(
     version: 1,
     segmentIndex: 0,
   })
+  return messageId
 }
 
 export type ModeNoteAudience = {
@@ -175,7 +177,7 @@ export function decideModeNote({
  */
 export async function injectModeNote(
   ctx: MutationCtx,
-  session: Doc<'sessions'>,
+  session: Session,
   invokerId: Id<'users'>,
 ) {
   const next = session.mode ?? 'normal'
@@ -235,14 +237,16 @@ async function trailingModeNote(ctx: MutationCtx, sessionId: Id<'sessions'>) {
   return newest?.type === 'mode' ? newest : null
 }
 
-type Workspace = Doc<'sessions'>['workspace']
+type Workspace = Session['workspace']
 
-/**
- * The sidecar keeps one workspaceId per session and re-points its root on a
- * re-bind, so the path (not the id) is what identifies a workspace here.
- */
+/** Detects a different folder or ordered source set. */
 export function workspaceChanged(previous: Workspace, next: Workspace) {
-  return previous?.path !== next?.path
+  return (
+    previous?.workspaceId !== next?.workspaceId ||
+    JSON.stringify(
+      previous?.sources?.map((s) => s.path) ?? [previous?.path],
+    ) !== JSON.stringify(next?.sources?.map((s) => s.path) ?? [next?.path])
+  )
 }
 
 export function buildWorkspaceNoteContent(
@@ -255,32 +259,30 @@ export function buildWorkspaceNoteContent(
 function workspaceNoteBody(previous: Workspace, next: Workspace): string[] {
   if (!next) {
     return [
-      previous
-        ? `The workspace "${previous.label}" (${previous.path}) was unbound.`
-        : 'The workspace was unbound.',
-      'File and shell tools have nothing to operate on until one is bound.',
+      'This session has no folder source directories. File and shell tools are unavailable.',
+      'Earlier filesystem context no longer applies.',
     ]
   }
-
-  if (!previous) {
-    return [
-      `The workspace "${next.label}" (${next.path}) is bound.`,
-      'File and shell tools operate on this workspace.',
-    ]
-  }
-
   return [
-    `The workspace is now "${next.label}" (${next.path}).`,
-    `It was previously "${previous.label}" (${previous.path}). ` +
-      'Paths you resolved earlier no longer apply.',
-    'Re-read any file you need instead of relying on earlier reads.',
+    `Folder: "${next.label}". Primary source: ${next.path}.`,
+    `Relative file paths and the shell working directory resolve from the primary source (${next.path}).`,
+    'Accessible source directories:',
+    ...(next.sources ?? [{ path: next.path, label: next.label }]).map(
+      (s, i) => `- ${s.path}${i === 0 ? ' (Primary)' : ''}`,
+    ),
+    'Use absolute paths for other source directories. Existing tool and path approval rules still apply.',
+    ...(previous
+      ? [
+          'The filesystem context changed. Re-read files you need; do not rely on earlier paths or file contents.',
+        ]
+      : []),
   ]
 }
 
 /** Tells the agent its workspace moved. */
 export async function injectWorkspaceNote(
   ctx: MutationCtx,
-  session: Doc<'sessions'>,
+  session: Session,
   next: Workspace,
 ) {
   const previous = session.workspace
@@ -289,7 +291,7 @@ export async function injectWorkspaceNote(
   const sender = await resolveNoteSender(ctx, session)
   if (!sender) return
 
-  await insertHiddenNote(ctx, session, session.ownerId, sender, {
+  return insertHiddenNote(ctx, session, session.ownerId, sender, {
     type: 'workspace',
     role: 'system',
     content: buildWorkspaceNoteContent(previous, next),

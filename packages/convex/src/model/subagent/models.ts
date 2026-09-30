@@ -5,6 +5,7 @@ import {
 
 import type { Doc } from '../../_generated/dataModel'
 import type { QueryCtx } from '../../_generated/server'
+import type { Session } from '../../types'
 import type {
   AgentSubagentOverride,
   ModelSelection,
@@ -20,7 +21,7 @@ export type SubagentModelSettings = {
 
 export type ResolveSubagentModelArgs = {
   parent: Doc<'agents'> | null
-  session: Doc<'sessions'>
+  session: Session
   agent: Doc<'agents'>
 }
 
@@ -54,7 +55,7 @@ export async function resolveSubagentModel(
 }
 
 function resolveReasoning(
-  session: Doc<'sessions'>,
+  session: Session,
   model: ModelSelection | undefined,
   override?: AgentSubagentOverride,
 ): SubagentModelSettings {

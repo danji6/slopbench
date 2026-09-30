@@ -1,5 +1,6 @@
 'use node'
 
+import type { FolderWorkspace } from '@sb/core/types/workspace'
 import { pathApprovalStatus } from '@sb/core/workspace/path-policy'
 import type { UIMessage } from 'ai'
 
@@ -30,6 +31,7 @@ export const FILE_MUTATION_TOOL_TYPES = new Set([
 export type ApprovalContext = {
   sessionId: Id<'sessions'>
   workspaceId: string
+  workspace?: FolderWorkspace
   allowedPaths?: string[]
 }
 
@@ -51,6 +53,7 @@ export async function attachApprovalPreviews(
   const context = {
     sessionId: setup.workspaceSessionId,
     workspaceId,
+    workspace: setup.workspace,
     allowedPaths: mergeToolApprovals(
       approvals ?? undefined,
       setup.agent.autoApprove,

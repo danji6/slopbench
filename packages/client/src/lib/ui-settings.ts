@@ -18,9 +18,27 @@ export type SidebarSettings = {
 
 export type UiSettings = {
   sidebar?: SidebarSettings
+  sessionFolderByUser?: Record<string, string | null>
 }
 
 const store = createLocalStorageStore<UiSettings>(STORAGE_KEY)
+
+export function getSelectedSessionFolder(userId: string): string | null {
+  return store.get().sessionFolderByUser?.[userId] ?? null
+}
+
+export function setSelectedSessionFolder(
+  userId: string,
+  folderId: string | null,
+) {
+  if (getSelectedSessionFolder(userId) === folderId) return
+  store.set({
+    sessionFolderByUser: {
+      ...store.get().sessionFolderByUser,
+      [userId]: folderId,
+    },
+  })
+}
 
 export function getSidebarState(side: SidebarSide): SidebarState {
   return store.get().sidebar?.[side] ?? {}

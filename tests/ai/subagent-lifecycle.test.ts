@@ -45,7 +45,6 @@ function parentDocs(
     {
       _id: 'session_1',
       ownerId: owner,
-      workspace: { workspaceId: 'ws_1', label: 'ws' },
       model: { id: 'parent-model', label: 'Parent Model' },
       reasoningEffort: 'high',
     },
@@ -93,7 +92,6 @@ describe('_suspendStep', () => {
     expect(session?.fields).toMatchObject({
       ownerId: owner,
       activeAgentId: 'agent_explorer',
-      workspace: { workspaceId: 'ws_1', label: 'ws' },
       model: { id: 'parent-model', label: 'Parent Model' },
       reasoningEffort: 'high',
       parent: {

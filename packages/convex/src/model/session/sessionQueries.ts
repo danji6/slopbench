@@ -18,9 +18,11 @@ export async function list(
   {
     paginationOpts,
     search,
+    groupKey,
     showHidden,
   }: {
     paginationOpts: PaginationOptions
+    groupKey?: string
     search?: string
     showHidden?: boolean
   },
@@ -41,8 +43,11 @@ export async function list(
         .paginate(paginationOpts)
     : await ctx.db
         .query('userSessions')
-        .withIndex('by_userId_hidden_lastMessageAt', (q) =>
-          q.eq('userId', ctx.userId).eq('hidden', undefined),
+        .withIndex('by_user_group_activity', (q) =>
+          q
+            .eq('userId', ctx.userId)
+            .eq('hidden', undefined)
+            .eq('groupKey', groupKey ?? 'ungrouped'),
         )
         .order('desc')
         .paginate(paginationOpts)
@@ -52,7 +57,7 @@ export async function list(
       if (!showHidden && row.userHidden) return null
       const session = await ctx.db.get(row.sessionId)
       if (!session || session.parent) return null
-      return toListItem(ctx, session, row.userHidden)
+      return toListItem(ctx, session, row.userHidden, row.pinned)
     }),
   )
 
@@ -66,6 +71,7 @@ export async function toListItem(
   ctx: AuthQueryCtx,
   session: Doc<'sessions'>,
   userHidden?: boolean,
+  pinned?: boolean,
 ): Promise<SessionListItem> {
   const members = await ctx.db
     .query('userSessions')
@@ -108,7 +114,13 @@ export async function toListItem(
     ...agents.filter((agent): agent is SessionParticipant => agent !== null),
   ]
 
+  const folder = session.folderId ? await ctx.db.get(session.folderId) : null
   return {
+    pinned: pinned || undefined,
+    owned: session.ownerId === ctx.userId,
+    folderId: session.folderId,
+    folderName: folder?.name,
+    folderIcon: folder?.icon,
     _id: session._id,
     _creationTime: session._creationTime,
     title: session.title,

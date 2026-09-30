@@ -12,6 +12,7 @@ import {
   type ShellToolPart,
   isShellToolPart,
 } from '../../lib/userShell'
+import type { Session } from '../../types'
 import {
   getSegmentRow,
   insertMessage,
@@ -20,6 +21,7 @@ import {
 } from '../messageContents'
 import { syncActivity } from '../messages'
 import { notifyUserMessage } from '../notifications'
+import { getSessionWithWorkspace } from '../session/folderContext'
 import * as Memberships from '../session/memberships'
 import * as Settings from '../settings'
 import { resolveSender } from './identities'
@@ -41,7 +43,7 @@ export const USER_SHELL_WINDOW_MS = 8 * 60 * 1000
 const USER_SHELL_REAP_MS = 15 * 60 * 1000
 
 type RunShellCommandArgs = {
-  session: Doc<'sessions'>
+  session: Session
   membership: Doc<'userSessions'>
   settings: Doc<'settings'> | null
   command: string
@@ -138,7 +140,7 @@ export async function _beginUserShellWindow(
   const message = await ctx.db.get(messageId)
   if (!message || message.status !== 'processing') return null
 
-  const session = await ctx.db.get(message.sessionId)
+  const session = await getSessionWithWorkspace(ctx, message.sessionId)
   if (!session?.workspace) return null
 
   const row = await getSegmentRow(ctx, messageId, 1, 0)
@@ -166,6 +168,7 @@ export async function _beginUserShellWindow(
     owner: messageId, // guards against agent turn abort
     messageId,
     workspaceId: session.workspace.workspaceId,
+    workspace: session.workspace,
     shell: sender?.shell || undefined,
     allowInteractiveShells: sender?.allowInteractiveShells ?? false,
     command: part.input.command,
@@ -252,7 +255,7 @@ export async function _finishUserShell(
     metadata: { ...message.metadata, duration },
   })
 
-  const session = await ctx.db.get(message.sessionId)
+  const session = await getSessionWithWorkspace(ctx, message.sessionId)
   if (!session) return
 
   await reserveOrDebounceTurn(ctx, {

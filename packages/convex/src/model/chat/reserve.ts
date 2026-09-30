@@ -4,6 +4,8 @@ import type { MutationCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import { addVersion, getActiveSegmentRow } from '../messageContents'
 import { scheduleTitle, stripMessageError } from '../messages'
+import { announceFolderContext } from '../session/folderAnnouncement'
+import { getSessionWithWorkspace } from '../session/folderContext'
 import * as Memberships from '../session/memberships'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 import { STREAM_LEASE_MS } from '../stream/lifecycle'
@@ -37,15 +39,18 @@ export async function reserveStream(
   const agent = await ctx.db.get(args.agentId)
   if (!agent) error('Agent not found', 404)
 
-  const session = await ctx.db.get(args.sessionId)
-  const boundary = args.boundaryId ? await ctx.db.get(args.boundaryId) : null
+  const session = await getSessionWithWorkspace(ctx, args.sessionId)
+  if (session?.contextLock) error('Folder sources are being updated', 409)
+
+  const announcement = session ? await announceFolderContext(ctx, session) : null // prettier-ignore
+  const boundary = announcement ?? (args.boundaryId ? await ctx.db.get(args.boundaryId) : null) // prettier-ignore
   const delayMs = args.delayMs ?? 0
 
   const streamId = await ctx.db.insert('streams', {
     sessionId: args.sessionId,
     agentId: args.agentId,
     invokedBy: args.invokedBy,
-    contextBoundaryMessageId: args.boundaryId,
+    contextBoundaryMessageId: boundary?._id,
     contextBoundaryCreationTime: boundary?._creationTime,
     operation: args.operation,
     // Plan mode only applies to regular invocations, snapshotted per turn
@@ -166,7 +171,7 @@ export async function reserveResumableStream(
   const agent = await ctx.db.get(args.agentId)
   if (!agent) error('Agent not found', 404)
 
-  const session = await ctx.db.get(args.sessionId)
+  const session = await getSessionWithWorkspace(ctx, args.sessionId)
 
   const [boundary, message] = await Promise.all([
     args.boundaryId ? ctx.db.get(args.boundaryId) : null,
@@ -194,7 +199,7 @@ export async function reserveResumableStream(
     invokedBy: args.invokedBy,
     processingMessageId: args.messageId,
     processingContentId: active?._id,
-    contextBoundaryMessageId: args.boundaryId,
+    contextBoundaryMessageId: boundary?._id,
     contextBoundaryCreationTime: boundary?._creationTime,
     operation: 'invoke',
     ...(session?.mode === 'plan' ? { mode: session.mode } : {}),
@@ -262,7 +267,7 @@ export async function reserveRetryStream(
     invokedBy: args.invokedBy,
     processingMessageId: args.messageId,
     processingContentId: contentId,
-    contextBoundaryMessageId: args.boundaryId,
+    contextBoundaryMessageId: boundary?._id,
     contextBoundaryCreationTime: boundary?._creationTime,
     operation: 'retry',
     blocking: false,

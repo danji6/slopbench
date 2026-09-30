@@ -13,7 +13,7 @@ import { getState, patchState } from './state'
  * What carries over:
  * - Message history (without versioning)
  * - Linked agents
- * - Bound workspace (if called from api.actions.sessions.duplicate)
+ * - Folder and its source directories
  * - Plan
  * - Environment variables
  * - Media
@@ -28,6 +28,7 @@ export async function duplicate(
   { sessionId, title }: { sessionId: Id<'sessions'>; title?: string },
 ) {
   const { session } = await requireOwner(ctx, sessionId, ctx.userId)
+  if (session.contextLock) error('Folder sources are being updated', 409)
   if (session.parent) error('Sub-agent sessions cannot be duplicated', 409)
   if (await getActiveStream(ctx, sessionId)) {
     error('Session is busy', 409)
@@ -40,6 +41,7 @@ export async function duplicate(
 
   const newSessionId = await ctx.db.insert('sessions', {
     ownerId: ctx.userId,
+    folderId: session.folderId,
     title: newTitle,
     activeAgentId: session.activeAgentId,
     ...(session.model ? { model: session.model } : {}),
@@ -59,6 +61,7 @@ export async function duplicate(
     sessionId: newSessionId,
     userId: ctx.userId,
     role: 'owner',
+    groupKey: session.folderId ?? 'ungrouped',
     lastMessageAt: now,
     title: newTitle,
   })

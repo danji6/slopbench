@@ -9,11 +9,13 @@
  */
 
 import type * as actions_agents from "../actions/agents.js";
+import type * as actions_folders from "../actions/folders.js";
 import type * as actions_io_agent from "../actions/io/agent.js";
 import type * as actions_io_avatar from "../actions/io/avatar.js";
 import type * as actions_mcp from "../actions/mcp.js";
 import type * as actions_messages from "../actions/messages.js";
 import type * as actions_session_archive from "../actions/session/archive.js";
+import type * as actions_session_folders from "../actions/session/folders.js";
 import type * as actions_session_title from "../actions/session/title.js";
 import type * as actions_session_workspace from "../actions/session/workspace.js";
 import type * as actions_sessions from "../actions/sessions.js";
@@ -129,6 +131,10 @@ import type * as model_scheduledEvents from "../model/scheduledEvents.js";
 import type * as model_session_agents from "../model/session/agents.js";
 import type * as model_session_archive from "../model/session/archive.js";
 import type * as model_session_cache from "../model/session/cache.js";
+import type * as model_session_folderAnnouncement from "../model/session/folderAnnouncement.js";
+import type * as model_session_folderContext from "../model/session/folderContext.js";
+import type * as model_session_folderTransitions from "../model/session/folderTransitions.js";
+import type * as model_session_folders from "../model/session/folders.js";
 import type * as model_session_memberships from "../model/session/memberships.js";
 import type * as model_session_models from "../model/session/models.js";
 import type * as model_session_sessionAccess from "../model/session/sessionAccess.js";
@@ -202,6 +208,7 @@ import type * as providers from "../providers.js";
 import type * as rateLimits from "../rateLimits.js";
 import type * as reminders from "../reminders.js";
 import type * as sessionAgents from "../sessionAgents.js";
+import type * as sessionFolders from "../sessionFolders.js";
 import type * as sessionShares from "../sessionShares.js";
 import type * as sessions from "../sessions.js";
 import type * as settings from "../settings.js";
@@ -227,11 +234,13 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   "actions/agents": typeof actions_agents;
+  "actions/folders": typeof actions_folders;
   "actions/io/agent": typeof actions_io_agent;
   "actions/io/avatar": typeof actions_io_avatar;
   "actions/mcp": typeof actions_mcp;
   "actions/messages": typeof actions_messages;
   "actions/session/archive": typeof actions_session_archive;
+  "actions/session/folders": typeof actions_session_folders;
   "actions/session/title": typeof actions_session_title;
   "actions/session/workspace": typeof actions_session_workspace;
   "actions/sessions": typeof actions_sessions;
@@ -347,6 +356,10 @@ declare const fullApi: ApiFromModules<{
   "model/session/agents": typeof model_session_agents;
   "model/session/archive": typeof model_session_archive;
   "model/session/cache": typeof model_session_cache;
+  "model/session/folderAnnouncement": typeof model_session_folderAnnouncement;
+  "model/session/folderContext": typeof model_session_folderContext;
+  "model/session/folderTransitions": typeof model_session_folderTransitions;
+  "model/session/folders": typeof model_session_folders;
   "model/session/memberships": typeof model_session_memberships;
   "model/session/models": typeof model_session_models;
   "model/session/sessionAccess": typeof model_session_sessionAccess;
@@ -420,6 +433,7 @@ declare const fullApi: ApiFromModules<{
   rateLimits: typeof rateLimits;
   reminders: typeof reminders;
   sessionAgents: typeof sessionAgents;
+  sessionFolders: typeof sessionFolders;
   sessionShares: typeof sessionShares;
   sessions: typeof sessions;
   settings: typeof settings;

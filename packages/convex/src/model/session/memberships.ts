@@ -1,6 +1,7 @@
 import type { Id } from '../../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../../_generated/server'
 import { error } from '../../errors'
+import { getSessionWithWorkspace } from './folderContext'
 
 export async function getMembership(
   ctx: QueryCtx | MutationCtx,
@@ -39,7 +40,7 @@ export async function getMember(
   userId: Id<'users'>,
 ) {
   const [session, membership] = await Promise.all([
-    ctx.db.get(sessionId),
+    getSessionWithWorkspace(ctx, sessionId),
     getMembership(ctx, sessionId, userId),
   ])
   if (!session || !membership) return null
@@ -66,7 +67,11 @@ export async function requireOwner(
   return result
 }
 
-export function requireEnabled(session: { settings?: { disabled?: boolean } }) {
+export function requireEnabled(session: {
+  contextLock?: string
+  settings?: { disabled?: boolean }
+}) {
+  if (session.contextLock) error('Folder sources are being updated', 409)
   if (session.settings?.disabled) error('Session is disabled', 409)
 }
 

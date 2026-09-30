@@ -100,6 +100,11 @@ function sessionDisplayEqual(a: SessionListItem, b: SessionListItem): boolean {
     a.firstMessagePreview === b.firstMessagePreview &&
     a.activeAgentId === b.activeAgentId &&
     a.hidden === b.hidden &&
+    a.pinned === b.pinned &&
+    a.owned === b.owned &&
+    a.folderId === b.folderId &&
+    a.folderName === b.folderName &&
+    a.folderIcon === b.folderIcon &&
     participantsEqual(a.participants, b.participants)
   )
 }

@@ -23,6 +23,7 @@ type Ctx = {
 function makeCtx() {
   const tables: Record<string, Row[]> = {
     sessions: [],
+    sessionFolders: [],
     userSessions: [],
     sessionAgents: [],
     plans: [],
@@ -202,8 +203,15 @@ describe('sessions.duplicate', () => {
       announcedMode: 'plan',
       lastMessagePreview: 'bye',
       firstMessagePreview: 'hi',
-      workspace: { workspaceId: 'w1', label: 'repo', path: '/repo' },
+      folderId: 'folder_1',
       settings: { slowModeMs: 500, disabled: true },
+    })
+    tables.sessionFolders.push({
+      _id: 'folder_1',
+      ownerId: OWNER,
+      name: 'Repo',
+      revision: 1,
+      sources: [{ id: 'root', path: '/repo', label: 'repo' }],
     })
     tables.sessionAgents.push({
       _id: 'link_1',
@@ -259,7 +267,8 @@ describe('sessions.duplicate', () => {
     expect(copy.mode).toBe('plan')
     expect(copy.lastMessagePreview).toBe('bye')
     expect(copy.firstMessagePreview).toBe('hi')
-    // Workspace bindings are per-sidecar-registration and never copied
+    // Copies inherit their source folder without a sidecar rebind.
+    expect(copy.folderId).toBe('folder_1')
     expect(copy.workspace).toBeUndefined()
     expect(copy.parent).toBeUndefined()
     // A copy starts enabled even when its source was disabled
@@ -269,6 +278,8 @@ describe('sessions.duplicate', () => {
       (row) => row.sessionId === sessionId && row.userId === OWNER,
     )!
     expect(membership.role).toBe('owner')
+    expect(membership.groupKey).toBe('folder_1')
+    expect(membership.pinned).toBeUndefined()
     expect(membership.title).toBe('Source (copy)')
     expect(
       tables.sessionAgents.some((row) => row.sessionId === sessionId),

@@ -13,7 +13,10 @@ export const sessionSchema = v.object({
   /** Selected model, resolved against the active agent owner's providers. */
   model: v.optional(V.modelSelectionValidator),
   reasoningEffort: v.optional(v.string()),
-  workspace: v.optional(V.workspaceRefValidator),
+  folderId: v.optional(v.id('sessionFolders')),
+  contextLock: v.optional(v.string()),
+  workspaceRevision: v.optional(v.string()),
+  announcedWorkspace: v.optional(V.workspaceRefValidator),
   parent: v.optional(V.sessionParentValidator),
   lastMessageAt: v.optional(v.number()),
   lastMessagePreview: v.optional(v.string()),
@@ -27,6 +30,7 @@ export const sessionSchema = v.object({
  * otherwise make client session subscriptions unstable.
  */
 export const sessionStateSchema = v.object({
+  pathApprovalRevision: v.optional(v.string()),
   sessionId: v.id('sessions'),
   environment: v.optional(V.environmentValidator),
   toolApprovals: v.optional(V.toolApprovalsValidator),
@@ -232,7 +236,19 @@ export const attachmentFileSchema = v.object({
   shareToken: v.string(),
 })
 
+export const sessionFolderSchema = v.object({
+  ownerId: v.id('users'),
+  name: v.string(),
+  icon: v.optional(v.string()),
+  position: v.number(),
+  sources: v.array(V.folderSourceValidator),
+  revision: v.number(),
+  contextLock: v.optional(v.string()),
+})
+
 export const userSessionSchema = v.object({
+  groupKey: v.optional(v.string()),
+  pinned: v.optional(v.boolean()),
   sessionId: v.id('sessions'),
   userId: v.id('users'),
   role: v.union(v.literal('owner'), v.literal('member')),
@@ -363,6 +379,7 @@ export const planSchema = v.object({
 })
 
 export const sessionCacheSchema = v.object({
+  workspaceRevision: v.optional(v.string()),
   sessionId: v.id('sessions'),
   agentId: v.id('agents'),
   /** Evaluated invoke prompts for this (session, agent). */

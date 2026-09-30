@@ -1,3 +1,5 @@
+import type { FolderWorkspace } from '@sb/core/types/workspace'
+
 import { type ShellStreamEvent } from '../sidecar'
 
 export type ShellJobContext = {
@@ -5,6 +7,7 @@ export type ShellJobContext = {
   /** Session that owns this job's lifecycle. */
   owner?: string
   workspaceId: string
+  workspace?: FolderWorkspace
   shell?: string
   allowInteractiveShells?: boolean
   /** Tool call the job's terminal belongs to. */

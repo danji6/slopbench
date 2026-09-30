@@ -14,6 +14,7 @@ import path from 'node:path'
 import { glob } from 'tinyglobby'
 import { z } from 'zod'
 
+import { withWorkspaceOperation, workspaceContextSchema } from './context'
 import { expandHome } from './paths'
 import { requireWorkspace, resolveExistingPath } from './workspace'
 
@@ -24,6 +25,7 @@ const GLOB_IGNORES = ['**/.git/**', '**/node_modules/**']
 export const listWorkspaceFilesSchema = z.object({
   sessionId: z.string(),
   workspaceId: z.string(),
+  workspace: workspaceContextSchema,
 })
 
 export const listWorkspaceFilesByRootSchema = z.object({
@@ -33,6 +35,7 @@ export const listWorkspaceFilesByRootSchema = z.object({
 export const readWorkspaceFileLinkSchema = z.object({
   sessionId: z.string(),
   workspaceId: z.string(),
+  workspace: workspaceContextSchema,
   path: z.string().min(1),
 })
 
@@ -40,11 +43,28 @@ export const readWorkspaceFileLinkSchema = z.object({
  * List workspace files. Prefers `git ls-files` and falls back to globbing
  * for non-git directories.
  */
-export async function listWorkspaceFiles(
+async function listWorkspaceFilesImpl(
   input: z.infer<typeof listWorkspaceFilesSchema>,
 ): Promise<WorkspaceFileListing> {
-  const workspace = await requireWorkspace(input.sessionId, input.workspaceId)
-  return indexFiles(workspace.root)
+  const workspace = await requireWorkspace(
+    input.sessionId,
+    input.workspaceId,
+    input.workspace,
+  )
+  const listings = await Promise.all(workspace.roots.map(indexFiles))
+  const all = new Map<string, string>()
+
+  for (const [i, listing] of listings.entries()) {
+    for (const file of listing.files) {
+      const absolute = path.resolve(workspace.roots[i]!, file)
+      if (!all.has(absolute)) all.set(absolute, i === 0 ? file : absolute)
+    }
+  }
+
+  return {
+    files: [...all.values()].slice(0, MAX_INDEX_FILES),
+    truncated: all.size > MAX_INDEX_FILES || listings.some((l) => l.truncated),
+  }
 }
 
 /**
@@ -70,11 +90,19 @@ async function indexFiles(root: string): Promise<WorkspaceFileListing> {
  * Read a linked file or directory for context injection. Directories are
  * listed, text is inlined, and binary/large files are base64-encoded.
  */
-export async function readWorkspaceFileLink(
+async function readWorkspaceFileLinkImpl(
   input: z.infer<typeof readWorkspaceFileLinkSchema>,
 ): Promise<WorkspaceFileLink> {
-  const workspace = await requireWorkspace(input.sessionId, input.workspaceId)
-  const target = await resolveExistingPath(workspace.root, input.path)
+  const workspace = await requireWorkspace(
+    input.sessionId,
+    input.workspaceId,
+    input.workspace,
+  )
+  const target = await resolveExistingPath(
+    workspace.root,
+    input.path,
+    workspace.roots,
+  )
 
   if (target.isDirectory) return listDirectoryLink(target)
   if (!target.isFile) throw new Error('Path is not a file')
@@ -167,4 +195,20 @@ function isTextContent(mediaType: string, buffer: Buffer): boolean {
     return !buffer.subarray(0, 4096).includes(0)
   }
   return false
+}
+
+export function listWorkspaceFiles(
+  input: Parameters<typeof listWorkspaceFilesImpl>[0],
+) {
+  return withWorkspaceOperation(input.sessionId, () =>
+    listWorkspaceFilesImpl(input),
+  )
+}
+
+export function readWorkspaceFileLink(
+  input: Parameters<typeof readWorkspaceFileLinkImpl>[0],
+) {
+  return withWorkspaceOperation(input.sessionId, () =>
+    readWorkspaceFileLinkImpl(input),
+  )
 }

@@ -9,7 +9,7 @@ import {
 } from 'node:fs'
 import path from 'node:path'
 
-import { assertInside, expandHome } from '../mcp/workspace/paths'
+import { expandHome } from '../mcp/workspace/paths'
 
 const MAX_FILE_BYTES = 50_000
 
@@ -28,13 +28,17 @@ function resolveRoot(workDir: string | undefined): string | null {
  * confined to `root`. Returns `null` when the path is empty or does not exist,
  * and throws (via `assertInside`) when it escapes the workspace.
  */
-function resolveInside(root: string, filePath: string): string | null {
+function resolveInside(
+  root: string,
+  filePath: string,
+  roots: string[],
+): string | null {
   if (typeof filePath !== 'string' || filePath.length === 0) return null
 
   const candidate = path.isAbsolute(filePath)
     ? path.resolve(filePath)
     : path.resolve(root, filePath)
-  assertInside(root, candidate)
+  assertSources(roots, candidate)
 
   let target: string
   try {
@@ -42,7 +46,7 @@ function resolveInside(root: string, filePath: string): string | null {
   } catch {
     return null
   }
-  assertInside(root, target)
+  assertSources(roots, target)
   return target
 }
 
@@ -54,12 +58,16 @@ function resolveInside(root: string, filePath: string): string | null {
  */
 export function createFileHelper(
   workDir: string | undefined,
+  workDirs?: string[],
 ): (filePath: string, wrap?: boolean) => string {
   const root = resolveRoot(workDir)
   if (!root) return () => ''
+  const roots = (workDirs ?? [root]).filter(
+    (source) => resolveRoot(source) === source,
+  )
 
   return (filePath: string, wrap: boolean = true) => {
-    const target = resolveInside(root, filePath)
+    const target = resolveInside(root, filePath, roots)
     if (!target) return ''
 
     let content: string
@@ -98,16 +106,34 @@ function readBoundedFile(target: string): string {
  */
 export function createFileExistsHelper(
   workDir: string | undefined,
+  workDirs?: string[],
 ): (filePath: string) => boolean {
   const root = resolveRoot(workDir)
   if (!root) return () => false
+  const roots = (workDirs ?? [root]).filter(
+    (source) => resolveRoot(source) === source,
+  )
 
   return (filePath: string) => {
     try {
-      const target = resolveInside(root, filePath)
+      const target = resolveInside(root, filePath, roots)
       return target !== null && statSync(target).isFile()
     } catch {
       return false
     }
   }
+}
+
+function assertSources(roots: string[], target: string) {
+  if (
+    !roots.some((root) => {
+      const rel = path.relative(root, target)
+      return (
+        rel !== '..' &&
+        !rel.startsWith(`..${path.sep}`) &&
+        !path.isAbsolute(rel)
+      )
+    })
+  )
+    throw new Error('Path escapes the configured workspace sources')
 }

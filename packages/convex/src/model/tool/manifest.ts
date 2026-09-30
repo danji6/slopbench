@@ -9,6 +9,7 @@ import { mcpToolDescription, mcpToolName } from '@sb/core/types'
 import type { Doc } from '../../_generated/dataModel'
 import { type Role, minRole } from '../../lib/roles'
 import { TASK_TOOL_NAME } from '../../lib/subagent'
+import type { Session } from '../../types'
 import type { SpawnableAgent } from '../agent/subagents'
 import {
   type ToolResources,
@@ -47,7 +48,7 @@ export type McpManifestEntry = {
 type ManifestInput = {
   agent: Pick<Doc<'agents'>, 'tools' | 'shell'>
   invoker: Pick<Doc<'users'>, 'role'>
-  session: Pick<Doc<'sessions'>, 'workspace' | 'parent'>
+  session: Pick<Session, 'workspace' | 'parent'>
   resources: ToolResources
   spawnableAgents: SpawnableAgent[]
   /** The owner's settings, for the fields the agent may override. */

@@ -5,6 +5,7 @@ import { toDisplayName, toOptionalName } from '@sb/core/utils/names'
 
 import type { Doc } from '../../_generated/dataModel'
 import { minRole } from '../../lib/roles'
+import type { Session } from '../../types'
 
 type EvalContextInput = {
   agent: Doc<'agents'>
@@ -12,7 +13,7 @@ type EvalContextInput = {
   invokerSettings: Doc<'settings'> | null
   owner: Doc<'users'>
   ownerSettings: Doc<'settings'> | null
-  session: Doc<'sessions'>
+  session: Session
   userCount: number
   agentCount: number
   toolNames: string[]
@@ -41,5 +42,6 @@ export function buildEvalContext({
     userCount,
     agentCount,
     workDir: session.workspace?.path,
+    workDirs: session.workspace?.sources?.map((source) => source.path),
   }
 }

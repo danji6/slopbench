@@ -1,95 +1,56 @@
 import { RippleButton, SettingsList } from '@/components/ui'
-import { useActiveSession, useRecentWorkspaces } from '@/hooks/chat'
-import { toast, toastError } from '@/lib/notifications'
-import { api } from '@sb/convex/_generated/api'
-import { useAction } from 'convex/react'
-import { FolderIcon } from 'lucide-react'
+import { useActiveSession, useIsSessionOwner } from '@/hooks/chat'
 import { useState } from 'react'
 
-import { WorkspacePickerDialog } from './workspace-picker-dialog'
+import { SessionFolderDialog } from './session-folder-dialog'
 
 export function SessionWorkspaceSection() {
   const session = useActiveSession()
-  const { recent, remember } = useRecentWorkspaces()
-  const bindWorkspace = useAction(api.actions.workspaces.bind)
-  const clearWorkspace = useAction(api.actions.workspaces.clear)
-  const [open, setOpen] = useState(false)
-  const [busy, setBusy] = useState(false)
-
-  async function selectWorkspace(root: string) {
-    if (!session) return
-    setBusy(true)
-    try {
-      await bindWorkspace({ sessionId: session._id, root })
-      remember(root)
-      toast('Workspace configured')
-    } catch (err) {
-      toastError(err)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function clearCurrent() {
-    if (!session) return
-    setBusy(true)
-    try {
-      await clearWorkspace({ sessionId: session._id })
-      toast('Workspace cleared')
-    } catch (err) {
-      toastError(err)
-    } finally {
-      setBusy(false)
-    }
-  }
-
+  const isOwner = useIsSessionOwner()
+  const [moving, setMoving] = useState(false)
   return (
     <SettingsList>
       <SettingsList.Item
         orientation="vertical"
         unclickable
-        label="Working directory"
+        label="Folder sources"
         description={
           session?.workspace ? (
-            <>
-              <div className="truncate font-semibold">
-                {session.workspace.label}
-              </div>
-              <div className="truncate text-[10px]">
-                {session.workspace.path}
-              </div>
-            </>
+            <div className="flex flex-col gap-1">
+              <strong>{session.workspace.label}</strong>
+              {session.workspace.sources?.map((source, index) => (
+                <span
+                  key={source.id}
+                  className="truncate text-xs"
+                  title={source.path}
+                >
+                  {source.path}
+                  {index === 0 ? ' (Primary)' : ''}
+                </span>
+              ))}
+            </div>
           ) : (
-            'Coding tools stay unavailable until a directory is configured.'
+            'This session has no source directories.'
           )
         }
       >
-        <div className="flex flex-wrap gap-2">
+        {isOwner && (
           <RippleButton
             variant="input"
             size="sm"
-            disabled={busy}
-            onClick={() => setOpen(true)}
+            onClick={() => setMoving(true)}
           >
-            <FolderIcon />
-            {session?.workspace ? 'Change' : 'Configure'}
+            Move to folder…
           </RippleButton>
-          <RippleButton
-            variant="input"
-            size="sm"
-            disabled={busy || !session?.workspace}
-            onClick={() => void clearCurrent()}
-          >
-            Clear
-          </RippleButton>
-        </div>
+        )}
+        {moving && session && (
+          <SessionFolderDialog
+            sessionId={session._id}
+            folderId={session.folderId}
+            onClose={() => setMoving(false)}
+          />
+        )}
       </SettingsList.Item>
-      <WorkspacePickerDialog
-        open={open}
-        onOpenChange={setOpen}
-        initialPath={recent[0] ?? undefined}
-        onSelect={(root) => void selectWorkspace(root)}
-      />
     </SettingsList>
   )
 }

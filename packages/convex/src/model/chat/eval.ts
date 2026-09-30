@@ -2,6 +2,7 @@ import type { Id } from '../../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../../_generated/server'
 import { resolve as resolveMcpServers } from '../mcp'
 import { getSegmentRow, setSegmentParts } from '../messageContents'
+import { getSessionWithWorkspace } from '../session/folderContext'
 import { countParticipants } from '../session/memberships'
 import { getState, patchState } from '../session/state'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
@@ -29,7 +30,7 @@ export async function _getMessageEvalContext(
   const row = await getSegmentRow(ctx, messageId, version, segmentIndex)
   if (!row) return null
 
-  const session = await ctx.db.get(message.sessionId)
+  const session = await getSessionWithWorkspace(ctx, message.sessionId)
   if (!session?.activeAgentId) return null
 
   const [agent, invoker] = await Promise.all([

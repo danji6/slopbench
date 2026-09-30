@@ -17,7 +17,10 @@ const queue: Array<() => void> = []
 
 /** Bounds concurrent guests and queued requests, including worker startup. */
 export async function evaluateInWorker(
-  request: EvaluationRequest & { authorizedWorkDir?: string },
+  request: EvaluationRequest & {
+    authorizedWorkDir?: string
+    authorizedWorkDirs?: string[]
+  },
 ): Promise<EvaluationResult> {
   if (active >= EVAL_LIMITS.concurrency) {
     if (queue.length >= EVAL_LIMITS.queueLength) throw new EvaluationBusyError()
@@ -33,7 +36,10 @@ export async function evaluateInWorker(
 }
 
 function runWorker(
-  request: EvaluationRequest & { authorizedWorkDir?: string },
+  request: EvaluationRequest & {
+    authorizedWorkDir?: string
+    authorizedWorkDirs?: string[]
+  },
 ): Promise<EvaluationResult> {
   return new Promise((resolve, reject) => {
     const worker = new Worker(new URL('./worker.js', import.meta.url), {

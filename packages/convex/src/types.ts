@@ -23,7 +23,7 @@ export type McpExecutionArgs = Infer<typeof V.mcpExecutionArgsValidator>
 
 export type StreamContext = {
   stream: Doc<'streams'>
-  session: Doc<'sessions'>
+  session: Session
   environment: Record<string, unknown>
   toolApprovals?: ToolApprovals
   agent: Doc<'agents'>
@@ -136,3 +136,12 @@ export type MessageWindowArgs = Infer<typeof V.messagesWindowArgsValidator>
 export type PartAddress = Infer<typeof V.partAddressValidator>
 export type EditMessagePartArgs = Infer<typeof V.editMessagePartArgsValidator>
 export type DeleteMessagePartsArgs = Infer<typeof V.deleteMessagePartsArgsValidator> // prettier-ignore
+export type FolderTransitionArgs = Infer<typeof V.folderTransitionArgs>
+export type FolderCreateArgs = Infer<typeof V.folderCreateArgs>
+
+/** A session with its folder-owned filesystem context resolved for this request. */
+export type Session = Doc<'sessions'> & {
+  workspace?: Infer<typeof V.workspaceRefValidator>
+}
+
+export type FolderFinishArgs = Infer<typeof V.folderFinishArgs>

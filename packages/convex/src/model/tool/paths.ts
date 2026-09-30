@@ -10,7 +10,7 @@ import { callMcpTool } from './mcp'
 /** Shared sidecar boundary for file and shell path decisions. */
 export async function checkToolPaths(
   paths: string[],
-  context: Pick<WorkspaceToolContext, 'sessionId' | 'workspaceId'>,
+  context: Pick<WorkspaceToolContext, 'sessionId' | 'workspaceId' | 'workspace'>, // prettier-ignore
   allowedPaths: string[] = [],
   literal = false,
 ): Promise<PathCheckResult | null> {
@@ -18,6 +18,7 @@ export async function checkToolPaths(
     const text = await callMcpTool('check_paths', {
       sessionId: context.sessionId,
       workspaceId: context.workspaceId,
+      workspace: context.workspace,
       paths,
       allowedPaths,
       literal,

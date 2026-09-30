@@ -108,6 +108,7 @@ export async function importOne(
     sessionId,
     userId: user._id,
     role: 'owner',
+    groupKey: 'ungrouped',
     lastMessageAt: now,
     title,
   })

@@ -41,6 +41,7 @@ export async function* executeShellJob(
     messageCreatedAt: context.messageCreatedAt,
     toolCallId: context.toolCallId,
     workspaceId: context.workspaceId,
+    workspace: context.workspace,
     command: input.command,
     timeoutSeconds: input.timeout,
     background: input.run_in_background,

@@ -3,6 +3,10 @@ import { type Context, Hono } from 'hono'
 import { type SSEStreamingApi, streamSSE } from 'hono/streaming'
 import { ZodError, z } from 'zod'
 
+import {
+  withWorkspaceOperation,
+  workspaceContextSchema,
+} from '../mcp/workspace/context'
 import { requireWorkspace } from '../mcp/workspace/workspace'
 import {
   type ShellJobStream,
@@ -31,6 +35,7 @@ const startSchema = z.object({
   messageCreatedAt: z.number().optional(),
   toolCallId: z.string().optional(),
   workspaceId: z.string(),
+  workspace: workspaceContextSchema,
   command: z.string().min(1),
   timeoutSeconds: z.number().optional(),
   background: z.boolean().optional(),
@@ -76,8 +81,14 @@ shellRoutes.get('/info', (c) => {
 shellRoutes.post('/start', async (c) => {
   try {
     const input = startSchema.parse(await c.req.json())
-    const workspace = await requireWorkspace(input.sessionId, input.workspaceId)
-    const result = await startShellJob({ ...input, cwd: workspace.root })
+    const result = await withWorkspaceOperation(input.sessionId, async () => {
+      const workspace = await requireWorkspace(
+        input.sessionId,
+        input.workspaceId,
+        input.workspace,
+      )
+      return startShellJob({ ...input, cwd: workspace.root })
+    })
     return c.json(result)
   } catch (err: unknown) {
     return jobError(c, err)

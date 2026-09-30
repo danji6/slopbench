@@ -13,6 +13,7 @@ const contextSchema = z.object({
   userCount: z.number().optional(),
   agentCount: z.number().optional(),
   workDir: z.string().optional(),
+  workDirs: z.array(z.string()).optional(),
 })
 
 const requestSchema = z.object({
@@ -20,6 +21,7 @@ const requestSchema = z.object({
   environment: z.record(z.string(), z.json()).default({}),
   // Set by the authenticated backend from its trusted invoker/workspace state
   authorizedWorkDir: z.string().optional(),
+  authorizedWorkDirs: z.array(z.string()).optional(),
 })
 
 const records = z

@@ -19,6 +19,7 @@ import { getBySession as getPlan } from '../plans'
 import { resolveSets as resolvePromptSets } from '../prompts'
 import { resolve as resolveProviders } from '../providers'
 import { getBySessionAgent as getSessionCache } from '../session/cache'
+import { getSessionWithWorkspace } from '../session/folderContext'
 import { countParticipants, getMembership } from '../session/memberships'
 import { getApprovals, getState } from '../session/state'
 import { getByOwnerId as getSettings } from '../settings'
@@ -47,7 +48,7 @@ export async function _getContext(
   if (!stream || !stream.processingMessageId) return null
 
   const [session, agent, invoker, output] = await Promise.all([
-    ctx.db.get(stream.sessionId),
+    getSessionWithWorkspace(ctx, stream.sessionId),
     ctx.db.get(stream.agentId),
     ctx.db.get(stream.invokedBy),
     ctx.db.get(stream.processingMessageId),

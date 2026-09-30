@@ -224,7 +224,16 @@ export const sessionSettingsValidator = v.object({
 /** Prompt interpreter variables for one session. */
 export const environmentValidator = v.record(v.string(), v.any())
 
+export const folderSourceValidator = v.object({
+  id: v.string(),
+  path: v.string(),
+  label: v.string(),
+})
+
 export const workspaceRefValidator = v.object({
+  sources: v.optional(v.array(folderSourceValidator)),
+  revision: v.optional(v.number()),
+  folderId: v.optional(v.id('sessionFolders')),
   workspaceId: v.string(),
   label: v.string(),
   path: v.string(),

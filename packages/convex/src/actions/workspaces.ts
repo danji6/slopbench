@@ -5,6 +5,7 @@ import { v } from 'convex/values'
 import { internal } from '../_generated/api'
 import { action, internalAction } from '../_generated/server'
 import { getFlaggedPaths } from '../model/tool/shellTools'
+import { workspaceRefValidator } from '../validators/sub'
 import * as Workspace from './session/workspace'
 
 export const listDirectories = action({
@@ -27,19 +28,6 @@ export const resolveFileLinks = action({
   handler: Workspace.resolveFileLinks,
 })
 
-export const bind = action({
-  args: {
-    sessionId: v.id('sessions'),
-    root: v.string(),
-  },
-  handler: Workspace.bindWorkspace,
-})
-
-export const clear = action({
-  args: { sessionId: v.id('sessions') },
-  handler: Workspace.clearWorkspace,
-})
-
 export const restoreCheckpoint = action({
   args: { sessionId: v.id('sessions') },
   handler: Workspace.restoreCheckpoint,
@@ -49,6 +37,7 @@ export const _rememberFlaggedPaths = internalAction({
   args: {
     sessionId: v.id('sessions'),
     workspaceId: v.string(),
+    workspace: v.optional(workspaceRefValidator),
     command: v.string(),
   },
   handler: async (ctx, args) => {

@@ -3,7 +3,12 @@ import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { glob } from 'tinyglobby'
 
-import { inspectPath, pathCandidate, resolvePathGrants } from './access'
+import {
+  inspectPath,
+  isOutside,
+  pathCandidate,
+  resolvePathGrants,
+} from './access'
 
 const MAX_GLOB_MATCHES = 256
 const GLOB_CHARS = /[*?[\]{}]/
@@ -19,6 +24,7 @@ const SAFE_DEVICE_PATHS = new Set([
 export async function checkPaths(
   root: string,
   input: { paths: string[]; allowedPaths?: string[]; literal?: boolean },
+  roots: string[] = [root],
 ): Promise<PathCheckResult> {
   const grants = await resolvePathGrants(root, input.allowedPaths ?? [])
 
@@ -40,7 +46,7 @@ export async function checkPaths(
         // These special devices retain their existing shell exemption
         if (!input.literal && SAFE_DEVICE_PATHS.has(path.resolve(root, value)))
           continue
-        result.resolved.push(await inspectPath(root, value, grants))
+        result.resolved.push(await inspectPath(root, value, grants, roots))
       }
     } catch {
       result.complete = false
@@ -48,33 +54,52 @@ export async function checkPaths(
       result.uncovered.push(candidate)
     }
   }
-  await flagSensitivePaths(root, result, Boolean(input.literal))
+  await flagSensitivePaths(roots, result, Boolean(input.literal))
   result.flagged = [...new Set(result.flagged)]
   result.uncovered = [...new Set(result.uncovered)]
   return result
 }
 
 async function flagSensitivePaths(
-  root: string,
+  roots: string[],
   result: PathCheckResult,
   literal: boolean,
 ) {
-  const inside = result.resolved
-    .filter((item) => !item.outside)
-    .flatMap((item) => [item.path, item.inputPath])
+  const ignored = new Set<string>()
 
-  const ignored = literal
-    ? new Set<string>()
-    : await gitCheckIgnore(root, inside)
-  if (ignored === null) result.complete = false
+  if (!literal) {
+    for (const root of roots) {
+      const candidates = result.resolved.filter(
+        (item) => !isOutside(root, item.absolutePath),
+      )
+
+      const relativePaths = candidates
+        .flatMap((item) => [
+          path.relative(root, item.absolutePath),
+          path.relative(root, path.resolve(roots[0]!, item.inputPath)),
+        ])
+        .filter((value) => value !== '..' && !value.startsWith(`..${path.sep}`))
+
+      const matches = await gitCheckIgnore(root, relativePaths)
+      if (matches === null) {
+        result.complete = false
+      } else {
+        for (const candidate of candidates) {
+          if (
+            matches.has(path.relative(root, candidate.absolutePath)) ||
+            matches.has(
+              path.relative(root, path.resolve(roots[0]!, candidate.inputPath)),
+            )
+          ) {
+            ignored.add(candidate.path)
+          }
+        }
+      }
+    }
+  }
 
   for (const item of result.resolved) {
-    if (
-      item.outside ||
-      item.forbidden ||
-      ignored?.has(item.path) ||
-      ignored?.has(item.inputPath)
-    ) {
+    if (item.outside || item.forbidden || ignored.has(item.path)) {
       result.flagged.push(item.path)
       if (!item.allowed) result.uncovered.push(item.path)
     }

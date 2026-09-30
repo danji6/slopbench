@@ -4,6 +4,7 @@ import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { sharedSessionId } from '../../lib/subagent'
+import { buildWorkspaceNoteContent } from '../../model/chat/notes'
 import { applyPromptCaching } from '../../model/provider/cache'
 import { getProviderOptions } from '../../model/provider/options'
 import { findCredentialsForModel } from '../../model/provider/providers'
@@ -49,6 +50,10 @@ export async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
     evalResult = await postSidecar<PromptEvalResult>('/eval/prompts', {
       items: operationPlan.evalItems,
       context: evalContext,
+      authorizedWorkDirs:
+        evalContext.isAdmin && evalContext.tools?.includes('read_file')
+          ? evalContext.workDirs
+          : undefined,
       authorizedWorkDir:
         evalContext.isAdmin && evalContext.tools?.includes('read_file')
           ? evalContext.workDir
@@ -94,7 +99,10 @@ export async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
   )
 
   const request = applyPromptCaching(
-    { systemPrompt, messages },
+    {
+      systemPrompt: `${systemPrompt ?? ''}\n\n${buildWorkspaceNoteContent(undefined, data.session.workspace)}`,
+      messages,
+    },
     credentials?.providerId,
   )
 

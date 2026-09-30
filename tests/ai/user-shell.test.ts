@@ -54,14 +54,25 @@ function mutationCtx(parts: Part[], message: Record<string, unknown> = {}) {
   const session = {
     _id: 'session-1',
     title: 'Session',
-    workspace: { workspaceId: 'ws-1' },
+    folderId: 'folder-1',
   }
   const scheduled: unknown[] = []
 
   const ctx = {
     db: {
       get: async (id: string) =>
-        id === 'msg-1' ? doc : id === 'session-1' ? session : null,
+        id === 'msg-1'
+          ? doc
+          : id === 'session-1'
+            ? session
+            : id === 'folder-1'
+              ? {
+                  _id: 'ws-1',
+                  name: 'Test',
+                  revision: 0,
+                  sources: [{ id: 'root', path: '/repo', label: 'repo' }],
+                }
+              : null,
       patch: async (id: string, fields: Record<string, unknown>) => {
         Object.assign(id === 'row-1' ? row : doc, fields)
       },

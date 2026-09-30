@@ -1,6 +1,7 @@
 'use node'
 
 import type {
+  FolderWorkspace,
   WorkspaceFileLink,
   WorkspaceLinkSnapshot,
 } from '@sb/core/types/workspace'
@@ -18,49 +19,19 @@ export async function createSession(
   ctx: ActionCtx,
   args: {
     activeAgentId?: Id<'agents'>
-    workspaceRoot?: string
+    folderId?: Id<'sessionFolders'>
     mode?: SessionMode
     approvalMode?: ApprovalMode
   },
 ): Promise<{ sessionId: Id<'sessions'> }> {
-  const { sessionId } = await ctx.runMutation(api.sessions.create, {
-    activeAgentId: args.activeAgentId,
-    // Plan mode only applies to workspace-bound sessions
-    mode: args.workspaceRoot ? args.mode : undefined,
-    approvalMode: args.workspaceRoot ? args.approvalMode : undefined,
-  })
-  if (args.workspaceRoot) {
-    await bindWorkspace(ctx, { sessionId, root: args.workspaceRoot })
-  }
-  return { sessionId }
+  return ctx.runMutation(api.sessions.create, args)
 }
 
-/**
- * Duplicates a session and re-registers its workspace binding via sidecar.
- * `workspaceBound` is false when the sidecar bind failed.
- */
 export async function duplicateSession(
   ctx: ActionCtx,
   args: { sessionId: Id<'sessions'>; title?: string },
-): Promise<{ sessionId: Id<'sessions'>; workspaceBound: boolean }> {
-  const source = await ctx.runQuery(api.sessions.get, {
-    sessionId: args.sessionId,
-  })
-  const { sessionId } = await ctx.runMutation(api.sessions.duplicate, {
-    sessionId: args.sessionId,
-    ...(args.title !== undefined && { title: args.title }),
-  })
-
-  let workspaceBound = true
-  if (source?.workspace) {
-    try {
-      await bindWorkspace(ctx, { sessionId, root: source.workspace.path })
-    } catch {
-      workspaceBound = false
-    }
-  }
-
-  return { sessionId, workspaceBound }
+): Promise<{ sessionId: Id<'sessions'> }> {
+  return ctx.runMutation(api.sessions.duplicate, args)
 }
 
 export async function listDirectories(
@@ -87,6 +58,7 @@ export async function listWorkspaceFiles(
   return postWorkspaceSidecar('/workspace/list-files', {
     sessionId: args.sessionId,
     workspaceId: data.workspace.workspaceId,
+    workspace: data.workspace,
   })
 }
 
@@ -107,6 +79,7 @@ export async function listFilesByRoot(
 export async function readWorkspaceFileLink(args: {
   sessionId: Id<'sessions'>
   workspaceId: string
+  workspace?: FolderWorkspace
   path: string
 }): Promise<WorkspaceFileLink> {
   return postWorkspaceSidecar('/workspace/read-file', args)
@@ -135,6 +108,7 @@ export async function resolveFileLinks(
       const link = await readWorkspaceFileLink({
         sessionId: args.sessionId,
         workspaceId: workspace.workspaceId,
+        workspace,
         path,
       })
       return {
@@ -180,49 +154,22 @@ async function freezeBinaryLink(
   }
 }
 
-export async function bindWorkspace(
-  ctx: ActionCtx,
-  args: { sessionId: Id<'sessions'>; root: string },
-): Promise<{ workspaceId: string; label: string; path: string }> {
-  await requireAdminWorkspaceAction(ctx, args.sessionId)
-  const workspace = await postWorkspaceSidecar<{
-    workspaceId: string
-    label: string
-    path: string
-  }>('/workspace/bind', { sessionId: args.sessionId, root: args.root })
-  await ctx.runMutation(internal.sessions._patchWorkspace, {
-    sessionId: args.sessionId,
-    workspace,
-  })
-  return workspace
-}
-
-export async function clearWorkspace(
-  ctx: ActionCtx,
-  args: { sessionId: Id<'sessions'> },
-): Promise<void> {
-  const data = await requireAdminWorkspaceAction(ctx, args.sessionId)
-  await postWorkspaceSidecar('/workspace/clear', {
-    sessionId: args.sessionId,
-    workspaceId: data.workspace?.workspaceId,
-  })
-  await ctx.runMutation(internal.sessions._patchWorkspace, {
-    sessionId: args.sessionId,
-    workspace: null,
-  })
-}
-
 export async function restoreCheckpoint(
   ctx: ActionCtx,
   args: { sessionId: Id<'sessions'> },
 ): Promise<{ restored: string; checkpointId: string }> {
   const data = await requireAdminWorkspaceAction(ctx, args.sessionId)
   if (!data.workspace) error('No workspace configured', 409)
+  const approvals = await ctx.runQuery(internal.sessions._getApprovals, {
+    sessionId: args.sessionId,
+  })
   return postWorkspaceSidecar<{ restored: string; checkpointId: string }>(
     '/workspace/restore-latest',
     {
       sessionId: args.sessionId,
+      allowedPaths: approvals.paths,
       workspaceId: data.workspace.workspaceId,
+      workspace: data.workspace,
     },
   )
 }
@@ -230,7 +177,7 @@ export async function restoreCheckpoint(
 async function requireAdminWorkspaceAction(
   ctx: ActionCtx,
   sessionId: Id<'sessions'>,
-): Promise<{ workspace?: { workspaceId: string; label: string } }> {
+): Promise<{ workspace?: FolderWorkspace }> {
   const identity = await authorizeAdmin(ctx)
   return ctx.runQuery(internal.sessions._getWorkspaceContext, {
     sessionId,

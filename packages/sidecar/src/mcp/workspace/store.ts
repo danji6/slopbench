@@ -11,19 +11,8 @@ const STORE_PATH =
 const CHECKPOINT_DIR =
   process.env.CHAT_WORKSPACE_CHECKPOINTS ?? path.join(DATA_DIR, 'checkpoints')
 
-export type WorkspaceRef = {
-  workspaceId: string
-  label: string
-}
-
-type WorkspaceRecord = WorkspaceRef & {
-  sessionId: string
-  root: string
-  createdAt: number
-  updatedAt: number
-}
-
 type CheckpointRecord = {
+  contextVersion: 2
   checkpointId: string
   sessionId: string
   workspaceId: string
@@ -36,11 +25,10 @@ type CheckpointRecord = {
 }
 
 type StoreState = {
-  workspaces: Record<string, WorkspaceRecord>
   checkpoints: CheckpointRecord[]
 }
 
-const defaultState: StoreState = { workspaces: {}, checkpoints: [] }
+const defaultState: StoreState = { checkpoints: [] }
 const fileQueues = new Map<string, Promise<void>>()
 let storeQueue = Promise.resolve()
 
@@ -86,6 +74,7 @@ export async function createCheckpoint(input: {
   }
 
   const checkpoint: CheckpointRecord = {
+    contextVersion: 2,
     checkpointId,
     sessionId: input.sessionId,
     workspaceId: input.workspaceId,
@@ -121,9 +110,14 @@ export async function withFileQueue<T>(filePath: string, fn: () => Promise<T>) {
 
 export async function readStore(): Promise<StoreState> {
   try {
-    return JSON.parse(await readFile(STORE_PATH, 'utf-8')) as StoreState
+    const stored = JSON.parse(await readFile(STORE_PATH, 'utf-8')) as StoreState
+    return {
+      checkpoints: (stored.checkpoints ?? []).filter(
+        (checkpoint) => checkpoint.contextVersion === 2,
+      ),
+    }
   } catch {
-    return { ...defaultState, workspaces: {}, checkpoints: [] }
+    return { ...defaultState, checkpoints: [] }
   }
 }
 

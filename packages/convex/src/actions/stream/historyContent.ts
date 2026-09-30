@@ -14,7 +14,7 @@ import { block } from '@sb/core/utils/blocks'
 import { blockPath } from '@sb/core/workspace/blocks'
 import type { UIMessage } from 'ai'
 
-import type { Doc, Id } from '../../_generated/dataModel'
+import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { isShellReportPart, toShellReportBlock } from '../../lib/shellReport'
 import {
@@ -26,6 +26,7 @@ import { isShellToolPart, toUserShellBlock } from '../../lib/userShell'
 import { encodeBase64 } from '../../model/io/base64'
 import type { PlanLinkPart } from '../../model/plans'
 import { hasOutputRef } from '../../model/stream/toolOutput'
+import type { Session } from '../../types'
 import type { MessageRole } from '../../types'
 import { readWorkspaceFileLink } from '../session/workspace'
 import {
@@ -36,7 +37,7 @@ import {
 export async function resolveParts(
   ctx: ActionCtx,
   parts: unknown[],
-  session: Doc<'sessions'>,
+  session: Session,
   role: MessageRole,
   attachmentOptions: AttachmentResolveOptions,
 ) {
@@ -60,7 +61,7 @@ export async function resolveParts(
 export async function resolvePart(
   ctx: ActionCtx,
   part: unknown,
-  session: Doc<'sessions'>,
+  session: Session,
   role: MessageRole,
   attachmentOptions: AttachmentResolveOptions,
 ) {
@@ -103,7 +104,7 @@ export async function resolveOffloadedOutput(
 export async function resolveFileLink(
   ctx: ActionCtx,
   part: { type: 'file-link'; path: string; snapshot?: unknown },
-  session: Doc<'sessions'>,
+  session: Session,
 ) {
   // Links snapshotted at send time never touch disk again
   const snapshot = part.snapshot
@@ -117,6 +118,7 @@ export async function resolveFileLink(
     const file = await readWorkspaceFileLink({
       sessionId: sharedSessionId(session),
       workspaceId: session.workspace.workspaceId,
+      workspace: session.workspace,
       path: part.path,
     })
     return fileLinkToPart(file)

@@ -12,16 +12,14 @@ const ws = (label: string) => ({
 })
 
 describe('workspaceChanged', () => {
-  // The sidecar reuses one workspaceId per session across re-binds, so an
-  // id comparison would never see a change.
-  test('a re-bind under a reused workspaceId counts as a change', () => {
+  test('changing sources within the same folder counts as a change', () => {
     const previous = { ...ws('old'), workspaceId: 'ws_shared' }
     const next = { ...ws('new'), workspaceId: 'ws_shared' }
 
     expect(workspaceChanged(previous, next)).toBe(true)
   })
 
-  test('re-binding the same root is not a change', () => {
+  test('unchanged folder sources are not a change', () => {
     expect(workspaceChanged(ws('same'), ws('same'))).toBe(false)
   })
 
@@ -33,19 +31,22 @@ describe('workspaceChanged', () => {
 })
 
 describe('workspace note', () => {
-  test('a re-bind names both workspaces', () => {
+  test('a source change explains the new base and re-reading requirement', () => {
     const content = buildWorkspaceNoteContent(ws('old'), ws('new'))
 
     expect(content).toStartWith('<system-reminder>')
     expect(content).toEndWith('</system-reminder>')
-    expect(content).toContain('is now "new" (/srv/new)')
-    expect(content).toContain('previously "old" (/srv/old)')
+    expect(content).toContain('Primary source: /srv/new')
+    expect(content).toContain('Re-read files')
   })
 
   test('a first bind reads as initial state, not a move', () => {
     const content = buildWorkspaceNoteContent(undefined, ws('new'))
 
-    expect(content).toContain('"new" (/srv/new) is bound')
+    expect(content).toContain(
+      'Relative file paths and the shell working directory',
+    )
+    expect(content).toContain('/srv/new (Primary)')
     // Nothing was resolved earlier, so it must not read like a re-bind.
     expect(content).not.toContain('previously')
     expect(content).not.toContain('is now')
@@ -53,10 +54,30 @@ describe('workspace note', () => {
     expect(content).not.toContain('Re-read')
   })
 
-  test('unbinding names the workspace that went away', () => {
+  test('removing sources clears earlier filesystem context', () => {
     const content = buildWorkspaceNoteContent(ws('old'), undefined)
 
-    expect(content).toContain('"old" (/srv/old) was unbound')
-    expect(content).toContain('nothing to operate on')
+    expect(content).toContain('no folder source directories')
+    expect(content).toContain('File and shell tools are unavailable')
   })
+})
+
+test('reminders enumerate all source roots and identify only the first as primary', () => {
+  const context = {
+    ...ws('project'),
+    sources: [
+      { id: '1', path: '/srv/project', label: 'project' },
+      { id: '2', path: '/srv/library', label: 'library' },
+    ],
+  }
+  const note = buildWorkspaceNoteContent(undefined, context)
+  expect(note).toContain('- /srv/project (Primary)')
+  expect(note).toContain('- /srv/library')
+  expect(note).toContain('Use absolute paths for other source directories')
+  expect(
+    workspaceChanged(context, {
+      ...context,
+      sources: [...context.sources].reverse(),
+    }),
+  ).toBe(true)
 })

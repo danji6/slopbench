@@ -6,6 +6,7 @@ import {
   useSidebar,
 } from '@/components/ui'
 import { SessionStoreProvider } from '@/hooks/chat'
+import { useNewSession } from '@/hooks/chat/new-session'
 import {
   type SidebarSide,
   getSidebarState,
@@ -13,7 +14,6 @@ import {
 } from '@/lib/ui-settings'
 import { cn } from '@/lib/utils'
 import { PanelLeftIcon, PanelRightIcon, SearchIcon } from 'lucide-react'
-import { useLocation } from 'wouter'
 
 import type { SidebarShellProps } from '../ui/sidebar'
 import { ManageAgentsButton } from './entities/agent/agent-settings'
@@ -70,8 +70,7 @@ function ChatSidebar({
 }
 
 function LeftSidebar() {
-  const [, navigate] = useLocation()
-  const newSession = () => navigate('/', { replace: true })
+  const newSession = useNewSession()
 
   return (
     <ChatSidebar side="left">

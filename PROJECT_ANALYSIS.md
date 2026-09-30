@@ -6,6 +6,49 @@ The architectural overview below was originally audited at `0d6092b` on
 boundaries; it is not a fresh audit of every product feature or outstanding bug.
 See `REFACTOR_PLAN.md` for scope, verification, and remaining release checks.
 
+## Session folders and source directories (2026-09-23)
+
+Sessions now belong to an optional owner-managed `sessionFolders` record. A folder
+has a label, optional icon, manual position, ordered source directories, and a
+source revision. No folder means Ungrouped with no filesystem context. Sources
+are optional; ordinary users can organize chats, while source editing retains
+the existing admin requirement. Source paths refer to the sidecar server.
+
+The sidebar combines independently paginated groups (20 rows per load) in one
+virtualized scroll. Personal pins appear only in the collapsible Pinned group;
+shared sessions appear under Shared for other members. Activity orders rows,
+while folder order is manual. Desktop rows can be dragged to folder headers or
+Pinned; menus provide moving and reordering on mobile. Search remains flat and
+shows each result's folder. Folder plus buttons select a destination for a lazy
+new session, with a separate draft for each folder. Folder buttons themselves
+are draggable. New Session uses the last selected folder, remembered per user
+on this device, and falls back to Ungrouped if the folder is unavailable.
+Session drops update the sidebar immediately, reconcile with the independently
+paginated groups, and roll back on failure.
+
+Workspace authority is derived from the owner's folder at read time, including
+for child sessions. The first source is the relative-path and shell base; other
+sources use absolute paths. The sidecar receives the resolved source context on
+each operation instead of persisting a session-to-directory binding. Canonical
+source validation, symlink checks, and the existing path approval policy remain
+in effect. Source membership does not act as an explicit sensitive-path grant,
+and shell commands still rely on approvals rather than an OS filesystem sandbox.
+
+Source changes use transactional transition leases plus sidecar activity checks.
+Active streams, processing turns, children, filesystem operations, and background
+shell jobs block source-affecting changes. Destination revision checks prevent a
+move from inheriting sources changed during preparation. Changes invalidate
+workspace-dependent prompt caches and path grants while retaining other approval
+rules. The next invocation announces the changed sources, and each request has a
+current-source reminder. Folder deletion keeps chats and pins and moves sessions
+to Ungrouped. Checkpoint restoration rechecks current access; legacy checkpoints
+are ignored.
+
+The approved pre-release data reset migrated existing memberships to Ungrouped
+or Shared, cleared legacy workspace bindings and path grants, and removed stale
+caches. Temporary migrations were applied and removed; the clean schema baseline
+is now version 10. Restart the sidecar after updating, because it has no hot reload.
+
 ## Maintainability update
 
 The major orchestration files now delegate to modules with distinct owners:

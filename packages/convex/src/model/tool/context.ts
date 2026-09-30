@@ -1,3 +1,5 @@
+import type { FolderWorkspace } from '@sb/core/types/workspace'
+
 import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import type { ToolApprovals } from '../../types'
@@ -11,6 +13,7 @@ export type WorkspaceToolContext = {
   messageId?: Id<'messages'>
   messageCreatedAt?: number
   workspaceId: string
+  workspace?: FolderWorkspace
   /** Shell used to execute commands (system's default when absent). */
   shell?: string
   allowInteractiveShells?: boolean
@@ -48,6 +51,7 @@ export function workspaceArgs(context: WorkspaceToolContext) {
     sessionId: context.sessionId,
     owner: context.ownerId,
     workspaceId: context.workspaceId,
+    workspace: context.workspace,
     shell: context.shell,
     allowInteractiveShells: context.allowInteractiveShells ?? false,
   }

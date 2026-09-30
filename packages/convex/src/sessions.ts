@@ -12,6 +12,7 @@ import * as Sub from './validators/sub'
 
 export const create = authMutation({
   args: {
+    folderId: v.optional(v.id('sessionFolders')),
     title: v.optional(v.string()),
     activeAgentId: v.optional(v.id('agents')),
     mode: v.optional(Sub.sessionModeValidator),
@@ -28,6 +29,7 @@ export const duplicate = authMutation({
 export const list = authQuery({
   args: {
     paginationOpts: paginationOptsValidator,
+    groupKey: v.optional(v.string()),
     search: v.optional(v.string()),
     showHidden: v.optional(v.boolean()),
   },
@@ -144,14 +146,6 @@ export const _getWorkspaceContext = internalQuery({
 export const _getMemberWorkspaceContext = internalQuery({
   args: { sessionId: v.id('sessions'), subject: v.string() },
   handler: Sessions._getMemberWorkspaceContext,
-})
-
-export const _patchWorkspace = internalMutation({
-  args: {
-    sessionId: v.id('sessions'),
-    workspace: v.union(Sub.workspaceRefValidator, v.null()),
-  },
-  handler: Sessions._patchWorkspace,
 })
 
 export const _allowToolPaths = internalMutation({

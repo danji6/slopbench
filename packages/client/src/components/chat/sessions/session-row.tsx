@@ -13,8 +13,9 @@ import {
 import { formatRelativeTime } from '@/lib'
 import type { SessionParticipant } from '@/lib/chat'
 import { triggerJsonDownload } from '@/lib/chat/io'
-import { toast, toastError } from '@/lib/notifications'
+import { toastError } from '@/lib/notifications'
 import { cn } from '@/lib/utils'
+import { useDraggable } from '@dnd-kit/core'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { useAction, useMutation } from 'convex/react'
@@ -24,7 +25,10 @@ import {
   DownloadIcon,
   EyeIcon,
   EyeOffIcon,
+  FolderInputIcon,
   PencilIcon,
+  PinIcon,
+  PinOffIcon,
   TrashIcon,
   UserIcon,
 } from 'lucide-react'
@@ -32,18 +36,30 @@ import { useState } from 'react'
 import { useLocation } from 'wouter'
 
 import { SessionAvatar } from './session-avatar'
+import { SessionFolderDialog } from './session-folder-dialog'
 
 interface SessionRowProps {
   id: string
+  showFolder?: boolean
+  dropPending?: boolean
   hasUnreadNotification: boolean
   rename: (id: string) => void
 }
 
 export function SessionRow({
   id,
+  showFolder,
+  dropPending,
   hasUnreadNotification,
   rename,
 }: SessionRowProps) {
+  const [moving, setMoving] = useState(false)
+  const pin = useMutation(api.sessionFolders.pin)
+  const { setNodeRef, listeners, attributes } = useDraggable({
+    id: `session:${id}`,
+    disabled: dropPending,
+    data: { kind: 'session', sessionId: id },
+  })
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const item = useSession(id)
   const isActive = useSessionIsActive(id)
@@ -70,14 +86,11 @@ export function SessionRow({
   async function handleDuplicate() {
     if (!item) return
     try {
-      const { sessionId, workspaceBound } = await duplicateSession({
+      const { sessionId } = await duplicateSession({
         sessionId: id as Id<'sessions'>,
       })
       navigate(`/?id=${sessionId}`, { replace: true })
       sidebar?.close()
-      if (!workspaceBound) {
-        toast.warning('Session duplicated without its workspace')
-      }
     } catch (err) {
       toastError(err, 'Could not duplicate session')
     }
@@ -112,6 +125,9 @@ export function SessionRow({
             <Tooltip.Trigger
               render={
                 <RippleButton
+                  ref={setNodeRef}
+                  {...listeners}
+                  {...attributes}
                   variant="stealth"
                   className={cn(
                     'h-auto w-full flex-col items-stretch gap-0.5 rounded-md px-2 py-2 select-none',
@@ -132,6 +148,11 @@ export function SessionRow({
                     </span>
                   </span>
 
+                  {(item.pinned || showFolder) && (
+                    <span className="text-muted-foreground truncate text-start text-xs">
+                      {item.owned ? (item.folderName ?? 'Ungrouped') : 'Shared'}
+                    </span>
+                  )}
                   <span className="text-muted-foreground flex w-full items-center gap-1.5 text-xs">
                     {item.participants.length > 0 && (
                       <ParticipantStack participants={item.participants} />
@@ -156,6 +177,27 @@ export function SessionRow({
         </ContextMenu.Trigger>
 
         <ContextMenu.Content className="min-w-32">
+          <ContextMenu.Item
+            disabled={dropPending}
+            onSelect={() =>
+              void pin({
+                sessionId: id as Id<'sessions'>,
+                pinned: !item.pinned,
+              }).catch(toastError)
+            }
+          >
+            {item.pinned ? <PinOffIcon /> : <PinIcon />}
+            {item.pinned ? 'Unpin' : 'Pin'}
+          </ContextMenu.Item>
+          {item.owned && (
+            <ContextMenu.Item
+              disabled={dropPending}
+              onSelect={() => setMoving(true)}
+            >
+              <FolderInputIcon />
+              Move to folder…
+            </ContextMenu.Item>
+          )}
           <ContextMenu.Item onSelect={() => rename(id)}>
             <PencilIcon />
             Rename
@@ -182,6 +224,13 @@ export function SessionRow({
           </ContextMenu.Item>
         </ContextMenu.Content>
       </ContextMenu>
+      {moving && (
+        <SessionFolderDialog
+          sessionId={id as Id<'sessions'>}
+          folderId={item.folderId}
+          onClose={() => setMoving(false)}
+        />
+      )}
       <ConfirmDialog
         open={confirmDeleteOpen}
         onOpenChange={setConfirmDeleteOpen}

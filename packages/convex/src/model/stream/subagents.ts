@@ -11,6 +11,7 @@ import {
   pendingTaskParts,
   taskInput,
 } from '../../lib/subagent'
+import type { Session } from '../../types'
 import { resolveSpawnableAgents } from '../agent/subagents'
 import { hasPendingToolApprovals } from '../chat/approvals'
 import { agentIdentity } from '../chat/identities'
@@ -23,6 +24,7 @@ import {
 import { syncActivity } from '../messages'
 import { notifyAgentEvent } from '../notifications'
 import { createPlanLinkPart, getBySession as getPlan } from '../plans'
+import { getSessionWithWorkspace } from '../session/folderContext'
 import { getActiveStream } from '../session/memberships'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 import {
@@ -62,7 +64,7 @@ export async function _suspendStep(
   }
   if (await honorSoftStop(ctx, stream)) return 'abort'
 
-  const session = await ctx.db.get(stream.sessionId)
+  const session = await getSessionWithWorkspace(ctx, stream.sessionId)
   const row = await getProcessingSegmentRow(ctx, stream)
   if (!session || !row) return 'abort'
 
@@ -108,7 +110,7 @@ async function park(
     jobId: undefined,
     leaseExpiresAt: Date.now() + APPROVAL_LEASE_MS,
   })
-  const session = await ctx.db.get(stream.sessionId)
+  const session = await getSessionWithWorkspace(ctx, stream.sessionId)
   await notifyAgentEvent(ctx, {
     sessionId: session?.parent?.sessionId ?? stream.sessionId,
     agentId: stream.agentId,
@@ -119,7 +121,7 @@ async function park(
 
 type SpawnTaskArgs = {
   stream: Doc<'streams'>
-  session: Doc<'sessions'>
+  session: Session
   spawnable: { _id: Id<'agents'>; name: string }[]
   parts: unknown[]
   part: TaskToolPart
@@ -191,7 +193,7 @@ function replacePart(
 type SpawnChildArgs = {
   settings: SubagentModelSettings
   stream: Doc<'streams'>
-  session: Doc<'sessions'>
+  session: Session
   agent: Doc<'agents'>
   input: TaskToolInput
   toolCallId: string
@@ -217,7 +219,6 @@ async function spawnChild(
     ownerId: session.ownerId,
     title,
     activeAgentId: agent._id,
-    workspace: session.workspace,
     ...settings,
     mode,
     parent: {

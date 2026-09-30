@@ -139,6 +139,7 @@ describe('sessions.list', () => {
       userSessions: [
         {
           _id: 'us_1',
+          groupKey: 'ungrouped',
           sessionId: SESSION,
           userId: VIEWER,
           role: 'owner',
@@ -160,10 +161,15 @@ describe('sessions.list', () => {
       '_id',
       'activeAgentId',
       'firstMessagePreview',
+      'folderIcon',
+      'folderId',
+      'folderName',
       'hidden',
       'lastMessageAt',
       'lastMessagePreview',
+      'owned',
       'participants',
+      'pinned',
       'title',
     ])
     expect(page[0].participants).toEqual([

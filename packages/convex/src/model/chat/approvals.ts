@@ -7,9 +7,11 @@ import {
   analyzeShellCommand,
   toolNamesForApproval,
 } from '../../lib/tool/approval'
+import type { Session } from '../../types'
 import type { ApproveToolArgs, RememberScope } from '../../types'
 import { getProcessingSegmentRow, patchSegmentParts } from '../messageContents'
 import { applyModeTransition } from '../plans'
+import { getSessionWithWorkspace } from '../session/folderContext'
 import * as Memberships from '../session/memberships'
 import { _allowToolPaths as allowToolPaths } from '../session/sessions'
 import { appendApprovals, getApprovals } from '../session/state'
@@ -34,7 +36,7 @@ export async function approveTool(ctx: AuthMutationCtx, args: ApproveToolArgs) {
   )
 
   const session = args.childSessionId
-    ? await ctx.db.get(args.childSessionId)
+    ? await getSessionWithWorkspace(ctx, args.childSessionId)
     : parentSession
   if (
     !session ||
@@ -163,7 +165,7 @@ export function patchToolApproval(
 
 async function rememberApproval(
   ctx: AuthMutationCtx,
-  session: Doc<'sessions'>,
+  session: Session,
   matched: ApprovedTool,
   scope: RememberScope,
 ) {
@@ -187,6 +189,7 @@ async function rememberApproval(
       {
         sessionId: session._id,
         workspaceId: session.workspace.workspaceId,
+        workspace: session.workspace,
         command,
       },
     )

@@ -1,15 +1,28 @@
 import type { Id } from '../../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../../_generated/server'
 import type { SaveSessionCacheArgs } from '../../types'
+import { getSessionWithWorkspace, workspaceKey } from './folderContext'
 
 /**
  * Cache of everything that shapes the provider request prefix:
  * - Row absence means the entry needs to be (re)computed.
  * - `getVar()` inside a frozen prompt reads the environment as of capture time.
  * - `tools` is just the shape, their behavior is rebuilt live every step.
- * - Invalidated only by `/eval` (see model/chat/controls.ts) or session removal.
+ * - Invalidated by `/eval`, folder source changes, or session removal.
  */
 export async function getBySessionAgent(
+  ctx: QueryCtx,
+  sessionId: Id<'sessions'>,
+  agentId: Id<'agents'>,
+) {
+  const row = await findCache(ctx, sessionId, agentId)
+  const session = await getSessionWithWorkspace(ctx, sessionId)
+  return row?.workspaceRevision === workspaceKey(session?.workspace)
+    ? row
+    : null
+}
+
+async function findCache(
   ctx: QueryCtx,
   sessionId: Id<'sessions'>,
   agentId: Id<'agents'>,
@@ -24,14 +37,22 @@ export async function getBySessionAgent(
 
 /** Upsert. Patches only the keys present. */
 export async function _save(ctx: MutationCtx, args: SaveSessionCacheArgs) {
-  const existing = await getBySessionAgent(ctx, args.sessionId, args.agentId)
+  const existing = await findCache(ctx, args.sessionId, args.agentId)
+  const workspaceRevision = workspaceKey(
+    (await getSessionWithWorkspace(ctx, args.sessionId))?.workspace,
+  )
   const capturedAt = Date.now()
 
   if (existing) {
     await ctx.db.patch(existing._id, {
+      ...(existing.workspaceRevision !== workspaceRevision && {
+        items: [],
+        tools: undefined,
+      }),
       ...(args.items && { items: args.items }),
       ...(args.tools && { tools: args.tools }),
       capturedAt,
+      workspaceRevision,
     })
     return existing._id
   }
@@ -42,6 +63,7 @@ export async function _save(ctx: MutationCtx, args: SaveSessionCacheArgs) {
     items: args.items ?? [],
     tools: args.tools,
     capturedAt,
+    workspaceRevision,
   })
 }
 

@@ -7,9 +7,13 @@ import { MessageView } from './messages'
 
 export function ChatPrompts({
   showEmptyState,
+  folderName,
+  folderIcon,
   workDir,
   ...props
 }: React.ComponentProps<'div'> & {
+  folderName?: string
+  folderIcon?: string
   showEmptyState?: boolean
   workDir?: string
 }) {
@@ -19,7 +23,7 @@ export function ChatPrompts({
     if (!showEmptyState) return null
     return (
       <div {...props} className={cn('h-fit', props.className)}>
-        <EmptyMessage />
+        <EmptyMessage folderName={folderName} folderIcon={folderIcon} />
       </div>
     )
   }

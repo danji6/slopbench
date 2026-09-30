@@ -2,15 +2,18 @@ import { useKeyboardInset, useNavPadding } from '@/hooks'
 import {
   useIsAdmin,
   useSettings,
-  useWorkspaceFileIndexByRoot,
+  useUserProfile,
+  useWorkspaceFileIndexByFolder,
 } from '@/hooks/chat'
 import { NO_SESSION_DRAFT_KEY, type PendingMessage } from '@/lib/chat'
 import type { SessionMode } from '@/lib/chat/modes'
+import { setSelectedSessionFolder } from '@/lib/ui-settings'
 import { api } from '@sb/convex/_generated/api'
+import type { Id } from '@sb/convex/_generated/dataModel'
 import type { ApprovalMode } from '@sb/convex/types'
-import { useAction } from 'convex/react'
+import { useAction, useQuery } from 'convex/react'
 import { useCallback, useState } from 'react'
-import { useLocation } from 'wouter'
+import { useLocation, useSearch } from 'wouter'
 
 import { ChatDock } from './chat-dock'
 import { ChatLayout } from './chat-layout'
@@ -18,23 +21,19 @@ import { ChatPrompts } from './chat-prompts'
 import { ChatScrollArea } from './chat-scroll-area'
 import { ChatComposer } from './composer/chat-composer'
 import { ComposerToolbar } from './composer/composer-toolbar'
-import { ChatWorkspacePicker } from './sessions'
 import type { AgentItem } from './sessions/agent-combobox'
+import { FolderPicker } from './sessions/folder-picker'
 
 type EmptyChatProps = React.ComponentProps<'div'> & {
   width?: string
   layoutConstraint?: 'dvw' | '%'
   onError?: (error: Error) => void
-  workspaceRoot: string | null
-  onWorkspaceChange: (root: string | null) => void
   onFirstMessage: (msg: PendingMessage) => void
   activeAgentName?: string
   activeAgentDisplay?: AgentItem
 }
 
 export function EmptyChat({
-  workspaceRoot,
-  onWorkspaceChange,
   onFirstMessage,
   activeAgentName,
   activeAgentDisplay,
@@ -42,43 +41,54 @@ export function EmptyChat({
 }: EmptyChatProps) {
   const { width = '800px' } = props
   const [, navigate] = useLocation()
+  const search = useSearch()
+  const folderId = new URLSearchParams(search).get('folder') as Id<'sessionFolders'> | null // prettier-ignore
+  const folders = useQuery(api.sessionFolders.list)
+  const folder = folders?.find((item) => item._id === folderId)
+  const workspaceRoot = folder?.sources[0]?.path ?? null
+  const [orphanDraftKey, setOrphanDraftKey] = useState<string | null>(null)
+  const draftKey = orphanDraftKey ?? (folderId ? `folder:${folderId}` : NO_SESSION_DRAFT_KEY) // prettier-ignore
   const createSession = useAction(api.actions.sessions.createWithWorkspace)
   const settings = useSettings()
+  const userId = useUserProfile()?._id
   const isAdmin = useIsAdmin()
   const topPadding = useNavPadding()
   const keyboardInset = useKeyboardInset()
-  const fileIndex = useWorkspaceFileIndexByRoot(workspaceRoot)
+  const fileIndex = useWorkspaceFileIndexByFolder(folder)
 
   // Manual mode tracking since no session is available here
   const [mode, setMode] = useState<SessionMode>('normal')
   const [approvalMode, setApprovalMode] = useState<ApprovalMode>('ask')
   const handleWorkspaceChange = useCallback(
-    (root: string | null) => {
-      onWorkspaceChange(root)
-      if (!root) {
+    (id: string | null) => {
+      if (userId) setSelectedSessionFolder(userId, id)
+      setOrphanDraftKey(folderId && folders && !folder ? draftKey : null)
+      navigate(id ? `/?folder=${id}` : '/', { replace: true })
+      if (!id) {
         setMode('normal')
         setApprovalMode('ask')
       }
     },
-    [onWorkspaceChange],
+    [navigate, folderId, folders, folder, draftKey, userId],
   )
 
   const handleSubmit = useCallback(
     async (message: PendingMessage) => {
+      if (folderId && !folder)
+        throw new Error('Choose an available folder before sending')
       const { sessionId } = await createSession({
         activeAgentId: settings?.recentAgentId ?? undefined,
-        workspaceRoot: workspaceRoot ?? undefined,
+        folderId: folderId ?? undefined,
         mode: mode === 'normal' ? undefined : mode,
         approvalMode: approvalMode === 'ask' ? undefined : approvalMode,
       })
-      handleWorkspaceChange(null)
       onFirstMessage(message)
       navigate(`/?id=${sessionId}`, { replace: true })
     },
     [
       createSession,
-      handleWorkspaceChange,
-      workspaceRoot,
+      folderId,
+      folder,
       mode,
       approvalMode,
       onFirstMessage,
@@ -120,6 +130,8 @@ export function EmptyChat({
           >
             <ChatPrompts
               showEmptyState
+              folderName={folder?.name}
+              folderIcon={folder?.icon}
               workDir={workspaceRoot ?? undefined}
               className="mx-auto my-auto w-full"
               style={{ width: `calc(${chatBoxWidth} - var(--spacing)*6)` }}
@@ -130,16 +142,14 @@ export function EmptyChat({
       dock={
         <ChatDock width={chatBoxWidth}>
           <div className="pointer-events-auto mb-1.5 flex items-center px-1">
-            <ChatWorkspacePicker
-              value={workspaceRoot}
-              onChange={handleWorkspaceChange}
-            />
+            <FolderPicker value={folderId} onChange={handleWorkspaceChange} />
           </div>
           <ChatComposer
             onSubmit={handleSubmit}
             onRunCommand={handleRunCommand}
             status="ready"
-            draftKey={NO_SESSION_DRAFT_KEY}
+            key={draftKey}
+            draftKey={draftKey}
             shellAvailable={isAdmin && Boolean(workspaceRoot)}
             hideTokenWidget
             commandAvailability={{

@@ -171,6 +171,7 @@ describe('appendApprovals', () => {
   test('toggles unrestricted access without losing remembered approvals', async () => {
     const state = fakeSessionState({
       toolApprovals: { shell: ['git push'], paths: ['/tmp'] },
+      pathApprovalRevision: '[]',
     })
     const ctx = makeCtx(state)
 

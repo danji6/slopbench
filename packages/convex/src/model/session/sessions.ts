@@ -2,6 +2,7 @@ import type { Id } from '../../_generated/dataModel'
 import { type AuthMutationCtx, requireRole } from '../../functions'
 import type { ApprovalMode, SessionMode } from '../../types'
 import { getByOwnerId as getSettings } from '../settings'
+import { requireFolder, sessionGroup } from './folderContext'
 import { resolveSessionModel } from './models'
 import { requireOwnedAgent } from './sessionAccess'
 import { setApprovalMode as setStateApprovalMode } from './state'
@@ -24,13 +25,13 @@ export { remove } from './sessionTeardown'
 export { _patchEnvironment } from './sessionSettings'
 export { _getWorkspaceContext } from './sessionWorkspace'
 export { _getMemberWorkspaceContext } from './sessionWorkspace'
-export { _patchWorkspace } from './sessionWorkspace'
 export { _patchSessionLog } from './sessionWorkspace'
 export { _allowToolPaths } from './sessionWorkspace'
 
 export async function create(
   ctx: AuthMutationCtx,
   args: {
+    folderId?: Id<'sessionFolders'>
     title?: string
     activeAgentId?: Id<'agents'>
     mode?: SessionMode
@@ -43,9 +44,13 @@ export async function create(
     : null
   const settings = await getSettings(ctx, ctx.userId)
 
+  const folder = args.folderId
+    ? await requireFolder(ctx, args.folderId, ctx.userId)
+    : null
   const now = Date.now()
   const sessionId = await ctx.db.insert('sessions', {
     ownerId: ctx.userId,
+    folderId: args.folderId,
     title: args.title,
     activeAgentId: args.activeAgentId,
     model: await resolveSessionModel(
@@ -55,13 +60,15 @@ export async function create(
     ),
     reasoningEffort: settings?.recentReasoning,
     lastMessageAt: now,
-    mode: args.mode === 'plan' ? args.mode : undefined,
+    mode:
+      folder?.sources.length && args.mode === 'plan' ? args.mode : undefined,
   })
 
   await ctx.db.insert('userSessions', {
     sessionId,
     userId: ctx.userId,
     role: 'owner',
+    groupKey: sessionGroup('owner', args.folderId),
     lastMessageAt: now,
     title: args.title,
   })
@@ -74,7 +81,7 @@ export async function create(
     })
   }
 
-  if (args.approvalMode === 'unrestricted') {
+  if (folder?.sources.length && args.approvalMode === 'unrestricted') {
     await setStateApprovalMode(ctx, sessionId, args.approvalMode)
   }
 

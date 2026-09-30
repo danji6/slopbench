@@ -1,3 +1,4 @@
+import type { FolderWorkspace } from '@sb/core/types/workspace'
 import {
   applyEdits,
   createUnifiedDiff,
@@ -7,7 +8,6 @@ import {
   restoreLineEndings,
   stripBom,
 } from '@sb/core/workspace/edit'
-import { randomUUID } from 'node:crypto'
 import {
   mkdir,
   readFile,
@@ -19,10 +19,10 @@ import {
 import path from 'node:path'
 import { z } from 'zod'
 
-import { assertCheckpointTarget, resolveToolPath } from './access'
+import { assertCheckpointTarget, isOutside, resolveToolPath } from './access'
 import { checkPaths } from './check-paths'
 import { runCommand } from './command'
-import { expandHome } from './paths'
+import { withWorkspaceOperation, workspaceContextSchema } from './context'
 import {
   createCheckpoint,
   readSnapshot,
@@ -31,28 +31,19 @@ import {
   withFileQueue,
 } from './store'
 
-export type { WorkspaceRef } from './store'
-
 const MAX_READ_BYTES = 50_000
 
-export const bindWorkspaceSchema = z.object({
-  sessionId: z.string(),
-  root: z.string().min(1),
-})
-
-export const clearWorkspaceSchema = z.object({
-  sessionId: z.string(),
-  workspaceId: z.string().optional(),
-})
-
 export const restoreCheckpointSchema = z.object({
+  allowedPaths: z.array(z.string()).optional(),
   sessionId: z.string(),
   workspaceId: z.string(),
+  workspace: workspaceContextSchema,
 })
 
 export const previewDiffSchema = z.object({
   sessionId: z.string(),
   workspaceId: z.string(),
+  workspace: workspaceContextSchema,
   filePath: z.string(),
   allowedPaths: z.array(z.string()).optional(),
   content: z.string().optional(),
@@ -61,66 +52,25 @@ export const previewDiffSchema = z.object({
     .optional(),
 })
 
-export async function bindWorkspace(
-  input: z.infer<typeof bindWorkspaceSchema>,
-) {
-  const root = await realpath(path.resolve(expandHome(input.root)))
-  const rootStat = await stat(root)
-  if (!rootStat.isDirectory()) throw new Error('Workspace must be a directory')
-
-  return updateStore((state) => {
-    const existing = Object.values(state.workspaces).find(
-      (item) => item.sessionId === input.sessionId,
-    )
-    const workspaceId = existing?.workspaceId ?? randomUUID()
-    const now = Date.now()
-
-    state.workspaces[workspaceId] = {
-      workspaceId,
-      sessionId: input.sessionId,
-      root,
-      label: path.basename(root) || root,
-      createdAt: existing?.createdAt ?? now,
-      updatedAt: now,
-    }
-
-    const record = state.workspaces[workspaceId]
-    return { workspaceId, label: record.label, path: record.root }
-  })
-}
-
-export async function clearWorkspace(
-  input: z.infer<typeof clearWorkspaceSchema>,
-) {
-  await updateStore((state) => {
-    for (const [workspaceId, workspace] of Object.entries(state.workspaces)) {
-      if (
-        workspace.sessionId === input.sessionId &&
-        (!input.workspaceId || input.workspaceId === workspaceId)
-      ) {
-        delete state.workspaces[workspaceId]
-      }
-    }
-    state.checkpoints = state.checkpoints.filter(
-      (checkpoint) => checkpoint.sessionId !== input.sessionId,
-    )
-  })
-  return { ok: true }
-}
-
-export async function readWorkspaceFile(input: {
+async function readWorkspaceFileImpl(input: {
   sessionId: string
   workspaceId: string
+  workspace?: FolderWorkspace
   filePath: string
   allowedPaths?: string[]
   offset?: number
   limit?: number
 }) {
-  const workspace = await requireWorkspace(input.sessionId, input.workspaceId)
+  const workspace = await requireWorkspace(
+    input.sessionId,
+    input.workspaceId,
+    input.workspace,
+  )
   const target = await resolveExistingFile(
     workspace.root,
     input.filePath,
     input.allowedPaths,
+    workspace.roots,
   )
   const buffer = await readFile(target.absolutePath)
   const raw = buffer.toString('utf-8')
@@ -148,18 +98,24 @@ export async function readWorkspaceFile(input: {
   }
 }
 
-export async function writeWorkspaceFile(input: {
+async function writeWorkspaceFileImpl(input: {
   sessionId: string
   workspaceId: string
+  workspace?: FolderWorkspace
   filePath: string
   allowedPaths?: string[]
   content: string
 }) {
-  const workspace = await requireWorkspace(input.sessionId, input.workspaceId)
+  const workspace = await requireWorkspace(
+    input.sessionId,
+    input.workspaceId,
+    input.workspace,
+  )
   const target = await resolveWritablePath(
     workspace.root,
     input.filePath,
     input.allowedPaths,
+    workspace.roots,
   )
 
   return withFileQueue(target.absolutePath, async () => {
@@ -212,18 +168,24 @@ export async function writeWorkspaceFile(input: {
   })
 }
 
-export async function editWorkspaceFile(input: {
+async function editWorkspaceFileImpl(input: {
   sessionId: string
   workspaceId: string
+  workspace?: FolderWorkspace
   filePath: string
   allowedPaths?: string[]
   edits: Array<{ oldText: string; newText: string }>
 }) {
-  const workspace = await requireWorkspace(input.sessionId, input.workspaceId)
+  const workspace = await requireWorkspace(
+    input.sessionId,
+    input.workspaceId,
+    input.workspace,
+  )
   const target = await resolveExistingFile(
     workspace.root,
     input.filePath,
     input.allowedPaths,
+    workspace.roots,
   )
 
   return withFileQueue(target.absolutePath, async () => {
@@ -270,10 +232,14 @@ export async function editWorkspaceFile(input: {
 }
 
 /** Simulate a unified diff for the given input. */
-export async function previewWorkspaceDiff(
+async function previewWorkspaceDiffImpl(
   input: z.infer<typeof previewDiffSchema>,
 ): Promise<{ diff: string; path?: string }> {
-  const workspace = await requireWorkspace(input.sessionId, input.workspaceId)
+  const workspace = await requireWorkspace(
+    input.sessionId,
+    input.workspaceId,
+    input.workspace,
+  )
 
   try {
     if (input.edits?.length) {
@@ -281,6 +247,7 @@ export async function previewWorkspaceDiff(
         workspace.root,
         input.filePath,
         input.allowedPaths,
+        workspace.roots,
       )
       const snapshot = await readSnapshot(target.absolutePath)
       const baseContent = normalizeToLf(stripBom(snapshot.content ?? '').text)
@@ -303,6 +270,7 @@ export async function previewWorkspaceDiff(
         workspace.root,
         input.filePath,
         input.allowedPaths,
+        workspace.roots,
       )
       const snapshot = await readSnapshot(target.absolutePath)
       const baseContent = normalizeToLf(stripBom(snapshot.content ?? '').text)
@@ -322,14 +290,19 @@ export async function previewWorkspaceDiff(
   return { diff: '' }
 }
 
-export async function runWorkspaceCommand(input: {
+async function runWorkspaceCommandImpl(input: {
   sessionId: string
   workspaceId: string
+  workspace?: FolderWorkspace
   command: string
   timeout?: number
   signal?: AbortSignal
 }) {
-  const workspace = await requireWorkspace(input.sessionId, input.workspaceId)
+  const workspace = await requireWorkspace(
+    input.sessionId,
+    input.workspaceId,
+    input.workspace,
+  )
   return runCommand(
     input.command,
     workspace.root,
@@ -339,78 +312,126 @@ export async function runWorkspaceCommand(input: {
 }
 
 /** Inspect paths using the same resolver as dedicated file tools. */
-export async function checkFlaggedPaths(input: {
+async function checkFlaggedPathsImpl(input: {
   sessionId: string
   workspaceId: string
+  workspace?: FolderWorkspace
   paths: string[]
   allowedPaths?: string[]
   literal?: boolean
 }) {
-  const workspace = await requireWorkspace(input.sessionId, input.workspaceId)
-  return checkPaths(workspace.root, input)
+  const workspace = await requireWorkspace(
+    input.sessionId,
+    input.workspaceId,
+    input.workspace,
+  )
+  return checkPaths(workspace.root, input, workspace.roots)
 }
 
-export async function restoreLatestCheckpoint(
+async function restoreLatestCheckpointImpl(
   input: z.infer<typeof restoreCheckpointSchema>,
 ) {
-  const workspace = await requireWorkspace(input.sessionId, input.workspaceId)
-  return updateStore(async (state) => {
-    const checkpoint = [...state.checkpoints]
-      .reverse()
-      .find(
-        (item) =>
-          item.sessionId === input.sessionId &&
-          item.workspaceId === input.workspaceId,
+  const workspace = await requireWorkspace(
+    input.sessionId,
+    input.workspaceId,
+    input.workspace,
+  )
+  const latest = (await readStore()).checkpoints
+    .slice()
+    .reverse()
+    .find((item) => item.sessionId === input.sessionId)
+
+  if (!latest) throw new Error('No checkpoint to restore')
+
+  return withFileQueue(latest.absolutePath, () =>
+    updateStore(async (state) => {
+      const checkpoint = state.checkpoints
+        .slice()
+        .reverse()
+        .find((item) => item.sessionId === input.sessionId)
+
+      if (!checkpoint || checkpoint.checkpointId !== latest.checkpointId)
+        throw new Error('Checkpoint changed; try again')
+
+      await assertCheckpointTarget(
+        workspace.root,
+        checkpoint.absolutePath,
+        isOutside(workspace.root, checkpoint.absolutePath),
       )
-
-    if (!checkpoint) throw new Error('No checkpoint to restore')
-    await assertCheckpointTarget(
-      workspace.root,
-      checkpoint.absolutePath,
-      checkpoint.external === true,
-    )
-
-    if (!checkpoint.existed) {
-      await rm(checkpoint.absolutePath, { force: true })
-    } else if (checkpoint.contentPath) {
-      const content = await readFile(checkpoint.contentPath, 'utf-8')
-      await mkdir(path.dirname(checkpoint.absolutePath), { recursive: true })
-      await writeFile(checkpoint.absolutePath, content, 'utf-8')
-    }
-
-    state.checkpoints = state.checkpoints.filter(
-      (item) => item.checkpointId !== checkpoint.checkpointId,
-    )
-    return {
-      restored: checkpoint.relativePath,
-      checkpointId: checkpoint.checkpointId,
-    }
-  })
+      await resolveToolPath(
+        workspace.root,
+        checkpoint.absolutePath,
+        input.allowedPaths,
+        workspace.roots,
+      )
+      if (!checkpoint.existed) {
+        await rm(checkpoint.absolutePath, { force: true })
+      } else if (checkpoint.contentPath) {
+        const content = await readFile(checkpoint.contentPath, 'utf-8')
+        await mkdir(path.dirname(checkpoint.absolutePath), { recursive: true })
+        await writeFile(checkpoint.absolutePath, content, 'utf-8')
+      }
+      state.checkpoints = state.checkpoints.filter(
+        (item) => item.checkpointId !== checkpoint.checkpointId,
+      )
+      return {
+        restored: checkpoint.relativePath,
+        checkpointId: checkpoint.checkpointId,
+      }
+    }),
+  )
 }
 
-export async function requireWorkspace(sessionId: string, workspaceId: string) {
-  const state = await readStore()
-  const workspace = state.workspaces[workspaceId]
-  if (!workspace || workspace.sessionId !== sessionId) {
-    throw new Error('Workspace is not configured for this session')
+export async function requireWorkspace(
+  sessionId: string,
+  workspaceId: string,
+  context?: FolderWorkspace,
+) {
+  if (context) {
+    if (context.workspaceId !== workspaceId || !context.sources?.length)
+      throw new Error('Invalid folder workspace context')
+
+    const roots = await Promise.all(
+      context.sources.map(async (source) => {
+        const root = await realpath(source.path)
+        if (root !== source.path || !(await stat(root)).isDirectory())
+          throw new Error(`Source directory changed: ${source.path}`)
+        return root
+      }),
+    )
+    if (roots[0] !== context.path)
+      throw new Error('Primary source does not match the workspace')
+
+    return {
+      workspaceId,
+      sessionId,
+      root: roots[0]!,
+      roots,
+      label: context.label,
+    }
   }
-  return { ...workspace, root: await realpath(workspace.root) }
+  throw new Error('Workspace is not configured for this session')
 }
 
 export async function resolveExistingFile(
   root: string,
   filePath: string,
   allowedPaths?: string[],
+  roots?: string[],
 ) {
-  const target = await resolveToolPath(root, filePath, allowedPaths)
+  const target = await resolveToolPath(root, filePath, allowedPaths, roots)
   const fileStat = await stat(target.absolutePath)
   if (!fileStat.isFile()) throw new Error('Path is not a file')
   return target
 }
 
 /** Browsing and mentions remain confined to the workspace. */
-export async function resolveExistingPath(root: string, filePath: string) {
-  const target = await resolveToolPath(root, filePath)
+export async function resolveExistingPath(
+  root: string,
+  filePath: string,
+  roots?: string[],
+) {
+  const target = await resolveToolPath(root, filePath, [], roots)
   const pathStat = await stat(target.absolutePath)
   return {
     ...target,
@@ -423,8 +444,9 @@ async function resolveWritablePath(
   root: string,
   filePath: string,
   allowedPaths?: string[],
+  roots?: string[],
 ) {
-  return resolveToolPath(root, filePath, allowedPaths)
+  return resolveToolPath(root, filePath, allowedPaths, roots)
 }
 
 const MAX_DIFF_BYTES = 50_000
@@ -432,4 +454,60 @@ const MAX_DIFF_BYTES = 50_000
 function capDiff(diff: string): string {
   if (diff.length <= MAX_DIFF_BYTES) return diff
   return `${diff.slice(0, MAX_DIFF_BYTES)}\n[diff truncated]`
+}
+
+export function readWorkspaceFile(
+  input: Parameters<typeof readWorkspaceFileImpl>[0],
+) {
+  return withWorkspaceOperation(input.sessionId, () =>
+    readWorkspaceFileImpl(input),
+  )
+}
+
+export function writeWorkspaceFile(
+  input: Parameters<typeof writeWorkspaceFileImpl>[0],
+) {
+  return withWorkspaceOperation(input.sessionId, () =>
+    writeWorkspaceFileImpl(input),
+  )
+}
+
+export function editWorkspaceFile(
+  input: Parameters<typeof editWorkspaceFileImpl>[0],
+) {
+  return withWorkspaceOperation(input.sessionId, () =>
+    editWorkspaceFileImpl(input),
+  )
+}
+
+export function previewWorkspaceDiff(
+  input: Parameters<typeof previewWorkspaceDiffImpl>[0],
+) {
+  return withWorkspaceOperation(input.sessionId, () =>
+    previewWorkspaceDiffImpl(input),
+  )
+}
+
+export function runWorkspaceCommand(
+  input: Parameters<typeof runWorkspaceCommandImpl>[0],
+) {
+  return withWorkspaceOperation(input.sessionId, () =>
+    runWorkspaceCommandImpl(input),
+  )
+}
+
+export function checkFlaggedPaths(
+  input: Parameters<typeof checkFlaggedPathsImpl>[0],
+) {
+  return withWorkspaceOperation(input.sessionId, () =>
+    checkFlaggedPathsImpl(input),
+  )
+}
+
+export function restoreLatestCheckpoint(
+  input: Parameters<typeof restoreLatestCheckpointImpl>[0],
+) {
+  return withWorkspaceOperation(input.sessionId, () =>
+    restoreLatestCheckpointImpl(input),
+  )
 }

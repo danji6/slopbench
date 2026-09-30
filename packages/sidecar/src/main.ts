@@ -21,10 +21,6 @@ import {
 import { handleMcpRequest } from './mcp'
 import { callExternalTool, listExternalTools } from './mcp/external/client'
 import {
-  bindWorkspace,
-  bindWorkspaceSchema,
-  clearWorkspace,
-  clearWorkspaceSchema,
   listDirectories,
   listDirectoriesSchema,
   listWorkspaceFiles,
@@ -38,6 +34,13 @@ import {
   restoreCheckpointSchema,
   restoreLatestCheckpoint,
 } from './mcp/workspace'
+import {
+  lockSchema,
+  lockWorkspaces,
+  unlockWorkspaces,
+  validateSources,
+  validateSourcesSchema,
+} from './mcp/workspace/context'
 import { shellRoutes } from './shell/routes'
 import { updateStatus } from './update/status'
 
@@ -133,20 +136,28 @@ app.post('/io/image/png', async (c) => {
   }
 })
 
-app.post('/workspace/bind', async (c) => {
+app.post('/workspace/validate-sources', async (c) => {
   try {
-    const input = bindWorkspaceSchema.parse(await c.req.json())
-    return c.json(await bindWorkspace(input))
-  } catch (err: unknown) {
+    return c.json(
+      await validateSources(validateSourcesSchema.parse(await c.req.json())),
+    )
+  } catch (err) {
     return ioError(c, err)
   }
 })
 
-app.post('/workspace/clear', async (c) => {
+app.post('/workspace/lock', async (c) => {
   try {
-    const input = clearWorkspaceSchema.parse(await c.req.json())
-    return c.json(await clearWorkspace(input))
-  } catch (err: unknown) {
+    return c.json(await lockWorkspaces(lockSchema.parse(await c.req.json())))
+  } catch (err) {
+    return ioError(c, err)
+  }
+})
+
+app.post('/workspace/unlock', async (c) => {
+  try {
+    return c.json(unlockWorkspaces(lockSchema.parse(await c.req.json())))
+  } catch (err) {
     return ioError(c, err)
   }
 })

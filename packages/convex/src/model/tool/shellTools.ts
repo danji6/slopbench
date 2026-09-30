@@ -141,7 +141,7 @@ async function shellNeedsApproval(
  */
 export async function getFlaggedPaths(
   command: string,
-  context: Pick<WorkspaceToolContext, 'sessionId' | 'workspaceId'>,
+  context: Pick<WorkspaceToolContext, 'sessionId' | 'workspaceId' | 'workspace'>, // prettier-ignore
 ): Promise<string[] | null> {
   const { candidates: paths, complete } = analyzeShellPathCandidates(command)
   if (!complete) return null

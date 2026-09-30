@@ -84,6 +84,7 @@ export async function inspectPath(
   root: string,
   input: string,
   grants: PathGrant[],
+  roots: string[] = [root],
 ): Promise<CheckedPath> {
   const absolutePath = await canonicalPath(pathCandidate(root, input))
   const forbidden = isPathForbidden(input) || isPathForbidden(absolutePath)
@@ -98,7 +99,7 @@ export async function inspectPath(
     path: displayPath(root, absolutePath),
     absolutePath,
     inputPath: displayPath(root, path.resolve(root, input)),
-    outside: isOutside(root, absolutePath),
+    outside: roots.every((source) => isOutside(source, absolutePath)),
     forbidden,
     allowed,
   }
@@ -109,9 +110,10 @@ export async function resolveToolPath(
   root: string,
   input: string,
   allowedPaths: string[] = [],
+  roots?: string[],
 ) {
   const grants = await resolvePathGrants(root, allowedPaths)
-  const target = await inspectPath(root, input, grants)
+  const target = await inspectPath(root, input, grants, roots)
   if (target.outside && !target.allowed)
     throw new Error(
       'Path escapes the configured workspace, add an explicit path approval to access it',
@@ -119,7 +121,7 @@ export async function resolveToolPath(
   return {
     absolutePath: target.absolutePath,
     relativePath: target.path,
-    external: target.outside,
+    external: isOutside(root, target.absolutePath),
   }
 }
 

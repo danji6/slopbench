@@ -23,6 +23,7 @@ import {
   scheduledEventSchema,
   sessionAgentSchema,
   sessionCacheSchema,
+  sessionFolderSchema,
   sessionSchema,
   sessionShareSchema,
   sessionStateSchema,
@@ -39,7 +40,11 @@ const schemaValidation = true
 
 // prettier-ignore
 export default defineSchema({
+  sessionFolders: defineTable(sessionFolderSchema)
+    .index('by_ownerId_position', ['ownerId', 'position']),
+
   sessions: defineTable(sessionSchema)
+    .index('by_folderId', ['folderId'])
     .index('by_ownerId', ['ownerId'])
     .index('by_parentSessionId', ['parent.sessionId']),
 
@@ -121,6 +126,7 @@ export default defineSchema({
     .searchIndex('search_contents', { searchField: 'searchText', filterFields: ['sessionId'] }),
 
   userSessions: defineTable(userSessionSchema)
+    .index('by_user_group_activity', ['userId', 'hidden', 'groupKey', 'lastMessageAt'])
     .index('by_sessionId', ['sessionId'])
     .index('by_sessionId_userId', ['sessionId', 'userId'])
     .index('by_userId_hidden_lastMessageAt', ['userId', 'hidden', 'lastMessageAt'])

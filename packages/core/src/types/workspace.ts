@@ -50,3 +50,13 @@ export type WorkspaceLinkSnapshot<TStorageId extends string = string> =
   | WorkspaceSkippedLink
 
 export type WorkspaceFileListing = { files: string[]; truncated: boolean }
+
+/** Folder-owned authority passed only across authenticated server boundaries. */
+export type FolderWorkspace = {
+  workspaceId: string
+  folderId?: string
+  revision?: number
+  path: string
+  label: string
+  sources?: { id: string; path: string; label: string }[]
+}

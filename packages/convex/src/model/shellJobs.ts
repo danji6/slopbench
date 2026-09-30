@@ -11,6 +11,7 @@ import {
 import { sharedSessionId } from '../lib/subagent'
 import { agentIdentity } from './chat/identities'
 import { insertMessage } from './messageContents'
+import { getSessionWithWorkspace } from './session/folderContext'
 import { getActiveStream } from './session/memberships'
 import { getByOwnerId as getSettingsByOwnerId } from './settings'
 import { reserveInvokeTurn } from './stream/lifecycle'
@@ -112,7 +113,7 @@ export async function _beginWindow(
   const row = await ctx.db.get(shellJobId)
   if (!row) return null
 
-  const session = await ctx.db.get(row.sessionId)
+  const session = await getSessionWithWorkspace(ctx, row.sessionId)
   if (!session?.workspace) return null
 
   await ctx.db.patch(shellJobId, {
@@ -124,6 +125,7 @@ export async function _beginWindow(
     sessionId: sharedSessionId(session),
     owner: row.sessionId,
     workspaceId: session.workspace.workspaceId,
+    workspace: session.workspace,
     toolCallId: row.toolCallId,
     resume: { jobId: row.jobId, term: row.term, termOffset: row.termOffset },
   }
@@ -189,7 +191,7 @@ async function deliverShellReport(
   row: Doc<'shellJobs'>,
   { output, errorText }: { output?: ShellToolOutput; errorText?: string },
 ) {
-  const session = await ctx.db.get(row.sessionId)
+  const session = await getSessionWithWorkspace(ctx, row.sessionId)
   if (!session) return
 
   const agent = await ctx.db.get(row.agentId)

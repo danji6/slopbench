@@ -4,6 +4,7 @@ import {
   agentAutoApproveValidator,
   agentSubAgentsValidator,
   approvalModeValidator,
+  folderSourceValidator,
   inferenceParametersValidator,
   mcpToolMetaValidator,
   mcpTransportValidator,
@@ -261,7 +262,7 @@ export const setModelInferenceArgsValidator = v.object({
 
 export const createSessionArgsValidator = v.object({
   activeAgentId: v.optional(v.id('agents')),
-  workspaceRoot: v.optional(v.string()),
+  folderId: v.optional(v.id('sessionFolders')),
   /** Only meaningful together with workspaceRoot. */
   mode: v.optional(sessionModeValidator),
   /** Only meaningful together with workspaceRoot. */
@@ -475,4 +476,41 @@ export const importSessionArgsValidator = v.object({
   payload: sessionArchiveValidator,
   subject: v.string(),
   avatars: v.record(v.string(), v.id('_storage')),
+})
+
+export const folderRenameArgs = v.object({
+  folderId: v.id('sessionFolders'),
+  name: v.string(),
+  icon: v.optional(v.string()),
+})
+
+export const folderChangeArgs = v.object({
+  folderId: v.optional(v.id('sessionFolders')),
+  sessionId: v.optional(v.id('sessions')),
+  sources: v.optional(v.array(folderSourceValidator)),
+  remove: v.optional(v.boolean()),
+  unpin: v.optional(v.boolean()),
+})
+
+export const folderTransitionArgs = v.object({
+  ...folderChangeArgs.fields,
+  subject: v.string(),
+  token: v.string(),
+})
+
+export const folderCreateArgs = v.object({
+  name: v.string(),
+  icon: v.optional(v.string()),
+  sources: v.array(folderSourceValidator),
+})
+
+export const folderFinishArgs = v.object({
+  ...folderTransitionArgs.fields,
+  commit: v.boolean(),
+  targetRevision: v.optional(v.number()),
+})
+
+export const folderCreateInternalArgs = v.object({
+  ...folderCreateArgs.fields,
+  subject: v.string(),
 })

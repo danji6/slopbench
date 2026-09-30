@@ -3,10 +3,11 @@ import { READ_ATTACHMENT_TOOL_NAME } from '@sb/core/const'
 import type { ToolSet } from 'ai'
 
 import { internal } from '../../_generated/api'
-import type { Doc, Id } from '../../_generated/dataModel'
+import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { TASK_TOOL_NAME, sharedSessionId } from '../../lib/subagent'
 import { mergeToolApprovals } from '../../lib/tool/approval'
+import type { Session } from '../../types'
 import type { AgentAutoApprove, ToolApprovals } from '../../types'
 import { createAskTool } from './ask'
 import { createReadAttachmentTool } from './attachments'
@@ -37,10 +38,9 @@ import { createEditTodoTool, createWriteTodoTool } from './todo'
 import { createWebFetchTool, createWebSearchTool } from './web'
 
 /** Session data the tool builder needs. */
-export type ToolSession = Pick<
-  Doc<'sessions'>,
-  '_id' | 'workspace' | 'parent'
-> & { toolApprovals?: ToolApprovals }
+export type ToolSession = Pick<Session, '_id' | 'workspace' | 'parent'> & {
+  toolApprovals?: ToolApprovals
+}
 
 export type ToolBuildOptions = {
   ctx?: ActionCtx
@@ -80,6 +80,7 @@ export async function getEnabledTools(
           messageId: options?.messageId,
           messageCreatedAt: options?.messageCreatedAt,
           workspaceId: session.workspace.workspaceId,
+          workspace: session.workspace,
           shell: manifest.shell,
           allowInteractiveShells:
             resources?.settings?.allowInteractiveShells ?? false,

@@ -285,7 +285,13 @@ describe('shared remembered approvals', () => {
     const { ctx, byId } = setup([
       { ...approval('shell'), approvalPaths: ['/tmp/shared'] },
     ])
-    byId.get(childId)!.workspace = { workspaceId: 'workspace' }
+    byId.get(parentId)!.folderId = 'folder-1'
+    byId.set('folder-1', {
+      _id: 'folder-1',
+      name: 'Test',
+      revision: 0,
+      sources: [{ id: 'root', path: '/repo', label: 'repo' }],
+    })
     await approveTool(ctx, {
       sessionId: parentId,
       childSessionId: childId,
