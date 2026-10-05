@@ -20,7 +20,7 @@ import {
   scheduleMessageEval,
 } from '../messages'
 import { advanceStepCount } from '../session/state'
-import { STREAM_LEASE_MS } from './lifecycleClaims'
+import { STREAM_LEASE_MS, renewStreamLease } from './lease'
 
 export async function _patchMessage(
   ctx: MutationCtx,
@@ -36,7 +36,7 @@ export async function _patchMessage(
 
   await patchSegmentParts(ctx, stream.processingMessageId, row, parts)
 
-  await ctx.db.patch(streamId, { leaseExpiresAt: Date.now() + STREAM_LEASE_MS })
+  await renewStreamLease(ctx, stream)
 
   return true
 }

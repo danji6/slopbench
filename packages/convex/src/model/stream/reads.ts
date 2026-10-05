@@ -244,3 +244,13 @@ export async function _hasActiveMedia(
   const stream = await ctx.db.get(streamId)
   return stream ? getActiveMediaState(ctx, stream) : false
 }
+
+/** Reads stop state without putting ordinary seam checks in a mutation's read set. */
+export async function _getStopState(
+  ctx: QueryCtx,
+  { streamId }: { streamId: Id<'streams'> },
+) {
+  const stream = await ctx.db.get(streamId)
+  if (!stream || stream.status === 'stopping') return 'stopped' as const
+  return stream.stopAt ? ('requested' as const) : ('active' as const)
+}

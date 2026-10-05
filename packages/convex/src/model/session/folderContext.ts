@@ -57,15 +57,10 @@ export async function requireFolder(
 }
 
 export function sessionGroup(
-  role: 'owner' | 'member',
   folderId?: Id<'sessionFolders'>,
   pinned?: boolean,
 ) {
-  return pinned
-    ? 'pinned'
-    : role === 'member'
-      ? 'shared'
-      : (folderId ?? 'ungrouped')
+  return pinned ? 'pinned' : (folderId ?? 'ungrouped')
 }
 
 export function workspaceKey(workspace: Session['workspace']) {

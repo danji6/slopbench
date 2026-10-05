@@ -34,6 +34,7 @@ export async function changeFolder(
   }
 
   const state = await ctx.runMutation(internal.sessionFolders._begin, args)
+  if (state.personalMoved) return
 
   let committed = false
   try {

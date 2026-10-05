@@ -68,7 +68,7 @@ export async function create(
     sessionId,
     userId: ctx.userId,
     role: 'owner',
-    groupKey: sessionGroup('owner', args.folderId),
+    groupKey: sessionGroup(args.folderId),
     lastMessageAt: now,
     title: args.title,
   })

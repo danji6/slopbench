@@ -65,7 +65,7 @@ export function SessionStoreProvider({ children }: { children: ReactNode }) {
   const streamingIds = useActiveStreamSessionIds()
   const keys = search.trim()
     ? ['search']
-    : ['pinned', ...folders.map((f) => f._id), 'ungrouped', 'shared']
+    : ['pinned', ...folders.map((f) => f._id), 'ungrouped']
 
   const publish = useCallback((key: string, page: SessionGroupPage | null) => {
     setPages((current) => {

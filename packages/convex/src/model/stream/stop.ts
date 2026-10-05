@@ -5,8 +5,8 @@ import { scheduleTitle } from '../messages'
 
 /** Converts a timed seam stop request into normal stopped stream finalization. */
 export async function honorSoftStop(ctx: MutationCtx, stream: Doc<'streams'>) {
-  if (!stream.stopAt) return false
   if (stream.status === 'stopping') return true
+  if (!stream.stopAt) return false
 
   await ctx.db.patch(stream._id, {
     status: 'stopping',
@@ -24,6 +24,7 @@ export async function requestImmediateStop(
   stream: Doc<'streams'>,
   options?: { suppressReport?: boolean },
 ) {
+  if (stream.status === 'stopping') return 'finalizing' as const
   if (stream.jobId) await ctx.scheduler.cancel(stream.jobId)
 
   if (!stream.processingMessageId) {

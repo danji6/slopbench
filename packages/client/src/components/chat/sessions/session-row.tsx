@@ -9,11 +9,13 @@ import {
   useSession,
   useSessionIsActive,
   useSessionIsStreaming,
+  useUserProfile,
 } from '@/hooks/chat'
 import { formatRelativeTime } from '@/lib'
 import type { SessionParticipant } from '@/lib/chat'
 import { triggerJsonDownload } from '@/lib/chat/io'
 import { toastError } from '@/lib/notifications'
+import { setSelectedSessionFolder } from '@/lib/ui-settings'
 import { cn } from '@/lib/utils'
 import { useDraggable } from '@dnd-kit/core'
 import { api } from '@sb/convex/_generated/api'
@@ -55,13 +57,14 @@ export function SessionRow({
 }: SessionRowProps) {
   const [moving, setMoving] = useState(false)
   const pin = useMutation(api.sessionFolders.pin)
+  const item = useSession(id)
+  const userId = useUserProfile()?._id
   const { setNodeRef, listeners, attributes } = useDraggable({
     id: `session:${id}`,
     disabled: dropPending,
-    data: { kind: 'session', sessionId: id },
+    data: { kind: 'session', sessionId: id, owned: item?.owned },
   })
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
-  const item = useSession(id)
   const isActive = useSessionIsActive(id)
   const isStreaming = useSessionIsStreaming(id)
   const [, navigate] = useLocation()
@@ -74,6 +77,7 @@ export function SessionRow({
   if (!item) return null
 
   function handleSelect() {
+    if (userId) setSelectedSessionFolder(userId, item?.folderId ?? null)
     navigate(`/?id=${id}`, { replace: true })
     sidebar?.close()
   }
@@ -150,7 +154,7 @@ export function SessionRow({
 
                   {(item.pinned || showFolder) && (
                     <span className="text-muted-foreground truncate text-start text-xs">
-                      {item.owned ? (item.folderName ?? 'Ungrouped') : 'Shared'}
+                      {item.folderName ?? 'Ungrouped'}
                     </span>
                   )}
                   <span className="text-muted-foreground flex w-full items-center gap-1.5 text-xs">
@@ -189,15 +193,13 @@ export function SessionRow({
             {item.pinned ? <PinOffIcon /> : <PinIcon />}
             {item.pinned ? 'Unpin' : 'Pin'}
           </ContextMenu.Item>
-          {item.owned && (
-            <ContextMenu.Item
-              disabled={dropPending}
-              onSelect={() => setMoving(true)}
-            >
-              <FolderInputIcon />
-              Move to folder…
-            </ContextMenu.Item>
-          )}
+          <ContextMenu.Item
+            disabled={dropPending}
+            onSelect={() => setMoving(true)}
+          >
+            <FolderInputIcon />
+            Move to folder…
+          </ContextMenu.Item>
           <ContextMenu.Item onSelect={() => rename(id)}>
             <PencilIcon />
             Rename
@@ -228,6 +230,7 @@ export function SessionRow({
         <SessionFolderDialog
           sessionId={id as Id<'sessions'>}
           folderId={item.folderId}
+          shared={!item.owned}
           onClose={() => setMoving(false)}
         />
       )}

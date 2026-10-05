@@ -5,10 +5,11 @@ import { streamOutputIdentity } from '../chat/identities'
 import { injectModeNote } from '../chat/notes'
 import { injectDueReminders } from '../chat/reminders'
 import { getProcessingSegmentRow, insertMessage } from '../messageContents'
+import { STREAM_LEASE_MS, renewStreamLease } from './lease'
 import { consumeInterjections } from './lifecycleProgress'
 import { honorSoftStop } from './stop'
 
-export const STREAM_LEASE_MS = 5 * 60 * 1000
+export { STREAM_LEASE_MS } from './lease'
 
 export const APPROVAL_LEASE_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -118,9 +119,7 @@ export async function _heartbeat(
   const stream = await ctx.db.get(streamId)
   if (!stream || stream.status !== 'streaming') return
 
-  await ctx.db.patch(streamId, {
-    leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
-  })
+  await renewStreamLease(ctx, stream)
 }
 
 /** Materializes the processing message for a turn that is starting to stream. */

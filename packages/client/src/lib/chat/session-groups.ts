@@ -10,19 +10,10 @@ export function flattenSessionGroups(
   keys: string[],
   pages: Record<string, { results: SessionListItem[]; status: string }>,
   collapsed: Record<string, boolean>,
-  dragging = false,
 ): GroupRow[] {
   const seen = new Set<string>()
   return keys.flatMap((key): GroupRow[] => {
     const page = pages[key]
-    if (
-      !dragging &&
-      (key === 'pinned' || key === 'shared') &&
-      page?.status === 'Exhausted' &&
-      !page.results.length
-    ) {
-      return []
-    }
 
     const rows: GroupRow[] = key === 'search' ? [] : [{ kind: 'header', key }]
     if (collapsed[key] && key !== 'search') return rows

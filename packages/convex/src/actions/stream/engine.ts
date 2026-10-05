@@ -175,8 +175,12 @@ export async function _stream(
   }
 }
 
-function honorSoftStop(ctx: ActionCtx, streamId: Id<'streams'>) {
-  return ctx.runMutation(internal.streams._honorSoftStop, { streamId })
+async function honorSoftStop(ctx: ActionCtx, streamId: Id<'streams'>) {
+  const state = await ctx.runQuery(internal.streams._getStopState, { streamId })
+  if (state === 'active') return false
+  if (state === 'requested')
+    await ctx.runMutation(internal.streams._honorSoftStop, { streamId })
+  return true
 }
 
 function recordStep(

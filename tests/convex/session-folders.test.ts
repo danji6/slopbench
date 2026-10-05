@@ -7,6 +7,8 @@ import {
 import { begin, finish } from '@sb/convex/model/session/folderTransitions'
 import { pin, reorder } from '@sb/convex/model/session/folders'
 import { duplicate } from '@sb/convex/model/session/sessionDuplicate'
+import { toListItem } from '@sb/convex/model/session/sessionQueries'
+import { redeem } from '@sb/convex/model/session/shares'
 import { getApprovals } from '@sb/convex/model/session/state'
 import type { FolderTransitionArgs } from '@sb/convex/types'
 import { describe, expect, test } from 'bun:test'
@@ -21,6 +23,14 @@ function setup() {
       { _id: 'member', subject: 'member', role: 'user' },
     ],
     sessionFolders: [
+      {
+        _id: 'c',
+        ownerId: 'member',
+        name: 'Personal',
+        position: 0,
+        revision: 0,
+        sources: [],
+      },
       {
         _id: 'a',
         ownerId: 'owner',
@@ -55,7 +65,7 @@ function setup() {
         sessionId: 's',
         userId: 'member',
         role: 'member',
-        groupKey: 'shared',
+        groupKey: 'ungrouped',
       },
     ],
     sessionState: [
@@ -163,7 +173,134 @@ describe('session folders', () => {
       sessionId: 's' as never,
       pinned: false,
     })
-    expect(row('mem').groupKey).toBe('shared')
+    expect(row('mem').groupKey).toBe('ungrouped')
+  })
+
+  test('joined sessions move independently during streaming and retain their folder across pins', async () => {
+    const { ctx, row, tables } = setup()
+    tables.streams = [{ _id: 'busy', sessionId: 's', status: 'streaming' }]
+    const state = await begin(
+      ctx,
+      args({ subject: 'member', sessionId: 's', folderId: 'c' }),
+    )
+    expect(state.personalMoved).toBe(true)
+    expect(state.needsSidecar).toBe(false)
+    expect(row('mem').groupKey).toBe('c')
+    expect(row('mem').folderId).toBe('c')
+    expect(row('own').groupKey).toBe('a')
+    expect(row('s').contextLock).toBeUndefined()
+    expect(
+      (await getSessionWithWorkspace(ctx, 's' as never))?.workspace?.path,
+    ).toBe('/a')
+    expect(row('cache')).toBeDefined()
+    const memberCtx = { ...(ctx as object), userId: 'member' } as never
+    const item = await toListItem(
+      memberCtx,
+      row('s') as never,
+      undefined,
+      undefined,
+      'c' as never,
+    )
+    expect(item).toMatchObject({
+      owned: false,
+      folderId: 'c',
+      folderName: 'Personal',
+    })
+    await pin(memberCtx, { sessionId: 's' as never, pinned: true })
+    await pin(memberCtx, { sessionId: 's' as never, pinned: false })
+    expect(row('mem').groupKey).toBe('c')
+    // The owner's move cannot overwrite the member's personal organization.
+    tables.streams = []
+    const input = args({ sessionId: 's', folderId: 'b' })
+    const prepared = await begin(ctx, input)
+    await finish(ctx, {
+      ...input,
+      targetRevision: prepared.targetRevision,
+      commit: true,
+    })
+    expect(row('mem').groupKey).toBe('c')
+  })
+
+  test('shared placement rejects sourced, foreign, and locked folders', async () => {
+    const { ctx, row } = setup()
+    row('c').sources = [{ id: 'root', path: '/c', label: 'c' }]
+    await expect(
+      begin(ctx, args({ subject: 'member', sessionId: 's', folderId: 'c' })),
+    ).rejects.toThrow('without sources')
+    row('c').sources = []
+    row('c').contextLock = `${Date.now() + 60000}:locked`
+    await expect(
+      begin(ctx, args({ subject: 'member', sessionId: 's', folderId: 'c' })),
+    ).rejects.toThrow('sources are being updated')
+    expect(row('mem').folderId).toBeUndefined()
+  })
+
+  test('folders containing joined sessions cannot gain sources, including pinned sessions', async () => {
+    const { ctx, row } = setup()
+    await begin(ctx, args({ subject: 'member', sessionId: 's', folderId: 'c' }))
+    row('member').role = 'admin'
+    await pin({ ...(ctx as object), userId: 'member' } as never, {
+      sessionId: 's' as never,
+      pinned: true,
+    })
+    await expect(
+      begin(
+        ctx,
+        args({
+          subject: 'member',
+          folderId: 'c',
+          sources: [{ id: 'root', path: '/c', label: 'c' }],
+        }),
+      ),
+    ).rejects.toThrow('Move shared sessions out')
+    expect(row('c').contextLock).toBeUndefined()
+  })
+
+  test('deleting a personal shared folder preserves chats, owner workspace, and pins', async () => {
+    const { ctx, row } = setup()
+    await begin(ctx, args({ subject: 'member', sessionId: 's', folderId: 'c' }))
+    await pin({ ...(ctx as object), userId: 'member' } as never, {
+      sessionId: 's' as never,
+      pinned: true,
+    })
+    const input = args({ subject: 'member', folderId: 'c', remove: true })
+    await begin(ctx, input)
+    await finish(ctx, { ...input, commit: true })
+    expect(row('c')).toBeUndefined()
+    expect(row('mem').folderId).toBeUndefined()
+    expect(row('mem').groupKey).toBe('pinned')
+    expect(row('s').folderId).toBe('a')
+    expect(row('msg')).toBeDefined()
+    await pin({ ...(ctx as object), userId: 'member' } as never, {
+      sessionId: 's' as never,
+      pinned: false,
+    })
+    expect(row('mem').groupKey).toBe('ungrouped')
+  })
+
+  test('redeeming an invite defaults to Ungrouped without resetting an existing placement', async () => {
+    const { ctx, tables, row } = setup()
+    const digest = await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode('invite'),
+    )
+    const tokenHash = Array.from(new Uint8Array(digest), (byte) =>
+      byte.toString(16).padStart(2, '0'),
+    ).join('')
+    tables.sessionShares = [{ _id: 'share', sessionId: 's', tokenHash }]
+    tables.userSessions = tables.userSessions!.filter(
+      (member) => member._id !== 'mem',
+    )
+    const memberCtx = { ...(ctx as object), userId: 'member' } as never
+    await redeem(memberCtx, { token: 'invite' })
+    const joined = tables.userSessions!.find(
+      (member) => member.userId === 'member',
+    )!
+    expect(joined.groupKey).toBe('ungrouped')
+    expect(joined.folderId).toBeUndefined()
+    await begin(ctx, args({ subject: 'member', sessionId: 's', folderId: 'c' }))
+    await redeem(memberCtx, { token: 'invite' })
+    expect(row(String(joined._id)).folderId).toBe('c')
   })
 
   test('moving clears path grants and caches, preserves chats, pins and shell rules, and updates children live', async () => {
@@ -182,7 +319,7 @@ describe('session folders', () => {
     })
     expect(row('s').folderId).toBe('b')
     expect(row('own').groupKey).toBe('pinned')
-    expect(row('mem').groupKey).toBe('shared')
+    expect(row('mem').groupKey).toBe('ungrouped')
     expect(row('msg').content).toBe('Preserve me')
     expect(row('state').toolApprovals).toEqual({
       shell: ['git status'],

@@ -81,7 +81,10 @@ export async function pin(
   if (session.parent) error('Sub-agent sessions cannot be pinned', 409)
   await ctx.db.patch(membership._id, {
     pinned: args.pinned || undefined,
-    groupKey: sessionGroup(membership.role, session.folderId, args.pinned),
+    groupKey: sessionGroup(
+      membership.role === 'owner' ? session.folderId : membership.folderId,
+      args.pinned,
+    ),
   })
 }
 

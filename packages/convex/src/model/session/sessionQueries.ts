@@ -57,7 +57,7 @@ export async function list(
       if (!showHidden && row.userHidden) return null
       const session = await ctx.db.get(row.sessionId)
       if (!session || session.parent) return null
-      return toListItem(ctx, session, row.userHidden, row.pinned)
+      return toListItem(ctx, session, row.userHidden, row.pinned, row.folderId)
     }),
   )
 
@@ -72,6 +72,7 @@ export async function toListItem(
   session: Doc<'sessions'>,
   userHidden?: boolean,
   pinned?: boolean,
+  personalFolderId?: Id<'sessionFolders'>,
 ): Promise<SessionListItem> {
   const members = await ctx.db
     .query('userSessions')
@@ -114,11 +115,13 @@ export async function toListItem(
     ...agents.filter((agent): agent is SessionParticipant => agent !== null),
   ]
 
-  const folder = session.folderId ? await ctx.db.get(session.folderId) : null
+  const folderId =
+    session.ownerId === ctx.userId ? session.folderId : personalFolderId
+  const folder = folderId ? await ctx.db.get(folderId) : null
   return {
     pinned: pinned || undefined,
     owned: session.ownerId === ctx.userId,
-    folderId: session.folderId,
+    folderId,
     folderName: folder?.name,
     folderIcon: folder?.icon,
     _id: session._id,

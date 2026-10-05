@@ -13,14 +13,15 @@ export type SessionDrop = {
 export function createSessionDrop(
   item: SessionListItem,
   target: string,
-  folder?: { _id: string; name: string; icon?: string },
+  folder?: { _id: string; name: string; icon?: string; sources?: unknown[] },
 ): SessionDrop | null {
   const source = sessionGroupKey(item)
 
   if (
     source === target ||
     (target !== 'pinned' &&
-      (!item.owned || (!folder && target !== 'ungrouped')))
+      ((!item.owned && !!folder?.sources?.length) ||
+        (!folder && target !== 'ungrouped')))
   ) {
     return null
   }
@@ -40,11 +41,7 @@ export function createSessionDrop(
 }
 
 export function sessionGroupKey(item: SessionListItem): string {
-  return item.pinned
-    ? 'pinned'
-    : item.owned
-      ? (item.folderId ?? 'ungrouped')
-      : 'shared'
+  return item.pinned ? 'pinned' : (item.folderId ?? 'ungrouped')
 }
 
 const activity = (item: SessionListItem) =>

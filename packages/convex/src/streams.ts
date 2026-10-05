@@ -72,6 +72,11 @@ export const _complete = internalMutation({
   handler: StreamLifecycle._complete,
 })
 
+export const _getStopState = internalQuery({
+  args: { streamId: v.id('streams') },
+  handler: StreamReads._getStopState,
+})
+
 export const _honorSoftStop = internalMutation({
   args: { streamId: v.id('streams') },
   handler: StreamLifecycle._honorSoftStop,

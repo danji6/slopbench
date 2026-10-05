@@ -10,10 +10,12 @@ import { FolderPicker } from './folder-picker'
 export function SessionFolderDialog({
   sessionId,
   folderId,
+  shared = false,
   onClose,
 }: {
   sessionId: Id<'sessions'>
   folderId?: string
+  shared?: boolean
   onClose: () => void
 }) {
   const [selected, setSelected] = useState<string | null>(folderId ?? null)
@@ -40,9 +42,16 @@ export function SessionFolderDialog({
           <Dialog.Title>Move session</Dialog.Title>
         </Dialog.Header>
         <p className="text-muted-foreground py-3 text-sm">
-          The session will use the selected folder’s source directories.
+          {shared
+            ? 'Organize this shared session in a folder without sources.'
+            : 'The session will use the selected folder’s source directories.'}
         </p>
-        <FolderPicker value={selected} onChange={setSelected} disabled={busy} />
+        <FolderPicker
+          value={selected}
+          onChange={setSelected}
+          disabled={busy}
+          organizationOnly={shared}
+        />
         <Dialog.Footer>
           <RippleButton variant="surface" onClick={onClose} disabled={busy}>
             Cancel

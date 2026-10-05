@@ -126,6 +126,7 @@ export default defineSchema({
     .searchIndex('search_contents', { searchField: 'searchText', filterFields: ['sessionId'] }),
 
   userSessions: defineTable(userSessionSchema)
+    .index('by_folderId', ['folderId'])
     .index('by_user_group_activity', ['userId', 'hidden', 'groupKey', 'lastMessageAt'])
     .index('by_sessionId', ['sessionId'])
     .index('by_sessionId_userId', ['sessionId', 'userId'])

@@ -247,6 +247,8 @@ export const sessionFolderSchema = v.object({
 })
 
 export const userSessionSchema = v.object({
+  /** Personal organization for joined sessions. */
+  folderId: v.optional(v.id('sessionFolders')),
   groupKey: v.optional(v.string()),
   pinned: v.optional(v.boolean()),
   sessionId: v.id('sessions'),

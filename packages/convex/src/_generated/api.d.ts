@@ -137,6 +137,7 @@ import type * as model_session_folderTransitions from "../model/session/folderTr
 import type * as model_session_folders from "../model/session/folders.js";
 import type * as model_session_memberships from "../model/session/memberships.js";
 import type * as model_session_models from "../model/session/models.js";
+import type * as model_session_personalFolders from "../model/session/personalFolders.js";
 import type * as model_session_sessionAccess from "../model/session/sessionAccess.js";
 import type * as model_session_sessionDuplicate from "../model/session/sessionDuplicate.js";
 import type * as model_session_sessionQueries from "../model/session/sessionQueries.js";
@@ -152,6 +153,7 @@ import type * as model_shellJobs from "../model/shellJobs.js";
 import type * as model_sidecar from "../model/sidecar.js";
 import type * as model_sidecarTransport from "../model/sidecarTransport.js";
 import type * as model_stream_generatedFiles from "../model/stream/generatedFiles.js";
+import type * as model_stream_lease from "../model/stream/lease.js";
 import type * as model_stream_lifecycle from "../model/stream/lifecycle.js";
 import type * as model_stream_lifecycleClaims from "../model/stream/lifecycleClaims.js";
 import type * as model_stream_lifecycleCleanup from "../model/stream/lifecycleCleanup.js";
@@ -362,6 +364,7 @@ declare const fullApi: ApiFromModules<{
   "model/session/folders": typeof model_session_folders;
   "model/session/memberships": typeof model_session_memberships;
   "model/session/models": typeof model_session_models;
+  "model/session/personalFolders": typeof model_session_personalFolders;
   "model/session/sessionAccess": typeof model_session_sessionAccess;
   "model/session/sessionDuplicate": typeof model_session_sessionDuplicate;
   "model/session/sessionQueries": typeof model_session_sessionQueries;
@@ -377,6 +380,7 @@ declare const fullApi: ApiFromModules<{
   "model/sidecar": typeof model_sidecar;
   "model/sidecarTransport": typeof model_sidecarTransport;
   "model/stream/generatedFiles": typeof model_stream_generatedFiles;
+  "model/stream/lease": typeof model_stream_lease;
   "model/stream/lifecycle": typeof model_stream_lifecycle;
   "model/stream/lifecycleClaims": typeof model_stream_lifecycleClaims;
   "model/stream/lifecycleCleanup": typeof model_stream_lifecycleCleanup;

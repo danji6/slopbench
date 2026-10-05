@@ -4,10 +4,19 @@ import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import { findUserBySubject, requireRole } from '../../functions'
-import type { FolderFinishArgs, FolderTransitionArgs } from '../../types'
+import type {
+  FolderFinishArgs,
+  FolderTransitionArgs,
+  Session,
+} from '../../types'
 import { removeForSession } from './cache'
 import { requireFolder, sessionGroup } from './folderContext'
-import { requireOwner } from './memberships'
+import { requireMember } from './memberships'
+import {
+  assertNoSharedSessions,
+  clearSharedFolder,
+  moveSharedSession,
+} from './personalFolders'
 import { getState, patchState } from './state'
 
 /** Blocks new work transactionally before checking the sidecar's live jobs. */
@@ -23,37 +32,80 @@ export async function begin(ctx: MutationCtx, args: FolderTransitionArgs) {
     ? await requireFolder(ctx, args.folderId, user._id)
     : null
 
-  if (args.sessionId) {
-    const { session } = await requireOwner(ctx, args.sessionId, user._id)
-    if (session.parent) error('Sub-agent sessions follow their parent', 409)
-    if (session.contextLock) error('Session is being moved', 409)
-    if (session.folderId) await requireFolder(ctx, session.folderId, user._id)
+  return args.sessionId
+    ? beginSessionMove(ctx, args, user._id, folder)
+    : beginFolderUpdate(ctx, args, folder)
+}
 
-    const changesWorkspace =
-      session.folderId !== args.folderId &&
-      Boolean(session.workspace || folder?.sources.length)
-    if (changesWorkspace) await assertIdle(ctx, session)
+async function beginSessionMove(
+  ctx: MutationCtx,
+  args: FolderTransitionArgs,
+  userId: Id<'users'>,
+  folder: Doc<'sessionFolders'> | null,
+) {
+  const { session, membership } = await requireMember(
+    ctx,
+    args.sessionId!,
+    userId,
+  )
 
-    await ctx.db.patch(session._id, { contextLock: args.token })
+  if (session.parent) error('Sub-agent sessions follow their parent', 409)
+  if (membership.role === 'owner')
+    return lockSessionMove(ctx, args, session, folder)
 
-    return {
-      targetRevision: folder?.revision,
-      sessionIds: [session._id],
-      needsSidecar: changesWorkspace,
-    }
+  await moveSharedSession(ctx, membership, folder, args.unpin)
+  return {
+    personalMoved: true,
+    targetRevision: undefined,
+    sessionIds: [],
+    needsSidecar: false,
   }
+}
 
+async function lockSessionMove(
+  ctx: MutationCtx,
+  args: FolderTransitionArgs,
+  session: Session,
+  folder: Doc<'sessionFolders'> | null,
+) {
+  if (session.contextLock) error('Session is being moved', 409)
+  if (session.folderId)
+    await requireFolder(ctx, session.folderId, session.ownerId)
+
+  const changesWorkspace =
+    session.folderId !== args.folderId &&
+    Boolean(session.workspace || folder?.sources.length)
+
+  if (changesWorkspace) await assertIdle(ctx, session)
+  await ctx.db.patch(session._id, { contextLock: args.token })
+
+  return {
+    personalMoved: false,
+    targetRevision: folder?.revision,
+    sessionIds: [session._id],
+    needsSidecar: changesWorkspace,
+  }
+}
+
+async function beginFolderUpdate(
+  ctx: MutationCtx,
+  args: FolderTransitionArgs,
+  folder: Doc<'sessionFolders'> | null,
+) {
   if (!folder) error('Folder not found', 404)
+
+  if (args.sources?.length) await assertNoSharedSessions(ctx, folder._id)
 
   const sessions = await ctx.db
     .query('sessions')
     .withIndex('by_folderId', (q) => q.eq('folderId', folder._id))
     .collect()
-  for (const session of sessions) await assertIdle(ctx, session)
 
+  for (const session of sessions) await assertIdle(ctx, session)
   await ctx.db.patch(folder._id, { contextLock: args.token })
 
   return {
+    personalMoved: false,
     targetRevision: undefined,
     sessionIds: sessions.filter((s) => !s.parent).map((s) => s._id),
     needsSidecar: Boolean(folder.sources.length || args.sources?.length),
@@ -122,6 +174,7 @@ export async function finish(ctx: MutationCtx, args: FolderFinishArgs) {
       .withIndex('by_folderId', (q) => q.eq('folderId', folder._id))
       .collect()
     for (const session of sessions) await move(ctx, session)
+    await clearSharedFolder(ctx, folder._id)
     await ctx.db.delete(folder._id)
   } else {
     await ctx.db.patch(folder._id, {
@@ -154,10 +207,11 @@ async function move(
     .withIndex('by_sessionId', (q) => q.eq('sessionId', session._id))
     .collect()
   for (const member of members) {
-    const pinned = member.role === 'owner' && unpin ? undefined : member.pinned
+    if (member.role !== 'owner') continue
+    const pinned = unpin ? undefined : member.pinned
     await ctx.db.patch(member._id, {
       pinned,
-      groupKey: sessionGroup(member.role, folderId, pinned),
+      groupKey: sessionGroup(folderId, pinned),
     })
   }
 }

@@ -26,6 +26,7 @@ import { Virtualizer } from 'virtua'
 
 import { useUnreadNotificationSessionIds } from '../notifications/notification-provider'
 import { FolderDialog } from './folder-dialog'
+import { FolderGroupRow } from './folder-group-row'
 import { FolderHeader } from './folder-header'
 import { SessionListMenu } from './session-list-menu'
 import { SessionRow } from './session-row'
@@ -57,7 +58,7 @@ export const SessionListView = memo(function SessionListView() {
 
   const keys = search.trim()
     ? ['search']
-    : ['pinned', ...folders.map((f) => f._id), 'ungrouped', 'shared']
+    : ['pinned', ...folders.map((f) => f._id), 'ungrouped']
   const rows = frozenRows ?? flattenSessionGroups(keys, pages, collapsed)
 
   function toggle(key: string) {
@@ -83,6 +84,7 @@ export const SessionListView = memo(function SessionListView() {
     setDragTitle(null)
     const { active, over } = event
     if (!over) return
+
     try {
       if (active.data.current?.kind === 'folder') {
         await order(
@@ -91,19 +93,38 @@ export const SessionListView = memo(function SessionListView() {
         )
         return
       }
+
       const sessionId = active.data.current?.sessionId as
         Id<'sessions'> | undefined
       if (!sessionId) return
+
       const item = Object.values(pages)
         .flatMap((page) => page.results)
         .find((session) => session._id === sessionId)
-      if (item) await dropSession(item, String(over.id))
+      if (item)
+        await dropSession(item, String(over.data.current?.groupKey ?? over.id))
     } catch (err) {
       toastError(err, 'Could not organize session')
     }
   }
 
-  function renderRow(row: GroupRow) {
+  function renderRow(row: GroupRow, index: number) {
+    const content = renderRowContent(row)
+    if (row.key === 'search') return content
+    return (
+      <FolderGroupRow
+        row={row}
+        last={rows[index + 1]?.key !== row.key}
+        hasSources={Boolean(
+          folders.find((folder) => folder._id === row.key)?.sources.length,
+        )}
+      >
+        {content}
+      </FolderGroupRow>
+    )
+  }
+
+  function renderRowContent(row: GroupRow) {
     const folder = folders.find((folder) => folder._id === row.key)
     if (row.kind === 'header') {
       return (
@@ -140,7 +161,7 @@ export const SessionListView = memo(function SessionListView() {
 
     const page = pages[row.key]
     return (
-      <div className="px-2 py-1 text-center text-xs">
+      <div className="px-2 py-2 text-center text-xs">
         {page?.status === 'CanLoadMore' ? (
           <RippleButton
             variant="stealth"
@@ -166,7 +187,7 @@ export const SessionListView = memo(function SessionListView() {
     <DndContext
       sensors={sensors}
       onDragStart={({ active }) => {
-        setFrozenRows(flattenSessionGroups(keys, pages, collapsed, true))
+        setFrozenRows(flattenSessionGroups(keys, pages, collapsed))
         const session = Object.values(pages)
           .flatMap((page) => page.results)
           .find((item) => item._id === active.data.current?.sessionId)

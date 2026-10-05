@@ -80,7 +80,7 @@ export async function redeem(
       sessionId: share.sessionId,
       userId: ctx.userId,
       role: 'member',
-      groupKey: 'shared',
+      groupKey: 'ungrouped',
       lastMessageAt: session?.lastMessageAt,
       title: session?.title,
     })

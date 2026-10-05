@@ -15,11 +15,15 @@ are optional; ordinary users can organize chats, while source editing retains
 the existing admin requirement. Source paths refer to the sidecar server.
 
 The sidebar combines independently paginated groups (20 rows per load) in one
-virtualized scroll. Personal pins appear only in the collapsible Pinned group;
-shared sessions appear under Shared for other members. Activity orders rows,
+virtualized scroll. Personal pins appear only in the collapsible Pinned group,
+whose header remains visible even when empty. Joined sessions default to Ungrouped
+and can be placed in each member’s own folders without sources. This personal
+placement lives on `userSessions.folderId` and never changes the owner’s workspace.
+Folders containing joined sessions cannot gain sources until those sessions move
+out; deletion clears personal placement while preserving pins. Activity orders rows,
 while folder order is manual. Desktop rows can be dragged to folder headers or
 Pinned; menus provide moving and reordering on mobile. Search remains flat and
-shows each result's folder. Folder plus buttons select a destination for a lazy
+shows each result's folder. The folder picker uses a searchable combobox. Folder plus buttons select a destination for a lazy
 new session, with a separate draft for each folder. Folder buttons themselves
 are draggable. New Session uses the last selected folder, remembered per user
 on this device, and falls back to Ungrouped if the folder is unavailable.
@@ -46,8 +50,15 @@ are ignored.
 
 The approved pre-release data reset migrated existing memberships to Ungrouped
 or Shared, cleared legacy workspace bindings and path grants, and removed stale
-caches. Temporary migrations were applied and removed; the clean schema baseline
-is now version 10. Restart the sidecar after updating, because it has no hot reload.
+caches. A subsequent migration moved legacy Shared memberships to Ungrouped.
+These temporary migrations were applied to the local test data and removed; the
+clean pre-release schema baseline is version 11 and the public migration manifest
+is empty. Restart the sidecar after updating, because it has no hot reload.
+
+Stream token patches and heartbeats renew the five-minute lease at most once per
+minute, reducing contention with stop mutations. Ordinary engine stop checks use
+a query snapshot; only a requested timeout calls the stop mutation. Repeated stop
+requests reuse the pending finalization instead of scheduling another one.
 
 ## Maintainability update
 
@@ -1159,7 +1170,7 @@ Key backend domains:
 `migrations.ts` holds the `@convex-dev/migrations` runner, the append-only
 public release migration list, and stable internal endpoints for boot
 coordination. `packages/core/src/migration-version.ts` establishes pre-release
-schema version 9 as the pre-release baseline; later manifest entries advance the
+schema version 11 as the pre-release baseline; later manifest entries advance the
 version from that baseline. The public migration manifest is currently empty.
 A singleton
 `releaseState` document records the last strictly completed version and any

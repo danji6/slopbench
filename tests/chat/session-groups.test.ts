@@ -7,15 +7,14 @@ const page = (ids: string[], status = 'Exhausted') => ({
   status,
 })
 
-test('groups retain manual order, omit empty special groups, and deduplicate rows', () => {
+test('groups retain manual order and deduplicate rows', () => {
   const rows = flattenSessionGroups(
-    ['pinned', 'b', 'a', 'ungrouped', 'shared'],
+    ['pinned', 'b', 'a', 'ungrouped'],
     {
       pinned: page(['p']),
       b: page(['b', 'p'], 'CanLoadMore'),
       a: page(['a']),
       ungrouped: page([]),
-      shared: page([]),
     },
     {},
   )
@@ -32,13 +31,12 @@ test('groups retain manual order, omit empty special groups, and deduplicate row
   ])
 })
 
-test('collapsed folders retain headers; dragging exposes the empty pin target', () => {
+test('empty Pinned stays visible and collapsed folders retain headers', () => {
   expect(
     flattenSessionGroups(
       ['pinned', 'a'],
       { pinned: page([]), a: page(['s']) },
       { a: true },
-      true,
     ),
   ).toEqual([
     { kind: 'header', key: 'pinned' },
@@ -58,4 +56,22 @@ test('global search is flat even when a saved collapse key is present', () => {
     { kind: 'session', key: 'search', id: 's' },
     { kind: 'footer', key: 'search' },
   ])
+})
+
+test('loading and empty Pinned keep a stable header before dragging', () => {
+  for (const status of ['LoadingFirstPage', 'Exhausted']) {
+    expect(
+      flattenSessionGroups(['pinned'], { pinned: page([], status) }, {}),
+    ).toEqual([
+      { kind: 'header', key: 'pinned' },
+      { kind: 'footer', key: 'pinned' },
+    ])
+    expect(
+      flattenSessionGroups(
+        ['pinned'],
+        { pinned: page([], status) },
+        { pinned: true },
+      ),
+    ).toEqual([{ kind: 'header', key: 'pinned' }])
+  }
 })

@@ -1,14 +1,19 @@
 /// <reference types="bun-types" />
+import { STREAM_LEASE_MS } from '@sb/convex/model/stream/lease'
 import {
   _claim,
   _continue,
   _fail,
   _finalizeStopped,
   _handoff,
+  _heartbeat,
   _honorSoftStop,
+  _patchMessage,
   _recordStep,
   pruneOrphanedOutputs,
 } from '@sb/convex/model/stream/lifecycle'
+import { _getStopState } from '@sb/convex/model/stream/reads'
+import { requestImmediateStop } from '@sb/convex/model/stream/stop'
 import { MESSAGE_SPLIT_BUDGET_BYTES } from '@sb/core/const'
 import { describe, expect, test } from 'bun:test'
 
@@ -1170,5 +1175,94 @@ describe('pruneOrphanedOutputs', () => {
 
     expect(deletedBlobs).toEqual(['blob_orphan'])
     expect(deletedRows.sort()).toEqual(['r1', 'r2'])
+  })
+})
+
+describe('stream stop contention', () => {
+  test('token patches and heartbeats keep a valid lease without rewriting the stream', async () => {
+    const stream = {
+      _id: 'stream_1',
+      status: 'streaming',
+      sessionId: 'session_1',
+      processingMessageId: 'message_1',
+      processingContentId: 'content_1',
+      leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
+    }
+    const { ctx, patches } = fakeCtx({
+      docs: [stream],
+      contents: [
+        {
+          _id: 'content_1',
+          messageId: 'message_1',
+          version: 1,
+          segmentIndex: 0,
+          parts: [],
+        },
+      ],
+    })
+    expect(
+      await _patchMessage(ctx, {
+        streamId: 'stream_1' as never,
+        parts: [{ type: 'text', text: 'token' }],
+      }),
+    ).toBe(true)
+    await _heartbeat(ctx, { streamId: 'stream_1' as never })
+    expect(patches.filter(({ id }) => id === 'stream_1')).toEqual([])
+    stream.leaseExpiresAt = Date.now() + STREAM_LEASE_MS - 61000
+    await _heartbeat(ctx, { streamId: 'stream_1' as never })
+    expect(patches.filter(({ id }) => id === 'stream_1')).toHaveLength(1)
+    expect(stream.leaseExpiresAt).toBeGreaterThan(
+      Date.now() + STREAM_LEASE_MS - 1000,
+    )
+    await _heartbeat(ctx, { streamId: 'stream_1' as never })
+    expect(patches.filter(({ id }) => id === 'stream_1')).toHaveLength(1)
+  })
+
+  test('stop checks use a read snapshot; repeated stop requests never reschedule finalization', async () => {
+    const stream = {
+      _id: 'stream_1',
+      status: 'streaming',
+      sessionId: 'session_1',
+      processingMessageId: 'message_1',
+      leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
+    }
+    const { ctx, patches, scheduled } = fakeCtx({ docs: [stream] })
+    expect(await _getStopState(ctx, { streamId: 'stream_1' as never })).toBe(
+      'active',
+    )
+    expect(await _honorSoftStop(ctx, { streamId: 'stream_1' as never })).toBe(
+      false,
+    )
+    expect(patches).toEqual([])
+    expect(await requestImmediateStop(ctx, stream as never)).toBe('finalizing')
+    const count = patches.length
+    await requestImmediateStop(ctx, stream as never)
+    await _honorSoftStop(ctx, { streamId: 'stream_1' as never })
+    await _heartbeat(ctx, { streamId: 'stream_1' as never })
+    expect(patches).toHaveLength(count)
+    expect(scheduled).toHaveLength(1)
+    expect(await _getStopState(ctx, { streamId: 'stream_1' as never })).toBe(
+      'stopped',
+    )
+    expect(await _getStopState(ctx, { streamId: 'missing' as never })).toBe(
+      'stopped',
+    )
+  })
+
+  test('read-only stop checks still distinguish a soft timeout from active streaming', async () => {
+    const { ctx, patches, scheduled } = fakeCtx({
+      docs: [{ _id: 'stream_1', status: 'streaming', stopAt: Date.now() }],
+    })
+    expect(await _getStopState(ctx, { streamId: 'stream_1' as never })).toBe(
+      'requested',
+    )
+    expect(patches).toEqual([])
+    expect(scheduled).toEqual([])
+    expect(await _honorSoftStop(ctx, { streamId: 'stream_1' as never })).toBe(
+      true,
+    )
+    expect(await _getStopState(ctx, { streamId: 'stream_1' as never })).toBe(
+      'stopped',
+    )
   })
 })

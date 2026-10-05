@@ -91,11 +91,19 @@ test('pins preserve the folder; dropping a pin into Ungrouped clears both', () =
   expect(ungroup.item.pinned).toBeUndefined()
 })
 
-test('invalid destinations and shared folder moves are ignored', () => {
+test('shared sessions can move optimistically to folders without sources', () => {
   expect(createSessionDrop(item('moving'), 'ungrouped')).toBeNull()
   expect(createSessionDrop(item('moving'), 'missing')).toBeNull()
   const shared = { ...item('shared'), owned: false }
-  expect(createSessionDrop(shared, folder._id, folder)).toBeNull()
+  const drop = createSessionDrop(shared, folder._id, folder)!
+  expect(drop.source).toBe('ungrouped')
+  expect(drop.item.folderId).toBe('folder')
+  expect(
+    createSessionDrop(shared, folder._id, { ...folder, sources: [{}] }),
+  ).toBeNull()
+  expect(
+    createSessionDrop(drop.item, 'ungrouped')?.item.folderId,
+  ).toBeUndefined()
   expect(createSessionDrop(shared, 'pinned')?.item.pinned).toBe(true)
 })
 
