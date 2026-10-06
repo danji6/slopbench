@@ -12,7 +12,7 @@ import type { FolderTransitionArgs } from '../../types'
 export async function changeFolder(
   ctx: ActionCtx,
   input: Omit<FolderTransitionArgs, 'subject' | 'token'>,
-) {
+): Promise<number | undefined> {
   const { postSidecar } = await import('../../model/sidecar')
 
   const identity = input.sources
@@ -34,7 +34,11 @@ export async function changeFolder(
   }
 
   const state = await ctx.runMutation(internal.sessionFolders._begin, args)
-  if (state.personalMoved) return
+  if (state.personalMoved) {
+    return 'organizationRevision' in state
+      ? state.organizationRevision
+      : undefined
+  }
 
   let committed = false
   try {
@@ -44,12 +48,15 @@ export async function changeFolder(
         token: args.token,
       })
     }
-    await ctx.runMutation(internal.sessionFolders._finish, {
+    const revision = await ctx.runMutation(internal.sessionFolders._finish, {
       ...args,
       targetRevision: state.targetRevision,
+      targetWorkspaceKey: state.targetWorkspaceKey,
+      sourceWorkspaceKey: state.sourceWorkspaceKey,
       commit: true,
     })
     committed = true
+    return typeof revision === 'number' ? revision : undefined
   } finally {
     if (!committed) {
       await ctx.runMutation(internal.sessionFolders._finish, {

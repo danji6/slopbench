@@ -8,11 +8,26 @@ import { readSessionArchive } from '@/lib/chat/io'
 import { toast, toastError } from '@/lib/notifications'
 import { api } from '@sb/convex/_generated/api'
 import { useAction } from 'convex/react'
-import { EyeIcon, MoreHorizontalIcon, UploadIcon } from 'lucide-react'
+import {
+  ChevronsDownUpIcon,
+  ChevronsUpDownIcon,
+  EyeIcon,
+  MoreHorizontalIcon,
+  UploadIcon,
+} from 'lucide-react'
 import { useRef } from 'react'
 import { useLocation } from 'wouter'
 
-export function SessionListMenu(props: RippleButtonProps) {
+type SessionListMenuProps = RippleButtonProps & {
+  onCollapseAll: () => void
+  onExpandAll: () => void
+}
+
+export function SessionListMenu({
+  onCollapseAll,
+  onExpandAll,
+  ...props
+}: SessionListMenuProps) {
   const [, navigate] = useLocation()
   const importSession = useAction(api.actions.sessions.importOne)
   const { showHidden, setShowHidden } = useSessionShowHidden()
@@ -62,6 +77,14 @@ export function SessionListMenu(props: RippleButtonProps) {
             <EyeIcon className="mr-2 size-4" />
             <span>Show hidden</span>
           </DropdownMenu.CheckboxItem>
+          <DropdownMenu.Item onClick={onCollapseAll}>
+            <ChevronsDownUpIcon className="mr-2 size-4" />
+            <span>Collapse all</span>
+          </DropdownMenu.Item>
+          <DropdownMenu.Item onClick={onExpandAll}>
+            <ChevronsUpDownIcon className="mr-2 size-4" />
+            <span>Expand all</span>
+          </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu>
 

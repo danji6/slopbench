@@ -6,7 +6,7 @@ import {
   sessionDropConfirmed,
 } from '@/lib/chat/session-drops'
 import { api } from '@sb/convex/_generated/api'
-import type { Doc } from '@sb/convex/_generated/dataModel'
+import type { FolderView } from '@sb/convex/types'
 import { useAction, useMutation } from 'convex/react'
 import { useRef, useState } from 'react'
 
@@ -15,7 +15,7 @@ import type { SessionGroupPage } from './sessions'
 /** Applies immediate sidebar moves with rollback and query reconciliation. */
 export function useSessionDrops(
   pages: Record<string, SessionGroupPage>,
-  folders: Doc<'sessionFolders'>[],
+  folders: FolderView[],
 ) {
   const [drops, setDrops] = useState<SessionDrop[]>([])
   const inFlight = useRef(new Set<string>())

@@ -10,6 +10,7 @@ import type {
   SessionParticipant,
 } from '../../types'
 import { getByOwnerId as getSettings } from '../settings'
+import { readFolderTrail } from './folderTree'
 import { getMember } from './memberships'
 import { getApprovals, getState } from './state'
 
@@ -117,12 +118,21 @@ export async function toListItem(
 
   const folderId =
     session.ownerId === ctx.userId ? session.folderId : personalFolderId
+
   const folder = folderId ? await ctx.db.get(folderId) : null
+
+  const folderPath = folder
+    ? (await readFolderTrail(ctx, folder._id, ctx.userId))
+        .map((f) => f.name)
+        .join(' / ')
+    : undefined
+
   return {
     pinned: pinned || undefined,
     owned: session.ownerId === ctx.userId,
     folderId,
     folderName: folder?.name,
+    folderPath,
     folderIcon: folder?.icon,
     _id: session._id,
     _creationTime: session._creationTime,

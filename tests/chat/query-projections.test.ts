@@ -164,6 +164,7 @@ describe('sessions.list', () => {
       'folderIcon',
       'folderId',
       'folderName',
+      'folderPath',
       'hidden',
       'lastMessageAt',
       'lastMessagePreview',

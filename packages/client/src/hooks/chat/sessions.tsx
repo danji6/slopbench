@@ -7,7 +7,7 @@ import type { SessionListItem } from '@/lib/chat'
 import type { PaginationMetadata } from '@/lib/chat/message-store'
 import { type SessionStore, createSessionStore } from '@/lib/chat/session-store'
 import { api } from '@sb/convex/_generated/api'
-import type { Doc } from '@sb/convex/_generated/dataModel'
+import type { FolderView } from '@sb/convex/types'
 import { usePaginatedQuery } from 'convex-helpers/react/cache'
 import { useQuery } from 'convex/react'
 import {
@@ -47,7 +47,7 @@ export type SessionGroupPage = {
 const [SessionGroupsContext, useSessionGroups] = createUsableContext<{
   pages: Record<string, SessionGroupPage>
   search: string
-  folders: Doc<'sessionFolders'>[]
+  folders: FolderView[]
   pendingSessionIds: Set<string>
   dropSession: (item: SessionListItem, target: string) => Promise<void>
 }>('SessionGroups')

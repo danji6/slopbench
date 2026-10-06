@@ -48,6 +48,17 @@ The `package.json` contains most scripts you will need, including running tests.
 - Keep heavy exports out of barrels (see `barrels.json`; lazy load when needed)
 - Shared code/types go in the `core` package
 
+### Code Style
+
+- Always wrap long/multiline expressions (ifs especially) in curly braces
+- If a single line is slightly longer than 80 columns, use `// prettier-ignore`
+- Group together logically similar lines of code with proper newline spacing
+- Always add proper spacing between functions, classes, etc
+- Extract long destructured fuction signatures into dedicated types instead of inlining
+- Extract long inline types into top-level types
+- Assign long conditional expressions to properly named variables where possible
+- Try to keep the code human readable by using common code conventions
+
 ### Specific Instructions
 
 1. **Before writing code**

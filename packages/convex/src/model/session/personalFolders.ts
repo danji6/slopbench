@@ -1,7 +1,8 @@
 import type { Doc, Id } from '../../_generated/dataModel'
-import type { MutationCtx } from '../../_generated/server'
+import type { MutationCtx, QueryCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import { sessionGroup } from './folderContext'
+import { folderWorkspace, readFolderTrail } from './folderTree'
 
 /** Moves only the caller's membership, preserving the owner's workspace. */
 export async function moveSharedSession(
@@ -10,8 +11,10 @@ export async function moveSharedSession(
   folder: Doc<'sessionFolders'> | null,
   unpin?: boolean,
 ) {
-  if (folder?.sources.length)
+  const trail = folder ? await readFolderTrail(ctx, folder._id, folder.ownerId) : [] // prettier-ignore
+  if (trail[0] && folderWorkspace(trail[0]))
     error('Shared sessions can only be placed in folders without sources', 409)
+
   const pinned = unpin ? undefined : membership.pinned
   await ctx.db.patch(membership._id, {
     folderId: folder?._id,
@@ -22,7 +25,7 @@ export async function moveSharedSession(
 
 /** Prevents an organizational folder from gaining sources while it has joined chats. */
 export async function assertNoSharedSessions(
-  ctx: MutationCtx,
+  ctx: QueryCtx,
   folderId: Id<'sessionFolders'>,
 ) {
   const member = await ctx.db
@@ -37,6 +40,7 @@ export async function assertNoSharedSessions(
 export async function clearSharedFolder(
   ctx: MutationCtx,
   folderId: Id<'sessionFolders'>,
+  targetId?: Id<'sessionFolders'>,
 ) {
   const members = await ctx.db
     .query('userSessions')
@@ -44,8 +48,8 @@ export async function clearSharedFolder(
     .collect()
   for (const member of members) {
     await ctx.db.patch(member._id, {
-      folderId: undefined,
-      groupKey: sessionGroup(undefined, member.pinned),
+      folderId: targetId,
+      groupKey: sessionGroup(targetId, member.pinned),
     })
   }
 }

@@ -351,7 +351,7 @@ async function restoreLatestCheckpointImpl(
         .find((item) => item.sessionId === input.sessionId)
 
       if (!checkpoint || checkpoint.checkpointId !== latest.checkpointId)
-        throw new Error('Checkpoint changed; try again')
+        throw new Error('Checkpoint changed, try again')
 
       await assertCheckpointTarget(
         workspace.root,

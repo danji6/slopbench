@@ -238,9 +238,11 @@ export const attachmentFileSchema = v.object({
 
 export const sessionFolderSchema = v.object({
   ownerId: v.id('users'),
+  parentId: v.optional(v.id('sessionFolders')),
   name: v.string(),
   icon: v.optional(v.string()),
   position: v.number(),
+  organizationRevision: v.optional(v.number()),
   sources: v.array(V.folderSourceValidator),
   revision: v.number(),
   contextLock: v.optional(v.string()),

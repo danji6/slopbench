@@ -60,8 +60,7 @@ export async function create(
     ),
     reasoningEffort: settings?.recentReasoning,
     lastMessageAt: now,
-    mode:
-      folder?.sources.length && args.mode === 'plan' ? args.mode : undefined,
+    mode: folder?.workspace && args.mode === 'plan' ? args.mode : undefined,
   })
 
   await ctx.db.insert('userSessions', {
@@ -81,7 +80,7 @@ export async function create(
     })
   }
 
-  if (folder?.sources.length && args.approvalMode === 'unrestricted') {
+  if (folder?.workspace && args.approvalMode === 'unrestricted') {
     await setStateApprovalMode(ctx, sessionId, args.approvalMode)
   }
 

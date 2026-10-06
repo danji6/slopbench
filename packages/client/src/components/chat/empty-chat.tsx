@@ -45,7 +45,7 @@ export function EmptyChat({
   const folderId = new URLSearchParams(search).get('folder') as Id<'sessionFolders'> | null // prettier-ignore
   const folders = useQuery(api.sessionFolders.list)
   const folder = folders?.find((item) => item._id === folderId)
-  const workspaceRoot = folder?.sources[0]?.path ?? null
+  const workspaceRoot = folder?.workspace?.path ?? null
   const [orphanDraftKey, setOrphanDraftKey] = useState<string | null>(null)
   const draftKey = orphanDraftKey ?? (folderId ? `folder:${folderId}` : NO_SESSION_DRAFT_KEY) // prettier-ignore
   const createSession = useAction(api.actions.sessions.createWithWorkspace)
@@ -142,7 +142,11 @@ export function EmptyChat({
       dock={
         <ChatDock width={chatBoxWidth}>
           <div className="pointer-events-auto mb-1.5 flex items-center px-1">
-            <FolderPicker value={folderId} onChange={handleWorkspaceChange} />
+            <FolderPicker
+              value={folderId}
+              onChange={handleWorkspaceChange}
+              showPath={false}
+            />
           </div>
           <ChatComposer
             onSubmit={handleSubmit}

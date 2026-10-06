@@ -288,6 +288,7 @@ describe('shared remembered approvals', () => {
     byId.get(parentId)!.folderId = 'folder-1'
     byId.set('folder-1', {
       _id: 'folder-1',
+      ownerId: 'user_1',
       name: 'Test',
       revision: 0,
       sources: [{ id: 'root', path: '/repo', label: 'repo' }],

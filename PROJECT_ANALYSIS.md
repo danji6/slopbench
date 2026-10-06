@@ -6,11 +6,36 @@ The architectural overview below was originally audited at `0d6092b` on
 boundaries; it is not a fresh audit of every product feature or outstanding bug.
 See `REFACTOR_PLAN.md` for scope, verification, and remaining release checks.
 
-## Session folders and source directories (2026-09-23)
+## Session folders, nesting, and source directories (2026-10-05)
+
+Folders now support a nested organizational tree. Each folder has an optional
+parent and a position within its sibling list; existing folders remain roots.
+Subfolders keep their own names and icons and inherit sources exclusively from
+the top-level ancestor. The total folder limit remains 100, including descendants.
+This additive change needs no migration or pre-release baseline bump.
+
+Expanded sidebar folders show child branches before their directly assigned
+sessions, with independent pagination and collapse state. Parent collapse hides
+the whole branch. Pickers search full folder paths. Header drag edges insert
+siblings; centers nest folders. Menus expose the same operations on mobile and
+keyboard. Optimistic folder moves update topology while keeping workspace
+authority based on committed server context, with rollback on failure.
+
+Organizational moves within one workspace commit atomically without blocking
+streams or clearing approvals and caches. Changes in workspace authority guard
+all owned sessions and sub-agent sessions in the affected branch with transition
+leases and sidecar activity checks. Source changes and shared-session restrictions
+apply to every descendant; ancestor locks block conflicting work. Access-changing
+branch moves require a preview confirmation that is revalidated before commit.
+Promoting a sourced subfolder copies its inherited sources into an independent
+root; nesting a sourced root replaces its own configuration with inheritance.
+Both configuration operations require admin access. Deleting a folder removes
+its entire branch while preserving chats and pins, moving sessions to the surviving
+parent or Ungrouped. Other users' personal organization stays independent.
 
 Sessions now belong to an optional owner-managed `sessionFolders` record. A folder
-has a label, optional icon, manual position, ordered source directories, and a
-source revision. No folder means Ungrouped with no filesystem context. Sources
+has a label, optional icon, and manual sibling position. Top-level folders own
+ordered source directories and a source revision. No folder means Ungrouped with no filesystem context. Sources
 are optional; ordinary users can organize chats, while source editing retains
 the existing admin requirement. Source paths refer to the sidecar server.
 
@@ -20,7 +45,7 @@ whose header remains visible even when empty. Joined sessions default to Ungroup
 and can be placed in each member’s own folders without sources. This personal
 placement lives on `userSessions.folderId` and never changes the owner’s workspace.
 Folders containing joined sessions cannot gain sources until those sessions move
-out; deletion clears personal placement while preserving pins. Activity orders rows,
+out; deletion moves personal placement to the surviving parent while preserving pins. Activity orders rows,
 while folder order is manual. Desktop rows can be dragged to folder headers or
 Pinned; menus provide moving and reordering on mobile. Search remains flat and
 shows each result's folder. The folder picker uses a searchable combobox. Folder plus buttons select a destination for a lazy
@@ -30,7 +55,7 @@ on this device, and falls back to Ungrouped if the folder is unavailable.
 Session drops update the sidebar immediately, reconcile with the independently
 paginated groups, and roll back on failure.
 
-Workspace authority is derived from the owner's folder at read time, including
+Workspace authority is derived from the owner's top-level folder at read time, including
 for child sessions. The first source is the relative-path and shell base; other
 sources use absolute paths. The sidecar receives the resolved source context on
 each operation instead of persisting a session-to-directory binding. Canonical
@@ -45,7 +70,7 @@ move from inheriting sources changed during preparation. Changes invalidate
 workspace-dependent prompt caches and path grants while retaining other approval
 rules. The next invocation announces the changed sources, and each request has a
 current-source reminder. Folder deletion keeps chats and pins and moves sessions
-to Ungrouped. Checkpoint restoration rechecks current access; legacy checkpoints
+to the surviving parent or Ungrouped. Checkpoint restoration rechecks current access; legacy checkpoints
 are ignored.
 
 The approved pre-release data reset migrated existing memberships to Ungrouped

@@ -1,6 +1,7 @@
 import { toastError } from '@/lib/notifications'
 import { api } from '@sb/convex/_generated/api'
-import type { Doc, Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@sb/convex/_generated/dataModel'
+import type { FolderView } from '@sb/convex/types'
 import { useAction, useQuery } from 'convex/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -258,12 +259,13 @@ export function useWorkspaceBrowser() {
 }
 
 export function useWorkspaceFileIndexByFolder(
-  folder: Doc<'sessionFolders'> | undefined,
+  folder: FolderView | undefined,
 ): WorkspaceFileIndex {
   const isAdmin = useIsWorkspaceAdmin()
   const listFiles = useAction(api.actions.workspaces.listFilesByRoot)
+
   const load = useCallback(async () => {
-    const sources = folder?.sources ?? []
+    const sources = folder?.workspace?.sources ?? []
     const lists = await Promise.all(
       sources.map((source) => listFiles({ root: source.path })),
     )
@@ -280,9 +282,12 @@ export function useWorkspaceFileIndexByFolder(
       truncated: files.size > 10000 || lists.some((list) => list.truncated),
     }
   }, [folder, listFiles])
+
   return useLazyFileIndex(
-    folder ? `${folder._id}:${folder.revision}` : null,
-    isAdmin && Boolean(folder?.sources.length),
+    folder?.workspace
+      ? `${folder.workspace.workspaceId}:${folder.workspace.revision}`
+      : null,
+    isAdmin && Boolean(folder?.workspace),
     load,
   )
 }

@@ -1,6 +1,7 @@
 import { type IconName, IconSvg } from '@/components/icon-picker/icon-picker'
 import { Combobox } from '@/components/ui/combobox'
 import { api } from '@sb/convex/_generated/api'
+import { orderedFolderTree } from '@sb/core/utils/folder-tree'
 import { useQuery } from 'convex/react'
 import { FolderIcon } from 'lucide-react'
 
@@ -12,22 +13,38 @@ export function FolderIconView({ icon }: { icon?: string }) {
   )
 }
 
+type FolderPickerProps = {
+  value?: string | null
+  onChange: (value: string | null) => void
+  disabled?: boolean
+  organizationOnly?: boolean
+  rootLabel?: string
+  label?: string
+  excludeBranchId?: string
+  showPath?: boolean
+}
+
 export function FolderPicker({
   value,
   onChange,
   disabled,
   organizationOnly = false,
-}: {
-  value?: string | null
-  onChange: (value: string | null) => void
-  disabled?: boolean
-  organizationOnly?: boolean
-}) {
+  rootLabel = 'Ungrouped',
+  label = 'Session folder',
+  excludeBranchId,
+  showPath = true,
+}: FolderPickerProps) {
   const folders = useQuery(api.sessionFolders.list) ?? []
   const selected = folders.find((folder) => folder._id === value)
-  const available = organizationOnly
-    ? folders.filter((folder) => !folder.sources.length)
-    : folders
+  const available = orderedFolderTree(folders)
+    .map(({ folder }) => folder)
+    .filter(
+      (folder) =>
+        (!organizationOnly || !folder.workspace) &&
+        folder._id !== excludeBranchId &&
+        !folder.ancestorIds.includes(excludeBranchId ?? ''),
+    )
+
   return (
     <Combobox
       value={value ?? 'ungrouped'}
@@ -35,7 +52,8 @@ export function FolderPicker({
       noDeselect
     >
       <Combobox.Trigger
-        aria-label="Session folder"
+        aria-label={label}
+        title={selected?.folderPath ?? rootLabel}
         variant="input"
         className="max-w-64"
         size="sm"
@@ -43,7 +61,12 @@ export function FolderPicker({
       >
         <FolderIconView icon={selected?.icon} />
         <Combobox.DisplayValue
-          label={value ? (selected?.name ?? 'Folder unavailable') : 'Ungrouped'}
+          label={
+            value
+              ? ((showPath ? selected?.folderPath : selected?.name) ??
+                'Folder unavailable')
+              : rootLabel
+          }
         />
       </Combobox.Trigger>
       <Combobox.Content side="top">
@@ -54,18 +77,20 @@ export function FolderPicker({
         <Combobox.List className="max-h-52">
           <Combobox.Empty>No folders found.</Combobox.Empty>
           <Combobox.Group>
-            <Combobox.Item value="ungrouped" searchText="Ungrouped">
-              Ungrouped
+            <Combobox.Item value="ungrouped" searchText={rootLabel}>
+              {rootLabel}
             </Combobox.Item>
             {available.map((folder) => (
               <Combobox.Item
                 key={folder._id}
                 value={folder._id}
-                searchText={folder.name}
+                searchText={folder.folderPath}
               >
                 <span className="flex items-center gap-2">
                   <FolderIconView icon={folder.icon} />
-                  <span className="truncate">{folder.name}</span>
+                  <span className="truncate" title={folder.folderPath}>
+                    {folder.folderPath}
+                  </span>
                 </span>
               </Combobox.Item>
             ))}

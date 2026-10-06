@@ -138,6 +138,14 @@ export type EditMessagePartArgs = Infer<typeof V.editMessagePartArgsValidator>
 export type DeleteMessagePartsArgs = Infer<typeof V.deleteMessagePartsArgsValidator> // prettier-ignore
 export type FolderTransitionArgs = Infer<typeof V.folderTransitionArgs>
 export type FolderCreateArgs = Infer<typeof V.folderCreateArgs>
+export type FolderCreateBasicArgs = Infer<typeof V.folderCreateBasicArgs>
+export type FolderMoveArgs = Infer<typeof V.folderMoveArgs>
+
+export type FolderView = Doc<'sessionFolders'> & {
+  workspace: Session['workspace']
+  ancestorIds: string[]
+  folderPath: string
+}
 
 /** A session with its folder-owned filesystem context resolved for this request. */
 export type Session = Doc<'sessions'> & {

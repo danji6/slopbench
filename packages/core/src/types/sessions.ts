@@ -20,6 +20,7 @@ export type SessionListItem<
   owned?: boolean
   folderId?: string
   folderName?: string
+  folderPath?: string
   folderIcon?: string
   hidden?: boolean // the current user hid this session from their sidebar
 }

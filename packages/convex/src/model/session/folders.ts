@@ -1,3 +1,5 @@
+import { transitionActive } from '@sb/core/workspace/transition'
+
 import type { Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import { error } from '../../errors'
@@ -7,15 +9,14 @@ import {
   findUserBySubject,
   requireRole,
 } from '../../functions'
-import type { FolderCreateArgs } from '../../types'
+import type { FolderCreateArgs, FolderCreateBasicArgs } from '../../types'
 import { requireFolder, sessionGroup } from './folderContext'
+import { folderView, ownerFolders } from './folderTree'
 import { requireMember } from './memberships'
 
 export async function list(ctx: AuthQueryCtx) {
-  return ctx.db
-    .query('sessionFolders')
-    .withIndex('by_ownerId_position', (q) => q.eq('ownerId', ctx.userId))
-    .collect()
+  const folders = await ownerFolders(ctx, ctx.userId)
+  return folders.map((folder) => folderView(folders, folder._id))
 }
 
 export function folderName(name: string) {
@@ -27,16 +28,26 @@ export function folderName(name: string) {
 
 export async function create(
   ctx: AuthMutationCtx,
-  args: { name: string; icon?: string },
+  args: FolderCreateBasicArgs,
 ) {
   validateIcon(args.icon)
   const folders = await list(ctx)
+
   if (folders.length >= 100) error('Folder limit reached (100)', 409)
+  if (args.parentId) await requireFolder(ctx, args.parentId, ctx.userId)
+
   return ctx.db.insert('sessionFolders', {
     ownerId: ctx.userId,
     name: folderName(args.name),
     icon: args.icon,
-    position: Math.max(-1, ...folders.map((f) => f.position)) + 1,
+    parentId: args.parentId,
+    position:
+      Math.max(
+        -1,
+        ...folders
+          .filter((f) => f.parentId === args.parentId)
+          .map((f) => f.position),
+      ) + 1,
     sources: [],
     revision: 0,
   })
@@ -56,17 +67,37 @@ export async function rename(
 
 export async function reorder(
   ctx: AuthMutationCtx,
-  args: { folderIds: Id<'sessionFolders'>[] },
+  args: { folderIds: Id<'sessionFolders'>[]; parentId?: Id<'sessionFolders'> },
 ) {
-  const folders = await list(ctx)
-  if (
+  const all = await list(ctx)
+  const folders = all.filter((folder) => folder.parentId === args.parentId)
+
+  const changed =
     args.folderIds.length !== folders.length ||
     new Set(args.folderIds).size !== folders.length ||
     args.folderIds.some((id) => !folders.some((f) => f._id === id))
+  if (changed) error('Folder list changed, try again', 409)
+
+  for (const id of args.folderIds) await requireFolder(ctx, id, ctx.userId)
+
+  const updating = all.some(
+    (folder) =>
+      transitionActive(folder.contextLock) &&
+      folders.some(
+        (sibling) =>
+          sibling._id === folder._id ||
+          folder.ancestorIds.includes(sibling._id),
+      ),
   )
-    error('Folder list changed; try again', 409)
+  if (updating) error('Folder sources are being updated', 409)
+
   for (const [position, id] of args.folderIds.entries())
-    await ctx.db.patch(id, { position })
+    await ctx.db.patch(id, {
+      position,
+      organizationRevision:
+        (folders.find((folder) => folder._id === id)?.organizationRevision ??
+          0) + 1,
+    })
 }
 
 export async function pin(
@@ -94,6 +125,9 @@ export async function createWithSources(
 ) {
   const user = await findUserBySubject(ctx, args.subject)
   if (!user) error('Profile not initialized', 409)
+
+  if (args.parentId && args.sources.length)
+    error('Subfolders inherit sources from their root folder', 400)
   if (args.sources.length) requireRole(user.role, 'admin')
 
   const auth = {
@@ -102,6 +136,7 @@ export async function createWithSources(
     role: user.role,
     subject: args.subject,
   }
+
   const id = await create(auth, args)
   await ctx.db.patch(id, {
     sources: args.sources,

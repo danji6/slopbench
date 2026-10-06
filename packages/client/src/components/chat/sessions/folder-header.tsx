@@ -2,27 +2,34 @@ import { ContextMenu, RippleButton, useOptionalSidebar } from '@/components/ui'
 import { useUserProfile } from '@/hooks/chat/profile'
 import { setSelectedSessionFolder } from '@/lib/ui-settings'
 import { cn } from '@/lib/utils'
-import { useDndContext } from '@dnd-kit/core'
-import { useSortable } from '@dnd-kit/sortable'
-import type { Doc } from '@sb/convex/_generated/dataModel'
+import { useDraggable } from '@dnd-kit/core'
+import type { FolderView } from '@sb/convex/types'
 import {
   ChevronDownIcon,
   ChevronRightIcon,
+  ChevronsDownUpIcon,
+  ChevronsUpDownIcon,
   PinIcon,
   PlusIcon,
 } from 'lucide-react'
 import { useLocation } from 'wouter'
 
+import { FolderDropTargets } from './folder-drop-targets'
 import { FolderIconView } from './folder-picker'
 
 type FolderHeaderProps = {
   groupKey: string
-  folder?: Doc<'sessionFolders'>
+  folder?: FolderView
   collapsed: boolean
   toggle: () => void
+  onCollapseAll: () => void
+  onExpandAll: () => void
   edit: () => void
   remove: () => void
   reorder: (direction: -1 | 1) => void
+  createChild: () => void
+  move: () => void
+  pending: boolean
 }
 
 export function FolderHeader({
@@ -30,20 +37,20 @@ export function FolderHeader({
   folder,
   collapsed,
   toggle,
+  onCollapseAll,
+  onExpandAll,
   edit,
   remove,
   reorder,
+  createChild,
+  move,
+  pending,
 }: FolderHeaderProps) {
-  const { active } = useDndContext()
-  const draggingFolder = active?.data.current?.kind === 'folder'
-  const { setNodeRef, setActivatorNodeRef, attributes, listeners, isOver } =
-    useSortable({
+  const { setNodeRef, setActivatorNodeRef, attributes, listeners } =
+    useDraggable({
       id: groupKey,
       data: { kind: 'folder' },
-      disabled: {
-        draggable: !folder,
-        droppable: !draggingFolder || !folder,
-      },
+      disabled: !folder || pending,
     })
 
   const [, navigate] = useLocation()
@@ -63,10 +70,7 @@ export function FolderHeader({
       <ContextMenu.Trigger>
         <div
           ref={setNodeRef}
-          className={cn(
-            'group/folder-header relative rounded-md',
-            isOver && 'bg-primary/15 ring-primary ring-1',
-          )}
+          className={cn('group/folder-header relative rounded-md')}
         >
           <RippleButton
             ref={setActivatorNodeRef}
@@ -82,6 +86,7 @@ export function FolderHeader({
               toggle()
             }}
             aria-expanded={!collapsed}
+            title={folder?.folderPath}
           >
             {collapsed ? (
               <ChevronRightIcon className="size-3" />
@@ -112,19 +117,41 @@ export function FolderHeader({
               <PlusIcon className="size-4" />
             </RippleButton>
           )}
+          {folder && !pending && <FolderDropTargets folder={folder} />}
         </div>
       </ContextMenu.Trigger>
       {folder && (
         <ContextMenu.Content>
-          <ContextMenu.Item onSelect={edit}>Edit folder…</ContextMenu.Item>
-          <ContextMenu.Item onSelect={() => reorder(-1)}>
+          <ContextMenu.Item disabled={pending} onSelect={createChild}>
+            Create subfolder…
+          </ContextMenu.Item>
+          <ContextMenu.Item disabled={pending} onSelect={edit}>
+            Edit folder…
+          </ContextMenu.Item>
+          <ContextMenu.Item disabled={pending} onSelect={move}>
+            Move folder…
+          </ContextMenu.Item>
+          <ContextMenu.Item disabled={pending} onSelect={() => reorder(-1)}>
             Move up
           </ContextMenu.Item>
-          <ContextMenu.Item onSelect={() => reorder(1)}>
+          <ContextMenu.Item disabled={pending} onSelect={() => reorder(1)}>
             Move down
           </ContextMenu.Item>
           <ContextMenu.Separator />
-          <ContextMenu.Item variant="destructive" onSelect={remove}>
+          <ContextMenu.Item onSelect={onCollapseAll}>
+            <ChevronsDownUpIcon className="mr-2 size-4" />
+            Collapse all
+          </ContextMenu.Item>
+          <ContextMenu.Item onSelect={onExpandAll}>
+            <ChevronsUpDownIcon className="mr-2 size-4" />
+            Expand all
+          </ContextMenu.Item>
+          <ContextMenu.Separator />
+          <ContextMenu.Item
+            disabled={pending}
+            variant="destructive"
+            onSelect={remove}
+          >
             Delete folder…
           </ContextMenu.Item>
         </ContextMenu.Content>

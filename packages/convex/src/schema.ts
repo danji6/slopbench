@@ -41,7 +41,8 @@ const schemaValidation = true
 // prettier-ignore
 export default defineSchema({
   sessionFolders: defineTable(sessionFolderSchema)
-    .index('by_ownerId_position', ['ownerId', 'position']),
+    .index('by_ownerId_position', ['ownerId', 'position'])
+    .index('by_ownerId_parentId_position', ['ownerId', 'parentId', 'position']),
 
   sessions: defineTable(sessionSchema)
     .index('by_folderId', ['folderId'])

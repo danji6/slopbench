@@ -13,14 +13,21 @@ export type SessionDrop = {
 export function createSessionDrop(
   item: SessionListItem,
   target: string,
-  folder?: { _id: string; name: string; icon?: string; sources?: unknown[] },
+  folder?: {
+    _id: string
+    name: string
+    icon?: string
+    sources?: unknown[]
+    workspace?: unknown
+    folderPath?: string
+  },
 ): SessionDrop | null {
   const source = sessionGroupKey(item)
 
   if (
     source === target ||
     (target !== 'pinned' &&
-      ((!item.owned && !!folder?.sources?.length) ||
+      ((!item.owned && !!(folder?.workspace || folder?.sources?.length)) ||
         (!folder && target !== 'ungrouped')))
   ) {
     return null
@@ -34,6 +41,7 @@ export function createSessionDrop(
           pinned: undefined,
           folderId: folder?._id,
           folderName: folder?.name,
+          folderPath: folder?.folderPath,
           folderIcon: folder?.icon,
         }
 
@@ -101,6 +109,6 @@ export function projectSessionDrops<T extends GroupPage>(
 }
 
 function folderFields(item: SessionListItem) {
-  const { folderId, folderName, folderIcon, pinned } = item
-  return { folderId, folderName, folderIcon, pinned }
+  const { folderId, folderName, folderPath, folderIcon, pinned } = item
+  return { folderId, folderName, folderPath, folderIcon, pinned }
 }

@@ -2,6 +2,7 @@ import { v } from 'convex/values'
 
 import { internalMutation } from './_generated/server'
 import { authMutation, authQuery } from './functions'
+import * as Moves from './model/session/folderMoves'
 import * as Transitions from './model/session/folderTransitions'
 import * as Folders from './model/session/folders'
 import * as V from './validators/args'
@@ -9,7 +10,7 @@ import * as V from './validators/args'
 export const list = authQuery({ args: {}, handler: Folders.list })
 
 export const create = authMutation({
-  args: { name: v.string(), icon: v.optional(v.string()) },
+  args: V.folderCreateBasicArgs.fields,
   handler: Folders.create,
 })
 
@@ -19,8 +20,16 @@ export const rename = authMutation({
 })
 
 export const reorder = authMutation({
-  args: { folderIds: v.array(v.id('sessionFolders')) },
+  args: {
+    folderIds: v.array(v.id('sessionFolders')),
+    parentId: v.optional(v.id('sessionFolders')),
+  },
   handler: Folders.reorder,
+})
+
+export const previewMove = authQuery({
+  args: V.folderMoveArgs.fields,
+  handler: Moves.preview,
 })
 
 export const pin = authMutation({

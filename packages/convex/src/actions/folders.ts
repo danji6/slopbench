@@ -11,6 +11,14 @@ export const change = action({
   },
 })
 
+export const move = action({
+  args: V.folderMoveArgs.fields,
+  handler: async (ctx, args) => {
+    const { changeFolder } = await import('./session/folders')
+    return changeFolder(ctx, args)
+  },
+})
+
 export const create = action({
   args: V.folderCreateArgs.fields,
   handler: async (ctx, args) => {

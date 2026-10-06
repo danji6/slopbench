@@ -4,36 +4,42 @@ import type { Id } from '../../_generated/dataModel'
 import type { QueryCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import type { Session } from '../../types'
+import { folderWorkspace, readFolderTrail } from './folderTree'
 
 /** Resolves workspace authority exclusively from the root session's folder. */
 export async function withFolderWorkspace(ctx: QueryCtx, session: Session) {
-  const root = session.parent
-    ? await ctx.db.get(session.parent.sessionId)
-    : session
-  const folder = root?.folderId ? await ctx.db.get(root.folderId) : null
-  const primary = folder?.sources[0]
+  const sessions = await readSessionTrail(ctx, session)
+  const root = sessions.at(-1)!
+  const trail = root?.folderId
+    ? await readFolderTrail(ctx, root.folderId, root.ownerId)
+    : []
   const lock = [
-    session.contextLock,
-    root?.contextLock,
-    folder?.contextLock,
+    ...sessions.map((entry) => entry.contextLock),
+    ...trail.map((folder) => folder.contextLock),
   ].find((token) => transitionActive(token))
 
   return {
     ...session,
     folderId: root?.folderId,
     contextLock: lock,
-    workspace:
-      primary && folder
-        ? {
-            workspaceId: folder._id,
-            folderId: folder._id,
-            revision: folder.revision,
-            path: primary.path,
-            label: folder.name,
-            sources: folder.sources,
-          }
-        : undefined,
+    workspace: trail[0] ? folderWorkspace(trail[0]) : undefined,
   }
+}
+
+/** Follows sub-agent ancestry and retains every transition lock on that path. */
+async function readSessionTrail(ctx: QueryCtx, session: Session) {
+  const trail = [session]
+  const seen = new Set([session._id])
+  let current = session
+  while (current.parent) {
+    const parent = await ctx.db.get(current.parent.sessionId)
+    if (!parent || parent.ownerId !== session.ownerId) error('Not found', 404)
+    if (seen.has(parent._id)) error('Invalid session hierarchy', 409)
+    seen.add(parent._id)
+    trail.push(parent)
+    current = parent
+  }
+  return trail
 }
 
 export async function getSessionWithWorkspace(
@@ -49,11 +55,10 @@ export async function requireFolder(
   id: Id<'sessionFolders'>,
   ownerId: Id<'users'>,
 ) {
-  const folder = await ctx.db.get(id)
-  if (!folder || folder.ownerId !== ownerId) error('Folder not found', 404)
-  if (transitionActive(folder.contextLock))
+  const trail = await readFolderTrail(ctx, id, ownerId)
+  if (trail.some((folder) => transitionActive(folder.contextLock)))
     error('Folder sources are being updated', 409)
-  return folder
+  return { ...trail.at(-1)!, workspace: folderWorkspace(trail[0]!) }
 }
 
 export function sessionGroup(
