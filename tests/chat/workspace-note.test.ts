@@ -31,6 +31,10 @@ describe('workspaceChanged', () => {
 })
 
 describe('workspace note', () => {
+  test('normal chats have no workspace reminder', () => {
+    expect(buildWorkspaceNoteContent(undefined, undefined)).toBe('')
+  })
+
   test('a source change explains the new base and re-reading requirement', () => {
     const content = buildWorkspaceNoteContent(ws('old'), ws('new'))
 

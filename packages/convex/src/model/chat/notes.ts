@@ -253,6 +253,7 @@ export function buildWorkspaceNoteContent(
   previous: Workspace,
   next: Workspace,
 ) {
+  if (!previous && !next) return ''
   return systemReminder(...workspaceNoteBody(previous, next))
 }
 
@@ -287,6 +288,8 @@ export async function injectWorkspaceNote(
 ) {
   const previous = session.workspace
   if (!workspaceChanged(previous, next)) return
+  const content = buildWorkspaceNoteContent(previous, next)
+  if (!content) return
 
   const sender = await resolveNoteSender(ctx, session)
   if (!sender) return
@@ -294,7 +297,7 @@ export async function injectWorkspaceNote(
   return insertHiddenNote(ctx, session, session.ownerId, sender, {
     type: 'workspace',
     role: 'system',
-    content: buildWorkspaceNoteContent(previous, next),
+    content,
     extra: { label: next?.label } satisfies MessageExtra['workspace'],
   })
 }

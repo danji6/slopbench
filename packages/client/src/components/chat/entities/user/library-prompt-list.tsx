@@ -1,4 +1,5 @@
 import { PromptEditor } from '@/components/chat/prompts'
+import { usePromptClipboard } from '@/components/chat/prompts/prompt-clipboard'
 import {
   ConfirmDialog,
   RippleButton,
@@ -9,7 +10,13 @@ import { useLibraryPromptEditorView } from '@/hooks/chat/prompt-editor'
 import { newPrompt } from '@/lib/chat'
 import type { Prompt } from '@/lib/chat'
 import { getEditorDraft, promptDraftKey } from '@/lib/chat/editor-draft-store'
-import { CopyIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react'
+import {
+  ClipboardPasteIcon,
+  CopyIcon,
+  PencilIcon,
+  PlusIcon,
+  Trash2Icon,
+} from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import type { LibraryPrompt } from './settings-schema'
@@ -38,6 +45,7 @@ export function LibraryPromptList({
   const editingId = view.value ?? null
   const [added, setAdded] = useState<LibraryPrompt | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const { copy, pasteData } = usePromptClipboard()
 
   const isExisting = prompts.some((p) => p.id === editingId)
 
@@ -69,18 +77,9 @@ export function LibraryPromptList({
     setDeleteId(null)
   }
 
-  function handleDuplicate(prompt: LibraryPrompt) {
-    onChange([
-      newPrompt({
-        name: getDuplicateName(prompt.name, prompts),
-        role: prompt.role,
-        content: prompt.content,
-        enabled: prompt.enabled,
-        visible: prompt.visible,
-        starter: prompt.starter,
-      }),
-      ...prompts,
-    ])
+  function handlePaste() {
+    if (!pasteData) return
+    onChange([newPrompt(pasteData), ...prompts])
   }
 
   return (
@@ -92,10 +91,21 @@ export function LibraryPromptList({
         pageSize={10}
         searchPlaceholder="Search prompts…"
         actions={
-          <RippleButton size="sm" variant="input" onClick={handleAdd}>
-            <PlusIcon />
-            Add
-          </RippleButton>
+          <div className="flex items-center gap-1">
+            <RippleButton
+              size="sm"
+              variant="input"
+              disabled={!pasteData}
+              onClick={handlePaste}
+            >
+              <ClipboardPasteIcon />
+              Paste
+            </RippleButton>
+            <RippleButton size="sm" variant="input" onClick={handleAdd}>
+              <PlusIcon />
+              Add
+            </RippleButton>
+          </div>
         }
         empty={() => (
           <div className="text-muted-foreground p-2 text-center text-xs">
@@ -111,11 +121,11 @@ export function LibraryPromptList({
               {p.role}
             </span>
             <TooltipButton
-              tooltip="Duplicate"
+              tooltip="Copy"
               size="icon"
               variant="stealth"
               className="text-muted-foreground hover:text-foreground"
-              onClick={() => handleDuplicate(p)}
+              onClick={() => copy(p)}
             >
               <CopyIcon />
             </TooltipButton>
@@ -159,18 +169,4 @@ export function LibraryPromptList({
       />
     </>
   )
-}
-
-function escapeRegex(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-function getDuplicateName(name: string, prompts: LibraryPrompt[]) {
-  const pattern = new RegExp(`^${escapeRegex(name)} (\\d+)$`)
-  const indexes = prompts
-    .map((p) => p.name.match(pattern)?.[1])
-    .filter((index): index is string => index !== undefined)
-    .map(Number)
-
-  return `${name} ${Math.max(0, ...indexes) + 1}`
 }
