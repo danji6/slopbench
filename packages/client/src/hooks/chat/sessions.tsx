@@ -20,7 +20,8 @@ import {
 
 import { useSessionDrops } from './session-drops'
 
-const INITIAL_NUM_ITEMS = 20
+const INITIAL_NUM_ITEMS = 5
+const INITIAL_SEARCH_ITEMS = 20
 
 const [SessionStoreContext, useSessionStore] =
   createUsableContext<SessionStore>('SessionStore')
@@ -131,7 +132,10 @@ function GroupQuery({
       search: search.trim() || undefined,
       showHidden: showHidden || undefined,
     },
-    { initialNumItems: INITIAL_NUM_ITEMS },
+    {
+      initialNumItems:
+        groupKey === 'search' ? INITIAL_SEARCH_ITEMS : INITIAL_NUM_ITEMS,
+    },
   )
 
   useLayoutEffect(() => {

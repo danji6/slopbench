@@ -9,12 +9,52 @@ const OTHER = 'user_2'
 const SESSION = 'session_1'
 
 type Row = Record<string, unknown> & { _id: string }
+type Predicate = (row: Row) => boolean
 
-/**
- * A multi-table stub. Every read these queries perform goes through an index
- * whose prefix is made of equality fields, so matching on the captured `eq`
- * calls reproduces the real result set.
- */
+/** Applies indexed constraints and visibility filters before slicing pages. */
+function indexedRows(rows: Row[], build?: (q: unknown) => unknown) {
+  const predicates: Predicate[] = []
+  const q = {
+    eq: (field: string, value: unknown) => {
+      predicates.push((row) => row[field] === value)
+      return q
+    },
+    search: (field: string, term: string) => {
+      predicates.push((row) => String(row[field] ?? '').includes(term))
+      return q
+    },
+  }
+  build?.(q)
+  const matches = () => rows.filter((row) => predicates.every((p) => p(row)))
+  const result = {
+    order: () => result,
+    filter: (predicate: (q: unknown) => Predicate) => {
+      predicates.push(
+        predicate({
+          field: (field: string) => field,
+          neq: (field: string, value: unknown) => (row: Row) =>
+            row[field] !== value,
+        }),
+      )
+      return result
+    },
+    collect: async () => matches(),
+    unique: async () => matches()[0] ?? null,
+    paginate: async (options: { cursor: string | null; numItems: number }) => {
+      const found = matches()
+      const start = Number(options.cursor ?? 0)
+      const end = Math.min(start + options.numItems, found.length)
+      return {
+        page: found.slice(start, end),
+        isDone: end === found.length,
+        continueCursor: String(end),
+      }
+    },
+  }
+  return result
+}
+
+/** Resolves indexed reads across tables without leaking full session documents. */
 function makeCtx(tables: Record<string, Row[]>) {
   const find = (id: string) =>
     Object.values(tables)
@@ -26,33 +66,10 @@ function makeCtx(tables: Record<string, Row[]>) {
     db: {
       get: async (id: string) => find(id) ?? null,
       query: (table: string) => ({
-        withIndex: (_index: string, build?: (q: unknown) => unknown) => {
-          const captured: Record<string, unknown> = {}
-          const q = {
-            eq: (field: string, value: unknown) => {
-              captured[field] = value
-              return q
-            },
-          }
-          build?.(q)
-
-          const matches = (tables[table] ?? []).filter((row) =>
-            Object.entries(captured).every(
-              ([key, value]) => row[key] === value,
-            ),
-          )
-          const result = {
-            order: () => result,
-            collect: async () => matches,
-            unique: async () => matches[0] ?? null,
-            paginate: async () => ({
-              page: matches,
-              isDone: true,
-              continueCursor: '',
-            }),
-          }
-          return result
-        },
+        withIndex: (_index: string, build?: (q: unknown) => unknown) =>
+          indexedRows(tables[table] ?? [], build),
+        withSearchIndex: (_index: string, build: (q: unknown) => unknown) =>
+          indexedRows(tables[table] ?? [], build),
       }),
     },
   } as never
@@ -117,6 +134,97 @@ describe('userSessions.list', () => {
 })
 
 describe('sessions.list', () => {
+  function searchableCtx(visibleCount: number) {
+    const sessions: Row[] = []
+    const memberships: Row[] = []
+    for (const [kind, count] of [
+      ['child', 10],
+      ['hidden', 10],
+      ['visible', visibleCount],
+    ] as const) {
+      // prettier-ignore
+      for (let index = 0; index < count; index++) {
+        const id = `${kind}_${index}`
+        sessions.push({
+          _id: id,
+          ownerId: VIEWER,
+          title: 'Matching chat',
+          parent: kind === 'child' ? { sessionId: SESSION } : undefined,
+        })
+        memberships.push({
+          _id: `member_${id}`,
+          sessionId: id,
+          userId: VIEWER,
+          title: 'Matching chat',
+          groupKey: 'ungrouped',
+          hidden: kind === 'child' || undefined,
+          userHidden: kind === 'hidden' || undefined,
+        })
+      }
+    }
+    return makeCtx({ sessions, userSessions: memberships })
+  }
+
+  test('search exhausts short result sets without hidden rows consuming page slots', async () => {
+    const result = await listSessions(searchableCtx(3), {
+      search: 'Matching',
+      paginationOpts: { numItems: 20, cursor: null },
+    })
+    expect(result.page.map((row) => row._id)).toEqual([
+      'visible_0',
+      'visible_1',
+      'visible_2',
+    ] as never)
+    expect(result.isDone).toBe(true)
+  })
+
+  test('search fills visible pages and continues without gaps or duplicates', async () => {
+    const ctx = searchableCtx(21)
+    const first = await listSessions(ctx, {
+      search: 'Matching',
+      paginationOpts: { numItems: 20, cursor: null },
+    })
+    expect(first.page).toHaveLength(20)
+    expect(first.isDone).toBe(false)
+    const next = await listSessions(ctx, {
+      search: 'Matching',
+      paginationOpts: { numItems: 20, cursor: first.continueCursor },
+    })
+    expect(next.page.map((row) => row._id)).toEqual(['visible_20'] as never)
+    expect(next.isDone).toBe(true)
+    expect(
+      new Set([...first.page, ...next.page].map((row) => row._id)).size,
+    ).toBe(21)
+  })
+
+  test('show hidden includes personal hidden chats while still excluding sub-agents', async () => {
+    const result = await listSessions(searchableCtx(3), {
+      search: 'Matching',
+      showHidden: true,
+      paginationOpts: { numItems: 20, cursor: null },
+    })
+    expect(result.page).toHaveLength(13)
+    expect(result.page.filter((row) => row.hidden)).toHaveLength(10)
+    expect(result.isDone).toBe(true)
+  })
+
+  test('folder pages fill five visible slots and Load more adds twenty', async () => {
+    const ctx = searchableCtx(25)
+    const first = await listSessions(ctx, {
+      paginationOpts: { numItems: 5, cursor: null },
+    })
+    expect(first.page).toHaveLength(5)
+    expect(first.isDone).toBe(false)
+    const next = await listSessions(ctx, {
+      paginationOpts: { numItems: 20, cursor: first.continueCursor },
+    })
+    expect(next.page).toHaveLength(20)
+    expect(next.isDone).toBe(true)
+    expect(
+      new Set([...first.page, ...next.page].map((row) => row._id)).size,
+    ).toBe(25)
+  })
+
   test('projects the sidebar row without the session document', async () => {
     const ctx = makeCtx({
       sessions: [

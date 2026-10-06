@@ -12,6 +12,7 @@ import {
   flattenSessionTree,
 } from '@/lib/chat/session-groups'
 import { toastError } from '@/lib/notifications'
+import { cn } from '@/lib/utils'
 import {
   DndContext,
   type DragEndEvent,
@@ -196,7 +197,7 @@ export const SessionListView = memo(function SessionListView() {
 
     if (row.kind === 'session') {
       return (
-        <div className="py-0.5">
+        <div className={cn('py-0.5', row.key !== 'search' && 'ps-3')}>
           <SessionRow
             showFolder={Boolean(search.trim())}
             id={row.id}

@@ -132,7 +132,7 @@ export default defineSchema({
     .index('by_sessionId', ['sessionId'])
     .index('by_sessionId_userId', ['sessionId', 'userId'])
     .index('by_userId_hidden_lastMessageAt', ['userId', 'hidden', 'lastMessageAt'])
-    .searchIndex('search_title', { searchField: 'title', filterFields: ['userId'] }),
+    .searchIndex('search_title', { searchField: 'title', filterFields: ['userId', 'hidden'] }),
 
   notifications: defineTable(notificationSchema)
     .index('by_recipientId_status_readAt', ['recipientId', 'status', 'readAt'])

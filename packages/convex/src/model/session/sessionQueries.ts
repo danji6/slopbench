@@ -35,14 +35,16 @@ export async function list(
   const term = search?.trim()
 
   // userSessions is queried instead because it contains shared sessions too
-  const result = term
-    ? await ctx.db
+  const query = term
+    ? ctx.db
         .query('userSessions')
         .withSearchIndex('search_title', (q) =>
-          q.search('title', term).eq('userId', ctx.userId),
+          q
+            .search('title', term)
+            .eq('userId', ctx.userId)
+            .eq('hidden', undefined),
         )
-        .paginate(paginationOpts)
-    : await ctx.db
+    : ctx.db
         .query('userSessions')
         .withIndex('by_user_group_activity', (q) =>
           q
@@ -51,11 +53,14 @@ export async function list(
             .eq('groupKey', groupKey ?? 'ungrouped'),
         )
         .order('desc')
-        .paginate(paginationOpts)
+
+  const visible = showHidden
+    ? query
+    : query.filter((q) => q.neq(q.field('userHidden'), true))
+  const result = await visible.paginate(paginationOpts)
 
   const page = await Promise.all(
     result.page.map(async (row) => {
-      if (!showHidden && row.userHidden) return null
       const session = await ctx.db.get(row.sessionId)
       if (!session || session.parent) return null
       return toListItem(ctx, session, row.userHidden, row.pinned, row.folderId)
