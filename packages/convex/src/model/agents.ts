@@ -12,6 +12,7 @@ import {
 import { DEFAULT_CONTEXT_OPTIONS, createDefaultAgent } from './defaults'
 import * as Prompts from './prompts'
 import * as Reminders from './reminders'
+import { getByOwnerId } from './settings'
 import { stopForSession } from './stream/lifecycle'
 
 /** What the agent pickers and lists render. */
@@ -138,6 +139,11 @@ export async function remove(
   { agentId }: { agentId: Id<'agents'> },
 ) {
   const agent = await requireOwned(ctx, agentId)
+
+  const settings = await getByOwnerId(ctx, agent.ownerId)
+  if (settings?.recentAgentId === agentId) {
+    await ctx.db.patch(settings._id, { recentAgentId: undefined })
+  }
 
   const links = await ctx.db
     .query('sessionAgents')

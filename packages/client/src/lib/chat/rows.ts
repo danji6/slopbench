@@ -150,13 +150,13 @@ export function buildRows(
     // Summaries and other typed messages never join a sender group
     const senderKey =
       meta?.sender && !meta.type
-        ? `${meta.sender.type}:${meta.sender.id}`
+        ? `${message.role}:${meta.sender.type}:${meta.sender.id}`
         : null
     const grouped =
       groupBySender && senderKey !== null && senderKey === previousSenderKey
     previousSenderKey = senderKey
 
-    const hasHeader = !meta?.type && !grouped
+    const hasHeader = (!meta?.type || message.role === 'system') && !grouped
 
     const slices = segmentGroupsFor(message, meta)
     const reasoning = !meta?.type ? latestReasoning(id, slices) : undefined

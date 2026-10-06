@@ -16,6 +16,35 @@ function message(parts: UIMessage['parts']): UIMessage {
 }
 
 describe('message rows', () => {
+  test('keeps system headers separate from user messages by the same sender', () => {
+    const rows = buildRows(
+      ['user', 'system'],
+      (id) => ({
+        id,
+        role: id === 'user' ? 'user' : 'system',
+        parts: [textPart],
+      }),
+      () =>
+        ({
+          sender: { type: 'user', id: 'user_1' },
+        }) as unknown as MessageRecord,
+      () => undefined,
+      { groupBySender: true },
+    )
+    expect(
+      rows.filter((row) => row.kind === 'header').map((row) => row.messageId),
+    ).toEqual(['user', 'system'])
+  })
+
+  test('renders a header for visible typed system messages', () => {
+    const rows = buildRows(
+      ['system'],
+      () => ({ id: 'system', role: 'system', parts: [textPart] }),
+      () => ({ type: 'note' }) as unknown as MessageRecord,
+    )
+    expect(rows[0]).toMatchObject({ kind: 'header', messageId: 'system' })
+  })
+
   test('skips non-renderable step boundary parts', () => {
     const rows = buildRows(
       ['message-1'],

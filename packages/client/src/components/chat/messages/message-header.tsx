@@ -33,14 +33,17 @@ export function MessageHeader({
   extra,
   gutter,
 }: MessageHeaderProps) {
-  const avatarUrls = useAvatarUrls(sender.avatarId)
+  const displayName = role === 'system' ? 'System' : sender.name
+  const avatarUrls = useAvatarUrls(
+    role === 'system' ? undefined : sender.avatarId,
+  )
 
   const name = (
     <span
-      title={sender.name}
+      title={displayName}
       className="text-foreground/70 text-md min-w-0 truncate font-semibold tracking-wide"
     >
-      {sender.name}
+      {displayName}
     </span>
   )
 
@@ -52,7 +55,7 @@ export function MessageHeader({
       <AvatarWithLightbox
         thumbnail={avatarUrls.thumbnail ?? avatarUrls.original}
         original={avatarUrls.original}
-        alt={sender.name}
+        alt={displayName}
         size="md"
         fallbackIcon={<RoleIcon role={role} />}
         className={gutter ? GUTTER_AVATAR : undefined}

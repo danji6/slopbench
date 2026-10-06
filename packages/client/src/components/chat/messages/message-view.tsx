@@ -89,7 +89,11 @@ export const MessageView = memo(function MessageView({
         !customCssClass && className,
       )}
     >
-      {!type && sender && <MessageHeader sender={sender} role={message.role} />}
+      {message.role === 'system' ? (
+        <MessageHeader sender={{ name: 'System' }} role="system" />
+      ) : (
+        !type && sender && <MessageHeader sender={sender} role={message.role} />
+      )}
       <MessageContent
         message={message}
         attachmentIds={attachmentIds}

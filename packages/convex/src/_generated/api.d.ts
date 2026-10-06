@@ -169,6 +169,7 @@ import type * as model_stream_reads from "../model/stream/reads.js";
 import type * as model_stream_reasoning from "../model/stream/reasoning.js";
 import type * as model_stream_retry from "../model/stream/retry.js";
 import type * as model_stream_stop from "../model/stream/stop.js";
+import type * as model_stream_stoppedRetry from "../model/stream/stoppedRetry.js";
 import type * as model_stream_subagents from "../model/stream/subagents.js";
 import type * as model_stream_toolOutput from "../model/stream/toolOutput.js";
 import type * as model_stream_transformers from "../model/stream/transformers.js";
@@ -399,6 +400,7 @@ declare const fullApi: ApiFromModules<{
   "model/stream/reasoning": typeof model_stream_reasoning;
   "model/stream/retry": typeof model_stream_retry;
   "model/stream/stop": typeof model_stream_stop;
+  "model/stream/stoppedRetry": typeof model_stream_stoppedRetry;
   "model/stream/subagents": typeof model_stream_subagents;
   "model/stream/toolOutput": typeof model_stream_toolOutput;
   "model/stream/transformers": typeof model_stream_transformers;

@@ -802,6 +802,101 @@ describe('_recordStep', () => {
 })
 
 describe('_finalizeStopped', () => {
+  test.each([
+    { parts: [] },
+    { parts: [{ type: 'step-start' }, { type: 'text', text: '' }] },
+  ])(
+    'restores the selected version when Retry is stopped before output (%j)',
+    async ({ parts }) => {
+      const message = {
+        _id: 'message_1',
+        selectedVersion: 3,
+        versionCount: 3,
+      }
+      const stream = {
+        _id: 'stream_1',
+        status: 'stopping',
+        operation: 'retry',
+        sessionId: 'session_1',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_3',
+        retryPreviousVersion: 1,
+      }
+      const { ctx, deletes, scheduled } = fakeCtx({
+        docs: [
+          stream,
+          message,
+          {
+            _id: 'content_3',
+            version: 3,
+            segmentIndex: 0,
+            parts,
+          },
+        ],
+        contents: [
+          {
+            _id: 'content_1',
+            version: 1,
+            segmentIndex: 0,
+            parts: [{ type: 'text', text: 'Original response' }],
+            senderName: 'Original agent',
+            metadata: { duration: 100 },
+          },
+        ],
+      })
+
+      await _finalizeStopped(ctx, { streamId: stream._id as never })
+
+      expect(message).toMatchObject({
+        selectedVersion: 1,
+        versionCount: 2,
+        status: 'done',
+        senderName: 'Original agent',
+        contextEligible: true,
+        metadata: { duration: 100 },
+      })
+      expect(deletes).toEqual(['content_3', 'stream_1'])
+      expect(scheduled).not.toContainEqual({
+        args: [
+          0,
+          expect.anything(),
+          expect.objectContaining({ messageId: 'message_1' }),
+        ],
+      })
+    },
+  )
+
+  test('keeps partial Retry output when stopped', async () => {
+    const message = { _id: 'message_1', selectedVersion: 2, versionCount: 2 }
+    const stream = {
+      _id: 'stream_1',
+      status: 'stopping',
+      operation: 'retry',
+      sessionId: 'session_1',
+      processingMessageId: 'message_1',
+      processingContentId: 'content_2',
+      retryPreviousVersion: 1,
+    }
+    const { ctx, deletes } = fakeCtx({
+      docs: [stream, message],
+      contents: [
+        {
+          _id: 'content_2',
+          version: 2,
+          segmentIndex: 0,
+          parts: [{ type: 'text', text: 'Partial response' }],
+        },
+      ],
+    })
+    await _finalizeStopped(ctx, { streamId: stream._id as never })
+    expect(message).toMatchObject({
+      selectedVersion: 2,
+      versionCount: 2,
+      status: 'done',
+    })
+    expect(deletes).toEqual(['stream_1'])
+  })
+
   test('preserves retry errors on the processing message when stopped', async () => {
     const stream = {
       _id: 'stream_1',

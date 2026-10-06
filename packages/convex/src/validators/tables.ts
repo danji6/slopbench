@@ -307,6 +307,8 @@ export const streamSchema = v.object({
   processingMessageId: v.optional(v.id('messages')),
   /** The active segment row. */
   processingContentId: v.optional(v.id('messageContents')),
+  /** The selected version to restore if Retry is stopped before output. */
+  retryPreviousVersion: v.optional(v.number()),
   contextBoundaryMessageId: v.optional(v.id('messages')),
   contextBoundaryCreationTime: v.optional(v.number()),
   operation: V.streamOperationValidator,

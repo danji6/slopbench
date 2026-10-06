@@ -27,6 +27,7 @@ import { createPlanLinkPart, getBySession as getPlan } from '../plans'
 import { cleanUpOffloadedOutputs } from './lifecycleCleanup'
 import { killSessionJobs } from './lifecycleControl'
 import { reserveFollowUp } from './lifecycleReservations'
+import { restoreEmptyRetry } from './stoppedRetry'
 import { deliverChildReport } from './subagents'
 
 export async function _complete(
@@ -228,10 +229,12 @@ export async function _finalizeStopped(
   const taskSettled = settleAbandonedTaskParts(rawParts) ?? rawParts
   const parts = finalizeMessageParts(settleAbortedAskParts(taskSettled))
   const metadata = preserveStoppedStreamError(row?.metadata, stream.retryError)
+  const restored =
+    row && message ? await restoreEmptyRetry(ctx, stream, message, row) : false
 
-  if (row && message) {
+  if (!restored && row && message) {
     await finalizeTurn(ctx, { message, row, parts, metadata })
-  } else {
+  } else if (!restored) {
     await ctx.db.patch(processingMessageId, {
       status: 'done',
       metadata: preserveStoppedStreamError(
@@ -248,18 +251,20 @@ export async function _finalizeStopped(
 
   await handleStreamEnd(ctx, stream, 'stopped')
 
-  await scheduleMessageEval(ctx, {
-    messageId: processingMessageId,
-    invokerId: stream.invokedBy,
-    parts,
-    version: row?.version ?? 1,
-    segmentIndex: row?.segmentIndex ?? 0,
-  })
+  if (!restored) {
+    await scheduleMessageEval(ctx, {
+      messageId: processingMessageId,
+      invokerId: stream.invokedBy,
+      parts,
+      version: row?.version ?? 1,
+      segmentIndex: row?.segmentIndex ?? 0,
+    })
+  }
 
   if (stream.operation === 'invoke') {
     await syncActivity(ctx, stream.sessionId, parts)
     await scheduleTitle(ctx, stream.sessionId)
-  } else if (await isLatestRetry(ctx, stream, message)) {
+  } else if (!restored && (await isLatestRetry(ctx, stream, message))) {
     await syncActivity(ctx, stream.sessionId, parts)
     await scheduleTitle(ctx, stream.sessionId)
   }

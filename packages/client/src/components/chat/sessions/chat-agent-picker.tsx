@@ -1,5 +1,4 @@
 import { Combobox, Switch } from '@/components/ui'
-import { useStableValue } from '@/hooks'
 import { useActiveModelSettings, useAgentPicker } from '@/hooks/chat'
 import { cn } from '@/lib/utils'
 import { useMemo, useRef, useState } from 'react'
@@ -28,11 +27,7 @@ export function ChatAgentPicker({
   )
 
   const selected = options.find((option) => option.id === selectedId)
-  const stableSelected = useStableValue(
-    selected,
-    Boolean(selectedId && !selected),
-  )
-  const displayAgent = stableSelected ?? fallbackAgent
+  const displayAgent = selected ?? fallbackAgent
   const modelSettings = useActiveModelSettings()
 
   return (

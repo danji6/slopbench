@@ -251,6 +251,7 @@ export async function reserveRetryStream(
   ])
   if (!message) error('Message not found', 404)
 
+  const retryPreviousVersion = message.selectedVersion
   // Append a fresh version to regenerate into
   const { contentId } = await addVersion(ctx, {
     message,
@@ -270,6 +271,7 @@ export async function reserveRetryStream(
     contextBoundaryMessageId: boundary?._id,
     contextBoundaryCreationTime: boundary?._creationTime,
     operation: 'retry',
+    retryPreviousVersion,
     blocking: false,
     status: 'pending',
     attempt: 0,

@@ -496,6 +496,7 @@ describe('reserveRetryStream', () => {
     const stream = inserts.find(({ table }) => table === 'streams')
     expect(stream?.fields).toMatchObject({
       operation: 'retry',
+      retryPreviousVersion: 1,
       processingMessageId: 'm_target',
       processingContentId: 'inserted_1',
       suppressFollowUp: true,
