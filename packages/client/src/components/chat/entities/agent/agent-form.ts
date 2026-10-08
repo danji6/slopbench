@@ -1,4 +1,5 @@
 import type {
+  CreateAgentArgs,
   MathMode,
   OrderedItem,
   Prompt,
@@ -11,6 +12,7 @@ import type {
 } from '@/lib/chat'
 import { snapshotTheme } from '@/lib/theme-worker'
 import type { Doc, Id } from '@sb/convex/_generated/dataModel'
+import { createDefaultAgent } from '@sb/convex/model/defaults'
 import { ensurePromptMarkers } from '@sb/convex/model/prompt/markers'
 import { normalizeSubagentOverrides } from '@sb/core/subagent-settings'
 import type { AgentSubAgentsMode, AgentSubagentOverride } from '@sb/core/types'
@@ -100,6 +102,12 @@ export const EMPTY_AGENT_FORM: AgentFormValues = {
   chatWidth: null,
   compactionPrompts: null,
   impersonationPrompts: null,
+}
+
+/** Builds the same defaults used by database creation, without saving them. */
+export function newAgentFormValues(): AgentFormValues {
+  const defaults = createDefaultAgent()
+  return { ...EMPTY_AGENT_FORM, ...defaults, name: 'New agent' }
 }
 
 /** Orders a set of tool names by their position in the available list. */
@@ -210,6 +218,29 @@ export async function formValuesToPatch(
   agentId: Doc<'agents'>['_id'],
   values: AgentDocValues,
 ): Promise<UpdateAgentArgs> {
+  const fields = await formValuesToFields(values)
+  return { agentId, ...omitNulls(fields), unset: clearedFields(fields) }
+}
+
+/** Maps a new agent and all its prompt sets into one creation transaction. */
+export async function formValuesToCreate(
+  values: AgentFormValues,
+): Promise<CreateAgentArgs> {
+  const { doc, sets } = splitAgentForm(values)
+  const fields = await formValuesToFields(doc)
+  return {
+    ...omitNulls(fields),
+    name: doc.name,
+    prompts: sets.prompts,
+    reminderPrompts: sets.reminderPrompts,
+    compactionPrompts: sets.compactionPrompts ?? undefined,
+    impersonationPrompts: sets.impersonationPrompts ?? undefined,
+  }
+}
+
+async function formValuesToFields(
+  values: AgentDocValues,
+): Promise<PatchFields> {
   const {
     themeColor,
     customCss,
@@ -252,11 +283,7 @@ export async function formValuesToPatch(
         : null,
   }
 
-  return {
-    agentId,
-    ...omitNulls(fields),
-    unset: clearedFields(fields),
-  }
+  return fields
 }
 
 /** The field names the form is asking to clear. */

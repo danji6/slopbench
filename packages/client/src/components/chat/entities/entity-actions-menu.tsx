@@ -16,7 +16,7 @@ export type EntityPickerContext<T extends PickableRecord> = {
   records: T[]
   active: T | null
   select: (id: string | null) => void
-  create: () => Promise<T>
+  create: () => Promise<T | void>
   delete: (id: string) => Promise<void>
   duplicate: (id: string) => Promise<T>
   export: (id: string) => Promise<void>

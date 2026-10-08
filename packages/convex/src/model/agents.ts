@@ -76,7 +76,7 @@ export async function exportData(
 }
 
 export async function create(ctx: AuthMutationCtx, args: CreateAgentArgs) {
-  const { prompts, reminderPrompts, ...rest } = args
+  const { prompts, reminderPrompts, compactionPrompts, impersonationPrompts, ...rest } = args // prettier-ignore
   assertCustomCssCap(rest.customCss)
   assertShellPathCap(rest.shell)
 
@@ -107,6 +107,15 @@ export async function create(ctx: AuthMutationCtx, args: CreateAgentArgs) {
       scope: 'own',
       items: reminderPrompts,
     })
+  }
+
+  for (const [scope, items] of [
+    ['compaction', compactionPrompts],
+    ['impersonation', impersonationPrompts],
+  ] as const) {
+    if (items?.length) {
+      await Prompts.seed(ctx, { ownerId: ctx.userId, agentId, scope, items })
+    }
   }
 
   return agentId

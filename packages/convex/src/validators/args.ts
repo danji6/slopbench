@@ -13,6 +13,7 @@ import {
   promptItemValidator,
   promptOrderRefValidator,
   promptScopeValidator,
+  promptValidator,
   rememberScopeValidator,
   reminderPromptValidator,
   reminderScopeValidator,
@@ -121,6 +122,8 @@ export const createAgentArgsValidator = v.object({
   name: v.string(),
   prompts: v.optional(v.array(promptItemValidator)),
   reminderPrompts: v.optional(v.array(reminderPromptValidator)),
+  compactionPrompts: v.optional(v.array(promptValidator)),
+  impersonationPrompts: v.optional(v.array(promptValidator)),
   ...agentMutableFieldsValidator,
 })
 

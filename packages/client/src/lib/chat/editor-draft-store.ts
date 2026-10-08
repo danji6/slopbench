@@ -50,6 +50,9 @@ export function agentSettingsDraftKey(agentId: string): string {
 /** Draft key for the user settings form, of which there is only one. */
 export const USER_SETTINGS_DRAFT_KEY = 'user-settings'
 
+/** Draft key for the agent being created, independent of database IDs. */
+export const NEW_AGENT_DRAFT_KEY = 'new-agent'
+
 export function getEditorDraft<T>(key: string): T | undefined {
   return store.get()[key]?.value as T | undefined
 }

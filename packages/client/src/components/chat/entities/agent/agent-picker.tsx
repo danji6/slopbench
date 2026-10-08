@@ -6,8 +6,9 @@ import {
 import { Combobox } from '@/components/ui'
 import { useStableValue } from '@/hooks'
 import { useEditingAgentId } from '@/hooks/chat'
+import { useNewAgent } from '@/hooks/chat/agent'
 import type { CreateAgentArgs } from '@/lib/chat'
-import { setEditingAgentId } from '@/lib/chat/agent-editor-store'
+import { setEditingAgentId, startNewAgent } from '@/lib/chat/agent-editor-store'
 import { triggerAgentDownload, uploadAgentFile } from '@/lib/chat/io'
 import { cn } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
@@ -28,6 +29,7 @@ export type AgentPickerProps = {
 
 export function AgentPicker({ className, confirmSwitch }: AgentPickerProps) {
   const editingAgentId = useEditingAgentId()
+  const newAgent = useNewAgent()
   const docs = useQuery(api.agents.list)
   const createAgent = useMutation(api.agents.create)
   const removeAgent = useMutation(api.agents.remove)
@@ -52,9 +54,8 @@ export function AgentPicker({ className, confirmSwitch }: AgentPickerProps) {
       : setEditingAgentId(id)
 
   const create = async () => {
-    const id = await createAgent({ name: 'New agent' })
-    select(id)
-    return { id, name: 'New agent' }
+    if (confirmSwitch) confirmSwitch(startNewAgent)
+    else startNewAgent()
   }
 
   const del = async (id: string) => {
@@ -99,7 +100,8 @@ export function AgentPicker({ className, confirmSwitch }: AgentPickerProps) {
   }
 
   const match = records.find((r) => r.id === editingAgentId)
-  const selected = useStableValue(match, Boolean(editingAgentId && !match))
+  const stableSelected = useStableValue(match, Boolean(editingAgentId && !match)) // prettier-ignore
+  const selected = newAgent ? undefined : stableSelected
 
   const ctx: EntityPickerContext<AgentItem> = {
     records,
@@ -124,7 +126,11 @@ export function AgentPicker({ className, confirmSwitch }: AgentPickerProps) {
             className={cn('h-12 flex-1', ctx.active && 'pl-2!')}
           >
             <Combobox.DisplayValue placeholder="Select agent…">
-              <AgentItemLabel agent={selected} />
+              {newAgent ? (
+                'New agent (unsaved)'
+              ) : (
+                <AgentItemLabel agent={selected} />
+              )}
             </Combobox.DisplayValue>
           </Combobox.Trigger>
         }

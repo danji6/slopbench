@@ -3,10 +3,13 @@ import {
   EMPTY_AGENT_FORM,
   EMPTY_AGENT_PROMPT_SETS,
   agentToFormValues,
+  formValuesToCreate,
   formValuesToPatch,
+  newAgentFormValues,
   splitAgentForm,
 } from '@/components/chat/entities/agent/agent-form'
 import type { Doc, Id } from '@sb/convex/_generated/dataModel'
+import { DEFAULT_SYSTEM_PROMPT } from '@sb/convex/model/defaults'
 import { agentMutableFieldsValidator } from '@sb/convex/validators/args'
 import type { Prompt } from '@sb/core/types'
 import { describe, expect, test } from 'bun:test'
@@ -23,6 +26,48 @@ const PROMPT: Prompt = {
   visible: false,
   starter: false,
 }
+
+describe('new agent form', () => {
+  test('includes the normal creation defaults without needing an agent ID', () => {
+    const values = newAgentFormValues()
+    expect(values.name).toBe('New agent')
+    expect(values.prompts).toContainEqual(
+      expect.objectContaining({ content: DEFAULT_SYSTEM_PROMPT }),
+    )
+    expect(values.prompts).toContainEqual({ type: 'system-boundary' })
+    expect(values.prompts).toContainEqual({ type: 'message-history' })
+    expect(newAgentFormValues().prompts[0]).not.toEqual(values.prompts[0])
+  })
+
+  test('creates every edited scope and omits update-only and cleared fields', async () => {
+    const args = await formValuesToCreate({
+      ...newAgentFormValues(),
+      name: 'Writer',
+      compactionPrompts: [PROMPT],
+      impersonationPrompts: [PROMPT],
+      reminderPrompts: [
+        {
+          id: 'r1',
+          name: 'Reminder',
+          role: 'system',
+          content: 'Check',
+          interval: 2,
+          enabled: true,
+        },
+      ],
+      autoApprovePaths: ['/project'],
+    })
+    expect(args.name).toBe('Writer')
+    expect(args.compactionPrompts).toEqual([PROMPT])
+    expect(args.impersonationPrompts).toEqual([PROMPT])
+    expect(args.reminderPrompts?.[0].interval).toBe(2)
+    expect(args.autoApprove?.paths).toEqual(['/project'])
+    expect(args).not.toHaveProperty('agentId')
+    expect(args).not.toHaveProperty('unset')
+    expect(args.chatWidth).toBeUndefined()
+    expect(args.theme).toBeUndefined()
+  })
+})
 
 /** An agent that overrides nothing: every optional field is absent. */
 function bareAgent(overrides: Partial<Doc<'agents'>> = {}): Doc<'agents'> {

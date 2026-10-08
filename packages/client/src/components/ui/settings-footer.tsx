@@ -14,6 +14,8 @@ export type SettingsFooterProps = {
   onSave: () => void
   /** Whether a save is in flight. */
   busy?: boolean
+  /** New records may require an explicit Save instead of Apply. */
+  showApply?: boolean
   className?: string
 }
 
@@ -27,6 +29,7 @@ export function SettingsFooter({
   onDiscard,
   onSave,
   busy = false,
+  showApply = true,
   className,
 }: SettingsFooterProps) {
   return (
@@ -58,14 +61,16 @@ export function SettingsFooter({
           Cancel
         </FooterButton>
       )}
-      <FooterButton
-        variant={isDirty ? 'outline' : 'surface'}
-        type="submit"
-        disabled={!isDirty || busy}
-        className="max-w-32 min-w-0 flex-1"
-      >
-        Apply
-      </FooterButton>
+      {showApply && (
+        <FooterButton
+          variant={isDirty ? 'outline' : 'surface'}
+          type="submit"
+          disabled={!isDirty || busy}
+          className="max-w-32 min-w-0 flex-1"
+        >
+          Apply
+        </FooterButton>
+      )}
       <FooterButton
         variant={isDirty ? 'primary' : 'surface'}
         type="button"

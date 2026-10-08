@@ -7,6 +7,7 @@ import type {
 } from '@/lib/chat'
 import {
   getEditingAgentId,
+  isNewAgent,
   subscribeEditingAgent,
 } from '@/lib/chat/agent-editor-store'
 import { mergePrompts } from '@/lib/chat/prompts'
@@ -177,6 +178,11 @@ export function useAgentPrompts(workDir?: string) {
 export function useEditingAgentId(): Id<'agents'> | null {
   const id = useSyncExternalStore(subscribeEditingAgent, getEditingAgentId)
   return id as Id<'agents'> | null
+}
+
+/** Whether the editor holds a new agent that has not finished saving. */
+export function useNewAgent(): boolean {
+  return useSyncExternalStore(subscribeEditingAgent, isNewAgent)
 }
 
 /** The picked agent that's being edited, `undefined` while it loads. */

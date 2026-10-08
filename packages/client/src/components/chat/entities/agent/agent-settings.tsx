@@ -13,9 +13,8 @@ import {
 import { useStableValue } from '@/hooks'
 import {
   useAgentPromptSets,
-  useAgentPromptSetsSave,
-  useAgentUpdate,
   useEditingAgentId,
+  useNewAgent,
   useOwnedAgent,
   useSettings,
 } from '@/hooks/chat'
@@ -25,19 +24,24 @@ import {
   useAgentEditorView,
   useOpenAgentEditor,
 } from '@/hooks/chat/agent-editor'
+import { useAgentSettingsPersistence } from '@/hooks/chat/agent-settings-save'
 import { useFormDraft } from '@/hooks/chat/form-draft'
 import { useSettingsSave } from '@/hooks/chat/settings-save'
-import { useHttpAction } from '@/hooks/http'
 import { useScopedTheme } from '@/hooks/theme'
 import { useViewCloseGuard } from '@/hooks/view'
-import { setEditingAgentId } from '@/lib/chat/agent-editor-store'
-import { type AvatarUploadResult, avatarUploadForm } from '@/lib/chat/avatar'
-import { agentSettingsDraftKey } from '@/lib/chat/editor-draft-store'
+import {
+  getCreatedAgentId,
+  setEditingAgentId,
+} from '@/lib/chat/agent-editor-store'
+import {
+  NEW_AGENT_DRAFT_KEY,
+  agentSettingsDraftKey,
+  getEditorDraft,
+  setEditorDraft,
+} from '@/lib/chat/editor-draft-store'
 import { extractErrorMessage } from '@/lib/errors'
 import { cn } from '@/lib/utils'
 import { ThemeScope } from '@/providers/theme-scope'
-import { api } from '@sb/convex/_generated/api'
-import { useMutation } from 'convex/react'
 import {
   ActivityIcon,
   BotIcon,
@@ -55,8 +59,7 @@ import {
   EMPTY_AGENT_FORM,
   EMPTY_AGENT_PROMPT_SETS,
   agentToFormValues,
-  formValuesToPatch,
-  splitAgentForm,
+  newAgentFormValues,
 } from './agent-form'
 import { AgentPicker } from './agent-picker'
 import { AppearanceSettings } from './appearance-settings'
@@ -121,12 +124,10 @@ function AgentSettingsDialog() {
   // The id leads the local state while the document is fetched
   const agentId = useEditingAgentId()
   const liveAgent = useOwnedAgent(agentId)
+  const newAgent = useNewAgent()
+  const editorKey = newAgent ? NEW_AGENT_DRAFT_KEY : agentId
 
-  const updateAgent = useAgentUpdate()
   const promptSets = useAgentPromptSets(agentId ?? undefined)
-  const savePromptSets = useAgentPromptSetsSave()
-  const clearAvatar = useMutation(api.agents.clearAvatar)
-  const uploadAvatar = useHttpAction<FormData, AvatarUploadResult>('/io/avatar/upload') // prettier-ignore
 
   const form = useForm<AgentFormValues>({ defaultValues: EMPTY_AGENT_FORM })
 
@@ -134,15 +135,19 @@ function AgentSettingsDialog() {
   const [avatarCleared, setAvatarCleared] = useState(false)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
 
-  const [prevAgentId, setPrevAgentId] = useState(agentId)
-  if (agentId !== prevAgentId) {
-    setPrevAgentId(agentId)
+  const [prevAgentId, setPrevAgentId] = useState(editorKey)
+  if (editorKey !== prevAgentId) {
+    setPrevAgentId(editorKey)
     setPendingAvatar(null)
     setAvatarCleared(false)
   }
 
   const draft = useFormDraft(
-    agentId ? agentSettingsDraftKey(agentId) : undefined,
+    newAgent
+      ? NEW_AGENT_DRAFT_KEY
+      : agentId
+        ? agentSettingsDraftKey(agentId)
+        : undefined,
     form,
     'these agent settings',
   )
@@ -154,14 +159,18 @@ function AgentSettingsDialog() {
 
   useEffect(() => {
     if (!open || loading) return
-    draft.sync(
-      editingAgent
+    const values = newAgent
+      ? newAgentFormValues()
+      : editingAgent
         ? agentToFormValues(editingAgent, promptSets ?? EMPTY_AGENT_PROMPT_SETS)
-        : EMPTY_AGENT_FORM,
-    )
+        : EMPTY_AGENT_FORM
+    draft.sync(values)
+    if (newAgent && !getEditorDraft(NEW_AGENT_DRAFT_KEY)) {
+      setEditorDraft(NEW_AGENT_DRAFT_KEY, values)
+    }
     // Sync from the live doc on agent switch or when (re)opening the editor
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agentId, open, loading])
+  }, [editorKey, open, loading])
 
   // The theme is previewed inside the dialog, while its tab is open
   const settings = useSettings()
@@ -176,7 +185,10 @@ function AgentSettingsDialog() {
   )
 
   const isDirty =
-    form.formState.isDirty || pendingAvatar !== null || avatarCleared
+    newAgent ||
+    form.formState.isDirty ||
+    pendingAvatar !== null ||
+    avatarCleared
 
   function close() {
     view.close()
@@ -187,6 +199,7 @@ function AgentSettingsDialog() {
     draft.clear()
     setPendingAvatar(null)
     setAvatarCleared(false)
+    if (newAgent) setEditingAgentId(getCreatedAgentId() ?? null)
   }
 
   // Back must not silently drop unsaved agent settings
@@ -197,7 +210,11 @@ function AgentSettingsDialog() {
 
   function guard(action: () => void, canSave = false) {
     if (!isDirty) return action()
-    setPendingAction({ proceed: action, canSave, open: true })
+    setPendingAction({
+      proceed: action,
+      canSave,
+      open: true,
+    })
   }
 
   function confirmPending() {
@@ -211,22 +228,22 @@ function AgentSettingsDialog() {
     if (file) setAvatarCleared(false)
   }
 
-  async function persist(values: AgentFormValues) {
-    if (!agentId || loading) return
+  const persistSettings = useAgentSettingsPersistence({
+    agentId,
+    newAgent,
+    pendingAvatar,
+    avatarCleared,
+  })
 
-    if (pendingAvatar) {
-      await uploadAvatar.call(await avatarUploadForm(agentId, pendingAvatar))
-      setPendingAvatar(null)
-    } else if (avatarCleared) {
-      await clearAvatar({ agentId })
-      setAvatarCleared(false)
-    }
-    const { doc, sets } = splitAgentForm(values)
-    await updateAgent(await formValuesToPatch(agentId, doc))
-    await savePromptSets(agentId, sets)
+  async function persist(values: AgentFormValues) {
+    if (newAgent) draft.flush(values)
+    const savedId = await persistSettings(values)
 
     form.reset(values)
     draft.clear()
+    setPendingAvatar(null)
+    setAvatarCleared(false)
+    if (newAgent) setEditingAgentId(savedId)
   }
 
   // Apply persists but keeps the editor open; Save persists then closes.
@@ -268,14 +285,17 @@ function AgentSettingsDialog() {
             />
           </Dialog.Header>
 
-          {!editingAgent && !loading && (
+          {!newAgent && !editingAgent && !loading && (
             <p className="text-muted-foreground mt-8 px-4 text-center text-sm">
               Select or create an agent to edit its settings.
             </p>
           )}
 
-          {editingAgent && (
-            <form className="flex min-h-0 flex-1 flex-col" onSubmit={apply}>
+          {(newAgent || editingAgent) && (
+            <form
+              className="flex min-h-0 flex-1 flex-col"
+              onSubmit={newAgent ? (event) => event.preventDefault() : apply}
+            >
               <SettingsTabs
                 value={activeTab}
                 onValueChange={(tab: string) => view.setValue(tab)}
@@ -314,7 +334,7 @@ function AgentSettingsDialog() {
                 <SettingsTabs.Content value="profile" title="Profile">
                   <ProfileSettings
                     control={form.control}
-                    avatarId={editingAgent.avatarId}
+                    avatarId={editingAgent?.avatarId}
                     pendingAvatar={pendingAvatar}
                     avatarCleared={avatarCleared}
                     onStageAvatar={handleStageAvatar}
@@ -354,6 +374,7 @@ function AgentSettingsDialog() {
                   close()
                 }}
                 onSave={save}
+                showApply={!newAgent}
               />
             </form>
           )}

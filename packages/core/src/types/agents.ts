@@ -1,4 +1,9 @@
-import type { PromptItem, PromptOrdering, ReminderPrompt } from './prompts'
+import type {
+  Prompt,
+  PromptItem,
+  PromptOrdering,
+  ReminderPrompt,
+} from './prompts'
 import type { ContextOptions, ReasoningEffort } from './providers'
 import type { ThemeSnapshot } from './theme'
 
@@ -60,6 +65,8 @@ export type CreateAgentArgs<AgentId extends string = string> = Partial<
   name: string
   prompts?: PromptItem[]
   reminderPrompts?: ReminderPrompt[]
+  compactionPrompts?: Prompt[]
+  impersonationPrompts?: Prompt[]
 }
 
 export type UpdateAgentArgs<AgentId extends string = string> = Partial<

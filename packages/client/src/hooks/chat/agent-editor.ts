@@ -1,6 +1,7 @@
 import { type ViewHandle, useView } from '@/hooks/view'
 import {
   getEditingAgentId,
+  isNewAgent,
   setEditingAgentId,
 } from '@/lib/chat/agent-editor-store'
 import { useCallback } from 'react'
@@ -29,7 +30,7 @@ export function useOpenAgentEditor(): () => void {
     const current = getEditingAgentId()
     const editable = owned?.some((agent) => agent._id === current)
     const fallback = owned?.find((agent) => agent._id === activeAgent?._id)
-    if (!editable && fallback) setEditingAgentId(fallback._id)
+    if (!isNewAgent() && !editable && fallback) setEditingAgentId(fallback._id)
 
     view.open(AGENT_EDITOR_DEFAULT_TAB)
   }, [view, owned, activeAgent])

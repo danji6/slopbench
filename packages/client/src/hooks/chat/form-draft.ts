@@ -12,6 +12,8 @@ export type FormDraft<T extends FieldValues> = {
   sync: (values: StoredValues<T>) => void
   /** Drops the draft once its values are persisted or explicitly discarded. */
   clear: () => void
+  /** Persists the current values immediately before attempting a save. */
+  flush: (values: T) => void
 }
 
 /** Persists a settings form's unsaved values locally to prevent data loss. */
@@ -44,6 +46,7 @@ export function useFormDraft<T extends FieldValues>(
         form.reset(values)
       },
       clear: draft.clear,
+      flush: draft.flush,
     }),
     [draft, form],
   )
