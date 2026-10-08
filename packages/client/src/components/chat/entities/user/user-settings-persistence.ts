@@ -70,6 +70,8 @@ export function useUserSettingsPersistence({
         chatFontSize: values.chatFontSize,
         chatWidth: values.chatWidth,
         customCss: values.customCss,
+        codeBlockHighlighting: values.codeBlockHighlighting,
+        codeBlockLineNumbers: values.codeBlockLineNumbers,
         shell: values.shell.trim(),
         allowInteractiveShells: values.allowInteractiveShells,
         theme: values.themeColor

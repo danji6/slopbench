@@ -14,6 +14,8 @@ export type ResolvedSettings = {
   mathMode: MathMode
   chatWidth: number
   customCss: string
+  codeBlockHighlighting: boolean
+  codeBlockLineNumbers: boolean
   theme?: ThemeSnapshot
 }
 
@@ -31,6 +33,10 @@ export function useResolvedSettings(): ResolvedSettings {
       mathMode: pick('mathMode') ?? DEFAULT_SETTINGS.mathMode,
       chatWidth: pick('chatWidth') ?? DEFAULT_SETTINGS.chatWidth,
       customCss: pick('customCss') ?? DEFAULT_SETTINGS.customCss,
+      codeBlockHighlighting:
+        pick('codeBlockHighlighting') ?? DEFAULT_SETTINGS.codeBlockHighlighting,
+      codeBlockLineNumbers:
+        pick('codeBlockLineNumbers') ?? DEFAULT_SETTINGS.codeBlockLineNumbers,
       theme: pick('theme'),
     }
   }, [activeAgent, settings])

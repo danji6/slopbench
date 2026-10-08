@@ -4,90 +4,21 @@ import {
   MarkdownRenderer,
   matchMathClass,
 } from '@/components/markdown'
-import { CodeContainer, PlainCode } from '@/components/ui/code'
 import { T } from '@/components/ui/typography'
 import { useMathMode } from '@/hooks/chat/resolved-settings'
 import { useStreamingCursor } from '@/hooks/chat/streaming-cursor'
 import type { MathMode } from '@/lib/chat'
 import { autoCloseMarkdown, splitAtLastBlock } from '@/lib/markdown/helpers'
 import { remarkStreamingCursor } from '@/lib/markdown/remark'
-import { getCachedHighlight, highlight } from '@/lib/shiki/highlighter'
 import { cn } from '@/lib/utils'
 import type { ReasoningUIPart, TextUIPart } from 'ai'
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import type { Components } from 'react-markdown'
 
+import { StreamingCodeBlock } from './streaming-code-block'
+
 type SmoothTextProps = {
   part: TextUIPart | ReasoningUIPart
-}
-
-function StreamingCodeBlock({
-  children,
-  className,
-  cursor,
-}: {
-  children?: React.ReactNode
-  className?: string
-  cursor?: boolean
-}) {
-  const language = /language-(\w+)/.exec(className || '')?.[1]
-  const text = String(children ?? '').replace(/\n$/, '')
-  const [highlighted, setHighlighted] = useState<{
-    key: string
-    html: string
-  } | null>(null)
-
-  // Read the cached highlight to minimize layout shifts
-  const key = `${language ?? ''}\0${text}`
-  const html =
-    highlighted?.key === key
-      ? highlighted.html
-      : getCachedHighlight(text, language)
-
-  useEffect(() => {
-    // Highlight only once the block is stable
-    if (cursor) return
-    if (getCachedHighlight(text, language)) return
-
-    let mounted = true
-    // Debounce Shiki
-    const timeout = setTimeout(() => {
-      highlight(text, language).then((res) => {
-        if (mounted)
-          setHighlighted({ key: `${language ?? ''}\0${text}`, html: res })
-      })
-    }, 100)
-
-    return () => {
-      mounted = false
-      clearTimeout(timeout)
-    }
-  }, [text, language, cursor])
-
-  if (!html) {
-    return (
-      <CodeContainer
-        hugParent
-        copyValue={text}
-        className={cn('mt-4 w-full', cursor && 'streaming-cursor-code')}
-        lineNumbers
-        wordWrap
-      >
-        <PlainCode text={text} />
-      </CodeContainer>
-    )
-  }
-
-  return (
-    <CodeContainer
-      hugParent
-      dangerouslySetInnerHTML={{ __html: html }}
-      copyValue={text}
-      className={cn('mt-4 w-full', cursor && 'streaming-cursor-code')}
-      lineNumbers
-      wordWrap
-    />
-  )
 }
 
 function StreamingCursor() {

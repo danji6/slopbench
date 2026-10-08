@@ -73,6 +73,13 @@ export function sanitizeAgentExportData(
 
   const promptOrder = toArray(data.promptOrder).filter(isPromptOrderRef)
   if (promptOrder.length) agent.promptOrder = promptOrder
+
+  for (const key of [
+    'codeBlockHighlighting',
+    'codeBlockLineNumbers',
+  ] as const) {
+    if (typeof data[key] === 'boolean') agent[key] = data[key]
+  }
   if (isScrollMode(data.scrollMode)) agent.scrollMode = data.scrollMode
   if (isThemeSnapshot(data.theme)) agent.theme = data.theme
 

@@ -13,7 +13,6 @@ import { agentIdentity } from './chat/identities'
 import { insertMessage } from './messageContents'
 import { getSessionWithWorkspace } from './session/folderContext'
 import { getActiveStream } from './session/memberships'
-import { getByOwnerId as getSettingsByOwnerId } from './settings'
 import { reserveInvokeTurn } from './stream/lifecycle'
 
 /** Reports stay well under the segment split budget. */
@@ -195,7 +194,6 @@ async function deliverShellReport(
   if (!session) return
 
   const agent = await ctx.db.get(row.agentId)
-  const settings = agent ? await getSettingsByOwnerId(ctx, agent.ownerId) : null
 
   const part: ShellReportPart = {
     type: SHELL_REPORT_PART_TYPE,
@@ -211,7 +209,7 @@ async function deliverShellReport(
       sessionId: row.sessionId,
       sender: { type: 'agent', id: row.agentId },
       role: 'user', // no 'system' because some providers complain
-      ...(agent ? await agentIdentity(ctx, agent, settings) : {}),
+      ...(agent ? agentIdentity(agent) : {}),
       status: 'done',
       ...(row.userKilled && { extra: { userKilled: true } }),
     },

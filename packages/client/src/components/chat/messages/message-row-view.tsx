@@ -1,9 +1,10 @@
+import { CodeAppearanceContext } from '@/components/markdown/code-appearance'
 import {
   useActiveSession,
   useAttachmentIds,
   useChatMessage,
   useIsMessageStreaming,
-  useMessageLook,
+  useMessageAppearance,
   useStreamInactivity,
   useUserProfile,
 } from '@/hooks/chat'
@@ -132,7 +133,7 @@ function RowShell({ message, messageMeta, row, children }: RowShellProps) {
     [message.id, canEdit, content],
   )
 
-  const look = useMessageLook(message.role, messageMeta)
+  const { look, code } = useMessageAppearance(message.role, messageMeta)
   const appearanceClass = useScopedAppearance(look)
 
   const roleClass =
@@ -165,13 +166,15 @@ function RowShell({ message, messageMeta, row, children }: RowShellProps) {
 
   return (
     <MessageContext.Provider value={messageCtx}>
-      {appearanceClass ? (
-        <div data-slot="appearance-scope" className={appearanceClass}>
-          {inner}
-        </div>
-      ) : (
-        inner
-      )}
+      <CodeAppearanceContext.Provider value={code}>
+        {appearanceClass ? (
+          <div data-slot="appearance-scope" className={appearanceClass}>
+            {inner}
+          </div>
+        ) : (
+          inner
+        )}
+      </CodeAppearanceContext.Provider>
     </MessageContext.Provider>
   )
 }

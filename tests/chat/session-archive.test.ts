@@ -13,7 +13,6 @@ function makeCtx() {
     userSessions: [],
     messages: [],
     messageContents: [],
-    appearances: [],
     avatars: [],
   }
   let nextId = 1
@@ -61,98 +60,56 @@ function makeCtx() {
   return { ctx, tables }
 }
 
-const LOOK_A = 'appearances_source_1'
-const LOOK_B = 'appearances_source_2'
-
-function message(
-  appearanceKey?: string,
-): SessionArchive['session']['messages'][number] {
+function message(): SessionArchive['session']['messages'][number] {
   return {
     role: 'assistant',
     parts: [{ type: 'text', text: 'hi' }],
-    senderSnapshot: { name: 'Ada', appearanceKey },
+    senderSnapshot: { name: 'Ada', avatarKey: 'ada' },
   }
 }
 
 function archive(
   messages: SessionArchive['session']['messages'],
-  appearances: SessionArchive['appearances'],
 ): SessionArchive {
   return {
     version: 1,
     exportedAt: 0,
-    appearances,
     session: { title: 'Imported', messages },
   }
 }
 
-describe('session archive appearances', () => {
-  test('a look shared by several messages is stored and interned once', async () => {
+describe('session archive import', () => {
+  test('preserves sender identity and content', async () => {
     const { ctx, tables } = makeCtx()
-
     await importOne(ctx, {
       subject: 'sub_1',
-      avatars: {},
-      payload: archive([message(LOOK_A), message(LOOK_A), message(LOOK_A)], {
-        [LOOK_A]: { css: '.a {}' },
-      }),
+      avatars: { ada: 'storage_1' as never },
+      payload: archive([message()]),
     })
-
-    expect(tables.appearances).toHaveLength(1)
-    expect(tables.appearances[0].css).toBe('.a {}')
-
-    const ids = tables.messages.map((row) => row.appearanceId)
-    expect(new Set(ids).size).toBe(1)
-    expect(ids[0]).toBe(tables.appearances[0]._id)
-  })
-
-  test('distinct looks keep their own rows', async () => {
-    const { ctx, tables } = makeCtx()
-
-    await importOne(ctx, {
-      subject: 'sub_1',
-      avatars: {},
-      payload: archive([message(LOOK_A), message(LOOK_B)], {
-        [LOOK_A]: { css: '.a {}' },
-        [LOOK_B]: { css: '.b {}' },
-      }),
-    })
-
-    expect(tables.appearances).toHaveLength(2)
-    expect(tables.messages[0].appearanceId).not.toBe(
-      tables.messages[1].appearanceId,
-    )
-  })
-
-  test('two archived keys with the same look collapse into one row', async () => {
-    const { ctx, tables } = makeCtx()
-
-    await importOne(ctx, {
-      subject: 'sub_1',
-      avatars: {},
-      payload: archive([message(LOOK_A), message(LOOK_B)], {
-        [LOOK_A]: { css: '.same {}' },
-        [LOOK_B]: { css: '.same {}' },
-      }),
-    })
-
-    expect(tables.appearances).toHaveLength(1)
-    expect(tables.messages[0].appearanceId).toBe(
-      tables.messages[1].appearanceId,
-    )
-  })
-
-  test('a message referencing a missing look imports without one', async () => {
-    const { ctx, tables } = makeCtx()
-
-    await importOne(ctx, {
-      subject: 'sub_1',
-      avatars: {},
-      payload: archive([message(LOOK_A), message()], {}),
-    })
-
-    expect(tables.appearances).toEqual([])
-    expect(tables.messages[0].appearanceId).toBeUndefined()
+    expect(tables.messages).toHaveLength(1)
     expect(tables.messages[0].senderName).toBe('Ada')
+    expect(tables.messages[0].senderAvatarId).toBe(tables.avatars[0]._id)
+    expect(tables.avatars[0].storageId).toBe('storage_1')
+    expect(tables.messageContents[0].parts).toEqual([
+      { type: 'text', text: 'hi' },
+    ])
+  })
+
+  test('imports messages without sender snapshots or avatar data', async () => {
+    const { ctx, tables } = makeCtx()
+    await importOne(ctx, {
+      subject: 'sub_1',
+      avatars: {},
+      payload: archive([
+        message(),
+        { role: 'user', parts: [{ type: 'text', text: 'hello' }] },
+      ]),
+    })
+    expect(tables.messages).toHaveLength(2)
+    expect(tables.avatars).toEqual([])
+    expect(tables.messages[0].senderName).toBe('Ada')
+    expect(tables.messages[0].senderAvatarId).toBeUndefined()
+    expect(tables.messages[1].senderName).toBeUndefined()
+    expect(tables.messages[1].role).toBe('user')
   })
 })

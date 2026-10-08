@@ -26,7 +26,6 @@ import { notifyAgentEvent } from '../notifications'
 import { createPlanLinkPart, getBySession as getPlan } from '../plans'
 import { getSessionWithWorkspace } from '../session/folderContext'
 import { getActiveStream } from '../session/memberships'
-import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 import {
   type SubagentModelSettings,
   resolveSubagentModel,
@@ -246,9 +245,6 @@ async function spawnChild(
   })
 
   const parentAgent = await ctx.db.get(stream.agentId)
-  const parentSettings = parentAgent
-    ? await getSettingsByOwnerId(ctx, parentAgent.ownerId)
-    : null
 
   // Carry over the parent's plan (resolved to a <plan> block)
   const plan = await getPlan(ctx, session._id)
@@ -263,9 +259,7 @@ async function spawnChild(
       sessionId: childSessionId,
       sender: { type: 'agent', id: stream.agentId },
       role: 'user',
-      ...(parentAgent
-        ? await agentIdentity(ctx, parentAgent, parentSettings)
-        : {}),
+      ...(parentAgent ? agentIdentity(parentAgent) : {}),
       status: 'done',
     },
     parts,
@@ -324,7 +318,6 @@ export async function deliverChildReport(
   if (!parentSession) return
 
   const agent = await ctx.db.get(childStream.agentId)
-  const settings = agent ? await getSettingsByOwnerId(ctx, agent.ownerId) : null
 
   const part: SubagentReportPart = {
     type: 'subagent-report',
@@ -342,7 +335,7 @@ export async function deliverChildReport(
       sessionId: parent.sessionId,
       sender: { type: 'agent', id: childStream.agentId },
       role: 'user',
-      ...(agent ? await agentIdentity(ctx, agent, settings) : {}),
+      ...(agent ? agentIdentity(agent) : {}),
       status: 'done',
     },
     [part],

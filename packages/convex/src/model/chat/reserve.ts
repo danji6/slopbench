@@ -7,7 +7,6 @@ import { scheduleTitle, stripMessageError } from '../messages'
 import { announceFolderContext } from '../session/folderAnnouncement'
 import { getSessionWithWorkspace } from '../session/folderContext'
 import * as Memberships from '../session/memberships'
-import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 import { STREAM_LEASE_MS } from '../stream/lifecycle'
 import { agentIdentity } from './identities'
 
@@ -243,8 +242,6 @@ export async function reserveRetryStream(
   const agent = await ctx.db.get(args.agentId)
   if (!agent) error('Agent not found', 404)
 
-  const agentSettings = await getSettingsByOwnerId(ctx, agent.ownerId)
-
   const [boundary, message] = await Promise.all([
     args.boundaryId ? ctx.db.get(args.boundaryId) : null,
     ctx.db.get(args.messageId),
@@ -255,7 +252,7 @@ export async function reserveRetryStream(
   // Append a fresh version to regenerate into
   const { contentId } = await addVersion(ctx, {
     message,
-    identity: await agentIdentity(ctx, agent, agentSettings),
+    identity: agentIdentity(agent),
   })
   await ctx.db.patch(args.messageId, {
     status: 'processing',

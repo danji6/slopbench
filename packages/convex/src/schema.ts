@@ -2,7 +2,6 @@ import { defineSchema, defineTable } from 'convex/server'
 
 import {
   agentSchema,
-  appearanceSchema,
   attachmentFileSchema,
   attachmentSchema,
   avatarSchema,
@@ -115,12 +114,10 @@ export default defineSchema({
   messages: defineTable(messageSchema)
     .index('by_sessionId', ['sessionId'])
     .index('by_sessionId_senderType', ['sessionId', 'sender.type'])
+    .index('by_sessionId_sender', ['sessionId', 'sender.type', 'sender.id'])
     .index('by_sessionId_status_contextEligible', ['sessionId', 'status', 'contextEligible'])
     .index('by_sessionId_type_status', ['sessionId', 'type', 'status'])
     .index('by_senderAvatarId', ['senderAvatarId']),
-
-  appearances: defineTable(appearanceSchema)
-    .index('by_hash', ['hash']),
 
   messageContents: defineTable(messageContentSchema)
     .index('by_messageId_version_segment', ['messageId', 'version', 'segmentIndex'])

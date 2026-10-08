@@ -7,7 +7,6 @@ import type { MutationCtx } from '../../_generated/server'
 import type { MessageExtra, TodoItem } from '../../types'
 import { resolveSets as resolveReminderSets } from '../reminders'
 import { getState, getStepCount, patchState } from '../session/state'
-import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 import {
   formatTodoList,
   getBySession as getTodosBySession,
@@ -108,10 +107,9 @@ export async function injectDueReminders(
   const agent = await ctx.db.get(session.activeAgentId)
   if (!agent) return
 
-  const settings = await getSettingsByOwnerId(ctx, agent.ownerId)
   const sender: NoteSender = {
     agent,
-    identity: await agentIdentity(ctx, agent, settings),
+    identity: agentIdentity(agent),
   }
   const currentStep = stepCount ?? (await getStepCount(ctx, session._id))
 

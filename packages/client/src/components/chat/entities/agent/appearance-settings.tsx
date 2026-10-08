@@ -7,6 +7,7 @@ import { DEFAULT_SETTINGS } from '@sb/convex/model/defaults'
 import type { Control } from 'react-hook-form'
 import { Controller, useWatch } from 'react-hook-form'
 
+import { CODE_BLOCK_SETTINGS, CodeBlockSetting } from '../code-block-setting'
 import type { AgentFormValues } from './agent-form'
 import { OverrideLabel } from './override-section'
 
@@ -16,6 +17,17 @@ export function AppearanceSettings({
   control: Control<AgentFormValues>
 }) {
   const customCss = useWatch({ control, name: 'customCss' })
+
+  const codeBlockHighlighting = useWatch({
+    control,
+    name: 'codeBlockHighlighting',
+  })
+
+  const codeBlockLineNumbers = useWatch({
+    control,
+    name: 'codeBlockLineNumbers',
+  })
+
   const settings = useSettings()
   const inheritedWidth = settings?.chatWidth ?? DEFAULT_SETTINGS.chatWidth
 
@@ -43,7 +55,16 @@ export function AppearanceSettings({
         unclickable
         unhoverable
       >
-        <MessagePreview baseCss={settings?.customCss} customCss={customCss} />
+        <MessagePreview
+          baseCss={settings?.customCss}
+          customCss={customCss}
+          codeBlockHighlighting={
+            codeBlockHighlighting ?? settings?.codeBlockHighlighting
+          }
+          codeBlockLineNumbers={
+            codeBlockLineNumbers ?? settings?.codeBlockLineNumbers
+          }
+        />
       </SettingsList.Item>
       <Controller
         control={control}
@@ -78,6 +99,21 @@ export function AppearanceSettings({
           </SettingsList.Item>
         )}
       />
+      {CODE_BLOCK_SETTINGS.map(({ name, label }) => (
+        <Controller
+          key={name}
+          control={control}
+          name={name}
+          render={({ field }) => (
+            <CodeBlockSetting
+              label={label}
+              value={field.value}
+              inheritedValue={settings?.[name] ?? DEFAULT_SETTINGS[name]}
+              onChange={field.onChange}
+            />
+          )}
+        />
+      ))}
       <Controller
         control={control}
         name="themeColor"

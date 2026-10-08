@@ -3,6 +3,7 @@
  */
 
 export * from './agent-editor'
+export * from './agent-settings-save'
 export * from './agent'
 export * from './appearances'
 export * from './attachment-ids'

@@ -172,6 +172,30 @@ describe('the two halves of the form', () => {
 })
 
 describe('agent update payload', () => {
+  test('preserves disabled code preferences and clears them back to inheritance', async () => {
+    const values = agentToFormValues(
+      bareAgent({ codeBlockHighlighting: false, codeBlockLineNumbers: false }),
+      EMPTY_AGENT_PROMPT_SETS,
+    )
+    const patch = await formValuesToPatch(AGENT_ID, values)
+    const created = await formValuesToCreate(values)
+    for (const name of [
+      'codeBlockHighlighting',
+      'codeBlockLineNumbers',
+    ] as const) {
+      expect(values[name]).toBe(false)
+      expect(patch[name]).toBe(false)
+      expect(created[name]).toBe(false)
+      expect(patch.unset).not.toContain(name)
+    }
+    const cleared = await formValuesToPatch(AGENT_ID, EMPTY_AGENT_FORM)
+    expect(cleared.unset).toContain('codeBlockHighlighting')
+    expect(cleared.unset).toContain('codeBlockLineNumbers')
+    const inherited = await formValuesToCreate(newAgentFormValues())
+    expect(inherited.codeBlockHighlighting).toBeUndefined()
+    expect(inherited.codeBlockLineNumbers).toBeUndefined()
+  })
+
   test('names every cleared field in unset', async () => {
     // Convex drops undefined from mutation args, so a field can only be removed
     // by name. Whatever the form cleared has to be in there.

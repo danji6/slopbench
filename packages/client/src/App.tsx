@@ -4,11 +4,7 @@ import { Chat } from '@/components/chat'
 import { NotificationProvider } from '@/components/chat/notifications/notification-provider'
 import { LightboxProvider } from '@/components/ui/lightbox'
 import { Toaster } from '@/components/ui/sonner'
-import {
-  AppearanceProvider,
-  AttachmentUrlProvider,
-  AvatarUrlProvider,
-} from '@/hooks/chat'
+import { AttachmentUrlProvider, AvatarUrlProvider } from '@/hooks/chat'
 import { FontProvider } from '@/providers/font'
 import { Route, Router, Switch } from 'wouter'
 
@@ -25,7 +21,6 @@ function ChatApp() {
     <>
       <AvatarUrlProvider />
       <AttachmentUrlProvider />
-      <AppearanceProvider />
       <NotificationProvider>
         <Chat />
       </NotificationProvider>

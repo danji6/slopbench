@@ -61,7 +61,6 @@ function convertDoc(doc: MessageDoc): ConvertedEntry {
       sender: doc.sender,
       senderName: doc.senderName,
       senderAvatarId: doc.senderAvatarId,
-      appearanceId: doc.appearanceId,
       type: doc.type,
       hidden: doc.hidden,
       extra: doc.extra,

@@ -33,6 +33,8 @@ export type LinkedAgent = {
   scrollMode?: ScrollMode
   mathMode?: MathMode
   chatWidth?: number
+  codeBlockHighlighting?: boolean
+  codeBlockLineNumbers?: boolean
   theme?: ThemeSnapshot
 }
 

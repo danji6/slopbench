@@ -156,7 +156,6 @@ export async function duplicate(
         metadata: message.metadata,
         senderName: message.senderName,
         senderAvatarId: message.senderAvatarId,
-        appearanceId: message.appearanceId,
       },
       finalizeMessageParts(parts),
     )

@@ -19,7 +19,6 @@ export const themeSnapshotValidator = v.object({
 export const senderIdentityFields = {
   senderName: v.optional(v.string()),
   senderAvatarId: v.optional(v.id('avatars')),
-  appearanceId: v.optional(v.id('appearances')),
 }
 
 export const messageTypeValidator = v.union(
@@ -481,13 +480,6 @@ export const userRoleValidator = v.union(
 export const sessionArchiveSenderSnapshotValidator = v.object({
   name: v.string(),
   avatarKey: v.optional(v.string()),
-  /** Indexes the archive's `appearances`. */
-  appearanceKey: v.optional(v.string()),
-})
-
-export const sessionArchiveAppearanceValidator = v.object({
-  css: v.optional(v.string()),
-  theme: v.optional(themeSnapshotValidator),
 })
 
 export const sessionArchiveAvatarValidator = v.object({
@@ -510,9 +502,6 @@ export const sessionArchiveValidator = v.object({
   version: v.literal(1),
   exportedAt: v.number(),
   avatars: v.optional(v.array(sessionArchiveAvatarValidator)),
-  appearances: v.optional(
-    v.record(v.string(), sessionArchiveAppearanceValidator),
-  ),
   session: v.object({
     title: v.string(),
     messages: v.array(sessionArchiveMessageValidator),
@@ -526,6 +515,8 @@ export const overridableFields = {
   theme: v.optional(themeSnapshotValidator),
   mathMode: v.optional(mathModeValidator),
   chatWidth: v.optional(v.number()),
+  codeBlockHighlighting: v.optional(v.boolean()),
+  codeBlockLineNumbers: v.optional(v.boolean()),
   /** Program name or path the shell tool uses to execute commands. */
   shell: v.optional(v.string()),
 }

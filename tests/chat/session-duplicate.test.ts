@@ -300,7 +300,7 @@ describe('sessions.duplicate', () => {
     const [copied] = copies
     expect(copied.status).toBe('done')
     expect(copied.senderName).toBe('Ada')
-    expect(copied.appearanceId).toBe('look_1')
+    expect(copied).not.toHaveProperty('appearanceId')
     expect(copied.metadata).toEqual({ duration: 12 })
     // The selected generation becomes the copy's version 1
     expect(copied.versionCount).toBe(1)

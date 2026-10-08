@@ -3,6 +3,7 @@
  */
 
 export * from './avatar-picker'
+export * from './code-block-setting'
 export * from './entity-actions-menu'
 export * from './prompt-help'
 export * from './shell-settings'

@@ -9,7 +9,6 @@ import type { Session } from '../../types'
 import type { MessageExtra, SessionMode } from '../../types'
 import { deleteVersions, insertMessage } from '../messageContents'
 import { scheduleMessageEval } from '../messages'
-import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 import type { SenderIdentity } from './identities'
 import { agentIdentity } from './identities'
 
@@ -36,8 +35,7 @@ export async function resolveNoteSender(
   const agent = await ctx.db.get(session.activeAgentId)
   if (!agent) return null
 
-  const settings = await getSettingsByOwnerId(ctx, agent.ownerId)
-  return { agent, identity: await agentIdentity(ctx, agent, settings) }
+  return { agent, identity: agentIdentity(agent) }
 }
 
 /**

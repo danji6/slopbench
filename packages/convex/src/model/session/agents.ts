@@ -38,6 +38,8 @@ export async function list(
           scrollMode: agent.scrollMode,
           mathMode: agent.mathMode,
           chatWidth: agent.chatWidth,
+          codeBlockHighlighting: agent.codeBlockHighlighting,
+          codeBlockLineNumbers: agent.codeBlockLineNumbers,
           theme: agent.theme ?? (await getOwnerTheme(ctx, agent.ownerId)),
         }
       )

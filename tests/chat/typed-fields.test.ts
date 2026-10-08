@@ -60,6 +60,8 @@ describe('settings args', () => {
       displayName: 'Me',
       chatFontSize: 15,
       customCss: 'body{}',
+      codeBlockHighlighting: false,
+      codeBlockLineNumbers: true,
       followAgentThemeColor: true,
       recentWorkspaces: ['/tmp'],
     }

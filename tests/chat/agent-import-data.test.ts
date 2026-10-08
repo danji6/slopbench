@@ -5,6 +5,24 @@ import {
 import { describe, expect, test } from 'bun:test'
 
 describe('agent import data normalization', () => {
+  test('retains explicit code preferences and ignores invalid values', () => {
+    const archive = createAgentArchive({
+      name: 'Agent',
+      codeBlockHighlighting: false,
+      codeBlockLineNumbers: true,
+    })
+    const imported = agentArchiveToCreateArgs(archive)
+    expect(imported.codeBlockHighlighting).toBe(false)
+    expect(imported.codeBlockLineNumbers).toBe(true)
+    const invalid = agentArchiveToCreateArgs({
+      name: 'Agent',
+      codeBlockHighlighting: 'false',
+      codeBlockLineNumbers: 1,
+    })
+    expect(invalid.codeBlockHighlighting).toBeUndefined()
+    expect(invalid.codeBlockLineNumbers).toBeUndefined()
+  })
+
   test('exports canonical versioned agent archives', () => {
     const archive = createAgentArchive(
       {

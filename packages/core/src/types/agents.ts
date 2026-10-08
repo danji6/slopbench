@@ -17,6 +17,8 @@ export type OverridableFields = {
   theme?: ThemeSnapshot
   mathMode?: MathMode
   chatWidth?: number
+  codeBlockHighlighting?: boolean
+  codeBlockLineNumbers?: boolean
   shell?: string
 }
 

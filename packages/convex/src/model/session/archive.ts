@@ -9,7 +9,6 @@ import type {
   importSessionArgsValidator,
   sessionArchiveValidator,
 } from '../../validators'
-import * as Appearances from '../appearances'
 import type { SenderIdentity } from '../chat/identities'
 import {
   type MessageWithParts,
@@ -63,14 +62,12 @@ export async function exportOne(
     .collect()
 
   const avatars = await collectAvatars(ctx, messages)
-  const appearances = await collectAppearances(ctx, messages)
   const messagesWithParts = await withPartsMany(ctx, messages)
 
   return {
     archive: {
       version: 1,
       exportedAt: Date.now(),
-      appearances,
       session: {
         title: resolveTitle(member.session.title, messagesWithParts),
         messages: messagesWithParts.map(exportMessage),
@@ -88,11 +85,10 @@ export async function importOne(
   if (!user) error('Profile not initialized', 409)
 
   const avatarIds = await createAvatars(ctx, avatars)
-  const appearanceIds = await createAppearances(ctx, payload.appearances)
   const now = Date.now()
   const title = payload.session.title.trim() || 'Imported chat'
   const imported = payload.session.messages.map((message) =>
-    importMessage(user._id, avatarIds, appearanceIds, message),
+    importMessage(user._id, avatarIds, message),
   )
   const lastMessage = imported.at(-1)
   const preview = lastMessage ? textFromParts(lastMessage.parts).trim() : ''
@@ -161,25 +157,6 @@ async function collectAvatars(
   )
 }
 
-/** Every appearance the session used. */
-async function collectAppearances(
-  ctx: QueryCtx,
-  messages: Doc<'messages'>[],
-): Promise<SessionArchive['appearances']> {
-  const ids = [
-    ...new Set(
-      messages.flatMap((message) =>
-        message.appearanceId ? [message.appearanceId] : [],
-      ),
-    ),
-  ]
-
-  const looks = await Appearances.getMap(ctx, { ids })
-  return Object.fromEntries(
-    Object.entries(looks).flatMap(([key, look]) => (look ? [[key, look]] : [])),
-  )
-}
-
 function exportMessage(message: MessageWithParts): SessionArchiveMessage {
   return {
     role: message.role,
@@ -195,7 +172,6 @@ function exportMessage(message: MessageWithParts): SessionArchiveMessage {
 function importMessage(
   userId: Id<'users'>,
   avatars: Record<string, Id<'avatars'>>,
-  appearances: Record<string, Id<'appearances'>>,
   message: SessionArchiveMessage,
 ) {
   const parts = sanitizeParts(finalizeMessageParts(message.parts))
@@ -206,7 +182,7 @@ function importMessage(
       role: message.role as MessageRole,
       ...(message.role === 'system'
         ? {}
-        : importIdentity(message.senderSnapshot, avatars, appearances)),
+        : importIdentity(message.senderSnapshot, avatars)),
       type: message.type,
       hidden: message.hidden,
       extra: message.extra,
@@ -222,37 +198,18 @@ function exportSnapshot(message: Doc<'messages'>) {
   return {
     name: message.senderName,
     avatarKey: message.senderAvatarId,
-    appearanceKey: message.appearanceId,
   }
-}
-
-async function createAppearances(
-  ctx: MutationCtx,
-  appearances: SessionArchive['appearances'],
-): Promise<Record<string, Id<'appearances'>>> {
-  const resolved: Record<string, Id<'appearances'>> = {}
-
-  for (const [key, look] of Object.entries(appearances ?? {})) {
-    const appearanceId = await Appearances.resolve(ctx, look)
-    if (appearanceId) resolved[key] = appearanceId
-  }
-
-  return resolved
 }
 
 function importIdentity(
   snapshot: SessionArchiveMessage['senderSnapshot'],
   avatars: Record<string, Id<'avatars'>>,
-  appearances: Record<string, Id<'appearances'>>,
 ): SenderIdentity {
   if (!snapshot) return {}
   return {
     senderName: snapshot.name,
     senderAvatarId: snapshot.avatarKey
       ? avatars[snapshot.avatarKey]
-      : undefined,
-    appearanceId: snapshot.appearanceKey
-      ? appearances[snapshot.appearanceKey]
       : undefined,
   }
 }

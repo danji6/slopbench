@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 
 import { MarkdownAnchor } from './anchor'
 import { AttachmentAnchor } from './attachment-anchor'
+import { useCodeAppearance } from './code-appearance'
 import { MarkdownListItem } from './list-item'
 import { KatexMath, matchMathClass } from './math'
 
@@ -92,6 +93,7 @@ function DefaultCodeBlock({
   className,
   children,
 }: React.ComponentProps<'code'>) {
+  const appearance = useCodeAppearance()
   const display = matchMathClass(className)
   if (display !== null) {
     return <KatexMath latex={String(children)} display={display} />
@@ -107,7 +109,8 @@ function DefaultCodeBlock({
         hugParent
         className="mt-4"
         noLoadingIndicator
-        lineNumbers
+        lineNumbers={appearance.lineNumbers}
+        highlighting={appearance.highlighting}
       />
     )
   }

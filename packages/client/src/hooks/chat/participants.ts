@@ -246,6 +246,8 @@ function optimisticallyLinkAgent(
       scrollMode: undefined,
       mathMode: undefined,
       chatWidth: undefined,
+      codeBlockHighlighting: undefined,
+      codeBlockLineNumbers: undefined,
       theme: undefined,
     },
   ])

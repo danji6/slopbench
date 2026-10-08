@@ -76,7 +76,6 @@ export type MessageRecord = Pick<
   | 'sender'
   | 'senderName'
   | 'senderAvatarId'
-  | 'appearanceId'
   | 'type'
   | 'hidden'
   | 'extra'

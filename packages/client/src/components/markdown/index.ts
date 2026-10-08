@@ -5,6 +5,7 @@
 export * from './anchor'
 export * from './attachment-anchor'
 export * from './card'
+export * from './code-appearance'
 export * from './code'
 export * from './context'
 export * from './group'

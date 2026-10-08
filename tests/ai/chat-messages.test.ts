@@ -131,7 +131,7 @@ describe('chat message visibility', () => {
     })
   })
 
-  test('projects the sender identity and its interned appearance id', () => {
+  test('projects the sender identity without a stored style', () => {
     const { byId } = convertMessages([
       {
         _id: 'user',
@@ -153,8 +153,8 @@ describe('chat message visibility', () => {
     expect(byId.get('user')).toMatchObject({
       sender: { type: 'user', id: 'user' },
       senderName: 'User',
-      appearanceId: 'appearance_1',
     })
+    expect(byId.get('user')).not.toHaveProperty('appearanceId')
   })
 
   test('keeps processing assistant pending until rendered content exists', () => {

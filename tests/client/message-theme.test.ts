@@ -3,52 +3,55 @@ import { resolveMessageTheme } from '@/lib/chat/message-theme'
 import type { ThemeSnapshot } from '@sb/convex/types'
 import { describe, expect, test } from 'bun:test'
 
-const snapshot = { source: '#111111' } as ThemeSnapshot
 const userTheme = { source: '#222222' } as ThemeSnapshot
 const agentTheme = { source: '#333333' } as ThemeSnapshot
 
-describe('message theme', () => {
-  test('temporarily follows the active agent for user messages', () => {
+const options = { userTheme, agentTheme, followAgentThemeColor: false }
+
+describe('live message theme', () => {
+  test('uses the sending agent theme, independently of the follow toggle', () => {
+    for (const followAgentThemeColor of [false, true]) {
+      expect(
+        resolveMessageTheme({
+          ...options,
+          fromAgent: true,
+          followAgentThemeColor,
+        }),
+      ).toBe(agentTheme)
+    }
+  })
+
+  test('follows the active agent for user messages only when enabled', () => {
     expect(
       resolveMessageTheme({
+        ...options,
         fromAgent: false,
         followAgentThemeColor: true,
-        snapshot,
-        userTheme,
-        agentTheme,
       }),
     ).toBe(agentTheme)
+    expect(resolveMessageTheme({ ...options, fromAgent: false })).toBe(
+      userTheme,
+    )
   })
 
-  test('restores the message snapshot when following is disabled', () => {
+  test('uses the current user theme when following has no agent', () => {
     expect(
       resolveMessageTheme({
+        ...options,
         fromAgent: false,
-        followAgentThemeColor: false,
-        snapshot,
-        userTheme,
-        agentTheme,
+        agentTheme: undefined,
+        followAgentThemeColor: true,
       }),
-    ).toBe(snapshot)
+    ).toBe(userTheme)
   })
 
-  test('does not change agent messages or require an agent theme', () => {
+  test('a missing agent has no palette from a stored snapshot', () => {
     expect(
       resolveMessageTheme({
+        ...options,
         fromAgent: true,
-        followAgentThemeColor: true,
-        snapshot,
-        userTheme,
-        agentTheme,
+        agentTheme: undefined,
       }),
-    ).toBe(snapshot)
-    expect(
-      resolveMessageTheme({
-        fromAgent: false,
-        followAgentThemeColor: true,
-        snapshot,
-        userTheme,
-      }),
-    ).toBe(snapshot)
+    ).toBeUndefined()
   })
 })

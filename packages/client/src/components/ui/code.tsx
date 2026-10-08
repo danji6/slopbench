@@ -1,4 +1,5 @@
-import { useCode, useDebouncedState } from '@/hooks'
+import { useCode } from '@/hooks/code'
+import { useDebouncedState } from '@/hooks/debounce'
 import { diffVisualText } from '@/lib/shiki/diff'
 import { cn } from '@/lib/utils'
 import { Fragment, useEffect } from 'react'
@@ -15,6 +16,8 @@ export type CodeProps = CodeContainerProps & {
   noLoadingIndicator?: boolean
   /** Render `text` as a unified diff with green/red line backgrounds. */
   diff?: boolean
+  /** Whether to apply syntax highlighting. */
+  highlighting?: boolean
 }
 
 export type CodeContainerProps = React.HTMLAttributes<HTMLDivElement> & {
@@ -34,14 +37,27 @@ export function Code({
   noCopyButton = false,
   noLoadingIndicator = false,
   diff = false,
+  highlighting = true,
   ...props
 }: CodeProps) {
   const [debouncedText, setDebouncedText] = useDebouncedState(text, delay)
-  const code = useCode(debouncedText, language, diff)
+  const code = useCode(highlighting ? debouncedText : undefined, language, diff)
 
   useEffect(() => {
     setDebouncedText(text)
   }, [text, setDebouncedText])
+
+  if (!highlighting) {
+    return (
+      <CodeContainer
+        copyValue={noCopyButton ? undefined : text}
+        lineNumberValue={text}
+        {...props}
+      >
+        <PlainCode text={diff && text ? diffVisualText(text) : (text ?? '')} />
+      </CodeContainer>
+    )
+  }
 
   if (!code) {
     return (

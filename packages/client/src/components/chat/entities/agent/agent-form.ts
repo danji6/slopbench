@@ -68,6 +68,8 @@ export type AgentDocValues = {
   themeColor: string
   mathMode: MathMode | null
   chatWidth: number | null
+  codeBlockHighlighting: boolean | null
+  codeBlockLineNumbers: boolean | null
 }
 
 /** The full agent settings form shape. */
@@ -100,6 +102,8 @@ export const EMPTY_AGENT_FORM: AgentFormValues = {
   themeColor: '',
   mathMode: null,
   chatWidth: null,
+  codeBlockHighlighting: null,
+  codeBlockLineNumbers: null,
   compactionPrompts: null,
   impersonationPrompts: null,
 }
@@ -171,6 +175,8 @@ export function agentToFormValues(
     themeColor: agent.theme?.source ?? '',
     mathMode: agent.mathMode ?? null,
     chatWidth: agent.chatWidth ?? null,
+    codeBlockHighlighting: agent.codeBlockHighlighting ?? null,
+    codeBlockLineNumbers: agent.codeBlockLineNumbers ?? null,
     compactionPrompts: sets.compactionPrompts,
     impersonationPrompts: sets.impersonationPrompts,
   }

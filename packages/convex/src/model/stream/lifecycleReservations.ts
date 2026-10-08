@@ -8,7 +8,6 @@ import { insertMessage } from '../messageContents'
 import { notACommandChip, notAUserKilledReport } from '../messages'
 import { announceFolderContext } from '../session/folderAnnouncement'
 import { getSessionWithWorkspace } from '../session/folderContext'
-import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 import { STREAM_LEASE_MS } from './lifecycleClaims'
 
 export async function reserveFollowUp(
@@ -97,8 +96,6 @@ export async function reserveInvokeTurn(
   const agent = await ctx.db.get(session.activeAgentId)
   if (!agent) return
 
-  const agentSettings = await getSettingsByOwnerId(ctx, agent.ownerId)
-
   const link = await ctx.db
     .query('sessionAgents')
     .withIndex('by_sessionId_agentId', (q) =>
@@ -116,7 +113,7 @@ export async function reserveInvokeTurn(
       sessionId: session._id,
       sender: { type: 'agent', id: agent._id },
       role: 'assistant',
-      ...(await agentIdentity(ctx, agent, agentSettings)),
+      ...agentIdentity(agent),
       status: 'processing',
     },
     [],

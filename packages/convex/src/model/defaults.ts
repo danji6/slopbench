@@ -91,6 +91,8 @@ export const DEFAULT_SETTINGS = {
   chatFontSize: 15,
   chatWidth: 800,
   customCss: '',
+  codeBlockHighlighting: true,
+  codeBlockLineNumbers: true,
   shell: '',
   allowInteractiveShells: false,
   themeMode: 'system' as 'light' | 'dark' | 'system',

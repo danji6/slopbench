@@ -204,13 +204,6 @@ export const messageContentSchema = v.object({
   searchText: v.optional(v.string()),
 })
 
-/** A message's appearance, identified by the hash of its theme + CSS. */
-export const appearanceSchema = v.object({
-  hash: v.string(),
-  css: v.optional(v.string()),
-  theme: v.optional(V.themeSnapshotValidator),
-})
-
 export const attachmentSchema = v.object({
   /** Shared file identity backing this session attachment. */
   fileId: v.id('attachmentFiles'),

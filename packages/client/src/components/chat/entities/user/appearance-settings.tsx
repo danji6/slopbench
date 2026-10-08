@@ -10,6 +10,7 @@ import type { Control, UseFormSetValue } from 'react-hook-form'
 import { Controller, useWatch } from 'react-hook-form'
 
 import { MessagePreview } from '../../message-preview'
+import { CODE_BLOCK_SETTINGS, CodeBlockSetting } from '../code-block-setting'
 import type { SettingsFormValues } from './settings-schema'
 
 type AppearanceSettingsProps = {
@@ -171,6 +172,20 @@ export function AppearanceSettings({
           </SettingsList.Item>
         )}
       />
+      {CODE_BLOCK_SETTINGS.map(({ name, label }) => (
+        <Controller
+          key={name}
+          control={control}
+          name={name}
+          render={({ field }) => (
+            <CodeBlockSetting
+              label={label}
+              value={field.value}
+              onChange={field.onChange}
+            />
+          )}
+        />
+      ))}
       <Controller
         control={control}
         name="themeMode"
@@ -306,9 +321,19 @@ function FontPreview({
   control: Control<SettingsFormValues>
 }) {
   const customCss = useWatch({ control, name: 'customCss' })
+  const codeBlockHighlighting = useWatch({
+    control,
+    name: 'codeBlockHighlighting',
+  })
+  const codeBlockLineNumbers = useWatch({
+    control,
+    name: 'codeBlockLineNumbers',
+  })
   return (
     <MessagePreview
       customCss={customCss}
+      codeBlockHighlighting={codeBlockHighlighting}
+      codeBlockLineNumbers={codeBlockLineNumbers}
       chatFont={fonts.chatFont}
       monoFont={fonts.monoFont}
       chatFontSize={fonts.chatFontSize}

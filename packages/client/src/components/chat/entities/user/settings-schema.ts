@@ -168,6 +168,8 @@ export const settingsFormSchema = z.object({
   override: overrideSchema,
   chatWidth: z.number(),
   customCss: z.string(),
+  codeBlockHighlighting: z.boolean(),
+  codeBlockLineNumbers: z.boolean(),
   shell: z.string(),
   allowInteractiveShells: z.boolean().default(false),
   themeColor: z.string(),

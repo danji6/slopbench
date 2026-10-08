@@ -5,7 +5,6 @@ import { insertMessage } from '../messageContents'
 import { scheduleMessageEval } from '../messages'
 import { collectStarterPrompts, mergePrompts } from '../prompt/prompts'
 import { resolveSets as resolvePromptSets } from '../prompts'
-import { get as getSettings } from '../settings'
 import { agentIdentity } from './identities'
 
 export async function maybeInsertStarters(
@@ -26,14 +25,13 @@ export async function maybeInsertStarters(
   const agent = await ctx.db.get(session.activeAgentId)
   if (!agent) error('Agent not found', 404)
 
-  const settings = await getSettings(ctx)
   const sets = await resolvePromptSets(ctx, agent)
 
   const prompts = mergePrompts({ ...agent, prompts: sets.own }, sets.library)
   const starters = collectStarterPrompts(prompts)
   if (starters.length === 0) return
 
-  const identity = await agentIdentity(ctx, agent, settings)
+  const identity = agentIdentity(agent)
 
   for (const prompt of starters) {
     const parts = [{ type: 'text', text: prompt.content }]
