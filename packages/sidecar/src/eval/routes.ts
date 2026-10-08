@@ -8,6 +8,8 @@ const contextSchema = z.object({
   user: z.string().optional(),
   assistant: z.string().optional(),
   owner: z.string().optional(),
+  modelId: z.string().optional(),
+  modelName: z.string().optional(),
   tools: z.array(z.string()).optional(),
   isAdmin: z.boolean().optional(),
   userCount: z.number().optional(),

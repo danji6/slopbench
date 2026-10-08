@@ -10,6 +10,8 @@ export type EvalContext = {
   user?: string
   assistant?: string
   owner?: string
+  modelId?: string
+  modelName?: string
   tools?: string[]
   isAdmin?: boolean
   userCount?: number

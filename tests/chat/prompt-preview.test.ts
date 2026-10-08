@@ -15,9 +15,20 @@ const context: EvalContext = {
   isAdmin: false,
   userCount: 2,
   agentCount: 3,
+  modelId: 'model-a',
+  modelName: 'Model A',
 }
 
 describe('evaluatePromptPreview', () => {
+  test('renders the selected model metadata', async () => {
+    expect(
+      await evaluatePromptPreview('{{ modelName }} ({{ modelId }})', context),
+    ).toBe('Model A (model-a)')
+    expect(
+      await evaluatePromptPreview('{{ modelId }}{{ modelName }}', {}),
+    ).toBe('')
+  })
+
   test('passes through content without interpolation untouched', async () => {
     const content = 'Hello there.  \n\nTrailing space kept.   '
     expect(await evaluatePromptPreview(content, context)).toBe(content)

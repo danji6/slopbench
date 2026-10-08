@@ -49,6 +49,21 @@ function labelsAt(editor: Editor, needle: string, query: string): string[] {
 }
 
 describe('session completions across the interpreter grammar', () => {
+  test('offers model variables in eval blocks and conditions', () => {
+    for (const lines of [
+      ['#eval', 'model', '#end'],
+      ['#if model', 'body', '#endif'],
+      ['#if', 'model', '#then', 'body', '#endif'],
+      ['{{ model }}'],
+    ]) {
+      const e = editorWith(...lines)
+      expect(labelsAt(e, 'model', 'model')).toEqual(
+        expect.arrayContaining(['modelId', 'modelName']),
+      )
+      e.destroy()
+    }
+  })
+
   test('offers env entries inside an eval body on its own paragraph', () => {
     const e = editorWith('#eval', 'getV', '#end')
     expect(labelsAt(e, 'getV', 'getV')).toContain('getVar')

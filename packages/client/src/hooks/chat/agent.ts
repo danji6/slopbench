@@ -19,6 +19,7 @@ import { useQuery as useCachedQuery } from 'convex-helpers/react/cache/hooks'
 import { useMutation, useQuery } from 'convex/react'
 import { useCallback, useMemo, useSyncExternalStore } from 'react'
 
+import { useActiveModel } from './models'
 import { usePromptPreviews } from './prompt-previews'
 import { useLibraryPrompts, usePromptItems } from './prompts'
 import { useActiveSession, useActiveSessionId } from './session'
@@ -96,6 +97,9 @@ export function useActiveAgent(): ActiveAgent | null {
  */
 export function useAgentPrompts(workDir?: string) {
   const activeAgent = useActiveAgent()
+  const model = useActiveModel()
+  const modelId = model?.id
+  const modelName = model?.label ?? modelId
   const sessionId = useActiveSessionId()
   const session = useActiveSession()
   const settings = useSettings()
@@ -119,6 +123,8 @@ export function useAgentPrompts(workDir?: string) {
       assistant: agent?.name,
       user: toOptionalName(settings?.displayName),
       owner: toDisplayName(settings?.displayName),
+      modelId,
+      modelName,
       tools: agent?.tools ?? [],
       isAdmin,
       userCount: 1,
@@ -160,6 +166,8 @@ export function useAgentPrompts(workDir?: string) {
     agent,
     sessionId,
     settings?.displayName,
+    modelId,
+    modelName,
     ownPrompts,
     libraryPrompts,
     isAdmin,

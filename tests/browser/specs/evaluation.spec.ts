@@ -5,6 +5,27 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByLabel('Preview')).toHaveText('Fixture user')
 })
 
+test('model changes refresh the preview of an unchanged prompt', async ({
+  page,
+}) => {
+  const source = [
+    "#if modelId === 'model-a'",
+    'Instructions for {{ modelName }}.',
+    '#else',
+    '#eval',
+    'return modelName + " (" + modelId + ")"',
+    '#end',
+    '#endif',
+  ].join('\n')
+  await page.getByLabel('Prompt').fill(source)
+  await expect(page.getByLabel('Preview')).toHaveText(
+    'Instructions for Model A.',
+  )
+  await page.getByLabel('Model', { exact: true }).selectOption('model-b')
+  await expect(page.getByLabel('Preview')).toHaveText('Model B (model-b)')
+  await expect(page.getByLabel('Prompt')).toHaveValue(source)
+})
+
 test('bundled worker evaluates without host access', async ({ page }) => {
   await page
     .getByLabel('Prompt')

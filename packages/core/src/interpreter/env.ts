@@ -57,6 +57,16 @@ export const SESSION_ENV: SessionEnvEntry[] = [
     description: 'Alias to agent',
   },
   {
+    name: 'modelId',
+    description:
+      'The selected provider model ID (undefined if none is selected)',
+  },
+  {
+    name: 'modelName',
+    description:
+      'The selected model label, falling back to its ID (undefined if none is selected)',
+  },
+  {
     name: 'tools',
     description: 'List of all the available tools',
   },

@@ -7,8 +7,16 @@ import { ScrollFixture } from './scroll-fixture'
 function PreviewFixture() {
   const [source, setSource] = useState('{{ user }}')
   const [clicks, setClicks] = useState(0)
+  const [modelId, setModelId] = useState('model-a')
   const texts = useMemo(() => [source], [source])
-  const context = useMemo(() => ({ user: 'Fixture user' }), [])
+  const context = useMemo(
+    () => ({
+      user: 'Fixture user',
+      modelId,
+      modelName: modelId === 'model-a' ? 'Model A' : 'Model B',
+    }),
+    [modelId],
+  )
   const [preview] = usePromptPreviews(texts, context)
   return (
     <main>
@@ -20,6 +28,14 @@ function PreviewFixture() {
           onChange={(event) => setSource(event.target.value)}
         />
       </label>
+      <select
+        aria-label="Model"
+        value={modelId}
+        onChange={(event) => setModelId(event.target.value)}
+      >
+        <option value="model-a">Model A</option>
+        <option value="model-b">Model B</option>
+      </select>
       <output aria-label="Preview">{preview}</output>
       <button onClick={() => setClicks((value) => value + 1)}>
         Respond {clicks}

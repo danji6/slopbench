@@ -63,6 +63,30 @@ function evaluate(texts: string[], extra: Record<string, unknown> = {}) {
 }
 
 describe('packaged Node evaluation workers', () => {
+  test('preserves model context through message route validation', async () => {
+    const response = await evaluate(['{{ modelName }} ({{ modelId }})'], {
+      context: { modelId: 'model-a', modelName: 'Model A' },
+    })
+    expect(response.status).toBe(200)
+    expect((await response.json()).parts[0].text).toBe('Model A (model-a)')
+  })
+
+  test('preserves model context through prompt route validation', async () => {
+    const response = await fetch(`${base}/eval/prompts`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        items: [{ enabled: true, content: '{{ modelName }} ({{ modelId }})' }],
+        context: { modelId: 'model-a', modelName: 'Model A' },
+      }),
+    })
+    expect(response.status).toBe(200)
+    expect((await response.json()).items[0].content).toBe('Model A (model-a)')
+  })
+
   test('has no host globals, including through helper constructors', async () => {
     const response = await evaluate([
       "{{ [typeof process, typeof fetch, typeof require, typeof document, readFile.constructor('return typeof process')()] }}",
