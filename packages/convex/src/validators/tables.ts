@@ -47,6 +47,11 @@ export const sessionStateSchema = v.object({
 })
 
 export const agentSchema = v.object({
+  homePath: v.optional(v.string()),
+  pendingHomePath: v.optional(v.string()),
+  resolvedHomePath: v.optional(v.string()),
+  homeRevision: v.optional(v.number()),
+  fileOperationId: v.optional(v.id('agentFileOperations')),
   ownerId: v.id('users'),
   name: v.string(),
   description: v.optional(v.string()),
@@ -378,6 +383,9 @@ export const planSchema = v.object({
 })
 
 export const sessionCacheSchema = v.object({
+  personalContextVersion: v.optional(v.number()),
+  filesystemAccess: v.optional(v.boolean()),
+  homeRevision: v.optional(v.number()),
   workspaceRevision: v.optional(v.string()),
   sessionId: v.id('sessions'),
   agentId: v.id('agents'),

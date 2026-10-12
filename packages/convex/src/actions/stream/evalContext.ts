@@ -33,6 +33,19 @@ export function buildEvalContext({
   agentCount,
   toolNames,
 }: EvalContextInput): EvalContext {
+  const workDirs = session.workspace
+    ? [
+        ...new Set([
+          ...(session.workspace.sources?.map((source) => source.path) ?? [
+            session.workspace.path,
+          ]),
+          ...(session.workspace.agentHome
+            ? [session.workspace.agentHome.path]
+            : []),
+        ]),
+      ]
+    : undefined
+
   return {
     assistant: agent.name,
     user: toOptionalName(invokerSettings?.displayName),
@@ -44,6 +57,7 @@ export function buildEvalContext({
     userCount,
     agentCount,
     workDir: session.workspace?.path,
-    workDirs: session.workspace?.sources?.map((source) => source.path),
+    agentDir: session.workspace?.agentHome?.path,
+    workDirs,
   }
 }

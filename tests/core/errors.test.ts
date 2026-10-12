@@ -52,6 +52,29 @@ describe('error messages', () => {
     ).toBe('Path escapes the configured workspace')
   })
 
+  test('extracts a saved Convex error with inline stack frames', () => {
+    const message =
+      'Uncaught ConvexError: {"message":"A skill with this name is already installed","code":409} at error (../../packages/convex/src/errors.ts:7:4) at commitInstalledSkill (../../packages/convex/src/model/skills/completion.ts:81:12) at async complete (../../packages/convex/src/model/skills/completion.ts:19:31)'
+    expect(errorMessage(message)).toBe(
+      'A skill with this name is already installed',
+    )
+  })
+
+  test('keeps natural prose containing at', () => {
+    expect(errorMessage('Could not find a skill at this path')).toBe(
+      'Could not find a skill at this path',
+    )
+  })
+
+  test('preserves stack-like prose and braces inside a serialized message', () => {
+    const message = 'Failed at handler (input {"name":"review"})'
+    expect(
+      errorMessage(
+        `Uncaught ConvexError: ${JSON.stringify({ message })} at complete (skills.ts:1:1)`,
+      ),
+    ).toBe(message)
+  })
+
   test('falls back to statusText', () => {
     expect(errorMessage({ statusText: 'Bad Gateway' })).toBe('Bad Gateway')
   })

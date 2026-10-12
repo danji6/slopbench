@@ -1,3 +1,4 @@
+import { paginationOptsValidator } from 'convex/server'
 import { v } from 'convex/values'
 
 import {
@@ -34,6 +35,7 @@ export const rateLimitRuleArgsValidator = v.object({
 })
 
 export const saveSessionCacheArgsValidator = v.object({
+  filesystemAccess: v.optional(v.boolean()),
   sessionId: v.id('sessions'),
   agentId: v.id('agents'),
   items: v.optional(v.array(promptItemValidator)),
@@ -533,4 +535,48 @@ export const folderFinishArgs = v.object({
 export const folderCreateInternalArgs = v.object({
   ...folderCreateArgs.fields,
   subject: v.string(),
+})
+
+export const skillAssignmentsArgsValidator = v.object({
+  agentId: v.id('agents'),
+  paginationOpts: paginationOptsValidator,
+  search: v.optional(v.string()),
+})
+
+export const completeAgentFileArgsValidator = v.object({
+  operationId: v.id('agentFileOperations'),
+  path: v.optional(v.string()),
+  previousPath: v.optional(v.string()),
+  metadata: v.optional(v.object({ name: v.string(), description: v.string() })),
+})
+
+export const prepareSkillImportArgsValidator = v.object({
+  operationId: v.id('agentFileOperations'),
+  cursor: v.number(),
+  metadata: v.object({ name: v.string(), description: v.string() }),
+})
+
+export const finishSkillImportArgsValidator = v.object({
+  operationId: v.id('agentFileOperations'),
+  cursor: v.number(),
+  nextCursor: v.number(),
+  skillId: v.optional(v.id('skills')),
+  outcome: v.union(
+    v.literal('installed'),
+    v.literal('skipped'),
+    v.literal('failed'),
+  ),
+  message: v.optional(v.string()),
+})
+
+export const rememberAgentHomeArgsValidator = v.object({
+  agentId: v.id('agents'),
+  path: v.string(),
+  revision: v.number(),
+})
+
+export const invalidateAgentHomeArgsValidator = v.object({
+  operationId: v.id('agentFileOperations'),
+  cursor: v.union(v.string(), v.null()),
+  previousPath: v.optional(v.string()),
 })

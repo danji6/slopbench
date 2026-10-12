@@ -9,11 +9,12 @@ import {
   isKnownTextMediaType,
 } from '@sb/core/workspace/files'
 import { spawn } from 'node:child_process'
-import { readFile, readdir, realpath } from 'node:fs/promises'
+import { readdir, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import { glob } from 'tinyglobby'
 import { z } from 'zod'
 
+import { readFilePrefix, utf8PrefixLength } from '../../files/read-text'
 import { withWorkspaceOperation, workspaceContextSchema } from './context'
 import { expandHome } from './paths'
 import { requireWorkspace, resolveExistingPath } from './workspace'
@@ -107,19 +108,25 @@ async function readWorkspaceFileLinkImpl(
   if (target.isDirectory) return listDirectoryLink(target)
   if (!target.isFile) throw new Error('Path is not a file')
 
-  const buffer = await readFile(target.absolutePath)
   const mediaType = detectWorkspaceMediaType(target.relativePath)
+  const sample = await readFilePrefix(target.absolutePath, 4096)
+  const text = isTextContent(mediaType, sample.buffer)
+  const prefix = await readFilePrefix(
+    target.absolutePath,
+    text ? MAX_TEXT_SNAPSHOT_CHARS : MAX_LINK_BINARY_BYTES,
+  )
+  const buffer = prefix.buffer
 
-  if (isTextContent(mediaType, buffer)) {
-    const raw = buffer.toString('utf-8')
-    const truncated = raw.length > MAX_TEXT_SNAPSHOT_CHARS
+  if (text) {
+    const raw = buffer.subarray(0, utf8PrefixLength(buffer)).toString('utf-8')
+    const truncated = prefix.truncated
     const content = truncated
       ? `${raw.slice(0, MAX_TEXT_SNAPSHOT_CHARS)}\n[truncated]`
       : raw
     return { kind: 'text', path: target.relativePath, content, truncated }
   }
 
-  if (buffer.byteLength > MAX_LINK_BINARY_BYTES) {
+  if (prefix.truncated) {
     throw new Error('Linked file is too large')
   }
 

@@ -258,11 +258,27 @@ export function buildWorkspaceNoteContent(
 function workspaceNoteBody(previous: Workspace, next: Workspace): string[] {
   if (!next) {
     return [
-      'This session has no folder source directories. File and shell tools are unavailable.',
+      'This session has no folder source directories.',
       'Earlier filesystem context no longer applies.',
     ]
   }
+
+  const personal = next.agentHome
+    ? [
+        `Your persistent personal folder is ${next.agentHome.path}.`,
+        'Use scope: "agent" with read_file, write_file and edit_file for personal files.',
+      ]
+    : []
+
+  if (next.agentOnly) {
+    return [
+      ...personal,
+      'This session has no project sources. Relative paths and shell commands default to your personal folder.',
+    ]
+  }
+
   return [
+    ...personal,
     `Folder: "${next.label}". Primary source: ${next.path}.`,
     `Relative file paths and the shell working directory resolve from the primary source (${next.path}).`,
     'Accessible source directories:',

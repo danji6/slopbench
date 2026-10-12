@@ -1,8 +1,14 @@
 import { usePromptPreviews } from '@/hooks/chat/prompt-previews'
-import { useMemo, useState } from 'react'
+import { Suspense, lazy, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { ScrollFixture } from './scroll-fixture'
+
+const SkillsFixture = lazy(() =>
+  import('./skills-fixture').then((module) => ({
+    default: module.SkillsFixture,
+  })),
+)
 
 function PreviewFixture() {
   const [source, setSource] = useState('{{ user }}')
@@ -45,7 +51,11 @@ function PreviewFixture() {
 }
 
 createRoot(document.getElementById('root')!).render(
-  new URLSearchParams(location.search).get('fixture') === 'scroll' ? (
+  new URLSearchParams(location.search).get('fixture') === 'skills' ? (
+    <Suspense fallback={<p>Loading skills fixture…</p>}>
+      <SkillsFixture />
+    </Suspense>
+  ) : new URLSearchParams(location.search).get('fixture') === 'scroll' ? (
     <ScrollFixture />
   ) : (
     <PreviewFixture />

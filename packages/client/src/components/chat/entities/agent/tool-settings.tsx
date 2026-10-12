@@ -52,7 +52,7 @@ export function ToolSettings({
         <Tabs.Trigger value="mcp">MCP</Tabs.Trigger>
         <Tabs.Trigger value="approvals">Approvals</Tabs.Trigger>
       </Tabs.List>
-      <Tabs.Panels className="overflow-x-clip">
+      <Tabs.Panels>
         <Tabs.Content value="tools">
           <ToolSelectionList
             tools={builtinTools}

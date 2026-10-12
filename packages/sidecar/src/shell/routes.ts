@@ -3,6 +3,7 @@ import { type Context, Hono } from 'hono'
 import { type SSEStreamingApi, streamSSE } from 'hono/streaming'
 import { ZodError, z } from 'zod'
 
+import { withAgentFiles } from '../agent-files/access'
 import {
   withWorkspaceOperation,
   workspaceContextSchema,
@@ -81,14 +82,22 @@ shellRoutes.get('/info', (c) => {
 shellRoutes.post('/start', async (c) => {
   try {
     const input = startSchema.parse(await c.req.json())
-    const result = await withWorkspaceOperation(input.sessionId, async () => {
-      const workspace = await requireWorkspace(
-        input.sessionId,
-        input.workspaceId,
-        input.workspace,
-      )
-      return startShellJob({ ...input, cwd: workspace.root })
-    })
+    const result = await withAgentFiles(
+      input.workspace.agentHome?.agentId,
+      () =>
+        withWorkspaceOperation(input.sessionId, async () => {
+          const workspace = await requireWorkspace(
+            input.sessionId,
+            input.workspaceId,
+            input.workspace,
+          )
+          return startShellJob({
+            ...input,
+            agentId: input.workspace.agentHome?.agentId,
+            cwd: workspace.root,
+          })
+        }),
+    )
     return c.json(result)
   } catch (err: unknown) {
     return jobError(c, err)

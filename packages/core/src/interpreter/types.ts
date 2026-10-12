@@ -17,6 +17,7 @@ export type EvalContext = {
   userCount?: number
   agentCount?: number
   workDirs?: string[]
+  agentDir?: string
   workDir?: string
 }
 

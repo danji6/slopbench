@@ -230,6 +230,16 @@ export const folderSourceValidator = v.object({
 })
 
 export const workspaceRefValidator = v.object({
+  agentHome: v.optional(
+    v.object({
+      ownerId: v.string(),
+      agentId: v.string(),
+      path: v.string(),
+      revision: v.number(),
+    }),
+  ),
+  agentOnly: v.optional(v.boolean()),
+  approvalRoot: v.optional(v.string()),
   sources: v.optional(v.array(folderSourceValidator)),
   revision: v.optional(v.number()),
   folderId: v.optional(v.id('sessionFolders')),

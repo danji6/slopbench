@@ -50,13 +50,13 @@ The `package.json` contains most scripts you will need, including running tests.
 
 ### Code Style
 
-- Always wrap long/multiline expressions (ifs especially) in curly braces
+- Wrap multiline expressions/statements in curly braces
 - If a single line is slightly longer than 80 columns, use `// prettier-ignore`
 - Group together logically similar lines of code with proper newline spacing
 - Always add proper spacing between functions, classes, etc
 - Extract long destructured fuction signatures into dedicated types instead of inlining
 - Extract long inline types into top-level types
-- Assign long conditional expressions to properly named variables where possible
+- Avoid multiline expressions in conditional statements/loops and assign them to variables first
 - Try to keep the code human readable by using common code conventions
 
 ### Specific Instructions
@@ -94,7 +94,7 @@ The `package.json` contains most scripts you will need, including running tests.
    - Prefer `RippleButton` over `Button` in most cases, save for very small buttons.
 
 6. **Convex**
-   - Convex files can only contain alphanumeric characters, underscores, or periods, otherwise they'll be rejected.
+   - Use camelCase for Convex file names, otherwise they'll be rejected.
    - Query/Mutation handlers should be thin wrappers around business logic that lives in the `model` folder.
    - On the client, always use query/mutation hooks and avoid non-reactive calls.
    - Whenever possible, use Convex's Infer to infer types from validator objects instead of rewriting a separate type.

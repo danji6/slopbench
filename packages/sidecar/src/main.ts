@@ -4,6 +4,7 @@ import { errorMessage } from '@sb/core/utils/errors'
 import { type Context, Hono } from 'hono'
 import { ZodError, z } from 'zod'
 
+import { agentFilesRoutes } from './agent-files/routes'
 import { sidecarAuthentication } from './auth'
 import { evaluationRoutes } from './eval/routes'
 import {
@@ -91,6 +92,7 @@ app.post('/mcp-ext/call', async (c) => {
 app.route('/shell', shellRoutes)
 
 app.route('/eval', evaluationRoutes)
+app.route('/agent-files', agentFilesRoutes)
 
 app.get('/update/status', async (c) => {
   try {

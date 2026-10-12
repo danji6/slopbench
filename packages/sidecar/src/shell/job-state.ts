@@ -4,6 +4,7 @@ import { type ShellJobProcess } from './pty'
 import { type ShellJobSubscriber } from './subscriber'
 
 export type ShellJob = {
+  agentId?: string
   jobId: string
   sessionId: string
   owner?: string

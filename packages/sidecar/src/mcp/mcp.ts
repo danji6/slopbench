@@ -8,6 +8,7 @@ import {
   webSearchSchema,
   writeFileFields,
 } from '@sb/core/types'
+import { selectFileWorkspace } from '@sb/core/workspace/personal'
 import type { Context } from 'hono'
 import { z } from 'zod'
 
@@ -99,18 +100,21 @@ function buildMcpServer(): McpServer {
       workspaceId,
       workspace,
       path,
+      scope,
       offset,
       limit,
+      byteOffset,
       allowedPaths,
     }) => {
       const result = await readWorkspaceFile({
         sessionId,
         workspaceId,
-        workspace,
+        workspace: selectFileWorkspace(workspace, scope),
         filePath: path,
         allowedPaths,
         offset,
         limit,
+        byteOffset,
       })
       return { content: [{ type: 'text' as const, text: formatJson(result) }] }
     },
@@ -131,13 +135,14 @@ function buildMcpServer(): McpServer {
       workspaceId,
       workspace,
       path,
+      scope,
       content,
       allowedPaths,
     }) => {
       const result = await writeWorkspaceFile({
         sessionId,
         workspaceId,
-        workspace,
+        workspace: selectFileWorkspace(workspace, scope),
         filePath: path,
         allowedPaths,
         content,
@@ -161,13 +166,14 @@ function buildMcpServer(): McpServer {
       workspaceId,
       workspace,
       path,
+      scope,
       edits,
       allowedPaths,
     }) => {
       const result = await editWorkspaceFile({
         sessionId,
         workspaceId,
-        workspace,
+        workspace: selectFileWorkspace(workspace, scope),
         filePath: path,
         allowedPaths,
         edits,

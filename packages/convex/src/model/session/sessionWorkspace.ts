@@ -15,7 +15,12 @@ export async function _getWorkspaceContext(
   if (!user) error('Profile not initialized', 409)
   const { session } = await requireOwner(ctx, sessionId, user._id)
   requireEnabled(session)
-  return { workspace: session.workspace }
+  return {
+    workspace: session.workspace,
+    agent: session.activeAgentId
+      ? await ctx.db.get(session.activeAgentId)
+      : null,
+  }
 }
 
 export async function _getMemberWorkspaceContext(

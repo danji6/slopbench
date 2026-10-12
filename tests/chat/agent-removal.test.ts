@@ -9,6 +9,7 @@ test.each(['agent_1', 'agent_2', undefined])(
     const deleted: string[] = []
     const ctx = {
       userId: 'owner_1',
+      scheduler: { runAfter: async () => null },
       db: {
         get: async () => ({ _id: 'agent_1', ownerId: 'owner_1' }),
         query: () => ({

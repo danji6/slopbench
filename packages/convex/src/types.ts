@@ -140,6 +140,11 @@ export type FolderTransitionArgs = Infer<typeof V.folderTransitionArgs>
 export type FolderCreateArgs = Infer<typeof V.folderCreateArgs>
 export type FolderCreateBasicArgs = Infer<typeof V.folderCreateBasicArgs>
 export type FolderMoveArgs = Infer<typeof V.folderMoveArgs>
+export type FolderFinishArgs = Infer<typeof V.folderFinishArgs>
+export type CompleteAgentFileArgs = Infer<typeof V.completeAgentFileArgsValidator> // prettier-ignore
+export type PrepareSkillImportArgs = Infer<typeof V.prepareSkillImportArgsValidator> // prettier-ignore
+export type FinishSkillImportArgs = Infer<typeof V.finishSkillImportArgsValidator> // prettier-ignore
+export type InvalidateAgentHomeArgs = Infer<typeof V.invalidateAgentHomeArgsValidator> // prettier-ignore
 
 export type FolderView = Doc<'sessionFolders'> & {
   workspace: Session['workspace']
@@ -151,5 +156,3 @@ export type FolderView = Doc<'sessionFolders'> & {
 export type Session = Doc<'sessions'> & {
   workspace?: Infer<typeof V.workspaceRefValidator>
 }
-
-export type FolderFinishArgs = Infer<typeof V.folderFinishArgs>

@@ -1,4 +1,5 @@
 import { defineSchema, defineTable } from 'convex/server'
+import { v } from 'convex/values'
 
 import {
   agentSchema,
@@ -34,6 +35,11 @@ import {
   userSchema,
   userSessionSchema,
 } from './validators'
+import {
+  agentFileOperationSchema,
+  agentSkillSchema,
+  skillSchema,
+} from './validators/skills'
 
 const schemaValidation = true
 
@@ -68,9 +74,27 @@ export default defineSchema({
     .index('by_sessionId_agentId', ['sessionId', 'agentId'])
     .index('by_agentId', ['agentId']),
 
+  // TODO move this to tables.ts
+  skillUploads: defineTable({ ownerId: v.id('users'), storageId: v.optional(v.id('_storage')), ticket: v.string(), verified: v.boolean() })
+    .index('by_storageId', ['storageId']),
+
+  skills: defineTable(skillSchema)
+    .index('by_ownerId_name', ['ownerId', 'name']),
+
+  agentSkills: defineTable(agentSkillSchema)
+    .index('by_agentId_name', ['agentId', 'name'])
+    .index('by_agentId_skillId', ['agentId', 'skillId'])
+    .index('by_skillId', ['skillId']),
+
+  agentFileOperations: defineTable(agentFileOperationSchema)
+    .index('by_ownerId', ['ownerId'])
+    .index('by_agentId', ['agentId']),
+
   agents: defineTable(agentSchema)
     .index('by_ownerId_name', ['ownerId', 'name'])
-    .index('by_avatarId', ['avatarId']),
+    .index('by_avatarId', ['avatarId'])
+    .index('by_homePath', ['resolvedHomePath'])
+    .index('by_pendingHomePath', ['pendingHomePath']),
 
   users: defineTable(userSchema)
     .index('by_subject', ['subject']),
@@ -117,7 +141,8 @@ export default defineSchema({
     .index('by_sessionId_sender', ['sessionId', 'sender.type', 'sender.id'])
     .index('by_sessionId_status_contextEligible', ['sessionId', 'status', 'contextEligible'])
     .index('by_sessionId_type_status', ['sessionId', 'type', 'status'])
-    .index('by_senderAvatarId', ['senderAvatarId']),
+    .index('by_senderAvatarId', ['senderAvatarId'])
+    .index('by_sender_status', ['sender.type', 'sender.id', 'status']),
 
   messageContents: defineTable(messageContentSchema)
     .index('by_messageId_version_segment', ['messageId', 'version', 'segmentIndex'])
@@ -170,6 +195,7 @@ export default defineSchema({
     .index('by_streamId', ['streamId']),
 
   shellJobs: defineTable(shellJobSchema)
+    .index('by_agentId', ['agentId'])
     .index('by_sessionId', ['sessionId'])
     .index('by_sessionId_jobId', ['sessionId', 'jobId'])
     .index('by_heartbeatAt', ['heartbeatAt']),

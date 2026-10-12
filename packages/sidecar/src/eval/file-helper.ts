@@ -9,6 +9,7 @@ import {
 } from 'node:fs'
 import path from 'node:path'
 
+import { utf8PrefixLength } from '../files/read-text'
 import { expandHome } from '../mcp/workspace/paths'
 
 const MAX_FILE_BYTES = 50_000
@@ -90,9 +91,8 @@ function readBoundedFile(target: string): string {
     if (!fstatSync(fd).isFile()) return ''
     const buffer = Buffer.alloc(MAX_FILE_BYTES + 1)
     const count = readSync(fd, buffer, 0, buffer.length, 0)
-    const text = buffer
-      .subarray(0, Math.min(count, MAX_FILE_BYTES))
-      .toString('utf8')
+    const trunc = buffer.subarray(0, Math.min(count, MAX_FILE_BYTES))
+    const text = buffer.subarray(0, utf8PrefixLength(trunc)).toString('utf8')
     return count > MAX_FILE_BYTES ? text + '\n[truncated]' : text
   } finally {
     closeSync(fd)

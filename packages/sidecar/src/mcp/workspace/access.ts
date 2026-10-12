@@ -111,8 +111,9 @@ export async function resolveToolPath(
   input: string,
   allowedPaths: string[] = [],
   roots?: string[],
+  grantRoot?: string,
 ) {
-  const grants = await resolvePathGrants(root, allowedPaths)
+  const grants = await resolvePathGrants(grantRoot ?? root, allowedPaths)
   const target = await inspectPath(root, input, grants, roots)
   if (target.outside && !target.allowed)
     throw new Error(

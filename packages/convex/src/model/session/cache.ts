@@ -14,10 +14,16 @@ export async function getBySessionAgent(
   ctx: QueryCtx,
   sessionId: Id<'sessions'>,
   agentId: Id<'agents'>,
+  filesystemAccess = false,
 ) {
   const row = await findCache(ctx, sessionId, agentId)
   const session = await getSessionWithWorkspace(ctx, sessionId)
-  return row?.workspaceRevision === workspaceKey(session?.workspace)
+  const agent = await ctx.db.get(agentId)
+
+  return row?.personalContextVersion === 1 &&
+    row.filesystemAccess === filesystemAccess &&
+    row.homeRevision === (agent?.homeRevision ?? 0) &&
+    row.workspaceRevision === workspaceKey(session?.workspace)
     ? row
     : null
 }
@@ -42,6 +48,7 @@ export async function _save(ctx: MutationCtx, args: SaveSessionCacheArgs) {
     (await getSessionWithWorkspace(ctx, args.sessionId))?.workspace,
   )
   const capturedAt = Date.now()
+  const homeRevision = (await ctx.db.get(args.agentId))?.homeRevision ?? 0
 
   if (existing) {
     await ctx.db.patch(existing._id, {
@@ -52,6 +59,9 @@ export async function _save(ctx: MutationCtx, args: SaveSessionCacheArgs) {
       ...(args.items && { items: args.items }),
       ...(args.tools && { tools: args.tools }),
       capturedAt,
+      personalContextVersion: 1,
+      filesystemAccess: args.filesystemAccess ?? false,
+      homeRevision,
       workspaceRevision,
     })
     return existing._id
@@ -63,6 +73,9 @@ export async function _save(ctx: MutationCtx, args: SaveSessionCacheArgs) {
     items: args.items ?? [],
     tools: args.tools,
     capturedAt,
+    personalContextVersion: 1,
+    filesystemAccess: args.filesystemAccess ?? false,
+    homeRevision,
     workspaceRevision,
   })
 }

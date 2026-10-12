@@ -132,7 +132,7 @@ export function EntityActionsMenu<T extends PickableRecord>({
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title={`Delete ${entityName}?`}
-        description={`This will permanently delete "${deleteName}" and cannot be undone.`}
+        description={`This will permanently delete "${deleteName}" and cannot be undone.${entityName === 'agent' ? ' Its personal folder will be preserved on disk.' : ''}`}
         confirmText="Delete"
         variant="destructive"
         onConfirm={handleDeleteConfirm}

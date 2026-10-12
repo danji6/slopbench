@@ -1,3 +1,4 @@
+import { SkillLibrary } from '@/components/chat/skills/skill-library'
 import {
   AlertMessage,
   ConfirmDialog,
@@ -32,6 +33,7 @@ import { api } from '@sb/convex/_generated/api'
 import { useQuery } from 'convex/react'
 import {
   ActivityIcon,
+  BlocksIcon,
   BotIcon,
   PaletteIcon,
   SettingsIcon,
@@ -295,13 +297,16 @@ function ChatSettingsDialog({
             >
               <SettingsTabs.List className="border-border">
                 <SettingsTabs.Trigger value="user" icon={<UserIcon />}>
-                  Profile
+                  Account
                 </SettingsTabs.Trigger>
                 <SettingsTabs.Trigger value="behavior" icon={<ActivityIcon />}>
                   Behavior
                 </SettingsTabs.Trigger>
                 <SettingsTabs.Trigger value="models" icon={<BotIcon />}>
                   Models
+                </SettingsTabs.Trigger>
+                <SettingsTabs.Trigger value="skills" icon={<BlocksIcon />}>
+                  Skills
                 </SettingsTabs.Trigger>
                 <SettingsTabs.Trigger value="tools" icon={<WrenchIcon />}>
                   Tools
@@ -311,7 +316,7 @@ function ChatSettingsDialog({
                 </SettingsTabs.Trigger>
               </SettingsTabs.List>
 
-              <SettingsTabs.Content value="user" title="User">
+              <SettingsTabs.Content value="user" title="Account">
                 <ProfileSettings
                   control={form.control}
                   avatarId={settings.avatarId}
@@ -341,6 +346,9 @@ function ChatSettingsDialog({
                 />
               </SettingsTabs.Content>
 
+              <SettingsTabs.Content value="skills" title="Skills">
+                <SkillLibrary />
+              </SettingsTabs.Content>
               <SettingsTabs.Content value="tools" title="Tools">
                 <SettingsList>
                   <Controller

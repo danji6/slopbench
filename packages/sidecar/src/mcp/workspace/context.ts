@@ -12,6 +12,16 @@ export const sourceSchema = z.object({
 })
 
 export const workspaceContextSchema = z.object({
+  agentHome: z
+    .object({
+      ownerId: z.string(),
+      agentId: z.string(),
+      path: z.string(),
+      revision: z.number(),
+    })
+    .optional(),
+  agentOnly: z.boolean().optional(),
+  approvalRoot: z.string().optional(),
   workspaceId: z.string(),
   folderId: z.string().optional(),
   revision: z.number().optional(),

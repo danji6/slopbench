@@ -2,6 +2,8 @@
 
 import type { FolderWorkspace } from '@sb/core/types/workspace'
 import { pathApprovalStatus } from '@sb/core/workspace/path-policy'
+import { selectFileWorkspace } from '@sb/core/workspace/personal'
+import type { FileScope } from '@sb/core/workspace/personal'
 import type { UIMessage } from 'ai'
 
 import { internal } from '../../_generated/api'
@@ -77,13 +79,18 @@ export async function attachApprovalPreviews(
   return result as UIMessage['parts']
 }
 
+type PreviewDiffInput = {
+  path?: string
+  content?: string
+  edits?: unknown
+  scope?: FileScope
+}
+
 export async function withPreviewDiff(
   context: ApprovalContext,
   part: UIMessage['parts'][number],
 ) {
-  const input = (
-    part as { input?: { path?: string; content?: string; edits?: unknown } }
-  ).input
+  const input = (part as { input?: PreviewDiffInput }).input
   if (!input?.path) return part
 
   try {
@@ -91,6 +98,9 @@ export async function withPreviewDiff(
       '/workspace/preview-diff',
       {
         ...context,
+        workspace: context.workspace
+          ? selectFileWorkspace(context.workspace, input.scope)
+          : undefined,
         filePath: input.path,
         content: input.content,
         edits: input.edits,

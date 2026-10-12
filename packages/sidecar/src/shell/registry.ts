@@ -82,6 +82,7 @@ export async function startShellJob(
 
   const job: ShellJob = {
     jobId: nextJobId(),
+    agentId: input.agentId,
     sessionId: input.sessionId,
     owner: input.owner,
     messageId: input.messageId,
@@ -290,4 +291,11 @@ export function killSessionShellJobs(
     job.proc.kill()
   }
   return targets.length
+}
+
+/** Detects jobs sharing a persistent home even when their sessions differ. */
+export function hasRunningAgentJobs(agentId: string): boolean {
+  return [...jobs.values()].some(
+    (job) => job.agentId === agentId && job.status === 'running',
+  )
 }

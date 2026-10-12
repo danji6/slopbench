@@ -3,12 +3,18 @@
 import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
+import { minRole } from '../../lib/roles'
 import { sharedSessionId } from '../../lib/subagent'
 import { buildWorkspaceNoteContent } from '../../model/chat/notes'
 import { applyPromptCaching } from '../../model/provider/cache'
 import { getProviderOptions } from '../../model/provider/options'
 import { findCredentialsForModel } from '../../model/provider/providers'
 import { postSidecar, sidecarDefaultShell } from '../../model/sidecar'
+import {
+  catalogNote,
+  readSkillCatalog,
+  resolvePersonalWorkspace,
+} from '../../model/skills/runtime'
 import type { ReasoningEffort } from '../../types'
 import { buildSessionLogBody } from './engineLog'
 import { patchSessionLogBody } from './engineLog'
@@ -19,6 +25,24 @@ import type { PromptEvalResult } from './operations'
 export async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
   const data = await ctx.runQuery(internal.streams._getContext, { streamId })
   if (!data?.stream || data.stream.status === 'stopping') return null
+
+  if (minRole(data.invoker.role, 'admin')) {
+    data.session.workspace = await resolvePersonalWorkspace(
+      data.agent,
+      data.session.workspace,
+    )
+    if (
+      data.agent.resolvedHomePath &&
+      data.agent.resolvedHomePath !== data.session.workspace.agentHome!.path
+    ) {
+      data.sessionCache = null
+    }
+    await ctx.runMutation(internal.skills._rememberHome, {
+      agentId: data.agent._id,
+      path: data.session.workspace.agentHome!.path,
+      revision: data.agent.homeRevision ?? 0,
+    })
+  }
 
   // Only needed while resolving a manifest
   const defaultShell = data.sessionCache?.tools
@@ -50,6 +74,10 @@ export async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
     evalResult = await postSidecar<PromptEvalResult>('/eval/prompts', {
       items: operationPlan.evalItems,
       context: evalContext,
+      authorizedAgentId:
+        evalContext.isAdmin && evalContext.tools?.includes('read_file')
+          ? data.agent._id
+          : undefined,
       authorizedWorkDirs:
         evalContext.isAdmin && evalContext.tools?.includes('read_file')
           ? evalContext.workDirs
@@ -69,6 +97,7 @@ export async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
       sessionId: data.stream.sessionId,
       agentId: data.stream.agentId,
       ...patch,
+      filesystemAccess: minRole(data.invoker.role, 'admin'),
     })
   }
 
@@ -98,9 +127,16 @@ export async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
     },
   )
 
+  const skills =
+    data.session.workspace && operationPlan.toolNames.includes('read_file')
+      ? catalogNote(
+          await readSkillCatalog(ctx, data.agent, data.session.workspace),
+        )
+      : ''
+
   const request = applyPromptCaching(
     {
-      systemPrompt: `${systemPrompt ?? ''}\n\n${buildWorkspaceNoteContent(undefined, data.session.workspace)}`,
+      systemPrompt: `${systemPrompt ?? ''}\n\n${buildWorkspaceNoteContent(undefined, data.session.workspace)}\n\n${skills}`,
       messages,
     },
     credentials?.providerId,

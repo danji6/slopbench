@@ -357,8 +357,12 @@ function AgentSettingsDialog() {
                 <SettingsTabs.Content value="subagents" title="Sub-agents">
                   <SubagentSettings control={form.control} />
                 </SettingsTabs.Content>
-                <SettingsTabs.Content value="behavior" title="Behavior">
-                  <BehaviorSettings control={form.control} />
+                <SettingsTabs.Content value="behavior">
+                  <BehaviorSettings
+                    key={editorKey ?? 'none'}
+                    control={form.control}
+                    agentId={newAgent ? undefined : (agentId ?? undefined)}
+                  />
                 </SettingsTabs.Content>
                 <SettingsTabs.Content value="appearance" title="Appearance">
                   <AppearanceSettings control={form.control} />

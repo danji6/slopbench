@@ -6,6 +6,39 @@ The architectural overview below was originally audited at `0d6092b` on
 boundaries; it is not a fresh audit of every product feature or outstanding bug.
 See `REFACTOR_PLAN.md` for scope, verification, and remaining release checks.
 
+## Personal agent folders and skills (2026-10-09)
+
+Agents now have persistent writable homes on the sidecar, separate from session
+folder sources. Managed homes use stable owner/agent IDs under sidecar data;
+admin owners can choose an existing custom directory. Home changes offer
+carrying current files or starting with pristine assigned skills, preserve the
+old directory, and reject destination conflicts. Duplication copies the home;
+agent deletion preserves its files. Additive schema fields require no backfill.
+
+An owner-scoped skill library stores complete pristine bundles. Assignments
+create independent editable copies under each agent's `.agents/skills`.
+Delete/reassign restores a clean copy. No skill-count or bundle-size quotas
+apply; file installation and copying stream data, while UI lists, discovery,
+and model reads use bounded pages. YAML frontmatter follows the Agent Skills
+format, and optional harness metadata is preserved without executing hooks or
+provisioning integrations. Metadata comes from assigned copies each turn;
+full instructions and resources are read on demand.
+
+File tools reuse their existing names and accept an optional `scope` selecting
+project or agent roots. With no project, the home becomes the default file and
+shell base. `agentDir` exposes the home to user-authored prompts. Automatic
+filesystem notes and a paginated `list_skills` tool teach the agent how to access
+its files and discover every assignment. Existing approvals, admin gating,
+plan-mode restrictions, and shell authority remain in effect.
+
+Mutation-scheduled operation records drive reactive progress and retries.
+Agent leases fence turn reservations; sidecar locks cover in-flight files and
+background jobs across sessions. Home transitions revoke old-home grants before
+releasing the agent. Filesystem journals reconcile interrupted publishes.
+Text reads now bound allocation before reading and expose byte continuation;
+edit snapshots and linked-file previews also enforce read-process budgets.
+See `docs/agent-files.md` for usage. Restart the sidecar after updating.
+
 ## Session folders, nesting, and source directories (2026-10-05)
 
 Folders now support a nested organizational tree. Each folder has an optional

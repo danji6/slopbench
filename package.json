@@ -123,6 +123,8 @@
     "vaul-base": "^1.0.0",
     "virtua": "^0.50.6",
     "wouter": "^3.11.0",
+    "yaml": "^2.9.1",
+    "yauzl": "^3.4.0",
     "zod": "^4.6.5"
   },
   "patchedDependencies": {
@@ -141,6 +143,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/turndown": "^5.0.6",
+    "@types/yauzl": "^3.4.0",
     "@vitejs/plugin-react": "^6.1.1",
     "barrelsby": "^2.8.1",
     "bun-types": "^1.4.2",

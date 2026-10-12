@@ -26,6 +26,7 @@ import { notifyAgentEvent } from '../notifications'
 import { createPlanLinkPart, getBySession as getPlan } from '../plans'
 import { getSessionWithWorkspace } from '../session/folderContext'
 import { getActiveStream } from '../session/memberships'
+import { assertAgentAvailable } from '../skills/access'
 import {
   type SubagentModelSettings,
   resolveSubagentModel,
@@ -267,6 +268,7 @@ async function spawnChild(
   await syncActivity(ctx, childSessionId, parts)
 
   const prompt = await ctx.db.get(messageId)
+  await assertAgentAvailable(ctx, agent._id)
   const childStreamId = await ctx.db.insert('streams', {
     sessionId: childSessionId,
     agentId: agent._id,

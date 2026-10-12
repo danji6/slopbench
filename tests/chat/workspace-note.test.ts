@@ -62,7 +62,7 @@ describe('workspace note', () => {
     const content = buildWorkspaceNoteContent(ws('old'), undefined)
 
     expect(content).toContain('no folder source directories')
-    expect(content).toContain('File and shell tools are unavailable')
+    expect(content).toContain('A personal folder may still be available')
   })
 })
 

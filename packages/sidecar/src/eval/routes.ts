@@ -2,6 +2,7 @@ import { MAX_SCOPE_PROMPTS } from '@sb/core/limits'
 import { Hono } from 'hono'
 import { z } from 'zod'
 
+import { withAgentFiles } from '../agent-files/access'
 import { EvaluationBusyError, evaluateInWorker } from './pool'
 
 const contextSchema = z.object({
@@ -14,6 +15,7 @@ const contextSchema = z.object({
   isAdmin: z.boolean().optional(),
   userCount: z.number().optional(),
   agentCount: z.number().optional(),
+  agentDir: z.string().optional(),
   workDir: z.string().optional(),
   workDirs: z.array(z.string()).optional(),
 })
@@ -22,6 +24,7 @@ const requestSchema = z.object({
   context: contextSchema,
   environment: z.record(z.string(), z.json()).default({}),
   // Set by the authenticated backend from its trusted invoker/workspace state
+  authorizedAgentId: z.string().optional(),
   authorizedWorkDir: z.string().optional(),
   authorizedWorkDirs: z.array(z.string()).optional(),
 })
@@ -42,7 +45,9 @@ evaluationRoutes.post('/prompts', async (c) => {
     !('type' in item) && item.enabled ? [index] : [],
   )
   const texts = indices.map((index) => z.string().parse(items[index].content))
-  const result = await evaluateInWorker({ ...input, texts, kind: 'prompt' })
+  const result = await withAgentFiles(input.authorizedAgentId, () =>
+    evaluateInWorker({ ...input, texts, kind: 'prompt' }),
+  )
   const rendered = [...items]
   indices.forEach((index, offset) => {
     rendered[index] = { ...items[index], content: result.texts[offset] }
@@ -60,7 +65,9 @@ evaluationRoutes.post('/message', async (c) => {
     part.type === 'text' ? [index] : [],
   )
   const texts = indices.map((index) => z.string().parse(parts[index].text))
-  const result = await evaluateInWorker({ ...input, texts, kind: 'message' })
+  const result = await withAgentFiles(input.authorizedAgentId, () =>
+    evaluateInWorker({ ...input, texts, kind: 'message' }),
+  )
   const rendered = [...parts]
   indices.forEach((index, offset) => {
     rendered[index] = { ...parts[index], text: result.texts[offset] }

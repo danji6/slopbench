@@ -1,7 +1,7 @@
-# Slopbench (temporary name)
+# Slopbench
 
-A self-hosted, collaborative AI workspace for agentic work, creative writing and
-general AI use.
+Slopbench (temporary name) is a self-hosted, collaborative AI workspace for
+agentic work, creative writing and general AI use.
 
 [![Download the latest release](https://img.shields.io/github/v/release/danji6/slopbench?style=for-the-badge&label=Download&labelColor=%231f6feb&color=%23238636)](https://github.com/danji6/slopbench/releases/latest)
 

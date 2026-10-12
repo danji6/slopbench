@@ -8,12 +8,12 @@ import type {
 import { MAX_BINARY_LINK_BYTES } from '@sb/core/workspace/files'
 
 import { api, internal } from '../../_generated/api'
-import type { Id } from '../../_generated/dataModel'
+import type { Doc, Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import { authorizeAdmin } from '../../functions'
 import { decodeBase64 } from '../../model/io/base64'
-import type { ApprovalMode, SessionMode } from '../../types'
+import type { ApprovalMode, Session, SessionMode } from '../../types'
 
 export async function createSession(
   ctx: ActionCtx,
@@ -159,7 +159,14 @@ export async function restoreCheckpoint(
   args: { sessionId: Id<'sessions'> },
 ): Promise<{ restored: string; checkpointId: string }> {
   const data = await requireAdminWorkspaceAction(ctx, args.sessionId)
-  if (!data.workspace) error('No workspace configured', 409)
+  if (data.agent?.fileOperationId)
+    error('Personal folder is being updated', 409)
+  const { resolvePersonalWorkspace } =
+    await import('../../model/skills/runtime')
+  const workspace = data.agent
+    ? await resolvePersonalWorkspace(data.agent, data.workspace)
+    : data.workspace
+  if (!workspace) error('No filesystem context configured', 409)
   const approvals = await ctx.runQuery(internal.sessions._getApprovals, {
     sessionId: args.sessionId,
   })
@@ -168,8 +175,8 @@ export async function restoreCheckpoint(
     {
       sessionId: args.sessionId,
       allowedPaths: approvals.paths,
-      workspaceId: data.workspace.workspaceId,
-      workspace: data.workspace,
+      workspaceId: workspace.workspaceId,
+      workspace,
     },
   )
 }
@@ -177,7 +184,7 @@ export async function restoreCheckpoint(
 async function requireAdminWorkspaceAction(
   ctx: ActionCtx,
   sessionId: Id<'sessions'>,
-): Promise<{ workspace?: FolderWorkspace }> {
+): Promise<{ workspace?: Session['workspace']; agent?: Doc<'agents'> | null }> {
   const identity = await authorizeAdmin(ctx)
   return ctx.runQuery(internal.sessions._getWorkspaceContext, {
     sessionId,

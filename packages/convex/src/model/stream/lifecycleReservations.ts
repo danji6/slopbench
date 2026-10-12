@@ -94,7 +94,7 @@ export async function reserveInvokeTurn(
   boundaryMessage = announcement ?? boundaryMessage
 
   const agent = await ctx.db.get(session.activeAgentId)
-  if (!agent) return
+  if (!agent || agent.fileOperationId) return
 
   const link = await ctx.db
     .query('sessionAgents')

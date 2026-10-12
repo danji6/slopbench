@@ -7,6 +7,7 @@ import { scheduleTitle, stripMessageError } from '../messages'
 import { announceFolderContext } from '../session/folderAnnouncement'
 import { getSessionWithWorkspace } from '../session/folderContext'
 import * as Memberships from '../session/memberships'
+import { assertAgentAvailable } from '../skills/access'
 import { STREAM_LEASE_MS } from '../stream/lifecycle'
 import { agentIdentity } from './identities'
 
@@ -37,6 +38,7 @@ export async function reserveStream(
 
   const agent = await ctx.db.get(args.agentId)
   if (!agent) error('Agent not found', 404)
+  await assertAgentAvailable(ctx, agent._id)
 
   const session = await getSessionWithWorkspace(ctx, args.sessionId)
   if (session?.contextLock) error('Folder sources are being updated', 409)
@@ -169,6 +171,7 @@ export async function reserveResumableStream(
 
   const agent = await ctx.db.get(args.agentId)
   if (!agent) error('Agent not found', 404)
+  await assertAgentAvailable(ctx, agent._id)
 
   const session = await getSessionWithWorkspace(ctx, args.sessionId)
 
@@ -241,6 +244,7 @@ export async function reserveRetryStream(
 
   const agent = await ctx.db.get(args.agentId)
   if (!agent) error('Agent not found', 404)
+  await assertAgentAvailable(ctx, agent._id)
 
   const [boundary, message] = await Promise.all([
     args.boundaryId ? ctx.db.get(args.boundaryId) : null,

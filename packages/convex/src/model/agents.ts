@@ -1,6 +1,8 @@
+import { internal } from '../_generated/api'
 import type { Doc, Id } from '../_generated/dataModel'
 import { error } from '../errors'
 import type { AuthMutationCtx, AuthQueryCtx } from '../functions'
+import { minRole } from '../lib/roles'
 import type { CreateAgentArgs, Prompt, UpdateAgentArgs } from '../types'
 import { sanitizeSubAgents } from './agent/subagents'
 import * as Avatars from './avatars'
@@ -13,6 +15,8 @@ import { DEFAULT_CONTEXT_OPTIONS, createDefaultAgent } from './defaults'
 import * as Prompts from './prompts'
 import * as Reminders from './reminders'
 import { getByOwnerId } from './settings'
+import { assertAgentIdle } from './skills/access'
+import { start as startFileOperation } from './skills/operations'
 import { stopForSession } from './stream/lifecycle'
 
 /** What the agent pickers and lists render. */
@@ -148,6 +152,8 @@ export async function remove(
   { agentId }: { agentId: Id<'agents'> },
 ) {
   const agent = await requireOwned(ctx, agentId)
+  if (agent.fileOperationId)
+    error('Wait for the personal folder operation to finish', 409)
 
   const settings = await getByOwnerId(ctx, agent.ownerId)
   if (settings?.recentAgentId === agentId) {
@@ -174,6 +180,7 @@ export async function remove(
   await Reminders.removeForAgent(ctx, agentId)
   await removeSessionCache(ctx, agentId)
 
+  await ctx.scheduler.runAfter(0, internal.skills._removeAssignments, { agentId }) // prettier-ignore
   await ctx.db.delete(agentId)
   if (agent.avatarId) await Avatars.removeIfUnreferenced(ctx, agent.avatarId)
 }
@@ -192,7 +199,21 @@ export async function duplicate(
   { agentId }: { agentId: Id<'agents'> },
 ) {
   const agent = await requireOwned(ctx, agentId)
-  const { _id, _creationTime, avatarId: _avatarId, ...copy } = agent
+
+  if (minRole(ctx.role, 'admin'))
+    await assertAgentIdle(ctx, agentId, ctx.userId)
+
+  const {
+    _id,
+    _creationTime,
+    avatarId: _avatarId,
+    homePath: _homePath,
+    resolvedHomePath: _resolvedHomePath,
+    homeRevision: _homeRevision,
+    pendingHomePath: _pendingHomePath,
+    fileOperationId: _fileOperationId,
+    ...copy
+  } = agent
 
   const duplicateId = await ctx.db.insert('agents', {
     ...copy,
@@ -200,6 +221,9 @@ export async function duplicate(
   })
   await Prompts.copyForAgent(ctx, agentId, duplicateId, ctx.userId)
   await Reminders.copyForAgent(ctx, agentId, duplicateId, ctx.userId)
+
+  if (minRole(ctx.role, 'admin'))
+    await startFileOperation(ctx, { kind: 'duplicate', agentId, duplicateId })
 
   return duplicateId
 }

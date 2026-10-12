@@ -25,8 +25,9 @@ export async function checkPaths(
   root: string,
   input: { paths: string[]; allowedPaths?: string[]; literal?: boolean },
   roots: string[] = [root],
+  grantRoot = root,
 ): Promise<PathCheckResult> {
-  const grants = await resolvePathGrants(root, input.allowedPaths ?? [])
+  const grants = await resolvePathGrants(grantRoot, input.allowedPaths ?? [])
 
   const result: PathCheckResult = {
     flagged: [],

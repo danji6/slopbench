@@ -83,6 +83,11 @@ export const SESSION_ENV: SessionEnvEntry[] = [
     description: 'Number of agents participating in the session',
   },
   {
+    name: 'agentDir',
+    description:
+      'Absolute path of the active agent’s personal folder',
+  },
+  {
     name: 'workDir',
     description: 'Absolute path of the workspace directory',
   },

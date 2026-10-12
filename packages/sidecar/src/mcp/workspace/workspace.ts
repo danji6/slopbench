@@ -9,8 +9,8 @@ import {
   stripBom,
 } from '@sb/core/workspace/edit'
 import {
+  copyFile,
   mkdir,
-  readFile,
   realpath,
   rm,
   stat,
@@ -19,6 +19,9 @@ import {
 import path from 'node:path'
 import { z } from 'zod'
 
+import { withAgentFiles } from '../../agent-files/access'
+import { assertPlainPath } from '../../agent-files/storage'
+import { readTextPage } from '../../files/read-text'
 import { assertCheckpointTarget, isOutside, resolveToolPath } from './access'
 import { checkPaths } from './check-paths'
 import { runCommand } from './command'
@@ -30,8 +33,6 @@ import {
   updateStore,
   withFileQueue,
 } from './store'
-
-const MAX_READ_BYTES = 50_000
 
 export const restoreCheckpointSchema = z.object({
   allowedPaths: z.array(z.string()).optional(),
@@ -60,6 +61,7 @@ async function readWorkspaceFileImpl(input: {
   allowedPaths?: string[]
   offset?: number
   limit?: number
+  byteOffset?: number
 }) {
   const workspace = await requireWorkspace(
     input.sessionId,
@@ -71,30 +73,11 @@ async function readWorkspaceFileImpl(input: {
     input.filePath,
     input.allowedPaths,
     workspace.roots,
+    workspace.grantRoot,
   )
-  const buffer = await readFile(target.absolutePath)
-  const raw = buffer.toString('utf-8')
-  const lines = raw.split(/\r?\n/)
-  const offset = Math.max(1, input.offset ?? 1)
-  const start = offset - 1
-  const selected =
-    input.limit && input.limit > 0
-      ? lines.slice(start, start + input.limit)
-      : lines.slice(start)
-
-  let content = selected.join('\n')
-  let truncated = false
-  if (content.length > MAX_READ_BYTES) {
-    content = `${content.slice(0, MAX_READ_BYTES)}\n[truncated]`
-    truncated = true
-  }
-
   return {
     path: target.relativePath,
-    content,
-    totalLines: lines.length,
-    offset,
-    truncated,
+    ...(await readTextPage(target.absolutePath, input)),
   }
 }
 
@@ -116,6 +99,7 @@ async function writeWorkspaceFileImpl(input: {
     input.filePath,
     input.allowedPaths,
     workspace.roots,
+    workspace.grantRoot,
   )
 
   return withFileQueue(target.absolutePath, async () => {
@@ -186,6 +170,7 @@ async function editWorkspaceFileImpl(input: {
     input.filePath,
     input.allowedPaths,
     workspace.roots,
+    workspace.grantRoot,
   )
 
   return withFileQueue(target.absolutePath, async () => {
@@ -248,6 +233,7 @@ async function previewWorkspaceDiffImpl(
         input.filePath,
         input.allowedPaths,
         workspace.roots,
+        workspace.grantRoot,
       )
       const snapshot = await readSnapshot(target.absolutePath)
       const baseContent = normalizeToLf(stripBom(snapshot.content ?? '').text)
@@ -271,6 +257,7 @@ async function previewWorkspaceDiffImpl(
         input.filePath,
         input.allowedPaths,
         workspace.roots,
+        workspace.grantRoot,
       )
       const snapshot = await readSnapshot(target.absolutePath)
       const baseContent = normalizeToLf(stripBom(snapshot.content ?? '').text)
@@ -325,7 +312,7 @@ async function checkFlaggedPathsImpl(input: {
     input.workspaceId,
     input.workspace,
   )
-  return checkPaths(workspace.root, input, workspace.roots)
+  return checkPaths(workspace.root, input, workspace.roots, workspace.grantRoot)
 }
 
 async function restoreLatestCheckpointImpl(
@@ -363,13 +350,13 @@ async function restoreLatestCheckpointImpl(
         checkpoint.absolutePath,
         input.allowedPaths,
         workspace.roots,
+        workspace.grantRoot,
       )
       if (!checkpoint.existed) {
         await rm(checkpoint.absolutePath, { force: true })
       } else if (checkpoint.contentPath) {
-        const content = await readFile(checkpoint.contentPath, 'utf-8')
         await mkdir(path.dirname(checkpoint.absolutePath), { recursive: true })
-        await writeFile(checkpoint.absolutePath, content, 'utf-8')
+        await copyFile(checkpoint.contentPath, checkpoint.absolutePath)
       }
       state.checkpoints = state.checkpoints.filter(
         (item) => item.checkpointId !== checkpoint.checkpointId,
@@ -402,11 +389,27 @@ export async function requireWorkspace(
     if (roots[0] !== context.path)
       throw new Error('Primary source does not match the workspace')
 
+    if (context.agentHome) {
+      await assertPlainPath(context.agentHome.path)
+      if (
+        (await realpath(context.agentHome.path)) !== context.agentHome.path ||
+        !(await stat(context.agentHome.path)).isDirectory()
+      )
+        throw new Error('Personal folder changed')
+    }
     return {
       workspaceId,
       sessionId,
       root: roots[0]!,
-      roots,
+      roots: [
+        ...new Set([
+          ...roots,
+          ...(context.agentHome
+            ? [await realpath(context.agentHome.path)]
+            : []),
+        ]),
+      ],
+      grantRoot: context.approvalRoot ?? roots[0]!,
       label: context.label,
     }
   }
@@ -418,8 +421,15 @@ export async function resolveExistingFile(
   filePath: string,
   allowedPaths?: string[],
   roots?: string[],
+  grantRoot?: string,
 ) {
-  const target = await resolveToolPath(root, filePath, allowedPaths, roots)
+  const target = await resolveToolPath(
+    root,
+    filePath,
+    allowedPaths,
+    roots,
+    grantRoot,
+  )
   const fileStat = await stat(target.absolutePath)
   if (!fileStat.isFile()) throw new Error('Path is not a file')
   return target
@@ -445,8 +455,9 @@ async function resolveWritablePath(
   filePath: string,
   allowedPaths?: string[],
   roots?: string[],
+  grantRoot?: string,
 ) {
-  return resolveToolPath(root, filePath, allowedPaths, roots)
+  return resolveToolPath(root, filePath, allowedPaths, roots, grantRoot)
 }
 
 const MAX_DIFF_BYTES = 50_000
@@ -459,55 +470,63 @@ function capDiff(diff: string): string {
 export function readWorkspaceFile(
   input: Parameters<typeof readWorkspaceFileImpl>[0],
 ) {
-  return withWorkspaceOperation(input.sessionId, () =>
-    readWorkspaceFileImpl(input),
+  return withAgentFiles(input.workspace?.agentHome?.agentId, () =>
+    withWorkspaceOperation(input.sessionId, () => readWorkspaceFileImpl(input)),
   )
 }
 
 export function writeWorkspaceFile(
   input: Parameters<typeof writeWorkspaceFileImpl>[0],
 ) {
-  return withWorkspaceOperation(input.sessionId, () =>
-    writeWorkspaceFileImpl(input),
+  return withAgentFiles(input.workspace?.agentHome?.agentId, () =>
+    withWorkspaceOperation(input.sessionId, () =>
+      writeWorkspaceFileImpl(input),
+    ),
   )
 }
 
 export function editWorkspaceFile(
   input: Parameters<typeof editWorkspaceFileImpl>[0],
 ) {
-  return withWorkspaceOperation(input.sessionId, () =>
-    editWorkspaceFileImpl(input),
+  return withAgentFiles(input.workspace?.agentHome?.agentId, () =>
+    withWorkspaceOperation(input.sessionId, () => editWorkspaceFileImpl(input)),
   )
 }
 
 export function previewWorkspaceDiff(
   input: Parameters<typeof previewWorkspaceDiffImpl>[0],
 ) {
-  return withWorkspaceOperation(input.sessionId, () =>
-    previewWorkspaceDiffImpl(input),
+  return withAgentFiles(input.workspace?.agentHome?.agentId, () =>
+    withWorkspaceOperation(input.sessionId, () =>
+      previewWorkspaceDiffImpl(input),
+    ),
   )
 }
 
 export function runWorkspaceCommand(
   input: Parameters<typeof runWorkspaceCommandImpl>[0],
 ) {
-  return withWorkspaceOperation(input.sessionId, () =>
-    runWorkspaceCommandImpl(input),
+  return withAgentFiles(input.workspace?.agentHome?.agentId, () =>
+    withWorkspaceOperation(input.sessionId, () =>
+      runWorkspaceCommandImpl(input),
+    ),
   )
 }
 
 export function checkFlaggedPaths(
   input: Parameters<typeof checkFlaggedPathsImpl>[0],
 ) {
-  return withWorkspaceOperation(input.sessionId, () =>
-    checkFlaggedPathsImpl(input),
+  return withAgentFiles(input.workspace?.agentHome?.agentId, () =>
+    withWorkspaceOperation(input.sessionId, () => checkFlaggedPathsImpl(input)),
   )
 }
 
 export function restoreLatestCheckpoint(
   input: Parameters<typeof restoreLatestCheckpointImpl>[0],
 ) {
-  return withWorkspaceOperation(input.sessionId, () =>
-    restoreLatestCheckpointImpl(input),
+  return withAgentFiles(input.workspace?.agentHome?.agentId, () =>
+    withWorkspaceOperation(input.sessionId, () =>
+      restoreLatestCheckpointImpl(input),
+    ),
   )
 }

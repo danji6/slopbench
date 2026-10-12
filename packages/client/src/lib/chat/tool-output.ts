@@ -3,6 +3,7 @@ import type { ToolUIPart } from 'ai'
 export type ReadFileOutput = {
   path: string
   content?: string
+  nextByteOffset?: number
   totalLines?: number
   offset?: number
   truncated?: boolean

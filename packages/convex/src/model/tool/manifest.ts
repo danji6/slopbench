@@ -95,7 +95,12 @@ export function resolveToolManifest(data: ManifestInput): ToolManifest {
     ASK_TOOL_NAME,
     ...workspaceTools,
   ]
-  const reserved = new Set([...builtins, 'shell_output', 'kill_shell'])
+  const reserved = new Set([
+    ...builtins,
+    'shell_output',
+    'kill_shell',
+    'list_skills',
+  ])
 
   const names: string[] = []
   const mcp: McpManifestEntry[] = []
@@ -135,6 +140,8 @@ export function resolveToolManifest(data: ManifestInput): ToolManifest {
   for (const name of workspaceTools) take(name)
   // Companions ride along with shell rather than being separately selectable
   if (names.includes('shell')) names.push('shell_output', 'kill_shell')
+  if (admin && names.includes('read_file') && data.session.workspace?.agentHome)
+    names.push('list_skills')
 
   if (admin && selected.has(PLAN_TOOL_TOGGLE)) {
     names.push('write_plan', 'edit_plan')

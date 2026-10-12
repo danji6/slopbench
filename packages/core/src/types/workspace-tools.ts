@@ -2,10 +2,13 @@ import { z } from 'zod'
 
 import { ATTACHMENT_READ_MAX_BYTES } from '../const'
 
+export const fileScopeField = z
+  .enum(['workspace', 'agent'])
+  .optional()
+  .describe('Root for relative paths; "agent" selects your personal folder')
+
 export const readAttachmentFields = {
-  reference: z
-    .string()
-    .describe('Attachment reference to read'),
+  reference: z.string().describe('Attachment reference to read'),
   offset: z
     .number()
     .int()
@@ -24,15 +27,35 @@ export const readAttachmentFields = {
 } as const
 
 export const readFileFields = {
-  path: z.string().describe('Workspace-relative path to read'),
-  offset: z.number().optional().describe('1-indexed line offset'),
-  limit: z.number().optional().describe('Maximum lines to read'),
+  scope: fileScopeField,
+  path: z.string().describe('Relative or absolute path to read'),
+  byteOffset: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .describe(
+      'UTF-8 byte offset; use nextByteOffset to continue a truncated read',
+    ),
+  offset: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('1-indexed line offset'),
+  limit: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('Maximum lines to read'),
 } as const
 
 export const writeFileFields = {
+  scope: fileScopeField,
   path: z
-    .string({ error: 'path is required: a workspace-relative file path.' })
-    .describe('Workspace-relative path to write'),
+    .string({ error: 'path is required: a relative or absolute file path.' })
+    .describe('Relative or absolute path to write'),
   content: z
     .string({
       error:
@@ -42,9 +65,10 @@ export const writeFileFields = {
 } as const
 
 export const editFileFields = {
+  scope: fileScopeField,
   path: z
-    .string({ error: 'path is required: a workspace-relative file path.' })
-    .describe('Workspace-relative path to edit'),
+    .string({ error: 'path is required: a relative or absolute file path.' })
+    .describe('Relative or absolute path to edit'),
   edits: z
     .array(
       z.object(

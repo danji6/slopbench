@@ -1,3 +1,5 @@
+import type { AgentHome } from '../skills/types'
+
 export type WorkspaceTextLink = {
   kind: 'text'
   path: string
@@ -53,6 +55,9 @@ export type WorkspaceFileListing = { files: string[]; truncated: boolean }
 
 /** Folder-owned authority passed only across authenticated server boundaries. */
 export type FolderWorkspace = {
+  agentHome?: AgentHome
+  agentOnly?: boolean
+  approvalRoot?: string
   workspaceId: string
   folderId?: string
   revision?: number

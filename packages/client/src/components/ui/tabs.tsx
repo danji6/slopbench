@@ -272,7 +272,10 @@ function TabsPanels({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="tabs-panels"
-      className={cn('relative flex min-h-0 flex-1 flex-col', className)}
+      className={cn(
+        'relative flex min-h-0 flex-1 flex-col overflow-x-clip',
+        className,
+      )}
       {...props}
     />
   )

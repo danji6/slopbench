@@ -33,6 +33,8 @@ import {
   createShellOutputTool,
   createShellTool,
 } from './shellTools'
+import { createListSkillsTool } from './skills'
+import type { SkillsContext } from './skills'
 import { createTaskTool } from './task'
 import { createEditTodoTool, createWriteTodoTool } from './todo'
 import { createWebFetchTool, createWebSearchTool } from './web'
@@ -103,6 +105,10 @@ export async function getEnabledTools(
       mcpByName,
       resources: resources ?? EMPTY_TOOL_RESOURCES,
       workspace,
+      skillsContext:
+        ctx && options?.agentId && session?.workspace
+          ? { ctx, agentId: options.agentId, workspace: session.workspace }
+          : undefined,
       planContext,
       mcpExecution:
         ctx && sessionId && options?.agentId
@@ -168,15 +174,18 @@ async function resolveApprovals(
 
 type AnyTool = ToolSet[string]
 
+type McpExecution = (
+  serverKey: string,
+) => ReturnType<NonNullable<Parameters<typeof createExternalMcpTool>[2]>>
+
 type BuildContext = {
+  skillsContext?: SkillsContext
   manifest: ToolManifest
   mcpByName: Map<string, McpManifestEntry>
   resources: ToolResources
   workspace?: WorkspaceToolContext
   planContext?: PlanToolContext
-  mcpExecution?: (
-    serverKey: string,
-  ) => ReturnType<NonNullable<Parameters<typeof createExternalMcpTool>[2]>>
+  mcpExecution?: McpExecution
 }
 
 /** Constructs one tool by its cached name. */
@@ -193,6 +202,8 @@ async function createManifestTool(
       return createWebSearchTool(build.resources.settings)
     case READ_ATTACHMENT_TOOL_NAME:
       return (planContext && (createReadAttachmentTool(planContext.ctx) as Promise<AnyTool>)) // prettier-ignore
+    case 'list_skills':
+      return build.skillsContext && createListSkillsTool(build.skillsContext)
     case 'read_file':
       return workspace && createReadFileTool(workspace)
     case 'write_file':
@@ -226,6 +237,7 @@ async function createManifestTool(
 
   const entry = build.mcpByName.get(name)
   if (!entry) return undefined
+
   return createExternalMcpTool(
     entry,
     build.resources.mcpServers,

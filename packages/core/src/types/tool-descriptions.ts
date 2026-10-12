@@ -5,8 +5,10 @@ const web_fetch = 'Fetch a web page and return its main content as markdown.'
 
 const web_search = 'Search the web and return a list of results.'
 
-const read_file =
-  'Read a text file. Use this instead of cat/sed for file inspection.'
+const read_file = inline`Read a bounded text page. Use this instead of cat/sed
+  for inspection. When truncated, pass nextByteOffset as byteOffset to continue.
+  Pass "agent" scope to read personal files or "workspace" (the default) for
+  project files.`
 
 const read_attachment = inline`
   Read a bounded UTF-8 byte range from an attachment reference. Use the returned
@@ -14,8 +16,8 @@ const read_attachment = inline`
   this tool in parallel with disjoint offsets when several ranges are needed.`
 
 const write_file = inline`
-  Create or overwrite a text file in the configured coding workspace.
-  Prefer edit_file for targeted changes.`
+  Create or overwrite a text file in the selected filesystem scope. Prefer
+  edit_file for targeted changes.`
 
 const edit_file = inline`
   Edit a text file using exact, unique replacements. Pass the changes as
@@ -27,10 +29,10 @@ const edit_file = inline`
 export function shellToolDescription(shell?: string): string {
   const where = shell ? ` with ${shellLabel(shell)}` : ''
   return inline`
-    Run a shell command in the workspace${where}. Set run_in_background for
-    long-running commands and read them later with shell_output. Pass a
-    description whenever the command isn't self-explanatory, so the user can
-    review it at a glance.`
+    Run a shell command${where} in the primary project source, or your personal
+    folder when no project is configured. Set run_in_background for long-running
+    commands and read them later with shell_output. Pass a description whenever
+    the command isn't self-explanatory, so the user can review it at a glance.`
 }
 
 const shell_output = inline`
@@ -90,6 +92,11 @@ const task = [
     exactly what the final report should contain.`,
 ].join('\n')
 
+const skills = inline`
+  'List your skills. Use search to match a skill name or cursor to continue a
+  page. Read the chosen SKILL.md using read_file with "agent" scope before
+  following it.'`
+
 export const TOOL_DESCRIPTIONS = {
   web_fetch,
   web_search,
@@ -107,4 +114,5 @@ export const TOOL_DESCRIPTIONS = {
   edit_todo,
   ask,
   task,
+  skills,
 } as const

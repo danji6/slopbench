@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
+import { readEditSnapshot } from '../../files/read-snapshot'
+
 const DATA_DIR = process.env.CHAT_SIDECAR_DATA_DIR
 if (!DATA_DIR) throw new Error('Sidecar data directory must be set.')
 
@@ -41,7 +43,7 @@ export async function readSnapshot(
   try {
     const targetStat = await stat(absolutePath)
     if (!targetStat.isFile()) throw new Error('Path is not a file')
-    return { existed: true, content: await readFile(absolutePath, 'utf-8') }
+    return { existed: true, content: await readEditSnapshot(absolutePath) }
   } catch (error) {
     // Only a missing file may be checkpointed without its previous contents
     if (

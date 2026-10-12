@@ -5,12 +5,15 @@ import {
   languageFromPath,
   parseOutputValue,
 } from '@/lib/chat/tool-output'
+import { isRelativeFilePath } from '@sb/core/workspace/personal'
+import type { FileScope } from '@sb/core/workspace/personal'
 import type { ToolUIPart } from 'ai'
 
 import { LoadFullOutput } from './load-full-output'
 import { ToolShell } from './tool-shell'
 
 type FileChangeInput = {
+  scope?: FileScope
   path?: string
   content?: string
   edits?: unknown
@@ -51,6 +54,7 @@ export function FileChangeBlock({
       : undefined
 
   const path = output?.path ?? previewPath ?? input?.path
+  const personal = input?.scope === 'agent' && path && isRelativeFilePath(path)
   const diff = output?.diff ?? previewDiff ?? undefined
 
   const showContentFallback = !diff && Boolean(input?.content)
@@ -77,6 +81,7 @@ export function FileChangeBlock({
       label={
         <>
           {verb}
+          {personal && ' personal file'}
           {path && ' '}
           <span className="text-foreground font-mono">{path ?? '…'}</span>
         </>

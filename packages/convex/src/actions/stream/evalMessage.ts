@@ -3,8 +3,10 @@
 import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
+import { minRole } from '../../lib/roles'
 import { partsHaveScript } from '../../model/messages'
 import { postSidecar } from '../../model/sidecar'
+import { resolvePersonalWorkspace } from '../../model/skills/runtime'
 import { resolveToolManifest } from '../../model/tool/manifest'
 import { buildEvalContext } from './evalContext'
 
@@ -52,6 +54,9 @@ export async function _evalMessage(
   } = data
   if (!partsHaveScript(message.parts)) return
 
+  if (minRole(invoker.role, 'admin'))
+    session.workspace = await resolvePersonalWorkspace(agent, session.workspace)
+
   const context = buildEvalContext({
     agent,
     invoker,
@@ -74,6 +79,10 @@ export async function _evalMessage(
   const result = await postSidecar<MessageEvalResult>('/eval/message', {
     parts: message.parts,
     context,
+    authorizedAgentId:
+      context.isAdmin && context.tools?.includes('read_file')
+        ? agent._id
+        : undefined,
     authorizedWorkDirs:
       context.isAdmin && context.tools?.includes('read_file')
         ? context.workDirs

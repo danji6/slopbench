@@ -3,6 +3,7 @@ export type PtyMode = 'pty' | 'script' | 'pipe'
 export type ShellJobStatus = 'running' | 'done' | 'killed' | 'timeout'
 
 export type StartShellJobInput = {
+  agentId?: string
   sessionId: string
   /** Whoever's stop terminates this job. */
   owner?: string
@@ -22,6 +23,7 @@ export type StartShellJobInput = {
 }
 
 export type ShellJobSummary = {
+  agentId?: string
   jobId: string
   messageId?: string
   messageCreatedAt?: number

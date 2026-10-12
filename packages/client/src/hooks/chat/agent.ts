@@ -130,6 +130,7 @@ export function useAgentPrompts(workDir?: string) {
       userCount: 1,
       agentCount: agent ? 1 : 0,
       workDir: workDir ?? session?.workspace?.path,
+      agentDir: agent?.resolvedHomePath,
     }
 
     const messages = merged

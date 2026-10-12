@@ -3,6 +3,7 @@ import { isKnownTextFile } from '@sb/core/workspace/files'
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { QueryCtx } from '../../_generated/server'
 import type { AuthQueryCtx } from '../../functions'
+import { minRole } from '../../lib/roles'
 import { sharedSessionId } from '../../lib/subagent'
 import { resolveSpawnableAgents } from '../agent/subagents'
 import {
@@ -91,7 +92,12 @@ export async function _getContext(
       : []
 
   const sessionCache = invocation
-    ? await getSessionCache(ctx, stream.sessionId, stream.agentId)
+    ? await getSessionCache(
+        ctx,
+        stream.sessionId,
+        stream.agentId,
+        minRole(invoker.role, 'admin'),
+      )
     : null
 
   const state = await getState(ctx, stream.sessionId)

@@ -1,145 +1,41 @@
-import { OperationPromptList } from '@/components/chat/prompts'
-import { md } from '@/components/markdown'
-import { SettingsList } from '@/components/ui'
-import { usePromptItems } from '@/hooks/chat'
-import type { MathMode, ScrollMode } from '@/lib/chat'
-import {
-  createDefaultCompactionPrompts,
-  createDefaultImpersonationPrompts,
-} from '@sb/convex/model/defaults'
+import { AgentFiles } from '@/components/chat/skills/agent-files'
+import { AgentSkills } from '@/components/chat/skills/agent-skills'
+import { Tabs } from '@/components/ui'
+import type { Id } from '@sb/convex/_generated/dataModel'
+import { useState } from 'react'
 import type { Control } from 'react-hook-form'
-import { Controller } from 'react-hook-form'
 
-import { promptHelp } from '../prompt-help'
 import type { AgentFormValues } from './agent-form'
-import { AgentPromptList } from './agent-prompt-list'
-import { AgentReminderList } from './agent-reminder-list'
-import { OverrideLabel, OverrideSection } from './override-section'
+import { BehaviorGeneralSettings } from './behavior-general-settings'
 
-export function BehaviorSettings({
-  control,
-}: {
+type BehaviorSettingsProps = {
   control: Control<AgentFormValues>
-}) {
-  const userCompaction = usePromptItems('compaction')
-  const userImpersonation = usePromptItems('impersonation')
+  agentId?: Id<'agents'>
+}
 
+export function BehaviorSettings({ control, agentId }: BehaviorSettingsProps) {
+  const [tab, setTab] = useState('behavior')
   return (
-    <SettingsList>
-      <SettingsList.Item
-        unclickable
-        unhoverable
-        orientation="vertical"
-        label="Prompts"
-        help={promptHelp()}
+    <Tabs variant="hug" value={tab} onValueChange={setTab}>
+      <Tabs.List
+        aria-label="Behavior settings"
+        className="bg-background sticky top-0 z-20 shrink-0"
       >
-        <AgentPromptList control={control} />
-      </SettingsList.Item>
-
-      <SettingsList.Item
-        unclickable
-        unhoverable
-        orientation="vertical"
-        label="Reminders"
-        help={md`
-          Reminders are injected into the conversation at intervals. Add
-          reminders of this agent's own, or pull reusable ones from your
-          reminder library. Library reminders are edited in your user settings.
-        `}
-      >
-        <AgentReminderList control={control} />
-      </SettingsList.Item>
-
-      <OverrideSection
-        control={control}
-        name="compactionPrompts"
-        label="Compaction prompts"
-        seed={() =>
-          userCompaction.length
-            ? userCompaction
-            : createDefaultCompactionPrompts()
-        }
-      >
-        {(value, onChange) => (
-          <OperationPromptList
-            prompts={value}
-            onChange={onChange}
-            kind="compaction"
-            createDefaults={createDefaultCompactionPrompts}
-          />
-        )}
-      </OverrideSection>
-
-      <OverrideSection
-        control={control}
-        name="impersonationPrompts"
-        label="Impersonation prompts"
-        seed={() =>
-          userImpersonation.length
-            ? userImpersonation
-            : createDefaultImpersonationPrompts()
-        }
-      >
-        {(value, onChange) => (
-          <OperationPromptList
-            prompts={value}
-            onChange={onChange}
-            kind="impersonation"
-            createDefaults={createDefaultImpersonationPrompts}
-          />
-        )}
-      </OverrideSection>
-
-      <Controller
-        control={control}
-        name="scrollMode"
-        render={({ field }) => (
-          <SettingsList.Select
-            unclickable
-            unhoverable
-            label={<OverrideLabel>Scroll mode</OverrideLabel>}
-            value={field.value ?? ''}
-            onValueChange={(v) => field.onChange((v as ScrollMode) || null)}
-            placeholder="Default"
-          >
-            <SettingsList.Select.Item value="">
-              Default
-            </SettingsList.Select.Item>
-            <SettingsList.Select.Item value="follow">
-              Follow
-            </SettingsList.Select.Item>
-            <SettingsList.Select.Item value="into-view">
-              Into View
-            </SettingsList.Select.Item>
-          </SettingsList.Select>
-        )}
-      />
-
-      <Controller
-        control={control}
-        name="mathMode"
-        render={({ field }) => (
-          <SettingsList.Select
-            unclickable
-            unhoverable
-            label={<OverrideLabel>Math rendering</OverrideLabel>}
-            value={field.value ?? ''}
-            onValueChange={(v) => field.onChange((v as MathMode) || null)}
-            placeholder="Default"
-          >
-            <SettingsList.Select.Item value="">
-              Default
-            </SettingsList.Select.Item>
-            <SettingsList.Select.Item value="off">Off</SettingsList.Select.Item>
-            <SettingsList.Select.Item value="single">
-              Single $…$
-            </SettingsList.Select.Item>
-            <SettingsList.Select.Item value="double">
-              Double $$…$$
-            </SettingsList.Select.Item>
-          </SettingsList.Select>
-        )}
-      />
-    </SettingsList>
+        <Tabs.Trigger value="behavior">Behavior</Tabs.Trigger>
+        <Tabs.Trigger value="skills">Skills</Tabs.Trigger>
+        <Tabs.Trigger value="files">Files</Tabs.Trigger>
+      </Tabs.List>
+      <Tabs.Panels>
+        <Tabs.Content value="behavior">
+          <BehaviorGeneralSettings control={control} />
+        </Tabs.Content>
+        <Tabs.Content value="skills">
+          <AgentSkills agentId={agentId} />
+        </Tabs.Content>
+        <Tabs.Content value="files">
+          <AgentFiles agentId={agentId} />
+        </Tabs.Content>
+      </Tabs.Panels>
+    </Tabs>
   )
 }
