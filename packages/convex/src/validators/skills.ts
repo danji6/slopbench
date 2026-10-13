@@ -2,6 +2,8 @@ import { v } from 'convex/values'
 
 export const agentFileKind = v.union(
   v.literal('ensure'),
+  v.literal('detach'),
+  v.literal('delete-home'),
   v.literal('install'),
   v.literal('assign'),
   v.literal('delete-assigned'),
@@ -18,6 +20,7 @@ export const fileOperationArgs = v.object({
   storageId: v.optional(v.id('_storage')),
   destination: v.optional(v.string()),
   copyFiles: v.optional(v.boolean()),
+  removeFolder: v.optional(v.boolean()),
   duplicateId: v.optional(v.id('agents')),
 })
 
@@ -35,6 +38,7 @@ export const skillSchema = v.object({
 })
 
 export const agentSkillSchema = v.object({
+  homeId: v.optional(v.id('agentHomes')),
   ownerId: v.id('users'),
   agentId: v.id('agents'),
   skillId: v.id('skills'),
@@ -44,6 +48,10 @@ export const agentSkillSchema = v.object({
 
 export const agentFileOperationSchema = v.object({
   ...fileOperationArgs.fields,
+  homeId: v.optional(v.id('agentHomes')),
+  destinationHomeId: v.optional(v.id('agentHomes')),
+  joinedHome: v.optional(v.boolean()),
+  attempt: v.optional(v.number()),
   ownerId: v.id('users'),
   uploadTicket: v.optional(v.string()),
   finishingHome: v.optional(v.boolean()),

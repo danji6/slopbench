@@ -18,6 +18,12 @@ const context = {
   sessionId: 'path-session',
   ownerId: 'path-session',
   workspaceId: 'workspace',
+  workspace: {
+    workspaceId: 'workspace',
+    path: '/fixture',
+    label: 'Fixture',
+    sources: [{ id: 'fixture', path: '/fixture', label: 'Fixture' }],
+  },
   approvals: async () => live,
   isPlanMode: async () => plan,
 } as WorkspaceToolContext

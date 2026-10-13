@@ -1,6 +1,8 @@
 /** A personal directory resolved across authenticated server boundaries. */
 export type AgentHome = {
   agentId: string
+  homeId?: string
+  originAgentId?: string
   ownerId: string
   path: string
   revision: number

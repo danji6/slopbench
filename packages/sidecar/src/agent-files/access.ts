@@ -7,7 +7,7 @@ const active = new Map<string, number>()
 export async function lockAgent(agentId: string, token: string) {
   if (!transitionActive(token))
     throw new Error('Personal folder operation expired')
-  if (locks.get(agentId)?.split(':').at(-1) === token.split(':').at(-1)) {
+  if (locks.get(agentId) === token) {
     locks.set(agentId, token)
     return
   }

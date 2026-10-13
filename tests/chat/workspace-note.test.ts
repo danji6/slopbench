@@ -62,7 +62,7 @@ describe('workspace note', () => {
     const content = buildWorkspaceNoteContent(ws('old'), undefined)
 
     expect(content).toContain('no folder source directories')
-    expect(content).toContain('A personal folder may still be available')
+    expect(content).toContain('Earlier filesystem context no longer applies')
   })
 })
 

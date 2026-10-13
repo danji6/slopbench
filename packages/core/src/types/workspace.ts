@@ -57,6 +57,7 @@ export type WorkspaceFileListing = { files: string[]; truncated: boolean }
 export type FolderWorkspace = {
   agentHome?: AgentHome
   agentOnly?: boolean
+  fileScope?: 'workspace' | 'agent'
   approvalRoot?: string
   workspaceId: string
   folderId?: string

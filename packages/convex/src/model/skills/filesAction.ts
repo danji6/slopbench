@@ -10,6 +10,7 @@ import type { ActionCtx } from '../../_generated/server'
 import { postSidecar } from '../sidecar'
 import { importSkills } from './importAction'
 import type { OperationContext } from './operations'
+import { importSource } from './uploadAction'
 
 /** Executes durable filesystem work and reconciles its result with Convex. */
 export async function run(
@@ -22,22 +23,34 @@ export async function run(
   )
 
   if (!data || data.operation.status === 'done') return
-  if (!(await ctx.runMutation(internal.skills._running, { operationId }))) return // prettier-ignore
+  const attempt = await ctx.runMutation(internal.skills._running, { operationId }) // prettier-ignore
+  if (!attempt) return
+  data.operation.attempt = attempt
 
   const op = data.operation
-  const token = `${Date.now() + 30 * 60_000}:${operationId}`
+  const token = `${Date.now() + 30 * 60_000}:${operationId}:${attempt}`
   const locked: string[] = []
   try {
-    for (const id of [op.agentId, op.duplicateId]) {
+    const duplicate = op.duplicateId
+      ? await ctx.runQuery(internal.skills._agent, { agentId: op.duplicateId })
+      : null
+    for (const id of [
+      op.homeId ?? op.agentId,
+      duplicate?.homeId ?? op.duplicateId,
+    ]) {
       if (!id) continue
       await postSidecar('/agent-files/lock', { agentId: id, token })
       locked.push(id)
     }
 
-    const result = await execute(ctx, data)
+    const result = await execute(ctx, data, token, locked)
     if (!result) return
 
-    await ctx.runMutation(internal.skills._complete, { operationId, ...result })
+    await ctx.runMutation(internal.skills._complete, {
+      operationId,
+      attempt,
+      ...result,
+    })
 
     const completed =
       op.kind === 'install' && op.storageId
@@ -61,6 +74,7 @@ export async function run(
   } catch (error) {
     await ctx.runMutation(internal.skills._fail, {
       operationId,
+      attempt,
       message: errorMessage(error) ?? 'Filesystem operation failed',
     })
   } finally {
@@ -82,8 +96,12 @@ function operationBase(data: OperationContext) {
   return {
     id: op._id,
     ownerId: op.ownerId,
-    agentId: op.agentId,
-    homePath: agent?.homePath,
+    agentId: op.agentId ?? data.home?.originAgentId,
+    homeId: op.homeId,
+    destinationHomeId: data.destinationHome?._id,
+    destinationOriginAgentId: data.destinationHome?.originAgentId,
+    originAgentId: data.home?.originAgentId,
+    homePath: data.home?.path ?? agent?.homePath,
     skillId: op.skillId,
     name: skill?.name,
   }
@@ -92,16 +110,36 @@ function operationBase(data: OperationContext) {
 async function execute(
   ctx: ActionCtx,
   data: OperationContext,
+  token: string,
+  locked: string[],
 ): Promise<OperationResult | undefined> {
   switch (data.operation.kind) {
+    case 'delete-home':
+      if (!data.home?.managed)
+        throw new Error('Only managed homes may be removed')
+      await postSidecar('/agent-files/operation', {
+        ...operationBase(data),
+        kind: 'delete-home',
+      })
+      return {}
+    case 'detach':
+      if (data.operation.removeFolder) {
+        if (!data.home?.managed)
+          throw new Error('Only managed homes may be removed')
+        await postSidecar('/agent-files/operation', {
+          ...operationBase(data),
+          kind: 'delete-home',
+        })
+      }
+      return { previousPath: data.home?.path }
     case 'ensure':
-      return ensureHome(ctx, data)
+      return changeHome(ctx, data, token, locked)
     case 'install':
       return data.operation.skillId && data.operation.importCursor === undefined
         ? installLibrarySkill(ctx, data)
         : importSkills(ctx, data)
     case 'home':
-      return changeHome(ctx, data)
+      return changeHome(ctx, data, token, locked)
     case 'duplicate':
       return duplicateHome(ctx, data)
     default:
@@ -109,7 +147,7 @@ async function execute(
         ...operationBase(data),
         kind: data.operation.kind,
       })
-      return {}
+      return data.operation.agentId ? ensureHome(ctx, data) : {}
   }
 }
 
@@ -122,6 +160,10 @@ async function ensureHome(
     ownerId: op.ownerId,
     agentId: op.agentId,
     path: agent?.homePath,
+    homeId: op.homeId,
+    destinationHomeId: data.destinationHome?._id,
+    destinationOriginAgentId: data.destinationHome?.originAgentId,
+    originAgentId: data.home?.originAgentId,
     revision: agent?.homeRevision ?? 0,
   })
   return { path: home.path }
@@ -133,38 +175,10 @@ async function installLibrarySkill(
 ): Promise<OperationResult> {
   const { operation: op } = data
   const base = operationBase(data)
-  const fileUrl = op.storageId
-    ? await ctx.storage.getUrl(op.storageId)
-    : undefined
-
-  const upload = op.storageId
-    ? await ctx.runQuery(internal.skills._getUpload, {
-        storageId: op.storageId,
-      })
-    : null
-  if (upload && upload.ownerId !== op.ownerId)
-    throw new Error('Skill upload not found')
-
-  if (fileUrl && op.uploadTicket && !upload?.verified) {
-    const proof = await postSidecar<{ verified: boolean }>(
-      '/agent-files/verify-upload',
-      { fileUrl, ticket: op.uploadTicket },
-    )
-    if (!proof.verified)
-      throw new Error('Skill upload does not belong to this import')
-    if (upload) {
-      await ctx.runMutation(internal.skills._verifyUpload, {
-        uploadId: upload._id,
-      })
-    }
-  }
-
   const metadata = await postSidecar<SkillMetadata>('/agent-files/operation', {
     ...base,
     kind: 'install',
-    source: op.source,
-    fileUrl,
-    ticket: op.uploadTicket,
+    ...(await importSource(ctx, op)),
   })
 
   return { metadata }
@@ -173,24 +187,59 @@ async function installLibrarySkill(
 async function changeHome(
   ctx: ActionCtx,
   data: OperationContext,
+  token: string,
+  locked: string[],
 ): Promise<OperationResult> {
   const { operation: op, agent } = data
-  const base = operationBase(data)
 
-  const prepared = await postSidecar<{ path: string; unchanged: boolean }>(
-    '/agent-files/operation',
+  const destination = await postSidecar<{ path: string; insideData: boolean }>(
+    '/agent-files/destination',
     {
-      ...base,
-      kind: 'prepare-home',
-      destination: op.destination,
-      copyFiles: op.copyFiles,
+      ownerId: op.ownerId,
+      agentId: op.agentId,
+      path: op.kind === 'ensure' ? data.home?.path : op.destination,
+      originAgentId:
+        op.kind === 'ensure' ? data.home?.originAgentId : undefined,
     },
   )
 
-  await validateDestination(ctx, data, prepared.path)
+  const reserved = await ctx.runMutation(internal.skills._reserveDestination, {
+    operationId: op._id,
+    attempt: op.attempt,
+    ...destination,
+  })
 
-  if (!prepared.unchanged && !op.copyFiles)
-    await processAssignments(ctx, data, 'fresh')
+  data.destinationHome = reserved.home
+
+  if (!locked.includes(reserved.home._id)) {
+    await postSidecar('/agent-files/lock', {
+      agentId: reserved.home._id,
+      token,
+    })
+    locked.push(reserved.home._id)
+  }
+
+  if (reserved.joined)
+    return { path: destination.path, previousPath: agent?.resolvedHomePath }
+
+  const base = operationBase(data)
+
+  const prepared = await postSidecar<{
+    path: string
+    unchanged: boolean
+    sourceMissing: boolean
+  }>('/agent-files/operation', {
+    ...base,
+    kind: 'prepare-home',
+    destination: destination.path,
+    copyFiles: op.copyFiles,
+  })
+
+  if (!prepared.unchanged) {
+    if (!op.copyFiles || prepared.sourceMissing)
+      await processAssignments(ctx, data, 'fresh')
+    await processAssignments(ctx, data, 'duplicate')
+  }
 
   const result = await postSidecar<{ path: string }>('/agent-files/operation', {
     ...base,
@@ -236,6 +285,7 @@ async function processAssignments(
     if (mode === 'duplicate') {
       await ctx.runMutation(internal.skills._copyAssignments, {
         operationId: op._id,
+        attempt: op.attempt,
         ids: page.page.map((row) => row._id),
       })
     } else {
@@ -256,15 +306,4 @@ async function processAssignments(
     }
     cursor = page.continueCursor
   }
-}
-
-async function validateDestination(
-  ctx: ActionCtx,
-  data: OperationContext,
-  destination: string,
-) {
-  await ctx.runMutation(internal.skills._reserveDestination, {
-    operationId: data.operation._id,
-    path: destination,
-  })
 }

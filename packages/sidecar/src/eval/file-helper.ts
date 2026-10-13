@@ -60,15 +60,14 @@ function resolveInside(
 export function createFileHelper(
   workDir: string | undefined,
   workDirs?: string[],
-): (filePath: string, wrap?: boolean) => string {
-  const root = resolveRoot(workDir)
-  if (!root) return () => ''
-  const roots = (workDirs ?? [root]).filter(
-    (source) => resolveRoot(source) === source,
-  )
-
-  return (filePath: string, wrap: boolean = true) => {
-    const target = resolveInside(root, filePath, roots)
+  agentDir?: string,
+): (filePath: string, wrap?: boolean, options?: ScopeOptions) => string {
+  return (filePath, wrap = true, options) => {
+    const target = scopedTarget(
+      { workDir, workDirs, agentDir },
+      filePath,
+      options,
+    )
     if (!target) return ''
 
     let content: string
@@ -107,21 +106,62 @@ function readBoundedFile(target: string): string {
 export function createFileExistsHelper(
   workDir: string | undefined,
   workDirs?: string[],
-): (filePath: string) => boolean {
-  const root = resolveRoot(workDir)
-  if (!root) return () => false
-  const roots = (workDirs ?? [root]).filter(
-    (source) => resolveRoot(source) === source,
-  )
-
-  return (filePath: string) => {
+  agentDir?: string,
+): (filePath: string, options?: ScopeOptions) => boolean {
+  return (filePath, options) => {
     try {
-      const target = resolveInside(root, filePath, roots)
+      const target = scopedTarget(
+        { workDir, workDirs, agentDir },
+        filePath,
+        options,
+      )
       return target !== null && statSync(target).isFile()
     } catch {
       return false
     }
   }
+}
+
+type ScopeOptions = { scope?: 'workspace' | 'agent' }
+type HelperRoots = { workDir?: string; workDirs?: string[]; agentDir?: string }
+
+function scopedTarget(
+  input: HelperRoots,
+  filePath: string,
+  options?: ScopeOptions,
+) {
+  const personal = options?.scope === 'agent'
+  const root = resolveRoot(personal ? input.agentDir : input.workDir)
+  if (!root) {
+    if (input.agentDir) {
+      throw new Error(
+        'No project workspace. Use scope: "agent" for personal files.',
+      )
+    }
+    return null
+  }
+
+  const roots = personal
+    ? [root]
+    : (input.workDirs ?? [root]).filter(
+        (source) => resolveRoot(source) === source,
+      )
+  const target = resolveInside(root, filePath, roots)
+  const home = resolveRoot(input.agentDir)
+
+  if (target && home && !personal) {
+    const relative = path.relative(home, target)
+    if (
+      !relative ||
+      (!path.isAbsolute(relative) &&
+        relative !== '..' &&
+        !relative.startsWith(`..${path.sep}`))
+    ) {
+      throw new Error('Personal files require scope: "agent"')
+    }
+  }
+
+  return target
 }
 
 function assertSources(roots: string[], target: string) {
@@ -134,6 +174,7 @@ function assertSources(roots: string[], target: string) {
         !path.isAbsolute(rel)
       )
     })
-  )
+  ) {
     throw new Error('Path escapes the configured workspace sources')
+  }
 }

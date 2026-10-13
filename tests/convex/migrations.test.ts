@@ -8,7 +8,7 @@ import { expect, test } from 'bun:test'
 
 test('schema version advances from the public baseline', () => {
   expect(SCHEMA_BASELINE_VERSION).toBe(12)
-  expect(SCHEMA_MIGRATIONS).toEqual([])
+  expect(SCHEMA_MIGRATIONS).toEqual(['sharedAgentHomes', 'sharedHomeSkills'])
   expect(SCHEMA_MIGRATION_VERSION).toBe(
     SCHEMA_BASELINE_VERSION + SCHEMA_MIGRATIONS.length,
   )

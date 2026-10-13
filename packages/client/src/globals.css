@@ -1,6 +1,8 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+@source './';
+
 @import './styles/theme.css';
 @import './styles/base.css';
 @import './styles/messages.css';

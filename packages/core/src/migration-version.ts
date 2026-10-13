@@ -2,7 +2,10 @@
 export const SCHEMA_BASELINE_VERSION = 12
 
 /** The append-only order for migrations shipped after the public baseline. */
-export const SCHEMA_MIGRATIONS = [] as const
+export const SCHEMA_MIGRATIONS = [
+  'sharedAgentHomes',
+  'sharedHomeSkills',
+] as const
 
 export type SchemaMigrationName = (typeof SCHEMA_MIGRATIONS)[number]
 

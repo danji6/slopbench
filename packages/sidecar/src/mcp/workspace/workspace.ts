@@ -8,6 +8,7 @@ import {
   restoreLineEndings,
   stripBom,
 } from '@sb/core/workspace/edit'
+import { assertPersonalScope } from '@sb/core/workspace/personal'
 import {
   copyFile,
   mkdir,
@@ -75,6 +76,7 @@ async function readWorkspaceFileImpl(input: {
     workspace.roots,
     workspace.grantRoot,
   )
+  assertPersonalScope(input.workspace, target.absolutePath)
   return {
     path: target.relativePath,
     ...(await readTextPage(target.absolutePath, input)),
@@ -102,6 +104,7 @@ async function writeWorkspaceFileImpl(input: {
     workspace.grantRoot,
   )
 
+  assertPersonalScope(input.workspace, target.absolutePath)
   return withFileQueue(target.absolutePath, async () => {
     await assertCheckpointTarget(
       workspace.root,
@@ -173,6 +176,7 @@ async function editWorkspaceFileImpl(input: {
     workspace.grantRoot,
   )
 
+  assertPersonalScope(input.workspace, target.absolutePath)
   return withFileQueue(target.absolutePath, async () => {
     await assertCheckpointTarget(
       workspace.root,
@@ -235,6 +239,7 @@ async function previewWorkspaceDiffImpl(
         workspace.roots,
         workspace.grantRoot,
       )
+      assertPersonalScope(input.workspace, target.absolutePath)
       const snapshot = await readSnapshot(target.absolutePath)
       const baseContent = normalizeToLf(stripBom(snapshot.content ?? '').text)
       const newContent = applyEdits(
@@ -259,6 +264,7 @@ async function previewWorkspaceDiffImpl(
         workspace.roots,
         workspace.grantRoot,
       )
+      assertPersonalScope(input.workspace, target.absolutePath)
       const snapshot = await readSnapshot(target.absolutePath)
       const baseContent = normalizeToLf(stripBom(snapshot.content ?? '').text)
       const newContent = normalizeToLf(stripBom(input.content).text)
@@ -312,7 +318,17 @@ async function checkFlaggedPathsImpl(input: {
     input.workspaceId,
     input.workspace,
   )
-  return checkPaths(workspace.root, input, workspace.roots, workspace.grantRoot)
+  const result = await checkPaths(
+    workspace.root,
+    input,
+    workspace.roots,
+    workspace.grantRoot,
+  )
+  if (input.literal) {
+    for (const item of result.resolved)
+      assertPersonalScope(input.workspace, item.absolutePath)
+  }
+  return result
 }
 
 async function restoreLatestCheckpointImpl(
@@ -330,6 +346,7 @@ async function restoreLatestCheckpointImpl(
 
   if (!latest) throw new Error('No checkpoint to restore')
 
+  assertPersonalScope(input.workspace, latest.absolutePath)
   return withFileQueue(latest.absolutePath, () =>
     updateStore(async (state) => {
       const checkpoint = state.checkpoints
@@ -375,6 +392,11 @@ export async function requireWorkspace(
   context?: FolderWorkspace,
 ) {
   if (context) {
+    if (context.agentOnly && context.fileScope !== 'agent') {
+      throw new Error(
+        'No project workspace. Use scope: "agent" for personal files.',
+      )
+    }
     if (context.workspaceId !== workspaceId || !context.sources?.length)
       throw new Error('Invalid folder workspace context')
 
@@ -394,8 +416,9 @@ export async function requireWorkspace(
       if (
         (await realpath(context.agentHome.path)) !== context.agentHome.path ||
         !(await stat(context.agentHome.path)).isDirectory()
-      )
+      ) {
         throw new Error('Personal folder changed')
+      }
     }
     return {
       workspaceId,
@@ -404,7 +427,7 @@ export async function requireWorkspace(
       roots: [
         ...new Set([
           ...roots,
-          ...(context.agentHome
+          ...(context.agentHome && context.fileScope === 'agent'
             ? [await realpath(context.agentHome.path)]
             : []),
         ]),
@@ -413,6 +436,7 @@ export async function requireWorkspace(
       label: context.label,
     }
   }
+
   throw new Error('Workspace is not configured for this session')
 }
 
@@ -470,63 +494,83 @@ function capDiff(diff: string): string {
 export function readWorkspaceFile(
   input: Parameters<typeof readWorkspaceFileImpl>[0],
 ) {
-  return withAgentFiles(input.workspace?.agentHome?.agentId, () =>
-    withWorkspaceOperation(input.sessionId, () => readWorkspaceFileImpl(input)),
+  return withAgentFiles(
+    input.workspace?.agentHome?.homeId ?? input.workspace?.agentHome?.agentId,
+    () =>
+      withWorkspaceOperation(input.sessionId, () =>
+        readWorkspaceFileImpl(input),
+      ),
   )
 }
 
 export function writeWorkspaceFile(
   input: Parameters<typeof writeWorkspaceFileImpl>[0],
 ) {
-  return withAgentFiles(input.workspace?.agentHome?.agentId, () =>
-    withWorkspaceOperation(input.sessionId, () =>
-      writeWorkspaceFileImpl(input),
-    ),
+  return withAgentFiles(
+    input.workspace?.agentHome?.homeId ?? input.workspace?.agentHome?.agentId,
+    () =>
+      withWorkspaceOperation(input.sessionId, () =>
+        writeWorkspaceFileImpl(input),
+      ),
   )
 }
 
 export function editWorkspaceFile(
   input: Parameters<typeof editWorkspaceFileImpl>[0],
 ) {
-  return withAgentFiles(input.workspace?.agentHome?.agentId, () =>
-    withWorkspaceOperation(input.sessionId, () => editWorkspaceFileImpl(input)),
+  return withAgentFiles(
+    input.workspace?.agentHome?.homeId ?? input.workspace?.agentHome?.agentId,
+    () =>
+      withWorkspaceOperation(input.sessionId, () =>
+        editWorkspaceFileImpl(input),
+      ),
   )
 }
 
 export function previewWorkspaceDiff(
   input: Parameters<typeof previewWorkspaceDiffImpl>[0],
 ) {
-  return withAgentFiles(input.workspace?.agentHome?.agentId, () =>
-    withWorkspaceOperation(input.sessionId, () =>
-      previewWorkspaceDiffImpl(input),
-    ),
+  return withAgentFiles(
+    input.workspace?.agentHome?.homeId ?? input.workspace?.agentHome?.agentId,
+    () =>
+      withWorkspaceOperation(input.sessionId, () =>
+        previewWorkspaceDiffImpl(input),
+      ),
   )
 }
 
 export function runWorkspaceCommand(
   input: Parameters<typeof runWorkspaceCommandImpl>[0],
 ) {
-  return withAgentFiles(input.workspace?.agentHome?.agentId, () =>
-    withWorkspaceOperation(input.sessionId, () =>
-      runWorkspaceCommandImpl(input),
-    ),
+  return withAgentFiles(
+    input.workspace?.agentHome?.homeId ?? input.workspace?.agentHome?.agentId,
+    () =>
+      withWorkspaceOperation(input.sessionId, () =>
+        runWorkspaceCommandImpl(input),
+      ),
   )
 }
 
 export function checkFlaggedPaths(
   input: Parameters<typeof checkFlaggedPathsImpl>[0],
 ) {
-  return withAgentFiles(input.workspace?.agentHome?.agentId, () =>
-    withWorkspaceOperation(input.sessionId, () => checkFlaggedPathsImpl(input)),
+  return withAgentFiles(
+    input.workspace?.agentHome?.homeId ?? input.workspace?.agentHome?.agentId,
+    () =>
+      withWorkspaceOperation(input.sessionId, () =>
+        checkFlaggedPathsImpl(input),
+      ),
   )
 }
 
 export function restoreLatestCheckpoint(
   input: Parameters<typeof restoreLatestCheckpointImpl>[0],
 ) {
-  return withAgentFiles(input.workspace?.agentHome?.agentId, () =>
-    withWorkspaceOperation(input.sessionId, () =>
-      restoreLatestCheckpointImpl(input),
-    ),
+  return withAgentFiles(
+    input.workspace?.agentHome?.homeId ?? input.workspace?.agentHome?.agentId,
+    () =>
+      withWorkspaceOperation(input.sessionId, () =>
+        restoreLatestCheckpointImpl(input),
+      ),
   )
 }

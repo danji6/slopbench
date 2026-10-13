@@ -145,6 +145,12 @@ export type CompleteAgentFileArgs = Infer<typeof V.completeAgentFileArgsValidato
 export type PrepareSkillImportArgs = Infer<typeof V.prepareSkillImportArgsValidator> // prettier-ignore
 export type FinishSkillImportArgs = Infer<typeof V.finishSkillImportArgsValidator> // prettier-ignore
 export type InvalidateAgentHomeArgs = Infer<typeof V.invalidateAgentHomeArgsValidator> // prettier-ignore
+export type SkillListArgs = Infer<typeof V.skillListArgsValidator>
+export type SkillAssignmentsArgs = Infer<typeof V.skillAssignmentsArgsValidator> // prettier-ignore
+export type RememberAgentHomeArgs = Infer<typeof V.rememberAgentHomeArgsValidator> // prettier-ignore
+export type ContinueSkillImportArgs = Infer<typeof V.continueSkillImportArgsValidator> // prettier-ignore
+export type CopySkillAssignmentsArgs = Infer<typeof V.copySkillAssignmentsArgsValidator> // prettier-ignore
+export type ReserveHomeArgs = Infer<typeof V.reserveHomeArgsValidator>
 
 export type FolderView = Doc<'sessionFolders'> & {
   workspace: Session['workspace']

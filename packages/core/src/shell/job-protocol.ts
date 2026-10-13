@@ -4,6 +4,7 @@ export type ShellJobStatus = 'running' | 'done' | 'killed' | 'timeout'
 
 export type StartShellJobInput = {
   agentId?: string
+  homeId?: string
   sessionId: string
   /** Whoever's stop terminates this job. */
   owner?: string
@@ -24,6 +25,7 @@ export type StartShellJobInput = {
 
 export type ShellJobSummary = {
   agentId?: string
+  homeId?: string
   jobId: string
   messageId?: string
   messageCreatedAt?: number

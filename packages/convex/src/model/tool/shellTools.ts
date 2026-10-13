@@ -1,4 +1,9 @@
-import { TOOL_DESCRIPTIONS, shellToolDescription } from '@sb/core/types'
+import {
+  TOOL_DESCRIPTIONS,
+  fileScopeField,
+  shellToolDescription,
+} from '@sb/core/types'
+import { selectFileWorkspace } from '@sb/core/workspace/personal'
 
 import {
   analyzeShellPathCandidates,
@@ -27,6 +32,7 @@ export async function createShellTool(context: WorkspaceToolContext) {
   return tool<ShellJobInput, ShellToolOutput, never>({
     description: shellToolDescription(context.shell),
     inputSchema: z.object({
+      scope: fileScopeField,
       command: z.string().describe('Shell command to execute'),
       description: z
         .string()
@@ -38,7 +44,13 @@ export async function createShellTool(context: WorkspaceToolContext) {
         .optional()
         .describe('Run in the background and return the job id immediately'),
     }),
-    needsApproval: (input) => shellNeedsApproval(input.command, context),
+    needsApproval: (input) =>
+      shellNeedsApproval(input.command, {
+        ...context,
+        workspace: context.workspace
+          ? selectFileWorkspace(context.workspace, input.scope)
+          : undefined,
+      }),
     toModelOutput: shellToModelOutput,
     execute: (input, { abortSignal, toolCallId }) =>
       trackJob(

@@ -6,18 +6,26 @@ import type { MutationCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import type { CompleteAgentFileArgs } from '../../types'
 import { assertHomeDestination } from './destinations'
+import { bindHome, ensureHome, releaseHome } from './homes'
+import { detachHome } from './removal'
 
 /** Commits metadata only after idempotent sidecar work has completed. */
 export async function complete(ctx: MutationCtx, args: CompleteAgentFileArgs) {
   const op = await ctx.db.get(args.operationId)
-  if (!op || op.status === 'done') return
+
+  const invalid =
+    !op ||
+    op.status === 'done' ||
+    op.status === 'failed' ||
+    (args.attempt !== undefined && op.attempt !== args.attempt)
+  if (invalid) return
 
   const expired =
     op.agentId && (await ctx.db.get(op.agentId))?.fileOperationId !== op._id
   if (expired) error('Personal folder operation expired', 409)
 
   await commitMetadata(ctx, op, args)
-  if (op.kind === 'home') {
+  if (op.kind === 'home' || op.kind === 'detach') {
     await ctx.db.patch(op._id, {
       finishingHome: true,
       previousHomePath: args.previousPath,
@@ -46,11 +54,21 @@ async function commitMetadata(
   args: CompleteAgentFileArgs,
 ) {
   switch (op.kind) {
+    case 'detach':
+      return detachHome(ctx, op)
+    case 'delete-home':
+      if (op.homeId)
+        await ctx.scheduler.runAfter(0, internal.skills._cleanupHomeRecords, {
+          homeId: op.homeId,
+        })
+      return
     case 'install':
       if (op.importCursor !== undefined) return
       return commitInstalledSkill(ctx, op, args)
     case 'assign':
-      return commitAssignment(ctx, op)
+      await commitAssignment(ctx, op)
+      if (args.path) await commitHome(ctx, op, args)
+      return
     case 'delete-assigned':
       if (op.assignmentId) await ctx.db.delete(op.assignmentId)
       return
@@ -62,7 +80,11 @@ async function commitMetadata(
       return commitHome(ctx, op, args)
     case 'duplicate':
       if (op.duplicateId)
-        await ctx.db.patch(op.duplicateId, { resolvedHomePath: args.path })
+        await commitHome(
+          ctx,
+          { ...op, agentId: op.duplicateId, destinationHomeId: undefined },
+          args,
+        )
       return
   }
 }
@@ -95,16 +117,24 @@ async function commitAssignment(
 ) {
   const skill = op.skillId ? await ctx.db.get(op.skillId) : null
   if (!skill || !op.agentId) error('Skill no longer exists', 409)
-  const existing = await ctx.db
-    .query('agentSkills')
-    .withIndex('by_agentId_skillId', (q) =>
-      q.eq('agentId', op.agentId!).eq('skillId', skill._id),
-    )
-    .first()
+  const existing = op.homeId
+    ? await ctx.db
+        .query('agentSkills')
+        .withIndex('by_homeId_skillId', (q) =>
+          q.eq('homeId', op.homeId).eq('skillId', skill._id),
+        )
+        .first()
+    : await ctx.db
+        .query('agentSkills')
+        .withIndex('by_agentId_skillId', (q) =>
+          q.eq('agentId', op.agentId!).eq('skillId', skill._id),
+        )
+        .first()
   if (!existing) {
     await ctx.db.insert('agentSkills', {
       ownerId: op.ownerId,
       agentId: op.agentId,
+      homeId: op.homeId,
       skillId: skill._id,
       name: skill.name,
       description: skill.description,
@@ -120,27 +150,34 @@ async function commitHome(
   if (!op.agentId) return
   if (args.path) await assertHomeDestination(ctx, op.agentId, args.path)
   const agent = await ctx.db.get(op.agentId)
-  await ctx.db.patch(op.agentId, {
-    homePath:
-      op.kind === 'home'
-        ? op.destination
-          ? args.path
-          : undefined
-        : agent?.homePath,
-    resolvedHomePath: args.path,
-  })
+  if (!agent) return
+  const home = op.destinationHomeId
+    ? await ctx.db.get(op.destinationHomeId)
+    : await ensureHome(ctx, agent)
+  if (!home) error('Personal folder no longer exists', 409)
+  await ctx.db.patch(home._id, { path: args.path })
+  await bindHome(ctx, agent._id, { ...home, path: args.path })
 }
 
 /** Releases database leases; sidecar locks still guard an unfinished HTTP operation. */
 export async function fail(
   ctx: MutationCtx,
-  args: { operationId: Id<'agentFileOperations'>; message: string },
+  args: {
+    operationId: Id<'agentFileOperations'>
+    message: string
+    attempt?: number
+  },
 ) {
   const op = await ctx.db.get(args.operationId)
-  if (!op || op.status === 'done') return
-  if (op.kind === 'install' && op.skillId && (await ctx.db.get(op.skillId))) {
+
+  const invalid =
+    !op ||
+    op.status === 'done' ||
+    (args.attempt !== undefined && op.attempt !== args.attempt)
+  if (invalid) return
+
+  if (op.kind === 'install' && op.skillId && (await ctx.db.get(op.skillId)))
     await ctx.db.patch(op.skillId, { status: 'failed' })
-  }
   await release(ctx, op._id)
   await ctx.db.patch(op._id, {
     status: 'failed',
@@ -158,14 +195,20 @@ export async function release(
 ) {
   const op = await ctx.db.get(operationId)
   if (!op) return
+  for (const homeId of new Set([op.homeId, op.destinationHomeId])) {
+    if (homeId) await releaseHome(ctx, homeId, operationId)
+  }
   for (const id of [op.agentId, op.duplicateId]) {
     if (!id) continue
     const agent = await ctx.db.get(id)
     if (!agent || agent.fileOperationId !== operationId) continue
+    if (agent.homeId) await releaseHome(ctx, agent.homeId, operationId)
     await ctx.db.patch(id, {
       fileOperationId: undefined,
       pendingHomePath: undefined,
-      homeRevision: (agent.homeRevision ?? 0) + 1,
+      homeRevision: agent.homeId
+        ? ((await ctx.db.get(agent.homeId))?.revision ?? agent.homeRevision)
+        : (agent.homeRevision ?? 0) + 1,
     })
   }
   if (op.skillId) {

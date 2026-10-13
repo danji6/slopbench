@@ -210,6 +210,12 @@ describe('sub-agent unrestricted access', () => {
       sessionId: parentId,
       ownerId: childId,
       workspaceId: 'workspace',
+      workspace: {
+        workspaceId: 'workspace',
+        path: '/fixture',
+        label: 'Fixture',
+        sources: [{ id: 'fixture', path: '/fixture', label: 'Fixture' }],
+      },
       approvals: () => getApprovals(ctx, childId),
       isPlanMode: async () => true,
     } as WorkspaceToolContext

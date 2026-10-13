@@ -5,6 +5,7 @@ import { type ShellJobSubscriber } from './subscriber'
 
 export type ShellJob = {
   agentId?: string
+  homeId?: string
   jobId: string
   sessionId: string
   owner?: string

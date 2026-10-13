@@ -18,12 +18,13 @@ export async function createReadFileTool(context: WorkspaceToolContext) {
     description: TOOL_DESCRIPTIONS.read_file,
     inputSchema: z.object(readFileFields),
     needsApproval: ({ path, scope }) =>
-      fileNeedsApproval('read_file', path, fileContext(context, scope)),
+      fileNeedsApproval('read_file', path, fileContext(context, scope, path)),
     execute: async ({ path, offset, limit, byteOffset, scope }) =>
       callMcpTool('read_file', {
-        ...workspaceArgs(fileContext(context, scope)),
+        ...workspaceArgs(fileContext(context, scope, path)),
         allowedPaths: (await context.approvals?.())?.paths,
         path,
+        scope,
         offset,
         limit,
         byteOffset,
@@ -45,13 +46,14 @@ export async function createWriteFileTool(context: WorkspaceToolContext) {
     description: TOOL_DESCRIPTIONS.write_file,
     inputSchema: z.object(writeFileFields),
     needsApproval: ({ path, scope }) =>
-      fileNeedsApproval('write_file', path, fileContext(context, scope)),
+      fileNeedsApproval('write_file', path, fileContext(context, scope, path)),
     execute: async ({ path, content, scope }) => {
       await assertNotPlanMode(context)
       return callMcpTool('write_file', {
-        ...workspaceArgs(fileContext(context, scope)),
+        ...workspaceArgs(fileContext(context, scope, path)),
         allowedPaths: (await context.approvals?.())?.paths,
         path,
+        scope,
         content,
       })
     },
@@ -64,13 +66,14 @@ export async function createEditFileTool(context: WorkspaceToolContext) {
     description: TOOL_DESCRIPTIONS.edit_file,
     inputSchema: z.object(editFileFields),
     needsApproval: ({ path, scope }) =>
-      fileNeedsApproval('edit_file', path, fileContext(context, scope)),
+      fileNeedsApproval('edit_file', path, fileContext(context, scope, path)),
     execute: async ({ path, edits, scope }) => {
       await assertNotPlanMode(context)
       return callMcpTool('edit_file', {
-        ...workspaceArgs(fileContext(context, scope)),
+        ...workspaceArgs(fileContext(context, scope, path)),
         allowedPaths: (await context.approvals?.())?.paths,
         path,
+        scope,
         edits,
       })
     },
@@ -80,12 +83,12 @@ export async function createEditFileTool(context: WorkspaceToolContext) {
 function fileContext(
   context: WorkspaceToolContext,
   scope?: FileScope,
+  path?: string,
 ): WorkspaceToolContext {
-  if (!scope) return context
   if (!context.workspace)
     throw new ToolError('Filesystem context is unavailable')
   return {
     ...context,
-    workspace: selectFileWorkspace(context.workspace, scope),
+    workspace: selectFileWorkspace(context.workspace, scope, path),
   }
 }

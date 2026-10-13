@@ -1,14 +1,14 @@
 import { ConfirmDialog } from '@/components/ui'
-import { useAgentFileOperation, useSkillPagination } from '@/hooks/chat/skills'
+import { useHomeOperation } from '@/hooks/chat/skills'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
-import { useQuery } from 'convex/react'
+import { usePaginatedQuery } from 'convex/react'
 import { useState } from 'react'
 
 import { AgentFileAccess } from './agent-file-access'
 import { FileOperationStatus } from './operation-status'
 import { SkillLibrary } from './skill-library'
-import { SkillList, SkillPageControls } from './skill-list'
+import { SkillList } from './skill-list'
 import type { SkillListItem } from './skill-list'
 
 export function AgentSkills({ agentId }: { agentId?: Id<'agents'> }) {
@@ -26,37 +26,36 @@ export function AgentSkills({ agentId }: { agentId?: Id<'agents'> }) {
 }
 
 function AssignedSkills({ agentId }: { agentId: Id<'agents'> }) {
-  const operation = useAgentFileOperation(`assigned:${agentId}`)
-  const pagination = useSkillPagination()
-  const page = useQuery(api.skills.assigned, {
-    agentId,
-    paginationOpts: { cursor: pagination.cursor, numItems: 20 },
-  })
   const [deleting, setDeleting] = useState<SkillListItem>()
+  const { operation, home } = useHomeOperation(agentId)
+  const page = usePaginatedQuery(
+    api.skills.assigned,
+    { agentId },
+    { initialNumItems: 20 },
+  )
+
   return (
     <div className="space-y-3 p-4">
       <h3 className="font-medium">Assigned skills</h3>
-      <p className="text-muted-foreground text-sm">
-        This agent can customize its copies. Delete a copy and add it again to
-        restore the pristine library version.
-      </p>
-      <FileOperationStatus operation={operation} />
-      {page && (
-        <>
-          <SkillList
-            items={page.page}
-            actionLabel="Remove"
-            busy={operation.busy}
-            onAction={setDeleting}
-          />
-          <SkillPageControls
-            canBack={pagination.canBack}
-            back={pagination.back}
-            isDone={page.isDone}
-            next={() => pagination.next(page.continueCursor)}
-          />
-        </>
+      {home && home.members.length > 1 && (
+        <p className="text-muted-foreground text-sm">
+          This folder and its skills are shared with{' '}
+          {home.members
+            .filter((member) => member.id !== agentId)
+            .map((member) => member.name)
+            .join(', ')}
+          . Changes affect every agent using it.
+        </p>
       )}
+      <FileOperationStatus operation={operation} />
+      <SkillList
+        items={page.results}
+        status={page.status}
+        loadMore={page.loadMore}
+        actionLabel="Remove"
+        busy={operation.busy}
+        onAction={setDeleting}
+      />
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={(open) => !open && setDeleting(undefined)}

@@ -91,17 +91,24 @@ function bindHelpers(
       store.set(stringArg(vm, key), JSON.parse(encoded) as JsonValue)
       return vm.undefined
     },
-    readFile: (path: QuickJSHandle, wrap?: QuickJSHandle) =>
+    readFile: (
+      path: QuickJSHandle,
+      wrap?: QuickJSHandle,
+      options?: QuickJSHandle,
+    ) =>
       vm.newString(
         helpers.readFile?.(
           stringArg(vm, path),
           !wrap || vm.typeof(wrap) === 'undefined'
             ? undefined
             : vm.dump(wrap) !== false,
+          helperScope(vm, options),
         ) ?? '',
       ),
-    fileExists: (path: QuickJSHandle) =>
-      helpers.fileExists?.(stringArg(vm, path)) ? vm.true : vm.false,
+    fileExists: (path: QuickJSHandle, options?: QuickJSHandle) =>
+      helpers.fileExists?.(stringArg(vm, path), helperScope(vm, options))
+        ? vm.true
+        : vm.false,
   }
   for (const [name, callback] of Object.entries(functions)) {
     const handle = vm.newFunction(name, callback)
@@ -119,4 +126,22 @@ function stringArg(vm: QuickJSContext, value: QuickJSHandle): string {
 function jsonHandle(vm: QuickJSContext, value: unknown): QuickJSHandle {
   if (value === undefined) return vm.undefined.dup()
   return vm.unwrapResult(vm.evalCode(`(${JSON.stringify(value)})`))
+}
+
+function helperScope(
+  vm: QuickJSContext,
+  options?: QuickJSHandle,
+): { scope?: 'workspace' | 'agent' } | undefined {
+  if (!options || vm.typeof(options) === 'undefined') return undefined
+  const value = vm.dump(options) as { scope?: unknown } | null
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    (value.scope !== undefined &&
+      value.scope !== 'workspace' &&
+      value.scope !== 'agent')
+  ) {
+    throw new Error('Invalid filesystem scope')
+  }
+  return { scope: value.scope }
 }

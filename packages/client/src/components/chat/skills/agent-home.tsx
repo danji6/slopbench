@@ -1,94 +1,225 @@
 import { WorkspacePickerDialog } from '@/components/chat/sessions/workspace-picker-dialog'
-import { ConfirmDialog, RippleButton } from '@/components/ui'
-import { useAgentFileOperation } from '@/hooks/chat/skills'
+import { AlertMessage, ConfirmDialog, RippleButton } from '@/components/ui'
+import { useAgentHomeStatus } from '@/hooks/chat/agent-home-status'
+import { useHomeOperation } from '@/hooks/chat/skills'
+import { toastError } from '@/lib/notifications'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
-import { useQuery } from 'convex/react'
-import { useState } from 'react'
+import { useAction } from 'convex/react'
+import {
+  CopyIcon,
+  ExternalLinkIcon,
+  FolderOpenIcon,
+  TrashIcon,
+  UnlinkIcon,
+} from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 import { FileOperationStatus } from './operation-status'
 
+type Capability = { supported: boolean; machine: string }
+
 export function AgentHomeSettings({ agentId }: { agentId: Id<'agents'> }) {
-  const home = useQuery(api.skills.getHome, { agentId })
-  const operation = useAgentFileOperation(`home:${agentId}`, home?.operationId)
+  const { home, operation } = useHomeOperation(agentId)
+  const availability = useAgentHomeStatus(
+    agentId,
+    home?.path,
+    home?.revision,
+    operation.busy,
+  )
+  const desktop = useAction(api.actions.skills.desktop)
+  const openFolder = useAction(api.actions.skills.openFolder)
+  const [capability, setCapability] = useState<Capability>()
   const [browsing, setBrowsing] = useState(false)
   const [destination, setDestination] = useState<{ path?: string }>()
+  const [removing, setRemoving] = useState<'detach' | 'delete'>()
+  const exists = !!home?.path && availability?.exists === true
+  const missing = !!home?.path && availability?.exists === false
+  const loading = home === undefined || (!!home.path && !availability)
+  const busy = operation.busy || loading
+  const removable = !!home?.managed && home.members.length === 1
+
+  useEffect(() => {
+    let active = true
+    void desktop({})
+      .then((value) => {
+        if (active) setCapability(value)
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [desktop])
+
+  function select(path?: string) {
+    if (exists) setDestination({ path })
+    else
+      void operation.run({
+        kind: 'home',
+        agentId,
+        destination: path,
+        copyFiles: false,
+      })
+  }
 
   function change(copyFiles: boolean) {
-    if (!destination) {
-      return
-    }
-    void operation.run({
-      kind: 'home',
-      agentId,
-      destination: destination.path,
-      copyFiles,
-    })
+    if (destination)
+      void operation.run({
+        kind: 'home',
+        agentId,
+        destination: destination.path,
+        copyFiles,
+      })
+  }
+
+  function detach(removeFolder: boolean) {
+    void operation.run({ kind: 'detach', agentId, removeFolder })
   }
 
   return (
     <div className="space-y-3 p-4">
       <h3 className="font-medium">Personal folder</h3>
       <p className="text-muted-foreground text-sm">
-        A persistent writable space shared by this agent’s sessions. Folder
-        changes apply immediately.
+        Assign a home folder to this agent to persist data across sessions.
       </p>
-      <p className="text-sm break-all">
-        {home?.path ?? 'Created when initialized or first used by the agent.'}
-      </p>
+      {loading ? (
+        <p className="text-muted-foreground text-sm" role="status">
+          Checking personal folder…
+        </p>
+      ) : missing ? (
+        <p className="text-muted-foreground text-sm">
+          The assigned folder is missing.
+        </p>
+      ) : exists ? (
+        <p className="text-sm font-semibold break-all">
+          {home?.managed
+            ? "This agent's folder is being managed by the app."
+            : home?.path}
+        </p>
+      ) : null}
+      {availability?.error && <AlertMessage>{availability.error}</AlertMessage>}
+      {home && home.members.length > 1 && (
+        <p className="text-muted-foreground text-sm">
+          Shared with{' '}
+          {home.members
+            .filter((member) => member.id !== agentId)
+            .map((member) => member.name)
+            .join(', ')}
+          .
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
-        {home?.path ? (
+        {home?.path && (
           <RippleButton
             variant="input"
             onClick={() => void navigator.clipboard.writeText(home.path!)}
           >
-            Copy path
-          </RippleButton>
-        ) : (
-          <RippleButton
-            disabled={operation.busy}
-            onClick={() => void operation.run({ kind: 'ensure', agentId })}
-          >
-            Initialize folder
+            <CopyIcon /> Copy path
           </RippleButton>
         )}
-        <RippleButton
-          disabled={operation.busy}
-          onClick={() => setBrowsing(true)}
-        >
-          Choose directory
+        {(!home?.path || (missing && home.managed)) && (
+          <RippleButton
+            disabled={busy}
+            onClick={() => void operation.run({ kind: 'ensure', agentId })}
+          >
+            {missing ? 'Recreate folder' : 'Initialize folder'}
+          </RippleButton>
+        )}
+        {exists && capability?.supported && (
+          <RippleButton
+            variant="input"
+            disabled={busy}
+            title={`Open on ${capability.machine} (sidecar machine)`}
+            onClick={() =>
+              void openFolder({ agentId }).catch((error) =>
+                toastError(error, 'Could not open folder'),
+              )
+            }
+          >
+            <ExternalLinkIcon /> Open externally
+          </RippleButton>
+        )}
+        <RippleButton disabled={busy} onClick={() => setBrowsing(true)}>
+          <FolderOpenIcon /> Choose directory
         </RippleButton>
         {home?.customPath && (
           <RippleButton
-            size="sm"
             variant="secondary"
-            disabled={operation.busy}
-            onClick={() => setDestination({})}
+            disabled={busy}
+            onClick={() => select()}
           >
             Use managed folder
           </RippleButton>
+        )}
+        {home?.path && (
+          <>
+            <RippleButton
+              variant="secondary"
+              disabled={busy}
+              onClick={() => setRemoving('detach')}
+            >
+              <UnlinkIcon /> Detach folder
+            </RippleButton>
+            {removable && (
+              <RippleButton
+                variant="destructive"
+                disabled={busy}
+                onClick={() => setRemoving('delete')}
+              >
+                <TrashIcon /> Delete folder
+              </RippleButton>
+            )}
+          </>
         )}
       </div>
       <FileOperationStatus operation={operation} />
       <WorkspacePickerDialog
         open={browsing}
         onOpenChange={setBrowsing}
-        initialPath={home?.path}
+        initialPath={exists ? home?.path : undefined}
         title="Select this agent’s personal folder"
-        onSelect={(path) => setDestination({ path })}
+        onSelect={(path) => select(path)}
       />
       <ConfirmDialog
         open={!!destination}
         onOpenChange={(open) => !open && setDestination(undefined)}
         title="Change personal folder?"
-        description="Carry over files preserves your notes and customized skills. Start fresh keeps the old files where they are and installs pristine copies of assigned skills. Existing destination files will never be overwritten."
-        confirmText="Carry over files"
+        description="Carry over moves the agent's data to the new folder, joining files if it's already being used by another agent."
+        confirmText="Carry over"
         onConfirm={() => change(true)}
         extraAction={{
-          text: 'Start fresh',
+          text: 'Change only',
           variant: 'secondary',
           onConfirm: () => change(false),
         }}
+      />
+      <ConfirmDialog
+        open={!!removing}
+        onOpenChange={(open) => !open && setRemoving(undefined)}
+        title={
+          removing === 'delete'
+            ? 'Delete personal folder?'
+            : 'Detach personal folder?'
+        }
+        description={
+          removing === 'delete'
+            ? 'This will permanently delete the folder and all of its contents.'
+            : removable
+              ? 'Remove this agent’s access to the folder. Keep the files, or delete the folder and its contents.'
+              : 'Remove this agent’s access to the folder. The files will be preserved.'
+        }
+        confirmText={removing === 'delete' ? 'Delete folder' : 'Keep files'}
+        variant={removing === 'delete' ? 'destructive' : 'primary'}
+        onConfirm={() => detach(removing === 'delete')}
+        extraAction={
+          removing === 'detach' && removable
+            ? {
+                text: 'Delete files',
+                variant: 'destructive',
+                onConfirm: () => detach(true),
+              }
+            : undefined
+        }
       />
     </div>
   )

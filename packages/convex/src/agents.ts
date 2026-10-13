@@ -30,7 +30,7 @@ export const update = authMutation({
 })
 
 export const remove = authMutation({
-  args: { agentId: v.id('agents') },
+  args: { agentId: v.id('agents'), removeFolder: v.optional(v.boolean()) },
   handler: Agents.remove,
 })
 

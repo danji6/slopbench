@@ -81,11 +81,15 @@ export async function _evalMessage(
     context,
     authorizedAgentId:
       context.isAdmin && context.tools?.includes('read_file')
-        ? agent._id
+        ? (session.workspace?.agentHome?.homeId ?? agent._id)
         : undefined,
     authorizedWorkDirs:
       context.isAdmin && context.tools?.includes('read_file')
         ? context.workDirs
+        : undefined,
+    authorizedAgentDir:
+      context.isAdmin && context.tools?.includes('read_file')
+        ? context.agentDir
         : undefined,
     authorizedWorkDir:
       context.isAdmin && context.tools?.includes('read_file')

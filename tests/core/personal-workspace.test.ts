@@ -30,7 +30,7 @@ test('personal scope keeps project grants anchored and leaves project sources un
   ])
 })
 
-test('home-only sessions default to personal files and reject explicit project scope', () => {
+test('home-only sessions require explicit personal scope', () => {
   const context = withAgentHome(undefined, home)
   expect(context.path).toBe(home.path)
   expect(() => selectFileWorkspace(context, 'workspace')).toThrow('no project')
@@ -39,7 +39,8 @@ test('home-only sessions default to personal files and reject explicit project s
     folderId: undefined,
   })
   expect(note).toContain('scope: "agent"')
-  expect(note).toContain('default to your personal folder')
+  expect(note).toContain('require scope: "agent"')
+  expect(() => selectFileWorkspace(context)).toThrow('scope: "agent"')
 })
 
 test('catalog discovery exposes continuation and omits unavailable instructions', () => {
@@ -55,7 +56,7 @@ test('catalog discovery exposes continuation and omits unavailable instructions'
     cursor: 'next-page',
     isDone: false,
   })
-  expect(note).toContain('scope: agent')
+  expect(note).toContain('scope: "agent"')
   expect(note).toContain('list_skills')
   expect(note).toContain('next-page')
   expect(note).toContain('broken: unavailable')

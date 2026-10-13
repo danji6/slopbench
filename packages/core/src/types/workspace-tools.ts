@@ -5,7 +5,9 @@ import { ATTACHMENT_READ_MAX_BYTES } from '../const'
 export const fileScopeField = z
   .enum(['workspace', 'agent'])
   .optional()
-  .describe('Root for relative paths; "agent" selects your personal folder')
+  .describe(
+    'Filesystem scope: "workspace" is the default, while "agent" is for your personal files',
+  )
 
 export const readAttachmentFields = {
   reference: z.string().describe('Attachment reference to read'),

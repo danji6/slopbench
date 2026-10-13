@@ -15,12 +15,15 @@ export const workspaceContextSchema = z.object({
   agentHome: z
     .object({
       ownerId: z.string(),
+      homeId: z.string().optional(),
+      originAgentId: z.string().optional(),
       agentId: z.string(),
       path: z.string(),
       revision: z.number(),
     })
     .optional(),
   agentOnly: z.boolean().optional(),
+  fileScope: z.enum(['workspace', 'agent']).optional(),
   approvalRoot: z.string().optional(),
   workspaceId: z.string(),
   folderId: z.string().optional(),

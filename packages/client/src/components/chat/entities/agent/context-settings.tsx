@@ -107,26 +107,27 @@ export function ContextSettings({
         )}
       />
 
-      <Controller
-        control={control}
-        name="contextWindow"
-        render={({ field }) => (
-          <SettingsList.NumberInput
-            disabled={!trimContext}
-            label="Context Window"
-            help={md`
-              The maximum number of tokens to keep in context when 'Trim Context'
-              is enabled.
-            `}
-            value={field.value}
-            defaultValue={-1}
-            minValue={0}
-            maxValue={1000000}
-            step={1024}
-            onChange={field.onChange}
-          />
-        )}
-      />
+      {trimContext && (
+        <Controller
+          control={control}
+          name="contextWindow"
+          render={({ field }) => (
+            <SettingsList.NumberInput
+              label="Context Window"
+              help={md`
+                The maximum number of tokens to keep in context when 'Trim Context'
+                is enabled.
+              `}
+              value={field.value}
+              defaultValue={-1}
+              minValue={0}
+              maxValue={1000000}
+              step={1024}
+              onChange={field.onChange}
+            />
+          )}
+        />
+      )}
     </SettingsList>
   )
 }

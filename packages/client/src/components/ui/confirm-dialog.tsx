@@ -5,6 +5,9 @@ import { useState } from 'react'
 import { AlertDialog } from './alert-dialog'
 import type { ButtonProps } from './button'
 
+const actionClassName =
+  'h-auto min-h-10 min-w-0 leading-snug wrap-anywhere whitespace-normal'
+
 export type ConfirmDialogAction = {
   text: string
   onConfirm?: () => void
@@ -99,11 +102,15 @@ export function ConfirmDialog({
             extraAction ? 'grid grid-cols-2 sm:grid-cols-3' : 'grid grid-cols-2'
           }
         >
-          <AlertDialog.Cancel onClick={handleCancel}>
+          <AlertDialog.Cancel
+            className={actionClassName}
+            onClick={handleCancel}
+          >
             {cancelText}
           </AlertDialog.Cancel>
           {extraAction && (
             <AlertDialog.Action
+              className={actionClassName}
               variant={extraAction.variant ?? variant}
               onClick={() => {
                 extraAction.onConfirm?.()
@@ -115,11 +122,11 @@ export function ConfirmDialog({
           )}
           <AlertDialog.Action
             variant={variant}
-            className={
-              extraAction
-                ? 'col-span-2 w-[calc(50%-0.25rem)] justify-self-center sm:col-span-1 sm:w-auto sm:justify-self-stretch'
-                : undefined
-            }
+            className={cn(
+              actionClassName,
+              extraAction &&
+                'col-span-2 w-[calc(50%-0.25rem)] justify-self-center sm:col-span-1 sm:w-auto sm:justify-self-stretch',
+            )}
             onClick={handleConfirm}
           >
             {confirmText}

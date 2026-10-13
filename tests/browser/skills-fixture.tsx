@@ -6,11 +6,18 @@ import type { Id } from '@sb/convex/_generated/dataModel'
 import { ConvexProvider } from 'convex/react'
 import { useState } from 'react'
 
-import { latestSkillOperation, skillsFixtureClient } from './skills-client'
+import {
+  failNextSkillOperation,
+  latestSkillOperation,
+  removeFixtureHome,
+  setFixtureHome,
+  skillsFixtureClient,
+} from './skills-client'
 
 /** Production settings components with an isolated reactive backend fixture. */
 export function SkillsFixture() {
   const [view, setView] = useState('agent')
+  const [tab, setTab] = useState('skills')
   const [operation, setOperation] = useState('')
   return (
     <ConvexProvider client={skillsFixtureClient}>
@@ -27,11 +34,26 @@ export function SkillsFixture() {
             Inspect last operation
           </button>
         </nav>
+        <button onClick={failNextSkillOperation}>Fail next operation</button>
+        <button onClick={() => setFixtureHome(true)}>
+          Assign managed fixture folder
+        </button>
+        <button onClick={() => setFixtureHome(false)}>
+          Assign custom fixture folder
+        </button>
+        <button onClick={removeFixtureHome}>
+          Remove fixture folder on disk
+        </button>
         <output aria-label="Last operation">{operation}</output>
         {view === 'agent' ? (
           <>
-            <AgentFiles agentId={'fixture-agent' as Id<'agents'>} />
-            <AgentSkills agentId={'fixture-agent' as Id<'agents'>} />
+            <button onClick={() => setTab('skills')}>Skills</button>
+            <button onClick={() => setTab('files')}>Files</button>
+            {tab === 'files' ? (
+              <AgentFiles agentId={'fixture-agent' as Id<'agents'>} />
+            ) : (
+              <AgentSkills agentId={'fixture-agent' as Id<'agents'>} />
+            )}
           </>
         ) : (
           <SkillLibrary />

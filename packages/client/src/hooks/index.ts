@@ -5,6 +5,7 @@
 export * from './alt'
 export * from './breakpoint'
 export * from './code'
+export * from './compact-text'
 export * from './context'
 export * from './countdown'
 export * from './debounce'

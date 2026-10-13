@@ -1,7 +1,7 @@
 import { defineSchema, defineTable } from 'convex/server'
-import { v } from 'convex/values'
 
 import {
+  agentHomeSchema,
   agentSchema,
   attachmentFileSchema,
   attachmentSchema,
@@ -29,6 +29,7 @@ import {
   sessionStateSchema,
   settingsSchema,
   shellJobSchema,
+  skillUploadSchema,
   streamSchema,
   todoSchema,
   typingSchema,
@@ -74,14 +75,19 @@ export default defineSchema({
     .index('by_sessionId_agentId', ['sessionId', 'agentId'])
     .index('by_agentId', ['agentId']),
 
-  // TODO move this to tables.ts
-  skillUploads: defineTable({ ownerId: v.id('users'), storageId: v.optional(v.id('_storage')), ticket: v.string(), verified: v.boolean() })
+  agentHomes: defineTable(agentHomeSchema)
+    .index('by_path', ['path'])
+    .index('by_ownerId', ['ownerId']),
+
+  skillUploads: defineTable(skillUploadSchema)
     .index('by_storageId', ['storageId']),
 
   skills: defineTable(skillSchema)
     .index('by_ownerId_name', ['ownerId', 'name']),
 
   agentSkills: defineTable(agentSkillSchema)
+    .index('by_homeId_name', ['homeId', 'name'])
+    .index('by_homeId_skillId', ['homeId', 'skillId'])
     .index('by_agentId_name', ['agentId', 'name'])
     .index('by_agentId_skillId', ['agentId', 'skillId'])
     .index('by_skillId', ['skillId']),
@@ -91,6 +97,7 @@ export default defineSchema({
     .index('by_agentId', ['agentId']),
 
   agents: defineTable(agentSchema)
+    .index('by_homeId', ['homeId'])
     .index('by_ownerId_name', ['ownerId', 'name'])
     .index('by_avatarId', ['avatarId'])
     .index('by_homePath', ['resolvedHomePath'])

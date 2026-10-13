@@ -16,6 +16,7 @@ import { pipeline } from 'node:stream/promises'
 
 import { expandHome } from '../mcp/workspace/paths'
 import { withAgentMutation } from './access'
+import { inspectHome } from './home-state'
 import { discoverImport } from './import-discovery'
 import { publishTree } from './merge'
 import { readSkillMetadata } from './metadata'
@@ -37,6 +38,10 @@ export type FileOperation = {
   id: string
   ownerId: string
   agentId?: string
+  homeId?: string
+  destinationHomeId?: string
+  destinationOriginAgentId?: string
+  originAgentId?: string
   homePath?: string
   destination?: string
   skillId?: string
@@ -48,6 +53,7 @@ export type FileOperation = {
   copyFiles?: boolean
   kind:
     | 'install'
+    | 'delete-home'
     | 'discover-import'
     | 'assign'
     | 'delete-assigned'
@@ -65,9 +71,10 @@ export async function runFileOperation(input: FileOperation): Promise<unknown> {
   const cached = running.get(input.id)
   if (cached) return cached
 
-  const operation = withAgentMutation(input.agentId, () =>
+  const operation = withAgentMutation(input.homeId ?? input.agentId, () =>
     withAgentMutation(
-      input.kind === 'duplicate' ? input.destination : undefined,
+      input.destinationHomeId ??
+        (input.kind === 'duplicate' ? input.destination : undefined),
       () => executeOnce(input),
     ),
   )
@@ -103,6 +110,8 @@ async function executeOnce(input: FileOperation) {
 
 async function execute(input: FileOperation) {
   switch (input.kind) {
+    case 'delete-home':
+      return removeManagedHome(input)
     case 'discover-import':
       return discoverImport(input)
     case 'install':
@@ -123,7 +132,7 @@ async function execute(input: FileOperation) {
     case 'delete-assigned': {
       const home = await resolveHome(
         input.ownerId,
-        input.agentId!,
+        input.originAgentId ?? input.agentId!,
         input.homePath,
       )
       const target = skillCopy(home, input.name!)
@@ -221,7 +230,11 @@ async function findBundle(root: string) {
 async function assignSkill(input: FileOperation, stagingHome?: string) {
   const home =
     stagingHome ??
-    (await resolveHome(input.ownerId, input.agentId!, input.homePath))
+    (await resolveHome(
+      input.ownerId,
+      input.originAgentId ?? input.agentId!,
+      input.homePath,
+    ))
 
   const target = skillCopy(home, input.name!)
   await assertPlainPath(target)
@@ -249,34 +262,47 @@ async function assignSkill(input: FileOperation, stagingHome?: string) {
 }
 
 async function prepareHome(input: FileOperation) {
-  const source = await resolveHome(
-    input.ownerId,
-    input.agentId!,
-    input.homePath,
-  )
+  const source = await inspectHome({
+    ownerId: input.ownerId,
+    agentId: input.agentId!,
+    originAgentId: input.originAgentId,
+    path: input.homePath,
+    revision: 0,
+  })
+
   const destination = await resolveHome(
     input.ownerId,
-    input.agentId!,
-    input.destination,
+    input.destinationOriginAgentId ?? input.agentId!,
+    input.destination ===
+      managedHome(
+        input.ownerId,
+        input.destinationOriginAgentId ?? input.agentId!,
+      )
+      ? undefined
+      : input.destination,
     true,
   )
-  if (source === destination) {
-    return { path: destination, unchanged: true }
-  }
-  if (inside(source, destination) || inside(destination, source)) {
+
+  if (source.exists && source.path === destination)
+    return { path: destination, unchanged: true, sourceMissing: false }
+
+  if (
+    source.path !== destination &&
+    (inside(source.path, destination) || inside(destination, source.path))
+  ) {
     throw new Error('Personal home directories cannot overlap')
   }
 
   const staging = path.join(operationRoot(input.id), 'home')
   await rm(staging, { recursive: true, force: true })
 
-  if (input.copyFiles) {
-    await copyTree(source, staging)
+  if (input.copyFiles && source.exists) {
+    await copyTree(source.path, staging)
   } else {
     await mkdir(staging, { recursive: true })
   }
 
-  return { path: destination, unchanged: false }
+  return { path: destination, unchanged: false, sourceMissing: !source.exists }
 }
 
 async function publishHome(input: FileOperation) {
@@ -301,7 +327,7 @@ async function publishHome(input: FileOperation) {
 async function duplicateHome(input: FileOperation) {
   const source = await resolveHome(
     input.ownerId,
-    input.agentId!,
+    input.originAgentId ?? input.agentId!,
     input.homePath,
   )
   const target = managedHome(input.ownerId, input.destination!)
@@ -333,6 +359,29 @@ export async function homeInfo(
 ): Promise<AgentHome> {
   return {
     ...input,
-    path: await resolveHome(input.ownerId, input.agentId, input.path),
+    path: await resolveHome(
+      input.ownerId,
+      input.originAgentId ?? input.agentId,
+      input.path,
+    ),
   }
+}
+
+/** Removes only the exact managed root reserved by the authenticated backend. */
+async function removeManagedHome(input: FileOperation) {
+  const target = managedHome(
+    input.ownerId,
+    input.originAgentId ?? input.agentId!,
+  )
+  if (input.homePath && path.resolve(input.homePath) !== target)
+    throw new Error('Cleanup target is not a managed folder')
+  await assertPlainPath(target)
+  try {
+    if ((await realpath(target)) !== target)
+      throw new Error('Managed folder changed')
+  } catch (error) {
+    if (!isMissing(error)) throw error
+  }
+  await rm(target, { recursive: true, force: true })
+  return { ok: true }
 }

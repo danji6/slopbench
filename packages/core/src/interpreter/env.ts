@@ -84,8 +84,7 @@ export const SESSION_ENV: SessionEnvEntry[] = [
   },
   {
     name: 'agentDir',
-    description:
-      'Absolute path of the active agent’s personal folder',
+    description: 'Absolute path of the active agent’s personal folder',
   },
   {
     name: 'workDir',
@@ -93,26 +92,36 @@ export const SESSION_ENV: SessionEnvEntry[] = [
   },
   {
     name: 'fileExists',
-    description: 'Check whether a workspace file exists',
+    description: 'Check whether a file exists in the selected scope',
     params: [
       {
         name: 'path',
-        description: 'Workspace-relative path of the file to check',
+        description: 'Path relative to the selected scope, or an absolute path',
+      },
+      {
+        name: 'options',
+        description: 'Use { scope: "agent" } for agent folder relative paths',
+        optional: true,
       },
     ],
     snippet: "fileExists('${1:path}')",
   },
   {
     name: 'readFile',
-    description: 'Read a workspace file and inject its contents',
+    description: 'Read a file in the selected scope and inject its contents',
     params: [
       {
         name: 'path',
-        description: 'Workspace-relative path of the file to read',
+        description: 'Path relative to the selected scope, or an absolute path',
       },
       {
         name: 'wrap',
         description: 'Wrap the contents in a fenced code block (default: true)',
+        optional: true,
+      },
+      {
+        name: 'options',
+        description: 'Use { scope: "agent" } for agent folder relative paths',
         optional: true,
       },
     ],

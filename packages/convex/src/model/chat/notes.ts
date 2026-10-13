@@ -266,16 +266,11 @@ function workspaceNoteBody(previous: Workspace, next: Workspace): string[] {
   const personal = next.agentHome
     ? [
         `Your persistent personal folder is ${next.agentHome.path}.`,
-        'Use scope: "agent" with read_file, write_file and edit_file for personal files.',
+        'File tools and shell commands require scope: "agent" to use your personal folder.',
       ]
     : []
 
-  if (next.agentOnly) {
-    return [
-      ...personal,
-      'This session has no project sources. Relative paths and shell commands default to your personal folder.',
-    ]
-  }
+  if (next.agentOnly) return personal
 
   return [
     ...personal,

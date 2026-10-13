@@ -14,7 +14,9 @@ export function FileOperationStatus({
         </p>
       )}
       {operation.error && (
-        <AlertMessage dismissible={false}>{operation.error}</AlertMessage>
+        <AlertMessage onDismiss={operation.dismiss}>
+          {operation.error}
+        </AlertMessage>
       )}
       {operation.summary && (
         <p role="status" className="text-muted-foreground text-sm">

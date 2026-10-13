@@ -109,7 +109,7 @@ function buildMcpServer(): McpServer {
       const result = await readWorkspaceFile({
         sessionId,
         workspaceId,
-        workspace: selectFileWorkspace(workspace, scope),
+        workspace: selectFileWorkspace(workspace, scope, path),
         filePath: path,
         allowedPaths,
         offset,
@@ -142,7 +142,7 @@ function buildMcpServer(): McpServer {
       const result = await writeWorkspaceFile({
         sessionId,
         workspaceId,
-        workspace: selectFileWorkspace(workspace, scope),
+        workspace: selectFileWorkspace(workspace, scope, path),
         filePath: path,
         allowedPaths,
         content,
@@ -173,7 +173,7 @@ function buildMcpServer(): McpServer {
       const result = await editWorkspaceFile({
         sessionId,
         workspaceId,
-        workspace: selectFileWorkspace(workspace, scope),
+        workspace: selectFileWorkspace(workspace, scope, path),
         filePath: path,
         allowedPaths,
         edits,

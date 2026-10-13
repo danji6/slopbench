@@ -43,6 +43,7 @@ export async function* executeShellJob(
     workspaceId: context.workspaceId,
     workspace: context.workspace,
     command: input.command,
+    scope: input.scope,
     timeoutSeconds: input.timeout,
     background: input.run_in_background,
     shell: context.shell,

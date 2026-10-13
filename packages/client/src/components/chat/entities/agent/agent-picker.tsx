@@ -3,10 +3,12 @@ import {
   type AgentItem,
   AgentItemLabel,
 } from '@/components/chat/sessions/agent-combobox'
-import { Combobox } from '@/components/ui'
+import { FileOperationStatus } from '@/components/chat/skills/operation-status'
+import { LabeledCheckbox, Combobox } from '@/components/ui'
 import { useStableValue } from '@/hooks'
 import { useEditingAgentId } from '@/hooks/chat'
 import { useNewAgent } from '@/hooks/chat/agent'
+import { useAgentFileOperation, useHomeOperation } from '@/hooks/chat/skills'
 import type { CreateAgentArgs } from '@/lib/chat'
 import { setEditingAgentId, startNewAgent } from '@/lib/chat/agent-editor-store'
 import { triggerAgentDownload, uploadAgentFile } from '@/lib/chat/io'
@@ -14,7 +16,7 @@ import { cn } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { useAction, useMutation, useQuery } from 'convex/react'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 import {
   EntityActionsMenu,
@@ -30,6 +32,10 @@ export type AgentPickerProps = {
 export function AgentPicker({ className, confirmSwitch }: AgentPickerProps) {
   const editingAgentId = useEditingAgentId()
   const newAgent = useNewAgent()
+  const { home } = useHomeOperation(editingAgentId as Id<'agents'> | undefined)
+  const [removeFolder, setRemoveFolder] = useState(false)
+  const [cleanupId, setCleanupId] = useState<Id<'agentFileOperations'>>()
+  const cleanup = useAgentFileOperation('agent-cleanup', cleanupId)
   const docs = useQuery(api.agents.list)
   const createAgent = useMutation(api.agents.create)
   const removeAgent = useMutation(api.agents.remove)
@@ -59,7 +65,8 @@ export function AgentPicker({ className, confirmSwitch }: AgentPickerProps) {
   }
 
   const del = async (id: string) => {
-    await removeAgent({ agentId: id as Id<'agents'> })
+    const result = await removeAgent({ agentId: id as Id<'agents'>, removeFolder }) // prettier-ignore
+    if (result.cleanupOperationId) setCleanupId(result.cleanupOperationId)
     if (id === editingAgentId) {
       // Point to a different agent after delete
       setEditingAgentId(records.find((r) => r.id !== id)?.id ?? null)
@@ -115,32 +122,57 @@ export function AgentPicker({ className, confirmSwitch }: AgentPickerProps) {
   }
 
   return (
-    <div className={cn('flex items-center gap-1.5', className)}>
-      <AgentCombobox
-        agents={records}
-        value={ctx.active?.id}
-        onValueChange={(v) => select(v || null)}
-        emptyLabel="No agents found."
-        trigger={
-          <Combobox.Trigger
-            className={cn('h-12 flex-1', ctx.active && 'pl-2!')}
-          >
-            <Combobox.DisplayValue placeholder="Select agent…">
-              {newAgent ? (
-                'New agent (unsaved)'
-              ) : (
-                <AgentItemLabel agent={selected} />
-              )}
-            </Combobox.DisplayValue>
-          </Combobox.Trigger>
-        }
-      />
-      <EntityActionsMenu
-        context={ctx}
-        entityName="agent"
-        accept=".json,.png"
-        className="size-11"
-      />
-    </div>
+    <>
+      <div className={cn('flex items-center gap-1.5', className)}>
+        <AgentCombobox
+          agents={records}
+          value={ctx.active?.id}
+          onValueChange={(v) => select(v || null)}
+          emptyLabel="No agents found."
+          trigger={
+            <Combobox.Trigger
+              className={cn('h-12 flex-1', ctx.active && 'pl-2!')}
+            >
+              <Combobox.DisplayValue placeholder="Select agent…">
+                {newAgent ? (
+                  'New agent (unsaved)'
+                ) : (
+                  <AgentItemLabel agent={selected} />
+                )}
+              </Combobox.DisplayValue>
+            </Combobox.Trigger>
+          }
+        />
+        <EntityActionsMenu
+          context={ctx}
+          onDeleteOpen={() => setRemoveFolder(false)}
+          deleteDetails={
+            home?.path && home.managed && home.members.length === 1 ? (
+              <div className="mt-2 flex justify-center">
+                <LabeledCheckbox
+                  checked={removeFolder}
+                  onCheckedChange={(checked) => setRemoveFolder(checked)}
+                  labelClassName="text-center text-balance"
+                >
+                  Also delete the managed folder and its contents
+                </LabeledCheckbox>
+              </div>
+            ) : (
+              <span className="mt-2 block">
+                {home && home.members.length > 1
+                  ? 'The shared folder will be preserved for its other agents.'
+                  : home?.path
+                    ? 'The personal folder will be preserved.'
+                    : 'No personal folder is assigned.'}
+              </span>
+            )
+          }
+          entityName="agent"
+          accept=".json,.png"
+          className="size-11"
+        />
+      </div>
+      <FileOperationStatus operation={cleanup} />
+    </>
   )
 }

@@ -18,6 +18,7 @@ const queue: Array<() => void> = []
 /** Bounds concurrent guests and queued requests, including worker startup. */
 export async function evaluateInWorker(
   request: EvaluationRequest & {
+    authorizedAgentDir?: string
     authorizedWorkDir?: string
     authorizedWorkDirs?: string[]
   },
@@ -37,6 +38,7 @@ export async function evaluateInWorker(
 
 function runWorker(
   request: EvaluationRequest & {
+    authorizedAgentDir?: string
     authorizedWorkDir?: string
     authorizedWorkDirs?: string[]
   },

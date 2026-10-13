@@ -544,6 +544,7 @@ export const skillAssignmentsArgsValidator = v.object({
 })
 
 export const completeAgentFileArgsValidator = v.object({
+  attempt: v.optional(v.number()),
   operationId: v.id('agentFileOperations'),
   path: v.optional(v.string()),
   previousPath: v.optional(v.string()),
@@ -551,12 +552,14 @@ export const completeAgentFileArgsValidator = v.object({
 })
 
 export const prepareSkillImportArgsValidator = v.object({
+  attempt: v.optional(v.number()),
   operationId: v.id('agentFileOperations'),
   cursor: v.number(),
   metadata: v.object({ name: v.string(), description: v.string() }),
 })
 
 export const finishSkillImportArgsValidator = v.object({
+  attempt: v.optional(v.number()),
   operationId: v.id('agentFileOperations'),
   cursor: v.number(),
   nextCursor: v.number(),
@@ -579,4 +582,35 @@ export const invalidateAgentHomeArgsValidator = v.object({
   operationId: v.id('agentFileOperations'),
   cursor: v.union(v.string(), v.null()),
   previousPath: v.optional(v.string()),
+})
+
+export const skillListArgsValidator = v.object({
+  paginationOpts: paginationOptsValidator,
+  search: v.optional(v.string()),
+  agentId: v.optional(v.id('agents')),
+})
+
+export const failAgentFileArgsValidator = v.object({
+  operationId: v.id('agentFileOperations'),
+  message: v.string(),
+  attempt: v.optional(v.number()),
+})
+
+export const reserveHomeArgsValidator = v.object({
+  attempt: v.optional(v.number()),
+  operationId: v.id('agentFileOperations'),
+  path: v.string(),
+  insideData: v.optional(v.boolean()),
+})
+
+export const continueSkillImportArgsValidator = v.object({
+  operationId: v.id('agentFileOperations'),
+  cursor: v.number(),
+  attempt: v.optional(v.number()),
+})
+
+export const copySkillAssignmentsArgsValidator = v.object({
+  operationId: v.id('agentFileOperations'),
+  ids: v.array(v.id('agentSkills')),
+  attempt: v.optional(v.number()),
 })

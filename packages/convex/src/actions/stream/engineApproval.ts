@@ -99,7 +99,7 @@ export async function withPreviewDiff(
       {
         ...context,
         workspace: context.workspace
-          ? selectFileWorkspace(context.workspace, input.scope)
+          ? selectFileWorkspace(context.workspace, input.scope, input.path)
           : undefined,
         filePath: input.path,
         content: input.content,

@@ -33,18 +33,11 @@ export function buildEvalContext({
   agentCount,
   toolNames,
 }: EvalContextInput): EvalContext {
-  const workDirs = session.workspace
-    ? [
-        ...new Set([
-          ...(session.workspace.sources?.map((source) => source.path) ?? [
-            session.workspace.path,
-          ]),
-          ...(session.workspace.agentHome
-            ? [session.workspace.agentHome.path]
-            : []),
-        ]),
-      ]
-    : undefined
+  const workspace = session.workspace
+  const workDirs =
+    workspace && !workspace.agentOnly
+      ? (workspace.sources?.map((source) => source.path) ?? [workspace.path])
+      : undefined
 
   return {
     assistant: agent.name,
@@ -56,7 +49,7 @@ export function buildEvalContext({
     isAdmin: minRole(invoker.role, 'admin'),
     userCount,
     agentCount,
-    workDir: session.workspace?.path,
+    workDir: workspace && !workspace.agentOnly ? workspace.path : undefined,
     agentDir: session.workspace?.agentHome?.path,
     workDirs,
   }

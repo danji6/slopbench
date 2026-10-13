@@ -233,12 +233,15 @@ export const workspaceRefValidator = v.object({
   agentHome: v.optional(
     v.object({
       ownerId: v.string(),
+      homeId: v.optional(v.string()),
+      originAgentId: v.optional(v.string()),
       agentId: v.string(),
       path: v.string(),
       revision: v.number(),
     }),
   ),
   agentOnly: v.optional(v.boolean()),
+  fileScope: v.optional(v.union(v.literal('workspace'), v.literal('agent'))),
   approvalRoot: v.optional(v.string()),
   sources: v.optional(v.array(folderSourceValidator)),
   revision: v.optional(v.number()),

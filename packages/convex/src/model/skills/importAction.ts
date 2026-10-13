@@ -12,6 +12,7 @@ import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { postSidecar } from '../sidecar'
 import type { OperationContext } from './operations'
+import { importSource } from './uploadAction'
 
 /** Discovers once, then copies and commits a bounded page of independent skills. */
 export async function importSkills(
@@ -36,6 +37,7 @@ export async function importSkills(
     if (Date.now() - started >= 4 * 60_000 && cursor !== page.nextCursor) {
       await ctx.runMutation(internal.skills._continueImport, {
         operationId: op._id,
+        attempt: op.attempt,
         cursor,
       })
       return
@@ -44,6 +46,7 @@ export async function importSkills(
   if (!page.isDone) {
     await ctx.runMutation(internal.skills._continueImport, {
       operationId: op._id,
+      attempt: op.attempt,
       cursor,
     })
     return
@@ -53,38 +56,11 @@ export async function importSkills(
 
 async function discover(ctx: ActionCtx, data: OperationContext) {
   const op = data.operation
-  const fileUrl = op.storageId
-    ? await ctx.storage.getUrl(op.storageId)
-    : undefined
-
-  const upload = op.storageId
-    ? await ctx.runQuery(internal.skills._getUpload, {
-        storageId: op.storageId,
-      })
-    : null
-  if (upload && upload.ownerId !== op.ownerId)
-    throw new Error('Skill upload not found')
-
-  if (fileUrl && op.uploadTicket && !upload?.verified) {
-    const proof = await postSidecar<{ verified: boolean }>(
-      '/agent-files/verify-upload',
-      { fileUrl, ticket: op.uploadTicket },
-    )
-    if (!proof.verified)
-      throw new Error('Skill upload does not belong to this import')
-    if (upload)
-      await ctx.runMutation(internal.skills._verifyUpload, {
-        uploadId: upload._id,
-      })
-  }
-
   await postSidecar('/agent-files/operation', {
     id: `${op._id}-discover`,
     ownerId: op.ownerId,
     kind: 'discover-import',
-    source: op.source,
-    fileUrl,
-    ticket: op.uploadTicket,
+    ...(await importSource(ctx, op)),
   })
 }
 
@@ -105,6 +81,7 @@ async function installCandidate(
     skillId =
       (await ctx.runMutation(internal.skills._prepareImportSkill, {
         operationId: op._id,
+        attempt: op.attempt,
         cursor,
         metadata: candidate.metadata,
       })) ?? undefined
@@ -131,6 +108,7 @@ async function installCandidate(
 
   await ctx.runMutation(internal.skills._finishImportSkill, {
     operationId: op._id,
+    attempt: op.attempt,
     cursor,
     nextCursor: candidate.nextCursor,
     skillId,

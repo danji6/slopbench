@@ -3,6 +3,7 @@
  */
 
 export * from './agent-editor'
+export * from './agent-home-status'
 export * from './agent-settings-save'
 export * from './agent'
 export * from './appearances'
@@ -38,6 +39,7 @@ export * from './sessions'
 export * from './settings-save'
 export * from './settings'
 export * from './sharing'
+export * from './skills'
 export * from './stream'
 export * from './streaming-cursor'
 export * from './terminals'

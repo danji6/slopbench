@@ -95,6 +95,7 @@ export async function reserveInvokeTurn(
 
   const agent = await ctx.db.get(session.activeAgentId)
   if (!agent || agent.fileOperationId) return
+  if (agent.homeId && (await ctx.db.get(agent.homeId))?.operationId) return
 
   const link = await ctx.db
     .query('sessionAgents')

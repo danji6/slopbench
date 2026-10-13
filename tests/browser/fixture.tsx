@@ -2,6 +2,7 @@ import { usePromptPreviews } from '@/hooks/chat/prompt-previews'
 import { Suspense, lazy, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 
+import { CheckboxFixture } from './checkbox-fixture'
 import { ScrollFixture } from './scroll-fixture'
 
 const SkillsFixture = lazy(() =>
@@ -55,6 +56,8 @@ createRoot(document.getElementById('root')!).render(
     <Suspense fallback={<p>Loading skills fixture…</p>}>
       <SkillsFixture />
     </Suspense>
+  ) : new URLSearchParams(location.search).get('fixture') === 'checkbox' ? (
+    <CheckboxFixture />
   ) : new URLSearchParams(location.search).get('fixture') === 'scroll' ? (
     <ScrollFixture />
   ) : (

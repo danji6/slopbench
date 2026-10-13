@@ -1,8 +1,9 @@
-import type { Id } from '../../_generated/dataModel'
+import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import { requireRole } from '../../functions'
 import type { AuthMutationCtx, AuthQueryCtx } from '../../functions'
+import { homeMembers } from './homes'
 
 export function requireAdmin(ctx: AuthQueryCtx | AuthMutationCtx) {
   requireRole(ctx.role, 'admin')
@@ -37,9 +38,26 @@ export async function assertAgentIdle(
   ctx: MutationCtx,
   id: Id<'agents'>,
   ownerId: Id<'users'>,
+  operationId?: Id<'agentFileOperations'>,
 ) {
   const agent = await requireOwnedAgent(ctx, id, ownerId)
-  if (agent.fileOperationId)
+  const home = agent.homeId ? await ctx.db.get(agent.homeId) : null
+  if (home?.operationId && home.operationId !== operationId)
+    error('Wait for the shared folder operation to finish', 409)
+
+  const members = agent.homeId ? await homeMembers(ctx, agent.homeId) : [agent]
+  for (const member of members) await assertMemberIdle(ctx, member, operationId)
+
+  return agent
+}
+
+async function assertMemberIdle(
+  ctx: MutationCtx,
+  agent: Doc<'agents'>,
+  operationId?: Id<'agentFileOperations'>,
+) {
+  const id = agent._id
+  if (agent.fileOperationId && agent.fileOperationId !== operationId)
     error('Wait for the personal folder operation to finish', 409)
 
   const stream = await ctx.db
@@ -73,7 +91,7 @@ export async function assertAgentIdle(
 
 export async function assertAgentAvailable(ctx: QueryCtx, id: Id<'agents'>) {
   const agent = await ctx.db.get(id)
-  if (agent?.fileOperationId) {
+  const home = agent?.homeId ? await ctx.db.get(agent.homeId) : null
+  if (agent?.fileOperationId || home?.operationId)
     error('Personal folder is being updated', 409)
-  }
 }

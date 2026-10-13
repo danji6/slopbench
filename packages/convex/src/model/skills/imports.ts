@@ -4,19 +4,25 @@ import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import { error } from '../../errors'
-import type { FinishSkillImportArgs, PrepareSkillImportArgs } from '../../types'
+import type {
+  ContinueSkillImportArgs,
+  FinishSkillImportArgs,
+  PrepareSkillImportArgs,
+} from '../../types'
 
 async function runningImport(
   ctx: MutationCtx,
   operationId: Id<'agentFileOperations'>,
   cursor: number,
+  attempt?: number,
 ) {
   const op = await ctx.db.get(operationId)
   if (
     !op ||
     op.kind !== 'install' ||
     op.status !== 'running' ||
-    op.importCursor !== cursor
+    op.importCursor !== cursor ||
+    (attempt !== undefined && op.attempt !== attempt)
   ) {
     error('Skill import is no longer running', 409)
   }
@@ -25,7 +31,12 @@ async function runningImport(
 
 /** Reserves names atomically and leaves existing clean bundles untouched. */
 export async function prepare(ctx: MutationCtx, args: PrepareSkillImportArgs) {
-  const op = await runningImport(ctx, args.operationId, args.cursor)
+  const op = await runningImport(
+    ctx,
+    args.operationId,
+    args.cursor,
+    args.attempt,
+  )
 
   const existing = await ctx.db
     .query('skills')
@@ -59,7 +70,12 @@ export async function prepare(ctx: MutationCtx, args: PrepareSkillImportArgs) {
 
 /** Commits one copied bundle and advances its durable discovery cursor in the same transaction. */
 export async function finish(ctx: MutationCtx, args: FinishSkillImportArgs) {
-  const op = await runningImport(ctx, args.operationId, args.cursor)
+  const op = await runningImport(
+    ctx,
+    args.operationId,
+    args.cursor,
+    args.attempt,
+  )
   if (args.nextCursor <= args.cursor)
     error('Invalid skill discovery cursor', 400)
 
@@ -97,9 +113,14 @@ export async function finish(ctx: MutationCtx, args: FinishSkillImportArgs) {
 /** Continues another bounded page in a new action. */
 export async function continueImport(
   ctx: MutationCtx,
-  args: { operationId: Id<'agentFileOperations'>; cursor: number },
+  args: ContinueSkillImportArgs,
 ) {
-  const op = await runningImport(ctx, args.operationId, args.cursor)
+  const op = await runningImport(
+    ctx,
+    args.operationId,
+    args.cursor,
+    args.attempt,
+  )
   await ctx.db.patch(op._id, { status: 'queued', updatedAt: Date.now() })
   await ctx.scheduler.runAfter(0, internal.actions.skills._run, { operationId: op._id }) // prettier-ignore
   await ctx.scheduler.runAfter(10 * 60_000, internal.skills._watchdog, { operationId: op._id }) // prettier-ignore

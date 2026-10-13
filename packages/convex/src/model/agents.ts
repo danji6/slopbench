@@ -17,6 +17,7 @@ import * as Reminders from './reminders'
 import { getByOwnerId } from './settings'
 import { assertAgentIdle } from './skills/access'
 import { start as startFileOperation } from './skills/operations'
+import { prepareHomeRemoval } from './skills/removal'
 import { stopForSession } from './stream/lifecycle'
 
 /** What the agent pickers and lists render. */
@@ -149,12 +150,14 @@ export async function update(
 
 export async function remove(
   ctx: AuthMutationCtx,
-  { agentId }: { agentId: Id<'agents'> },
+  { agentId, removeFolder }: { agentId: Id<'agents'>; removeFolder?: boolean },
 ) {
   const agent = await requireOwned(ctx, agentId)
-  if (agent.fileOperationId)
+  const home = agent.homeId ? await ctx.db.get(agent.homeId) : null
+  if (agent.fileOperationId || home?.operationId)
     error('Wait for the personal folder operation to finish', 409)
 
+  const cleanupOperationId = await prepareHomeRemoval(ctx, agent, removeFolder)
   const settings = await getByOwnerId(ctx, agent.ownerId)
   if (settings?.recentAgentId === agentId) {
     await ctx.db.patch(settings._id, { recentAgentId: undefined })
@@ -183,6 +186,7 @@ export async function remove(
   await ctx.scheduler.runAfter(0, internal.skills._removeAssignments, { agentId }) // prettier-ignore
   await ctx.db.delete(agentId)
   if (agent.avatarId) await Avatars.removeIfUnreferenced(ctx, agent.avatarId)
+  return { cleanupOperationId }
 }
 
 async function removeSessionCache(ctx: AuthMutationCtx, agentId: Id<'agents'>) {
@@ -207,6 +211,9 @@ export async function duplicate(
     _id,
     _creationTime,
     avatarId: _avatarId,
+    homeDetached: _homeDetached,
+    homeId: _homeId,
+    homeOriginAgentId: _homeOriginAgentId,
     homePath: _homePath,
     resolvedHomePath: _resolvedHomePath,
     homeRevision: _homeRevision,
@@ -218,11 +225,12 @@ export async function duplicate(
   const duplicateId = await ctx.db.insert('agents', {
     ...copy,
     name: `${copy.name} (copy)`,
+    homeDetached: agent.homeDetached,
   })
   await Prompts.copyForAgent(ctx, agentId, duplicateId, ctx.userId)
   await Reminders.copyForAgent(ctx, agentId, duplicateId, ctx.userId)
 
-  if (minRole(ctx.role, 'admin'))
+  if (minRole(ctx.role, 'admin') && !agent.homeDetached)
     await startFileOperation(ctx, { kind: 'duplicate', agentId, duplicateId })
 
   return duplicateId

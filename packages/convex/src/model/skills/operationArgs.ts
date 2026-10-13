@@ -3,6 +3,8 @@ import type { FileOperationArgs } from './operations'
 
 const allowedFields: Record<FileOperationArgs['kind'], readonly string[]> = {
   ensure: ['agentId'],
+  detach: ['agentId', 'removeFolder'],
+  'delete-home': [],
   install: ['source', 'storageId'],
   assign: ['agentId', 'skillId'],
   'delete-assigned': ['agentId', 'assignmentId'],

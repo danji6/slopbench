@@ -46,7 +46,26 @@ export const sessionStateSchema = v.object({
   updatedAt: v.number(),
 })
 
+export const skillUploadSchema = v.object({
+  ownerId: v.id('users'),
+  storageId: v.optional(v.id('_storage')),
+  ticket: v.string(),
+  verified: v.boolean(),
+})
+
+export const agentHomeSchema = v.object({
+  ownerId: v.id('users'),
+  originAgentId: v.id('agents'),
+  managed: v.boolean(),
+  path: v.optional(v.string()),
+  revision: v.number(),
+  operationId: v.optional(v.id('agentFileOperations')),
+})
+
 export const agentSchema = v.object({
+  homeDetached: v.optional(v.boolean()),
+  homeId: v.optional(v.id('agentHomes')),
+  homeOriginAgentId: v.optional(v.id('agents')),
   homePath: v.optional(v.string()),
   pendingHomePath: v.optional(v.string()),
   resolvedHomePath: v.optional(v.string()),

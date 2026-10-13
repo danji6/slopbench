@@ -13,8 +13,8 @@ import type {
   FinishSkillImportArgs,
   PrepareSkillImportArgs,
 } from '@sb/convex/types'
-import { agentFilesRoutes } from '@sb/sidecar/agent-files/routes'
 import { libraryRoot } from '@sb/sidecar/agent-files/storage'
+import type { createApp } from '@sb/sidecar/main'
 import { afterAll, beforeAll, expect, test } from 'bun:test'
 import { getFunctionName } from 'convex/server'
 import type { FunctionReference } from 'convex/server'
@@ -32,6 +32,8 @@ import path from 'node:path'
 
 import { skillsDatabase } from '../helpers/skills-db'
 
+let agentFilesRoutes: ReturnType<typeof createApp>
+
 let root: string
 const previousData = process.env.CHAT_SIDECAR_DATA_DIR
 const previousSecret = process.env.SIDECAR_SECRET
@@ -40,6 +42,8 @@ beforeAll(async () => {
   root = await mkdtemp(path.join(tmpdir(), 'skill-import-integration-'))
   process.env.CHAT_SIDECAR_DATA_DIR = path.join(root, 'data')
   process.env.SIDECAR_SECRET = 'fixture-secret'
+  const { createApp } = await import('@sb/sidecar/main')
+  agentFilesRoutes = createApp(async (_c, next) => next())
   globalThis.fetch = (async (
     input: string | URL | Request,
     init?: RequestInit,
@@ -47,10 +51,7 @@ beforeAll(async () => {
     const url = new URL(input instanceof Request ? input.url : String(input))
     if (url.pathname.startsWith('/agent-files/')) {
       return agentFilesRoutes.request(
-        new Request(
-          `http://fixture${url.pathname.slice('/agent-files'.length)}`,
-          init,
-        ),
+        new Request(`http://fixture${url.pathname}`, init),
       )
     }
     return originalFetch(input, init)
@@ -182,7 +183,7 @@ test('repository import installs all pages, skips duplicate copies, keeps resour
 
 test('a failed bundle copy leaves other installs usable and a retry retains prior copied customizations', async () => {
   const fixture = skillsDatabase()
-  await fixture.db.insert('agentFileOperations', { status: 'done' })
+  process.env.CHAT_SIDECAR_DATA_DIR = path.join(root, 'copy-failure-data')
   const source = path.join(root, 'copy-failure')
   await writeSkill(path.join(source, 'one'), 'one')
   await writeSkill(path.join(source, 'two'), 'two')

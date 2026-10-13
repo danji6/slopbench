@@ -12,6 +12,12 @@ const context = {
   sessionId: 'session_1',
   ownerId: 'session_1',
   workspaceId: 'workspace_1',
+  workspace: {
+    workspaceId: 'workspace',
+    path: '/fixture',
+    label: 'Fixture',
+    sources: [{ id: 'fixture', path: '/fixture', label: 'Fixture' }],
+  },
   approvals: async () => ({ mode: 'unrestricted' as const }),
   isPlanMode: async () => true,
 } as WorkspaceToolContext

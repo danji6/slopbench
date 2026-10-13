@@ -17,6 +17,7 @@ export type ShellJobContext = {
 }
 
 export type ShellJobInput = {
+  scope?: 'workspace' | 'agent'
   command: string
   /** Display-only summary of what the command does. */
   description?: string

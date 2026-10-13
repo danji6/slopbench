@@ -29,10 +29,11 @@ const edit_file = inline`
 export function shellToolDescription(shell?: string): string {
   const where = shell ? ` with ${shellLabel(shell)}` : ''
   return inline`
-    Run a shell command${where} in the primary project source, or your personal
-    folder when no project is configured. Set run_in_background for long-running
-    commands and read them later with shell_output. Pass a description whenever
-    the command isn't self-explanatory, so the user can review it at a glance.`
+    Run a shell command${where} in the primary project source, or select scope:
+    "agent" to run it in your personal folder. Set run_in_background for
+    long-running commands and read them later with shell_output. Pass a
+    description whenever the command isn't self-explanatory, so the user can
+    review it at a glance.`
 }
 
 const shell_output = inline`

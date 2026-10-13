@@ -6,8 +6,15 @@ import type { Condition, EvalContext, VariableStore } from './types'
 
 /** Host-provided functions exposed to dynamic blocks (all synchronous). */
 export type EvalHelpers = {
-  readFile?: (path: string, wrap?: boolean) => string
-  fileExists?: (path: string) => boolean
+  readFile?: (
+    path: string,
+    wrap?: boolean,
+    options?: { scope?: 'workspace' | 'agent' },
+  ) => string
+  fileExists?: (
+    path: string,
+    options?: { scope?: 'workspace' | 'agent' },
+  ) => boolean
 }
 
 export function evaluate(
@@ -32,8 +39,8 @@ export function render(text: string, run: (body: string) => unknown): string {
   const segments = parse(text)
   const parts: string[] = []
   const stack: BranchFrame[] = []
-  const currentActive = () =>
-    stack.length === 0 || stack[stack.length - 1].branchActive
+
+  const currentActive = () => stack.length === 0 || stack[stack.length - 1].branchActive // prettier-ignore
   const truthy = (cond: Condition) => Boolean(run(conditionBody(cond)))
 
   for (const segment of segments) {

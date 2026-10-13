@@ -12,7 +12,7 @@ import { findCredentialsForModel } from '../../model/provider/providers'
 import { postSidecar, sidecarDefaultShell } from '../../model/sidecar'
 import {
   catalogNote,
-  readSkillCatalog,
+  compactSkillCatalog,
   resolvePersonalWorkspace,
 } from '../../model/skills/runtime'
 import type { ReasoningEffort } from '../../types'
@@ -32,16 +32,18 @@ export async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
       data.session.workspace,
     )
     if (
+      data.session.workspace?.agentHome &&
       data.agent.resolvedHomePath &&
       data.agent.resolvedHomePath !== data.session.workspace.agentHome!.path
     ) {
       data.sessionCache = null
     }
-    await ctx.runMutation(internal.skills._rememberHome, {
-      agentId: data.agent._id,
-      path: data.session.workspace.agentHome!.path,
-      revision: data.agent.homeRevision ?? 0,
-    })
+    if (data.session.workspace?.agentHome)
+      await ctx.runMutation(internal.skills._rememberHome, {
+        agentId: data.agent._id,
+        path: data.session.workspace.agentHome!.path,
+        revision: data.agent.homeRevision ?? 0,
+      })
   }
 
   // Only needed while resolving a manifest
@@ -76,11 +78,15 @@ export async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
       context: evalContext,
       authorizedAgentId:
         evalContext.isAdmin && evalContext.tools?.includes('read_file')
-          ? data.agent._id
+          ? (data.session.workspace?.agentHome?.homeId ?? data.agent._id)
           : undefined,
       authorizedWorkDirs:
         evalContext.isAdmin && evalContext.tools?.includes('read_file')
           ? evalContext.workDirs
+          : undefined,
+      authorizedAgentDir:
+        evalContext.isAdmin && evalContext.tools?.includes('read_file')
+          ? evalContext.agentDir
           : undefined,
       authorizedWorkDir:
         evalContext.isAdmin && evalContext.tools?.includes('read_file')
@@ -128,9 +134,10 @@ export async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
   )
 
   const skills =
-    data.session.workspace && operationPlan.toolNames.includes('read_file')
+    data.session.workspace?.agentHome &&
+    operationPlan.toolNames.includes('read_file')
       ? catalogNote(
-          await readSkillCatalog(ctx, data.agent, data.session.workspace),
+          await compactSkillCatalog(ctx, data.agent, data.session.workspace),
         )
       : ''
 

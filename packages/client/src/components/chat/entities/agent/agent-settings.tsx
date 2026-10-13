@@ -1,3 +1,5 @@
+import { AgentFiles } from '@/components/chat/skills/agent-files'
+import { AgentSkills } from '@/components/chat/skills/agent-skills'
 import {
   AlertMessage,
   ConfirmDialog,
@@ -44,8 +46,8 @@ import { cn } from '@/lib/utils'
 import { ThemeScope } from '@/providers/theme-scope'
 import {
   ActivityIcon,
+  BlocksIcon,
   BotIcon,
-  LayersIcon,
   NetworkIcon,
   PaletteIcon,
   UserIcon,
@@ -63,7 +65,7 @@ import {
 } from './agent-form'
 import { AgentPicker } from './agent-picker'
 import { AppearanceSettings } from './appearance-settings'
-import { BehaviorSettings } from './behavior-settings'
+import { BehaviorGeneralSettings } from './behavior-settings'
 import { ContextSettings } from './context-settings'
 import { ProfileSettings } from './profile-settings'
 import { SubagentSettings } from './subagent-settings'
@@ -120,7 +122,10 @@ function AgentSettingsDialog() {
   const toolsScrollRef = useRef<HTMLDivElement>(null)
   const view = useAgentEditorView()
   const open = view.active
-  const activeTab = view.value ?? AGENT_EDITOR_DEFAULT_TAB
+  const requestedTab = view.value ?? AGENT_EDITOR_DEFAULT_TAB
+  const activeTab = ['files', 'context'].includes(requestedTab)
+    ? 'behavior'
+    : requestedTab
   // The id leads the local state while the document is fetched
   const agentId = useEditingAgentId()
   const liveAgent = useOwnedAgent(agentId)
@@ -311,8 +316,8 @@ function AgentSettingsDialog() {
                   >
                     Behavior
                   </SettingsTabs.Trigger>
-                  <SettingsTabs.Trigger value="context" icon={<LayersIcon />}>
-                    Context
+                  <SettingsTabs.Trigger value="skills" icon={<BlocksIcon />}>
+                    Skills
                   </SettingsTabs.Trigger>
                   <SettingsTabs.Trigger value="tools" icon={<WrenchIcon />}>
                     Tools
@@ -341,9 +346,7 @@ function AgentSettingsDialog() {
                     onClearAvatar={() => setAvatarCleared(true)}
                   />
                 </SettingsTabs.Content>
-                <SettingsTabs.Content value="context" title="Context">
-                  <ContextSettings control={form.control} />
-                </SettingsTabs.Content>
+
                 <SettingsTabs.Content
                   ref={toolsScrollRef}
                   value="tools"
@@ -354,13 +357,24 @@ function AgentSettingsDialog() {
                     scrollContainerRef={toolsScrollRef}
                   />
                 </SettingsTabs.Content>
+
                 <SettingsTabs.Content value="subagents" title="Sub-agents">
                   <SubagentSettings control={form.control} />
                 </SettingsTabs.Content>
+
                 <SettingsTabs.Content value="behavior">
-                  <BehaviorSettings
+                  <BehaviorGeneralSettings
                     key={editorKey ?? 'none'}
                     control={form.control}
+                  />
+                  <ContextSettings control={form.control} />
+                  <AgentFiles
+                    agentId={newAgent ? undefined : (agentId ?? undefined)}
+                  />
+                </SettingsTabs.Content>
+
+                <SettingsTabs.Content value="skills" title="Skills">
+                  <AgentSkills
                     agentId={newAgent ? undefined : (agentId ?? undefined)}
                   />
                 </SettingsTabs.Content>

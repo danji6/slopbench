@@ -8,6 +8,7 @@ import { parentPort, workerData } from 'node:worker_threads'
 import { createFileExistsHelper, createFileHelper } from './file-helper'
 
 const request = workerData as EvaluationRequest & {
+  authorizedAgentDir?: string
   authorizedWorkDir?: string
   authorizedWorkDirs?: string[]
 }
@@ -16,10 +17,12 @@ try {
     readFile: createFileHelper(
       request.authorizedWorkDir,
       request.authorizedWorkDirs,
+      request.authorizedAgentDir,
     ),
     fileExists: createFileExistsHelper(
       request.authorizedWorkDir,
       request.authorizedWorkDirs,
+      request.authorizedAgentDir,
     ),
   })
   parentPort?.postMessage({ ok: true, result } satisfies EvaluationReply)

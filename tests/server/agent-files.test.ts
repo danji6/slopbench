@@ -359,3 +359,96 @@ test('interrupted home publishes reconcile their journal and preserve unrelated 
     'keep this file',
   )
 })
+
+test('availability checks never create missing folders, and managed selections stay missing until preparation', async () => {
+  const { inspectHome } = await import('@sb/sidecar/agent-files/home-state')
+  const { resolveDestination } =
+    await import('@sb/sidecar/agent-files/destination')
+  const input = { ownerId: owner, agentId: 'uninitialized', revision: 0 }
+  expect((await inspectHome(input)).exists).toBe(false)
+  const destination = await resolveDestination(input)
+  expect(destination.path).toBe(managedHome(owner, input.agentId))
+  await expect(stat(destination.path)).rejects.toThrow()
+})
+
+test('changing a deleted custom source restores pristine skills even when carry-over was requested', async () => {
+  const missing = path.join(root, 'deleted-custom-home')
+  const destination = path.join(root, 'recovered-home')
+  await mkdir(destination)
+  const prepared = await runFileOperation({
+    id: 'recover-deleted-custom',
+    kind: 'prepare-home',
+    ownerId: owner,
+    agentId: 'recover-custom',
+    homePath: missing,
+    destination,
+    copyFiles: true,
+  })
+  expect(prepared).toEqual({
+    path: destination,
+    unchanged: false,
+    sourceMissing: true,
+  })
+  await runFileOperation({
+    id: 'recover-deleted-skill',
+    kind: 'stage-home-skill',
+    ownerId: owner,
+    skillId,
+    name: 'code-review',
+    homeOperationId: 'recover-deleted-custom',
+  })
+  await runFileOperation({
+    id: 'publish-recovered-custom',
+    kind: 'publish-home',
+    ownerId: owner,
+    homeOperationId: 'recover-deleted-custom',
+  })
+  expect(
+    await readFile(
+      path.join(destination, '.agents/skills/code-review/SKILL.md'),
+      'utf8',
+    ),
+  ).toBe(metadata)
+  await expect(stat(missing)).rejects.toThrow()
+})
+
+test('a deleted managed home can be recreated for a shared member using its original storage identity', async () => {
+  const original = 'deleted-managed-origin'
+  const destination = managedHome(owner, original)
+  const result = await runFileOperation({
+    id: 'recover-managed-home',
+    kind: 'prepare-home',
+    ownerId: owner,
+    agentId: 'shared-member',
+    originAgentId: original,
+    homePath: destination,
+    destinationOriginAgentId: original,
+    destination,
+    copyFiles: false,
+  })
+  expect(result).toEqual({
+    path: destination,
+    unchanged: false,
+    sourceMissing: true,
+  })
+  await runFileOperation({
+    id: 'stage-recovered-managed',
+    kind: 'stage-home-skill',
+    ownerId: owner,
+    skillId,
+    name: 'code-review',
+    homeOperationId: 'recover-managed-home',
+  })
+  await runFileOperation({
+    id: 'publish-recovered-managed',
+    kind: 'publish-home',
+    ownerId: owner,
+    homeOperationId: 'recover-managed-home',
+  })
+  expect(
+    await readFile(
+      path.join(destination, '.agents/skills/code-review/SKILL.md'),
+      'utf8',
+    ),
+  ).toBe(metadata)
+})

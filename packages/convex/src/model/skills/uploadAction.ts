@@ -1,7 +1,7 @@
 'use node'
 
 import { internal } from '../../_generated/api'
-import type { Id } from '../../_generated/dataModel'
+import type { Doc, Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { postSidecar } from '../sidecar'
 
@@ -35,4 +35,35 @@ export async function expireUpload(
     }
   }
   await ctx.runMutation(internal.skills._deleteUpload, { uploadId })
+}
+
+/** Verifies ownership once and resolves the immutable upload used by an import. */
+export async function importSource(
+  ctx: ActionCtx,
+  op: Doc<'agentFileOperations'>,
+) {
+  if (!op.storageId) return { source: op.source }
+  const upload = await ctx.runQuery(internal.skills._getUpload, {
+    storageId: op.storageId,
+  })
+  const fileUrl = await ctx.storage.getUrl(op.storageId)
+  if (
+    !upload ||
+    upload.ownerId !== op.ownerId ||
+    upload.ticket !== op.uploadTicket ||
+    !fileUrl
+  )
+    throw new Error('Skill upload is unavailable; upload the ZIP again')
+  if (!upload.verified) {
+    const proof = await postSidecar<{ verified: boolean }>(
+      '/agent-files/verify-upload',
+      { fileUrl, ticket: upload.ticket },
+    )
+    if (!proof.verified)
+      throw new Error('Skill upload does not belong to this import')
+    await ctx.runMutation(internal.skills._verifyUpload, {
+      uploadId: upload._id,
+    })
+  }
+  return { fileUrl, ticket: upload.ticket }
 }

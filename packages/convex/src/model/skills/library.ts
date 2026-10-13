@@ -1,18 +1,20 @@
-import { SKILL_PAGE_SIZE } from '@sb/core/skills/types'
 import type { PaginationOptions } from 'convex/server'
 
 import type { Id } from '../../_generated/dataModel'
 import type { QueryCtx } from '../../_generated/server'
 import type { AuthQueryCtx } from '../../functions'
+import type { SkillListArgs } from '../../types'
 import { requireAdmin, requireOwnedAgent } from './access'
 
-export async function list(
-  ctx: AuthQueryCtx,
-  args: { paginationOpts: PaginationOptions; search?: string },
-) {
+/** Filters availability against all home assignments, not just client-loaded pages. */
+export async function list(ctx: AuthQueryCtx, args: SkillListArgs) {
   requireAdmin(ctx)
+
+  const agent = args.agentId
+    ? await requireOwnedAgent(ctx, args.agentId, ctx.userId)
+    : null
   const prefix = args.search?.trim().toLowerCase() ?? ''
-  return ctx.db
+  const result = await ctx.db
     .query('skills')
     .withIndex('by_ownerId_name', (q) => {
       const owned = q.eq('ownerId', ctx.userId)
@@ -20,10 +22,31 @@ export async function list(
         ? owned.gte('name', prefix).lt('name', `${prefix}\uffff`)
         : owned
     })
-    .paginate({
-      ...args.paginationOpts,
-      numItems: Math.min(SKILL_PAGE_SIZE, args.paginationOpts.numItems),
-    })
+    .paginate(args.paginationOpts)
+  if (!agent) return result
+
+  const available = await Promise.all(
+    result.page.map(async (skill) => {
+      if (skill.status !== 'ready') return false
+      if (agent.homeDetached) return true
+      const assignment = agent.homeId
+        ? await ctx.db
+            .query('agentSkills')
+            .withIndex('by_homeId_name', (q) =>
+              q.eq('homeId', agent.homeId).eq('name', skill.name),
+            )
+            .first()
+        : await ctx.db
+            .query('agentSkills')
+            .withIndex('by_agentId_name', (q) =>
+              q.eq('agentId', agent._id).eq('name', skill.name),
+            )
+            .first()
+      return !assignment
+    }),
+  )
+
+  return { ...result, page: result.page.filter((_, i) => available[i]) }
 }
 
 export async function assigned(
@@ -35,22 +58,28 @@ export async function assigned(
   return assignmentPage(ctx, args.agentId, args.paginationOpts)
 }
 
-export function assignmentPage(
+export async function assignmentPage(
   ctx: QueryCtx,
   agentId: Id<'agents'>,
   options: PaginationOptions,
   prefix = '',
 ) {
-  return ctx.db
-    .query('agentSkills')
-    .withIndex('by_agentId_name', (q) => {
-      const owned = q.eq('agentId', agentId)
-      return prefix
-        ? owned.gte('name', prefix).lt('name', `${prefix}\uffff`)
-        : owned
-    })
-    .paginate({
-      ...options,
-      numItems: Math.min(SKILL_PAGE_SIZE, options.numItems),
-    })
+  const agent = await ctx.db.get(agentId)
+  if (agent?.homeDetached) return { page: [], isDone: true, continueCursor: '' }
+
+  const query = agent?.homeId
+    ? ctx.db.query('agentSkills').withIndex('by_homeId_name', (q) => {
+        const home = q.eq('homeId', agent.homeId)
+        return prefix
+          ? home.gte('name', prefix).lt('name', `${prefix}\uffff`)
+          : home
+      })
+    : ctx.db.query('agentSkills').withIndex('by_agentId_name', (q) => {
+        const owned = q.eq('agentId', agentId)
+        return prefix
+          ? owned.gte('name', prefix).lt('name', `${prefix}\uffff`)
+          : owned
+      })
+
+  return query.paginate(options)
 }

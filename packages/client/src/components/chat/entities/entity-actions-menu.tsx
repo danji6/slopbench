@@ -28,6 +28,8 @@ type EntityActionsMenuProps<T extends PickableRecord> = {
   entityName: string
   accept?: string
   className?: string
+  deleteDetails?: React.ReactNode
+  onDeleteOpen?: () => void
 }
 
 /** CRUD actions for an entity: create, duplicate, import, export, delete. */
@@ -36,6 +38,8 @@ export function EntityActionsMenu<T extends PickableRecord>({
   entityName,
   accept = '.json',
   className,
+  deleteDetails,
+  onDeleteOpen,
 }: EntityActionsMenuProps<T>) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -112,6 +116,7 @@ export function EntityActionsMenu<T extends PickableRecord>({
             variant="destructive"
             disabled={!ctx.active}
             onClick={() => {
+              onDeleteOpen?.()
               setDeleteName(ctx.active?.name ?? '')
               setDeleteOpen(true)
             }}
@@ -132,7 +137,14 @@ export function EntityActionsMenu<T extends PickableRecord>({
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title={`Delete ${entityName}?`}
-        description={`This will permanently delete "${deleteName}" and cannot be undone.${entityName === 'agent' ? ' Its personal folder will be preserved on disk.' : ''}`}
+        description={
+          <>
+            <span>
+              This will permanently delete "{deleteName}" and cannot be undone.
+            </span>
+            {deleteDetails}
+          </>
+        }
         confirmText="Delete"
         variant="destructive"
         onConfirm={handleDeleteConfirm}

@@ -13,26 +13,33 @@ folder sources. Managed homes use stable owner/agent IDs under sidecar data;
 admin owners can choose an existing custom directory. Home changes offer
 carrying current files or starting with pristine assigned skills, preserve the
 old directory, and reject destination conflicts. Duplication copies the home;
-agent deletion preserves its files. Additive schema fields require no backfill.
+agent deletion offers cleanup of its final managed home. Settings append Context
+and Files to Behavior. Folder availability is checked without creating anything;
+missing homes can be recreated or moved, restoring pristine assigned skills.
+Detaching persists across chats, preserves custom/shared folders, and optionally
+deletes a final managed home through durable work.
 
 An owner-scoped skill library stores complete pristine bundles. Assignments
 create independent editable copies under each agent's `.agents/skills`.
 Delete/reassign restores a clean copy. No skill-count or bundle-size quotas
 apply; file installation and copying stream data, while UI lists, discovery,
-and model reads use bounded pages. YAML frontmatter follows the Agent Skills
+and model reads use bounded responses. UI lists accumulate pages with virtualized infinite scrolling. YAML frontmatter follows the Agent Skills
 format, and optional harness metadata is preserved without executing hooks or
 provisioning integrations. Metadata comes from assigned copies each turn;
 full instructions and resources are read on demand.
 
 File tools reuse their existing names and accept an optional `scope` selecting
-project or agent roots. With no project, the home becomes the default file and
-shell base. `agentDir` exposes the home to user-authored prompts. Automatic
-filesystem notes and a paginated `list_skills` tool teach the agent how to access
-its files and discover every assignment. Existing approvals, admin gating,
+project or agent roots. Omitted scope always means workspace; personal access,
+including absolute paths, requires `scope: "agent"`. Shell working directories
+and dynamic file helpers follow the same rule. `agentDir` exposes the home;
+`workDir` remains project-only. A compact catalog includes installed skills up
+to 12,000 characters with 160-character descriptions. `list_skills` provides
+search and exact continuation when the catalog is truncated. Existing approvals, admin gating,
 plan-mode restrictions, and shell authority remain in effect.
 
 Mutation-scheduled operation records drive reactive progress and retries.
-Agent leases fence turn reservations; sidecar locks cover in-flight files and
+Stable owner-scoped home records share skills, revisions, and operation state
+across member agents. Home leases fence turn reservations; sidecar locks cover in-flight files and
 background jobs across sessions. Home transitions revoke old-home grants before
 releasing the agent. Filesystem journals reconcile interrupted publishes.
 Text reads now bound allocation before reading and expose byte continuation;
@@ -1519,7 +1526,7 @@ Directive lines leave no blank gap in the output. Dynamic code receives a fixed
 bindings map from `packages/core/src/interpreter/env.ts`: `user`, `owner`,
 `agent` (with `assistant`/`char`/`ai` aliases), `tools`, `isAdmin`,
 `userCount`, `agentCount`, `workDir`, `fileExists(path)`,
-`readFile(path, wrap?)`, and `getVar`/`setVar` backed by the session
+`readFile(path, wrap?, { scope }?)`, and `getVar`/`setVar` backed by the session
 environment store.
 
 Provider history is built from eligible done messages up to the stream context
