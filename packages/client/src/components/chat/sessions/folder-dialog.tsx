@@ -2,6 +2,7 @@ import { type IconName, IconPicker } from '@/components/icon-picker/icon-picker'
 import { Dialog, Input, RippleButton } from '@/components/ui'
 import { useIsAdmin, useRecentWorkspaces } from '@/hooks/chat'
 import { toastError } from '@/lib/notifications'
+import { generateId } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import type { Doc, Id } from '@sb/convex/_generated/dataModel'
 import type { FolderView } from '@sb/convex/types'
@@ -73,7 +74,7 @@ export function FolderDialog({
       setSources((current) => [
         ...current,
         {
-          id: crypto.randomUUID(),
+          id: generateId(),
           path,
           label: path.split('/').filter(Boolean).at(-1) ?? path,
         },

@@ -1,3 +1,1 @@
-export function generateId() {
-  return crypto.randomUUID()
-}
+export { generateId } from '@sb/core/utils/id'

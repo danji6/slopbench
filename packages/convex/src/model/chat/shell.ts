@@ -12,6 +12,7 @@ import {
   type ShellToolPart,
   isShellToolPart,
 } from '../../lib/userShell'
+import { generateId } from '../../lib/utils'
 import type { Session } from '../../types'
 import {
   getSegmentRow,
@@ -77,7 +78,7 @@ export async function runShellCommand(
 
   const part: ShellToolPart = {
     type: SHELL_TOOL_PART_TYPE,
-    toolCallId: crypto.randomUUID(),
+    toolCallId: generateId(),
     state: 'input-available',
     input: { command },
   }
