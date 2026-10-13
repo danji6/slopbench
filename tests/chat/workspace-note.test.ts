@@ -12,6 +12,37 @@ const ws = (label: string) => ({
 })
 
 describe('workspaceChanged', () => {
+  test('personal-folder guidance follows availability even when project sources stay unchanged', () => {
+    const project = ws('same')
+    const home = {
+      ownerId: 'owner',
+      agentId: 'agent',
+      path: '/home/agent',
+      revision: 0,
+    }
+    const personal = { ...project, agentHome: home }
+    expect(workspaceChanged(project, personal)).toBe(true)
+    expect(workspaceChanged(personal, project)).toBe(true)
+    expect(
+      workspaceChanged(personal, {
+        ...project,
+        agentHome: { ...home, path: '/other' },
+      }),
+    ).toBe(true)
+    expect(
+      workspaceChanged(personal, {
+        ...project,
+        agentHome: { ...home, revision: 1 },
+      }),
+    ).toBe(false)
+    expect(buildWorkspaceNoteContent(project, personal)).toContain(
+      'scope: "agent"',
+    )
+    const detached = buildWorkspaceNoteContent(personal, project)
+    expect(detached).toContain('personal folder is no longer available')
+    expect(detached).not.toContain('scope: "agent"')
+  })
+
   test('changing sources within the same folder counts as a change', () => {
     const previous = { ...ws('old'), workspaceId: 'ws_shared' }
     const next = { ...ws('new'), workspaceId: 'ws_shared' }

@@ -1,13 +1,12 @@
 import { z } from 'zod'
 
 import { ATTACHMENT_READ_MAX_BYTES } from '../const'
+import { fileScopeDescription } from './tool-descriptions'
 
 export const fileScopeField = z
   .enum(['workspace', 'agent'])
   .optional()
-  .describe(
-    'Filesystem scope: "workspace" is the default, while "agent" is for your personal files (if available)',
-  )
+  .describe(fileScopeDescription())
 
 export const readAttachmentFields = {
   reference: z.string().describe('Attachment reference to read'),

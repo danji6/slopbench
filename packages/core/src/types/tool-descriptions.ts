@@ -7,8 +7,7 @@ const web_search = 'Search the web and return a list of results.'
 
 const read_file = inline`Read a bounded text page. Use this instead of cat/sed
   for inspection. When truncated, pass nextByteOffset as byteOffset to continue.
-  Pass "agent" scope to read personal files (if available) or "workspace"
-  (the default) for project files.`
+  Paths default to the project workspace.`
 
 const read_attachment = inline`
   Read a bounded UTF-8 byte range from an attachment reference. Use the returned
@@ -26,11 +25,31 @@ const edit_file = inline`
   unique; include surrounding context if there are multiple occurrences. Merge
   nearby or overlapping changes into one edit.`
 
-export function shellToolDescription(shell?: string): string {
+/** Adds personal file guidance only when a home is available for this turn. */
+export function fileToolDescription(description: string, hasAgentHome = false) {
+  return hasAgentHome
+    ? `${description} Use scope: "agent" for personal files, including absolute paths.`
+    : description
+}
+
+/** Describes scope selection using the current turn's available filesystem. */
+export function fileScopeDescription(hasAgentHome = false) {
+  const description = 'Filesystem scope (default: "workspace").'
+  return hasAgentHome
+    ? `${description} Use scope: "agent" for your personal folder.`
+    : description
+}
+
+export function shellToolDescription(
+  shell?: string,
+  hasAgentHome = false,
+): string {
   const where = shell ? ` with ${shellLabel(shell)}` : ''
+  const personal = hasAgentHome
+    ? ' Select scope: "agent" to run it in your personal folder.'
+    : ''
   return inline`
-    Run a shell command${where} in the primary project source, or select scope:
-    "agent" to run it in your personal folder (if available). Set
+    Run a shell command${where} in the primary project source.${personal} Set
     run_in_background for long-running commands and read them later
     with shell_output. Pass a description whenever the command isn't
     self-explanatory, so the user can review it at a glance.`

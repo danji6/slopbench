@@ -1,5 +1,6 @@
 import {
   TOOL_DESCRIPTIONS,
+  fileScopeDescription,
   fileScopeField,
   shellToolDescription,
 } from '@sb/core/types'
@@ -30,9 +31,14 @@ import {
 export async function createShellTool(context: WorkspaceToolContext) {
   const [{ tool }, { z }] = await Promise.all([import('ai'), import('zod')])
   return tool<ShellJobInput, ShellToolOutput, never>({
-    description: shellToolDescription(context.shell),
+    description: shellToolDescription(
+      context.shell,
+      !!context.workspace?.agentHome,
+    ),
     inputSchema: z.object({
-      scope: fileScopeField,
+      scope: fileScopeField.describe(
+        fileScopeDescription(!!context.workspace?.agentHome),
+      ),
       command: z.string().describe('Shell command to execute'),
       description: z
         .string()

@@ -1251,9 +1251,14 @@ the database. `_applyRelease` skips completed entries and returns only a compact
 applied count. Completion is recorded only after the tracked strict schema
 deploy succeeds. The one-off pre-release migrations and their compatibility
 helpers have been removed. Baseline 15 stores home authority only in `agentHomes`
-and requires `homeId` on skill assignments. Existing development databases need
-their superseded agent fields and assignment metadata normalized before strict
-deployment; bumping the baseline alone does not transform stored documents.
+and requires `homeId` on skill assignments. The local test database was normalized
+with a temporary migration: six agent records were cleaned, all eight home records
+were preserved, and three regenerable session caches were cleared. Strict schema
+deployment succeeded, the temporary endpoint was removed, and the release marker
+is complete at version 15. A snapshot of the normalized database is saved at
+`.data/backups/baseline-15-normalized.zip`. Other development databases still need
+normalization before strict deployment; bumping the baseline alone does not
+transform stored documents.
 
 ## Message Send Flow
 

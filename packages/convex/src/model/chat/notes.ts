@@ -237,10 +237,11 @@ async function trailingModeNote(ctx: MutationCtx, sessionId: Id<'sessions'>) {
 
 type Workspace = Session['workspace']
 
-/** Detects a different folder or ordered source set. */
+/** Detects changes to project sources or personal-folder availability. */
 export function workspaceChanged(previous: Workspace, next: Workspace) {
   return (
     previous?.workspaceId !== next?.workspaceId ||
+    previous?.agentHome?.path !== next?.agentHome?.path ||
     JSON.stringify(
       previous?.sources?.map((s) => s.path) ?? [previous?.path],
     ) !== JSON.stringify(next?.sources?.map((s) => s.path) ?? [next?.path])
@@ -274,6 +275,9 @@ function workspaceNoteBody(previous: Workspace, next: Workspace): string[] {
 
   return [
     ...personal,
+    ...(previous?.agentHome && !next.agentHome
+      ? ['Your personal folder is no longer available.']
+      : []),
     `Folder: "${next.label}". Primary source: ${next.path}.`,
     `Relative file paths and the shell working directory resolve from the primary source (${next.path}).`,
     'Accessible source directories:',

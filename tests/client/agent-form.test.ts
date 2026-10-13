@@ -28,6 +28,31 @@ const PROMPT: Prompt = {
 }
 
 describe('new agent form', () => {
+  test.each([
+    [
+      'without randomUUID',
+      { getRandomValues: crypto.getRandomValues.bind(crypto) },
+    ],
+    ['without crypto', undefined],
+  ])('creates default prompts %s', (_name, browserCrypto) => {
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto')!
+    Object.defineProperty(globalThis, 'crypto', {
+      configurable: true,
+      value: browserCrypto,
+    })
+    try {
+      const values = newAgentFormValues()
+      const prompt = values.prompts[0] as Prompt
+      expect(prompt.content).toBe(DEFAULT_SYSTEM_PROMPT)
+      expect(prompt.id).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      )
+      expect(newAgentFormValues().prompts[0]).not.toEqual(prompt)
+    } finally {
+      Object.defineProperty(globalThis, 'crypto', descriptor)
+    }
+  })
+
   test('includes the normal creation defaults without needing an agent ID', () => {
     const values = newAgentFormValues()
     expect(values.name).toBe('New agent')
