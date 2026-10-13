@@ -3,6 +3,7 @@ import type { MutationCtx, QueryCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import { findUserBySubject } from '../../functions'
 import { foldPaths, isPathAllowed } from '../../lib/tool/approval'
+import { agentWithHome } from '../skills/homes'
 import { requireEnabled, requireMember, requireOwner } from './memberships'
 import { deleteStorageIfPresent } from './sessionTeardown'
 import { getApprovals, getState, patchState, setApprovals } from './state'
@@ -18,7 +19,7 @@ export async function _getWorkspaceContext(
   return {
     workspace: session.workspace,
     agent: session.activeAgentId
-      ? await ctx.db.get(session.activeAgentId)
+      ? await agentWithHome(ctx, session.activeAgentId)
       : null,
   }
 }

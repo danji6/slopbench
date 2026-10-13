@@ -31,19 +31,9 @@ export async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
       data.agent,
       data.session.workspace,
     )
-    if (
-      data.session.workspace?.agentHome &&
-      data.agent.resolvedHomePath &&
-      data.agent.resolvedHomePath !== data.session.workspace.agentHome!.path
-    ) {
+    if (data.agent.home?.path && !data.session.workspace?.agentHome) {
       data.sessionCache = null
     }
-    if (data.session.workspace?.agentHome)
-      await ctx.runMutation(internal.skills._rememberHome, {
-        agentId: data.agent._id,
-        path: data.session.workspace.agentHome!.path,
-        revision: data.agent.homeRevision ?? 0,
-      })
   }
 
   // Only needed while resolving a manifest

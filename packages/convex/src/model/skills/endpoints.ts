@@ -6,14 +6,13 @@ import type { AuthMutationCtx, AuthQueryCtx } from '../../functions'
 import type {
   CopySkillAssignmentsArgs,
   InvalidateAgentHomeArgs,
-  RememberAgentHomeArgs,
   ReserveHomeArgs,
   SkillAssignmentsArgs,
 } from '../../types'
 import { assertAgentIdle, requireAdmin } from './access'
 import * as Completion from './completion'
 import { assertHomeDestination } from './destinations'
-import { agentWithHome, ensureHome, homeMembers } from './homes'
+import { agentWithHome, homeMembers } from './homes'
 import { invalidateHomeCaches as invalidateCaches } from './invalidation'
 import * as Library from './library'
 import * as Operations from './operations'
@@ -99,11 +98,7 @@ export const copyAssignments = async (
 
   for (const id of ids) {
     const row = await ctx.db.get(id)
-    if (
-      !row ||
-      row.ownerId !== op.ownerId ||
-      (row.homeId ? row.homeId !== op.homeId : row.agentId !== op.agentId)
-    ) {
+    if (!row || row.ownerId !== op.ownerId || row.homeId !== op.homeId) {
       error('Assignment changed during copy', 409)
     }
 
@@ -119,7 +114,6 @@ export const copyAssignments = async (
       await ctx.db.insert('agentSkills', {
         ...fields,
         homeId,
-        agentId: op.duplicateId ?? op.agentId,
       })
     }
   }
@@ -232,50 +226,10 @@ export const reserveDestination = async (
     destinationHomeId: id,
     joinedHome: !!existing && existing._id !== operation.homeId,
   })
-  await ctx.db.patch(operation.agentId, { pendingHomePath: args.path })
 
   return {
     home: (await ctx.db.get(id))!,
     joined: !!existing && existing._id !== operation.homeId,
-  }
-}
-
-export const removeAssignments = async (
-  ctx: MutationCtx,
-  args: { agentId: Id<'agents'> },
-) => {
-  const rows = await ctx.db
-    .query('agentSkills')
-    .withIndex('by_agentId_name', (q) => q.eq('agentId', args.agentId))
-    .filter((q) => q.eq(q.field('homeId'), undefined))
-    .take(100)
-  for (const row of rows) if (!row.homeId) await ctx.db.delete(row._id)
-  if (rows.length === 100) {
-    await ctx.scheduler.runAfter(0, internal.skills._removeAssignments, args)
-  }
-}
-
-export const rememberHome = async (
-  ctx: MutationCtx,
-  args: RememberAgentHomeArgs,
-) => {
-  const agent = await ctx.db.get(args.agentId)
-  if (
-    agent &&
-    !agent.homeDetached &&
-    !agent.fileOperationId &&
-    (agent.homeRevision ?? 0) === args.revision &&
-    agent.resolvedHomePath !== args.path
-  ) {
-    const home = await ensureHome(ctx, agent)
-    await assertHomeDestination(ctx, agent._id, args.path)
-    await ctx.db.patch(home._id, { path: args.path })
-    await ctx.db.patch(agent._id, {
-      resolvedHomePath: args.path,
-      homeRevision: agent.resolvedHomePath
-        ? (agent.homeRevision ?? 0) + 1
-        : agent.homeRevision,
-    })
   }
 }
 

@@ -36,7 +36,6 @@ async function fixture(
     _id: agentId,
     ownerId: 'owner',
     name: 'Agent',
-    resolvedHomePath: managedHome('owner', agentId),
   })
   db.rows('skills').push({
     _id: skillId,
@@ -108,10 +107,11 @@ function actionContext({ ctx }: ReturnType<typeof skillsDatabase>): ActionCtx {
 }
 
 async function assign(f: ReturnType<typeof skillsDatabase>) {
-  const home = await ensureHome(f.ctx, (await f.ctx.db.get(agentId))!)
+  const created = await ensureHome(f.ctx, (await f.ctx.db.get(agentId))!)
+  await f.ctx.db.patch(created._id, { path: managedHome('owner', agentId) })
+  const home = (await f.ctx.db.get(created._id))!
   await f.ctx.db.insert('agentSkills', {
     homeId: home._id,
-    agentId,
     ownerId: 'owner' as Id<'users'>,
     skillId,
     name: 'review',
@@ -161,7 +161,9 @@ test('durable folder changes recover a missing custom source and carry its assig
       expect((await f.ctx.db.get(operationId))?.error).toBeUndefined()
       await invalidateHomeCaches(f.ctx, { operationId, cursor: null })
       expect((await f.ctx.db.get(operationId))?.status).toBe('done')
-      expect((await f.ctx.db.get(agentId))?.resolvedHomePath).toBe(custom)
+      expect(
+        (await f.ctx.db.get((await f.ctx.db.get(agentId))!.homeId!))?.path,
+      ).toBe(custom)
       expect(
         await readFile(
           path.join(custom, '.agents/skills/review/SKILL.md'),
@@ -193,7 +195,6 @@ test('durable managed-folder deletion detaches the agent and removes its assignm
       previousPath: home.path,
     })
     await cleanupRecords(f.ctx, { homeId: home._id })
-    expect((await f.ctx.db.get(agentId))?.homeDetached).toBe(true)
     expect((await f.ctx.db.get(agentId))?.homeId).toBeUndefined()
     await expect(readFile(path.join(home.path!, 'note.txt'))).rejects.toThrow()
     expect(f.rows('agentSkills')).toHaveLength(0)

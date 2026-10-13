@@ -38,9 +38,8 @@ export const skillSchema = v.object({
 })
 
 export const agentSkillSchema = v.object({
-  homeId: v.optional(v.id('agentHomes')),
+  homeId: v.id('agentHomes'),
   ownerId: v.id('users'),
-  agentId: v.id('agents'),
   skillId: v.id('skills'),
   name: v.string(),
   description: v.string(),

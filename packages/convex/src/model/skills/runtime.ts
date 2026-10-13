@@ -16,38 +16,32 @@ import type { FolderWorkspace } from '@sb/core/types/workspace'
 import { withAgentHome } from '@sb/core/workspace/personal'
 
 import { internal } from '../../_generated/api'
-import type { Doc, Id } from '../../_generated/dataModel'
+import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
-import type { Session } from '../../types'
+import type { AgentWithHome, Session } from '../../types'
 import { postSidecar } from '../sidecar'
 
-/** Resolves the home from the agent document. */
+/** Resolves only an explicitly assigned, available personal folder. */
 export async function resolvePersonalWorkspace(
-  agent: Doc<'agents'>,
+  agent: AgentWithHome,
   project?: Session['workspace'],
 ): Promise<Session['workspace']> {
-  if (agent.homeDetached) return project
-
-  if (agent.homePath || agent.resolvedHomePath) {
-    const status = await postSidecar<{ exists: boolean }>(
-      '/agent-files/status',
-      {
-        ownerId: agent.ownerId,
-        agentId: agent._id,
-        originAgentId: agent.homeOriginAgentId,
-        path: agent.homePath ?? agent.resolvedHomePath,
-      },
-    )
-    if (!status.exists) return project
-  }
+  if (!agent.home?.path) return project
+  const status = await postSidecar<{ exists: boolean }>('/agent-files/status', {
+    ownerId: agent.ownerId,
+    agentId: agent._id,
+    originAgentId: agent.home.originAgentId,
+    path: agent.home.path,
+  })
+  if (!status.exists) return project
 
   const home = await postSidecar<AgentHome>('/agent-files/home', {
     ownerId: agent.ownerId,
     agentId: agent._id,
     homeId: agent.homeId,
-    originAgentId: agent.homeOriginAgentId,
-    path: agent.homePath,
-    revision: agent.homeRevision ?? 0,
+    originAgentId: agent.home?.originAgentId,
+    path: agent.home?.path,
+    revision: agent.home?.revision ?? 0,
   })
 
   return { ...withAgentHome(project, home), folderId: project?.folderId }
@@ -55,7 +49,7 @@ export async function resolvePersonalWorkspace(
 
 export async function readSkillCatalog(
   ctx: ActionCtx,
-  agent: Doc<'agents'>,
+  agent: AgentWithHome,
   workspace: FolderWorkspace,
   cursor: string | null = null,
   search?: string,
@@ -74,8 +68,8 @@ export async function readSkillCatalog(
       ownerId: agent.ownerId,
       agentId: agent._id,
       homeId: agent.homeId,
-      originAgentId: agent.homeOriginAgentId,
-      path: agent.homePath,
+      originAgentId: agent.home?.originAgentId,
+      path: agent.home?.path,
       revision: workspace.agentHome?.revision ?? 0,
       names: page.page.slice(decoded.offset).map((row) => row.name),
     },
@@ -91,7 +85,7 @@ export async function readSkillCatalog(
 /** Fills a bounded prompt catalog while retaining a precise continuation position. */
 export async function compactSkillCatalog(
   ctx: ActionCtx,
-  agent: Doc<'agents'>,
+  agent: AgentWithHome,
   workspace: FolderWorkspace,
 ): Promise<SkillCatalogPage> {
   const entries: SkillCatalogEntry[] = []
@@ -136,7 +130,7 @@ export async function catalogForTool(
   input: { cursor?: string; search?: string },
 ) {
   const agent = await ctx.runQuery(internal.skills._agent, { agentId })
-  if (!agent || agent.fileOperationId)
+  if (!agent?.home?.path || agent.fileOperationId || agent.home.operationId)
     throw new Error('Personal folder is being updated or no longer exists')
   return readSkillCatalog(
     ctx,
@@ -169,9 +163,9 @@ export async function openFolder(
   return postSidecar<{ ok: boolean }>('/agent-files/open', {
     ownerId: agent.ownerId,
     agentId,
-    originAgentId: agent.homeOriginAgentId,
+    originAgentId: agent.home?.originAgentId,
     homeId: agent.homeId,
-    path: agent.homePath,
+    path: agent.home?.path,
   })
 }
 
@@ -189,7 +183,7 @@ export async function homeStatus(
   return postSidecar<{ exists: boolean }>('/agent-files/status', {
     ownerId: agent.ownerId,
     agentId,
-    originAgentId: agent.homeOriginAgentId,
+    originAgentId: agent.home?.originAgentId,
     path: home.path,
   })
 }

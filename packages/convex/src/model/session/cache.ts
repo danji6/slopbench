@@ -20,9 +20,12 @@ export async function getBySessionAgent(
   const session = await getSessionWithWorkspace(ctx, sessionId)
   const agent = await ctx.db.get(agentId)
 
-  return row?.personalContextVersion === 1 &&
+  const home = agent?.homeId ? await ctx.db.get(agent.homeId) : null
+
+  return row &&
+    row.homeId === agent?.homeId &&
     row.filesystemAccess === filesystemAccess &&
-    row.homeRevision === (agent?.homeRevision ?? 0) &&
+    row.homeRevision === (home?.revision ?? 0) &&
     row.workspaceRevision === workspaceKey(session?.workspace)
     ? row
     : null
@@ -48,7 +51,8 @@ export async function _save(ctx: MutationCtx, args: SaveSessionCacheArgs) {
     (await getSessionWithWorkspace(ctx, args.sessionId))?.workspace,
   )
   const capturedAt = Date.now()
-  const homeRevision = (await ctx.db.get(args.agentId))?.homeRevision ?? 0
+  const homeId = (await ctx.db.get(args.agentId))?.homeId
+  const homeRevision = homeId ? ((await ctx.db.get(homeId))?.revision ?? 0) : 0
 
   if (existing) {
     await ctx.db.patch(existing._id, {
@@ -59,7 +63,7 @@ export async function _save(ctx: MutationCtx, args: SaveSessionCacheArgs) {
       ...(args.items && { items: args.items }),
       ...(args.tools && { tools: args.tools }),
       capturedAt,
-      personalContextVersion: 1,
+      homeId,
       filesystemAccess: args.filesystemAccess ?? false,
       homeRevision,
       workspaceRevision,
@@ -73,7 +77,7 @@ export async function _save(ctx: MutationCtx, args: SaveSessionCacheArgs) {
     items: args.items ?? [],
     tools: args.tools,
     capturedAt,
-    personalContextVersion: 1,
+    homeId,
     filesystemAccess: args.filesystemAccess ?? false,
     homeRevision,
     workspaceRevision,

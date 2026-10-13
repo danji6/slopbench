@@ -21,6 +21,9 @@ export type * from '@sb/core/types'
 
 export type McpExecutionArgs = Infer<typeof V.mcpExecutionArgsValidator>
 
+/** An agent with its authoritative shared personal folder state resolved. */
+export type AgentWithHome = Doc<'agents'> & { home: Doc<'agentHomes'> | null }
+
 export type StreamContext = {
   stream: Doc<'streams'>
   session: Session
@@ -147,7 +150,6 @@ export type FinishSkillImportArgs = Infer<typeof V.finishSkillImportArgsValidato
 export type InvalidateAgentHomeArgs = Infer<typeof V.invalidateAgentHomeArgsValidator> // prettier-ignore
 export type SkillListArgs = Infer<typeof V.skillListArgsValidator>
 export type SkillAssignmentsArgs = Infer<typeof V.skillAssignmentsArgsValidator> // prettier-ignore
-export type RememberAgentHomeArgs = Infer<typeof V.rememberAgentHomeArgsValidator> // prettier-ignore
 export type ContinueSkillImportArgs = Infer<typeof V.continueSkillImportArgsValidator> // prettier-ignore
 export type CopySkillAssignmentsArgs = Infer<typeof V.copySkillAssignmentsArgsValidator> // prettier-ignore
 export type ReserveHomeArgs = Infer<typeof V.reserveHomeArgsValidator>

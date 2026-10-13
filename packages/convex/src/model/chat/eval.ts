@@ -6,6 +6,7 @@ import { getSessionWithWorkspace } from '../session/folderContext'
 import { countParticipants } from '../session/memberships'
 import { getState, patchState } from '../session/state'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
+import { agentWithHome } from '../skills/homes'
 
 type EvalTarget = {
   messageId: Id<'messages'>
@@ -34,7 +35,7 @@ export async function _getMessageEvalContext(
   if (!session?.activeAgentId) return null
 
   const [agent, invoker] = await Promise.all([
-    ctx.db.get(session.activeAgentId),
+    agentWithHome(ctx, session.activeAgentId),
     ctx.db.get(invokerId),
   ])
   if (!agent || !invoker) return null

@@ -14,7 +14,6 @@ import {
   internalMutation,
   internalQuery,
 } from './_generated/server'
-import { migrateAgentHome, migrateHomeSkill } from './model/skills/migration'
 
 export const migrations = new Migrations<DataModel>(components.migrations, {
   internalMutation,
@@ -28,20 +27,7 @@ export const run = migrations.runner()
  *
  * Keep the shared manifest append-only and add its generated reference here.
  */
-export const sharedAgentHomes = migrations.define({
-  table: 'agents',
-  migrateOne: migrateAgentHome,
-})
-
-export const sharedHomeSkills = migrations.define({
-  table: 'agentSkills',
-  migrateOne: migrateHomeSkill,
-})
-
-const releaseMigrations: MigrationFunctionReference[] = [
-  internal.migrations.sharedAgentHomes,
-  internal.migrations.sharedHomeSkills,
-]
+const releaseMigrations: MigrationFunctionReference[] = []
 
 /** Stable pre-deploy endpoint used by launchers from future releases. */
 export const _getReleaseState = internalQuery({

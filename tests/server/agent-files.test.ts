@@ -198,6 +198,10 @@ describe('personal homes and independent skills', () => {
     )
     const destination = path.join(root, 'fresh-home')
     await mkdir(destination)
+    await writeFile(
+      path.join(destination, 'keep.txt'),
+      'existing destination file',
+    )
     await runFileOperation({
       id: 'prepare-fresh',
       kind: 'prepare-home',
@@ -226,6 +230,9 @@ describe('personal homes and independent skills', () => {
         'utf8',
       ),
     ).toBe(metadata)
+    expect(await readFile(path.join(destination, 'keep.txt'), 'utf8')).toBe(
+      'existing destination file',
+    )
     await expect(stat(path.join(destination, 'notes.md'))).rejects.toThrow()
     expect(await readFile(path.join(home, 'notes.md'), 'utf8')).toBe(
       'keep at original location',
@@ -451,4 +458,43 @@ test('a deleted managed home can be recreated for a shared member using its orig
       'utf8',
     ),
   ).toBe(metadata)
+})
+
+test('home publication retries preserve edits made before acknowledgement', async () => {
+  const source = path.join(root, 'retry-edits-source')
+  const target = path.join(root, 'retry-edits-target')
+  const operation = path.join(root, 'retry-edits-operation')
+  await mkdir(source)
+  await mkdir(target)
+  await mkdir(operation)
+  await writeFile(path.join(source, 'note.txt'), 'original')
+  await publishTree(source, target, operation)
+  await writeFile(path.join(target, 'note.txt'), 'edited after publication')
+  await writeFile(path.join(source, 'remaining.txt'), 'finish copying')
+  await publishTree(source, target, operation)
+  expect(await readFile(path.join(target, 'note.txt'), 'utf8')).toBe(
+    'edited after publication',
+  )
+  expect(await readFile(path.join(target, 'remaining.txt'), 'utf8')).toBe(
+    'finish copying',
+  )
+})
+
+test('identical destination files still abort before any new files are copied', async () => {
+  const source = path.join(root, 'identical-source')
+  const target = path.join(root, 'identical-target')
+  const operation = path.join(root, 'identical-operation')
+  await mkdir(source)
+  await mkdir(target)
+  await mkdir(operation)
+  await writeFile(path.join(source, 'a-new.txt'), 'new file')
+  await writeFile(path.join(source, 'z-duplicate.txt'), 'same contents')
+  await writeFile(path.join(target, 'z-duplicate.txt'), 'same contents')
+  await expect(publishTree(source, target, operation)).rejects.toThrow(
+    'already exists',
+  )
+  await expect(stat(path.join(target, 'a-new.txt'))).rejects.toThrow()
+  expect(await readFile(path.join(target, 'z-duplicate.txt'), 'utf8')).toBe(
+    'same contents',
+  )
 })

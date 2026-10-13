@@ -19,7 +19,6 @@ import {
   finishSkillImportArgsValidator,
   invalidateAgentHomeArgsValidator,
   prepareSkillImportArgsValidator,
-  rememberAgentHomeArgsValidator,
   reserveHomeArgsValidator,
   skillAssignmentsArgsValidator,
   skillListArgsValidator,
@@ -142,16 +141,6 @@ export const getHome = authQuery({
 export const _reserveDestination = internalMutation({
   args: reserveHomeArgsValidator.fields,
   handler: Endpoints.reserveDestination,
-})
-
-export const _removeAssignments = internalMutation({
-  args: { agentId: v.id('agents') },
-  handler: Endpoints.removeAssignments,
-})
-
-export const _rememberHome = internalMutation({
-  args: rememberAgentHomeArgsValidator.fields,
-  handler: Endpoints.rememberHome,
 })
 
 export const _invalidateHomeCaches = internalMutation({

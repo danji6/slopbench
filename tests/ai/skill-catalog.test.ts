@@ -1,15 +1,19 @@
-import type { Doc } from '@sb/convex/_generated/dataModel'
 import type { ActionCtx } from '@sb/convex/_generated/server'
 import {
   catalogNote,
   compactSkillCatalog,
   readSkillCatalog,
 } from '@sb/convex/model/skills/runtime'
+import type { AgentWithHome } from '@sb/convex/types'
 import { SKILL_CATALOG_CHARACTERS } from '@sb/core/skills/catalog'
 import type { FolderWorkspace } from '@sb/core/types/workspace'
 import { expect, test } from 'bun:test'
 
-const agent = { _id: 'agent', ownerId: 'owner' } as Doc<'agents'>
+const agent = {
+  _id: 'agent',
+  ownerId: 'owner',
+  home: { path: '/home' },
+} as AgentWithHome
 const workspace = { path: '/home' } as FolderWorkspace
 
 async function catalogFixture(

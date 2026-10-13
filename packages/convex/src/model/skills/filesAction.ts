@@ -1,7 +1,7 @@
 'use node'
 
 import { SKILL_PAGE_SIZE } from '@sb/core/skills/types'
-import type { AgentHome, SkillMetadata } from '@sb/core/skills/types'
+import type { AgentHome } from '@sb/core/skills/types'
 import { errorMessage } from '@sb/core/utils/errors'
 
 import { internal } from '../../_generated/api'
@@ -10,7 +10,6 @@ import type { ActionCtx } from '../../_generated/server'
 import { postSidecar } from '../sidecar'
 import { importSkills } from './importAction'
 import type { OperationContext } from './operations'
-import { importSource } from './uploadAction'
 
 /** Executes durable filesystem work and reconciles its result with Convex. */
 export async function run(
@@ -88,11 +87,10 @@ export async function run(
 type OperationResult = {
   path?: string
   previousPath?: string
-  metadata?: SkillMetadata
 }
 
 function operationBase(data: OperationContext) {
-  const { operation: op, agent, skill } = data
+  const { operation: op, skill } = data
   return {
     id: op._id,
     ownerId: op.ownerId,
@@ -101,7 +99,7 @@ function operationBase(data: OperationContext) {
     destinationHomeId: data.destinationHome?._id,
     destinationOriginAgentId: data.destinationHome?.originAgentId,
     originAgentId: data.home?.originAgentId,
-    homePath: data.home?.path ?? agent?.homePath,
+    homePath: data.home?.path,
     skillId: op.skillId,
     name: skill?.name,
   }
@@ -135,9 +133,7 @@ async function execute(
     case 'ensure':
       return changeHome(ctx, data, token, locked)
     case 'install':
-      return data.operation.skillId && data.operation.importCursor === undefined
-        ? installLibrarySkill(ctx, data)
-        : importSkills(ctx, data)
+      return importSkills(ctx, data)
     case 'home':
       return changeHome(ctx, data, token, locked)
     case 'duplicate':
@@ -155,33 +151,18 @@ async function ensureHome(
   _ctx: ActionCtx,
   data: OperationContext,
 ): Promise<OperationResult> {
-  const { operation: op, agent } = data
+  const { operation: op } = data
   const home = await postSidecar<AgentHome>('/agent-files/home', {
     ownerId: op.ownerId,
     agentId: op.agentId,
-    path: agent?.homePath,
+    path: data.home?.path,
     homeId: op.homeId,
     destinationHomeId: data.destinationHome?._id,
     destinationOriginAgentId: data.destinationHome?.originAgentId,
     originAgentId: data.home?.originAgentId,
-    revision: agent?.homeRevision ?? 0,
+    revision: data.home?.revision ?? 0,
   })
   return { path: home.path }
-}
-
-async function installLibrarySkill(
-  ctx: ActionCtx,
-  data: OperationContext,
-): Promise<OperationResult> {
-  const { operation: op } = data
-  const base = operationBase(data)
-  const metadata = await postSidecar<SkillMetadata>('/agent-files/operation', {
-    ...base,
-    kind: 'install',
-    ...(await importSource(ctx, op)),
-  })
-
-  return { metadata }
 }
 
 async function changeHome(
@@ -190,7 +171,7 @@ async function changeHome(
   token: string,
   locked: string[],
 ): Promise<OperationResult> {
-  const { operation: op, agent } = data
+  const { operation: op } = data
 
   const destination = await postSidecar<{ path: string; insideData: boolean }>(
     '/agent-files/destination',
@@ -220,7 +201,7 @@ async function changeHome(
   }
 
   if (reserved.joined)
-    return { path: destination.path, previousPath: agent?.resolvedHomePath }
+    return { path: destination.path, previousPath: data.home?.path }
 
   const base = operationBase(data)
 
@@ -238,7 +219,6 @@ async function changeHome(
   if (!prepared.unchanged) {
     if (!op.copyFiles || prepared.sourceMissing)
       await processAssignments(ctx, data, 'fresh')
-    await processAssignments(ctx, data, 'duplicate')
   }
 
   const result = await postSidecar<{ path: string }>('/agent-files/operation', {
@@ -248,7 +228,8 @@ async function changeHome(
     homeOperationId: op._id,
   })
 
-  return { ...result, previousPath: agent?.resolvedHomePath }
+  if (!prepared.unchanged) await processAssignments(ctx, data, 'duplicate')
+  return { ...result, previousPath: data.home?.path }
 }
 
 async function duplicateHome(

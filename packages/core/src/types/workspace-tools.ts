@@ -6,7 +6,7 @@ export const fileScopeField = z
   .enum(['workspace', 'agent'])
   .optional()
   .describe(
-    'Filesystem scope: "workspace" is the default, while "agent" is for your personal files',
+    'Filesystem scope: "workspace" is the default, while "agent" is for your personal files (if available)',
   )
 
 export const readAttachmentFields = {

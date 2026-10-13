@@ -1,10 +1,10 @@
-import type { Doc } from '@sb/convex/_generated/dataModel'
 import { resolvePersonalWorkspace } from '@sb/convex/model/skills/runtime'
+import type { AgentWithHome } from '@sb/convex/types'
 import { expect, test } from 'bun:test'
 
 const project = { workspaceId: 'project', path: '/project', label: 'Project' }
 
-test('detached agents never resolve or silently recreate a personal home', async () => {
+test('agents with no assigned folder never resolve or silently recreate a personal home', async () => {
   const original = globalThis.fetch
   let requests = 0
   globalThis.fetch = (async () => {
@@ -15,8 +15,9 @@ test('detached agents never resolve or silently recreate a personal home', async
     const agent = {
       _id: 'agent',
       ownerId: 'owner',
-      homeDetached: true,
-    } as Doc<'agents'>
+      name: 'Agent',
+      home: null,
+    } as AgentWithHome
     expect(await resolvePersonalWorkspace(agent, project)).toEqual(project)
     expect(await resolvePersonalWorkspace(agent)).toBeUndefined()
     expect(requests).toBe(0)
@@ -38,8 +39,10 @@ test('a missing assigned home leaves the project usable without resolving the de
     const agent = {
       _id: 'agent',
       ownerId: 'owner',
-      homePath: '/deleted/home',
-    } as Doc<'agents'>
+      name: 'Agent',
+      homeId: 'home',
+      home: { path: '/deleted/home', originAgentId: 'agent' },
+    } as AgentWithHome
     expect(await resolvePersonalWorkspace(agent, project)).toEqual(project)
     expect(await resolvePersonalWorkspace(agent)).toBeUndefined()
     expect(

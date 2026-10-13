@@ -23,7 +23,10 @@ export function validateOperationArgs(args: FileOperationArgs) {
   ) {
     error('Unexpected arguments for this filesystem operation', 400)
   }
+  if (args.kind === 'home' && !args.destination?.trim()) {
+    error('Choose a destination directory', 400)
+  }
   if (args.kind === 'home' && args.copyFiles === undefined) {
-    error('Choose whether to carry over files or start fresh', 400)
+    error('Choose Carry over or Change only', 400)
   }
 }

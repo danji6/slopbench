@@ -63,8 +63,7 @@ async function commitMetadata(
         })
       return
     case 'install':
-      if (op.importCursor !== undefined) return
-      return commitInstalledSkill(ctx, op, args)
+      return
     case 'assign':
       await commitAssignment(ctx, op)
       if (args.path) await commitHome(ctx, op, args)
@@ -89,51 +88,23 @@ async function commitMetadata(
   }
 }
 
-async function commitInstalledSkill(
-  ctx: MutationCtx,
-  op: Doc<'agentFileOperations'>,
-  args: CompleteAgentFileArgs,
-) {
-  if (!op.skillId || !args.metadata)
-    error('Missing installed skill metadata', 409)
-  const duplicate = await ctx.db
-    .query('skills')
-    .withIndex('by_ownerId_name', (q) =>
-      q.eq('ownerId', op.ownerId).eq('name', args.metadata!.name),
-    )
-    .first()
-  if (duplicate && duplicate._id !== op.skillId)
-    error('A skill with this name is already installed', 409)
-  await ctx.db.patch(op.skillId, {
-    ...args.metadata,
-    status: 'ready',
-    operationId: undefined,
-  })
-}
-
 async function commitAssignment(
   ctx: MutationCtx,
   op: Doc<'agentFileOperations'>,
 ) {
   const skill = op.skillId ? await ctx.db.get(op.skillId) : null
   if (!skill || !op.agentId) error('Skill no longer exists', 409)
-  const existing = op.homeId
-    ? await ctx.db
-        .query('agentSkills')
-        .withIndex('by_homeId_skillId', (q) =>
-          q.eq('homeId', op.homeId).eq('skillId', skill._id),
-        )
-        .first()
-    : await ctx.db
-        .query('agentSkills')
-        .withIndex('by_agentId_skillId', (q) =>
-          q.eq('agentId', op.agentId!).eq('skillId', skill._id),
-        )
-        .first()
+  if (!op.homeId) error('Personal folder is not assigned', 409)
+
+  const existing = await ctx.db
+    .query('agentSkills')
+    .withIndex('by_homeId_skillId', (q) =>
+      q.eq('homeId', op.homeId!).eq('skillId', skill._id),
+    )
+    .first()
   if (!existing) {
     await ctx.db.insert('agentSkills', {
       ownerId: op.ownerId,
-      agentId: op.agentId,
       homeId: op.homeId,
       skillId: skill._id,
       name: skill.name,
@@ -205,10 +176,6 @@ export async function release(
     if (agent.homeId) await releaseHome(ctx, agent.homeId, operationId)
     await ctx.db.patch(id, {
       fileOperationId: undefined,
-      pendingHomePath: undefined,
-      homeRevision: agent.homeId
-        ? ((await ctx.db.get(agent.homeId))?.revision ?? agent.homeRevision)
-        : (agent.homeRevision ?? 0) + 1,
     })
   }
   if (op.skillId) {

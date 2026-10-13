@@ -8,12 +8,17 @@ import type {
 import { MAX_BINARY_LINK_BYTES } from '@sb/core/workspace/files'
 
 import { api, internal } from '../../_generated/api'
-import type { Doc, Id } from '../../_generated/dataModel'
+import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import { authorizeAdmin } from '../../functions'
 import { decodeBase64 } from '../../model/io/base64'
-import type { ApprovalMode, Session, SessionMode } from '../../types'
+import type {
+  AgentWithHome,
+  ApprovalMode,
+  Session,
+  SessionMode,
+} from '../../types'
 
 export async function createSession(
   ctx: ActionCtx,
@@ -159,7 +164,7 @@ export async function restoreCheckpoint(
   args: { sessionId: Id<'sessions'> },
 ): Promise<{ restored: string; checkpointId: string }> {
   const data = await requireAdminWorkspaceAction(ctx, args.sessionId)
-  if (data.agent?.fileOperationId)
+  if (data.agent?.fileOperationId || data.agent?.home?.operationId)
     error('Personal folder is being updated', 409)
   const { resolvePersonalWorkspace } =
     await import('../../model/skills/runtime')
@@ -184,7 +189,10 @@ export async function restoreCheckpoint(
 async function requireAdminWorkspaceAction(
   ctx: ActionCtx,
   sessionId: Id<'sessions'>,
-): Promise<{ workspace?: Session['workspace']; agent?: Doc<'agents'> | null }> {
+): Promise<{
+  workspace?: Session['workspace']
+  agent?: AgentWithHome | null
+}> {
   const identity = await authorizeAdmin(ctx)
   return ctx.runQuery(internal.sessions._getWorkspaceContext, {
     sessionId,

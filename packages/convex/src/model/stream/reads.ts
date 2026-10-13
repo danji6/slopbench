@@ -24,6 +24,7 @@ import { getSessionWithWorkspace } from '../session/folderContext'
 import { countParticipants, getMembership } from '../session/memberships'
 import { getApprovals, getState } from '../session/state'
 import { getByOwnerId as getSettings } from '../settings'
+import { agentWithHome } from '../skills/homes'
 
 /** Returns a list of session ids that have ongoing streams. */
 export async function activeSessionIds(
@@ -50,7 +51,7 @@ export async function _getContext(
 
   const [session, agent, invoker, output] = await Promise.all([
     getSessionWithWorkspace(ctx, stream.sessionId),
-    ctx.db.get(stream.agentId),
+    agentWithHome(ctx, stream.agentId),
     ctx.db.get(stream.invokedBy),
     ctx.db.get(stream.processingMessageId),
   ])

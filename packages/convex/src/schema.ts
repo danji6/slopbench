@@ -88,8 +88,6 @@ export default defineSchema({
   agentSkills: defineTable(agentSkillSchema)
     .index('by_homeId_name', ['homeId', 'name'])
     .index('by_homeId_skillId', ['homeId', 'skillId'])
-    .index('by_agentId_name', ['agentId', 'name'])
-    .index('by_agentId_skillId', ['agentId', 'skillId'])
     .index('by_skillId', ['skillId']),
 
   agentFileOperations: defineTable(agentFileOperationSchema)
@@ -99,9 +97,7 @@ export default defineSchema({
   agents: defineTable(agentSchema)
     .index('by_homeId', ['homeId'])
     .index('by_ownerId_name', ['ownerId', 'name'])
-    .index('by_avatarId', ['avatarId'])
-    .index('by_homePath', ['resolvedHomePath'])
-    .index('by_pendingHomePath', ['pendingHomePath']),
+    .index('by_avatarId', ['avatarId']),
 
   users: defineTable(userSchema)
     .index('by_subject', ['subject']),

@@ -114,3 +114,26 @@ test('description compatibility preserves standard YAML and rejects unrelated ma
     ),
   ).toThrow('YAML')
 })
+
+test('agents without a personal folder receive no personal-scope guidance', async () => {
+  const { TOOL_DESCRIPTIONS, shellToolDescription } =
+    await import('@sb/core/types/tool-descriptions')
+  const { fileScopeField } = await import('@sb/core/types/workspace-tools')
+  for (const text of [
+    buildWorkspaceNoteContent(undefined, undefined),
+    buildWorkspaceNoteContent(undefined, project),
+    TOOL_DESCRIPTIONS.read_file,
+    shellToolDescription(),
+    fileScopeField.description,
+  ]) {
+    expect(text ?? '').not.toContain('"agent"')
+  }
+  expect(() => selectFileWorkspace({ ...project, agentOnly: true })).toThrow(
+    'no project workspace',
+  )
+  try {
+    selectFileWorkspace({ ...project, agentOnly: true })
+  } catch (error) {
+    expect(String(error)).not.toContain('scope: "agent"')
+  }
+})

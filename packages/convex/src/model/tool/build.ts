@@ -106,7 +106,7 @@ export async function getEnabledTools(
       resources: resources ?? EMPTY_TOOL_RESOURCES,
       workspace,
       skillsContext:
-        ctx && options?.agentId && session?.workspace
+        ctx && options?.agentId && session?.workspace?.agentHome
           ? { ctx, agentId: options.agentId, workspace: session.workspace }
           : undefined,
       planContext,

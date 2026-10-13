@@ -548,7 +548,6 @@ export const completeAgentFileArgsValidator = v.object({
   operationId: v.id('agentFileOperations'),
   path: v.optional(v.string()),
   previousPath: v.optional(v.string()),
-  metadata: v.optional(v.object({ name: v.string(), description: v.string() })),
 })
 
 export const prepareSkillImportArgsValidator = v.object({
@@ -570,12 +569,6 @@ export const finishSkillImportArgsValidator = v.object({
     v.literal('failed'),
   ),
   message: v.optional(v.string()),
-})
-
-export const rememberAgentHomeArgsValidator = v.object({
-  agentId: v.id('agents'),
-  path: v.string(),
-  revision: v.number(),
 })
 
 export const invalidateAgentHomeArgsValidator = v.object({

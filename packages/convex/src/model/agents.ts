@@ -1,4 +1,3 @@
-import { internal } from '../_generated/api'
 import type { Doc, Id } from '../_generated/dataModel'
 import { error } from '../errors'
 import type { AuthMutationCtx, AuthQueryCtx } from '../functions'
@@ -183,7 +182,6 @@ export async function remove(
   await Reminders.removeForAgent(ctx, agentId)
   await removeSessionCache(ctx, agentId)
 
-  await ctx.scheduler.runAfter(0, internal.skills._removeAssignments, { agentId }) // prettier-ignore
   await ctx.db.delete(agentId)
   if (agent.avatarId) await Avatars.removeIfUnreferenced(ctx, agent.avatarId)
   return { cleanupOperationId }
@@ -211,13 +209,7 @@ export async function duplicate(
     _id,
     _creationTime,
     avatarId: _avatarId,
-    homeDetached: _homeDetached,
     homeId: _homeId,
-    homeOriginAgentId: _homeOriginAgentId,
-    homePath: _homePath,
-    resolvedHomePath: _resolvedHomePath,
-    homeRevision: _homeRevision,
-    pendingHomePath: _pendingHomePath,
     fileOperationId: _fileOperationId,
     ...copy
   } = agent
@@ -225,12 +217,11 @@ export async function duplicate(
   const duplicateId = await ctx.db.insert('agents', {
     ...copy,
     name: `${copy.name} (copy)`,
-    homeDetached: agent.homeDetached,
   })
   await Prompts.copyForAgent(ctx, agentId, duplicateId, ctx.userId)
   await Reminders.copyForAgent(ctx, agentId, duplicateId, ctx.userId)
 
-  if (minRole(ctx.role, 'admin') && !agent.homeDetached)
+  if (minRole(ctx.role, 'admin') && agent.homeId)
     await startFileOperation(ctx, { kind: 'duplicate', agentId, duplicateId })
 
   return duplicateId

@@ -18,7 +18,15 @@ function setup() {
     _id: agentId,
     ownerId: 'owner',
     name: 'Agent',
-    resolvedHomePath: '/old-home',
+    homeId: 'home',
+  })
+  fixture.rows('agentHomes').push({
+    _id: 'home',
+    ownerId: 'owner',
+    originAgentId: agentId,
+    managed: true,
+    path: '/old-home',
+    revision: 0,
   })
   fixture.rows('skills').push({
     _id: skillId,
@@ -75,7 +83,7 @@ test('library and assignments page through more than the former count limits', a
     rows('agentSkills').push({
       _id: `assignment-${i}`,
       ownerId: 'owner',
-      agentId,
+      homeId: 'home',
       skillId,
       name: `assigned-${String(i).padStart(3, '0')}`,
       description: 'Skill',
@@ -105,12 +113,15 @@ test('library and assignments page through more than the former count limits', a
 
 test('custom homes cannot overlap another owner’s current or reserved home', async () => {
   const { ctx, rows } = setup()
-  rows('agents').push({
-    _id: 'other',
-    ownerId: 'another-owner',
-    resolvedHomePath: '/custom/other',
-    pendingHomePath: '/reserved',
-  })
+  rows('agentHomes').push(
+    { _id: 'other', ownerId: 'another-owner', path: '/custom/other' },
+    {
+      _id: 'reserved',
+      ownerId: 'another-owner',
+      path: '/reserved',
+      operationId: 'pending',
+    },
+  )
   await expect(assertHomeDestination(ctx, agentId, '/custom')).rejects.toThrow(
     'overlap',
   )
@@ -119,7 +130,7 @@ test('custom homes cannot overlap another owner’s current or reserved home', a
   ).rejects.toThrow('overlap')
   await expect(
     assertHomeDestination(ctx, agentId, '/reserved'),
-  ).rejects.toThrow('overlap')
+  ).rejects.toThrow('owner')
   await assertHomeDestination(ctx, agentId, '/custom/other-sibling')
 })
 
@@ -167,7 +178,7 @@ test('a filesystem-authorized prompt snapshot cannot cross into an unprivileged 
     _id: 'cache',
     sessionId,
     agentId,
-    personalContextVersion: 1,
+    homeId: 'home',
     homeRevision: 0,
     filesystemAccess: true,
     workspaceRevision: '[]',

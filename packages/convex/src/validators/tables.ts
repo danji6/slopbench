@@ -2,6 +2,7 @@ import { v } from 'convex/values'
 
 import * as V from './sub'
 
+/** A conversation and its settings. */
 export const sessionSchema = v.object({
   ownerId: v.id('users'),
   title: v.optional(v.string()),
@@ -46,6 +47,7 @@ export const sessionStateSchema = v.object({
   updatedAt: v.number(),
 })
 
+/** An owner-bound upload ticket and its verified storage object. */
 export const skillUploadSchema = v.object({
   ownerId: v.id('users'),
   storageId: v.optional(v.id('_storage')),
@@ -53,6 +55,7 @@ export const skillUploadSchema = v.object({
   verified: v.boolean(),
 })
 
+/** Shared ownership, path, revision, and operation lease for a personal folder. */
 export const agentHomeSchema = v.object({
   ownerId: v.id('users'),
   originAgentId: v.id('agents'),
@@ -62,14 +65,10 @@ export const agentHomeSchema = v.object({
   operationId: v.optional(v.id('agentFileOperations')),
 })
 
+/** An agent’s settings and optional personal folder membership. */
 export const agentSchema = v.object({
-  homeDetached: v.optional(v.boolean()),
+  /** Absent until a personal folder is explicitly assigned. */
   homeId: v.optional(v.id('agentHomes')),
-  homeOriginAgentId: v.optional(v.id('agents')),
-  homePath: v.optional(v.string()),
-  pendingHomePath: v.optional(v.string()),
-  resolvedHomePath: v.optional(v.string()),
-  homeRevision: v.optional(v.number()),
   fileOperationId: v.optional(v.id('agentFileOperations')),
   ownerId: v.id('users'),
   name: v.string(),
@@ -90,17 +89,20 @@ export const agentSchema = v.object({
   ...V.overridableFields,
 })
 
+/** An authenticated account and its application role. */
 export const userSchema = v.object({
   subject: v.string(),
   role: V.userRoleValidator,
 })
 
+/** An owner’s shared application preferences. */
 export const settingsSchema = v.object({
   ownerId: v.id('users'),
   avatarId: v.optional(v.id('avatars')),
   ...V.settingsMutableFields,
 })
 
+/** A rate limit counter for one time window. */
 export const rateLimitSchema = v.object({
   key: v.string(),
   count: v.number(),
@@ -190,6 +192,7 @@ export const editorScriptSchema = v.object({
   order: v.number(),
 })
 
+/** A session message and metadata for its selected content version. */
 export const messageSchema = v.object({
   sessionId: v.id('sessions'),
   sender: V.senderValidator,
@@ -228,6 +231,7 @@ export const messageContentSchema = v.object({
   searchText: v.optional(v.string()),
 })
 
+/** A session attachment referencing a shared file. */
 export const attachmentSchema = v.object({
   /** Shared file identity backing this session attachment. */
   fileId: v.id('attachmentFiles'),
@@ -253,6 +257,7 @@ export const attachmentFileSchema = v.object({
   shareToken: v.string(),
 })
 
+/** A session grouping and its ordered workspace sources. */
 export const sessionFolderSchema = v.object({
   ownerId: v.id('users'),
   parentId: v.optional(v.id('sessionFolders')),
@@ -265,6 +270,7 @@ export const sessionFolderSchema = v.object({
   contextLock: v.optional(v.string()),
 })
 
+/** A user’s membership and personal listing state for a session. */
 export const userSessionSchema = v.object({
   /** Personal organization for joined sessions. */
   folderId: v.optional(v.id('sessionFolders')),
@@ -298,12 +304,14 @@ export const notificationSchema = v.object({
   sourceMessageId: v.optional(v.id('messages')),
 })
 
+/** An expiring indication that a user is composing a message. */
 export const typingSchema = v.object({
   sessionId: v.id('sessions'),
   userId: v.id('users'),
   expiresAt: v.number(),
 })
 
+/** A revocable invitation to a session. */
 export const sessionShareSchema = v.object({
   sessionId: v.id('sessions'),
   tokenHash: v.string(),
@@ -311,12 +319,14 @@ export const sessionShareSchema = v.object({
   revokedAt: v.optional(v.number()),
 })
 
+/** An agent’s membership in a session. */
 export const sessionAgentSchema = v.object({
   sessionId: v.id('sessions'),
   agentId: v.id('agents'),
   addedBy: v.id('users'),
 })
 
+/** A leased background turn, including retries and deferred work. */
 export const streamSchema = v.object({
   sessionId: v.id('sessions'),
   agentId: v.id('agents'),
@@ -355,6 +365,7 @@ export const streamSchema = v.object({
   instructions: v.optional(v.string()),
 })
 
+/** A durable trigger and action scheduled for a session. */
 export const scheduledEventSchema = v.object({
   sessionId: v.id('sessions'),
   invokedBy: v.id('users'),
@@ -392,6 +403,7 @@ export const shellJobSchema = v.object({
   watcherId: v.optional(v.id('_scheduled_functions')),
 })
 
+/** A session’s editable plan and completion status. */
 export const planSchema = v.object({
   sessionId: v.id('sessions'),
   content: v.string(),
@@ -401,8 +413,9 @@ export const planSchema = v.object({
   updatedAt: v.number(),
 })
 
+/** The captured prompt and tool configuration for a session and agent. */
 export const sessionCacheSchema = v.object({
-  personalContextVersion: v.optional(v.number()),
+  homeId: v.optional(v.id('agentHomes')),
   filesystemAccess: v.optional(v.boolean()),
   homeRevision: v.optional(v.number()),
   workspaceRevision: v.optional(v.string()),
@@ -415,6 +428,7 @@ export const sessionCacheSchema = v.object({
   capturedAt: v.number(),
 })
 
+/** A session’s task list and reminder progress. */
 export const todoSchema = v.object({
   sessionId: v.id('sessions'),
   items: v.array(V.todoItemValidator),
@@ -423,11 +437,13 @@ export const todoSchema = v.object({
   updatedAt: v.number(),
 })
 
+/** An avatar image and its thumbnail. */
 export const avatarSchema = v.object({
   storageId: v.id('_storage'),
   thumbStorageId: v.id('_storage'),
 })
 
+/** A stored tool output linked to its stream and message. */
 export const offloadedOutputSchema = v.object({
   streamId: v.id('streams'),
   messageId: v.id('messages'),

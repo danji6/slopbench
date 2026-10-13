@@ -21,7 +21,6 @@ let home = {
   managed: true,
   members: [{ id: 'fixture-agent', name: 'Fixture' }],
   path: undefined as string | undefined,
-  customPath: undefined as string | undefined,
   operationId: undefined as string | undefined,
 }
 let homeExists = false
@@ -42,7 +41,6 @@ export function setFixtureHome(managed: boolean) {
     ...home,
     managed,
     path: managed ? '/fixture/managed-home' : '/fixture/custom-home',
-    customPath: managed ? undefined : '/fixture/custom-home',
   }
   homeExists = true
   update()
@@ -104,12 +102,11 @@ function apply(args: Record<string, unknown>) {
       ...home,
       path: '/fixture/managed-home',
       managed: true,
-      customPath: undefined,
     }
     homeExists = true
   }
   if (args.kind === 'detach') {
-    home = { ...home, path: undefined, customPath: undefined }
+    home = { ...home, path: undefined }
     assigned = []
     if (args.removeFolder) homeExists = false
   }
@@ -118,7 +115,6 @@ function apply(args: Record<string, unknown>) {
     home = {
       ...home,
       path: String(args.destination ?? '/fixture/managed-home'),
-      customPath: args.destination as string | undefined,
       managed: !args.destination,
     }
   }

@@ -28,20 +28,13 @@ export async function list(ctx: AuthQueryCtx, args: SkillListArgs) {
   const available = await Promise.all(
     result.page.map(async (skill) => {
       if (skill.status !== 'ready') return false
-      if (agent.homeDetached) return true
-      const assignment = agent.homeId
-        ? await ctx.db
-            .query('agentSkills')
-            .withIndex('by_homeId_name', (q) =>
-              q.eq('homeId', agent.homeId).eq('name', skill.name),
-            )
-            .first()
-        : await ctx.db
-            .query('agentSkills')
-            .withIndex('by_agentId_name', (q) =>
-              q.eq('agentId', agent._id).eq('name', skill.name),
-            )
-            .first()
+      if (!agent.homeId) return true
+      const assignment = await ctx.db
+        .query('agentSkills')
+        .withIndex('by_homeId_name', (q) =>
+          q.eq('homeId', agent.homeId!).eq('name', skill.name),
+        )
+        .first()
       return !assignment
     }),
   )
@@ -65,21 +58,14 @@ export async function assignmentPage(
   prefix = '',
 ) {
   const agent = await ctx.db.get(agentId)
-  if (agent?.homeDetached) return { page: [], isDone: true, continueCursor: '' }
-
-  const query = agent?.homeId
-    ? ctx.db.query('agentSkills').withIndex('by_homeId_name', (q) => {
-        const home = q.eq('homeId', agent.homeId)
-        return prefix
-          ? home.gte('name', prefix).lt('name', `${prefix}\uffff`)
-          : home
-      })
-    : ctx.db.query('agentSkills').withIndex('by_agentId_name', (q) => {
-        const owned = q.eq('agentId', agentId)
-        return prefix
-          ? owned.gte('name', prefix).lt('name', `${prefix}\uffff`)
-          : owned
-      })
-
-  return query.paginate(options)
+  if (!agent?.homeId) return { page: [], isDone: true, continueCursor: '' }
+  return ctx.db
+    .query('agentSkills')
+    .withIndex('by_homeId_name', (q) => {
+      const home = q.eq('homeId', agent.homeId!)
+      return prefix
+        ? home.gte('name', prefix).lt('name', `${prefix}\uffff`)
+        : home
+    })
+    .paginate(options)
 }

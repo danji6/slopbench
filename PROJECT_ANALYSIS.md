@@ -8,16 +8,22 @@ See `REFACTOR_PLAN.md` for scope, verification, and remaining release checks.
 
 ## Personal agent folders and skills (2026-10-09)
 
-Agents now have persistent writable homes on the sidecar, separate from session
+Agents can explicitly assign persistent writable homes on the sidecar, separate from session
 folder sources. Managed homes use stable owner/agent IDs under sidecar data;
 admin owners can choose an existing custom directory. Home changes offer
-carrying current files or starting with pristine assigned skills, preserve the
-old directory, and reject destination conflicts. Duplication copies the home;
+Carry over (copy current files) or Change only (add pristine assigned skills),
+preserve the old directory, and never replace destination files. Duplicate paths,
+including identical files or file/directory collisions, abort during preflight.
+Existing directories merge. A race or I/O interruption can leave partial additions;
+retries resume those additions and preserve subsequent edits without rollback deletion.
+Selecting a registered home adopts its files and skills without copying. Duplication copies the home;
 agent deletion offers cleanup of its final managed home. Settings append Context
 and Files to Behavior. Folder availability is checked without creating anything;
 missing homes can be recreated or moved, restoring pristine assigned skills.
 Detaching persists across chats, preserves custom/shared folders, and optionally
-deletes a final managed home through durable work.
+deletes a final managed home through durable work. Switching to a managed folder
+requires detaching first. Turns never create an unassigned home, and personal-scope
+guidance is emitted only when the assigned folder is available.
 
 An owner-scoped skill library stores complete pristine bundles. Assignments
 create independent editable copies under each agent's `.agents/skills`.
@@ -44,7 +50,7 @@ background jobs across sessions. Home transitions revoke old-home grants before
 releasing the agent. Filesystem journals reconcile interrupted publishes.
 Text reads now bound allocation before reading and expose byte continuation;
 edit snapshots and linked-file previews also enforce read-process budgets.
-See `docs/agent-files.md` for usage. Restart the sidecar after updating.
+Restart the sidecar after updating.
 
 ## Session folders, nesting, and source directories (2026-10-05)
 
@@ -117,7 +123,7 @@ The approved pre-release data reset migrated existing memberships to Ungrouped
 or Shared, cleared legacy workspace bindings and path grants, and removed stale
 caches. A subsequent migration moved legacy Shared memberships to Ungrouped.
 These temporary migrations were applied to the local test data and removed; the
-clean pre-release schema baseline is version 11 and the public migration manifest
+clean pre-release schema baseline is version 15 and the public migration manifest
 is empty. Restart the sidecar after updating, because it has no hot reload.
 
 Stream token patches and heartbeats renew the five-minute lease at most once per
@@ -1235,7 +1241,7 @@ Key backend domains:
 `migrations.ts` holds the `@convex-dev/migrations` runner, the append-only
 public release migration list, and stable internal endpoints for boot
 coordination. `packages/core/src/migration-version.ts` establishes pre-release
-schema version 11 as the pre-release baseline; later manifest entries advance the
+schema version 15 as the pre-release baseline; later manifest entries advance the
 version from that baseline. The public migration manifest is currently empty.
 A singleton
 `releaseState` document records the last strictly completed version and any
@@ -1244,7 +1250,10 @@ interrupted or skipped releases resume, and rejects an application older than
 the database. `_applyRelease` skips completed entries and returns only a compact
 applied count. Completion is recorded only after the tracked strict schema
 deploy succeeds. The one-off pre-release migrations and their compatibility
-helpers were removed after the local data reached the baseline.
+helpers have been removed. Baseline 15 stores home authority only in `agentHomes`
+and requires `homeId` on skill assignments. Existing development databases need
+their superseded agent fields and assignment metadata normalized before strict
+deployment; bumping the baseline alone does not transform stored documents.
 
 ## Message Send Flow
 

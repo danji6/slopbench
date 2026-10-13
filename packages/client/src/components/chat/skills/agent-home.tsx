@@ -31,7 +31,7 @@ export function AgentHomeSettings({ agentId }: { agentId: Id<'agents'> }) {
   const openFolder = useAction(api.actions.skills.openFolder)
   const [capability, setCapability] = useState<Capability>()
   const [browsing, setBrowsing] = useState(false)
-  const [destination, setDestination] = useState<{ path?: string }>()
+  const [destination, setDestination] = useState<string>()
   const [removing, setRemoving] = useState<'detach' | 'delete'>()
   const exists = !!home?.path && availability?.exists === true
   const missing = !!home?.path && availability?.exists === false
@@ -51,8 +51,8 @@ export function AgentHomeSettings({ agentId }: { agentId: Id<'agents'> }) {
     }
   }, [desktop])
 
-  function select(path?: string) {
-    if (exists) setDestination({ path })
+  function select(path: string) {
+    if (exists) setDestination(path)
     else
       void operation.run({
         kind: 'home',
@@ -67,7 +67,7 @@ export function AgentHomeSettings({ agentId }: { agentId: Id<'agents'> }) {
       void operation.run({
         kind: 'home',
         agentId,
-        destination: destination.path,
+        destination,
         copyFiles,
       })
   }
@@ -142,15 +142,6 @@ export function AgentHomeSettings({ agentId }: { agentId: Id<'agents'> }) {
         <RippleButton disabled={busy} onClick={() => setBrowsing(true)}>
           <FolderOpenIcon /> Choose directory
         </RippleButton>
-        {home?.customPath && (
-          <RippleButton
-            variant="secondary"
-            disabled={busy}
-            onClick={() => select()}
-          >
-            Use managed folder
-          </RippleButton>
-        )}
         {home?.path && (
           <>
             <RippleButton
@@ -184,7 +175,7 @@ export function AgentHomeSettings({ agentId }: { agentId: Id<'agents'> }) {
         open={!!destination}
         onOpenChange={(open) => !open && setDestination(undefined)}
         title="Change personal folder?"
-        description="Carry over moves the agent's data to the new folder, joining files if it's already being used by another agent."
+        description="Carry over copies files and preserves the original folder. Change only keeps existing destination files and adds clean copies of assigned skills. Selecting a registered home adopts its files and skills without copying."
         confirmText="Carry over"
         onConfirm={() => change(true)}
         extraAction={{

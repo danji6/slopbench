@@ -92,7 +92,7 @@ async function validateTargets(ctx: AuthMutationCtx, args: FileOperationArgs) {
   if (args.kind === 'delete-assigned' && !args.assignmentId)
     error('Missing assignment', 400)
   if (args.destination !== undefined && !args.destination.trim()) {
-    error('Choose a directory or use the managed home', 400)
+    error('Choose a directory', 400)
   }
 }
 
@@ -124,10 +124,8 @@ async function assignmentSkillId(
   if (
     !assignment ||
     assignment.ownerId !== ctx.userId ||
-    (assignment.homeId
-      ? assignment.homeId !==
-        (args.agentId ? (await ctx.db.get(args.agentId))?.homeId : undefined)
-      : assignment.agentId !== args.agentId)
+    assignment.homeId !==
+      (args.agentId ? (await ctx.db.get(args.agentId))?.homeId : undefined)
   ) {
     error('Assignment not found', 404)
   }
@@ -195,19 +193,12 @@ async function validateSkill(
 
   if (args.kind === 'assign') {
     const agent = await ctx.db.get(args.agentId!)
-    const assignment = agent?.homeId
-      ? await ctx.db
-          .query('agentSkills')
-          .withIndex('by_homeId_name', (q) =>
-            q.eq('homeId', agent.homeId).eq('name', skill.name),
-          )
-          .first()
-      : await ctx.db
-          .query('agentSkills')
-          .withIndex('by_agentId_name', (q) =>
-            q.eq('agentId', args.agentId!).eq('name', skill.name),
-          )
-          .first()
+    const assignment = await ctx.db
+      .query('agentSkills')
+      .withIndex('by_homeId_name', (q) =>
+        q.eq('homeId', agent!.homeId!).eq('name', skill.name),
+      )
+      .first()
     if (assignment) error('This skill is already assigned', 409)
   }
 }
@@ -251,7 +242,7 @@ export async function retry(
     status: 'queued',
     error: undefined,
     updatedAt: Date.now(),
-    ...(operation.importCursor !== undefined && !operation.skillId
+    ...(operation.kind === 'install'
       ? {
           importCursor: 0,
           importSummary: { installed: 0, skipped: 0, failed: 0 },

@@ -7,8 +7,8 @@ const web_search = 'Search the web and return a list of results.'
 
 const read_file = inline`Read a bounded text page. Use this instead of cat/sed
   for inspection. When truncated, pass nextByteOffset as byteOffset to continue.
-  Pass "agent" scope to read personal files or "workspace" (the default) for
-  project files.`
+  Pass "agent" scope to read personal files (if available) or "workspace"
+  (the default) for project files.`
 
 const read_attachment = inline`
   Read a bounded UTF-8 byte range from an attachment reference. Use the returned
@@ -30,10 +30,10 @@ export function shellToolDescription(shell?: string): string {
   const where = shell ? ` with ${shellLabel(shell)}` : ''
   return inline`
     Run a shell command${where} in the primary project source, or select scope:
-    "agent" to run it in your personal folder. Set run_in_background for
-    long-running commands and read them later with shell_output. Pass a
-    description whenever the command isn't self-explanatory, so the user can
-    review it at a glance.`
+    "agent" to run it in your personal folder (if available). Set
+    run_in_background for long-running commands and read them later
+    with shell_output. Pass a description whenever the command isn't
+    self-explanatory, so the user can review it at a glance.`
 }
 
 const shell_output = inline`

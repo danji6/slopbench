@@ -91,7 +91,9 @@ test('an unassigned folder has no managed label and selecting its first folder n
   page,
 }) => {
   await page.getByRole('button', { name: 'Files', exact: true }).click()
-  await expect(page.getByText('No personal folder is assigned.')).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Initialize folder', exact: true }),
+  ).toBeEnabled()
   await expect(
     page.getByText("This agent's folder is being managed by the app."),
   ).toHaveCount(0)
@@ -158,7 +160,9 @@ test('managed folders can be detached with optional deletion, while custom folde
     page.getByRole('button', { name: 'Delete files', exact: true }),
   ).toBeVisible()
   await page.getByRole('button', { name: 'Keep files', exact: true }).click()
-  await expect(page.getByText('No personal folder is assigned.')).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Initialize folder', exact: true }),
+  ).toBeEnabled()
   await page.getByRole('button', { name: 'Inspect last operation' }).click()
   await expect(page.getByLabel('Last operation')).toContainText(
     '"removeFolder":false',
@@ -166,6 +170,12 @@ test('managed folders can be detached with optional deletion, while custom folde
   await page
     .getByRole('button', { name: 'Assign custom fixture folder' })
     .click()
+  await expect(
+    page.getByRole('button', { name: 'Use managed folder', exact: true }),
+  ).toHaveCount(0)
+  await expect(
+    page.getByRole('button', { name: 'Initialize folder', exact: true }),
+  ).toHaveCount(0)
   await expect(
     page.getByRole('button', { name: 'Delete folder', exact: true }),
   ).toHaveCount(0)
@@ -193,7 +203,9 @@ test('delete folder explicitly detaches and removes a managed folder', async ({
     .getByRole('button', { name: 'Delete folder', exact: true })
     .last()
     .click()
-  await expect(page.getByText('No personal folder is assigned.')).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Initialize folder', exact: true }),
+  ).toBeEnabled()
   await page.getByRole('button', { name: 'Inspect last operation' }).click()
   await expect(page.getByLabel('Last operation')).toContainText(
     '"removeFolder":true',

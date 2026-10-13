@@ -133,7 +133,7 @@ function scopedTarget(
   const personal = options?.scope === 'agent'
   const root = resolveRoot(personal ? input.agentDir : input.workDir)
   if (!root) {
-    if (input.agentDir) {
+    if (!personal && resolveRoot(input.agentDir)) {
       throw new Error(
         'No project workspace. Use scope: "agent" for personal files.',
       )

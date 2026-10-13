@@ -30,7 +30,9 @@ export function selectFileWorkspace(
 ): FolderWorkspace {
   if (scope !== 'agent' && workspace.agentOnly) {
     throw new Error(
-      'This session has no project workspace. Use scope: "agent" for personal files.',
+      workspace.agentHome
+        ? 'This session has no project workspace. Use scope: "agent" for personal files.'
+        : 'This session has no project workspace.',
     )
   }
 

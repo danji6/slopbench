@@ -105,6 +105,10 @@ export function useAgentPrompts(workDir?: string) {
   const settings = useSettings()
   const isAdmin = useIsAdmin()
   const agent = activeAgent && 'ownerId' in activeAgent ? activeAgent : null
+  const home = useQuery(
+    api.skills.getHome,
+    isAdmin && agent ? { agentId: agent._id } : 'skip',
+  )
   const ownPrompts = usePromptItems('own', agent?._id)
   const libraryPrompts = useLibraryPrompts()
 
@@ -130,7 +134,7 @@ export function useAgentPrompts(workDir?: string) {
       userCount: 1,
       agentCount: agent ? 1 : 0,
       workDir: workDir ?? session?.workspace?.path,
-      agentDir: agent?.resolvedHomePath,
+      agentDir: home?.path,
     }
 
     const messages = merged
@@ -169,6 +173,7 @@ export function useAgentPrompts(workDir?: string) {
     settings?.displayName,
     modelId,
     modelName,
+    home?.path,
     ownPrompts,
     libraryPrompts,
     isAdmin,

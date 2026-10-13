@@ -5,10 +5,6 @@ import { assertHomeDestination } from '@sb/convex/model/skills/destinations'
 import { reserveDestination } from '@sb/convex/model/skills/endpoints'
 import { bindHome, ensureHome, getHome } from '@sb/convex/model/skills/homes'
 import { assigned, list } from '@sb/convex/model/skills/library'
-import {
-  migrateAgentHome,
-  migrateHomeSkill,
-} from '@sb/convex/model/skills/migration'
 import { retry, running, start } from '@sb/convex/model/skills/operations'
 import {
   assertRemovableHome,
@@ -28,8 +24,8 @@ async function setup(shared = true) {
   fixture
     .rows('agents')
     .push(
-      { _id: a, ownerId: 'owner', name: 'A', resolvedHomePath: '/shared' },
-      { _id: b, ownerId: 'owner', name: 'B', resolvedHomePath: '/other' },
+      { _id: a, ownerId: 'owner', name: 'A' },
+      { _id: b, ownerId: 'owner', name: 'B' },
     )
   fixture.rows('skills').push({
     _id: skillId,
@@ -39,7 +35,9 @@ async function setup(shared = true) {
     status: 'ready',
   })
   const first = (await fixture.ctx.db.get(a))!
-  const home = await ensureHome(fixture.ctx, first)
+  const created = await ensureHome(fixture.ctx, first)
+  await fixture.ctx.db.patch(created._id, { path: '/shared' })
+  const home = (await fixture.ctx.db.get(created._id))!
   if (shared) await bindHome(fixture.ctx, b, home)
   return { ...fixture, home }
 }
@@ -63,11 +61,11 @@ test('shared assignments are visible and excluded from both agents’ available 
     ).page,
   ).toEqual([])
   expect((await getHome(ctx, { agentId: b })).members).toHaveLength(2)
-  expect((await ctx.db.get(a))?.homeRevision).toBe(
-    (await ctx.db.get(home._id))?.revision,
+  expect((await getHome(ctx, { agentId: a })).revision).toBe(
+    (await ctx.db.get(home._id))!.revision,
   )
-  expect((await ctx.db.get(b))?.homeRevision).toBe(
-    (await ctx.db.get(home._id))?.revision,
+  expect((await getHome(ctx, { agentId: b })).revision).toBe(
+    (await ctx.db.get(home._id))!.revision,
   )
   const remove = await start(ctx, {
     kind: 'delete-assigned',
@@ -227,52 +225,11 @@ test('a failed operation cannot be retried against an agent that has changed hom
   await expect(retry(ctx, { operationId })).rejects.toThrow('changed folders')
 })
 
-test('home migration resumes after pending work and preserves assignments on repeated runs', async () => {
-  const { ctx, rows } = skillsDatabase()
-  rows('agents').push({
-    _id: a,
-    ownerId: 'owner',
-    name: 'A',
-    resolvedHomePath: '/existing',
-    fileOperationId: 'pending',
-  })
-  rows('agentFileOperations').push({ _id: 'pending', status: 'running' })
-  rows('agentSkills').push({
-    _id: 'assigned',
-    ownerId: 'owner',
-    agentId: a,
-    skillId,
-    name: 'review',
-    description: 'Existing metadata',
-  })
-  const agent = (await ctx.db.get(a))!
-  await expect(migrateAgentHome(ctx, agent)).rejects.toThrow(
-    'finish before migrating',
-  )
-  expect(rows('agentHomes')).toHaveLength(0)
-  await ctx.db.patch('pending' as Id<'agentFileOperations'>, { status: 'done' })
-  await migrateAgentHome(ctx, agent)
-  await migrateAgentHome(ctx, (await ctx.db.get(a))!)
-  const assignmentId = 'assigned' as Id<'agentSkills'>
-  await migrateHomeSkill(ctx, (await ctx.db.get(assignmentId))!)
-  await migrateHomeSkill(ctx, (await ctx.db.get(assignmentId))!)
-  expect(rows('agentHomes')).toHaveLength(1)
-  expect(rows('agentHomes')[0]?.path).toBe('/existing')
-  expect(rows('agentSkills')).toHaveLength(1)
-  expect((await ctx.db.get(assignmentId))?.description).toBe(
-    'Existing metadata',
-  )
-  expect((await ctx.db.get(assignmentId))?.homeId).toBe(
-    (await ctx.db.get(a))?.homeId,
-  )
-})
-
 test('detaching one member preserves shared files and assignments but removes its skill access', async () => {
   const { ctx, home, rows } = await setup()
   rows('agentSkills').push({
     _id: 'shared-skill',
     ownerId: 'owner',
-    agentId: a,
     homeId: home._id,
     skillId,
     name: 'review',
@@ -286,7 +243,7 @@ test('detaching one member preserves shared files and assignments but removes it
   await running(ctx, { operationId })
   await complete(ctx, { operationId, previousPath: '/shared' })
   expect((await ctx.db.get(a))?.homeId).toBeUndefined()
-  expect((await ctx.db.get(a))?.homeDetached).toBe(true)
+  expect((await ctx.db.get(a))?.homeId).toBeUndefined()
   expect((await getHome(ctx, { agentId: a })).path).toBeUndefined()
   expect(
     (
@@ -339,7 +296,7 @@ test('detach-and-delete rejects shared and custom folders, then cleans up the fi
   await running(ctx, { operationId })
   await complete(ctx, { operationId })
   await cleanupRecords(ctx, { homeId: home._id })
-  expect((await ctx.db.get(a))?.homeDetached).toBe(true)
+  expect((await ctx.db.get(a))?.homeId).toBeUndefined()
   expect(await ctx.db.get(home._id)).toBeNull()
 })
 
@@ -358,5 +315,5 @@ test('explicit reinitialization reuses a preserved managed home instead of dupli
   const init = await start(ctx, { kind: 'ensure', agentId: a })
   expect((await ctx.db.get(init))?.homeId).toBe(home._id)
   expect(rows('agentHomes')).toHaveLength(1)
-  expect((await ctx.db.get(a))?.homeDetached).toBe(false)
+  expect((await ctx.db.get(a))?.homeId).toBe(home._id)
 })

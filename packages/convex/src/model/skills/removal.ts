@@ -60,11 +60,7 @@ export async function detachHome(
   if (op.removeFolder) await assertCanRemoveHome(ctx, home, agent._id)
 
   await ctx.db.patch(agent._id, {
-    homeDetached: true,
     homeId: undefined,
-    homeOriginAgentId: undefined,
-    homePath: undefined,
-    resolvedHomePath: undefined,
   })
 
   if (op.removeFolder) {

@@ -394,7 +394,9 @@ export async function requireWorkspace(
   if (context) {
     if (context.agentOnly && context.fileScope !== 'agent') {
       throw new Error(
-        'No project workspace. Use scope: "agent" for personal files.',
+        context.agentHome
+          ? 'No project workspace. Use scope: "agent" for personal files.'
+          : 'No project workspace.',
       )
     }
     if (context.workspaceId !== workspaceId || !context.sources?.length)
