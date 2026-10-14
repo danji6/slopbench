@@ -30,6 +30,7 @@ function resumeCtx({
     lt: () => q,
   }
 
+  const inserted = new Map<string, Record<string, unknown>>()
   const ctx = {
     userId: 'user_1',
     db: {
@@ -39,14 +40,16 @@ function resumeCtx({
         if (id === boundary?._id) return boundary
         const message = messages.find((item) => item._id === id)
         if (message) return message
-        return null
+        return inserted.get(id) ?? null
       },
       patch: async (id: string, patch: Record<string, unknown>) => {
         patches.push({ id, patch })
       },
       insert: async (table: string, fields: Record<string, unknown>) => {
         inserts.push({ table, fields })
-        return `${table}_${inserts.length}`
+        const id = `${table}_${inserts.length}`
+        inserted.set(id, { _id: id, ...fields })
+        return id
       },
       query: (table: string) => ({
         withIndex: (index: string, cb: (query: typeof q) => typeof q) => {
@@ -180,7 +183,9 @@ describe('executeResume', () => {
         suppressFollowUp: true,
       }),
     })
-    expect(scheduled).toEqual([{ delay: 0, args: { streamId: 'streams_1' } }])
+    expect(scheduled).toEqual([
+      { delay: 0, args: { streamId: 'streams_1', generation: 1 } },
+    ])
   })
 
   test('skips summaries when choosing the resumable assistant message', async () => {

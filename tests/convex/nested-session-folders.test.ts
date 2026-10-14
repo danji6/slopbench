@@ -4,7 +4,8 @@ import {
   workspaceKey,
 } from '@sb/convex/model/session/folderContext'
 import { describeMove, preview } from '@sb/convex/model/session/folderMoves'
-import { begin, finish } from '@sb/convex/model/session/folderTransitions'
+import { cancel } from '@sb/convex/model/session/folderTransitionLocks'
+import { begin, commit } from '@sb/convex/model/session/folderTransitions'
 import {
   create,
   createWithSources,
@@ -15,7 +16,13 @@ import { create as createSession } from '@sb/convex/model/session/sessions'
 import type { FolderMoveArgs, FolderTransitionArgs } from '@sb/convex/types'
 import { describe, expect, test } from 'bun:test'
 
-import { type Row, args, setup } from './session-folder-fixture'
+import {
+  type Row,
+  args,
+  cancelArgs,
+  commitArgs,
+  setup,
+} from './session-folder-fixture'
 
 function nested() {
   const state = setup()
@@ -58,8 +65,8 @@ async function run(
   input: FolderTransitionArgs,
 ) {
   const prepared = await begin(ctx, input)
-  if (!prepared.personalMoved)
-    await finish(ctx, { ...input, ...prepared, commit: true } as never)
+  if (prepared.kind === 'prepared')
+    await commit(ctx, commitArgs(input, prepared))
   return prepared
 }
 
@@ -70,7 +77,11 @@ async function moveArgs(ctx: Parameters<typeof preview>[0], extra: Row) {
     input,
     (ctx as unknown as { userId: never }).userId,
   )
-  return args({ ...input, confirmationKey: info.confirmationKey })
+  return args({
+    kind: 'move-folder',
+    ...input,
+    confirmationKey: info.confirmationKey,
+  })
 }
 
 describe('nested session folders', () => {
@@ -186,7 +197,7 @@ describe('nested session folders', () => {
     const id = await create(ctx, { name: 'Another', parentId: 'n' as never })
     expect(row(id)).toMatchObject({ parentId: 'n', position: 1, sources: [] })
     await expect(
-      begin(ctx, args({ folderId: 'n', sources: [] })),
+      begin(ctx, args({ kind: 'update-sources', folderId: 'n', sources: [] })),
     ).rejects.toThrow('Subfolders inherit')
     await reorder(ctx, {
       parentId: 'a' as never,
@@ -208,17 +219,17 @@ describe('nested session folders', () => {
     )
     const sessionMove = await begin(
       ctx,
-      args({ sessionId: 's', folderId: 'sibling' }),
+      args({ kind: 'move-session', sessionId: 's', folderId: 'sibling' }),
     )
-    expect(sessionMove.personalMoved).toBe(true)
-    expect(sessionMove.needsSidecar).toBe(false)
+    expect(sessionMove.kind).toBe('completed')
+    expect(sessionMove.kind).toBe('completed')
     expect(row('s').contextLock).toBeUndefined()
     row('s').folderId = 'g'
     const branchMove = await run(
       ctx,
       await moveArgs(ctx, { parentId: 'sibling' }),
     )
-    expect(branchMove.personalMoved).toBe(true)
+    expect(branchMove.kind).toBe('completed')
     expect(row('n').parentId).toBe('sibling')
     expect(row('n').contextLock).toBeUndefined()
     expect(row('cache')).toBeDefined()
@@ -238,15 +249,19 @@ describe('nested session folders', () => {
     expect(row('n').contextLock).toBeUndefined()
     tables.streams = []
     const prepared = await begin(ctx, input)
-    expect(prepared.sessionIds).toEqual(['s', 'child'] as never)
-    expect(prepared.needsSidecar).toBe(true)
+    expect(
+      prepared.kind === 'prepared' ? prepared.sessionIds : undefined,
+    ).toEqual(['s', 'child'] as never)
+    expect(
+      prepared.kind === 'prepared' ? prepared.needsSidecar : undefined,
+    ).toBe(true)
     expect(
       (await getSessionWithWorkspace(ctx, 'child' as never))?.contextLock,
     ).toBeTruthy()
     await expect(
       create(ctx, { name: 'Blocked', parentId: 'g' as never }),
     ).rejects.toThrow()
-    await finish(ctx, { ...input, ...prepared, commit: true } as never)
+    await commit(ctx, commitArgs(input, prepared))
     expect(row('n').parentId).toBe('b')
     expect(row('g').parentId).toBe('n')
     expect(row('cache')).toBeUndefined()
@@ -283,7 +298,10 @@ describe('nested session folders', () => {
     const { ctx, row } = nested()
     const input = await moveArgs(ctx, { folderId: 'a', parentId: 'b' })
     await expect(
-      begin(ctx, { ...input, confirmationKey: undefined }),
+      begin(ctx, {
+        ...input,
+        command: { ...input.command, confirmationKey: undefined },
+      } as never),
     ).rejects.toThrow('Review the workspace')
     row('owner').role = 'user'
     await expect(begin(ctx, input)).rejects.toThrow()
@@ -315,7 +333,7 @@ describe('nested session folders', () => {
       await preview(ctx, { folderId: 'n', parentId: 'b' } as never),
     ).toMatchObject({ ok: false, message: 'Folder sources are being updated' })
     await expect(
-      begin(ctx, args({ folderId: 'a', sources: [] })),
+      begin(ctx, args({ kind: 'update-sources', folderId: 'a', sources: [] })),
     ).rejects.toThrow('sources are being updated')
     row('g').contextLock = undefined
     row('n').parentId = 'g'
@@ -328,10 +346,10 @@ describe('nested session folders', () => {
     const prepared = await begin(ctx, input)
     row('b').sources = [{ id: 'new', path: '/new', label: 'New' }]
     row('b').revision = 1
-    await expect(
-      finish(ctx, { ...input, ...prepared, commit: true } as never),
-    ).rejects.toThrow('Folder sources changed')
-    await finish(ctx, { ...input, commit: false })
+    await expect(commit(ctx, commitArgs(input, prepared))).rejects.toThrow(
+      'Folder sources changed',
+    )
+    await cancel(ctx, cancelArgs(input))
     expect(row('n').parentId).toBe('a')
     expect(row('n').contextLock).toBeUndefined()
     expect(row('cache')).toBeDefined()
@@ -356,10 +374,10 @@ describe('nested session folders', () => {
     const { ctx, tables, row } = nested()
     tables.streams = [{ _id: 'busy', sessionId: 's' }]
     await expect(
-      begin(ctx, args({ folderId: 'a', sources: [] })),
+      begin(ctx, args({ kind: 'update-sources', folderId: 'a', sources: [] })),
     ).rejects.toThrow('Wait for sessions')
     tables.streams = []
-    await run(ctx, args({ folderId: 'a', sources: [] }))
+    await run(ctx, args({ kind: 'update-sources', folderId: 'a', sources: [] }))
     row('mem').folderId = 'g'
     row('mem').userId = 'owner'
     row('mem').groupKey = 'pinned'
@@ -367,6 +385,7 @@ describe('nested session folders', () => {
       begin(
         ctx,
         args({
+          kind: 'update-sources',
           folderId: 'a',
           sources: [{ id: 'new', path: '/new', label: 'New' }],
         }),
@@ -390,13 +409,23 @@ describe('nested session folders', () => {
     await expect(
       begin(
         ctx,
-        args({ subject: 'member', sessionId: 's', folderId: 'personal-child' }),
+        args({
+          kind: 'move-session',
+          subject: 'member',
+          sessionId: 's',
+          folderId: 'personal-child',
+        }),
       ),
     ).rejects.toThrow('without sources')
     row('c').sources = []
     await run(
       ctx,
-      args({ subject: 'member', sessionId: 's', folderId: 'personal-child' }),
+      args({
+        kind: 'move-session',
+        subject: 'member',
+        sessionId: 's',
+        folderId: 'personal-child',
+      }),
     )
     row('c').sources = [{ id: 'member-root', path: '/member', label: 'Member' }]
     tables.sessionFolders!.push({
@@ -422,8 +451,11 @@ describe('nested session folders', () => {
     row('own').pinned = true
     row('own').groupKey = 'pinned'
     tables.streams = [{ _id: 'busy', sessionId: 'child' }]
-    const prepared = await run(ctx, args({ folderId: 'n', remove: true }))
-    expect(prepared.needsSidecar).toBe(false)
+    const prepared = await run(
+      ctx,
+      args({ kind: 'delete-folder', folderId: 'n' }),
+    )
+    expect(prepared.kind).toBe('completed')
     expect(row('n')).toBeUndefined()
     expect(row('g')).toBeUndefined()
     expect(row('s').folderId).toBe('a')
@@ -440,7 +472,7 @@ describe('nested session folders', () => {
     const { ctx, row } = nested()
     row('mem').folderId = 'c'
     row('mem').groupKey = 'c'
-    await run(ctx, args({ folderId: 'a', remove: true }))
+    await run(ctx, args({ kind: 'delete-folder', folderId: 'a' }))
     for (const id of ['a', 'n', 'g', 'sibling']) expect(row(id)).toBeUndefined()
     expect(row('s').folderId).toBeUndefined()
     expect(row('mem').folderId).toBe('c')

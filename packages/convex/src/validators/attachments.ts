@@ -9,6 +9,7 @@ export const confirmAttachmentArgsValidator = v.object({
 })
 
 export const createGeneratedAttachmentArgsValidator = v.object({
+  generation: v.number(),
   streamId: v.id('streams'),
   messageId: v.id('messages'),
   sessionId: v.id('sessions'),

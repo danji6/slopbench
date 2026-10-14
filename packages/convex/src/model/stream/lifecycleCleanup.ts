@@ -1,25 +1,25 @@
 import type { Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
+import type { TrackStreamOutputArgs } from '../../types'
 import { cleanUpGeneratedAttachments } from '../attachments'
 import { allVersionParts } from '../messageContents'
-import { _fail } from './lifecycleTerminal'
+import { ownsExecution } from './execution'
+import { _finalizeStopped, failStream } from './lifecycleTerminal'
 import { collectToolOutputStorageIds } from './toolOutput'
 
 export const ORPHAN_OUTPUT_TTL_MS = 24 * 60 * 60 * 1000
 
 export async function _trackOffloadedOutput(
   ctx: MutationCtx,
-  {
-    streamId,
-    messageId,
-    storageId,
-  }: {
-    streamId: Id<'streams'>
-    messageId: Id<'messages'>
-    storageId: Id<'_storage'>
-  },
+  { streamId, generation, messageId, storageId }: TrackStreamOutputArgs,
 ) {
+  const stream = await ctx.db.get(streamId)
+  if (!ownsExecution(stream, { streamId, generation })) {
+    await ctx.storage.delete(storageId)
+    return false
+  }
   await ctx.db.insert('offloadedOutputs', { streamId, messageId, storageId })
+  return true
 }
 
 /** Deletes tool output blobs that didn't make it into the final message. */
@@ -78,10 +78,11 @@ export async function _prune(ctx: MutationCtx) {
     .collect()
 
   for (const stream of streams) {
-    await _fail(ctx, {
-      streamId: stream._id,
-      message: 'Stream interrupted before completion.',
-    })
+    if (stream.status === 'stopping') {
+      await _finalizeStopped(ctx, { streamId: stream._id })
+    } else {
+      await failStream(ctx, stream, 'Stream interrupted before completion.')
+    }
   }
 }
 

@@ -1,10 +1,12 @@
-import { internal } from '../../_generated/api'
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
+import type { StreamExecutionArgs } from '../../types'
 import { streamOutputIdentity } from '../chat/identities'
 import { injectModeNote } from '../chat/notes'
 import { injectDueReminders } from '../chat/reminders'
 import { getProcessingSegmentRow, insertMessage } from '../messageContents'
+import { matchesExecution, ownsExecution } from './execution'
+import { scheduleStream } from './execution'
 import { STREAM_LEASE_MS, renewStreamLease } from './lease'
 import { consumeInterjections } from './lifecycleProgress'
 import { honorSoftStop } from './stop'
@@ -15,17 +17,12 @@ export const APPROVAL_LEASE_MS = 7 * 24 * 60 * 60 * 1000
 
 export async function _claim(
   ctx: MutationCtx,
-  { streamId }: { streamId: Id<'streams'> },
+  { streamId, generation }: StreamExecutionArgs,
 ) {
   const stream = await ctx.db.get(streamId)
-  if (
-    !stream ||
-    stream.status === 'stopping' ||
-    stream.status === 'awaiting_approval' ||
-    stream.status === 'awaiting_input'
-  ) {
-    return null
-  }
+  if (!matchesExecution(stream, { streamId, generation })) return null
+  const scheduled = stream.status === 'pending' || stream.status === 'retrying'
+  if (!scheduled) return null
 
   if (!stream.processingMessageId) {
     const claimed = await claimFreshTurn(ctx, stream)
@@ -91,17 +88,13 @@ export async function _claim(
  */
 export async function _handoff(
   ctx: MutationCtx,
-  { streamId }: { streamId: Id<'streams'> },
+  { streamId, generation }: StreamExecutionArgs,
 ) {
   const stream = await ctx.db.get(streamId)
-  if (!stream || stream.status === 'stopping') return false
+  if (!ownsExecution(stream, { streamId, generation })) return false
   if (await honorSoftStop(ctx, stream)) return false
 
-  const jobId = await ctx.scheduler.runAfter(
-    0,
-    internal.actions.streams._stream,
-    { streamId },
-  )
+  const jobId = await scheduleStream(ctx, streamId, { delayMs: 0 })
 
   await ctx.db.patch(streamId, {
     jobId,
@@ -114,10 +107,10 @@ export async function _handoff(
 /** Keeps the lease alive while a step streams nothing patchable. */
 export async function _heartbeat(
   ctx: MutationCtx,
-  { streamId }: { streamId: Id<'streams'> },
+  { streamId, generation }: StreamExecutionArgs,
 ) {
   const stream = await ctx.db.get(streamId)
-  if (!stream || stream.status !== 'streaming') return
+  if (!ownsExecution(stream, { streamId, generation })) return
 
   await renewStreamLease(ctx, stream)
 }

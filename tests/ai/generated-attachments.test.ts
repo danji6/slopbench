@@ -203,6 +203,7 @@ describe('shared attachment lifecycle', () => {
     const inserts: Array<{ table: string; value: Record<string, unknown> }> = []
     const ctx = {
       db: {
+        get: async () => ({ generation: 0, status: 'streaming' }),
         system: {
           get: async (_table: string, id: string) =>
             id === 'blob1' ? { size: 42, contentType: 'image/png' } : null,
@@ -215,6 +216,7 @@ describe('shared attachment lifecycle', () => {
     }
 
     await _createGenerated(ctx as never, {
+      generation: 0,
       streamId: 'stream1' as never,
       messageId: 'message1' as never,
       sessionId: 'session1' as never,

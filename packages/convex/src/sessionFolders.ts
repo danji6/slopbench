@@ -3,6 +3,7 @@ import { v } from 'convex/values'
 import { internalMutation } from './_generated/server'
 import { authMutation, authQuery } from './functions'
 import * as Moves from './model/session/folderMoves'
+import { cancel } from './model/session/folderTransitionLocks'
 import * as Transitions from './model/session/folderTransitions'
 import * as Folders from './model/session/folders'
 import * as V from './validators/folders'
@@ -42,9 +43,14 @@ export const _begin = internalMutation({
   handler: Transitions.begin,
 })
 
-export const _finish = internalMutation({
-  args: V.folderFinishArgs.fields,
-  handler: Transitions.finish,
+export const _commit = internalMutation({
+  args: V.folderCommitArgs.fields,
+  handler: Transitions.commit,
+})
+
+export const _cancel = internalMutation({
+  args: V.folderCancelArgs.fields,
+  handler: cancel,
 })
 
 export const _createWithSources = internalMutation({

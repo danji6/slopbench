@@ -1,8 +1,8 @@
 'use node'
 
 import { internal } from '../../_generated/api'
-import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
+import type { StreamExecutionArgs } from '../../types'
 
 export const STEP_DEADLINE_GRACE_MS = 45_000
 
@@ -23,7 +23,7 @@ export function sleep(ms: number) {
  */
 export function watchForStop(
   ctx: ActionCtx,
-  streamId: Id<'streams'>,
+  execution: StreamExecutionArgs,
   abortController: AbortController,
   options?: { deadlineAt?: number },
 ) {
@@ -33,22 +33,21 @@ export function watchForStop(
     while (!disposed && !abortController.signal.aborted) {
       try {
         const active = await ctx.runQuery(internal.streams._isActive, {
-          streamId,
+          ...execution,
         })
         if (!active) {
           abortController.abort()
           return
         }
-        if (
-          options?.deadlineAt !== undefined &&
-          Date.now() >= options.deadlineAt
-        ) {
+        const deadlineElapsed =
+          options?.deadlineAt !== undefined && Date.now() >= options.deadlineAt
+        if (deadlineElapsed) {
           abortController.abort(STEP_DEADLINE_REASON)
           return
         }
         if (Date.now() - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {
           lastHeartbeat = Date.now()
-          await ctx.runMutation(internal.streams._heartbeat, { streamId })
+          await ctx.runMutation(internal.streams._heartbeat, execution)
         }
       } catch {
         // Keep polling

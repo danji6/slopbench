@@ -45,9 +45,12 @@ export function useSessionDrops(
         await pin({ sessionId: item._id, pinned: true })
       } else {
         await change({
-          sessionId: item._id,
-          folderId: folder?._id,
-          unpin: item.pinned || undefined,
+          command: {
+            kind: 'move-session',
+            sessionId: item._id,
+            folderId: folder?._id,
+            unpin: item.pinned || undefined,
+          },
         })
       }
       setDrops((current) =>

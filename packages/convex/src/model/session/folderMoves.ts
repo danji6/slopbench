@@ -6,8 +6,9 @@ import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import { type AuthQueryCtx, requireRole } from '../../functions'
-import type { FolderFinishArgs, FolderMoveArgs } from '../../types'
+import type { FolderCommitPlan, FolderMoveArgs } from '../../types'
 import { workspaceKey } from './folderContext'
+import { assertSessionsUnlocked } from './folderTransitionLocks'
 import {
   invalidateWorkspaces,
   sessionFamilies,
@@ -60,13 +61,11 @@ export async function describeMove(
 }
 
 function assertUnlocked(folders: Doc<'sessionFolders'>[], token?: string) {
-  if (
-    folders.some(
-      (folder) =>
-        transitionActive(folder.contextLock) && folder.contextLock !== token,
-    )
+  const locked = folders.some(
+    (folder) =>
+      transitionActive(folder.contextLock) && folder.contextLock !== token,
   )
-    error('Folder sources are being updated', 409)
+  if (locked) error('Folder sources are being updated', 409)
 }
 
 function projectMove(folders: Doc<'sessionFolders'>[], args: FolderMoveArgs) {
@@ -145,13 +144,7 @@ export async function validateMove(
   move: Awaited<ReturnType<typeof describeMove>>,
   role: Parameters<typeof requireRole>[0],
 ) {
-  if (
-    (await sessionFamilies(ctx, move.sessions)).some((session) =>
-      transitionActive(session.contextLock),
-    )
-  ) {
-    error('Session is being moved', 409)
-  }
+  assertSessionsUnlocked(await sessionFamilies(ctx, move.sessions))
   if (move.requiresAdmin) requireRole(role, 'admin')
   if (move.target)
     for (const folder of move.branch)
@@ -160,24 +153,18 @@ export async function validateMove(
 
 export async function finishMove(
   ctx: MutationCtx,
-  args: FolderFinishArgs,
+  args: Extract<FolderCommitPlan, { kind: 'move-folder' }>,
+  token: string,
   ownerId: Id<'users'>,
   role: Parameters<typeof requireRole>[0],
 ) {
-  const move = await describeMove(
-    ctx,
-    { ...args, folderId: args.folderId!, parentId: args.parentId! },
-    ownerId,
-    args.token,
-  )
+  const move = await describeMove(ctx, args, ownerId, token)
   await validateMove(ctx, move, role)
 
-  if (
+  const workspaceChanged =
     workspaceKey(move.source) !== args.sourceWorkspaceKey ||
     workspaceKey(move.target) !== args.targetWorkspaceKey
-  ) {
-    error('Folder sources changed; try moving again', 409)
-  }
+  if (workspaceChanged) error('Folder sources changed; try moving again', 409)
   if (move.needsConfirmation && move.confirmationKey !== args.confirmationKey)
     error('Folder contents changed; review the move again', 409)
 

@@ -6,69 +6,78 @@ import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { authorize, authorizeAdmin } from '../../functions'
+import type { begin } from '../../model/session/folderTransitions'
+import type { postSidecar } from '../../model/sidecar'
 import type { FolderCreateArgs } from '../../types'
 import type { FolderTransitionArgs } from '../../types'
 
 export async function changeFolder(
   ctx: ActionCtx,
-  input: Omit<FolderTransitionArgs, 'subject' | 'token'>,
+  input: Pick<FolderTransitionArgs, 'command'>,
 ): Promise<number | undefined> {
   const { postSidecar } = await import('../../model/sidecar')
+  const command = input.command
 
-  const identity = input.sources
-    ? await authorizeAdmin(ctx)
-    : await authorize(ctx)
+  const identity =
+    command.kind === 'update-sources'
+      ? await authorizeAdmin(ctx)
+      : await authorize(ctx)
 
-  const sources = input.sources
-    ? await postSidecar<NonNullable<FolderTransitionArgs['sources']>>(
-        '/workspace/validate-sources',
-        { sources: input.sources },
-      )
-    : undefined
+  const validated =
+    command.kind === 'update-sources'
+      ? {
+          ...command,
+          sources: await postSidecar<typeof command.sources>(
+            '/workspace/validate-sources',
+            { sources: command.sources },
+          ),
+        }
+      : command
 
   const args = {
-    ...input,
-    ...(sources ? { sources } : {}),
+    command: validated,
     subject: identity.subject,
     token: `${Date.now() + 60_000}:${randomUUID()}`,
   }
 
   const state = await ctx.runMutation(internal.sessionFolders._begin, args)
-  if (state.personalMoved) {
-    return 'organizationRevision' in state
-      ? state.organizationRevision
-      : undefined
-  }
+  if (state.kind === 'completed') return state.organizationRevision
+  return commitPrepared(ctx, args, state, postSidecar)
+}
 
+type Prepared = Extract<Awaited<ReturnType<typeof begin>>, { kind: 'prepared' }>
+type PostSidecar = typeof postSidecar
+
+/** Commits prepared work and independently attempts both cleanup steps. */
+export async function commitPrepared(
+  ctx: ActionCtx,
+  args: Pick<FolderTransitionArgs, 'subject' | 'token'>,
+  state: Prepared,
+  post: PostSidecar,
+): Promise<number | undefined> {
   let committed = false
+  const lease = { sessionIds: state.sessionIds, token: args.token }
   try {
-    if (state.needsSidecar) {
-      await postSidecar('/workspace/lock', {
-        sessionIds: state.sessionIds,
-        token: args.token,
-      })
-    }
-    const revision = await ctx.runMutation(internal.sessionFolders._finish, {
+    if (state.needsSidecar) await post('/workspace/lock', lease)
+    const revision = await ctx.runMutation(internal.sessionFolders._commit, {
       ...args,
-      targetRevision: state.targetRevision,
-      targetWorkspaceKey: state.targetWorkspaceKey,
-      sourceWorkspaceKey: state.sourceWorkspaceKey,
-      commit: true,
+      plan: state.plan,
     })
     committed = true
     return typeof revision === 'number' ? revision : undefined
   } finally {
     if (!committed) {
-      await ctx.runMutation(internal.sessionFolders._finish, {
-        ...args,
-        commit: false,
-      })
+      await ctx
+        .runMutation(internal.sessionFolders._cancel, {
+          ...args,
+          target: state.target,
+        })
+        .catch((err) => console.error('Folder cancellation failed', err))
     }
     if (state.needsSidecar) {
-      await postSidecar('/workspace/unlock', {
-        sessionIds: state.sessionIds,
-        token: args.token,
-      }).catch(() => undefined) // the lease also expires automatically
+      await post('/workspace/unlock', lease).catch((err) =>
+        console.error('Folder unlock failed', err),
+      )
     }
   }
 }

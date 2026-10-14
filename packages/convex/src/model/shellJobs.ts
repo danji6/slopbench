@@ -44,6 +44,7 @@ export async function register(ctx: MutationCtx, args: RegisterArgs) {
   const now = Date.now()
   const shellJobId = await ctx.db.insert('shellJobs', {
     ...args,
+    generation: 0,
     startedAt: now,
     heartbeatAt: now,
     term: '',
@@ -107,10 +108,14 @@ export async function releaseForSession(
  */
 export async function _beginWindow(
   ctx: MutationCtx,
-  { shellJobId }: { shellJobId: Id<'shellJobs'> },
+  {
+    shellJobId,
+    generation,
+  }: { shellJobId: Id<'shellJobs'>; generation: number },
 ) {
   const row = await ctx.db.get(shellJobId)
-  if (!row) return null
+  if (!matchesWatcher(row, generation)) return null
+  if (!row.watcherId) return null
 
   const session = await getSessionWithWorkspace(ctx, row.sessionId)
   if (!session?.workspace) return null
@@ -131,6 +136,7 @@ export async function _beginWindow(
 }
 
 type CarryArgs = {
+  generation: number
   shellJobId: Id<'shellJobs'>
   term: string
   termOffset: number
@@ -139,16 +145,17 @@ type CarryArgs = {
 /** Hands a running job to a new window. */
 export async function _carry(
   ctx: MutationCtx,
-  { shellJobId, term, termOffset }: CarryArgs,
+  { shellJobId, generation, term, termOffset }: CarryArgs,
 ) {
   const row = await ctx.db.get(shellJobId)
-  if (!row) return
+  if (!ownsWatcher(row, generation)) return
 
   await ctx.db.patch(shellJobId, { term, termOffset })
   await scheduleWatcher(ctx, shellJobId)
 }
 
 type ReportArgs = {
+  generation: number
   shellJobId: Id<'shellJobs'>
   output?: ShellToolOutput
   errorText?: string
@@ -157,10 +164,10 @@ type ReportArgs = {
 /** Settles a watch and hands the job's result to its agent. */
 export async function _report(
   ctx: MutationCtx,
-  { shellJobId, output, errorText }: ReportArgs,
+  { shellJobId, generation, output, errorText }: ReportArgs,
 ) {
   const row = await ctx.db.get(shellJobId)
-  if (!row) return
+  if (!ownsWatcher(row, generation)) return
 
   await removeWatch(ctx, row)
   await deliverShellReport(ctx, row, { output, errorText })
@@ -301,13 +308,32 @@ function childSessions(ctx: MutationCtx, sessionId: Id<'sessions'>) {
     .collect()
 }
 
+function matchesWatcher(
+  row: Doc<'shellJobs'> | null,
+  generation: number,
+): row is Doc<'shellJobs'> {
+  return row?.generation === generation
+}
+
+function ownsWatcher(
+  row: Doc<'shellJobs'> | null,
+  generation: number,
+): row is Doc<'shellJobs'> {
+  if (!matchesWatcher(row, generation)) return false
+  return !row.watcherId
+}
+
 async function scheduleWatcher(ctx: MutationCtx, shellJobId: Id<'shellJobs'>) {
+  const row = await ctx.db.get(shellJobId)
+  if (!row) return
+  if (row.watcherId) await ctx.scheduler.cancel(row.watcherId)
+  const generation = row.generation + 1
   const watcherId = await ctx.scheduler.runAfter(
     0,
     internal.actions.shellJobs._watch,
-    { shellJobId },
+    { shellJobId, generation },
   )
-  await ctx.db.patch(shellJobId, { watcherId })
+  await ctx.db.patch(shellJobId, { watcherId, generation })
 }
 
 async function removeWatch(ctx: MutationCtx, row: Doc<'shellJobs'>) {

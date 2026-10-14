@@ -5,15 +5,19 @@ import {
 } from '@sb/convex/model/chat/reserve'
 import { describe, expect, test } from 'bun:test'
 
-function rescheduleCtx(boundary: Record<string, unknown> | null) {
+function rescheduleCtx(
+  boundary: Record<string, unknown> | null,
+  jobId?: string,
+) {
   const patches: Array<{ id: string; patch: Record<string, unknown> }> = []
   const scheduled: Array<{ delay: number; args: Record<string, unknown> }> = []
   const cancelled: string[] = []
   let nextJob = 0
 
+  const stream = { _id: 'stream_1', generation: 0, jobId }
   const ctx = {
     db: {
-      get: async () => boundary,
+      get: async (id: string) => (id === stream._id ? stream : boundary),
       patch: async (id: string, patch: Record<string, unknown>) => {
         patches.push({ id, patch })
       },
@@ -39,10 +43,13 @@ function rescheduleCtx(boundary: Record<string, unknown> | null) {
 describe('rescheduleStream (debounce reset)', () => {
   test('cancels the pending job and reschedules with a new fire time', async () => {
     const before = Date.now()
-    const { ctx, patches, scheduled, cancelled } = rescheduleCtx({
-      _id: 'msg_2',
-      _creationTime: 42,
-    })
+    const { ctx, patches, scheduled, cancelled } = rescheduleCtx(
+      {
+        _id: 'msg_2',
+        _creationTime: 42,
+      },
+      'old_job',
+    )
 
     await rescheduleStream(
       ctx,
@@ -52,10 +59,12 @@ describe('rescheduleStream (debounce reset)', () => {
 
     // Old scheduled claim is cancelled, a fresh one scheduled with the delay.
     expect(cancelled).toEqual(['old_job'])
-    expect(scheduled).toEqual([{ delay: 5000, args: { streamId: 'stream_1' } }])
+    expect(scheduled).toEqual([
+      { delay: 5000, args: { streamId: 'stream_1', generation: 1 } },
+    ])
 
     // The stream is re-anchored to the new message with a pushed-out fireAt.
-    const patch = patches.find((p) => p.id === 'stream_1')?.patch
+    const patch = patches.find((p) => p.patch.fireAt !== undefined)?.patch
     expect(patch).toMatchObject({
       jobId: 'job_1',
       contextBoundaryMessageId: 'msg_2',
@@ -80,10 +89,13 @@ describe('rescheduleStream (debounce reset)', () => {
 
 describe('reserveOrDebounceTurn (pending window)', () => {
   test('re-anchors a pending turn even without a debounce or fireAt', async () => {
-    const { ctx, patches, scheduled, cancelled } = rescheduleCtx({
-      _id: 'msg_2',
-      _creationTime: 42,
-    })
+    const { ctx, patches, scheduled, cancelled } = rescheduleCtx(
+      {
+        _id: 'msg_2',
+        _creationTime: 42,
+      },
+      'job_old',
+    )
 
     await reserveOrDebounceTurn(ctx, {
       session: { _id: 'session_1', activeAgentId: 'agent_1' },
@@ -100,8 +112,10 @@ describe('reserveOrDebounceTurn (pending window)', () => {
     } as never)
 
     expect(cancelled).toEqual(['job_old'])
-    expect(scheduled).toEqual([{ delay: 0, args: { streamId: 'stream_1' } }])
-    const patch = patches.find((p) => p.id === 'stream_1')?.patch
+    expect(scheduled).toEqual([
+      { delay: 0, args: { streamId: 'stream_1', generation: 1 } },
+    ])
+    const patch = patches.find((p) => p.patch.fireAt !== undefined)?.patch
     expect(patch).toMatchObject({
       contextBoundaryMessageId: 'msg_2',
       contextBoundaryCreationTime: 42,

@@ -4,6 +4,7 @@ import { internal } from '../../_generated/api'
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import { settleAbandonedTaskParts } from '../../lib/subagent'
+import type { FailStreamArgs, StreamExecutionArgs } from '../../types'
 import { cleanUpGeneratedAttachments } from '../attachments'
 import { clearAnnouncedMode } from '../chat/notes'
 import { handleStreamEnd } from '../chat/scheduling'
@@ -24,6 +25,7 @@ import {
   notifyAgentEvent,
 } from '../notifications'
 import { createPlanLinkPart, getBySession as getPlan } from '../plans'
+import { ownsExecution } from './execution'
 import { cleanUpOffloadedOutputs } from './lifecycleCleanup'
 import { killSessionJobs } from './lifecycleControl'
 import { reserveFollowUp } from './lifecycleReservations'
@@ -32,16 +34,14 @@ import { deliverChildReport } from './subagents'
 
 export async function _complete(
   ctx: MutationCtx,
-  { streamId }: { streamId: Id<'streams'> },
+  { streamId, generation }: StreamExecutionArgs,
 ) {
   const stream = await ctx.db.get(streamId)
-  if (!stream) return
+  if (!ownsExecution(stream, { streamId, generation })) return
 
   // A turn that never materialized a message has nothing to finalize
   if (!stream.processingMessageId) {
-    await cleanUpOffloadedOutputs(ctx, streamId)
-    await cleanUpGeneratedAttachments(ctx, streamId)
-    await ctx.db.delete(streamId)
+    await discardStream(ctx, streamId)
     await handleStreamEnd(ctx, stream, 'complete')
     await scheduleCommandDrain(ctx, stream.sessionId)
     return
@@ -71,9 +71,7 @@ export async function _complete(
     await ctx.db.patch(processingMessageId, { status: 'done' })
   }
 
-  await cleanUpOffloadedOutputs(ctx, streamId)
-  await cleanUpGeneratedAttachments(ctx, streamId)
-  await ctx.db.delete(streamId)
+  await discardStream(ctx, streamId)
 
   const scheduledCompact = await handleStreamEnd(ctx, stream, 'complete')
 
@@ -158,12 +156,19 @@ export async function isLatestRetry(
   return !newer
 }
 
-export async function _fail(
+export async function _fail(ctx: MutationCtx, args: FailStreamArgs) {
+  const stream = await ctx.db.get(args.streamId)
+  if (!ownsExecution(stream, args)) return
+  return failStream(ctx, stream, args.message)
+}
+
+/** Settles a current stream from trusted lifecycle maintenance. */
+export async function failStream(
   ctx: MutationCtx,
-  { streamId, message }: { streamId: Id<'streams'>; message: string },
+  stream: Doc<'streams'>,
+  message: string,
 ) {
-  const stream = await ctx.db.get(streamId)
-  if (!stream) return
+  const streamId = stream._id
 
   if (stream.processingMessageId) {
     const row = await getProcessingSegmentRow(ctx, stream)
@@ -185,9 +190,7 @@ export async function _fail(
     await demoteFailedSummary(ctx, stream)
   }
 
-  await cleanUpOffloadedOutputs(ctx, streamId)
-  await cleanUpGeneratedAttachments(ctx, streamId)
-  await ctx.db.delete(streamId)
+  await discardStream(ctx, streamId)
 
   await handleStreamEnd(ctx, stream, 'failed')
 
@@ -209,13 +212,11 @@ export async function _finalizeStopped(
   { streamId }: { streamId: Id<'streams'> },
 ) {
   const stream = await ctx.db.get(streamId)
-  if (!stream) return
+  if (!stream || stream.status !== 'stopping') return
 
   // Turn stopped before it materialized a message, just drop the stream
   if (!stream.processingMessageId) {
-    await cleanUpOffloadedOutputs(ctx, streamId)
-    await cleanUpGeneratedAttachments(ctx, streamId)
-    await ctx.db.delete(streamId)
+    await discardStream(ctx, streamId)
     await handleStreamEnd(ctx, stream, 'stopped')
     await scheduleCommandDrain(ctx, stream.sessionId)
     return
@@ -245,9 +246,7 @@ export async function _finalizeStopped(
   }
   await demoteFailedSummary(ctx, stream)
 
-  await cleanUpOffloadedOutputs(ctx, streamId)
-  await cleanUpGeneratedAttachments(ctx, streamId)
-  await ctx.db.delete(streamId)
+  await discardStream(ctx, streamId)
 
   await handleStreamEnd(ctx, stream, 'stopped')
 
@@ -297,4 +296,11 @@ export function preserveStoppedStreamError(
   }
 
   return { ...metadata, error: `${previous}\n${retryError}` }
+}
+
+/** Reclaims unused output before deleting its owning stream. */
+export async function discardStream(ctx: MutationCtx, streamId: Id<'streams'>) {
+  await cleanUpOffloadedOutputs(ctx, streamId)
+  await cleanUpGeneratedAttachments(ctx, streamId)
+  await ctx.db.delete(streamId)
 }

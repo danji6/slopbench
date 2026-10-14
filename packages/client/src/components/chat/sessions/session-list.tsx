@@ -336,7 +336,9 @@ export const SessionListView = memo(function SessionListView() {
           onConfirm={async () => {
             try {
               if (deleting)
-                await change({ folderId: deleting._id, remove: true })
+                await change({
+                  command: { kind: 'delete-folder', folderId: deleting._id },
+                })
               setDeleting(null)
             } catch (err) {
               toastError(err, 'Could not delete folder')

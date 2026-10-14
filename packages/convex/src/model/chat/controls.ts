@@ -1,9 +1,9 @@
-import { internal } from '../../_generated/api'
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import type { AuthMutationCtx } from '../../functions'
 import { removeForSession as removeSessionCache } from '../session/cache'
 import * as Memberships from '../session/memberships'
+import { scheduleStream } from '../stream/execution'
 import { STREAM_LEASE_MS } from '../stream/lifecycle'
 import { requestImmediateStop } from '../stream/stop'
 import { handleStreamEnd } from './scheduling'
@@ -47,13 +47,7 @@ export async function retryStreamNow(
   const stream = await Memberships.getActiveStream(ctx, sessionId)
   if (!stream || stream.status !== 'retrying') return
 
-  if (stream.jobId) await ctx.scheduler.cancel(stream.jobId)
-
-  const jobId = await ctx.scheduler.runAfter(
-    0,
-    internal.actions.streams._stream,
-    { streamId: stream._id },
-  )
+  const jobId = await scheduleStream(ctx, stream._id, { delayMs: 0 })
 
   await ctx.db.patch(stream._id, {
     status: 'pending',

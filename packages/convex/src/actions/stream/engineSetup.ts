@@ -1,7 +1,6 @@
 'use node'
 
 import { internal } from '../../_generated/api'
-import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { minRole } from '../../lib/roles'
 import { sharedSessionId } from '../../lib/subagent'
@@ -15,6 +14,7 @@ import {
   compactSkillCatalog,
   resolvePersonalWorkspace,
 } from '../../model/skills/runtime'
+import type { StreamExecutionArgs } from '../../types'
 import type { ReasoningEffort } from '../../types'
 import { buildSessionLogBody } from './engineLog'
 import { patchSessionLogBody } from './engineLog'
@@ -22,8 +22,8 @@ import { buildEvalContext } from './evalContext'
 import { createOperationPlan } from './operations'
 import type { PromptEvalResult } from './operations'
 
-export async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
-  const data = await ctx.runQuery(internal.streams._getContext, { streamId })
+export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
+  const data = await ctx.runQuery(internal.streams._getContext, execution)
   if (!data?.stream || data.stream.status === 'stopping') return null
 
   if (minRole(data.invoker.role, 'admin')) {
@@ -90,6 +90,7 @@ export async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
   const patch = operationPlan.snapshotPatch(evalResult)
   if (patch) {
     await ctx.runMutation(internal.streams._saveSessionCache, {
+      ...execution,
       sessionId: data.stream.sessionId,
       agentId: data.stream.agentId,
       ...patch,
@@ -118,7 +119,7 @@ export async function prepare(ctx: ActionCtx, streamId: Id<'streams'>) {
       requestLog.body = body
       await patchSessionLogBody(ctx, {
         body: buildSessionLogBody({ requestBody: body }),
-        sessionId: data.stream.sessionId,
+        execution,
       })
     },
   )

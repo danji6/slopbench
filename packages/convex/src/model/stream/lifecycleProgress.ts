@@ -3,6 +3,11 @@ import { serializedSize } from '@sb/core/utils/size'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
+import type {
+  PatchStreamMessageArgs,
+  RecordStreamStepArgs,
+  StreamExecutionArgs,
+} from '../../types'
 import { senderIdentity } from '../chat/identities'
 import { injectModeNote } from '../chat/notes'
 import { injectDueReminders } from '../chat/reminders'
@@ -20,16 +25,16 @@ import {
   scheduleMessageEval,
 } from '../messages'
 import { advanceStepCount } from '../session/state'
+import { ownsExecution } from './execution'
 import { STREAM_LEASE_MS, renewStreamLease } from './lease'
 
 export async function _patchMessage(
   ctx: MutationCtx,
-  { streamId, parts }: { streamId: Id<'streams'>; parts: unknown[] },
+  { streamId, generation, parts }: PatchStreamMessageArgs,
 ) {
   const stream = await ctx.db.get(streamId)
-  if (!stream || stream.status === 'stopping' || !stream.processingMessageId) {
-    return false
-  }
+  if (!ownsExecution(stream, { streamId, generation })) return false
+  if (!stream.processingMessageId) return false
 
   const row = await getProcessingSegmentRow(ctx, stream)
   if (!row) return false
@@ -102,12 +107,11 @@ export function isApprovedToolAwaitingExecution(part: unknown) {
 
 export async function _continue(
   ctx: MutationCtx,
-  { streamId }: { streamId: Id<'streams'> },
+  { streamId, generation }: StreamExecutionArgs,
 ) {
   const stream = await ctx.db.get(streamId)
-  if (!stream || stream.status === 'stopping' || !stream.processingMessageId) {
-    return false
-  }
+  if (!ownsExecution(stream, { streamId, generation })) return false
+  if (!stream.processingMessageId) return false
 
   const current = await ctx.db.get(stream.processingMessageId)
   if (!current) return false
@@ -151,19 +155,11 @@ export async function _continue(
 /** Records a completed invoke step and injects notes at a safe continuation. */
 export async function _recordStep(
   ctx: MutationCtx,
-  {
-    streamId,
-    interruptible,
-  }: { streamId: Id<'streams'>; interruptible: boolean },
+  { streamId, generation, interruptible }: RecordStreamStepArgs,
 ) {
   const stream = await ctx.db.get(streamId)
-  if (
-    !stream ||
-    stream.status === 'stopping' ||
-    stream.operation !== 'invoke'
-  ) {
-    return false
-  }
+  if (!ownsExecution(stream, { streamId, generation })) return false
+  if (stream.operation !== 'invoke') return false
 
   const stepCount = await advanceStepCount(ctx, stream.sessionId)
   if (!interruptible) return true

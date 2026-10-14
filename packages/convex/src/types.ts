@@ -102,6 +102,17 @@ export type SessionListItem = CoreSessionListItem<
   Id<'avatars'>
 >
 
+export type FolderView = Doc<'sessionFolders'> & {
+  workspace: Session['workspace']
+  ancestorIds: string[]
+  folderPath: string
+}
+
+/** A session with its folder-owned filesystem context resolved for this request. */
+export type Session = Doc<'sessions'> & {
+  workspace?: Infer<typeof V.workspaceRefValidator>
+}
+
 export type PromptScope = Infer<typeof V.promptScopeValidator>
 export type ReminderScope = Infer<typeof V.reminderScopeValidator>
 export type CredentialScope = Infer<typeof V.credentialScopeValidator>
@@ -143,7 +154,11 @@ export type FolderTransitionArgs = Infer<typeof V.folderTransitionArgs>
 export type FolderCreateArgs = Infer<typeof V.folderCreateArgs>
 export type FolderCreateBasicArgs = Infer<typeof V.folderCreateBasicArgs>
 export type FolderMoveArgs = Infer<typeof V.folderMoveArgs>
-export type FolderFinishArgs = Infer<typeof V.folderFinishArgs>
+export type FolderCommand = Infer<typeof V.folderCommandValidator>
+export type FolderCommitPlan = Infer<typeof V.folderCommitPlanValidator>
+export type FolderCommitArgs = Infer<typeof V.folderCommitArgs>
+export type FolderCancelArgs = Infer<typeof V.folderCancelArgs>
+export type FolderLockTarget = Infer<typeof V.folderLockTargetValidator>
 export type CompleteAgentFileArgs = Infer<typeof V.completeAgentFileArgsValidator> // prettier-ignore
 export type FailAgentFileArgs = Infer<typeof V.failAgentFileArgsValidator>
 export type PrepareSkillImportArgs = Infer<typeof V.prepareSkillImportArgsValidator> // prettier-ignore
@@ -157,14 +172,13 @@ export type CopySkillAssignmentsArgs = Infer<typeof V.copySkillAssignmentsArgsVa
 export type ReserveHomeArgs = Infer<typeof V.reserveHomeArgsValidator>
 export type OperationAttemptArgs = Infer<typeof V.operationAttemptArgsValidator>
 export type OperationResult = Infer<typeof V.operationResultValidator>
-
-export type FolderView = Doc<'sessionFolders'> & {
-  workspace: Session['workspace']
-  ancestorIds: string[]
-  folderPath: string
-}
-
-/** A session with its folder-owned filesystem context resolved for this request. */
-export type Session = Doc<'sessions'> & {
-  workspace?: Infer<typeof V.workspaceRefValidator>
-}
+export type StreamExecutionArgs = Infer<typeof V.streamExecutionArgsValidator>
+export type PatchStreamMessageArgs = Infer<typeof V.patchStreamMessageArgsValidator> // prettier-ignore
+export type RecordStreamStepArgs = Infer<typeof V.recordStreamStepArgsValidator>
+export type FailStreamArgs = Infer<typeof V.failStreamArgsValidator>
+export type TrackStreamOutputArgs = Infer<typeof V.trackStreamOutputArgsValidator> // prettier-ignore
+export type SaveStreamMetaArgs = Infer<typeof V.saveStreamMetaArgsValidator>
+export type ScheduleStreamRetryArgs = Infer<typeof V.scheduleStreamRetryArgsValidator> // prettier-ignore
+export type SaveStreamCacheArgs = Infer<typeof V.saveStreamCacheArgsValidator>
+export type SaveStreamEnvironmentArgs = Infer<typeof V.saveStreamEnvironmentArgsValidator> // prettier-ignore
+export type SaveStreamLogArgs = Infer<typeof V.saveStreamLogArgsValidator>

@@ -162,7 +162,10 @@ describe('spawning configured subagents', () => {
       { agentId: 'review', modelId: 'capable' },
     ])
     expect(
-      await _suspendStep(fixture.ctx, { streamId: 'stream' as never }),
+      await _suspendStep(fixture.ctx, {
+        generation: 0,
+        streamId: 'stream' as never,
+      }),
     ).toBe('continue')
     const children = fixture.inserts.filter(
       (entry) => entry.table === 'sessions',
@@ -197,7 +200,10 @@ describe('spawning configured subagents', () => {
       if (unavailable === 'disabled') fixture.provider.enabled = false
       if (unavailable === 'foreign') fixture.provider.ownerId = 'other-user'
       expect(
-        await _suspendStep(fixture.ctx, { streamId: 'stream' as never }),
+        await _suspendStep(fixture.ctx, {
+          generation: 0,
+          streamId: 'stream' as never,
+        }),
       ).toBe('continue')
       const children = fixture.inserts.filter(
         (entry) => entry.table === 'sessions',

@@ -1,4 +1,3 @@
-import { internal } from '../../_generated/api'
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import { error } from '../../errors'
@@ -8,6 +7,7 @@ import { announceFolderContext } from '../session/folderAnnouncement'
 import { getSessionWithWorkspace } from '../session/folderContext'
 import * as Memberships from '../session/memberships'
 import { assertAgentAvailable } from '../skills/access'
+import { scheduleStream } from '../stream/execution'
 import { STREAM_LEASE_MS } from '../stream/lifecycle'
 import { agentIdentity } from './identities'
 
@@ -48,6 +48,7 @@ export async function reserveStream(
   const delayMs = args.delayMs ?? 0
 
   const streamId = await ctx.db.insert('streams', {
+    generation: 0,
     sessionId: args.sessionId,
     agentId: args.agentId,
     invokedBy: args.invokedBy,
@@ -69,11 +70,7 @@ export async function reserveStream(
     ...(delayMs > 0 ? { fireAt: Date.now() + delayMs } : {}),
   })
 
-  const jobId = await ctx.scheduler.runAfter(
-    delayMs,
-    internal.actions.streams._stream,
-    { streamId },
-  )
+  const jobId = await scheduleStream(ctx, streamId, { delayMs: delayMs })
 
   await ctx.db.patch(streamId, { jobId })
   return streamId
@@ -131,14 +128,8 @@ export async function rescheduleStream(
   stream: { _id: Id<'streams'>; jobId?: Id<'_scheduled_functions'> },
   { boundaryId, delayMs }: { boundaryId: Id<'messages'>; delayMs: number },
 ) {
-  if (stream.jobId) await ctx.scheduler.cancel(stream.jobId)
-
   const boundary = await ctx.db.get(boundaryId)
-  const jobId = await ctx.scheduler.runAfter(
-    delayMs,
-    internal.actions.streams._stream,
-    { streamId: stream._id },
-  )
+  const jobId = await scheduleStream(ctx, stream._id, { delayMs: delayMs })
 
   await ctx.db.patch(stream._id, {
     jobId,
@@ -196,6 +187,7 @@ export async function reserveResumableStream(
   }
 
   const streamId = await ctx.db.insert('streams', {
+    generation: 0,
     sessionId: args.sessionId,
     agentId: args.agentId,
     invokedBy: args.invokedBy,
@@ -212,11 +204,7 @@ export async function reserveResumableStream(
     suppressFollowUp: args.suppressFollowUp,
   })
 
-  const jobId = await ctx.scheduler.runAfter(
-    0,
-    internal.actions.streams._stream,
-    { streamId },
-  )
+  const jobId = await scheduleStream(ctx, streamId, { delayMs: 0 })
 
   await ctx.db.patch(streamId, { jobId })
   return streamId
@@ -264,6 +252,7 @@ export async function reserveRetryStream(
   })
 
   const streamId = await ctx.db.insert('streams', {
+    generation: 0,
     sessionId: args.sessionId,
     agentId: args.agentId,
     invokedBy: args.invokedBy,
@@ -280,11 +269,7 @@ export async function reserveRetryStream(
     suppressFollowUp: true,
   })
 
-  const jobId = await ctx.scheduler.runAfter(
-    0,
-    internal.actions.streams._stream,
-    { streamId },
-  )
+  const jobId = await scheduleStream(ctx, streamId, { delayMs: 0 })
 
   await ctx.db.patch(streamId, { jobId })
   return streamId

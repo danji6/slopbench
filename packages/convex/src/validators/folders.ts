@@ -8,23 +8,67 @@ export const folderRenameArgs = v.object({
   icon: v.optional(v.string()),
 })
 
-export const folderChangeArgs = v.object({
-  folderId: v.optional(v.id('sessionFolders')),
-  sessionId: v.optional(v.id('sessions')),
-  sources: v.optional(v.array(folderSourceValidator)),
-  remove: v.optional(v.boolean()),
-  unpin: v.optional(v.boolean()),
-  parentId: v.optional(v.union(v.id('sessionFolders'), v.null())),
-  beforeFolderId: v.optional(v.id('sessionFolders')),
-  confirmationKey: v.optional(v.string()),
-})
-
 export const folderMoveArgs = v.object({
   folderId: v.id('sessionFolders'),
   parentId: v.union(v.id('sessionFolders'), v.null()),
   beforeFolderId: v.optional(v.id('sessionFolders')),
   confirmationKey: v.optional(v.string()),
 })
+
+const moveSessionCommand = v.object({
+  kind: v.literal('move-session'),
+  sessionId: v.id('sessions'),
+  folderId: v.optional(v.id('sessionFolders')),
+  unpin: v.optional(v.boolean()),
+})
+
+const moveFolderCommand = v.object({
+  kind: v.literal('move-folder'),
+  ...folderMoveArgs.fields,
+})
+
+const updateSourcesCommand = v.object({
+  kind: v.literal('update-sources'),
+  folderId: v.id('sessionFolders'),
+  sources: v.array(folderSourceValidator),
+})
+
+const deleteFolderCommand = v.object({
+  kind: v.literal('delete-folder'),
+  folderId: v.id('sessionFolders'),
+})
+
+export const folderCommandValidator = v.union(
+  moveSessionCommand,
+  moveFolderCommand,
+  updateSourcesCommand,
+  deleteFolderCommand,
+)
+
+export const folderChangeArgs = v.object({ command: folderCommandValidator })
+
+const workspaceSnapshot = {
+  sourceWorkspaceKey: v.string(),
+  targetWorkspaceKey: v.string(),
+}
+
+const folderSnapshot = { ...workspaceSnapshot, sourceRevision: v.number() }
+
+export const folderCommitPlanValidator = v.union(
+  v.object({
+    ...moveSessionCommand.fields,
+    ...workspaceSnapshot,
+    targetRevision: v.union(v.number(), v.null()),
+  }),
+  v.object({ ...moveFolderCommand.fields, ...folderSnapshot }),
+  v.object({ ...updateSourcesCommand.fields, ...folderSnapshot }),
+  v.object({ ...deleteFolderCommand.fields, ...folderSnapshot }),
+)
+
+export const folderLockTargetValidator = v.union(
+  v.object({ kind: v.literal('session'), id: v.id('sessions') }),
+  v.object({ kind: v.literal('folder'), id: v.id('sessionFolders') }),
+)
 
 export const folderCreateBasicArgs = v.object({
   name: v.string(),
@@ -43,12 +87,16 @@ export const folderCreateArgs = v.object({
   sources: v.array(folderSourceValidator),
 })
 
-export const folderFinishArgs = v.object({
-  ...folderTransitionArgs.fields,
-  commit: v.boolean(),
-  targetRevision: v.optional(v.number()),
-  targetWorkspaceKey: v.optional(v.string()),
-  sourceWorkspaceKey: v.optional(v.string()),
+export const folderCommitArgs = v.object({
+  subject: v.string(),
+  token: v.string(),
+  plan: folderCommitPlanValidator,
+})
+
+export const folderCancelArgs = v.object({
+  subject: v.string(),
+  token: v.string(),
+  target: folderLockTargetValidator,
 })
 
 export const folderCreateInternalArgs = v.object({

@@ -84,7 +84,10 @@ describe('_suspendStep', () => {
       ],
     })
 
-    const result = await _suspendStep(ctx, { streamId: 'stream_1' as never })
+    const result = await _suspendStep(ctx, {
+      generation: 0,
+      streamId: 'stream_1' as never,
+    })
 
     expect(result).toBe('continue')
 
@@ -152,7 +155,7 @@ describe('_suspendStep', () => {
       agents: [parentAgent, explorer],
     })
 
-    await _suspendStep(ctx, { streamId: 'stream_1' as never })
+    await _suspendStep(ctx, { generation: 0, streamId: 'stream_1' as never })
 
     const session = inserts.find(({ table }) => table === 'sessions')
     expect(session?.fields.mode).toBe('plan')
@@ -166,7 +169,7 @@ describe('_suspendStep', () => {
       agents: [parentAgent, explorer],
     })
 
-    await _suspendStep(ctx, { streamId: 'stream_1' as never })
+    await _suspendStep(ctx, { generation: 0, streamId: 'stream_1' as never })
 
     const session = inserts.find(({ table }) => table === 'sessions')
     expect(session?.fields.mode).toBeUndefined()
@@ -188,7 +191,7 @@ describe('_suspendStep', () => {
       ],
     })
 
-    await _suspendStep(ctx, { streamId: 'stream_1' as never })
+    await _suspendStep(ctx, { generation: 0, streamId: 'stream_1' as never })
 
     const content = inserts.find(({ table }) => table === 'messageContents')
     expect(content?.fields.parts).toEqual([
@@ -209,7 +212,10 @@ describe('_suspendStep', () => {
       agents: [parentAgent, explorer],
     })
 
-    const result = await _suspendStep(ctx, { streamId: 'stream_1' as never })
+    const result = await _suspendStep(ctx, {
+      generation: 0,
+      streamId: 'stream_1' as never,
+    })
 
     expect(result).toBe('continue')
     expect(inserts).toHaveLength(0)
@@ -250,7 +256,10 @@ describe('_suspendStep', () => {
       },
     })
 
-    const result = await _suspendStep(ctx, { streamId: 'stream_1' as never })
+    const result = await _suspendStep(ctx, {
+      generation: 0,
+      streamId: 'stream_1' as never,
+    })
 
     expect(result).toBe('suspended')
     expect(patches).toContainEqual({
@@ -291,7 +300,10 @@ describe('_suspendStep', () => {
       agents: [parentAgent, explorer],
     })
 
-    const result = await _suspendStep(ctx, { streamId: 'stream_1' as never })
+    const result = await _suspendStep(ctx, {
+      generation: 0,
+      streamId: 'stream_1' as never,
+    })
 
     expect(result).toBe('suspended')
     expect(patches).toContainEqual({
@@ -333,7 +345,10 @@ describe('_suspendStep', () => {
       },
     })
 
-    const result = await _suspendStep(ctx, { streamId: 'stream_1' as never })
+    const result = await _suspendStep(ctx, {
+      generation: 0,
+      streamId: 'stream_1' as never,
+    })
 
     expect(result).toBe('suspended')
     expect(patches.find(({ id }) => id === 'content_1')).toBeUndefined()
@@ -722,6 +737,7 @@ describe('parent teardown', () => {
     })
 
     await _fail(ctx, {
+      generation: 0,
       streamId: 'parent_stream' as never,
       message: 'Stream interrupted before completion.',
     })

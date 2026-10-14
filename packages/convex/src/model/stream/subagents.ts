@@ -1,6 +1,5 @@
 import { hasPendingQuestions } from '@sb/core/utils/ask'
 
-import { internal } from '../../_generated/api'
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import {
@@ -11,6 +10,7 @@ import {
   pendingTaskParts,
   taskInput,
 } from '../../lib/subagent'
+import type { StreamExecutionArgs } from '../../types'
 import type { Session } from '../../types'
 import { resolveSpawnableAgents } from '../agent/subagents'
 import { hasPendingToolApprovals } from '../chat/approvals'
@@ -31,11 +31,14 @@ import {
   type SubagentModelSettings,
   resolveSubagentModel,
 } from '../subagent/models'
+import { ownsExecution } from './execution'
+import { scheduleStream } from './execution'
 import {
   APPROVAL_LEASE_MS,
   STREAM_LEASE_MS,
   reserveInvokeTurn,
 } from './lifecycle'
+import { _recordStep } from './lifecycleProgress'
 import { honorSoftStop } from './stop'
 
 /** Reports stay under the segment split budget. The full transcript lives in the child session. */
@@ -56,12 +59,11 @@ export type SuspendStepResult = 'suspended' | 'continue' | 'abort'
  */
 export async function _suspendStep(
   ctx: MutationCtx,
-  { streamId }: { streamId: Id<'streams'> },
+  { streamId, generation }: StreamExecutionArgs,
 ): Promise<SuspendStepResult> {
   const stream = await ctx.db.get(streamId)
-  if (!stream || stream.status === 'stopping' || !stream.processingMessageId) {
-    return 'abort'
-  }
+  if (!ownsExecution(stream, { streamId, generation })) return 'abort'
+  if (!stream.processingMessageId) return 'abort'
   if (await honorSoftStop(ctx, stream)) return 'abort'
 
   const session = await getSessionWithWorkspace(ctx, stream.sessionId)
@@ -86,11 +88,13 @@ export async function _suspendStep(
   }
 
   if (!session.parent && hasPendingQuestions(parts)) {
+    await _recordStep(ctx, { streamId, generation, interruptible: false })
     await park(ctx, stream, 'awaiting_input')
     return 'suspended'
   }
 
   if (hasPendingToolApprovals(parts)) {
+    await _recordStep(ctx, { streamId, generation, interruptible: false })
     await park(ctx, stream, 'awaiting_approval')
     return 'suspended'
   }
@@ -270,6 +274,7 @@ async function spawnChild(
   const prompt = await ctx.db.get(messageId)
   await assertAgentAvailable(ctx, agent._id)
   const childStreamId = await ctx.db.insert('streams', {
+    generation: 0,
     sessionId: childSessionId,
     agentId: agent._id,
     // The parent's invoker gates workspace tools in the child too
@@ -285,11 +290,7 @@ async function spawnChild(
     mode,
   })
 
-  const jobId = await ctx.scheduler.runAfter(
-    0,
-    internal.actions.streams._stream,
-    { streamId: childStreamId },
-  )
+  const jobId = await scheduleStream(ctx, childStreamId, { delayMs: 0 })
   await ctx.db.patch(childStreamId, { jobId })
 
   return childSessionId
@@ -440,11 +441,7 @@ export async function resumeIfSettled(
     return
   }
 
-  const jobId = await ctx.scheduler.runAfter(
-    0,
-    internal.actions.streams._stream,
-    { streamId: stream._id },
-  )
+  const jobId = await scheduleStream(ctx, stream._id, { delayMs: 0 })
 
   await ctx.db.patch(stream._id, {
     status: 'pending',

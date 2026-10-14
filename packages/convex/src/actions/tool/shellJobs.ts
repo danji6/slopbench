@@ -8,7 +8,10 @@ import type { ActionCtx } from '../../_generated/server'
 import { sanitizeChatError } from '../../errors'
 import type { ShellJobOptions } from '../../model/tool/shell'
 
-export type WatchShellJobArgs = { shellJobId: Id<'shellJobs'> }
+export type WatchShellJobArgs = {
+  shellJobId: Id<'shellJobs'>
+  generation: number
+}
 
 /**
  * Follows a background job until it exits, then hands its result to the agent.
@@ -20,7 +23,7 @@ export async function _watch(
   options: ShellJobOptions = {},
 ) {
   const context = await ctx.runMutation(internal.shellJobs._beginWindow, {
-    shellJobId: args.shellJobId,
+    ...args,
   })
   if (!context) return
 
@@ -45,7 +48,7 @@ export async function _watch(
   // Still running means the window ran out, not the job
   if (!errorText && output?.status === 'running') {
     await ctx.runMutation(internal.shellJobs._carry, {
-      shellJobId: args.shellJobId,
+      ...args,
       term: output.term,
       termOffset: output.termOffset,
     })
@@ -53,7 +56,7 @@ export async function _watch(
   }
 
   await ctx.runMutation(internal.shellJobs._report, {
-    shellJobId: args.shellJobId,
+    ...args,
     ...(errorText ? { errorText } : { output }),
   })
 }

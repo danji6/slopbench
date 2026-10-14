@@ -143,7 +143,10 @@ describe('sub-agent approvals in the parent session', () => {
     ])
     expect(byId.get('child_stream')?.status).toBe('pending')
     expect(scheduled).toHaveLength(1)
-    expect(scheduled[0]?.args[2]).toEqual({ streamId: 'child_stream' })
+    expect(scheduled[0]?.args[2]).toEqual({
+      streamId: 'child_stream',
+      generation: 1,
+    })
     expect(byId.get('parent_stream')?.status).toBe('awaiting_approval')
     expect(byId.get('parent_content')?.parts).toEqual([approval('shell')])
     expect(await pendingApprovals(ctx, { sessionId: parentId })).toEqual([])

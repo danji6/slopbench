@@ -9,6 +9,7 @@ import type {
 } from '../types'
 import { allVersionParts } from './messageContents'
 import { getMember, requireEnabled, requireMember } from './session/memberships'
+import { ownsExecution } from './stream/execution'
 
 const STAGED_ATTACHMENT_TTL_MS = 24 * 60 * 60 * 1000
 
@@ -198,8 +199,14 @@ export async function _createGenerated(
   ctx: MutationCtx,
   args: CreateGeneratedAttachmentArgs,
 ) {
-  const fileId = await createFile(ctx, args)
-  return ctx.db.insert('attachments', { ...args, fileId })
+  const stream = await ctx.db.get(args.streamId)
+  if (!ownsExecution(stream, args)) {
+    await ctx.storage.delete(args.storageId)
+    return null
+  }
+  const { generation: _generation, ...attachment } = args
+  const fileId = await createFile(ctx, attachment)
+  return ctx.db.insert('attachments', { ...attachment, fileId })
 }
 
 /** Creates a message-local reference from a bearer attachment token. */

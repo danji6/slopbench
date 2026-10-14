@@ -42,6 +42,9 @@ function fakeCtx({
   const deletedBlobs: string[] = []
 
   const rows = [...contents]
+  for (const row of docs) {
+    if (row._id.includes('stream')) row.generation ??= 0
+  }
   const byId = new Map<string, Row>(
     [...docs, ...rows].map((row) => [row._id, row]),
   )
@@ -152,9 +155,12 @@ describe('_honorSoftStop', () => {
       ],
     })
 
-    expect(await _honorSoftStop(ctx, { streamId: stream._id as never })).toBe(
-      true,
-    )
+    expect(
+      await _honorSoftStop(ctx, {
+        generation: 0,
+        streamId: stream._id as never,
+      }),
+    ).toBe(true)
     await _finalizeStopped(ctx, { streamId: stream._id as never })
 
     const sealed = patches.find(
@@ -178,16 +184,19 @@ describe('_honorSoftStop', () => {
     }
     const { ctx, patches, scheduled } = fakeCtx({ docs: [stream] })
 
-    expect(await _honorSoftStop(ctx, { streamId: stream._id as never })).toBe(
-      true,
-    )
+    expect(
+      await _honorSoftStop(ctx, {
+        generation: 0,
+        streamId: stream._id as never,
+      }),
+    ).toBe(true)
     expect(patches).toContainEqual({
       id: 'stream_1',
       patch: { status: 'stopping', suppressFollowUp: true },
     })
     expect(scheduled).toHaveLength(1)
 
-    await _honorSoftStop(ctx, { streamId: stream._id as never })
+    await _honorSoftStop(ctx, { generation: 0, streamId: stream._id as never })
     expect(scheduled).toHaveLength(1)
   })
 })
@@ -210,7 +219,10 @@ describe('_claim', () => {
       firstMessage: { _id: 'user_2', _creationTime: 50 },
     })
 
-    const result = await _claim(ctx, { streamId: stream._id as never })
+    const result = await _claim(ctx, {
+      generation: 0,
+      streamId: stream._id as never,
+    })
 
     expect(result?.contextBoundaryMessageId).toBe('user_2' as never)
     expect(result?.processingMessageId).toBe('message_1' as never)
@@ -242,7 +254,10 @@ describe('_claim', () => {
       firstMessage: { _id: 'user_2', _creationTime: 50 },
     })
 
-    const result = await _claim(ctx, { streamId: stream._id as never })
+    const result = await _claim(ctx, {
+      generation: 0,
+      streamId: stream._id as never,
+    })
 
     expect(result?.contextBoundaryMessageId).toBe('user_1' as never)
     expect(patches).toContainEqual({
@@ -272,7 +287,10 @@ describe('_claim', () => {
       firstMessage: { _id: 'user_2', _creationTime: 50 },
     })
 
-    const result = await _claim(ctx, { streamId: stream._id as never })
+    const result = await _claim(ctx, {
+      generation: 0,
+      streamId: stream._id as never,
+    })
 
     // Message doc + its (v1, seg0) content row are inserted lazily here.
     expect(inserts.map(({ table }) => table)).toEqual([
@@ -330,7 +348,10 @@ describe('_claim', () => {
       firstMessage: { _id: 'user_2', _creationTime: 50 },
     })
 
-    const result = await _claim(ctx, { streamId: stream._id as never })
+    const result = await _claim(ctx, {
+      generation: 0,
+      streamId: stream._id as never,
+    })
 
     // Keep streaming into the issuing turn so the approved call can execute.
     // The newer message is consumed after the tool produces its output.
@@ -384,7 +405,10 @@ describe('_claim', () => {
       firstMessage: { _id: 'user_2', _creationTime: 50 },
     })
 
-    const result = await _claim(ctx, { streamId: stream._id as never })
+    const result = await _claim(ctx, {
+      generation: 0,
+      streamId: stream._id as never,
+    })
 
     // No rollover: the resumed message keeps streaming into itself
     expect(inserts.some(({ table }) => table === 'messages')).toBe(false)
@@ -429,7 +453,10 @@ describe('_claim', () => {
       firstMessage: { _id: 'user_2', _creationTime: 50 },
     })
 
-    const result = await _claim(ctx, { streamId: stream._id as never })
+    const result = await _claim(ctx, {
+      generation: 0,
+      streamId: stream._id as never,
+    })
 
     expect(inserts.some(({ table }) => table === 'messages')).toBe(false)
     expect(patches.some(({ id }) => id === 'message_1')).toBe(false)
@@ -447,13 +474,18 @@ describe('_handoff', () => {
     }
     const { ctx, patches, scheduled } = fakeCtx({ docs: [stream] })
 
-    const result = await _handoff(ctx, { streamId: stream._id as never })
+    const result = await _handoff(ctx, {
+      generation: 0,
+      streamId: stream._id as never,
+    })
 
     expect(result).toBe(true)
     expect(scheduled).toContainEqual({
-      args: [0, expect.anything(), { streamId: 'stream_1' }],
+      args: [0, expect.anything(), { streamId: 'stream_1', generation: 1 }],
     })
-    const patch = patches.find(({ id }) => id === 'stream_1')
+    const patch = patches.find(
+      ({ patch }) => patch.leaseExpiresAt !== undefined,
+    )
     expect(patch?.patch.leaseExpiresAt).toBeGreaterThan(Date.now())
   })
 
@@ -466,7 +498,10 @@ describe('_handoff', () => {
     }
     const { ctx, patches, scheduled } = fakeCtx({ docs: [stream] })
 
-    const result = await _handoff(ctx, { streamId: stream._id as never })
+    const result = await _handoff(ctx, {
+      generation: 0,
+      streamId: stream._id as never,
+    })
 
     expect(result).toBe(false)
     expect(scheduled).toEqual([])
@@ -497,7 +532,7 @@ describe('_continue', () => {
       ],
     })
 
-    await _continue(ctx, { streamId: stream._id as never })
+    await _continue(ctx, { generation: 0, streamId: stream._id as never })
 
     expect(inserts).toHaveLength(0)
     expect(patches).toContainEqual({
@@ -545,7 +580,7 @@ describe('_continue', () => {
       ],
     })
 
-    await _continue(ctx, { streamId: stream._id as never })
+    await _continue(ctx, { generation: 0, streamId: stream._id as never })
 
     // The over-cap segment is sealed with its search text and metadata
     expect(patches).toContainEqual({
@@ -600,7 +635,7 @@ describe('_continue', () => {
       ],
     })
 
-    await _continue(ctx, { streamId: stream._id as never })
+    await _continue(ctx, { generation: 0, streamId: stream._id as never })
 
     expect(inserts).toHaveLength(0)
     expect(patches).toContainEqual({
@@ -639,7 +674,7 @@ describe('_continue', () => {
       firstMessage: { _id: 'user_2', _creationTime: 20 },
     })
 
-    await _continue(ctx, { streamId: stream._id as never })
+    await _continue(ctx, { generation: 0, streamId: stream._id as never })
 
     // The interrupted turn is sealed...
     expect(patches).toContainEqual({
@@ -693,7 +728,7 @@ describe('_continue', () => {
       },
     })
 
-    await _continue(ctx, { streamId: stream._id as never })
+    await _continue(ctx, { generation: 0, streamId: stream._id as never })
 
     expect(inserts.some(({ table }) => table === 'messages')).toBe(false)
     expect(patches.some(({ id }) => id === 'message_1')).toBe(false)
@@ -721,6 +756,7 @@ describe('_recordStep', () => {
 
     expect(
       await _recordStep(ctx, {
+        generation: 0,
         streamId: stream._id as never,
         interruptible: false,
       }),
@@ -764,6 +800,7 @@ describe('_recordStep', () => {
     })
 
     await _recordStep(ctx, {
+      generation: 0,
       streamId: stream._id as never,
       interruptible: true,
     })
@@ -793,6 +830,7 @@ describe('_recordStep', () => {
 
     expect(
       await _recordStep(ctx, {
+        generation: 0,
         streamId: stream._id as never,
         interruptible: true,
       }),
@@ -1112,6 +1150,7 @@ describe('_fail', () => {
     })
 
     await _fail(ctx, {
+      generation: 0,
       streamId: stream._id as never,
       message: 'Stream interrupted before completion.',
     })
@@ -1150,6 +1189,7 @@ describe('_fail', () => {
     })
 
     await _fail(ctx, {
+      generation: 0,
       streamId: stream._id as never,
       message: 'Provider overloaded.',
     })
@@ -1178,6 +1218,7 @@ describe('_fail', () => {
     })
 
     await _fail(ctx, {
+      generation: 0,
       streamId: stream._id as never,
       message: 'Stream interrupted before completion.',
     })
@@ -1297,19 +1338,20 @@ describe('stream stop contention', () => {
     })
     expect(
       await _patchMessage(ctx, {
+        generation: 0,
         streamId: 'stream_1' as never,
         parts: [{ type: 'text', text: 'token' }],
       }),
     ).toBe(true)
-    await _heartbeat(ctx, { streamId: 'stream_1' as never })
+    await _heartbeat(ctx, { generation: 0, streamId: 'stream_1' as never })
     expect(patches.filter(({ id }) => id === 'stream_1')).toEqual([])
     stream.leaseExpiresAt = Date.now() + STREAM_LEASE_MS - 61000
-    await _heartbeat(ctx, { streamId: 'stream_1' as never })
+    await _heartbeat(ctx, { generation: 0, streamId: 'stream_1' as never })
     expect(patches.filter(({ id }) => id === 'stream_1')).toHaveLength(1)
     expect(stream.leaseExpiresAt).toBeGreaterThan(
       Date.now() + STREAM_LEASE_MS - 1000,
     )
-    await _heartbeat(ctx, { streamId: 'stream_1' as never })
+    await _heartbeat(ctx, { generation: 0, streamId: 'stream_1' as never })
     expect(patches.filter(({ id }) => id === 'stream_1')).toHaveLength(1)
   })
 
@@ -1322,42 +1364,60 @@ describe('stream stop contention', () => {
       leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
     }
     const { ctx, patches, scheduled } = fakeCtx({ docs: [stream] })
-    expect(await _getStopState(ctx, { streamId: 'stream_1' as never })).toBe(
-      'active',
-    )
-    expect(await _honorSoftStop(ctx, { streamId: 'stream_1' as never })).toBe(
-      false,
-    )
+    expect(
+      await _getStopState(ctx, {
+        generation: 0,
+        streamId: 'stream_1' as never,
+      }),
+    ).toBe('active')
+    expect(
+      await _honorSoftStop(ctx, {
+        generation: 0,
+        streamId: 'stream_1' as never,
+      }),
+    ).toBe(false)
     expect(patches).toEqual([])
     expect(await requestImmediateStop(ctx, stream as never)).toBe('finalizing')
     const count = patches.length
     await requestImmediateStop(ctx, stream as never)
-    await _honorSoftStop(ctx, { streamId: 'stream_1' as never })
-    await _heartbeat(ctx, { streamId: 'stream_1' as never })
+    await _honorSoftStop(ctx, { generation: 0, streamId: 'stream_1' as never })
+    await _heartbeat(ctx, { generation: 0, streamId: 'stream_1' as never })
     expect(patches).toHaveLength(count)
     expect(scheduled).toHaveLength(1)
-    expect(await _getStopState(ctx, { streamId: 'stream_1' as never })).toBe(
-      'stopped',
-    )
-    expect(await _getStopState(ctx, { streamId: 'missing' as never })).toBe(
-      'stopped',
-    )
+    expect(
+      await _getStopState(ctx, {
+        generation: 0,
+        streamId: 'stream_1' as never,
+      }),
+    ).toBe('stopped')
+    expect(
+      await _getStopState(ctx, { generation: 0, streamId: 'missing' as never }),
+    ).toBe('stopped')
   })
 
   test('read-only stop checks still distinguish a soft timeout from active streaming', async () => {
     const { ctx, patches, scheduled } = fakeCtx({
       docs: [{ _id: 'stream_1', status: 'streaming', stopAt: Date.now() }],
     })
-    expect(await _getStopState(ctx, { streamId: 'stream_1' as never })).toBe(
-      'requested',
-    )
+    expect(
+      await _getStopState(ctx, {
+        generation: 0,
+        streamId: 'stream_1' as never,
+      }),
+    ).toBe('requested')
     expect(patches).toEqual([])
     expect(scheduled).toEqual([])
-    expect(await _honorSoftStop(ctx, { streamId: 'stream_1' as never })).toBe(
-      true,
-    )
-    expect(await _getStopState(ctx, { streamId: 'stream_1' as never })).toBe(
-      'stopped',
-    )
+    expect(
+      await _honorSoftStop(ctx, {
+        generation: 0,
+        streamId: 'stream_1' as never,
+      }),
+    ).toBe(true)
+    expect(
+      await _getStopState(ctx, {
+        generation: 0,
+        streamId: 'stream_1' as never,
+      }),
+    ).toBe('stopped')
   })
 })

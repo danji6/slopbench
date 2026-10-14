@@ -57,7 +57,9 @@ export function FolderDialog({
           !folder.parentId &&
           JSON.stringify(sources) !== JSON.stringify(folder.sources)
         ) {
-          await change({ folderId: folder._id, sources })
+          await change({
+            command: { kind: 'update-sources', folderId: folder._id, sources },
+          })
         }
         await rename({ folderId: folder._id, name, icon })
       }

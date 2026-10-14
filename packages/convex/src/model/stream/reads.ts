@@ -5,6 +5,7 @@ import type { QueryCtx } from '../../_generated/server'
 import type { AuthQueryCtx } from '../../functions'
 import { minRole } from '../../lib/roles'
 import { sharedSessionId } from '../../lib/subagent'
+import type { StreamExecutionArgs } from '../../types'
 import { resolveSpawnableAgents } from '../agent/subagents'
 import {
   activeAttachmentMessages,
@@ -25,6 +26,7 @@ import { countParticipants, getMembership } from '../session/memberships'
 import { getApprovals, getState } from '../session/state'
 import { getByOwnerId as getSettings } from '../settings'
 import { agentWithHome } from '../skills/homes'
+import { ownsExecution } from './execution'
 
 /** Returns a list of session ids that have ongoing streams. */
 export async function activeSessionIds(
@@ -44,10 +46,11 @@ export async function activeSessionIds(
 
 export async function _getContext(
   ctx: QueryCtx,
-  { streamId }: { streamId: Id<'streams'> },
+  { streamId, generation }: StreamExecutionArgs,
 ) {
   const stream = await ctx.db.get(streamId)
-  if (!stream || !stream.processingMessageId) return null
+  if (!ownsExecution(stream, { streamId, generation })) return null
+  if (!stream.processingMessageId) return null
 
   const [session, agent, invoker, output] = await Promise.all([
     getSessionWithWorkspace(ctx, stream.sessionId),
@@ -128,10 +131,10 @@ export async function _getContext(
 
 export async function _getProviderHistory(
   ctx: QueryCtx,
-  { streamId }: { streamId: Id<'streams'> },
+  { streamId, generation }: StreamExecutionArgs,
 ) {
   const stream = await ctx.db.get(streamId)
-  if (!stream) return []
+  if (!ownsExecution(stream, { streamId, generation })) return []
 
   const summary = await ctx.db
     .query('messages')
@@ -175,10 +178,9 @@ export async function _getProviderHistory(
     ? await ctx.db.get(stream.processingMessageId)
     : null
 
-  if (
-    current &&
-    (stream.operation === 'invoke' || stream.operation === 'retry')
-  ) {
+  const includesProcessingMessage =
+    stream.operation === 'invoke' || stream.operation === 'retry'
+  if (current && includesProcessingMessage) {
     const joined = await withParts(ctx, current)
     if (joined.parts.length > 0) {
       history.push(joined)
@@ -190,10 +192,10 @@ export async function _getProviderHistory(
 
 export async function _isActive(
   ctx: QueryCtx,
-  { streamId }: { streamId: Id<'streams'> },
+  { streamId, generation }: StreamExecutionArgs,
 ) {
   const stream = await ctx.db.get(streamId)
-  return !!stream && stream.status !== 'stopping'
+  return ownsExecution(stream, { streamId, generation })
 }
 
 /** Detects media loaded anywhere in the active debounced turn or tool step. */
@@ -246,18 +248,21 @@ async function getActiveMediaState(ctx: QueryCtx, stream: Doc<'streams'>) {
 
 export async function _hasActiveMedia(
   ctx: QueryCtx,
-  { streamId }: { streamId: Id<'streams'> },
+  { streamId, generation }: StreamExecutionArgs,
 ) {
   const stream = await ctx.db.get(streamId)
-  return stream ? getActiveMediaState(ctx, stream) : false
+  return ownsExecution(stream, { streamId, generation })
+    ? getActiveMediaState(ctx, stream)
+    : false
 }
 
 /** Reads stop state without putting ordinary seam checks in a mutation's read set. */
 export async function _getStopState(
   ctx: QueryCtx,
-  { streamId }: { streamId: Id<'streams'> },
+  { streamId, generation }: StreamExecutionArgs,
 ) {
   const stream = await ctx.db.get(streamId)
-  if (!stream || stream.status === 'stopping') return 'stopped' as const
+  if (!ownsExecution(stream, { streamId, generation }))
+    return 'stopped' as const
   return stream.stopAt ? ('requested' as const) : ('active' as const)
 }

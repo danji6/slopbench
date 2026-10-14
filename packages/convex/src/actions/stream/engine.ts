@@ -1,7 +1,6 @@
 'use node'
 
 import { internal } from '../../_generated/api'
-import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { sanitizeChatError } from '../../errors'
 import {
@@ -9,6 +8,7 @@ import {
   getProviderRetryDelay,
   isProviderRequestSizeError,
 } from '../../model/stream/retry'
+import type { StreamExecutionArgs } from '../../types'
 import { prepare } from './engineSetup'
 import { consumeProviderStep } from './engineStep'
 import { ProviderStreamFailure } from './engineStep'
@@ -23,11 +23,8 @@ const MAX_STEPS = 50
 // in-flight step itself (see watchForStop).
 const STREAM_WINDOW_MS = 5 * 60 * 1000
 
-export async function _stream(
-  ctx: ActionCtx,
-  { streamId }: { streamId: Id<'streams'> },
-) {
-  const claimed = await ctx.runMutation(internal.streams._claim, { streamId })
+export async function _stream(ctx: ActionCtx, execution: StreamExecutionArgs) {
+  const claimed = await ctx.runMutation(internal.streams._claim, { ...execution }) // prettier-ignore
   if (!claimed) return
 
   let attempt = claimed.attempt
@@ -37,15 +34,15 @@ export async function _stream(
 
   try {
     for (let step = 0; step < MAX_STEPS; step++) {
-      if (await honorSoftStop(ctx, streamId)) return
+      if (await honorSoftStop(ctx, execution)) return
 
       // Hand off between steps to stay below the deadline
       if (Date.now() >= windowDeadline) {
-        await ctx.runMutation(internal.streams._handoff, { streamId })
+        await ctx.runMutation(internal.streams._handoff, { ...execution })
         return
       }
 
-      const setup = await prepare(ctx, streamId)
+      const setup = await prepare(ctx, execution)
       if (!setup) return
       lastSetup = setup
 
@@ -56,20 +53,20 @@ export async function _stream(
         awaitingApproval,
         awaitingQuestions,
         awaitingTasks,
-      } = await consumeProviderStep(ctx, streamId, setup, windowDeadline)
+      } = await consumeProviderStep(ctx, execution, setup, windowDeadline)
       if (shouldContinue === null) return
 
       hasGeneratedOutput = hasGeneratedOutput || hasOutput.value
 
       if (setup.evalResult.dirty) {
-        await ctx.runMutation(internal.sessions._patchEnvironment, {
-          sessionId: setup.stream.sessionId,
+        await ctx.runMutation(internal.streams._saveEnvironment, {
+          ...execution,
           environment: setup.evalResult.environment,
         })
       }
 
       await ctx.runMutation(internal.streams._saveMeta, {
-        streamId,
+        ...execution,
         duration: hasOutput.duration,
         toolErrors: hasOutput.toolErrors,
         warnings: hasOutput.warnings,
@@ -78,31 +75,30 @@ export async function _stream(
 
       // A final provider step is still a normal completion. Otherwise stop at
       // this safe seam before suspending, retrying, or starting another step.
-      if (shouldContinue && (await honorSoftStop(ctx, streamId))) return
+      if (shouldContinue && (await honorSoftStop(ctx, execution))) return
 
       if (awaitingApproval || awaitingQuestions || awaitingTasks) {
         const suspended = await ctx.runMutation(internal.streams._suspendStep, {
-          streamId,
+          ...execution,
         })
         if (suspended === 'abort') return
         if (suspended === 'suspended') {
-          await recordStep(ctx, streamId, false)
           return
         }
       }
 
       if (!shouldContinue) {
-        await recordStep(ctx, streamId, false)
-        await ctx.runMutation(internal.streams._complete, { streamId })
+        await recordStep(ctx, execution, false)
+        await ctx.runMutation(internal.streams._complete, { ...execution })
         return
       }
 
       // Tool/task output is settled and the model will continue. This is the
       // safe seam for mode notes and interval reminders to interrupt the turn.
-      await recordStep(ctx, streamId, true)
+      await recordStep(ctx, execution, true)
 
       const continued = await ctx.runMutation(internal.streams._continue, {
-        streamId,
+        ...execution,
       })
       if (!continued) return
 
@@ -110,7 +106,7 @@ export async function _stream(
     }
 
     // Hand off once the max step count is reached
-    await ctx.runMutation(internal.streams._handoff, { streamId })
+    await ctx.runMutation(internal.streams._handoff, { ...execution })
   } catch (err) {
     const failure = err instanceof ProviderStreamFailure ? err : undefined
     const error = failure ? failure.error : err
@@ -119,11 +115,11 @@ export async function _stream(
 
     // Once the timeout has elapsed, provider errors do not start another
     // attempt or handoff; preserve the completed part of the step and stop.
-    if (await honorSoftStop(ctx, streamId)) return
+    if (await honorSoftStop(ctx, execution)) return
 
     if (failure?.deadlineHit) {
       // Our own time window elapsed, hand off the turn
-      await ctx.runMutation(internal.streams._handoff, { streamId })
+      await ctx.runMutation(internal.streams._handoff, { ...execution })
       return
     }
 
@@ -138,22 +134,14 @@ export async function _stream(
       aborted: failure?.aborted ?? false,
     }
 
-    if (
-      !failedStepHasOutput &&
-      lastSetup &&
-      !lastSetup.stream.omitActiveMedia &&
-      isProviderRequestSizeError(error) &&
-      (lastSetup.hasActiveMedia ||
-        (await ctx.runQuery(internal.streams._hasActiveMedia, { streamId })))
-    ) {
-      await ctx.runMutation(internal.streams._omitActiveMedia, { streamId })
-      await ctx.runMutation(internal.streams._scheduleRetry, {
-        streamId,
-        retryAt: Date.now(),
-        retryError: 'Provider rejected the active media payload as too large',
-      })
-      return
-    }
+    const retriedWithoutMedia = await retryWithoutMedia(
+      ctx,
+      execution,
+      lastSetup,
+      failedStepHasOutput,
+      error,
+    )
+    if (retriedWithoutMedia) return
 
     const retryDelay = claimed.autoCompact
       ? getAutoCompactRetryDelay(retryOptions)
@@ -161,7 +149,7 @@ export async function _stream(
 
     if (retryDelay !== null) {
       await ctx.runMutation(internal.streams._scheduleRetry, {
-        streamId,
+        ...execution,
         retryAt: Date.now() + retryDelay,
         retryError: sanitizeChatError(error),
       })
@@ -169,27 +157,56 @@ export async function _stream(
       return
     }
     await ctx.runMutation(internal.streams._fail, {
-      streamId,
+      ...execution,
       message: sanitizeChatError(error),
     })
   }
 }
 
-async function honorSoftStop(ctx: ActionCtx, streamId: Id<'streams'>) {
-  const state = await ctx.runQuery(internal.streams._getStopState, { streamId })
+async function honorSoftStop(ctx: ActionCtx, execution: StreamExecutionArgs) {
+  const state = await ctx.runQuery(internal.streams._getStopState, {
+    ...execution,
+  })
   if (state === 'active') return false
   if (state === 'requested')
-    await ctx.runMutation(internal.streams._honorSoftStop, { streamId })
+    await ctx.runMutation(internal.streams._honorSoftStop, { ...execution })
   return true
 }
 
 function recordStep(
   ctx: ActionCtx,
-  streamId: Id<'streams'>,
+  execution: StreamExecutionArgs,
   interruptible: boolean,
 ) {
   return ctx.runMutation(internal.streams._recordStep, {
-    streamId,
+    ...execution,
     interruptible,
   })
+}
+
+/** Retries a rejected payload once with its active media omitted. */
+async function retryWithoutMedia(
+  ctx: ActionCtx,
+  execution: StreamExecutionArgs,
+  setup: Awaited<ReturnType<typeof prepare>>,
+  stepHasOutput: boolean,
+  error: unknown,
+) {
+  if (stepHasOutput || !setup) return false
+  if (setup.stream.omitActiveMedia) return false
+  if (!isProviderRequestSizeError(error)) return false
+
+  const hasActiveMedia =
+    setup.hasActiveMedia ||
+    (await ctx.runQuery(internal.streams._hasActiveMedia, execution))
+  if (!hasActiveMedia) return false
+
+  await ctx.runMutation(internal.streams._omitActiveMedia, execution)
+  await ctx.runMutation(internal.streams._scheduleRetry, {
+    ...execution,
+    retryAt: Date.now(),
+    retryError: 'Provider rejected the active media payload as too large',
+  })
+
+  return true
 }

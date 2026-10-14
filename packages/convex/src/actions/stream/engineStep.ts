@@ -4,7 +4,6 @@ import { hasPendingQuestions } from '@sb/core/utils/ask'
 import type { UIMessage } from 'ai'
 
 import { internal } from '../../_generated/api'
-import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { sanitizeChatError } from '../../errors'
 import { hasPendingTaskParts } from '../../lib/subagent'
@@ -15,6 +14,7 @@ import {
 import { toolStateSignature } from '../../model/stream/toolOutput'
 import { stopWhenInactive } from '../../model/stream/transformers'
 import { resolveUsage } from '../../model/stream/usage'
+import type { StreamExecutionArgs } from '../../types'
 import { hasAwaitingApproval } from './engineApproval'
 import { attachApprovalPreviews } from './engineApproval'
 import { buildSessionLogBody } from './engineLog'
@@ -43,7 +43,7 @@ export class ProviderStreamFailure {
 
 export async function consumeProviderStep(
   ctx: ActionCtx,
-  streamId: Id<'streams'>,
+  execution: StreamExecutionArgs,
   setup: NonNullable<Awaited<ReturnType<typeof prepare>>>,
   windowDeadline: number,
 ) {
@@ -80,7 +80,7 @@ export async function consumeProviderStep(
   const fileCache = new Map<string, unknown>()
   const abortController = new AbortController()
 
-  const stopWatcher = watchForStop(ctx, streamId, abortController, {
+  const stopWatcher = watchForStop(ctx, execution, abortController, {
     deadlineAt: windowDeadline + STEP_DEADLINE_GRACE_MS,
   })
 
@@ -101,7 +101,7 @@ export async function consumeProviderStep(
       await offloadLargeParts(ctx, parts, {
         toolCache: offloadCache,
         fileCache,
-        streamId,
+        ...execution,
         messageId: setup.output._id,
         sessionId: setup.stream.sessionId,
         uploaderId: setup.stream.invokedBy,
@@ -181,7 +181,7 @@ export async function consumeProviderStep(
       lastPatch = Date.now()
       lastToolStates = toolStates
       latestParts = await prepareParts(latestParts)
-      if (!(await patchMessage(ctx, streamId, latestParts))) {
+      if (!(await patchMessage(ctx, execution, latestParts))) {
         return {
           shouldContinue: null,
           hasOutput: {
@@ -205,7 +205,7 @@ export async function consumeProviderStep(
     if (awaitingApproval) {
       latestParts = await attachApprovalPreviews(ctx, setup, latestParts)
     }
-    await patchMessage(ctx, streamId, latestParts)
+    await patchMessage(ctx, execution, latestParts)
 
     const outputText = latestParts
       .map((part) => (part.type === 'text' ? part.text : ''))
@@ -230,7 +230,7 @@ export async function consumeProviderStep(
         requestBody: setup.requestLog.body,
         responseBody: lastResponseBody,
       }),
-      sessionId: setup.stream.sessionId,
+      execution,
     })
 
     assertProviderStepOutput(outputTracker.hasOutput, finishReason)
@@ -251,7 +251,7 @@ export async function consumeProviderStep(
   } catch (error) {
     latestParts = await prepareParts(latestParts).catch(() => latestParts)
 
-    await tryPatchMessage(ctx, streamId, latestParts)
+    await tryPatchMessage(ctx, execution, latestParts)
 
     throw new ProviderStreamFailure(
       streamError ?? error,
@@ -267,19 +267,22 @@ export async function consumeProviderStep(
 
 export async function patchMessage(
   ctx: ActionCtx,
-  streamId: Id<'streams'>,
+  execution: StreamExecutionArgs,
   parts: UIMessage['parts'],
 ) {
-  return ctx.runMutation(internal.streams._patchMessage, { streamId, parts })
+  return ctx.runMutation(internal.streams._patchMessage, {
+    ...execution,
+    parts,
+  })
 }
 
 export async function tryPatchMessage(
   ctx: ActionCtx,
-  streamId: Id<'streams'>,
+  execution: StreamExecutionArgs,
   parts: UIMessage['parts'],
 ) {
   try {
-    await patchMessage(ctx, streamId, parts)
+    await patchMessage(ctx, execution, parts)
   } catch {
     // no-op
   }

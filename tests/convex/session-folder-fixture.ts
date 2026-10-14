@@ -1,4 +1,5 @@
-import type { FolderTransitionArgs } from '@sb/convex/types'
+import type { begin } from '@sb/convex/model/session/folderTransitions'
+import type { FolderCommand, FolderTransitionArgs } from '@sb/convex/types'
 
 export type Row = Record<string, unknown>
 
@@ -134,9 +135,29 @@ export function setup() {
     ctx: { db, userId: 'owner', subject: 'owner', role: 'admin' } as never,
   }
 }
-export const args = (extra: Row = {}) =>
-  ({
-    subject: 'owner',
+export const args = (input: Row & { kind: FolderCommand['kind'] }) => {
+  const { subject = 'owner', ...command } = input
+  return {
+    subject,
     token: `${Date.now() + 60000}:test`,
-    ...extra,
-  }) as FolderTransitionArgs
+    command,
+  } as FolderTransitionArgs
+}
+
+export function commitArgs(
+  input: FolderTransitionArgs,
+  prepared: Awaited<ReturnType<typeof begin>>,
+) {
+  if (prepared.kind !== 'prepared')
+    throw new Error('Expected a prepared transition')
+  return { subject: input.subject, token: input.token, plan: prepared.plan }
+}
+
+export function cancelArgs(input: FolderTransitionArgs) {
+  const command = input.command
+  const target =
+    command.kind === 'move-session'
+      ? { kind: 'session' as const, id: command.sessionId }
+      : { kind: 'folder' as const, id: command.folderId }
+  return { subject: input.subject, token: input.token, target }
+}

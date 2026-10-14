@@ -1,4 +1,3 @@
-import { internal } from '../../_generated/api'
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import { agentIdentity } from '../chat/identities'
@@ -8,6 +7,7 @@ import { insertMessage } from '../messageContents'
 import { notACommandChip, notAUserKilledReport } from '../messages'
 import { announceFolderContext } from '../session/folderAnnouncement'
 import { getSessionWithWorkspace } from '../session/folderContext'
+import { scheduleStream } from './execution'
 import { STREAM_LEASE_MS } from './lifecycleClaims'
 
 export async function reserveFollowUp(
@@ -83,13 +83,9 @@ export async function reserveInvokeTurn(
   ctx: MutationCtx,
   { session, boundaryMessage, invokedBy }: ReserveInvokeTurnArgs,
 ) {
-  if (
-    session.contextLock ||
-    session.settings?.disabled ||
-    !session.activeAgentId
-  ) {
-    return
-  }
+  if (session.contextLock) return
+  if (session.settings?.disabled) return
+  if (!session.activeAgentId) return
   const announcement = await announceFolderContext(ctx, session)
   boundaryMessage = announcement ?? boundaryMessage
 
@@ -121,6 +117,7 @@ export async function reserveInvokeTurn(
   )
 
   const nextStreamId = await ctx.db.insert('streams', {
+    generation: 0,
     sessionId: session._id,
     agentId: agent._id,
     invokedBy,
@@ -135,11 +132,7 @@ export async function reserveInvokeTurn(
     leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
   })
 
-  const jobId = await ctx.scheduler.runAfter(
-    0,
-    internal.actions.streams._stream,
-    { streamId: nextStreamId },
-  )
+  const jobId = await scheduleStream(ctx, nextStreamId, { delayMs: 0 })
 
   await ctx.db.patch(nextStreamId, { jobId })
 }

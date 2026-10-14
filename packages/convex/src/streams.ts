@@ -2,11 +2,11 @@ import { v } from 'convex/values'
 
 import { internalMutation, internalQuery } from './_generated/server'
 import { authQuery } from './functions'
-import * as SessionCache from './model/session/cache'
 import * as StreamLifecycle from './model/stream/lifecycle'
+import * as StreamMeta from './model/stream/lifecycleMeta'
 import * as StreamReads from './model/stream/reads'
 import * as StreamSubagents from './model/stream/subagents'
-import { saveSessionCacheArgsValidator } from './validators/sessions'
+import * as V from './validators/streams'
 import {
   saveStreamMetaArgsValidator,
   scheduleStreamRetryArgsValidator,
@@ -18,42 +18,42 @@ export const activeSessionIds = authQuery({
 })
 
 export const _getContext = internalQuery({
-  args: { streamId: v.id('streams') },
+  args: V.streamExecutionArgsValidator.fields,
   handler: StreamReads._getContext,
 })
 
 export const _getProviderHistory = internalQuery({
-  args: { streamId: v.id('streams') },
+  args: V.streamExecutionArgsValidator.fields,
   handler: StreamReads._getProviderHistory,
 })
 
 export const _hasActiveMedia = internalQuery({
-  args: { streamId: v.id('streams') },
+  args: V.streamExecutionArgsValidator.fields,
   handler: StreamReads._hasActiveMedia,
 })
 
 export const _isActive = internalQuery({
-  args: { streamId: v.id('streams') },
+  args: V.streamExecutionArgsValidator.fields,
   handler: StreamReads._isActive,
 })
 
 export const _claim = internalMutation({
-  args: { streamId: v.id('streams') },
+  args: V.streamExecutionArgsValidator.fields,
   handler: StreamLifecycle._claim,
 })
 
 export const _patchMessage = internalMutation({
-  args: { streamId: v.id('streams'), parts: v.array(v.any()) },
+  args: V.patchStreamMessageArgsValidator.fields,
   handler: StreamLifecycle._patchMessage,
 })
 
 export const _continue = internalMutation({
-  args: { streamId: v.id('streams') },
+  args: V.streamExecutionArgsValidator.fields,
   handler: StreamLifecycle._continue,
 })
 
 export const _recordStep = internalMutation({
-  args: { streamId: v.id('streams'), interruptible: v.boolean() },
+  args: V.recordStreamStepArgsValidator.fields,
   handler: StreamLifecycle._recordStep,
 })
 
@@ -63,32 +63,32 @@ export const _saveMeta = internalMutation({
 })
 
 export const _saveSessionCache = internalMutation({
-  args: saveSessionCacheArgsValidator.fields,
-  handler: SessionCache._save,
+  args: V.saveStreamCacheArgsValidator.fields,
+  handler: StreamMeta.saveCache,
 })
 
 export const _complete = internalMutation({
-  args: { streamId: v.id('streams') },
+  args: V.streamExecutionArgsValidator.fields,
   handler: StreamLifecycle._complete,
 })
 
 export const _getStopState = internalQuery({
-  args: { streamId: v.id('streams') },
+  args: V.streamExecutionArgsValidator.fields,
   handler: StreamReads._getStopState,
 })
 
 export const _honorSoftStop = internalMutation({
-  args: { streamId: v.id('streams') },
+  args: V.streamExecutionArgsValidator.fields,
   handler: StreamLifecycle._honorSoftStop,
 })
 
 export const _suspendStep = internalMutation({
-  args: { streamId: v.id('streams') },
+  args: V.streamExecutionArgsValidator.fields,
   handler: StreamSubagents._suspendStep,
 })
 
 export const _fail = internalMutation({
-  args: { streamId: v.id('streams'), message: v.string() },
+  args: V.failStreamArgsValidator.fields,
   handler: StreamLifecycle._fail,
 })
 
@@ -98,17 +98,17 @@ export const _scheduleRetry = internalMutation({
 })
 
 export const _omitActiveMedia = internalMutation({
-  args: { streamId: v.id('streams') },
+  args: V.streamExecutionArgsValidator.fields,
   handler: StreamLifecycle._omitActiveMedia,
 })
 
 export const _handoff = internalMutation({
-  args: { streamId: v.id('streams') },
+  args: V.streamExecutionArgsValidator.fields,
   handler: StreamLifecycle._handoff,
 })
 
 export const _heartbeat = internalMutation({
-  args: { streamId: v.id('streams') },
+  args: V.streamExecutionArgsValidator.fields,
   handler: StreamLifecycle._heartbeat,
 })
 
@@ -123,15 +123,21 @@ export const prune = internalMutation({
 })
 
 export const _trackOffloadedOutput = internalMutation({
-  args: {
-    streamId: v.id('streams'),
-    messageId: v.id('messages'),
-    storageId: v.id('_storage'),
-  },
+  args: V.trackStreamOutputArgsValidator.fields,
   handler: StreamLifecycle._trackOffloadedOutput,
 })
 
 export const pruneOrphanedOutputs = internalMutation({
   args: {},
   handler: StreamLifecycle.pruneOrphanedOutputs,
+})
+
+export const _saveEnvironment = internalMutation({
+  args: V.saveStreamEnvironmentArgsValidator.fields,
+  handler: StreamMeta.saveEnvironment,
+})
+
+export const _saveLog = internalMutation({
+  args: V.saveStreamLogArgsValidator.fields,
+  handler: StreamMeta.saveLog,
 })

@@ -16,6 +16,8 @@ type HistoryFixture = {
 
 function historyCtx(fixture: HistoryFixture) {
   const { stream, current, doneMessages, summary } = fixture
+  stream.generation ??= 0
+  stream.status ??= 'streaming'
 
   const resultFor = (
     table: string,
@@ -172,6 +174,7 @@ describe('_getProviderHistory', () => {
     const ctx = historyCtx(baseFixture('retry'))
 
     const history = await _getProviderHistory(ctx, {
+      generation: 0,
       streamId: 'stream_1' as never,
     })
 
@@ -188,6 +191,7 @@ describe('_getProviderHistory', () => {
     const ctx = historyCtx(baseFixture('invoke'))
 
     const history = await _getProviderHistory(ctx, {
+      generation: 0,
       streamId: 'stream_1' as never,
     })
 
@@ -201,6 +205,7 @@ describe('_getProviderHistory', () => {
     const ctx = historyCtx(baseFixture('compact'))
 
     const history = await _getProviderHistory(ctx, {
+      generation: 0,
       streamId: 'stream_1' as never,
     })
 
@@ -220,6 +225,7 @@ describe('_getProviderHistory', () => {
     }
 
     const history = await _getProviderHistory(historyCtx(fixture), {
+      generation: 0,
       streamId: 'stream_1' as never,
     })
 
@@ -272,6 +278,7 @@ describe('_getProviderHistory', () => {
     }
 
     const history = await _getProviderHistory(historyCtx(fixture), {
+      generation: 0,
       streamId: 'stream_1' as never,
     })
 
@@ -297,6 +304,7 @@ describe('_getProviderHistory', () => {
     }
 
     const history = await _getProviderHistory(historyCtx(fixture), {
+      generation: 0,
       streamId: 'stream_1' as never,
     })
 
@@ -344,6 +352,7 @@ describe('_getProviderHistory', () => {
     }
 
     const history = await _getProviderHistory(historyCtx(fixture), {
+      generation: 0,
       streamId: 'stream_1' as never,
     })
 
@@ -368,6 +377,7 @@ describe('_getProviderHistory', () => {
     }
 
     const history = await _getProviderHistory(historyCtx(fixture), {
+      generation: 0,
       streamId: 'stream_1' as never,
     })
 
@@ -422,6 +432,7 @@ describe('_getProviderHistory', () => {
     }
 
     const history = await _getProviderHistory(historyCtx(fixture), {
+      generation: 0,
       streamId: 'stream_1' as never,
     })
 

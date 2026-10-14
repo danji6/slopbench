@@ -17,11 +17,13 @@ import {
   makeOutputPreview,
   serializeToolOutput,
 } from '../../model/stream/toolOutput'
+import type { StreamExecutionArgs } from '../../types'
 
 export type OffloadOptions = {
   toolCache: Map<string, unknown>
   fileCache: Map<string, unknown>
   streamId: Id<'streams'>
+  generation: number
   messageId: Id<'messages'>
   sessionId: Id<'sessions'>
   uploaderId: Id<'users'>
@@ -37,7 +39,7 @@ export async function offloadLargeParts(
     ctx,
     parts,
     opts.toolCache,
-    opts.streamId,
+    { streamId: opts.streamId, generation: opts.generation },
     opts.messageId,
   )
   return offloadGeneratedFiles(ctx, afterTools, opts.fileCache, opts)
@@ -53,7 +55,7 @@ export async function offloadGeneratedFiles(
   cache: Map<string, unknown>,
   opts: Pick<
     OffloadOptions,
-    'streamId' | 'messageId' | 'sessionId' | 'uploaderId'
+    'streamId' | 'generation' | 'messageId' | 'sessionId' | 'uploaderId'
   >,
 ): Promise<UIMessage['parts']> {
   const result = await Promise.all(
@@ -78,6 +80,7 @@ export async function offloadGeneratedFiles(
         internal.attachments._createGenerated,
         {
           streamId: opts.streamId,
+          generation: opts.generation,
           messageId: opts.messageId,
           sessionId: opts.sessionId,
           uploaderId: opts.uploaderId,
@@ -87,6 +90,7 @@ export async function offloadGeneratedFiles(
         },
       )
 
+      if (!attachmentId) return part
       const compact = {
         type: 'file' as const,
         url: `attachment:${attachmentId}`,
@@ -106,7 +110,7 @@ export async function offloadToolOutputs(
   ctx: ActionCtx,
   parts: UIMessage['parts'],
   cache: Map<string, unknown>,
-  streamId: Id<'streams'>,
+  execution: StreamExecutionArgs,
   messageId: Id<'messages'>,
 ): Promise<UIMessage['parts']> {
   const result = await Promise.all(
@@ -128,12 +132,16 @@ export async function offloadToolOutputs(
         new Blob([serialized], { type: 'application/json' }),
       )
 
-      await ctx.runMutation(internal.streams._trackOffloadedOutput, {
-        streamId,
-        messageId,
-        storageId: outputRef,
-      })
+      const tracked = await ctx.runMutation(
+        internal.streams._trackOffloadedOutput,
+        {
+          ...execution,
+          messageId,
+          storageId: outputRef,
+        },
+      )
 
+      if (!tracked) return part
       const compact = { ...part, output: makeOutputPreview(output), outputRef }
       cache.set(toolCallId, compact)
       return compact

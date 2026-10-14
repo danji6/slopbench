@@ -39,6 +39,9 @@ export function fakeCtx({
   const inserts: Array<{ table: string; fields: Record<string, unknown> }> = []
   const scheduled: Array<{ args: unknown[] }> = []
   const cancelled: unknown[] = []
+  for (const row of docs) {
+    if (row._id.includes('stream')) row.generation ??= 0
+  }
   const byId = new Map<string, Row>(docs.map((row) => [row._id, row]))
 
   const makeQuery = (table: string) => {

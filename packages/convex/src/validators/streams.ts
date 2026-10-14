@@ -2,6 +2,7 @@ import { v } from 'convex/values'
 
 import { tokenUsageValidator } from './providers'
 import { sessionModeValidator } from './sessionModes'
+import { saveSessionCacheArgsValidator } from './sessions'
 
 export const streamErrorValidator = v.object({
   kind: v.union(v.literal('rate-limit'), v.literal('error')),
@@ -36,8 +37,34 @@ export const streamOperationValidator = v.union(
   v.literal('retry'),
 )
 
-export const saveStreamMetaArgsValidator = v.object({
+export const streamExecutionArgsValidator = v.object({
   streamId: v.id('streams'),
+  generation: v.number(),
+})
+
+export const patchStreamMessageArgsValidator = v.object({
+  ...streamExecutionArgsValidator.fields,
+  parts: v.array(v.any()),
+})
+
+export const recordStreamStepArgsValidator = v.object({
+  ...streamExecutionArgsValidator.fields,
+  interruptible: v.boolean(),
+})
+
+export const failStreamArgsValidator = v.object({
+  ...streamExecutionArgsValidator.fields,
+  message: v.string(),
+})
+
+export const trackStreamOutputArgsValidator = v.object({
+  ...streamExecutionArgsValidator.fields,
+  messageId: v.id('messages'),
+  storageId: v.id('_storage'),
+})
+
+export const saveStreamMetaArgsValidator = v.object({
+  ...streamExecutionArgsValidator.fields,
   duration: v.number(),
   toolErrors: v.array(v.string()),
   warnings: v.array(v.string()),
@@ -45,13 +72,14 @@ export const saveStreamMetaArgsValidator = v.object({
 })
 
 export const scheduleStreamRetryArgsValidator = v.object({
-  streamId: v.id('streams'),
+  ...streamExecutionArgsValidator.fields,
   retryAt: v.number(),
   retryError: v.string(),
 })
 
 /** A leased background turn, including retries and deferred work. */
 export const streamSchema = v.object({
+  generation: v.number(),
   sessionId: v.id('sessions'),
   agentId: v.id('agents'),
   invokedBy: v.id('users'),
@@ -87,4 +115,19 @@ export const streamSchema = v.object({
   /** True for child (sub-agent) streams stopped from above. */
   suppressReport: v.optional(v.boolean()),
   instructions: v.optional(v.string()),
+})
+
+export const saveStreamCacheArgsValidator = v.object({
+  ...saveSessionCacheArgsValidator.fields,
+  ...streamExecutionArgsValidator.fields,
+})
+
+export const saveStreamEnvironmentArgsValidator = v.object({
+  ...streamExecutionArgsValidator.fields,
+  environment: v.record(v.string(), v.any()),
+})
+
+export const saveStreamLogArgsValidator = v.object({
+  ...streamExecutionArgsValidator.fields,
+  storageId: v.id('_storage'),
 })

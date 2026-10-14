@@ -4,7 +4,8 @@ import {
   getSessionWithWorkspace,
   workspaceKey,
 } from '@sb/convex/model/session/folderContext'
-import { begin, finish } from '@sb/convex/model/session/folderTransitions'
+import { cancel } from '@sb/convex/model/session/folderTransitionLocks'
+import { begin, commit } from '@sb/convex/model/session/folderTransitions'
 import { pin, reorder } from '@sb/convex/model/session/folders'
 import { duplicate } from '@sb/convex/model/session/sessionDuplicate'
 import { toListItem } from '@sb/convex/model/session/sessionQueries'
@@ -12,7 +13,7 @@ import { redeem } from '@sb/convex/model/session/shares'
 import { getApprovals } from '@sb/convex/model/session/state'
 import { describe, expect, test } from 'bun:test'
 
-import { args, setup } from './session-folder-fixture'
+import { args, cancelArgs, commitArgs, setup } from './session-folder-fixture'
 
 describe('session folders', () => {
   test('pins are personal and shared members cannot change folder authority', async () => {
@@ -27,7 +28,15 @@ describe('session folders', () => {
       (await getSessionWithWorkspace(ctx, 's' as never))?.workspace?.path,
     ).toBe('/a')
     await expect(
-      begin(ctx, args({ subject: 'member', sessionId: 's', folderId: 'b' })),
+      begin(
+        ctx,
+        args({
+          kind: 'move-session',
+          subject: 'member',
+          sessionId: 's',
+          folderId: 'b',
+        }),
+      ),
     ).rejects.toThrow()
     await pin({ ...(ctx as object), userId: 'member' } as never, {
       sessionId: 's' as never,
@@ -41,10 +50,15 @@ describe('session folders', () => {
     tables.streams = [{ _id: 'busy', sessionId: 's', status: 'streaming' }]
     const state = await begin(
       ctx,
-      args({ subject: 'member', sessionId: 's', folderId: 'c' }),
+      args({
+        kind: 'move-session',
+        subject: 'member',
+        sessionId: 's',
+        folderId: 'c',
+      }),
     )
-    expect(state.personalMoved).toBe(true)
-    expect(state.needsSidecar).toBe(false)
+    expect(state.kind).toBe('completed')
+    expect(state.kind).toBe('completed')
     expect(row('mem').groupKey).toBe('c')
     expect(row('mem').folderId).toBe('c')
     expect(row('own').groupKey).toBe('a')
@@ -71,13 +85,9 @@ describe('session folders', () => {
     expect(row('mem').groupKey).toBe('c')
     // The owner's move cannot overwrite the member's personal organization.
     tables.streams = []
-    const input = args({ sessionId: 's', folderId: 'b' })
+    const input = args({ kind: 'move-session', sessionId: 's', folderId: 'b' })
     const prepared = await begin(ctx, input)
-    await finish(ctx, {
-      ...input,
-      targetRevision: prepared.targetRevision,
-      commit: true,
-    })
+    await commit(ctx, commitArgs(input, prepared))
     expect(row('mem').groupKey).toBe('c')
   })
 
@@ -85,19 +95,43 @@ describe('session folders', () => {
     const { ctx, row } = setup()
     row('c').sources = [{ id: 'root', path: '/c', label: 'c' }]
     await expect(
-      begin(ctx, args({ subject: 'member', sessionId: 's', folderId: 'c' })),
+      begin(
+        ctx,
+        args({
+          kind: 'move-session',
+          subject: 'member',
+          sessionId: 's',
+          folderId: 'c',
+        }),
+      ),
     ).rejects.toThrow('without sources')
     row('c').sources = []
     row('c').contextLock = `${Date.now() + 60000}:locked`
     await expect(
-      begin(ctx, args({ subject: 'member', sessionId: 's', folderId: 'c' })),
+      begin(
+        ctx,
+        args({
+          kind: 'move-session',
+          subject: 'member',
+          sessionId: 's',
+          folderId: 'c',
+        }),
+      ),
     ).rejects.toThrow('sources are being updated')
     expect(row('mem').folderId).toBeUndefined()
   })
 
   test('folders containing joined sessions cannot gain sources, including pinned sessions', async () => {
     const { ctx, row } = setup()
-    await begin(ctx, args({ subject: 'member', sessionId: 's', folderId: 'c' }))
+    await begin(
+      ctx,
+      args({
+        kind: 'move-session',
+        subject: 'member',
+        sessionId: 's',
+        folderId: 'c',
+      }),
+    )
     row('member').role = 'admin'
     await pin({ ...(ctx as object), userId: 'member' } as never, {
       sessionId: 's' as never,
@@ -107,6 +141,7 @@ describe('session folders', () => {
       begin(
         ctx,
         args({
+          kind: 'update-sources',
           subject: 'member',
           folderId: 'c',
           sources: [{ id: 'root', path: '/c', label: 'c' }],
@@ -118,12 +153,24 @@ describe('session folders', () => {
 
   test('deleting a personal shared folder preserves chats, owner workspace, and pins', async () => {
     const { ctx, row } = setup()
-    await begin(ctx, args({ subject: 'member', sessionId: 's', folderId: 'c' }))
+    await begin(
+      ctx,
+      args({
+        kind: 'move-session',
+        subject: 'member',
+        sessionId: 's',
+        folderId: 'c',
+      }),
+    )
     await pin({ ...(ctx as object), userId: 'member' } as never, {
       sessionId: 's' as never,
       pinned: true,
     })
-    const input = args({ subject: 'member', folderId: 'c', remove: true })
+    const input = args({
+      kind: 'delete-folder',
+      subject: 'member',
+      folderId: 'c',
+    })
     await begin(ctx, input)
     expect(row('c')).toBeUndefined()
     expect(row('mem').folderId).toBeUndefined()
@@ -157,7 +204,15 @@ describe('session folders', () => {
     )!
     expect(joined.groupKey).toBe('ungrouped')
     expect(joined.folderId).toBeUndefined()
-    await begin(ctx, args({ subject: 'member', sessionId: 's', folderId: 'c' }))
+    await begin(
+      ctx,
+      args({
+        kind: 'move-session',
+        subject: 'member',
+        sessionId: 's',
+        folderId: 'c',
+      }),
+    )
     await redeem(memberCtx, { token: 'invite' })
     expect(row(String(joined._id)).folderId).toBe('c')
   })
@@ -165,17 +220,15 @@ describe('session folders', () => {
   test('moving clears path grants and caches, preserves chats, pins and shell rules, and updates children live', async () => {
     const { ctx, row } = setup()
     await pin(ctx, { sessionId: 's' as never, pinned: true })
-    const input = args({ sessionId: 's', folderId: 'b' })
+    const input = args({ kind: 'move-session', sessionId: 's', folderId: 'b' })
     const state = await begin(ctx, input)
-    expect(state.needsSidecar).toBe(true)
+    expect(state.kind === 'prepared' ? state.needsSidecar : undefined).toBe(
+      true,
+    )
     expect(
       (await getSessionWithWorkspace(ctx, 'child' as never))?.contextLock,
     ).toBeTruthy()
-    await finish(ctx, {
-      ...input,
-      targetRevision: state.targetRevision,
-      commit: true,
-    })
+    await commit(ctx, commitArgs(input, state))
     expect(row('s').folderId).toBe('b')
     expect(row('own').groupKey).toBe('pinned')
     expect(row('mem').groupKey).toBe('ungrouped')
@@ -193,9 +246,9 @@ describe('session folders', () => {
   test('deleting a folder moves sessions to Ungrouped without deleting messages or pins', async () => {
     const { ctx, row } = setup()
     await pin(ctx, { sessionId: 's' as never, pinned: true })
-    const input = args({ folderId: 'a', remove: true })
-    await begin(ctx, input)
-    await finish(ctx, { ...input, commit: true })
+    const input = args({ kind: 'delete-folder', folderId: 'a' })
+    const prepared = await begin(ctx, input)
+    await commit(ctx, commitArgs(input, prepared))
     expect(row('a')).toBeUndefined()
     expect(row('s').folderId).toBeUndefined()
     expect(row('own').groupKey).toBe('pinned')
@@ -214,27 +267,25 @@ describe('session folders', () => {
         status: 'processing',
       })
       await expect(
-        begin(ctx, args({ folderId: 'a', remove: true })),
+        begin(ctx, args({ kind: 'delete-folder', folderId: 'a' })),
       ).rejects.toThrow('Wait for sessions')
     },
   )
 
   test('rejects a destination whose sources changed after move preparation', async () => {
     const { ctx, row } = setup()
-    const input = args({ sessionId: 's', folderId: 'b' })
+    const input = args({ kind: 'move-session', sessionId: 's', folderId: 'b' })
     const state = await begin(ctx, input)
-    expect(state.needsSidecar).toBe(true)
+    expect(state.kind === 'prepared' ? state.needsSidecar : undefined).toBe(
+      true,
+    )
     row('b').revision = Number(row('b').revision) + 1
     row('b').sources = [{ id: 'new', path: '/new', label: 'new' }]
-    await expect(
-      finish(ctx, {
-        ...input,
-        targetRevision: state.targetRevision,
-        commit: true,
-      }),
-    ).rejects.toThrow('Destination sources changed')
+    await expect(commit(ctx, commitArgs(input, state))).rejects.toThrow(
+      'Destination sources changed',
+    )
     expect(row('s').folderId).toBe('a')
-    await finish(ctx, { ...input, commit: false })
+    await cancel(ctx, cancelArgs(input))
     expect(row('s').contextLock).toBeUndefined()
   })
 

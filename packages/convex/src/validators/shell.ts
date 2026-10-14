@@ -83,14 +83,19 @@ export const shellJobSessionArgsValidator = v.object({
   sessionId: v.id('sessions'),
 })
 
-export const shellJobCarryArgsValidator = v.object({
+export const shellJobExecutionArgsValidator = v.object({
   shellJobId: v.id('shellJobs'),
+  generation: v.number(),
+})
+
+export const shellJobCarryArgsValidator = v.object({
+  ...shellJobExecutionArgsValidator.fields,
   term: v.string(),
   termOffset: v.number(),
 })
 
 export const shellJobReportArgsValidator = v.object({
-  shellJobId: v.id('shellJobs'),
+  ...shellJobExecutionArgsValidator.fields,
   output: v.optional(shellToolOutputValidator),
   errorText: v.optional(v.string()),
 })
@@ -100,6 +105,7 @@ export const shellJobReportArgsValidator = v.object({
  * watched until it exits so its agent can be woken with the result.
  */
 export const shellJobSchema = v.object({
+  generation: v.number(),
   /** Session that owns the turn. The report is delivered here. */
   sessionId: v.id('sessions'),
   /** Agent that started it, and the report's sender. */

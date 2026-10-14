@@ -32,6 +32,7 @@ export async function buildProviderHistory(
 ) {
   const history = await ctx.runQuery(internal.streams._getProviderHistory, {
     streamId: data.stream._id,
+    generation: data.stream.generation,
   })
   const activeMediaMessages = activeAttachmentMessages(
     history,

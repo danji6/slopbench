@@ -25,7 +25,7 @@ export const _markAllUserKilled = internalMutation({
 })
 
 export const _beginWindow = internalMutation({
-  args: { shellJobId: v.id('shellJobs') },
+  args: V.shellJobExecutionArgsValidator.fields,
   handler: ShellJobs._beginWindow,
 })
 

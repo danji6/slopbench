@@ -25,8 +25,11 @@ export function SessionFolderDialog({
     setBusy(true)
     try {
       await change({
-        sessionId,
-        folderId: (selected as Id<'sessionFolders'> | undefined) || undefined,
+        command: {
+          kind: 'move-session',
+          sessionId,
+          folderId: (selected as Id<'sessionFolders'> | undefined) || undefined,
+        },
       })
       onClose()
     } catch (err) {

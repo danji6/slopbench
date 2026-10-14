@@ -54,10 +54,14 @@ export async function requireFolder(
   ctx: QueryCtx,
   id: Id<'sessionFolders'>,
   ownerId: Id<'users'>,
+  token?: string,
 ) {
   const trail = await readFolderTrail(ctx, id, ownerId)
-  if (trail.some((folder) => transitionActive(folder.contextLock)))
-    error('Folder sources are being updated', 409)
+  const locked = trail.some(
+    (folder) =>
+      transitionActive(folder.contextLock) && folder.contextLock !== token,
+  )
+  if (locked) error('Folder sources are being updated', 409)
   return { ...trail.at(-1)!, workspace: folderWorkspace(trail[0]!) }
 }
 

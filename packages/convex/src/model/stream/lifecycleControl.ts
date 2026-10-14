@@ -2,38 +2,36 @@ import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import { sharedSessionId } from '../../lib/subagent'
+import type { ScheduleStreamRetryArgs, StreamExecutionArgs } from '../../types'
 import { releaseForSession } from '../shellJobs'
+import { scheduleStream } from './execution'
+import { ownsExecution } from './execution'
 import { STREAM_LEASE_MS } from './lifecycleClaims'
 import { honorSoftStop } from './stop'
 
 /** Stops a timed out stream at the seam after its current provider step. */
 export async function _honorSoftStop(
   ctx: MutationCtx,
-  { streamId }: { streamId: Id<'streams'> },
+  { streamId, generation }: StreamExecutionArgs,
 ) {
   const stream = await ctx.db.get(streamId)
-  return stream ? honorSoftStop(ctx, stream) : false
+  return ownsExecution(stream, { streamId, generation })
+    ? honorSoftStop(ctx, stream)
+    : true
 }
 
 export async function _scheduleRetry(
   ctx: MutationCtx,
-  {
-    streamId,
-    retryAt,
-    retryError,
-  }: { streamId: Id<'streams'>; retryAt: number; retryError: string },
+  { streamId, generation, retryAt, retryError }: ScheduleStreamRetryArgs,
 ) {
   const stream = await ctx.db.get(streamId)
-  if (!stream || stream.status === 'stopping') return
+  if (!ownsExecution(stream, { streamId, generation })) return
   if (await honorSoftStop(ctx, stream)) return
 
-  const jobId = await ctx.scheduler.runAt(
-    retryAt,
-    internal.actions.streams._stream,
-    {
-      streamId,
-    },
-  )
+  const jobId = await scheduleStream(ctx, streamId, {
+    at: retryAt,
+    status: 'retrying',
+  })
 
   await ctx.db.patch(streamId, {
     status: 'retrying',
@@ -47,10 +45,10 @@ export async function _scheduleRetry(
 
 export async function _omitActiveMedia(
   ctx: MutationCtx,
-  { streamId }: { streamId: Id<'streams'> },
+  { streamId, generation }: StreamExecutionArgs,
 ) {
   const stream = await ctx.db.get(streamId)
-  if (stream && stream.status !== 'stopping') {
+  if (ownsExecution(stream, { streamId, generation })) {
     await ctx.db.patch(streamId, { omitActiveMedia: true })
   }
 }

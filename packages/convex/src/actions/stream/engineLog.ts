@@ -1,8 +1,8 @@
 'use node'
 
 import { internal } from '../../_generated/api'
-import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
+import type { StreamExecutionArgs } from '../../types'
 
 export async function storeSessionLogBody(ctx: ActionCtx, body: string) {
   return ctx.storage.store(new Blob([body], { type: 'application/json' }))
@@ -22,16 +22,16 @@ export async function patchSessionLogBody(
   ctx: ActionCtx,
   {
     body,
-    sessionId,
+    execution,
   }: {
     body: string
-    sessionId: Id<'sessions'>
+    execution: StreamExecutionArgs
   },
 ) {
   const storageId = await storeSessionLogBody(ctx, body)
   try {
-    await ctx.runMutation(internal.sessions._patchSessionLog, {
-      sessionId,
+    await ctx.runMutation(internal.streams._saveLog, {
+      ...execution,
       storageId,
     })
   } catch (err) {

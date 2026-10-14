@@ -199,6 +199,7 @@ const registerArgs = {
 function watchRow(overrides: Record<string, unknown> = {}): Row {
   return {
     _id: 'watch_1',
+    generation: 0,
     sessionId: 'session_1',
     agentId: 'agent_coder',
     invokedBy: owner,
@@ -319,11 +320,15 @@ describe('_report', () => {
   test('delivers the output and wakes an idle agent', async () => {
     const { ctx, inserts, deleted, scheduled } = fakeCtx({
       docs: [session, agent],
-      shellJobs: [watchRow()],
+      shellJobs: [watchRow({ watcherId: undefined })],
       sessionAgents: [agentLink],
     })
 
-    await _report(ctx, { shellJobId: 'watch_1' as never, output: output() })
+    await _report(ctx, {
+      generation: 0,
+      shellJobId: 'watch_1' as never,
+      output: output(),
+    })
 
     expect(deleted).toEqual(['watch_1'])
 
@@ -363,7 +368,7 @@ describe('_report', () => {
   test('does not wake a session with an active stream', async () => {
     const { ctx, inserts, scheduled } = fakeCtx({
       docs: [session, agent],
-      shellJobs: [watchRow()],
+      shellJobs: [watchRow({ watcherId: undefined })],
       sessionAgents: [agentLink],
       streamsBySession: {
         session_1: [
@@ -376,7 +381,11 @@ describe('_report', () => {
       },
     })
 
-    await _report(ctx, { shellJobId: 'watch_1' as never, output: output() })
+    await _report(ctx, {
+      generation: 0,
+      shellJobId: 'watch_1' as never,
+      output: output(),
+    })
 
     // Report only; the running turn picks it up via the follow-up gate
     expect(inserts.map(({ table }) => table)).toEqual([
@@ -389,11 +398,12 @@ describe('_report', () => {
   test('reports a killed job with its outcome', async () => {
     const { ctx, inserts } = fakeCtx({
       docs: [session, agent],
-      shellJobs: [watchRow()],
+      shellJobs: [watchRow({ watcherId: undefined })],
       sessionAgents: [agentLink],
     })
 
     await _report(ctx, {
+      generation: 0,
       shellJobId: 'watch_1' as never,
       output: output({
         status: 'killed',
@@ -415,11 +425,12 @@ describe('_report', () => {
   test('a watcher failure still reports back', async () => {
     const { ctx, inserts } = fakeCtx({
       docs: [session, agent],
-      shellJobs: [watchRow()],
+      shellJobs: [watchRow({ watcherId: undefined })],
       sessionAgents: [agentLink],
     })
 
     await _report(ctx, {
+      generation: 0,
       shellJobId: 'watch_1' as never,
       errorText: 'Local server is unreachable',
     })
@@ -434,7 +445,11 @@ describe('_report', () => {
   test('a released watch reports nothing', async () => {
     const { ctx, inserts } = fakeCtx({ docs: [session, agent] })
 
-    await _report(ctx, { shellJobId: 'watch_1' as never, output: output() })
+    await _report(ctx, {
+      generation: 0,
+      shellJobId: 'watch_1' as never,
+      output: output(),
+    })
 
     expect(inserts).toHaveLength(0)
   })
@@ -442,11 +457,12 @@ describe('_report', () => {
   test('a user-killed job leaves its report but never wakes the agent', async () => {
     const { ctx, inserts, scheduled } = fakeCtx({
       docs: [session, agent],
-      shellJobs: [watchRow({ userKilled: true })],
+      shellJobs: [watchRow({ userKilled: true, watcherId: undefined })],
       sessionAgents: [agentLink],
     })
 
     await _report(ctx, {
+      generation: 0,
       shellJobId: 'watch_1' as never,
       output: output({ status: 'killed', exitCode: null }),
     })
