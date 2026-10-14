@@ -1,4 +1,3 @@
-import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../../_generated/server'
 import { error } from '../../errors'
@@ -10,12 +9,17 @@ import type {
   ReserveHomeArgs,
   SkillAssignmentsArgs,
 } from '../../types'
-import { assertAgentIdle, requireAdmin } from './access'
+import { assertDestinationMembersIdle, requireAdmin } from './access'
 import * as Completion from './completion'
 import { assertHomeDestination } from './destinations'
-import { agentWithHome, homeMembers } from './homes'
-import { invalidateHomeCaches as invalidateCaches } from './invalidation'
+import { agentWithHome } from './homes'
+import {
+  invalidateHomeCaches as invalidateCaches,
+  isFinishingHomeOperation,
+  scheduleHomeInvalidation,
+} from './invalidation'
 import * as Library from './library'
+import { isRunningOperation } from './lifecycle'
 import * as Operations from './operations'
 
 export const start = (ctx: AuthMutationCtx, args: FileOperationArgs) => {
@@ -77,12 +81,7 @@ export const copyAssignments = async (
 ) => {
   const op = await ctx.db.get(operationId)
 
-  if (
-    !op?.agentId ||
-    op.status !== 'running' ||
-    (attempt !== undefined && attempt !== op.attempt) ||
-    ids.length > 20
-  ) {
+  if (!isRunningOperation(op, attempt) || !op.agentId || ids.length > 20) {
     error('Invalid assignment copy page', 409)
   }
 
@@ -118,12 +117,8 @@ export const watchdog = async (
   args: { operationId: Id<'agentFileOperations'> },
 ) => {
   const op = await ctx.db.get(args.operationId)
-  if (op?.finishingHome && op.status === 'running') {
-    await ctx.scheduler.runAfter(0, internal.skills._invalidateHomeCaches, {
-      operationId: op._id,
-      cursor: null,
-      previousPath: op.previousHomePath,
-    })
+  if (isFinishingHomeOperation(op)) {
+    await scheduleHomeInvalidation(ctx, op)
     return
   }
   if (
@@ -144,46 +139,34 @@ export const reserveDestination = async (
   args: ReserveHomeArgs,
 ) => {
   const operation = await ctx.db.get(args.operationId)
-  if (
-    !operation?.agentId ||
-    operation.status !== 'running' ||
-    (args.attempt !== undefined && operation.attempt !== args.attempt)
-  ) {
+  if (!isRunningOperation(operation, args.attempt) || !operation.agentId) {
     error('Folder operation expired', 409)
   }
 
   if (operation.destinationHomeId) {
     const home = await ctx.db.get(operation.destinationHomeId)
-    if (
+    const changed =
       !home ||
       home.path !== args.path ||
       (home.operationId && home.operationId !== operation._id)
-    ) {
+    if (changed) {
       error('Destination changed during retry', 409)
     }
 
-    for (const member of await homeMembers(ctx, home._id)) {
-      if (member._id !== operation.agentId)
-        await assertAgentIdle(
-          ctx as AuthMutationCtx,
-          member._id,
-          operation.ownerId,
-          operation._id,
-        )
-    }
+    await assertDestinationMembersIdle(ctx, home._id, operation)
     await ctx.db.patch(home._id, { operationId: operation._id })
     return { home, joined: operation.joinedHome ?? false }
   }
 
   let existing = await assertHomeDestination(ctx, operation.agentId, args.path)
   const source = operation.homeId ? await ctx.db.get(operation.homeId) : null
-  if (
+  const initializingManagedHome =
     !existing &&
     !operation.destination &&
     args.insideData &&
     source?.managed &&
     !source.path
-  ) {
+  if (initializingManagedHome) {
     existing = { ...source, path: args.path }
     await ctx.db.patch(source._id, { path: args.path })
   }
@@ -193,17 +176,7 @@ export const reserveDestination = async (
   if (args.insideData && !existing?.managed && operation.destination)
     error('Custom homes cannot overlap sidecar storage', 409)
 
-  if (existing) {
-    for (const member of await homeMembers(ctx, existing._id)) {
-      if (member._id !== operation.agentId)
-        await assertAgentIdle(
-          ctx as AuthMutationCtx,
-          member._id,
-          operation.ownerId,
-          operation._id,
-        )
-    }
-  }
+  if (existing) await assertDestinationMembersIdle(ctx, existing._id, operation)
 
   const id =
     existing?._id ??

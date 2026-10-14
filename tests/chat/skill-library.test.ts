@@ -160,6 +160,7 @@ test('home transition revokes old home grants before releasing the agent', async
   expect(rows('agents')[0]!.fileOperationId).toBe(operationId)
   await invalidateHomeCaches(ctx, {
     operationId,
+    attempt: 0,
     cursor: null,
     previousPath: '/old-home',
   })

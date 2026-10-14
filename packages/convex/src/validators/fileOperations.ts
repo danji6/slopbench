@@ -93,6 +93,7 @@ export const completeAgentFileArgsValidator = v.object({
 })
 
 export const invalidateAgentHomeArgsValidator = v.object({
+  attempt: v.optional(v.number()),
   operationId: v.id('agentFileOperations'),
   cursor: v.union(v.string(), v.null()),
   previousPath: v.optional(v.string()),

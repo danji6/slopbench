@@ -159,7 +159,11 @@ test('durable folder changes recover a missing custom source and carry its assig
       })
       await run(actionContext(f), operationId)
       expect((await f.ctx.db.get(operationId))?.error).toBeUndefined()
-      await invalidateHomeCaches(f.ctx, { operationId, cursor: null })
+      await invalidateHomeCaches(f.ctx, {
+        operationId,
+        attempt: 1,
+        cursor: null,
+      })
       expect((await f.ctx.db.get(operationId))?.status).toBe('done')
       expect(
         (await f.ctx.db.get((await f.ctx.db.get(agentId))!.homeId!))?.path,
@@ -191,6 +195,7 @@ test('durable managed-folder deletion detaches the agent and removes its assignm
     expect((await f.ctx.db.get(operationId))?.error).toBeUndefined()
     await invalidateHomeCaches(f.ctx, {
       operationId,
+      attempt: 1,
       cursor: null,
       previousPath: home.path,
     })

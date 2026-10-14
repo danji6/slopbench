@@ -5,6 +5,7 @@ import { error } from '../../errors'
 import type { AuthMutationCtx } from '../../functions'
 import { assertAgentIdle, requireAdmin } from './access'
 import { ensureHome, homeMembers } from './homes'
+import { scheduleOperation } from './lifecycle'
 
 /** Reserves cleanup before deleting the last agent, retaining authority for retries. */
 export async function prepareHomeRemoval(
@@ -28,8 +29,7 @@ export async function prepareHomeRemoval(
   })
 
   await ctx.db.patch(home._id, { operationId })
-  await ctx.scheduler.runAfter(0, internal.actions.skills._run, { operationId })
-  await ctx.scheduler.runAfter(10 * 60_000, internal.skills._watchdog, { operationId }) // prettier-ignore
+  await scheduleOperation(ctx, operationId)
 
   return operationId
 }

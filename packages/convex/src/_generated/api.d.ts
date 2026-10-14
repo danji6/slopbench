@@ -166,8 +166,10 @@ import type * as model_skills_importAction from "../model/skills/importAction.js
 import type * as model_skills_imports from "../model/skills/imports.js";
 import type * as model_skills_invalidation from "../model/skills/invalidation.js";
 import type * as model_skills_library from "../model/skills/library.js";
+import type * as model_skills_lifecycle from "../model/skills/lifecycle.js";
 import type * as model_skills_operationArgs from "../model/skills/operationArgs.js";
 import type * as model_skills_operations from "../model/skills/operations.js";
+import type * as model_skills_preparation from "../model/skills/preparation.js";
 import type * as model_skills_removal from "../model/skills/removal.js";
 import type * as model_skills_runtime from "../model/skills/runtime.js";
 import type * as model_skills_uploadAction from "../model/skills/uploadAction.js";
@@ -443,8 +445,10 @@ declare const fullApi: ApiFromModules<{
   "model/skills/imports": typeof model_skills_imports;
   "model/skills/invalidation": typeof model_skills_invalidation;
   "model/skills/library": typeof model_skills_library;
+  "model/skills/lifecycle": typeof model_skills_lifecycle;
   "model/skills/operationArgs": typeof model_skills_operationArgs;
   "model/skills/operations": typeof model_skills_operations;
+  "model/skills/preparation": typeof model_skills_preparation;
   "model/skills/removal": typeof model_skills_removal;
   "model/skills/runtime": typeof model_skills_runtime;
   "model/skills/uploadAction": typeof model_skills_uploadAction;

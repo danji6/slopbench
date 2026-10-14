@@ -145,6 +145,7 @@ export type FolderCreateBasicArgs = Infer<typeof V.folderCreateBasicArgs>
 export type FolderMoveArgs = Infer<typeof V.folderMoveArgs>
 export type FolderFinishArgs = Infer<typeof V.folderFinishArgs>
 export type CompleteAgentFileArgs = Infer<typeof V.completeAgentFileArgsValidator> // prettier-ignore
+export type FailAgentFileArgs = Infer<typeof V.failAgentFileArgsValidator>
 export type PrepareSkillImportArgs = Infer<typeof V.prepareSkillImportArgsValidator> // prettier-ignore
 export type FinishSkillImportArgs = Infer<typeof V.finishSkillImportArgsValidator> // prettier-ignore
 export type InvalidateAgentHomeArgs = Infer<typeof V.invalidateAgentHomeArgsValidator> // prettier-ignore

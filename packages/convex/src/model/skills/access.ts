@@ -42,13 +42,34 @@ export async function assertAgentIdle(
 ) {
   const agent = await requireOwnedAgent(ctx, id, ownerId)
   const home = agent.homeId ? await ctx.db.get(agent.homeId) : null
+  await assertAgentHomeIdle(ctx, agent, home, operationId)
+  return agent
+}
+
+/** Checks activity using an agent and home already loaded by the caller. */
+export async function assertAgentHomeIdle(
+  ctx: MutationCtx,
+  agent: Doc<'agents'>,
+  home: Doc<'agentHomes'> | null,
+  operationId?: Id<'agentFileOperations'>,
+) {
   if (home?.operationId && home.operationId !== operationId)
     error('Wait for the shared folder operation to finish', 409)
 
   const members = agent.homeId ? await homeMembers(ctx, agent.homeId) : [agent]
   for (const member of members) await assertMemberIdle(ctx, member, operationId)
+}
 
-  return agent
+/** Checks other members before claiming or resuming a destination home. */
+export async function assertDestinationMembersIdle(
+  ctx: MutationCtx,
+  homeId: Id<'agentHomes'>,
+  operation: Doc<'agentFileOperations'>,
+) {
+  for (const member of await homeMembers(ctx, homeId)) {
+    if (member._id !== operation.agentId)
+      await assertAgentIdle(ctx, member._id, operation.ownerId, operation._id)
+  }
 }
 
 async function assertMemberIdle(

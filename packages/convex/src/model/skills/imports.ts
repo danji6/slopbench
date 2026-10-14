@@ -1,6 +1,5 @@
 import { errorMessage } from '@sb/core/utils/errors'
 
-import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import { error } from '../../errors'
@@ -9,6 +8,7 @@ import type {
   FinishSkillImportArgs,
   PrepareSkillImportArgs,
 } from '../../types'
+import { isRunningOperation, scheduleOperation } from './lifecycle'
 
 async function runningImport(
   ctx: MutationCtx,
@@ -17,13 +17,11 @@ async function runningImport(
   attempt?: number,
 ) {
   const op = await ctx.db.get(operationId)
-  if (
-    !op ||
+  const invalid =
+    !isRunningOperation(op, attempt) ||
     op.kind !== 'install' ||
-    op.status !== 'running' ||
-    op.importCursor !== cursor ||
-    (attempt !== undefined && op.attempt !== attempt)
-  ) {
+    op.importCursor !== cursor
+  if (invalid) {
     error('Skill import is no longer running', 409)
   }
   return op
@@ -122,6 +120,5 @@ export async function continueImport(
     args.attempt,
   )
   await ctx.db.patch(op._id, { status: 'queued', updatedAt: Date.now() })
-  await ctx.scheduler.runAfter(0, internal.actions.skills._run, { operationId: op._id }) // prettier-ignore
-  await ctx.scheduler.runAfter(10 * 60_000, internal.skills._watchdog, { operationId: op._id }) // prettier-ignore
+  await scheduleOperation(ctx, op._id)
 }
