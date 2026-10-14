@@ -1,32 +1,18 @@
+import { validate } from 'convex-helpers/validators'
+
 import { error } from '../../errors'
-import type { FileOperationArgs } from './operations'
+import type { FileOperationArgs } from '../../types'
+import { fileOperationArgsValidator } from '../../validators/fileOperations'
 
-const allowedFields: Record<FileOperationArgs['kind'], readonly string[]> = {
-  ensure: ['agentId'],
-  detach: ['agentId', 'removeFolder'],
-  'delete-home': [],
-  install: ['source', 'storageId'],
-  assign: ['agentId', 'skillId'],
-  'delete-assigned': ['agentId', 'assignmentId'],
-  'delete-library': ['skillId'],
-  home: ['agentId', 'destination', 'copyFiles'],
-  duplicate: ['agentId', 'duplicateId'],
-}
-
-/** Rejects ignored fields so one operation cannot inherit another operation's authority. */
+/** Validates internal callers with the same command contract as the public mutation. */
 export function validateOperationArgs(args: FileOperationArgs) {
-  const allowed = new Set(['kind', ...allowedFields[args.kind]])
-  if (
-    Object.entries(args).some(
-      ([key, value]) => value !== undefined && !allowed.has(key),
-    )
-  ) {
-    error('Unexpected arguments for this filesystem operation', 400)
+  if (!validate(fileOperationArgsValidator, args)) {
+    error('Invalid arguments for this filesystem operation', 400)
   }
-  if (args.kind === 'home' && !args.destination?.trim()) {
+  if (args.kind === 'home' && !args.destination.trim()) {
     error('Choose a destination directory', 400)
   }
-  if (args.kind === 'home' && args.copyFiles === undefined) {
-    error('Choose Carry over or Change only', 400)
+  if (args.kind === 'install' && 'source' in args && !args.source.trim()) {
+    error('Choose a local directory or an uploaded ZIP', 400)
   }
 }

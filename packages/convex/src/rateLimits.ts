@@ -2,7 +2,7 @@ import { v } from 'convex/values'
 
 import { internalMutation, internalQuery } from './_generated/server'
 import * as RateLimits from './model/rateLimits'
-import { rateLimitRuleArgsValidator } from './validators'
+import { rateLimitRuleArgsValidator } from './validators/rateLimits'
 
 const statusValidator = v.object({
   limited: v.boolean(),

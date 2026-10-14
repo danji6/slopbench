@@ -2,7 +2,7 @@ import { fileOperationStore } from '@/lib/chat/file-operation-store'
 import { extractErrorMessage } from '@/lib/errors'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
-import type { FileOperationArgs } from '@sb/convex/model/skills/operations'
+import type { FileOperationArgs } from '@sb/convex/types'
 import { useMutation, useQuery } from 'convex/react'
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
@@ -95,7 +95,7 @@ export function useAgentFileOperation(
       dismissed: true,
     })
     try {
-      const next = await start(args)
+      const next = await start({ operation: args })
       store.update({ id: next, submitting: false, dismissed: false })
     } catch (error) {
       store.update({

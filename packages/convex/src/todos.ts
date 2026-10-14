@@ -3,7 +3,7 @@ import { v } from 'convex/values'
 import { internalMutation } from './_generated/server'
 import { authQuery } from './functions'
 import * as Todos from './model/todos'
-import { todoStatusValidator } from './validators'
+import { todoStatusValidator } from './validators/todos'
 
 export const get = authQuery({
   args: { sessionId: v.id('sessions') },

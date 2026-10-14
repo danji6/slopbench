@@ -5,7 +5,7 @@ import * as Scripts from './model/editorScripts'
 import {
   createScriptArgsValidator,
   updateScriptArgsValidator,
-} from './validators'
+} from './validators/editorScripts'
 
 export const list = authQuery({
   args: {},

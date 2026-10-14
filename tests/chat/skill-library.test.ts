@@ -196,9 +196,10 @@ test('operation arguments cannot smuggle storage cleanup authority into home cha
       agentId,
       destination: '/new',
       copyFiles: true,
+      // @ts-expect-error Home commands cannot carry upload cleanup authority.
       storageId: 'foreign-upload' as Id<'_storage'>,
     }),
-  ).rejects.toThrow('Unexpected arguments')
+  ).rejects.toThrow('Invalid arguments')
   expect(rows('agentFileOperations')).toHaveLength(0)
 })
 

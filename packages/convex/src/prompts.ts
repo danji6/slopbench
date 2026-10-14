@@ -2,11 +2,10 @@ import { v } from 'convex/values'
 
 import { authMutation, authQuery } from './functions'
 import * as Prompts from './model/prompts'
-import * as V from './validators/args'
-import { promptScopeValidator } from './validators/sub'
+import * as V from './validators/prompts'
 
 export const list = authQuery({
-  args: { scope: promptScopeValidator, agentId: v.optional(v.id('agents')) },
+  args: { scope: V.promptScopeValidator, agentId: v.optional(v.id('agents')) },
   handler: Prompts.list,
 })
 

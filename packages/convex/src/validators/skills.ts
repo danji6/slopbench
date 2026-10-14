@@ -1,27 +1,51 @@
+import { paginationOptsValidator } from 'convex/server'
 import { v } from 'convex/values'
 
-export const agentFileKind = v.union(
-  v.literal('ensure'),
-  v.literal('detach'),
-  v.literal('delete-home'),
-  v.literal('install'),
-  v.literal('assign'),
-  v.literal('delete-assigned'),
-  v.literal('delete-library'),
-  v.literal('home'),
-  v.literal('duplicate'),
-)
-export const fileOperationArgs = v.object({
-  kind: agentFileKind,
-  agentId: v.optional(v.id('agents')),
+export const skillAssignmentsArgsValidator = v.object({
+  agentId: v.id('agents'),
+  paginationOpts: paginationOptsValidator,
+  search: v.optional(v.string()),
+})
+
+export const prepareSkillImportArgsValidator = v.object({
+  attempt: v.optional(v.number()),
+  operationId: v.id('agentFileOperations'),
+  cursor: v.number(),
+  metadata: v.object({ name: v.string(), description: v.string() }),
+})
+
+export const finishSkillImportArgsValidator = v.object({
+  attempt: v.optional(v.number()),
+  operationId: v.id('agentFileOperations'),
+  cursor: v.number(),
+  nextCursor: v.number(),
   skillId: v.optional(v.id('skills')),
-  assignmentId: v.optional(v.id('agentSkills')),
-  source: v.optional(v.string()),
+  outcome: v.union(
+    v.literal('installed'),
+    v.literal('skipped'),
+    v.literal('failed'),
+  ),
+  message: v.optional(v.string()),
+})
+
+export const skillListArgsValidator = v.object({
+  paginationOpts: paginationOptsValidator,
+  search: v.optional(v.string()),
+  agentId: v.optional(v.id('agents')),
+})
+
+export const continueSkillImportArgsValidator = v.object({
+  operationId: v.id('agentFileOperations'),
+  cursor: v.number(),
+  attempt: v.optional(v.number()),
+})
+
+/** An owner-bound upload ticket and its verified storage object. */
+export const skillUploadSchema = v.object({
+  ownerId: v.id('users'),
   storageId: v.optional(v.id('_storage')),
-  destination: v.optional(v.string()),
-  copyFiles: v.optional(v.boolean()),
-  removeFolder: v.optional(v.boolean()),
-  duplicateId: v.optional(v.id('agents')),
+  ticket: v.string(),
+  verified: v.boolean(),
 })
 
 export const skillSchema = v.object({
@@ -43,33 +67,4 @@ export const agentSkillSchema = v.object({
   skillId: v.id('skills'),
   name: v.string(),
   description: v.string(),
-})
-
-export const agentFileOperationSchema = v.object({
-  ...fileOperationArgs.fields,
-  homeId: v.optional(v.id('agentHomes')),
-  destinationHomeId: v.optional(v.id('agentHomes')),
-  joinedHome: v.optional(v.boolean()),
-  attempt: v.optional(v.number()),
-  ownerId: v.id('users'),
-  uploadTicket: v.optional(v.string()),
-  finishingHome: v.optional(v.boolean()),
-  previousHomePath: v.optional(v.string()),
-  importCursor: v.optional(v.number()),
-  importSummary: v.optional(
-    v.object({
-      installed: v.number(),
-      skipped: v.number(),
-      failed: v.number(),
-    }),
-  ),
-  importError: v.optional(v.string()),
-  status: v.union(
-    v.literal('queued'),
-    v.literal('running'),
-    v.literal('done'),
-    v.literal('failed'),
-  ),
-  error: v.optional(v.string()),
-  updatedAt: v.number(),
 })

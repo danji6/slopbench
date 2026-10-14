@@ -9,7 +9,7 @@ import {
   terminalResizeArgsValidator,
   terminalSessionArgsValidator,
   terminalWriteArgsValidator,
-} from '../validators/args'
+} from '../validators/shell'
 import * as Terminal from './tool/terminal'
 
 export const write = action({

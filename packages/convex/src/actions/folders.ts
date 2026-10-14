@@ -1,7 +1,7 @@
 'use node'
 
 import { action } from '../_generated/server'
-import * as V from '../validators/args'
+import * as V from '../validators/folders'
 
 export const change = action({
   args: V.folderChangeArgs.fields,

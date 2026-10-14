@@ -1,8 +1,10 @@
 import { defineSchema, defineTable } from 'convex/server'
 
 import {
+  agentFileOperationSchema,
   agentHomeSchema,
   agentSchema,
+  agentSkillSchema,
   attachmentFileSchema,
   attachmentSchema,
   avatarSchema,
@@ -29,6 +31,7 @@ import {
   sessionStateSchema,
   settingsSchema,
   shellJobSchema,
+  skillSchema,
   skillUploadSchema,
   streamSchema,
   todoSchema,
@@ -36,11 +39,6 @@ import {
   userSchema,
   userSessionSchema,
 } from './validators'
-import {
-  agentFileOperationSchema,
-  agentSkillSchema,
-  skillSchema,
-} from './validators/skills'
 
 const schemaValidation = true
 

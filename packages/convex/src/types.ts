@@ -149,6 +149,7 @@ export type PrepareSkillImportArgs = Infer<typeof V.prepareSkillImportArgsValida
 export type FinishSkillImportArgs = Infer<typeof V.finishSkillImportArgsValidator> // prettier-ignore
 export type InvalidateAgentHomeArgs = Infer<typeof V.invalidateAgentHomeArgsValidator> // prettier-ignore
 export type SkillListArgs = Infer<typeof V.skillListArgsValidator>
+export type FileOperationArgs = Infer<typeof V.fileOperationArgsValidator>
 export type SkillAssignmentsArgs = Infer<typeof V.skillAssignmentsArgsValidator> // prettier-ignore
 export type ContinueSkillImportArgs = Infer<typeof V.continueSkillImportArgsValidator> // prettier-ignore
 export type CopySkillAssignmentsArgs = Infer<typeof V.copySkillAssignmentsArgsValidator> // prettier-ignore

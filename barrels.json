@@ -9,7 +9,8 @@
     "./packages/client/src/hooks",
     "./packages/client/src/providers",
     "./packages/client/src/lib",
-    "./packages/core/src/types"
+    "./packages/core/src/types",
+    "./packages/convex/src/validators"
   ],
   "exclude": [
     "\\/sqlite\\.ts$",

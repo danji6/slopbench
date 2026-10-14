@@ -3,8 +3,8 @@
 import { v } from 'convex/values'
 
 import { action, internalAction } from '../_generated/server'
-import { createSessionArgsValidator } from '../validators/args'
-import { sessionArchiveValidator } from '../validators/sub'
+import { sessionArchiveValidator } from '../validators/sessionArchives'
+import { createSessionArgsValidator } from '../validators/sessions'
 import * as Archive from './session/archive'
 import * as SessionTitles from './session/title'
 import * as Workspace from './session/workspace'

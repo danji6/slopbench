@@ -3,7 +3,7 @@ import { v } from 'convex/values'
 import { internalQuery } from './_generated/server'
 import { authMutation, authQuery } from './functions'
 import * as Mcp from './model/mcp'
-import * as V from './validators/args'
+import * as V from './validators/mcp'
 
 export const list = authQuery({
   args: {},

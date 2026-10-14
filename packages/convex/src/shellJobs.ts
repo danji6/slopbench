@@ -2,7 +2,7 @@ import { v } from 'convex/values'
 
 import { internalMutation } from './_generated/server'
 import * as ShellJobs from './model/shellJobs'
-import * as V from './validators/args'
+import * as V from './validators/shell'
 
 export const _register = internalMutation({
   args: V.shellJobRegisterArgsValidator.fields,

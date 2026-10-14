@@ -6,7 +6,7 @@ import { error } from '../errors'
 import { sidecarUrl } from '../model/sidecar'
 import { sidecarRequest } from '../model/sidecarTransport'
 import type { McpDialedTransport, McpToolMeta } from '../types'
-import * as V from '../validators/args'
+import * as V from '../validators/mcp'
 
 /** Performs a stateless tool discovery on the given server. */
 export const discoverMcpTools = action({

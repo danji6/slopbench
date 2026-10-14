@@ -4,8 +4,12 @@ import { v } from 'convex/values'
 import { internalMutation, internalQuery } from './_generated/server'
 import { authMutation, authQuery } from './functions'
 import * as Chat from './model/chat'
-import * as V from './validators/args'
-import { environmentValidator } from './validators/sub'
+import * as V from './validators/messages'
+import { environmentValidator } from './validators/sessions'
+import {
+  userShellFinishArgsValidator,
+  userShellPatchArgsValidator,
+} from './validators/shell'
 
 export const messagesWindow = authQuery({
   args: V.messagesWindowArgsValidator.fields,
@@ -196,12 +200,12 @@ export const _beginUserShellWindow = internalMutation({
 })
 
 export const _patchUserShell = internalMutation({
-  args: V.userShellPatchArgsValidator.fields,
+  args: userShellPatchArgsValidator.fields,
   handler: Chat._patchUserShell,
 })
 
 export const _finishUserShell = internalMutation({
-  args: V.userShellFinishArgsValidator.fields,
+  args: userShellFinishArgsValidator.fields,
   handler: Chat._finishUserShell,
 })
 

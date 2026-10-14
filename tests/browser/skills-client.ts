@@ -185,9 +185,10 @@ const client = {
     }
     if (name !== 'skills:start')
       throw new Error(`Unsupported fixture mutation: ${name}`)
-    lastOperation = args
+    const operation = args.operation as Record<string, unknown>
+    lastOperation = operation
     const id = `operation-${++sequence}`
-    schedule(id, args)
+    schedule(id, operation)
     await new Promise((resolve) => setTimeout(resolve, 150))
     return id
   },

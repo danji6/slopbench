@@ -7,16 +7,17 @@ import * as SessionArchive from './model/session/archive'
 import * as Sessions from './model/session/sessions'
 import * as SessionState from './model/session/state'
 import * as SessionTitles from './model/session/title'
-import * as V from './validators/args'
-import * as Sub from './validators/sub'
+import { approvalModeValidator } from './validators/approvals'
+import { sessionModeValidator } from './validators/sessionModes'
+import * as V from './validators/sessions'
 
 export const create = authMutation({
   args: {
     folderId: v.optional(v.id('sessionFolders')),
     title: v.optional(v.string()),
     activeAgentId: v.optional(v.id('agents')),
-    mode: v.optional(Sub.sessionModeValidator),
-    approvalMode: v.optional(Sub.approvalModeValidator),
+    mode: v.optional(sessionModeValidator),
+    approvalMode: v.optional(approvalModeValidator),
   },
   handler: Sessions.create,
 })
@@ -71,14 +72,14 @@ export const setReasoningEffort = authMutation({
 })
 
 export const setMode = authMutation({
-  args: { sessionId: v.id('sessions'), mode: Sub.sessionModeValidator },
+  args: { sessionId: v.id('sessions'), mode: sessionModeValidator },
   handler: Sessions.setMode,
 })
 
 export const setApprovalMode = authMutation({
   args: {
     sessionId: v.id('sessions'),
-    mode: Sub.approvalModeValidator,
+    mode: approvalModeValidator,
   },
   handler: Sessions.setApprovalMode,
 })
@@ -134,7 +135,7 @@ export const _patchTitle = internalMutation({
 })
 
 export const _patchEnvironment = internalMutation({
-  args: { sessionId: v.id('sessions'), environment: Sub.environmentValidator },
+  args: { sessionId: v.id('sessions'), environment: V.environmentValidator },
   handler: Sessions._patchEnvironment,
 })
 

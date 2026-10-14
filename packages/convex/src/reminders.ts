@@ -2,11 +2,13 @@ import { v } from 'convex/values'
 
 import { authMutation, authQuery } from './functions'
 import * as Reminders from './model/reminders'
-import * as V from './validators/args'
-import { reminderScopeValidator } from './validators/sub'
+import * as V from './validators/reminders'
 
 export const list = authQuery({
-  args: { scope: reminderScopeValidator, agentId: v.optional(v.id('agents')) },
+  args: {
+    scope: V.reminderScopeValidator,
+    agentId: v.optional(v.id('agents')),
+  },
   handler: Reminders.list,
 })
 

@@ -1,11 +1,9 @@
-import type { Infer } from 'convex/values'
-
 import { internal } from '../../_generated/api'
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import type { AuthMutationCtx } from '../../functions'
-import type { fileOperationArgs } from '../../validators/skills'
+import type { FileOperationArgs } from '../../types'
 import {
   assertAgentIdle,
   requireAdmin,
@@ -16,24 +14,29 @@ import { ensureHome } from './homes'
 import { validateOperationArgs } from './operationArgs'
 import { assertCanRemoveHome, assertRemovableHome } from './removal'
 
-export type FileOperationArgs = Infer<typeof fileOperationArgs>
-
 type PreparedSkill = { skillId?: Id<'skills'>; uploadTicket?: string }
-type OperationClaim = FileOperationArgs &
-  PreparedSkill & { id: Id<'agentFileOperations'> }
+type OperationClaim = Pick<
+  Doc<'agentFileOperations'>,
+  'agentId' | 'duplicateId' | 'skillId'
+> & { id: Id<'agentFileOperations'> }
+type SkillOperation = Pick<Doc<'agentFileOperations'>, 'kind' | 'agentId'>
+type AssignmentArgs = Extract<FileOperationArgs, { kind: 'delete-assigned' }>
+type InstallArgs = Extract<FileOperationArgs, { kind: 'install' }>
 
 /** Reserves filesystem work. Queries expose progress while the sidecar performs it. */
 export async function start(ctx: AuthMutationCtx, args: FileOperationArgs) {
   requireAdmin(ctx)
   validateOperationArgs(args)
 
-  for (const id of [args.agentId, args.duplicateId]) {
+  const agentId = 'agentId' in args ? args.agentId : undefined
+  const duplicateId = args.kind === 'duplicate' ? args.duplicateId : undefined
+  for (const id of [agentId, duplicateId]) {
     if (id) await ensureHome(ctx, await requireOwnedAgent(ctx, id, ctx.userId))
   }
   await validateTargets(ctx, args)
 
   if (args.kind === 'detach' && args.removeFolder) {
-    const agent = (await ctx.db.get(args.agentId!))!
+    const agent = (await ctx.db.get(args.agentId))!
     await assertCanRemoveHome(
       ctx,
       (await ctx.db.get(agent.homeId!))!,
@@ -53,79 +56,53 @@ export async function start(ctx: AuthMutationCtx, args: FileOperationArgs) {
         }
       : {}),
     ownerId: ctx.userId,
-    homeId: args.agentId ? (await ctx.db.get(args.agentId))?.homeId : undefined,
-    destinationHomeId: args.duplicateId
-      ? (await ctx.db.get(args.duplicateId))?.homeId
+    homeId: agentId ? (await ctx.db.get(agentId))?.homeId : undefined,
+    destinationHomeId: duplicateId
+      ? (await ctx.db.get(duplicateId))?.homeId
       : undefined,
     status: 'queued',
     updatedAt: Date.now(),
   })
 
-  await claimOperation(ctx, { ...args, ...prepared, id })
+  await claimOperation(ctx, { agentId, duplicateId, ...prepared, id })
   await scheduleOperation(ctx, id)
 
   return id
 }
 
 async function validateTargets(ctx: AuthMutationCtx, args: FileOperationArgs) {
-  if (args.kind === 'duplicate' && !args.duplicateId)
-    error('Missing duplicate agent', 400)
-  if (
-    [
-      'home',
-      'ensure',
-      'detach',
-      'assign',
-      'delete-assigned',
-      'duplicate',
-    ].includes(args.kind) &&
-    !args.agentId
-  ) {
-    error('Missing agent', 400)
-  }
-
-  // prettier-ignore
-  if (args.agentId)
-     await assertAgentIdle(ctx, args.agentId, ctx.userId)
-  if (args.duplicateId)
+  if ('agentId' in args) await assertAgentIdle(ctx, args.agentId, ctx.userId)
+  if (args.kind === 'duplicate')
     await requireOwnedAgent(ctx, args.duplicateId, ctx.userId)
-  if (args.kind === 'delete-assigned' && !args.assignmentId)
-    error('Missing assignment', 400)
-  if (args.destination !== undefined && !args.destination.trim()) {
-    error('Choose a directory', 400)
-  }
 }
 
 async function prepareSkill(
   ctx: AuthMutationCtx,
   args: FileOperationArgs,
 ): Promise<PreparedSkill> {
-  if (args.kind === 'install') return prepareInstall(ctx, args)
-  const skillId = args.assignmentId
-    ? await assignmentSkillId(ctx, args)
-    : args.skillId
-  if (
-    ['assign', 'delete-library', 'delete-assigned'].includes(args.kind) &&
-    !skillId
-  ) {
-    error('Missing skill', 400)
+  switch (args.kind) {
+    case 'install':
+      return prepareInstall(ctx, args)
+    case 'assign':
+    case 'delete-library':
+      await validateSkill(ctx, args, args.skillId)
+      return { skillId: args.skillId }
+    case 'delete-assigned': {
+      const skillId = await assignmentSkillId(ctx, args)
+      await validateSkill(ctx, args, skillId)
+      return { skillId }
+    }
+    default:
+      return {}
   }
-  if (skillId) await validateSkill(ctx, args, skillId)
-  return { skillId }
 }
 
-async function assignmentSkillId(
-  ctx: AuthMutationCtx,
-  args: FileOperationArgs,
-) {
-  const assignment = args.assignmentId
-    ? await ctx.db.get(args.assignmentId)
-    : null
+async function assignmentSkillId(ctx: AuthMutationCtx, args: AssignmentArgs) {
+  const assignment = await ctx.db.get(args.assignmentId)
   if (
     !assignment ||
     assignment.ownerId !== ctx.userId ||
-    assignment.homeId !==
-      (args.agentId ? (await ctx.db.get(args.agentId))?.homeId : undefined)
+    assignment.homeId !== (await ctx.db.get(args.agentId))?.homeId
   ) {
     error('Assignment not found', 404)
   }
@@ -134,15 +111,11 @@ async function assignmentSkillId(
 
 async function prepareInstall(
   ctx: AuthMutationCtx,
-  args: FileOperationArgs,
+  args: InstallArgs,
 ): Promise<PreparedSkill> {
-  if (Boolean(args.source) === Boolean(args.storageId)) {
-    error('Choose a local directory or an uploaded ZIP', 400)
-  }
-  const uploadTicket = args.storageId
-    ? (await requireStagedUpload(ctx, args.storageId)).ticket
-    : undefined
-  return { uploadTicket }
+  if ('source' in args) return {}
+  const upload = await requireStagedUpload(ctx, args.storageId)
+  return { uploadTicket: upload.ticket }
 }
 
 async function claimOperation(ctx: AuthMutationCtx, claim: OperationClaim) {
@@ -167,7 +140,7 @@ async function scheduleOperation(
 
 async function validateSkill(
   ctx: AuthMutationCtx,
-  args: FileOperationArgs,
+  args: SkillOperation,
   skillId: Id<'skills'>,
 ) {
   const skill = await requireOwnedSkill(ctx, skillId, ctx.userId)

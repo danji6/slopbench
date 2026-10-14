@@ -2,7 +2,7 @@ import { v } from 'convex/values'
 
 import { authMutation, authQuery } from './functions'
 import * as Notifications from './model/notifications'
-import { notificationStatusValidator } from './validators/sub'
+import { notificationStatusValidator } from './validators/notifications'
 
 export const list = authQuery({
   args: { status: notificationStatusValidator },

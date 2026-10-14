@@ -2,7 +2,7 @@ import { v } from 'convex/values'
 
 import { authMutation, authQuery } from './functions'
 import * as Agents from './model/agents'
-import * as V from './validators/args'
+import * as V from './validators/agents'
 
 export const list = authQuery({
   args: {},

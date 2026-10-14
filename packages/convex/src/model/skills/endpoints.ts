@@ -5,6 +5,7 @@ import { error } from '../../errors'
 import type { AuthMutationCtx, AuthQueryCtx } from '../../functions'
 import type {
   CopySkillAssignmentsArgs,
+  FileOperationArgs,
   InvalidateAgentHomeArgs,
   ReserveHomeArgs,
   SkillAssignmentsArgs,
@@ -17,15 +18,8 @@ import { invalidateHomeCaches as invalidateCaches } from './invalidation'
 import * as Library from './library'
 import * as Operations from './operations'
 
-export const start = (
-  ctx: AuthMutationCtx,
-  args: Operations.FileOperationArgs,
-) => {
-  if (
-    args.kind === 'duplicate' ||
-    args.kind === 'delete-home' ||
-    args.duplicateId
-  ) {
+export const start = (ctx: AuthMutationCtx, args: FileOperationArgs) => {
+  if (args.kind === 'duplicate' || args.kind === 'delete-home') {
     error('Use the agent duplication command', 400)
   }
   return Operations.start(ctx, args)

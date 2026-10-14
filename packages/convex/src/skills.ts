@@ -13,17 +13,19 @@ import { cleanupRecords } from './model/skills/removal'
 import * as Uploads from './model/skills/uploads'
 import {
   completeAgentFileArgsValidator,
-  continueSkillImportArgsValidator,
   copySkillAssignmentsArgsValidator,
   failAgentFileArgsValidator,
-  finishSkillImportArgsValidator,
   invalidateAgentHomeArgsValidator,
-  prepareSkillImportArgsValidator,
   reserveHomeArgsValidator,
+  startFileOperationArgsValidator,
+} from './validators/fileOperations'
+import {
+  continueSkillImportArgsValidator,
+  finishSkillImportArgsValidator,
+  prepareSkillImportArgsValidator,
   skillAssignmentsArgsValidator,
   skillListArgsValidator,
-} from './validators/args'
-import { fileOperationArgs } from './validators/skills'
+} from './validators/skills'
 
 export const list = authQuery({
   args: skillListArgsValidator.fields,
@@ -36,8 +38,8 @@ export const assigned = authQuery({
 })
 
 export const start = authMutation({
-  args: fileOperationArgs.fields,
-  handler: Endpoints.start,
+  args: startFileOperationArgsValidator.fields,
+  handler: (ctx, { operation }) => Endpoints.start(ctx, operation),
 })
 
 export const retry = authMutation({

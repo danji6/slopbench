@@ -5,7 +5,7 @@ import { authMutation, authQuery } from './functions'
 import * as Moves from './model/session/folderMoves'
 import * as Transitions from './model/session/folderTransitions'
 import * as Folders from './model/session/folders'
-import * as V from './validators/args'
+import * as V from './validators/folders'
 
 export const list = authQuery({ args: {}, handler: Folders.list })
 

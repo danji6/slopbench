@@ -4,7 +4,7 @@ import { authMutation, authQuery } from './functions'
 import type { AuthMutationCtx } from './functions'
 import * as Providers from './model/providers'
 import * as SessionModels from './model/session/models'
-import * as V from './validators/args'
+import * as V from './validators/providers'
 
 export const list = authQuery({
   args: {},

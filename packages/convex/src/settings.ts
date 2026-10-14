@@ -1,6 +1,6 @@
 import { authMutation, authQuery } from './functions'
 import * as Settings from './model/settings'
-import * as V from './validators/args'
+import * as V from './validators/settings'
 
 export const get = authQuery({
   args: {},

@@ -5,10 +5,8 @@ import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import { findUserBySubject } from '../../functions'
-import type {
-  importSessionArgsValidator,
-  sessionArchiveValidator,
-} from '../../validators'
+import type { sessionArchiveValidator } from '../../validators/sessionArchives'
+import type { importSessionArgsValidator } from '../../validators/sessions'
 import type { SenderIdentity } from '../chat/identities'
 import {
   type MessageWithParts,

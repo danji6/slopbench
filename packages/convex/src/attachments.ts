@@ -6,7 +6,7 @@ import * as Attachments from './model/attachments'
 import {
   confirmAttachmentArgsValidator,
   createGeneratedAttachmentArgsValidator,
-} from './validators'
+} from './validators/attachments'
 
 export const generateUploadUrl = authMutation({
   args: {},

@@ -98,7 +98,7 @@ The `package.json` contains most scripts you will need, including running tests.
    - Query/Mutation handlers should be thin wrappers around business logic that lives in the `model` folder.
    - On the client, always use query/mutation hooks and avoid non-reactive calls.
    - Whenever possible, use Convex's Infer to infer types from validator objects instead of rewriting a separate type.
-   - For handlers with more than 2 args, don't inline them, write a validator in `validators/args.ts`.
+   - For handlers with more than 2 args, don't inline them; write a validator in the appropriate domain module under `validators/`.
    - Write inferred validator types in `types.ts`.
    - Use the `error()` utility function in `errors.ts` to throw server-side errors.
    - Prefix all internal queries, mutations and actions with an underscore (e.g. \_save).

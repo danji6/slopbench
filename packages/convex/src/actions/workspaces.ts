@@ -5,7 +5,7 @@ import { v } from 'convex/values'
 import { internal } from '../_generated/api'
 import { action, internalAction } from '../_generated/server'
 import { getFlaggedPaths } from '../model/tool/shellTools'
-import { workspaceRefValidator } from '../validators/sub'
+import { workspaceRefValidator } from '../validators/workspaces'
 import * as Workspace from './session/workspace'
 
 export const listDirectories = action({
