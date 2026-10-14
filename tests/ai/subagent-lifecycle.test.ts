@@ -31,16 +31,18 @@ function parentDocs(
 ) {
   return [
     {
-      status: 'streaming',
       sessionId: 'session_1',
       agentId: 'agent_coder',
       invokedBy: owner,
-      operation: 'invoke',
       attempt: 2,
-      processingMessageId: 'message_1',
-      processingContentId: 'content_1',
-      ...streamFields,
       _id: 'stream_1',
+      command: { kind: 'invoke' },
+      state: {
+        phase: 'streaming',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
+      ...streamFields,
     },
     {
       _id: 'session_1',
@@ -126,10 +128,10 @@ describe('_suspendStep', () => {
     })
     const childStream = inserts.find(({ table }) => table === 'streams')
     expect(childStream?.fields).toMatchObject({
-      operation: 'invoke',
       invokedBy: owner,
       suppressFollowUp: true,
-      status: 'pending',
+      command: { kind: 'invoke' },
+      state: { phase: 'reserved' },
     })
 
     // The child's stream job was scheduled
@@ -151,7 +153,9 @@ describe('_suspendStep', () => {
 
   test('a plan-mode parent spawns plan-mode children', async () => {
     const { ctx, inserts } = fakeCtx({
-      docs: parentDocs([taskPart()], { mode: 'plan' }),
+      docs: parentDocs([taskPart()], {
+        command: { kind: 'invoke', mode: 'plan' },
+      }),
       agents: [parentAgent, explorer],
     })
 
@@ -160,7 +164,9 @@ describe('_suspendStep', () => {
     const session = inserts.find(({ table }) => table === 'sessions')
     expect(session?.fields.mode).toBe('plan')
     const childStream = inserts.find(({ table }) => table === 'streams')
-    expect(childStream?.fields.mode).toBe('plan')
+    expect((childStream?.fields.command as { mode?: string })?.mode).toBe(
+      'plan',
+    )
   })
 
   test('normal-mode children carry no mode', async () => {
@@ -174,7 +180,9 @@ describe('_suspendStep', () => {
     const session = inserts.find(({ table }) => table === 'sessions')
     expect(session?.fields.mode).toBeUndefined()
     const childStream = inserts.find(({ table }) => table === 'streams')
-    expect(childStream?.fields.mode).toBeUndefined()
+    expect(
+      (childStream?.fields.command as { mode?: string })?.mode,
+    ).toBeUndefined()
   })
 
   test("the parent's plan rides into the child prompt as a snapshot", async () => {
@@ -264,7 +272,9 @@ describe('_suspendStep', () => {
     expect(result).toBe('suspended')
     expect(patches).toContainEqual({
       id: 'stream_1',
-      patch: expect.objectContaining({ status: 'awaiting_input' }),
+      patch: expect.objectContaining({
+        state: expect.objectContaining({ phase: 'awaiting_input' }),
+      }),
     })
     const notifications = inserts.filter(
       ({ table }) => table === 'notifications',
@@ -308,7 +318,9 @@ describe('_suspendStep', () => {
     expect(result).toBe('suspended')
     expect(patches).toContainEqual({
       id: 'stream_1',
-      patch: expect.objectContaining({ status: 'awaiting_approval' }),
+      patch: expect.objectContaining({
+        state: expect.objectContaining({ phase: 'awaiting_approval' }),
+      }),
     })
 
     // The task part still spawned and acked despite the pending approval
@@ -354,7 +366,9 @@ describe('_suspendStep', () => {
     expect(patches.find(({ id }) => id === 'content_1')).toBeUndefined()
     expect(patches).toContainEqual({
       id: 'stream_1',
-      patch: expect.objectContaining({ status: 'awaiting_approval' }),
+      patch: expect.objectContaining({
+        state: expect.objectContaining({ phase: 'awaiting_approval' }),
+      }),
     })
     expect(inserts).toContainEqual({
       table: 'notifications',
@@ -382,7 +396,13 @@ describe('resumeIfSettled user waits', () => {
         ],
       },
     }
-    const docs = parentDocs([pending], { status: 'awaiting_input' })
+    const docs = parentDocs([pending], {
+      state: {
+        phase: 'awaiting_input',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
+    })
     const { ctx, patches, scheduled, byId } = fakeCtx({ docs })
 
     await resumeIfSettled(ctx, byId.get('stream_1') as never, [pending])
@@ -401,7 +421,13 @@ describe('resumeIfSettled user waits', () => {
       state: 'approval-requested',
       approval: { id: 'approval_2' },
     }
-    const docs = parentDocs([approval], { status: 'awaiting_input' })
+    const docs = parentDocs([approval], {
+      state: {
+        phase: 'awaiting_input',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
+    })
     const { ctx, patches, scheduled, byId } = fakeCtx({ docs })
 
     await resumeIfSettled(ctx, byId.get('stream_1') as never, [approval])
@@ -409,7 +435,9 @@ describe('resumeIfSettled user waits', () => {
     expect(scheduled).toHaveLength(0)
     expect(patches).toContainEqual({
       id: 'stream_1',
-      patch: expect.objectContaining({ status: 'awaiting_approval' }),
+      patch: expect.objectContaining({
+        state: expect.objectContaining({ phase: 'awaiting_approval' }),
+      }),
     })
   })
 })
@@ -445,7 +473,8 @@ const childStream1 = {
   sessionId: 'child_session_1',
   agentId: 'agent_explorer',
   invokedBy: owner,
-  processingMessageId: 'child_message_1',
+  state: { processingMessageId: 'child_message_1' },
+  command: { kind: 'invoke' },
 } as never
 
 describe('deliverChildReport', () => {
@@ -491,9 +520,9 @@ describe('deliverChildReport', () => {
       sessionId: 'parent_session',
       agentId: 'agent_coder',
       invokedBy: owner,
-      operation: 'invoke',
-      status: 'pending',
       contextBoundaryMessageId: 'inserted_messages_1',
+      command: { kind: 'invoke' },
+      state: { phase: 'reserved' },
     })
     expect(scheduled).toHaveLength(1)
   })
@@ -680,20 +709,22 @@ describe('parent teardown', () => {
   const runningChildStream = {
     _id: 'child_stream_1',
     sessionId: 'child_session_1',
-    status: 'streaming',
-    jobId: 'job_child',
-    processingMessageId: 'child_message_1',
+    state: { phase: 'streaming', processingMessageId: 'child_message_1' },
+    command: { kind: 'invoke' },
   }
 
   function failDocs(parts: unknown[]) {
     return [
       {
         _id: 'parent_stream',
-        status: 'streaming',
         sessionId: 'parent_session',
-        processingMessageId: 'parent_message',
-        processingContentId: 'parent_content',
         attempt: 0,
+        state: {
+          phase: 'streaming',
+          processingMessageId: 'parent_message',
+          processingContentId: 'parent_content',
+        },
+        command: { kind: 'invoke' },
       },
       { _id: 'parent_message', selectedVersion: 1 },
       {
@@ -707,21 +738,23 @@ describe('parent teardown', () => {
 
   test('stopChildSessions silences and stops running children', async () => {
     const { ctx, patches, scheduled, cancelled } = fakeCtx({
-      docs: [runningChildStream],
+      docs: [structuredClone(runningChildStream)],
       sessionsByParent: { parent_session: [childSessionRow] },
-      streamsBySession: { child_session_1: [runningChildStream] },
+      streamsBySession: {
+        child_session_1: [structuredClone(runningChildStream)],
+      },
     })
 
     await stopChildSessions(ctx, 'parent_session' as never)
 
-    expect(cancelled).toEqual(['job_child'])
+    expect(cancelled).toEqual([])
     expect(patches).toContainEqual({
       id: 'child_stream_1',
-      patch: {
-        status: 'stopping',
+      patch: expect.objectContaining({
         suppressFollowUp: true,
         suppressReport: true,
-      },
+        state: expect.objectContaining({ phase: 'stopping' }),
+      }),
     })
     expect(scheduled).toContainEqual({
       args: [0, expect.anything(), { streamId: 'child_stream_1' }],
@@ -733,7 +766,9 @@ describe('parent teardown', () => {
     const { ctx, patches, cancelled, byId } = fakeCtx({
       docs: failDocs(parts),
       sessionsByParent: { parent_session: [childSessionRow] },
-      streamsBySession: { child_session_1: [runningChildStream] },
+      streamsBySession: {
+        child_session_1: [structuredClone(runningChildStream)],
+      },
     })
 
     await _fail(ctx, {
@@ -768,10 +803,9 @@ describe('subagent management widget', () => {
     _id: 'child_stream_1',
     _creationTime: 1_000,
     sessionId: 'child_session_1',
-    status: 'streaming',
-    jobId: 'job_child',
-    processingMessageId: 'child_message_1',
     leaseExpiresAt: Date.now() + 60_000,
+    state: { phase: 'streaming', processingMessageId: 'child_message_1' },
+    command: { kind: 'invoke' },
   }
 
   test('list returns running children with agent identity', async () => {
@@ -779,7 +813,7 @@ describe('subagent management widget', () => {
       docs: [parentSession, explorer, liveChildStream],
       membershipsBySession: { parent_session: [membership] },
       sessionsByParent: { parent_session: [childSession] },
-      streamsBySession: { child_session_1: [liveChildStream] },
+      streamsBySession: { child_session_1: [structuredClone(liveChildStream)] },
     })
 
     const result = (await listSubagents(ctx, {
@@ -793,9 +827,9 @@ describe('subagent management widget', () => {
         agentName: 'Explore',
         avatarId: undefined,
         running: true,
-        status: 'streaming',
         startedAt: expect.any(Number),
         tokens: null,
+        status: 'streaming',
       },
     ])
   })
@@ -835,9 +869,9 @@ describe('subagent management widget', () => {
 
   test('stop silently halts one child', async () => {
     const { ctx, patches, cancelled } = fakeCtx({
-      docs: [parentSession, childSession, liveChildStream],
+      docs: [parentSession, childSession, structuredClone(liveChildStream)],
       membershipsBySession: { parent_session: [membership] },
-      streamsBySession: { child_session_1: [liveChildStream] },
+      streamsBySession: { child_session_1: [structuredClone(liveChildStream)] },
     })
 
     await stopSubagent(ctx, {
@@ -845,15 +879,15 @@ describe('subagent management widget', () => {
       childSessionId: 'child_session_1' as never,
     })
 
-    expect(cancelled).toEqual(['job_child'])
+    expect(cancelled).toEqual([])
     // A user-initiated stop has nothing to report, so it's silenced
     expect(patches).toContainEqual({
       id: 'child_stream_1',
-      patch: {
-        status: 'stopping',
+      patch: expect.objectContaining({
         suppressFollowUp: true,
         suppressReport: true,
-      },
+        state: expect.objectContaining({ phase: 'stopping' }),
+      }),
     })
   })
 
@@ -874,21 +908,21 @@ describe('subagent management widget', () => {
 
   test('stopAll silences every running child', async () => {
     const { ctx, patches } = fakeCtx({
-      docs: [parentSession, childSession, liveChildStream],
+      docs: [parentSession, childSession, structuredClone(liveChildStream)],
       membershipsBySession: { parent_session: [membership] },
       sessionsByParent: { parent_session: [childSession] },
-      streamsBySession: { child_session_1: [liveChildStream] },
+      streamsBySession: { child_session_1: [structuredClone(liveChildStream)] },
     })
 
     await stopAllSubagents(ctx, { sessionId: 'parent_session' as never })
 
     expect(patches).toContainEqual({
       id: 'child_stream_1',
-      patch: {
-        status: 'stopping',
+      patch: expect.objectContaining({
         suppressFollowUp: true,
         suppressReport: true,
-      },
+        state: expect.objectContaining({ phase: 'stopping' }),
+      }),
     })
   })
 })

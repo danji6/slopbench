@@ -39,21 +39,13 @@ export async function _complete(
   const stream = await ctx.db.get(streamId)
   if (!ownsExecution(stream, { streamId, generation })) return
 
-  // A turn that never materialized a message has nothing to finalize
-  if (!stream.processingMessageId) {
-    await discardStream(ctx, streamId)
-    await handleStreamEnd(ctx, stream, 'complete')
-    await scheduleCommandDrain(ctx, stream.sessionId)
-    return
-  }
-
-  const processingMessageId = stream.processingMessageId
+  const processingMessageId = stream.state.processingMessageId
   const message = await ctx.db.get(processingMessageId)
   const row = await getProcessingSegmentRow(ctx, stream)
   const parts = row?.parts ?? []
 
   // Have the plan survive compaction
-  if (stream.operation === 'compact') {
+  if (stream.command.kind === 'compact') {
     const plan = await getPlan(ctx, stream.sessionId)
     if (plan) parts.push(createPlanLinkPart(plan))
     // The mode note is behind the new boundary, state it again on the next turn
@@ -83,14 +75,16 @@ export async function _complete(
     segmentIndex: row?.segmentIndex ?? 0,
   })
 
+  const compactionNeedsFollowUp =
+    stream.command.kind === 'compact' && stream.command.followUpAfterCompact
   let followUpReserved = scheduledCompact
-  if (stream.operation === 'invoke') {
+  if (stream.command.kind === 'invoke') {
     await syncActivity(ctx, stream.sessionId, parts)
     await scheduleTitle(ctx, stream.sessionId)
     if (!scheduledCompact && !stream.suppressFollowUp) {
       followUpReserved = await reserveFollowUp(ctx, stream)
     }
-  } else if (stream.operation === 'compact' && stream.followUpAfterCompact) {
+  } else if (compactionNeedsFollowUp) {
     followUpReserved = await reserveFollowUp(ctx, stream)
   } else if (await isLatestRetry(ctx, stream, message)) {
     // A retry of the newest message becomes the session's tail
@@ -109,7 +103,7 @@ export async function _complete(
       : parts
 
     const previewMessage =
-      stream.operation === 'compact'
+      stream.command.kind === 'compact'
         ? 'Compaction finished'
         : notificationPreviewFromParts(previewParts)
 
@@ -118,7 +112,7 @@ export async function _complete(
       agentId: stream.agentId,
       kind: 'turn_completed',
       preview: previewMessage,
-      sourceMessageId: stream.processingMessageId,
+      sourceMessageId: stream.state.processingMessageId,
     })
   }
 
@@ -142,7 +136,7 @@ export async function isLatestRetry(
   stream: Doc<'streams'>,
   message: Doc<'messages'> | null,
 ) {
-  if (stream.operation !== 'retry' || !message) return false
+  if (stream.command.kind !== 'retry' || !message) return false
 
   const newer = await ctx.db
     .query('messages')
@@ -170,7 +164,7 @@ export async function failStream(
 ) {
   const streamId = stream._id
 
-  if (stream.processingMessageId) {
+  if (stream.state.processingMessageId) {
     const row = await getProcessingSegmentRow(ctx, stream)
     if (row) {
       // Task calls the turn never got to spawn can't report back
@@ -182,8 +176,8 @@ export async function failStream(
         error: message,
       })
     }
-    const doc = await ctx.db.get(stream.processingMessageId)
-    await ctx.db.patch(stream.processingMessageId, {
+    const doc = await ctx.db.get(stream.state.processingMessageId)
+    await ctx.db.patch(stream.state.processingMessageId, {
       status: 'done',
       metadata: { ...doc?.metadata, error: message },
     })
@@ -198,7 +192,7 @@ export async function failStream(
     sessionId: stream.sessionId,
     agentId: stream.agentId,
     kind: 'turn_error',
-    sourceMessageId: stream.processingMessageId,
+    sourceMessageId: stream.state.processingMessageId,
   })
 
   // A failed sub-agent still reports back so the parent can react
@@ -212,24 +206,27 @@ export async function _finalizeStopped(
   { streamId }: { streamId: Id<'streams'> },
 ) {
   const stream = await ctx.db.get(streamId)
-  if (!stream || stream.status !== 'stopping') return
+  if (!stream || stream.state.phase !== 'stopping') return
 
   // Turn stopped before it materialized a message, just drop the stream
-  if (!stream.processingMessageId) {
+  if (!stream.state.processingMessageId) {
     await discardStream(ctx, streamId)
     await handleStreamEnd(ctx, stream, 'stopped')
     await scheduleCommandDrain(ctx, stream.sessionId)
     return
   }
 
-  const processingMessageId = stream.processingMessageId
+  const processingMessageId = stream.state.processingMessageId
   const message = await ctx.db.get(processingMessageId)
   const row = await getProcessingSegmentRow(ctx, stream)
   // Task calls the turn never got to spawn can't report back
   const rawParts = row?.parts ?? []
   const taskSettled = settleAbandonedTaskParts(rawParts) ?? rawParts
   const parts = finalizeMessageParts(settleAbortedAskParts(taskSettled))
-  const metadata = preserveStoppedStreamError(row?.metadata, stream.retryError)
+  const metadata = preserveStoppedStreamError(
+    row?.metadata,
+    stream.state.retryError,
+  )
   const restored =
     row && message ? await restoreEmptyRetry(ctx, stream, message, row) : false
 
@@ -240,7 +237,7 @@ export async function _finalizeStopped(
       status: 'done',
       metadata: preserveStoppedStreamError(
         message?.metadata,
-        stream.retryError,
+        stream.state.retryError,
       ),
     })
   }
@@ -260,7 +257,7 @@ export async function _finalizeStopped(
     })
   }
 
-  if (stream.operation === 'invoke') {
+  if (stream.command.kind === 'invoke') {
     await syncActivity(ctx, stream.sessionId, parts)
     await scheduleTitle(ctx, stream.sessionId)
   } else if (!restored && (await isLatestRetry(ctx, stream, message))) {
@@ -280,8 +277,9 @@ export async function demoteFailedSummary(
   ctx: MutationCtx,
   stream: Doc<'streams'>,
 ) {
-  if (stream.operation !== 'compact' || !stream.processingMessageId) return
-  await ctx.db.patch(stream.processingMessageId, { type: undefined })
+  if (stream.command.kind !== 'compact') return
+  if (!stream.state.processingMessageId) return
+  await ctx.db.patch(stream.state.processingMessageId, { type: undefined })
 }
 
 export function preserveStoppedStreamError(

@@ -358,9 +358,9 @@ describe('_report', () => {
       sessionId: 'session_1',
       agentId: 'agent_coder',
       invokedBy: owner,
-      operation: 'invoke',
-      status: 'pending',
       contextBoundaryMessageId: 'inserted_messages_1',
+      command: { kind: 'invoke' },
+      state: { phase: 'reserved' },
     })
     expect(scheduled).toHaveLength(1)
   })

@@ -17,7 +17,8 @@ type HistoryFixture = {
 function historyCtx(fixture: HistoryFixture) {
   const { stream, current, doneMessages, summary } = fixture
   stream.generation ??= 0
-  stream.status ??= 'streaming'
+  const state = stream.state as { phase?: string }
+  state.phase ??= 'streaming'
 
   const resultFor = (
     table: string,
@@ -88,7 +89,11 @@ function historyCtx(fixture: HistoryFixture) {
     db: {
       get: async (id: string) => {
         if (id === stream._id) return stream
-        if (id === stream.processingMessageId) return current
+        if (
+          id ===
+          (stream.state as { processingMessageId?: string }).processingMessageId
+        )
+          return current
         return null
       },
       query: (table: string) => ({
@@ -157,10 +162,12 @@ describe('_getProviderHistory', () => {
     stream: {
       _id: 'stream_1',
       sessionId: 'session_1',
-      processingMessageId: 'm_current',
-      processingContentId: 'c_current_2',
-      operation,
       contextBoundaryCreationTime: 150,
+      command: { kind: operation },
+      state: {
+        processingMessageId: 'm_current',
+        processingContentId: 'c_current_2',
+      },
     },
     current: retryMessage,
     doneMessages: [userMessage],

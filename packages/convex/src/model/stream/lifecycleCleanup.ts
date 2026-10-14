@@ -1,10 +1,10 @@
 import type { Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import type { TrackStreamOutputArgs } from '../../types'
-import { cleanUpGeneratedAttachments } from '../attachments'
 import { allVersionParts } from '../messageContents'
-import { ownsExecution } from './execution'
-import { _finalizeStopped, failStream } from './lifecycleTerminal'
+import { cancelScheduledExecution, ownsExecution } from './execution'
+import { expireStream } from './expiry'
+import { discardStream } from './lifecycleTerminal'
 import { collectToolOutputStorageIds } from './toolOutput'
 
 export const ORPHAN_OUTPUT_TTL_MS = 24 * 60 * 60 * 1000
@@ -78,20 +78,13 @@ export async function _prune(ctx: MutationCtx) {
     .collect()
 
   for (const stream of streams) {
-    if (stream.status === 'stopping') {
-      await _finalizeStopped(ctx, { streamId: stream._id })
-    } else {
-      await failStream(ctx, stream, 'Stream interrupted before completion.')
-    }
+    await expireStream(ctx, stream)
   }
 }
 
 export async function remove(ctx: MutationCtx, streamId: Id<'streams'>) {
   const stream = await ctx.db.get(streamId)
-  if (stream?.jobId) await ctx.scheduler.cancel(stream.jobId)
-  if (stream) {
-    await cleanUpOffloadedOutputs(ctx, streamId)
-    await cleanUpGeneratedAttachments(ctx, streamId)
-    await ctx.db.delete(streamId)
-  }
+  if (!stream) return
+  await cancelScheduledExecution(ctx, stream)
+  await discardStream(ctx, streamId)
 }

@@ -19,7 +19,7 @@ export async function pendingApprovals(
   const pending = await Promise.all(
     children.map(async (child) => {
       const stream = await getActiveStream(ctx, child._id)
-      if (stream?.status !== 'awaiting_approval') return null
+      if (stream?.state.phase !== 'awaiting_approval') return null
       const row = await getProcessingSegmentRow(ctx, stream)
       if (!row || !hasPendingToolApprovals(row.parts)) return null
       const agent = await ctx.db.get(stream.agentId)

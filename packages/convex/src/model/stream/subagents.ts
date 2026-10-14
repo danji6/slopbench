@@ -2,6 +2,7 @@ import { hasPendingQuestions } from '@sb/core/utils/ask'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
+import { error } from '../../errors'
 import {
   type SubagentReportPart,
   type SubagentReportStatus,
@@ -63,7 +64,6 @@ export async function _suspendStep(
 ): Promise<SuspendStepResult> {
   const stream = await ctx.db.get(streamId)
   if (!ownsExecution(stream, { streamId, generation })) return 'abort'
-  if (!stream.processingMessageId) return 'abort'
   if (await honorSoftStop(ctx, stream)) return 'abort'
 
   const session = await getSessionWithWorkspace(ctx, stream.sessionId)
@@ -84,7 +84,7 @@ export async function _suspendStep(
         part,
       })
     }
-    await patchSegmentParts(ctx, stream.processingMessageId, row, parts)
+    await patchSegmentParts(ctx, stream.state.processingMessageId, row, parts)
   }
 
   if (!session.parent && hasPendingQuestions(parts)) {
@@ -108,18 +108,28 @@ async function park(
   stream: Doc<'streams'>,
   status: 'awaiting_input' | 'awaiting_approval',
 ) {
+  if (!stream.state.processingMessageId)
+    error('Cannot park an unclaimed stream', 409)
+
   await ctx.db.patch(stream._id, {
-    status,
+    state: {
+      phase: status,
+      processingMessageId: stream.state.processingMessageId,
+      processingContentId: stream.state.processingContentId,
+    },
     attempt: 0,
-    jobId: undefined,
     leaseExpiresAt: Date.now() + APPROVAL_LEASE_MS,
   })
+
   const session = await getSessionWithWorkspace(ctx, stream.sessionId)
+
   await notifyAgentEvent(ctx, {
     sessionId: session?.parent?.sessionId ?? stream.sessionId,
     agentId: stream.agentId,
     kind: status === 'awaiting_input' ? 'input_required' : 'approval_required',
-    sourceMessageId: session?.parent ? undefined : stream.processingMessageId,
+    sourceMessageId: session?.parent
+      ? undefined
+      : stream.state.processingMessageId,
   })
 }
 
@@ -217,7 +227,9 @@ async function spawnChild(
   const title = input.title ?? input.prompt.trim().slice(0, 80)
 
   // A child session inherits the parent's mode
-  const mode = stream.mode === 'plan' ? stream.mode : undefined
+  const command = stream.command
+  const supportsPlanMode = command.kind === 'invoke' || command.kind === 'retry'
+  const mode = supportsPlanMode ? command.mode : undefined
 
   const childSessionId = await ctx.db.insert('sessions', {
     ownerId: session.ownerId,
@@ -281,17 +293,14 @@ async function spawnChild(
     invokedBy: stream.invokedBy,
     contextBoundaryMessageId: messageId,
     contextBoundaryCreationTime: prompt?._creationTime,
-    operation: 'invoke',
-    blocking: false,
-    status: 'pending',
+    command: { kind: 'invoke', mode },
+    state: { phase: 'reserved' },
     attempt: 0,
     leaseExpiresAt: now + STREAM_LEASE_MS,
     suppressFollowUp: true,
-    mode,
   })
 
-  const jobId = await scheduleStream(ctx, childStreamId, { delayMs: 0 })
-  await ctx.db.patch(childStreamId, { jobId })
+  await scheduleStream(ctx, childStreamId)
 
   return childSessionId
 }
@@ -384,8 +393,8 @@ async function childReportText(
   ctx: MutationCtx,
   childStream: Doc<'streams'>,
 ): Promise<string> {
-  if (!childStream.processingMessageId) return ''
-  const message = await ctx.db.get(childStream.processingMessageId)
+  if (!childStream.state.processingMessageId) return ''
+  const message = await ctx.db.get(childStream.state.processingMessageId)
   if (!message) return ''
 
   const segments = await listSelectedSegments(ctx, message)
@@ -424,7 +433,7 @@ export async function resumeIfSettled(
   parts: unknown[],
 ) {
   if (hasPendingQuestions(parts)) {
-    if (stream.status === 'awaiting_input') {
+    if (stream.state.phase === 'awaiting_input') {
       await refreshUserResponseLease(ctx, stream)
     } else {
       await park(ctx, stream, 'awaiting_input')
@@ -433,7 +442,7 @@ export async function resumeIfSettled(
   }
 
   if (hasPendingToolApprovals(parts)) {
-    if (stream.status === 'awaiting_approval') {
+    if (stream.state.phase === 'awaiting_approval') {
       await refreshUserResponseLease(ctx, stream)
     } else {
       await park(ctx, stream, 'awaiting_approval')
@@ -441,14 +450,7 @@ export async function resumeIfSettled(
     return
   }
 
-  const jobId = await scheduleStream(ctx, stream._id, { delayMs: 0 })
-
-  await ctx.db.patch(stream._id, {
-    status: 'pending',
-    attempt: 0,
-    jobId,
-    leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
-  })
+  await scheduleStream(ctx, stream._id, { resetAttempt: true })
 }
 
 async function refreshUserResponseLease(

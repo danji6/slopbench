@@ -1,8 +1,10 @@
-import type { Doc, Id } from '../../_generated/dataModel'
+import type { Id } from '../../_generated/dataModel'
 import { error } from '../../errors'
 import type { AuthMutationCtx, AuthQueryCtx } from '../../functions'
+import type { ActiveStream } from '../../types'
 import { getActiveStream, requireMember } from '../session/memberships'
 import { stopForSession } from '../stream/lifecycle'
+import { activeStreamView } from '../stream/view'
 import { lastRequestInputTokens } from './usage'
 
 export type SubagentSummary = {
@@ -13,7 +15,7 @@ export type SubagentSummary = {
   /** Whether the child still has an active stream. */
   running: boolean
   /** Active stream status, null once the child turn settled. */
-  status: Doc<'streams'>['status'] | null
+  status: ActiveStream['status'] | null
   startedAt: number
   /** Input tokens on the child session's most recent request. */
   tokens: number | null
@@ -43,7 +45,7 @@ export async function list(
   const summaries: SubagentSummary[] = []
 
   for (const child of children) {
-    const stream = await getActiveStream(ctx, child._id)
+    const stream = activeStreamView(await getActiveStream(ctx, child._id))
     const agent = child.activeAgentId
       ? await ctx.db.get(child.activeAgentId)
       : null

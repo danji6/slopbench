@@ -83,15 +83,19 @@ export async function applyModeTransition(
   else await setStatus(ctx, sessionId, 'approved')
 
   await ctx.db.patch(sessionId, { mode })
-  if (streamId) {
-    await ctx.db.patch(streamId, { mode })
-    return
-  }
-  const stream = await ctx.db
-    .query('streams')
-    .withIndex('by_sessionId', (q) => q.eq('sessionId', sessionId))
-    .first()
-  if (stream) await ctx.db.patch(stream._id, { mode })
+
+  const stream = streamId
+    ? await ctx.db.get(streamId)
+    : await ctx.db
+        .query('streams')
+        .withIndex('by_sessionId', (q) => q.eq('sessionId', sessionId))
+        .first()
+  if (!stream) return
+
+  const command = stream.command
+  const supportsPlanMode = command.kind === 'invoke' || command.kind === 'retry'
+  if (supportsPlanMode)
+    await ctx.db.patch(stream._id, { command: { ...command, mode } })
 }
 
 /** Demotes the plan to a revisable draft that needs approval again. */

@@ -5,6 +5,8 @@ import {
 } from '@sb/convex/model/chat/reserve'
 import { describe, expect, test } from 'bun:test'
 
+type DebouncePatch = Record<string, unknown> & { state: { fireAt?: number } }
+
 function rescheduleCtx(
   boundary: Record<string, unknown> | null,
   jobId?: string,
@@ -14,7 +16,13 @@ function rescheduleCtx(
   const cancelled: string[] = []
   let nextJob = 0
 
-  const stream = { _id: 'stream_1', generation: 0, jobId }
+  const stream = {
+    _id: 'stream_1',
+    generation: 0,
+    attempt: 0,
+    state: jobId ? { phase: 'pending', jobId } : { phase: 'reserved' },
+    command: { kind: 'invoke' },
+  }
   const ctx = {
     db: {
       get: async (id: string) => (id === stream._id ? stream : boundary),
@@ -53,7 +61,7 @@ describe('rescheduleStream (debounce reset)', () => {
 
     await rescheduleStream(
       ctx,
-      { _id: 'stream_1' as never, jobId: 'old_job' as never },
+      { _id: 'stream_1' as never },
       { boundaryId: 'msg_2' as never, delayMs: 5000 },
     )
 
@@ -64,13 +72,16 @@ describe('rescheduleStream (debounce reset)', () => {
     ])
 
     // The stream is re-anchored to the new message with a pushed-out fireAt.
-    const patch = patches.find((p) => p.patch.fireAt !== undefined)?.patch
+    const patch = Object.assign(
+      {},
+      ...patches.map(({ patch }) => patch),
+    ) as DebouncePatch
     expect(patch).toMatchObject({
-      jobId: 'job_1',
+      state: { jobId: 'job_1' },
       contextBoundaryMessageId: 'msg_2',
       contextBoundaryCreationTime: 42,
     })
-    expect(patch?.fireAt as number).toBeGreaterThanOrEqual(before + 5000)
+    expect(patch?.state.fireAt as number).toBeGreaterThanOrEqual(before + 5000)
   })
 
   test('tolerates a stream with no existing job', async () => {
@@ -105,9 +116,8 @@ describe('reserveOrDebounceTurn (pending window)', () => {
       // A zero-debounce pending turn has no fireAt yet
       activeStream: {
         _id: 'stream_1',
-        status: 'pending',
-        operation: 'invoke',
-        jobId: 'job_old',
+        command: { kind: 'invoke' },
+        state: { phase: 'pending', jobId: 'job_old' },
       },
     } as never)
 
@@ -115,21 +125,36 @@ describe('reserveOrDebounceTurn (pending window)', () => {
     expect(scheduled).toEqual([
       { delay: 0, args: { streamId: 'stream_1', generation: 1 } },
     ])
-    const patch = patches.find((p) => p.patch.fireAt !== undefined)?.patch
+    const patch = Object.assign(
+      {},
+      ...patches.map(({ patch }) => patch),
+    ) as DebouncePatch
     expect(patch).toMatchObject({
       contextBoundaryMessageId: 'msg_2',
       contextBoundaryCreationTime: 42,
     })
-    expect(typeof patch?.fireAt).toBe('number')
+    expect(typeof patch?.state.fireAt).toBe('number')
   })
 
   test('leaves running and non-invoke streams alone', async () => {
     const { ctx, patches, scheduled, cancelled } = rescheduleCtx(null)
 
     for (const activeStream of [
-      { _id: 'stream_1', status: 'streaming', operation: 'invoke' },
-      { _id: 'stream_1', status: 'pending', operation: 'compact' },
-      { _id: 'stream_1', status: 'awaiting_approval', operation: 'invoke' },
+      {
+        _id: 'stream_1',
+        command: { kind: 'invoke' },
+        state: { phase: 'streaming' },
+      },
+      {
+        _id: 'stream_1',
+        command: { kind: 'compact' },
+        state: { phase: 'pending' },
+      },
+      {
+        _id: 'stream_1',
+        command: { kind: 'invoke' },
+        state: { phase: 'awaiting_approval' },
+      },
     ]) {
       await reserveOrDebounceTurn(ctx, {
         session: { _id: 'session_1', activeAgentId: 'agent_1' },

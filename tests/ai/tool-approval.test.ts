@@ -165,12 +165,13 @@ describe('plan approval timing', () => {
         {
           _id: 'stream_1',
           sessionId: 'session_1',
-          status: 'awaiting_approval',
-          operation: 'invoke',
-          mode: 'plan',
-          processingMessageId: 'message_1',
-          processingContentId: 'content_1',
           leaseExpiresAt: Date.now() + 10_000,
+          command: { kind: 'invoke', mode: 'plan' },
+          state: {
+            phase: 'awaiting_approval',
+            processingMessageId: 'message_1',
+            processingContentId: 'content_1',
+          },
         },
       ],
       ['message_1', { _id: 'message_1' }],
@@ -238,7 +239,9 @@ describe('plan approval timing', () => {
       ({ id, patch }) => id === 'session_1' && 'mode' in patch,
     )
     const resumed = events.findIndex(
-      ({ id, patch }) => id === 'stream_1' && patch.status === 'pending',
+      ({ id, patch }) =>
+        id === 'stream_1' &&
+        (patch.state as { phase?: string })?.phase === 'pending',
     )
 
     expect(planApproved).toBeGreaterThanOrEqual(0)

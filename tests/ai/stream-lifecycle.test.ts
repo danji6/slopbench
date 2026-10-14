@@ -113,6 +113,7 @@ function fakeCtx({
     scheduler: {
       runAfter: async (...args: unknown[]) => {
         scheduled.push({ args })
+        return `job_${scheduled.length}`
       },
     },
     storage: {
@@ -129,11 +130,14 @@ describe('_honorSoftStop', () => {
   test('a timeout cancels unanswered approval without recording a denial', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'streaming',
       sessionId: 'session_1',
-      processingMessageId: 'message_1',
-      processingContentId: 'content_1',
       stopAt: Date.now(),
+      state: {
+        phase: 'streaming',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
+      command: { kind: 'invoke' },
     }
     const { ctx, patches, deletes } = fakeCtx({
       docs: [stream, { _id: 'message_1', selectedVersion: 1 }],
@@ -178,9 +182,10 @@ describe('_honorSoftStop', () => {
   test('moves a timed-out stream to stopped finalization exactly once', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'streaming',
       sessionId: 'session_1',
       stopAt: Date.now(),
+      state: { phase: 'streaming' },
+      command: { kind: 'invoke' },
     }
     const { ctx, patches, scheduled } = fakeCtx({ docs: [stream] })
 
@@ -192,7 +197,7 @@ describe('_honorSoftStop', () => {
     ).toBe(true)
     expect(patches).toContainEqual({
       id: 'stream_1',
-      patch: { status: 'stopping', suppressFollowUp: true },
+      patch: { suppressFollowUp: true, state: { phase: 'stopping' } },
     })
     expect(scheduled).toHaveLength(1)
 
@@ -205,13 +210,16 @@ describe('_claim', () => {
   test('computes the boundary for a fresh (empty) processing message', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'pending',
       sessionId: 'session_1',
-      processingMessageId: 'message_1',
-      processingContentId: 'content_1',
       attempt: 0,
       contextBoundaryMessageId: 'old_boundary',
       contextBoundaryCreationTime: 1,
+      state: {
+        phase: 'pending',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
+      command: { kind: 'invoke' },
     }
     const { ctx, patches } = fakeCtx({
       docs: [stream, { _id: 'message_1', _creationTime: 60 }],
@@ -225,7 +233,7 @@ describe('_claim', () => {
     })
 
     expect(result?.contextBoundaryMessageId).toBe('user_2' as never)
-    expect(result?.processingMessageId).toBe('message_1' as never)
+    expect(result?.state.processingMessageId).toBe('message_1' as never)
     expect(patches).toContainEqual({
       id: 'stream_1',
       patch: expect.objectContaining({
@@ -238,14 +246,16 @@ describe('_claim', () => {
   test('a post-split empty segment keeps the boundary', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'pending',
       sessionId: 'session_1',
-      processingMessageId: 'message_1',
-      processingContentId: 'content_2',
-      operation: 'invoke',
       attempt: 0,
       contextBoundaryMessageId: 'user_1',
       contextBoundaryCreationTime: 10,
+      command: { kind: 'invoke' },
+      state: {
+        phase: 'pending',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_2',
+      },
     }
     const { ctx, patches } = fakeCtx({
       docs: [stream, { _id: 'message_1', _creationTime: 60 }],
@@ -272,13 +282,12 @@ describe('_claim', () => {
   test('creates the processing message when a pending turn starts', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'pending',
       sessionId: 'session_1',
       agentId: 'agent_1',
       invokedBy: 'user_1',
-      operation: 'invoke',
       attempt: 0,
-      // No processingMessageId yet — it is materialized on claim.
+      command: { kind: 'invoke' },
+      state: { phase: 'pending' },
     }
     const { ctx, patches, inserts } = fakeCtx({
       docs: [stream, { _id: 'agent_1', name: 'Agent', ownerId: 'owner_1' }],
@@ -297,15 +306,17 @@ describe('_claim', () => {
       'messages',
       'messageContents',
     ])
-    expect(result?.processingMessageId).toBe('inserted_1' as never)
+    expect(result?.state.processingMessageId).toBe('inserted_1' as never)
     expect(patches).toContainEqual({
       id: 'stream_1',
       patch: expect.objectContaining({
-        status: 'streaming',
-        processingMessageId: 'inserted_1',
-        processingContentId: 'inserted_2',
         contextBoundaryMessageId: 'user_2',
         contextBoundaryCreationTime: 50,
+        state: expect.objectContaining({
+          phase: 'streaming',
+          processingMessageId: 'inserted_1',
+          processingContentId: 'inserted_2',
+        }),
       }),
     })
   })
@@ -314,15 +325,17 @@ describe('_claim', () => {
     const stream = {
       _id: 'stream_1',
       _creationTime: 30,
-      status: 'pending',
       sessionId: 'session_1',
       invokedBy: 'user_1',
-      operation: 'invoke',
       attempt: 0,
-      processingMessageId: 'message_1',
-      processingContentId: 'content_1',
       contextBoundaryMessageId: 'user_1',
       contextBoundaryCreationTime: 10,
+      command: { kind: 'invoke' },
+      state: {
+        phase: 'pending',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
     }
     const { ctx, patches, inserts } = fakeCtx({
       docs: [
@@ -357,7 +370,7 @@ describe('_claim', () => {
     // The newer message is consumed after the tool produces its output.
     expect(inserts.some(({ table }) => table === 'messages')).toBe(false)
     expect(patches.some(({ id }) => id === 'message_1')).toBe(false)
-    expect(result?.processingMessageId).toBe('message_1' as never)
+    expect(result?.state.processingMessageId).toBe('message_1' as never)
     expect(result?.contextBoundaryMessageId).toBe('user_1' as never)
     expect(patches).toContainEqual({
       id: 'stream_1',
@@ -372,15 +385,17 @@ describe('_claim', () => {
     const stream = {
       _id: 'stream_1',
       _creationTime: 60,
-      status: 'pending',
       sessionId: 'session_1',
       invokedBy: 'user_1',
-      operation: 'invoke',
       attempt: 0,
-      processingMessageId: 'message_1',
-      processingContentId: 'content_1',
       contextBoundaryMessageId: 'user_1',
       contextBoundaryCreationTime: 10,
+      command: { kind: 'invoke' },
+      state: {
+        phase: 'pending',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
     }
     const { ctx, patches, inserts } = fakeCtx({
       docs: [
@@ -413,7 +428,7 @@ describe('_claim', () => {
     // No rollover: the resumed message keeps streaming into itself
     expect(inserts.some(({ table }) => table === 'messages')).toBe(false)
     expect(patches.some(({ id }) => id === 'message_1')).toBe(false)
-    expect(result?.processingMessageId).toBe('message_1' as never)
+    expect(result?.state.processingMessageId).toBe('message_1' as never)
     expect(result?.contextBoundaryMessageId).toBe('user_1' as never)
   })
 
@@ -421,15 +436,17 @@ describe('_claim', () => {
     const stream = {
       _id: 'stream_1',
       _creationTime: 30,
-      status: 'pending',
       sessionId: 'session_1',
       invokedBy: 'user_1',
-      operation: 'retry',
       attempt: 0,
-      processingMessageId: 'message_1',
-      processingContentId: 'content_1',
       contextBoundaryMessageId: 'user_1',
       contextBoundaryCreationTime: 10,
+      command: { kind: 'retry' },
+      state: {
+        phase: 'pending',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
     }
     const { ctx, patches, inserts } = fakeCtx({
       docs: [
@@ -468,9 +485,9 @@ describe('_handoff', () => {
   test('reschedules the stream action with a fresh lease', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'streaming',
       sessionId: 'session_1',
-      processingMessageId: 'message_1',
+      state: { phase: 'streaming', processingMessageId: 'message_1' },
+      command: { kind: 'invoke' },
     }
     const { ctx, patches, scheduled } = fakeCtx({ docs: [stream] })
 
@@ -492,9 +509,9 @@ describe('_handoff', () => {
   test('leaves a stopping stream alone', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'stopping',
       sessionId: 'session_1',
-      processingMessageId: 'message_1',
+      state: { phase: 'stopping', processingMessageId: 'message_1' },
+      command: { kind: 'invoke' },
     }
     const { ctx, patches, scheduled } = fakeCtx({ docs: [stream] })
 
@@ -513,12 +530,14 @@ describe('_continue', () => {
   test('resets retry attempts when continuing the same processing message', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'streaming',
       sessionId: 'session_1',
-      processingMessageId: 'message_1',
-      processingContentId: 'content_1',
-      operation: 'invoke',
       attempt: 3,
+      command: { kind: 'invoke' },
+      state: {
+        phase: 'streaming',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
     }
     const { ctx, patches, inserts } = fakeCtx({
       docs: [stream, { _id: 'message_1', _creationTime: 10 }],
@@ -544,15 +563,17 @@ describe('_continue', () => {
   test('splits an over-cap turn into a fresh segment', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'streaming',
       sessionId: 'session_1',
       invokedBy: 'user_1',
-      processingMessageId: 'message_1',
-      processingContentId: 'content_1',
-      operation: 'invoke',
       attempt: 3,
       contextBoundaryMessageId: 'user_0',
       contextBoundaryCreationTime: 5,
+      command: { kind: 'invoke' },
+      state: {
+        phase: 'streaming',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
     }
     const bigParts = [
       { type: 'text', text: 'x'.repeat(MESSAGE_SPLIT_BUDGET_BYTES + 1) },
@@ -607,7 +628,7 @@ describe('_continue', () => {
     expect(patches).toContainEqual({
       id: 'stream_1',
       patch: expect.objectContaining({
-        processingContentId: 'inserted_1',
+        state: expect.objectContaining({ processingContentId: 'inserted_1' }),
         attempt: 0,
       }),
     })
@@ -618,12 +639,14 @@ describe('_continue', () => {
   test('never splits a compaction summary', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'streaming',
       sessionId: 'session_1',
-      processingMessageId: 'message_1',
-      processingContentId: 'content_1',
-      operation: 'compact',
       attempt: 0,
+      command: { kind: 'compact' },
+      state: {
+        phase: 'streaming',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
     }
     const bigParts = [
       { type: 'text', text: 'x'.repeat(MESSAGE_SPLIT_BUDGET_BYTES + 1) },
@@ -647,12 +670,14 @@ describe('_continue', () => {
   test('interleaved newer message finalizes the turn and rolls over', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'streaming',
       sessionId: 'session_1',
-      processingMessageId: 'message_1',
-      processingContentId: 'content_1',
-      operation: 'invoke',
       attempt: 0,
+      command: { kind: 'invoke' },
+      state: {
+        phase: 'streaming',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
     }
     const message = {
       _id: 'message_1',
@@ -696,12 +721,14 @@ describe('_continue', () => {
   test('a command chip is not an interjection and never rolls the turn over', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'streaming',
       sessionId: 'session_1',
-      processingMessageId: 'message_1',
-      processingContentId: 'content_1',
-      operation: 'invoke',
       attempt: 0,
+      command: { kind: 'invoke' },
+      state: {
+        phase: 'streaming',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
     }
     const message = {
       _id: 'message_1',
@@ -741,10 +768,10 @@ describe('_recordStep', () => {
   test('advances the hot clock for a completed invoke step', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'streaming',
-      operation: 'invoke',
       sessionId: 'session_1',
       invokedBy: 'user_1',
+      command: { kind: 'invoke' },
+      state: { phase: 'streaming' },
     }
     const state = {
       _id: 'state_1',
@@ -772,10 +799,10 @@ describe('_recordStep', () => {
   test('injects the normal-mode note at a safe continuation', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'streaming',
-      operation: 'invoke',
       sessionId: 'session_1',
       invokedBy: 'user_1',
+      command: { kind: 'invoke' },
+      state: { phase: 'streaming' },
     }
     const session = {
       _id: 'session_1',
@@ -821,10 +848,10 @@ describe('_recordStep', () => {
   test('does not count retry streams', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'streaming',
-      operation: 'retry',
       sessionId: 'session_1',
       invokedBy: 'user_1',
+      command: { kind: 'retry' },
+      state: { phase: 'streaming' },
     }
     const { ctx, patches } = fakeCtx({ docs: [stream] })
 
@@ -853,12 +880,13 @@ describe('_finalizeStopped', () => {
       }
       const stream = {
         _id: 'stream_1',
-        status: 'stopping',
-        operation: 'retry',
         sessionId: 'session_1',
-        processingMessageId: 'message_1',
-        processingContentId: 'content_3',
-        retryPreviousVersion: 1,
+        command: { kind: 'retry', previousVersion: 1 },
+        state: {
+          phase: 'stopping',
+          processingMessageId: 'message_1',
+          processingContentId: 'content_3',
+        },
       }
       const { ctx, deletes, scheduled } = fakeCtx({
         docs: [
@@ -908,12 +936,13 @@ describe('_finalizeStopped', () => {
     const message = { _id: 'message_1', selectedVersion: 2, versionCount: 2 }
     const stream = {
       _id: 'stream_1',
-      status: 'stopping',
-      operation: 'retry',
       sessionId: 'session_1',
-      processingMessageId: 'message_1',
-      processingContentId: 'content_2',
-      retryPreviousVersion: 1,
+      command: { kind: 'retry', previousVersion: 1 },
+      state: {
+        phase: 'stopping',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_2',
+      },
     }
     const { ctx, deletes } = fakeCtx({
       docs: [stream, message],
@@ -938,11 +967,14 @@ describe('_finalizeStopped', () => {
   test('preserves retry errors on the processing message when stopped', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'stopping',
       sessionId: 'session_1',
-      processingMessageId: 'message_1',
-      processingContentId: 'content_1',
-      retryError: 'Provider 429: rate limit',
+      state: {
+        phase: 'stopping',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+        retryError: 'Provider 429: rate limit',
+      },
+      command: { kind: 'invoke' },
     }
     const message = { _id: 'message_1', selectedVersion: 1 }
     const { ctx, patches, deletes, scheduled } = fakeCtx({
@@ -978,10 +1010,13 @@ describe('_finalizeStopped', () => {
   test('settles abandoned task parts so they do not stay running', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'stopping',
       sessionId: 'session_1',
-      processingMessageId: 'message_1',
-      processingContentId: 'content_1',
+      state: {
+        phase: 'stopping',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
+      command: { kind: 'invoke' },
     }
     const { ctx, patches } = fakeCtx({
       docs: [stream, { _id: 'message_1', selectedVersion: 1 }],
@@ -1015,10 +1050,13 @@ describe('_finalizeStopped', () => {
   test('settles an aborted question request as a model-readable result', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'stopping',
       sessionId: 'session_1',
-      processingMessageId: 'message_1',
-      processingContentId: 'content_1',
+      state: {
+        phase: 'stopping',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
+      command: { kind: 'invoke' },
     }
     const { ctx, patches } = fakeCtx({
       docs: [stream, { _id: 'message_1', selectedVersion: 1 }],
@@ -1056,11 +1094,13 @@ describe('_finalizeStopped', () => {
   test('a stopped compaction stops claiming to be a summary', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'stopping',
       sessionId: 'session_1',
-      operation: 'compact',
-      processingMessageId: 'message_1',
-      processingContentId: 'content_1',
+      command: { kind: 'compact' },
+      state: {
+        phase: 'stopping',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
     }
     const { ctx, patches } = fakeCtx({
       docs: [
@@ -1088,10 +1128,13 @@ describe('_finalizeStopped', () => {
   test('settles a call that was approved but never ran', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'stopping',
       sessionId: 'session_1',
-      processingMessageId: 'message_1',
-      processingContentId: 'content_1',
+      state: {
+        phase: 'stopping',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
+      command: { kind: 'invoke' },
     }
     const { ctx, patches } = fakeCtx({
       docs: [stream, { _id: 'message_1', selectedVersion: 1 }],
@@ -1130,10 +1173,13 @@ describe('_fail', () => {
   test('settles a tool call the failed turn never answered', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'streaming',
       sessionId: 'session_1',
-      processingMessageId: 'message_1',
-      processingContentId: 'content_1',
+      state: {
+        phase: 'streaming',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
+      command: { kind: 'invoke' },
     }
     const { ctx, patches } = fakeCtx({
       docs: [stream, { _id: 'message_1', selectedVersion: 1 }],
@@ -1169,11 +1215,13 @@ describe('_fail', () => {
   test('a failed compaction no longer claims to be the context boundary', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'streaming',
       sessionId: 'session_1',
-      operation: 'compact',
-      processingMessageId: 'message_1',
-      processingContentId: 'content_1',
+      command: { kind: 'compact' },
+      state: {
+        phase: 'streaming',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
     }
     const { ctx, patches } = fakeCtx({
       docs: [
@@ -1203,11 +1251,13 @@ describe('_fail', () => {
   test('a failed regular turn keeps its type untouched', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'streaming',
       sessionId: 'session_1',
-      operation: 'invoke',
-      processingMessageId: 'message_1',
-      processingContentId: 'content_1',
+      command: { kind: 'invoke' },
+      state: {
+        phase: 'streaming',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
     }
     const { ctx, patches } = fakeCtx({
       docs: [
@@ -1318,11 +1368,14 @@ describe('stream stop contention', () => {
   test('token patches and heartbeats keep a valid lease without rewriting the stream', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'streaming',
       sessionId: 'session_1',
-      processingMessageId: 'message_1',
-      processingContentId: 'content_1',
       leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
+      state: {
+        phase: 'streaming',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
+      command: { kind: 'invoke' },
     }
     const { ctx, patches } = fakeCtx({
       docs: [stream],
@@ -1358,10 +1411,10 @@ describe('stream stop contention', () => {
   test('stop checks use a read snapshot; repeated stop requests never reschedule finalization', async () => {
     const stream = {
       _id: 'stream_1',
-      status: 'streaming',
       sessionId: 'session_1',
-      processingMessageId: 'message_1',
       leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
+      state: { phase: 'streaming', processingMessageId: 'message_1' },
+      command: { kind: 'invoke' },
     }
     const { ctx, patches, scheduled } = fakeCtx({ docs: [stream] })
     expect(
@@ -1397,7 +1450,14 @@ describe('stream stop contention', () => {
 
   test('read-only stop checks still distinguish a soft timeout from active streaming', async () => {
     const { ctx, patches, scheduled } = fakeCtx({
-      docs: [{ _id: 'stream_1', status: 'streaming', stopAt: Date.now() }],
+      docs: [
+        {
+          _id: 'stream_1',
+          stopAt: Date.now(),
+          state: { phase: 'streaming' },
+          command: { kind: 'invoke' },
+        },
+      ],
     })
     expect(
       await _getStopState(ctx, {

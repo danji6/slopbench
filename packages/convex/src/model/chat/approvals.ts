@@ -46,15 +46,11 @@ export async function approveTool(ctx: AuthMutationCtx, args: ApproveToolArgs) {
   }
 
   const stream = await Memberships.getActiveStream(ctx, session._id)
-  if (
-    !stream ||
-    stream.status !== 'awaiting_approval' ||
-    !stream.processingMessageId
-  ) {
+  if (!stream) error('No tool approval is pending', 409)
+  if (stream.state.phase !== 'awaiting_approval')
     error('No tool approval is pending', 409)
-  }
 
-  const message = await ctx.db.get(stream.processingMessageId)
+  const message = await ctx.db.get(stream.state.processingMessageId)
   if (!message) error('Message not found', 404)
 
   const row = await getProcessingSegmentRow(ctx, stream)

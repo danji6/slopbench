@@ -1,6 +1,7 @@
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import { error } from '../../errors'
+import type { StreamCommand } from '../../types'
 import { addVersion, getActiveSegmentRow } from '../messageContents'
 import { scheduleTitle, stripMessageError } from '../messages'
 import { announceFolderContext } from '../session/folderAnnouncement'
@@ -11,21 +12,16 @@ import { scheduleStream } from '../stream/execution'
 import { STREAM_LEASE_MS } from '../stream/lifecycle'
 import { agentIdentity } from './identities'
 
-export async function reserveStream(
-  ctx: MutationCtx,
-  args: {
-    sessionId: Id<'sessions'>
-    agentId: Id<'agents'>
-    invokedBy: Id<'users'>
-    boundaryId?: Id<'messages'>
-    operation: 'invoke' | 'compact' | 'impersonate'
-    instructions?: string
-    delayMs?: number
-    preserveContextBoundary?: boolean
-    followUpAfterCompact?: boolean
-    autoCompact?: boolean
-  },
-) {
+type ReserveStreamArgs = {
+  sessionId: Id<'sessions'>
+  agentId: Id<'agents'>
+  invokedBy: Id<'users'>
+  boundaryId?: Id<'messages'>
+  command: Exclude<StreamCommand, { kind: 'retry' }>
+  delayMs?: number
+}
+
+export async function reserveStream(ctx: MutationCtx, args: ReserveStreamArgs) {
   if (await Memberships.getActiveStream(ctx, args.sessionId)) return null
 
   const link = await ctx.db
@@ -47,6 +43,15 @@ export async function reserveStream(
   const boundary = announcement ?? (args.boundaryId ? await ctx.db.get(args.boundaryId) : null) // prettier-ignore
   const delayMs = args.delayMs ?? 0
 
+  // Snapshot plan mode for regular invocations
+  const command =
+    args.command.kind === 'invoke'
+      ? {
+          ...args.command,
+          mode: session?.mode === 'plan' ? session.mode : undefined,
+        }
+      : args.command
+
   const streamId = await ctx.db.insert('streams', {
     generation: 0,
     sessionId: args.sessionId,
@@ -54,25 +59,17 @@ export async function reserveStream(
     invokedBy: args.invokedBy,
     contextBoundaryMessageId: boundary?._id,
     contextBoundaryCreationTime: boundary?._creationTime,
-    operation: args.operation,
-    // Plan mode only applies to regular invocations, snapshotted per turn
-    ...(args.operation === 'invoke' && session?.mode === 'plan'
-      ? { mode: session.mode }
-      : {}),
-    blocking: args.operation === 'compact',
-    instructions: args.instructions,
-    status: 'pending',
+    command,
+    state: { phase: 'reserved' },
     attempt: 0,
     leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
-    preserveContextBoundary: args.preserveContextBoundary,
-    followUpAfterCompact: args.followUpAfterCompact,
-    autoCompact: args.autoCompact,
-    ...(delayMs > 0 ? { fireAt: Date.now() + delayMs } : {}),
   })
 
-  const jobId = await scheduleStream(ctx, streamId, { delayMs: delayMs })
+  await scheduleStream(ctx, streamId, {
+    delayMs,
+    fireAt: delayMs > 0 ? Date.now() + delayMs : undefined,
+  })
 
-  await ctx.db.patch(streamId, { jobId })
   return streamId
 }
 
@@ -104,14 +101,10 @@ export async function reserveOrDebounceTurn(
       agentId: session.activeAgentId,
       invokedBy,
       boundaryId: messageId,
-      operation: 'invoke',
+      command: { kind: 'invoke' },
       delayMs: debounceMs,
     })
-  } else if (
-    activeStream &&
-    activeStream.status === 'pending' &&
-    activeStream.operation === 'invoke'
-  ) {
+  } else if (canDebounceInvoke(activeStream)) {
     // New messages reschedule the pending turn so the claim reads up to them
     await rescheduleStream(ctx, activeStream, {
       boundaryId: messageId,
@@ -122,33 +115,48 @@ export async function reserveOrDebounceTurn(
   if (!willStream) await scheduleTitle(ctx, session._id)
 }
 
+/** Identifies a queued invocation whose context can still absorb new messages. */
+function canDebounceInvoke(
+  stream: Doc<'streams'> | null,
+): stream is Doc<'streams'> {
+  if (!stream) return false
+  return stream.state.phase === 'pending' && stream.command.kind === 'invoke'
+}
+
 /** Reschedules a pending stream invocation (debounce). */
 export async function rescheduleStream(
   ctx: MutationCtx,
-  stream: { _id: Id<'streams'>; jobId?: Id<'_scheduled_functions'> },
+  stream: Pick<Doc<'streams'>, '_id'>,
   { boundaryId, delayMs }: { boundaryId: Id<'messages'>; delayMs: number },
 ) {
   const boundary = await ctx.db.get(boundaryId)
-  const jobId = await scheduleStream(ctx, stream._id, { delayMs: delayMs })
+
+  await scheduleStream(ctx, stream._id, {
+    delayMs,
+    fireAt: Date.now() + delayMs,
+  })
 
   await ctx.db.patch(stream._id, {
-    jobId,
-    fireAt: Date.now() + delayMs,
     contextBoundaryMessageId: boundaryId,
     contextBoundaryCreationTime: boundary?._creationTime,
   })
 }
 
+type ReserveMessageStreamArgs = {
+  sessionId: Id<'sessions'>
+  agentId: Id<'agents'>
+  invokedBy: Id<'users'>
+  messageId: Id<'messages'>
+  boundaryId?: Id<'messages'>
+}
+
+type ReserveResumableStreamArgs = ReserveMessageStreamArgs & {
+  suppressFollowUp?: boolean
+}
+
 export async function reserveResumableStream(
   ctx: MutationCtx,
-  args: {
-    sessionId: Id<'sessions'>
-    agentId: Id<'agents'>
-    invokedBy: Id<'users'>
-    messageId: Id<'messages'>
-    boundaryId?: Id<'messages'>
-    suppressFollowUp?: boolean
-  },
+  args: ReserveResumableStreamArgs,
 ) {
   if (await Memberships.getActiveStream(ctx, args.sessionId)) return null
 
@@ -191,34 +199,29 @@ export async function reserveResumableStream(
     sessionId: args.sessionId,
     agentId: args.agentId,
     invokedBy: args.invokedBy,
-    processingMessageId: args.messageId,
-    processingContentId: active?._id,
+    state: {
+      phase: 'reserved',
+      processingMessageId: args.messageId,
+      processingContentId: active?._id,
+    },
     contextBoundaryMessageId: boundary?._id,
     contextBoundaryCreationTime: boundary?._creationTime,
-    operation: 'invoke',
-    ...(session?.mode === 'plan' ? { mode: session.mode } : {}),
-    blocking: false,
-    status: 'pending',
+    command: {
+      kind: 'invoke',
+      mode: session?.mode === 'plan' ? session.mode : undefined,
+    },
     attempt: 0,
     leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
     suppressFollowUp: args.suppressFollowUp,
   })
 
-  const jobId = await scheduleStream(ctx, streamId, { delayMs: 0 })
-
-  await ctx.db.patch(streamId, { jobId })
+  await scheduleStream(ctx, streamId)
   return streamId
 }
 
 export async function reserveRetryStream(
   ctx: MutationCtx,
-  args: {
-    sessionId: Id<'sessions'>
-    agentId: Id<'agents'>
-    invokedBy: Id<'users'>
-    messageId: Id<'messages'>
-    boundaryId?: Id<'messages'>
-  },
+  args: ReserveMessageStreamArgs,
 ) {
   if (await Memberships.getActiveStream(ctx, args.sessionId)) return null
 
@@ -256,22 +259,20 @@ export async function reserveRetryStream(
     sessionId: args.sessionId,
     agentId: args.agentId,
     invokedBy: args.invokedBy,
-    processingMessageId: args.messageId,
-    processingContentId: contentId,
+    state: {
+      phase: 'reserved',
+      processingMessageId: args.messageId,
+      processingContentId: contentId,
+    },
     contextBoundaryMessageId: boundary?._id,
     contextBoundaryCreationTime: boundary?._creationTime,
-    operation: 'retry',
-    retryPreviousVersion,
-    blocking: false,
-    status: 'pending',
+    command: { kind: 'retry', previousVersion: retryPreviousVersion },
     attempt: 0,
     leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
     suppressFollowUp: true,
   })
 
-  const jobId = await scheduleStream(ctx, streamId, { delayMs: 0 })
-
-  await ctx.db.patch(streamId, { jobId })
+  await scheduleStream(ctx, streamId)
   return streamId
 }
 

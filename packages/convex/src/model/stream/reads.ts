@@ -50,13 +50,12 @@ export async function _getContext(
 ) {
   const stream = await ctx.db.get(streamId)
   if (!ownsExecution(stream, { streamId, generation })) return null
-  if (!stream.processingMessageId) return null
 
   const [session, agent, invoker, output] = await Promise.all([
     getSessionWithWorkspace(ctx, stream.sessionId),
     agentWithHome(ctx, stream.agentId),
     ctx.db.get(stream.invokedBy),
-    ctx.db.get(stream.processingMessageId),
+    ctx.db.get(stream.state.processingMessageId),
   ])
   if (!session || !agent || !invoker || !output) return null
 
@@ -89,7 +88,7 @@ export async function _getContext(
 
   // Sub-agent sessions never spawn further sub-agents (flat only)
   const invocation =
-    stream.operation === 'invoke' || stream.operation === 'retry'
+    stream.command.kind === 'invoke' || stream.command.kind === 'retry'
   const spawnableAgents =
     invocation && !session.parent
       ? await resolveSpawnableAgents(ctx, agent)
@@ -174,12 +173,12 @@ export async function _getProviderHistory(
 
   // The in-flight turn joins the history with all its segments concatenated
   // (sealed split segments are only reachable through the processing doc)
-  const current = stream.processingMessageId
-    ? await ctx.db.get(stream.processingMessageId)
+  const current = stream.state.processingMessageId
+    ? await ctx.db.get(stream.state.processingMessageId)
     : null
 
   const includesProcessingMessage =
-    stream.operation === 'invoke' || stream.operation === 'retry'
+    stream.command.kind === 'invoke' || stream.command.kind === 'retry'
   if (current && includesProcessingMessage) {
     const joined = await withParts(ctx, current)
     if (joined.parts.length > 0) {
@@ -200,8 +199,8 @@ export async function _isActive(
 
 /** Detects media loaded anywhere in the active debounced turn or tool step. */
 async function getActiveMediaState(ctx: QueryCtx, stream: Doc<'streams'>) {
-  const processing = stream.processingMessageId
-    ? await ctx.db.get(stream.processingMessageId)
+  const processing = stream.state.processingMessageId
+    ? await ctx.db.get(stream.state.processingMessageId)
     : null
   if (processing) {
     const joined = await withParts(ctx, processing)

@@ -20,6 +20,7 @@ import {
 import { notACommandChip, textFromParts } from '../messages'
 import * as Memberships from '../session/memberships'
 import { hasOutputRef } from '../stream/toolOutput'
+import { activeStreamView } from '../stream/view'
 
 /** One loaded segment of a window message. */
 export type WindowSegment = {
@@ -464,7 +465,7 @@ export async function getActiveStream(
 ) {
   const member = await Memberships.getMember(ctx, sessionId, ctx.userId)
   if (!member) return null
-  return Memberships.getActiveStream(ctx, sessionId)
+  return activeStreamView(await Memberships.getActiveStream(ctx, sessionId))
 }
 
 export async function getToolOutputUrl(

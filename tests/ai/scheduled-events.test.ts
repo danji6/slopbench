@@ -153,11 +153,10 @@ function baseRows(operation: 'invoke' | 'compact' = 'invoke') {
         sessionId: 'session_1',
         agentId: 'agent_1',
         invokedBy: 'user_1',
-        operation,
-        blocking: operation === 'compact',
-        status: 'streaming',
         attempt: 0,
         leaseExpiresAt: Date.now() + 60_000,
+        command: { kind: operation },
+        state: { phase: 'streaming' },
       },
     ],
   }
@@ -275,7 +274,9 @@ describe('/autoCompact schedules', () => {
     })
 
     const source = state.rows('streams')[0]
-    source.processingMessageId = 'source_message'
+    Object.assign(source.state as object, {
+      processingMessageId: 'source_message',
+    })
     await state.remove(source._id)
     const handled = await handleStreamEnd(state.ctx, source as never, 'stopped')
 
@@ -292,18 +293,20 @@ describe('/autoCompact schedules', () => {
     ])
     expect(state.rows('streams')).toContainEqual(
       expect.objectContaining({
-        operation: 'compact',
         contextBoundaryMessageId: 'source_message',
-        preserveContextBoundary: true,
-        followUpAfterCompact: false,
-        autoCompact: true,
+        command: expect.objectContaining({
+          kind: 'compact',
+          preserveContextBoundary: true,
+          followUpAfterCompact: false,
+          autoCompact: true,
+        }),
       }),
     )
   })
 
   test('a timeout before streaming still runs the pending compaction', async () => {
     const state = fakeCtx(baseRows())
-    state.rows('streams')[0].status = 'pending'
+    state.rows('streams')[0].state = { phase: 'pending', jobId: 'old_job' }
     await autoCompact(state.ctx, { sessionId: 'session_1' as never })
     await timeout(state.ctx, {
       sessionId: 'session_1' as never,
@@ -324,9 +327,11 @@ describe('/autoCompact schedules', () => {
     ])
     expect(state.rows('streams')).toContainEqual(
       expect.objectContaining({
-        operation: 'compact',
-        followUpAfterCompact: false,
-        autoCompact: true,
+        command: expect.objectContaining({
+          kind: 'compact',
+          followUpAfterCompact: false,
+          autoCompact: true,
+        }),
       }),
     )
   })
@@ -346,7 +351,9 @@ describe('/autoCompact schedules', () => {
     })
     await autoCompact(state.ctx, { sessionId: 'session_1' as never })
     const source = state.rows('streams')[0]
-    source.processingMessageId = 'source_message'
+    Object.assign(source.state as object, {
+      processingMessageId: 'source_message',
+    })
     await state.remove(source._id)
 
     const scheduledCompact = await handleStreamEnd(
@@ -363,11 +370,13 @@ describe('/autoCompact schedules', () => {
     })
     expect(state.rows('streams')).toContainEqual(
       expect.objectContaining({
-        operation: 'compact',
         contextBoundaryMessageId: 'source_message',
-        preserveContextBoundary: true,
-        followUpAfterCompact: true,
-        autoCompact: true,
+        command: expect.objectContaining({
+          kind: 'compact',
+          preserveContextBoundary: true,
+          followUpAfterCompact: true,
+          autoCompact: true,
+        }),
       }),
     )
   })
@@ -387,7 +396,9 @@ describe('/autoCompact schedules', () => {
     })
     await autoCompact(state.ctx, { sessionId: 'session_1' as never })
     const source = state.rows('streams')[0]
-    source.processingMessageId = 'source_message'
+    Object.assign(source.state as object, {
+      processingMessageId: 'source_message',
+    })
     await state.remove(source._id)
 
     await handleStreamEnd(state.ctx, source as never, 'failed')
@@ -395,8 +406,10 @@ describe('/autoCompact schedules', () => {
     const compact = state.rows('streams')[0]
     expect(compact).toEqual(
       expect.objectContaining({
-        operation: 'compact',
-        followUpAfterCompact: false,
+        command: expect.objectContaining({
+          kind: 'compact',
+          followUpAfterCompact: false,
+        }),
       }),
     )
 

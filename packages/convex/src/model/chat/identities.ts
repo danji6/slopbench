@@ -67,12 +67,12 @@ export async function userOutputIdentity(
 export async function streamOutputIdentity(
   ctx: MutationCtx,
   stream: {
-    operation: Doc<'streams'>['operation']
+    command: Doc<'streams'>['command']
     agentId: Id<'agents'>
     invokedBy: Id<'users'>
   },
 ) {
-  if (stream.operation === 'impersonate') {
+  if (stream.command.kind === 'impersonate') {
     return userOutputIdentity(ctx, stream.invokedBy)
   }
 

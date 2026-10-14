@@ -68,7 +68,8 @@ export async function autoCompact(
   if (!session.activeAgentId) error('No active agent', 409)
 
   const stream = await Memberships.getActiveStream(ctx, sessionId)
-  const targetStreamId = stream?.operation === 'invoke' ? stream._id : undefined
+  const targetStreamId =
+    stream?.command.kind === 'invoke' ? stream._id : undefined
   const messageId = await insertCommandChip(
     ctx,
     session,
@@ -108,12 +109,12 @@ export async function runScheduledEvent(
   const stream = event.targetStreamId
     ? await ctx.db.get(event.targetStreamId)
     : null
-  if (
+
+  const targetFinished =
     !stream ||
     stream.sessionId !== event.sessionId ||
-    stream.status === 'stopping' ||
-    stream.status === 'failed'
-  ) {
+    stream.state.phase === 'stopping'
+  if (targetFinished) {
     await Events.cancel(ctx, event, 'Turn finished before timeout', {
       cancelJob: false,
     })
@@ -123,7 +124,7 @@ export async function runScheduledEvent(
   const timedStream = { ...stream, stopAt: Date.now() }
   await ctx.db.patch(stream._id, { stopAt: timedStream.stopAt })
 
-  if (stream.status === 'streaming') {
+  if (stream.state.phase === 'streaming') {
     await Events.consume(ctx, event, { cancelJob: false })
     return
   }
@@ -150,7 +151,7 @@ export async function handleStreamEnd(
     }
   }
 
-  if (stream.operation !== 'invoke') return false
+  if (stream.command.kind !== 'invoke') return false
 
   const event = await Events.getByKey(ctx, stream.sessionId, 'autoCompact')
   if (!event || event.action.type !== 'compact_session') return false
@@ -179,8 +180,8 @@ export async function handleStreamEnd(
       event.invokedBy,
       undefined,
       {
-        boundaryId: stream.processingMessageId,
-        preserveContextBoundary: Boolean(stream.processingMessageId),
+        boundaryId: stream.state.processingMessageId,
+        preserveContextBoundary: Boolean(stream.state.processingMessageId),
         followUpAfterCompact:
           outcome === 'complete' && !stream.suppressFollowUp,
         autoCompact: true,

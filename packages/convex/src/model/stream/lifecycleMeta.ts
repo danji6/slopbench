@@ -28,13 +28,13 @@ export async function _saveMeta(
   if (!ownsExecution(stream, { streamId, generation })) return
 
   const row = await getProcessingSegmentRow(ctx, stream)
-  if (row && stream.processingMessageId) {
+  if (row && stream.state.processingMessageId) {
     // Accumulate step deltas into the segment's slice and the turn total
-    const message = await ctx.db.get(stream.processingMessageId)
+    const message = await ctx.db.get(stream.state.processingMessageId)
     const delta = { duration, toolErrors, warnings, usage }
     await saveSegmentMeta(ctx, {
       row,
-      messageId: stream.processingMessageId,
+      messageId: stream.state.processingMessageId,
       rowMetadata: accumulateMeta(row.metadata, delta),
       docMetadata: accumulateMeta(message?.metadata, delta),
     })

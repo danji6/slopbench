@@ -1,4 +1,5 @@
-import type { Doc, Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@sb/convex/_generated/dataModel'
+import type { ActiveStream } from '@sb/convex/types'
 
 import { normalizeStatus } from './stream'
 
@@ -6,7 +7,7 @@ export type StreamStore = ReturnType<typeof createStreamStore>
 
 /** Granular active stream store to minimize unnecessary re-renders. */
 export function createStreamStore() {
-  let stream: Doc<'streams'> | null = null
+  let stream: ActiveStream | null = null
   const listeners = new Set<() => void>()
 
   const subscribe = (listener: () => void) => {
@@ -14,7 +15,7 @@ export function createStreamStore() {
     return () => listeners.delete(listener)
   }
 
-  const sync = (next: Doc<'streams'> | null) => {
+  const sync = (next: ActiveStream | null) => {
     stream = next
     listeners.forEach((listener) => listener())
   }
@@ -22,9 +23,9 @@ export function createStreamStore() {
   return {
     subscribe,
     sync,
-    getStream: (): Doc<'streams'> | null => stream,
+    getStream: (): ActiveStream | null => stream,
     getNormalizedStatus: () => normalizeStatus(stream),
-    getRawStatus: (): Doc<'streams'>['status'] | undefined => stream?.status,
+    getRawStatus: (): ActiveStream['status'] | undefined => stream?.status,
     getProcessingMessageId: (): Id<'messages'> | undefined =>
       stream?.processingMessageId,
     getInvokedBy: (): Id<'users'> | undefined => stream?.invokedBy,

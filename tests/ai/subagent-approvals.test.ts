@@ -41,16 +41,20 @@ function setup(
     _id: 'child_stream',
     sessionId: childId,
     agentId: 'agent',
-    status: 'awaiting_approval',
     leaseExpiresAt: Date.now() + 60_000,
-    processingMessageId: 'message',
-    processingContentId: 'content',
+    state: {
+      phase: 'awaiting_approval',
+      processingMessageId: 'message',
+      processingContentId: 'content',
+    },
+    command: { kind: 'invoke' },
   }
   const parentStream = {
     ...stream,
     _id: 'parent_stream',
     sessionId: parentId,
-    processingContentId: 'parent_content',
+    state: { ...stream.state, processingContentId: 'parent_content' },
+    command: { kind: 'invoke' },
   }
   const parentState = {
     _id: 'parent_state',
@@ -124,7 +128,9 @@ describe('sub-agent approvals in the parent session', () => {
     expect(byId.get('child_state')?.toolApprovals).toEqual({
       shell: ['git status'],
     })
-    expect(byId.get('child_stream')?.status).toBe('awaiting_approval')
+    expect((byId.get('child_stream')?.state as { phase: string })?.phase).toBe(
+      'awaiting_approval',
+    )
     expect(scheduled).toHaveLength(0)
 
     await approveTool(ctx, {
@@ -141,13 +147,17 @@ describe('sub-agent approvals in the parent session', () => {
         approval: { approved: false, reason: 'Do not write this file' },
       },
     ])
-    expect(byId.get('child_stream')?.status).toBe('pending')
+    expect((byId.get('child_stream')?.state as { phase: string })?.phase).toBe(
+      'pending',
+    )
     expect(scheduled).toHaveLength(1)
     expect(scheduled[0]?.args[2]).toEqual({
       streamId: 'child_stream',
       generation: 1,
     })
-    expect(byId.get('parent_stream')?.status).toBe('awaiting_approval')
+    expect((byId.get('parent_stream')?.state as { phase: string })?.phase).toBe(
+      'awaiting_approval',
+    )
     expect(byId.get('parent_content')?.parts).toEqual([approval('shell')])
     expect(await pendingApprovals(ctx, { sessionId: parentId })).toEqual([])
   })

@@ -24,7 +24,7 @@ import type { PromptEvalResult } from './operations'
 
 export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
   const data = await ctx.runQuery(internal.streams._getContext, execution)
-  if (!data?.stream || data.stream.status === 'stopping') return null
+  if (!data) return null
 
   if (minRole(data.invoker.role, 'admin')) {
     data.session.workspace = await resolvePersonalWorkspace(

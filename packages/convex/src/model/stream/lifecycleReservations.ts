@@ -121,18 +121,17 @@ export async function reserveInvokeTurn(
     sessionId: session._id,
     agentId: agent._id,
     invokedBy,
-    processingMessageId,
-    processingContentId: contentId,
+    state: {
+      phase: 'reserved',
+      processingMessageId,
+      processingContentId: contentId,
+    },
     contextBoundaryMessageId: boundaryMessage._id,
     contextBoundaryCreationTime: boundaryMessage._creationTime,
-    operation: 'invoke',
-    blocking: false,
-    status: 'pending',
+    command: { kind: 'invoke' },
     attempt: 0,
     leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
   })
 
-  const jobId = await scheduleStream(ctx, nextStreamId, { delayMs: 0 })
-
-  await ctx.db.patch(nextStreamId, { jobId })
+  await scheduleStream(ctx, nextStreamId)
 }

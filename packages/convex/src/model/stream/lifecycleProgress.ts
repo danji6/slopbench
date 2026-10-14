@@ -34,12 +34,11 @@ export async function _patchMessage(
 ) {
   const stream = await ctx.db.get(streamId)
   if (!ownsExecution(stream, { streamId, generation })) return false
-  if (!stream.processingMessageId) return false
 
   const row = await getProcessingSegmentRow(ctx, stream)
   if (!row) return false
 
-  await patchSegmentParts(ctx, stream.processingMessageId, row, parts)
+  await patchSegmentParts(ctx, stream.state.processingMessageId, row, parts)
 
   await renewStreamLease(ctx, stream)
 
@@ -56,9 +55,9 @@ export async function consumeInterjections(
   ctx: MutationCtx,
   stream: Doc<'streams'>,
 ) {
-  if (!stream.processingMessageId) return false
+  if (!stream.state.processingMessageId) return false
 
-  const current = await ctx.db.get(stream.processingMessageId)
+  const current = await ctx.db.get(stream.state.processingMessageId)
   if (!current) return false
 
   const row = await getProcessingSegmentRow(ctx, stream)
@@ -111,9 +110,8 @@ export async function _continue(
 ) {
   const stream = await ctx.db.get(streamId)
   if (!ownsExecution(stream, { streamId, generation })) return false
-  if (!stream.processingMessageId) return false
 
-  const current = await ctx.db.get(stream.processingMessageId)
+  const current = await ctx.db.get(stream.state.processingMessageId)
   if (!current) return false
 
   const row = await getProcessingSegmentRow(ctx, stream)
@@ -124,7 +122,7 @@ export async function _continue(
   // one. The doc stays processing, the context boundary doesn't move.
   const overCap =
     !!row &&
-    stream.operation !== 'compact' &&
+    stream.command.kind !== 'compact' &&
     serializedSize(row.parts) > MESSAGE_SPLIT_BUDGET_BYTES
 
   if (row && overCap) {
@@ -138,7 +136,7 @@ export async function _continue(
     })
     const contentId = await appendSegment(ctx, row)
     await ctx.db.patch(streamId, {
-      processingContentId: contentId,
+      state: { ...stream.state, processingContentId: contentId },
       attempt: 0,
       leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
     })
@@ -159,7 +157,7 @@ export async function _recordStep(
 ) {
   const stream = await ctx.db.get(streamId)
   if (!ownsExecution(stream, { streamId, generation })) return false
-  if (stream.operation !== 'invoke') return false
+  if (stream.command.kind !== 'invoke') return false
 
   const stepCount = await advanceStepCount(ctx, stream.sessionId)
   if (!interruptible) return true
@@ -194,8 +192,11 @@ export async function rolloverProcessingMessage(
   )
 
   await ctx.db.patch(stream._id, {
-    processingMessageId: messageId,
-    processingContentId: contentId,
+    state: {
+      ...stream.state,
+      processingMessageId: messageId,
+      processingContentId: contentId,
+    },
     contextBoundaryMessageId: boundary._id,
     contextBoundaryCreationTime: boundary._creationTime,
     attempt: 0,

@@ -143,9 +143,10 @@ export async function _stream(ctx: ActionCtx, execution: StreamExecutionArgs) {
     )
     if (retriedWithoutMedia) return
 
-    const retryDelay = claimed.autoCompact
-      ? getAutoCompactRetryDelay(retryOptions)
-      : getProviderRetryDelay(retryOptions)
+    const retryDelay =
+      claimed.command.kind === 'compact' && claimed.command.autoCompact
+        ? getAutoCompactRetryDelay(retryOptions)
+        : getProviderRetryDelay(retryOptions)
 
     if (retryDelay !== null) {
       await ctx.runMutation(internal.streams._scheduleRetry, {

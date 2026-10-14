@@ -49,7 +49,11 @@ function note(
 
 function providerData(boundaryId?: string) {
   return {
-    stream: { _id: 'stream_1', contextBoundaryMessageId: boundaryId },
+    stream: {
+      state: { phase: 'streaming', processingMessageId: 'output' },
+      _id: 'stream_1',
+      contextBoundaryMessageId: boundaryId,
+    },
     session: {},
     agent: agent(),
     settings: {},
@@ -59,7 +63,10 @@ function providerData(boundaryId?: string) {
 
 function providerDataWithWorkspace() {
   return {
-    stream: { _id: 'stream_1' },
+    stream: {
+      state: { phase: 'streaming', processingMessageId: 'output' },
+      _id: 'stream_1',
+    },
     session: {
       _id: 'session_1',
       workspace: { workspaceId: 'ws_1', label: 'ws' },
@@ -711,7 +718,10 @@ describe('buildProviderHistory', () => {
 
   test('keeps completed tool outputs in provider history', async () => {
     const data = {
-      stream: { _id: 'stream_1' },
+      stream: {
+        state: { phase: 'streaming', processingMessageId: 'output' },
+        _id: 'stream_1',
+      },
       agent: agent(),
       settings: {},
     } as never
@@ -767,7 +777,11 @@ describe('buildProviderHistory', () => {
 
   test('drops incomplete tool calls from the current processing message', async () => {
     const data = {
-      stream: { _id: 'stream_1', processingMessageId: 'message_1' },
+      stream: {
+        _id: 'stream_1',
+        state: { processingMessageId: 'message_1' },
+        command: { kind: 'invoke' },
+      },
       agent: agent(),
       settings: {},
     } as never
@@ -804,7 +818,10 @@ describe('buildProviderHistory', () => {
     // Left as a bare tool-call the AI SDK would drop it, blinding the model
     // and driving a retry loop. Report that approval was interrupted instead.
     const data = {
-      stream: { _id: 'stream_1' },
+      stream: {
+        state: { phase: 'streaming', processingMessageId: 'output' },
+        _id: 'stream_1',
+      },
       agent: agent(),
       settings: {},
     } as never
@@ -845,7 +862,11 @@ describe('buildProviderHistory', () => {
   test('keeps approved tool calls so they can execute', async () => {
     // Only in the turn being written: that call is about to run
     const data = {
-      stream: { _id: 'stream_1', processingMessageId: 'message_1' },
+      stream: {
+        _id: 'stream_1',
+        state: { processingMessageId: 'message_1' },
+        command: { kind: 'invoke' },
+      },
       agent: agent(),
       settings: {},
     } as never
@@ -912,7 +933,11 @@ describe('buildProviderHistory', () => {
    */
   test('answers an approved call a finished turn never ran', async () => {
     const data = {
-      stream: { _id: 'stream_1', processingMessageId: 'message_2' },
+      stream: {
+        _id: 'stream_1',
+        state: { processingMessageId: 'message_2' },
+        command: { kind: 'invoke' },
+      },
       agent: agent(),
       settings: {},
     } as never
@@ -947,7 +972,10 @@ describe('buildProviderHistory', () => {
 
   test('keeps denied tool calls as answered results', async () => {
     const data = {
-      stream: { _id: 'stream_1' },
+      stream: {
+        state: { phase: 'streaming', processingMessageId: 'output' },
+        _id: 'stream_1',
+      },
       agent: agent(),
       settings: {},
     } as never

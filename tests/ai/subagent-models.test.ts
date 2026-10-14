@@ -56,10 +56,13 @@ function setup(
         _id: 'stream',
         sessionId: session._id,
         agentId: parent._id,
-        status: 'streaming',
         invokedBy: owner,
-        processingMessageId: 'message',
-        processingContentId: 'content',
+        state: {
+          phase: 'streaming',
+          processingMessageId: 'message',
+          processingContentId: 'content',
+        },
+        command: { kind: 'invoke' },
       },
       { _id: 'message', selectedVersion: 1 },
       {

@@ -56,14 +56,14 @@ export async function buildProviderHistory(
         readerEnabled,
         toolMediaActive:
           !data.stream.omitActiveMedia &&
-          message._id === data.stream.processingMessageId,
+          message._id === data.stream.state.processingMessageId,
       }),
     )
     messages.push({
       id: message._id,
       role: role as MessageRole,
       parts:
-        message._id === data.stream.processingMessageId
+        message._id === data.stream.state.processingMessageId
           ? parts
           : (settleUnansweredToolParts(parts) as UIMessage['parts']),
     })

@@ -1,12 +1,14 @@
-import type { Doc, Id } from '../../_generated/dataModel'
+import type { Id } from '../../_generated/dataModel'
 import type { AuthQueryCtx } from '../../functions'
+import type { ActiveStream } from '../../types'
 import { getActiveStream, getMembership } from '../session/memberships'
+import { activeStreamView } from '../stream/view'
 import { lastRequestInputTokens } from './usage'
 
 export type SubagentWatch = {
   title: string | null
   /** Active stream status, null once the child turn settled. */
-  status: Doc<'streams'>['status'] | null
+  status: ActiveStream['status'] | null
   agent: { name: string; avatarId?: Id<'avatars'> } | null
   /** Input tokens on the child session's most recent request. */
   tokens: number | null
@@ -32,7 +34,7 @@ export async function watch(
   const agent = session.activeAgentId
     ? await ctx.db.get(session.activeAgentId)
     : null
-  const stream = await getActiveStream(ctx, sessionId)
+  const stream = activeStreamView(await getActiveStream(ctx, sessionId))
 
   return {
     title: session.title ?? null,

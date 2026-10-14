@@ -6,8 +6,7 @@ import type { ScheduleStreamRetryArgs, StreamExecutionArgs } from '../../types'
 import { releaseForSession } from '../shellJobs'
 import { scheduleStream } from './execution'
 import { ownsExecution } from './execution'
-import { STREAM_LEASE_MS } from './lifecycleClaims'
-import { honorSoftStop } from './stop'
+import { honorSoftStop, stopExecution } from './stop'
 
 /** Stops a timed out stream at the seam after its current provider step. */
 export async function _honorSoftStop(
@@ -28,19 +27,7 @@ export async function _scheduleRetry(
   if (!ownsExecution(stream, { streamId, generation })) return
   if (await honorSoftStop(ctx, stream)) return
 
-  const jobId = await scheduleStream(ctx, streamId, {
-    at: retryAt,
-    status: 'retrying',
-  })
-
-  await ctx.db.patch(streamId, {
-    status: 'retrying',
-    attempt: stream.attempt + 1,
-    retryAt,
-    retryError,
-    jobId,
-    leaseExpiresAt: retryAt + STREAM_LEASE_MS,
-  })
+  await scheduleStream(ctx, streamId, { kind: 'retrying', retryAt, retryError })
 }
 
 export async function _omitActiveMedia(
@@ -100,17 +87,7 @@ export async function stopForSession(
     .collect()
 
   for (const stream of streams) {
-    if (stream.jobId) await ctx.scheduler.cancel(stream.jobId)
-
-    await ctx.db.patch(stream._id, {
-      status: 'stopping',
-      suppressFollowUp: true,
-      ...(options?.suppressReport ? { suppressReport: true } : {}),
-    })
-
-    await ctx.scheduler.runAfter(0, internal.streams._finalizeStopped, {
-      streamId: stream._id,
-    })
+    await stopExecution(ctx, stream, options)
   }
 }
 
@@ -121,15 +98,6 @@ export async function stopForUser(ctx: MutationCtx, userId: Id<'users'>) {
     .collect()
 
   for (const stream of streams) {
-    if (stream.jobId) await ctx.scheduler.cancel(stream.jobId)
-
-    await ctx.db.patch(stream._id, {
-      status: 'stopping',
-      suppressFollowUp: true,
-    })
-
-    await ctx.scheduler.runAfter(0, internal.streams._finalizeStopped, {
-      streamId: stream._id,
-    })
+    await stopExecution(ctx, stream)
   }
 }

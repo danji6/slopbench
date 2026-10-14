@@ -495,11 +495,12 @@ describe('reserveRetryStream', () => {
     // The retry stream writes into the new segment row
     const stream = inserts.find(({ table }) => table === 'streams')
     expect(stream?.fields).toMatchObject({
-      operation: 'retry',
-      retryPreviousVersion: 1,
-      processingMessageId: 'm_target',
-      processingContentId: 'inserted_1',
       suppressFollowUp: true,
+      command: { kind: 'retry', previousVersion: 1 },
+      state: {
+        processingMessageId: 'm_target',
+        processingContentId: 'inserted_1',
+      },
     })
   })
 })

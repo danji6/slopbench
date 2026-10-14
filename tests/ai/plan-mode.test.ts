@@ -151,10 +151,14 @@ describe('plan edits', () => {
 })
 
 describe('plan mode transitions', () => {
-  function transitionCtx(plan: Record<string, unknown> | null) {
+  function transitionCtx(
+    plan: Record<string, unknown> | null,
+    command: Record<string, unknown> = { kind: 'invoke' },
+  ) {
     const patches: Array<{ id: string; patch: Record<string, unknown> }> = []
     const ctx = {
       db: {
+        get: async () => ({ _id: 'stream_1', command }),
         query: () => ({
           withIndex: () => ({ unique: async () => plan }),
         }),
@@ -176,7 +180,10 @@ describe('plan mode transitions', () => {
     expect(patches).toEqual([
       { id: 'plan_1', patch: { status: 'approved' } },
       { id: 'session_1', patch: { mode: undefined } },
-      { id: 'stream_1', patch: { mode: undefined } },
+      {
+        id: 'stream_1',
+        patch: { command: { kind: 'invoke', mode: undefined } },
+      },
     ])
   })
 
@@ -191,8 +198,29 @@ describe('plan mode transitions', () => {
     expect(patches).toEqual([
       { id: 'plan_1', patch: { status: 'draft' } },
       { id: 'session_1', patch: { mode: 'plan' } },
-      { id: 'stream_1', patch: { mode: 'plan' } },
+      { id: 'stream_1', patch: { command: { kind: 'invoke', mode: 'plan' } } },
     ])
+  })
+
+  test('retry plan-mode transitions retain restoration data', async () => {
+    const { ctx, patches } = transitionCtx(
+      { _id: 'plan_1', status: 'approved' },
+      { kind: 'retry', previousVersion: 2 },
+    )
+    await applyPlanModeTransition(ctx, stream, 'enter_plan_mode')
+    expect(patches.at(-1)).toEqual({
+      id: 'stream_1',
+      patch: { command: { kind: 'retry', previousVersion: 2, mode: 'plan' } },
+    })
+  })
+
+  test('one-shot compaction commands do not acquire plan-mode fields', async () => {
+    const { ctx, patches } = transitionCtx(
+      { _id: 'plan_1', status: 'approved' },
+      { kind: 'compact' },
+    )
+    await applyPlanModeTransition(ctx, stream, 'enter_plan_mode')
+    expect(patches.some(({ id }) => id === 'stream_1')).toBe(false)
   })
 
   test('other tools leave modes untouched', async () => {

@@ -68,17 +68,19 @@ export function createOperationPlan(
     ),
   )
 
-  if (data.stream.operation === 'compact') {
+  if (data.stream.command.kind === 'compact') {
     return createAppendPlan(
       prompts,
       resolveCompactionPrompts(data.prompts.compaction),
+      data.stream.command.instructions,
     )
   }
 
-  if (data.stream.operation === 'impersonate') {
+  if (data.stream.command.kind === 'impersonate') {
     return createAppendPlan(
       prompts,
       resolveImpersonationPrompts(data.prompts.impersonation),
+      data.stream.command.instructions,
     )
   }
 
@@ -124,6 +126,7 @@ function createInvokePlan(
 function createAppendPlan(
   prompts: PromptItem[],
   operationPrompts: Prompt[],
+  instructions?: string,
 ): OperationPlan {
   return {
     evalItems: [...prompts, ...operationPrompts],
@@ -135,6 +138,7 @@ function createAppendPlan(
         data,
         evalResult.items.slice(0, prompts.length),
         evalResult.items.slice(prompts.length),
+        instructions,
       ),
   }
 }
@@ -179,6 +183,7 @@ async function buildAppendRequest(
   data: StreamContext,
   prompts: PromptItem[],
   operationPrompts: PromptItem[],
+  instructions?: string,
 ): Promise<ProviderRequest> {
   const { systemPrompt, remainingPrompts } = buildSystemPrompt(
     prompts,
@@ -188,7 +193,7 @@ async function buildAppendRequest(
 
   messages.push(...buildPromptMessages(operationPrompts, (value) => value))
 
-  const extraInstructions = buildExtraInstructions(data.stream.instructions)
+  const extraInstructions = buildExtraInstructions(instructions)
   if (extraInstructions) {
     messages.push({ role: 'user', content: extraInstructions })
   }

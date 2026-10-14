@@ -47,7 +47,9 @@ describe('session folders', () => {
 
   test('joined sessions move independently during streaming and retain their folder across pins', async () => {
     const { ctx, row, tables } = setup()
-    tables.streams = [{ _id: 'busy', sessionId: 's', status: 'streaming' }]
+    tables.streams = [
+      { _id: 'busy', sessionId: 's', state: { phase: 'streaming' } },
+    ]
     const state = await begin(
       ctx,
       args({

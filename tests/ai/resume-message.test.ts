@@ -177,7 +177,7 @@ describe('executeResume', () => {
       table: 'streams',
       fields: expect.objectContaining({
         agentId: 'agent_original',
-        processingMessageId: 'assistant_1',
+        state: expect.objectContaining({ processingMessageId: 'assistant_1' }),
         contextBoundaryMessageId: 'user_1',
         contextBoundaryCreationTime: 10,
         suppressFollowUp: true,
@@ -213,7 +213,7 @@ describe('executeResume', () => {
     expect(inserts).toContainEqual({
       table: 'streams',
       fields: expect.objectContaining({
-        processingMessageId: 'assistant_1',
+        state: expect.objectContaining({ processingMessageId: 'assistant_1' }),
       }),
     })
   })

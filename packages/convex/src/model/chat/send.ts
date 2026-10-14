@@ -185,7 +185,7 @@ export async function invokeAgent(
     agentId: session.activeAgentId,
     invokedBy: ctx.userId,
     boundaryId: await latestMessageId(ctx, sessionId),
-    operation: 'invoke',
+    command: { kind: 'invoke' },
   })
 }
 
@@ -237,11 +237,13 @@ export async function executeCompact(
     agentId: session.activeAgentId,
     invokedBy,
     boundaryId: options?.boundaryId ?? (await latestMessageId(ctx, session._id)), // prettier-ignore
-    operation: 'compact',
-    instructions,
-    preserveContextBoundary: options?.preserveContextBoundary,
-    followUpAfterCompact: options?.followUpAfterCompact,
-    autoCompact: options?.autoCompact,
+    command: {
+      kind: 'compact',
+      instructions,
+      preserveContextBoundary: options?.preserveContextBoundary,
+      followUpAfterCompact: options?.followUpAfterCompact,
+      autoCompact: options?.autoCompact,
+    },
   })
 }
 
@@ -258,8 +260,7 @@ export async function executeImpersonate(
     agentId: session.activeAgentId,
     invokedBy,
     boundaryId: await latestMessageId(ctx, session._id),
-    operation: 'impersonate',
-    instructions,
+    command: { kind: 'impersonate', instructions },
   })
 }
 

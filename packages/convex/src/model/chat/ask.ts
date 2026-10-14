@@ -31,13 +31,9 @@ export async function answerQuestions(
   await Memberships.requireMember(ctx, args.sessionId, ctx.userId)
 
   const stream = await Memberships.getActiveStream(ctx, args.sessionId)
-  if (
-    !stream ||
-    stream.status !== 'awaiting_input' ||
-    !stream.processingMessageId
-  ) {
+  if (!stream) error('No question request is pending', 409)
+  if (stream.state.phase !== 'awaiting_input')
     error('No question request is pending', 409)
-  }
 
   const row = await getProcessingSegmentRow(ctx, stream)
   if (!row) error('Message not found', 404)
@@ -62,7 +58,7 @@ export async function answerQuestions(
       : candidate,
   )
 
-  await patchSegmentParts(ctx, stream.processingMessageId, row, parts)
+  await patchSegmentParts(ctx, stream.state.processingMessageId, row, parts)
   await resumeIfSettled(ctx, stream, parts)
 }
 

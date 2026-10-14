@@ -25,7 +25,7 @@ export type McpExecutionArgs = Infer<typeof V.mcpExecutionArgsValidator>
 export type AgentWithHome = Doc<'agents'> & { home: Doc<'agentHomes'> | null }
 
 export type StreamContext = {
-  stream: Doc<'streams'>
+  stream: RunningStream
   session: Session
   environment: Record<string, unknown>
   toolApprovals?: ToolApprovals
@@ -128,6 +128,13 @@ export type TodoItem = Infer<typeof V.todoItemValidator>
 export type SettingsPatch = Infer<typeof V.settingsPatchArgsValidator>
 export type SettingsKey = Infer<typeof V.settingsKeyValidator>
 export type TokenUsage = Infer<typeof V.tokenUsageValidator>
+
+export type StreamCommand = Infer<typeof V.streamCommandValidator>
+export type StreamState = Infer<typeof V.streamStateValidator>
+export type ActiveStream = Infer<typeof V.activeStreamValidator>
+export type RunningStream = Omit<Doc<'streams'>, 'state'> & {
+  state: Extract<StreamState, { phase: 'streaming' }>
+}
 
 export type SaveSessionCacheArgs = Infer<typeof V.saveSessionCacheArgsValidator>
 export type SendMessageArgs = Infer<typeof V.sendMessageArgsValidator>

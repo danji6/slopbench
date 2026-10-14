@@ -203,7 +203,7 @@ describe('shared attachment lifecycle', () => {
     const inserts: Array<{ table: string; value: Record<string, unknown> }> = []
     const ctx = {
       db: {
-        get: async () => ({ generation: 0, status: 'streaming' }),
+        get: async () => ({ generation: 0, state: { phase: 'streaming' } }),
         system: {
           get: async (_table: string, id: string) =>
             id === 'blob1' ? { size: 42, contentType: 'image/png' } : null,

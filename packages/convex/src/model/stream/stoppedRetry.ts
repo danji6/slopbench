@@ -9,16 +9,11 @@ export async function restoreEmptyRetry(
   message: Doc<'messages'>,
   row: Doc<'messageContents'>,
 ) {
-  if (
-    stream.operation !== 'retry' ||
-    stream.retryPreviousVersion === undefined ||
-    row.segmentIndex !== 0 ||
-    row.parts.some(hasOutput)
-  ) {
-    return false
-  }
+  if (stream.command.kind !== 'retry') return false
+  if (row.segmentIndex !== 0) return false
+  if (row.parts.some(hasOutput)) return false
 
-  await setSelectedVersion(ctx, message, stream.retryPreviousVersion)
+  await setSelectedVersion(ctx, message, stream.command.previousVersion)
   await ctx.db.delete(row._id)
   await ctx.db.patch(message._id, {
     status: 'done',

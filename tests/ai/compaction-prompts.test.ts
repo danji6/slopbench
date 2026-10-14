@@ -40,7 +40,11 @@ function data(
     agent: {},
     session: {},
     settings: {},
-    stream: { _id: 'stream', operation, instructions },
+    stream: {
+      _id: 'stream',
+      command: { kind: operation, instructions },
+      state: { phase: 'streaming', processingMessageId: 'output' },
+    },
     prompts: {
       own,
       library: [],

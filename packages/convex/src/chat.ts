@@ -10,6 +10,7 @@ import {
   userShellFinishArgsValidator,
   userShellPatchArgsValidator,
 } from './validators/shell'
+import { activeStreamValidator } from './validators/streams'
 
 export const messagesWindow = authQuery({
   args: V.messagesWindowArgsValidator.fields,
@@ -52,6 +53,7 @@ export const resumeAgentMessage = authMutation({
 
 export const getActiveStream = authQuery({
   args: { sessionId: v.id('sessions') },
+  returns: v.union(v.null(), activeStreamValidator),
   handler: Chat.getActiveStream,
 })
 

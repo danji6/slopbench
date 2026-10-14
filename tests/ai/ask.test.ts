@@ -280,10 +280,13 @@ describe('answerQuestions mutation', () => {
       _id: 'stream_1',
       sessionId: session._id,
       agentId: 'agent_1',
-      status: 'awaiting_input',
-      processingMessageId: 'message_1',
-      processingContentId: 'content_1',
       leaseExpiresAt: Date.now() + 60_000,
+      state: {
+        phase: 'awaiting_input',
+        processingMessageId: 'message_1',
+        processingContentId: 'content_1',
+      },
+      command: { kind: 'invoke' },
     }
     const message = { _id: 'message_1' }
     const content = {
@@ -351,7 +354,9 @@ describe('answerQuestions mutation', () => {
         answers: [expect.objectContaining({ answer: 'PostgreSQL' })],
       },
     })
-    expect(stream).toMatchObject({ status: 'pending', jobId: 'job_1' })
+    expect(stream).toMatchObject({
+      state: { phase: 'pending', jobId: 'job_1' },
+    })
     expect(scheduled).toHaveLength(1)
 
     await expect(answerQuestions(ctx, args)).rejects.toThrow()

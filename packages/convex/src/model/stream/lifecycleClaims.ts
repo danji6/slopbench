@@ -6,8 +6,8 @@ import { injectModeNote } from '../chat/notes'
 import { injectDueReminders } from '../chat/reminders'
 import { getProcessingSegmentRow, insertMessage } from '../messageContents'
 import { matchesExecution, ownsExecution } from './execution'
-import { scheduleStream } from './execution'
-import { STREAM_LEASE_MS, renewStreamLease } from './lease'
+import { scheduleStream, startExecution } from './execution'
+import { renewStreamLease } from './lease'
 import { consumeInterjections } from './lifecycleProgress'
 import { honorSoftStop } from './stop'
 
@@ -21,10 +21,11 @@ export async function _claim(
 ) {
   const stream = await ctx.db.get(streamId)
   if (!matchesExecution(stream, { streamId, generation })) return null
-  const scheduled = stream.status === 'pending' || stream.status === 'retrying'
+  const scheduled =
+    stream.state.phase === 'pending' || stream.state.phase === 'retrying'
   if (!scheduled) return null
 
-  if (!stream.processingMessageId) {
+  if (!stream.state.processingMessageId) {
     const claimed = await claimFreshTurn(ctx, stream)
     return claimed
   }
@@ -34,52 +35,49 @@ export async function _claim(
   // A post-split empty segment is NOT fresh: recomputing the boundary
   // mid-turn would pull the turn's own sealed segments into its context.
   const fresh =
-    stream.operation !== 'retry' &&
+    stream.command.kind !== 'retry' &&
     (!row || (row.segmentIndex === 0 && row.parts.length === 0))
 
   let boundaryId = stream.contextBoundaryMessageId
   let boundaryCreationTime = stream.contextBoundaryCreationTime
-  let processingMessageId = stream.processingMessageId
+  let processingMessageId = stream.state.processingMessageId
+  let processingContentId = stream.state.processingContentId
 
-  if (fresh && !stream.preserveContextBoundary) {
+  const preserveContextBoundary =
+    stream.command.kind === 'compact' && stream.command.preserveContextBoundary
+
+  if (fresh && !preserveContextBoundary) {
     // Only compute the context boundary for a fresh segment to preserve tool approvals
     const boundary = await latestContextMessage(ctx, stream.sessionId)
     boundaryId = boundary?._id
     boundaryCreationTime = boundary?._creationTime
-  } else if (stream.operation === 'invoke') {
-    const current = await ctx.db.get(stream.processingMessageId)
+  } else if (stream.command.kind === 'invoke') {
+    const current = await ctx.db.get(stream.state.processingMessageId)
     // Only this stream's own turn may roll over. /resume and retry streams point
     // at pre-existing messages that must keep streaming into themselves
     if (current && current._creationTime > stream._creationTime) {
       const consumed = await consumeInterjections(ctx, stream)
       if (consumed) {
         const updated = await ctx.db.get(streamId)
-        if (updated?.processingMessageId) {
+        if (updated?.state.processingMessageId) {
           boundaryId = updated.contextBoundaryMessageId
           boundaryCreationTime = updated.contextBoundaryCreationTime
-          processingMessageId = updated.processingMessageId
+          processingMessageId = updated.state.processingMessageId
+          processingContentId = updated.state.processingContentId
         }
       }
     }
   }
 
-  await ctx.db.patch(streamId, {
-    status: 'streaming',
-    contextBoundaryMessageId: boundaryId,
-    contextBoundaryCreationTime: boundaryCreationTime,
-    leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
-    jobId: undefined,
-    retryAt: undefined,
-    retryError: undefined,
-  })
-
-  return {
-    ...stream,
-    status: 'streaming' as const,
-    processingMessageId,
-    contextBoundaryMessageId: boundaryId,
-    contextBoundaryCreationTime: boundaryCreationTime,
-  }
+  return startExecution(
+    ctx,
+    stream,
+    { processingMessageId, processingContentId },
+    {
+      contextBoundaryMessageId: boundaryId,
+      contextBoundaryCreationTime: boundaryCreationTime,
+    },
+  )
 }
 
 /**
@@ -94,12 +92,7 @@ export async function _handoff(
   if (!ownsExecution(stream, { streamId, generation })) return false
   if (await honorSoftStop(ctx, stream)) return false
 
-  const jobId = await scheduleStream(ctx, streamId, { delayMs: 0 })
-
-  await ctx.db.patch(streamId, {
-    jobId,
-    leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
-  })
+  await scheduleStream(ctx, streamId)
 
   return true
 }
@@ -117,7 +110,7 @@ export async function _heartbeat(
 
 /** Materializes the processing message for a turn that is starting to stream. */
 export async function claimFreshTurn(ctx: MutationCtx, stream: Doc<'streams'>) {
-  if (stream.operation === 'invoke') {
+  if (stream.command.kind === 'invoke') {
     const session = await ctx.db.get(stream.sessionId)
     if (session) {
       // Catch up a mode change nothing has announced yet (session created in
@@ -128,13 +121,15 @@ export async function claimFreshTurn(ctx: MutationCtx, stream: Doc<'streams'>) {
     }
   }
 
-  const boundary = stream.preserveContextBoundary
+  const preserveContextBoundary =
+    stream.command.kind === 'compact' && stream.command.preserveContextBoundary
+  const boundary = preserveContextBoundary
     ? null
     : await latestContextMessage(ctx, stream.sessionId)
-  const boundaryId = stream.preserveContextBoundary
+  const boundaryId = preserveContextBoundary
     ? stream.contextBoundaryMessageId
     : boundary?._id
-  const boundaryCreationTime = stream.preserveContextBoundary
+  const boundaryCreationTime = preserveContextBoundary
     ? stream.contextBoundaryCreationTime
     : boundary?._creationTime
   const output = await streamOutputIdentity(ctx, stream)
@@ -146,34 +141,26 @@ export async function claimFreshTurn(ctx: MutationCtx, stream: Doc<'streams'>) {
       sender: output.sender,
       role: output.role,
       ...output.identity,
-      type: stream.operation === 'compact' ? 'summary' : undefined,
+      type: stream.command.kind === 'compact' ? 'summary' : undefined,
       summaryBoundaryCreationTime:
-        stream.operation === 'compact' ? boundaryCreationTime : undefined,
+        stream.command.kind === 'compact' ? boundaryCreationTime : undefined,
       status: 'processing',
     },
     [],
   )
 
-  await ctx.db.patch(stream._id, {
-    status: 'streaming',
-    processingMessageId: messageId,
-    processingContentId: contentId,
-    contextBoundaryMessageId: boundaryId,
-    contextBoundaryCreationTime: boundaryCreationTime,
-    leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
-    jobId: undefined,
-    retryAt: undefined,
-    retryError: undefined,
-  })
-
-  return {
-    ...stream,
-    status: 'streaming' as const,
-    processingMessageId: messageId,
-    processingContentId: contentId,
-    contextBoundaryMessageId: boundaryId,
-    contextBoundaryCreationTime: boundaryCreationTime,
-  }
+  return startExecution(
+    ctx,
+    stream,
+    {
+      processingMessageId: messageId,
+      processingContentId: contentId,
+    },
+    {
+      contextBoundaryMessageId: boundaryId,
+      contextBoundaryCreationTime: boundaryCreationTime,
+    },
+  )
 }
 
 export function latestContextMessage(

@@ -123,9 +123,10 @@ export async function getProcessingSegmentRow(
   ctx: QueryCtx,
   stream: Doc<'streams'>,
 ) {
-  if (stream.processingContentId) return ctx.db.get(stream.processingContentId)
-  if (!stream.processingMessageId) return null
-  const message = await ctx.db.get(stream.processingMessageId)
+  if (stream.state.processingContentId)
+    return ctx.db.get(stream.state.processingContentId)
+  if (!stream.state.processingMessageId) return null
+  const message = await ctx.db.get(stream.state.processingMessageId)
   return message ? getActiveSegmentRow(ctx, message) : null
 }
 

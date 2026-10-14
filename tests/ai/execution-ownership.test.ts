@@ -40,12 +40,14 @@ function fixture(status = 'streaming') {
       {
         _id: 'stream',
         generation: 3,
-        status,
-        operation: 'invoke',
         attempt: 0,
         sessionId: 'session',
-        processingMessageId: 'message',
-        processingContentId: 'content',
+        command: { kind: 'invoke' },
+        state: {
+          phase: status,
+          processingMessageId: 'message',
+          processingContentId: 'content',
+        },
       },
     ],
     messages: [{ _id: 'message', status: 'processing' }],
@@ -60,7 +62,9 @@ test('duplicate and obsolete stream actions cannot claim queued work', async () 
   expect(await _claim(ctx, execution)).toBeNull()
   expect(await _claim(ctx, { ...execution, generation: 3 })).not.toBeNull()
   expect(await _claim(ctx, { ...execution, generation: 3 })).toBeNull()
-  expect(rows('streams')[0]?.status).toBe('streaming')
+  expect((rows('streams')[0]?.state as { phase: string })?.phase).toBe(
+    'streaming',
+  )
 })
 
 test('replaced executions cannot publish output, account usage, or schedule work', async () => {
@@ -111,8 +115,8 @@ test('handoff advances ownership without changing the retry count', async () => 
   expect(await _handoff(ctx, { ...execution, generation: 3 })).toBe(true)
   expect(rows('streams')[0]).toMatchObject({
     generation: 4,
-    status: 'pending',
     attempt: 0,
+    state: { phase: 'pending' },
   })
   expect(scheduled[0]?.args).toEqual({ streamId: 'stream', generation: 4 })
   expect(await _claim(ctx, { ...execution, generation: 3 })).toBeNull()

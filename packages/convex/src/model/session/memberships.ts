@@ -1,6 +1,7 @@
 import type { Id } from '../../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../../_generated/server'
 import { error } from '../../errors'
+import { expireStream } from '../stream/expiry'
 import { getSessionWithWorkspace } from './folderContext'
 
 export async function getMembership(
@@ -84,24 +85,16 @@ export async function getActiveStream(
     .withIndex('by_sessionId', (q) => q.eq('sessionId', sessionId))
     .first()
 
-  if (!stream || stream.leaseExpiresAt >= Date.now() || !('scheduler' in ctx)) {
-    return stream
-  }
+  if (!stream) return null
+  if (stream.leaseExpiresAt >= Date.now()) return stream
+  if (!('scheduler' in ctx)) return stream
 
-  // A pending turn that expired before starting has no message to flag
-  if (stream.processingMessageId) {
-    const message = await ctx.db.get(stream.processingMessageId)
-    await ctx.db.patch(stream.processingMessageId, {
-      status: 'done',
-      metadata: {
-        ...message?.metadata,
-        error: 'Stream interrupted before completion.',
-      },
-    })
-  }
-
-  await ctx.db.delete(stream._id)
-  return null
+  await expireStream(ctx, stream)
+  // Finalization may reserve a replacement (for example automatic compaction).
+  return ctx.db
+    .query('streams')
+    .withIndex('by_sessionId', (q) => q.eq('sessionId', sessionId))
+    .first()
 }
 
 export async function requireNonBlockingStream(
@@ -109,6 +102,7 @@ export async function requireNonBlockingStream(
   sessionId: Id<'sessions'>,
 ) {
   const stream = await getActiveStream(ctx, sessionId)
-  if (stream?.blocking) error('Session is locked by a blocking operation', 409)
+  if (stream?.command.kind === 'compact')
+    error('Session is locked by a blocking operation', 409)
   return stream
 }
