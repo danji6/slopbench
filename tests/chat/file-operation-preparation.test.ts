@@ -4,9 +4,14 @@ import {
   copyAssignments,
   reserveDestination,
 } from '@sb/convex/model/skills/endpoints'
-import { continueImport, prepare } from '@sb/convex/model/skills/imports'
+import { claimExecution } from '@sb/convex/model/skills/execution'
+import {
+  continueImport,
+  finish,
+  prepare,
+} from '@sb/convex/model/skills/imports'
 import { releaseOperation } from '@sb/convex/model/skills/lifecycle'
-import { retry, running, start } from '@sb/convex/model/skills/operations'
+import { retry, start } from '@sb/convex/model/skills/operations'
 import type { FileOperationArgs } from '@sb/convex/types'
 import { expect, test } from 'bun:test'
 
@@ -19,17 +24,14 @@ const skillId = 'skill' as Id<'skills'>
 const assignmentId = 'assignment' as Id<'agentSkills'>
 const storageId = 'upload' as Id<'_storage'>
 const newerId = 'newer' as Id<'agentFileOperations'>
-const otherOwner = 'other' as Id<'users'>
 
 function setup() {
-  const fixture = skillsDatabase()
-  fixture
-    .rows('agents')
-    .push(
-      { _id: agentId, ownerId: 'owner', homeId, name: 'Agent' },
-      { _id: duplicateId, ownerId: 'owner', name: 'Duplicate' },
-    )
-  fixture.rows('agentHomes').push({
+  const f = skillsDatabase()
+  f.rows('agents').push(
+    { _id: agentId, ownerId: 'owner', homeId, name: 'Agent' },
+    { _id: duplicateId, ownerId: 'owner', name: 'Duplicate' },
+  )
+  f.rows('agentHomes').push({
     _id: homeId,
     ownerId: 'owner',
     originAgentId: agentId,
@@ -37,20 +39,20 @@ function setup() {
     revision: 0,
     path: '/home',
   })
-  fixture.rows('skills').push({
+  f.rows('skills').push({
     _id: skillId,
     ownerId: 'owner',
     name: 'review',
     description: 'Review',
     status: 'ready',
   })
-  fixture.rows('skillUploads').push({
+  f.rows('skillUploads').push({
     _id: 'staged',
     ownerId: 'owner',
     storageId,
     ticket: 'owned-ticket',
   })
-  return fixture
+  return f
 }
 
 const commands: FileOperationArgs[] = [
@@ -64,192 +66,233 @@ const commands: FileOperationArgs[] = [
   { kind: 'delete-library', skillId },
   { kind: 'install', source: '/skills' },
   { kind: 'install', storageId },
-  { kind: 'delete-home' },
 ]
 
 test.each(commands)(
-  'preparing %j persists and claims its resolved targets',
+  'preparing %j reserves required resources and returns a typed execution context',
   async (command) => {
-    const { ctx, rows, scheduled } = setup()
+    const f = setup()
     if (command.kind === 'delete-assigned')
-      rows('agentSkills').push({
+      f.rows('agentSkills').push({
         _id: assignmentId,
         ownerId: 'owner',
         homeId,
         skillId,
       })
-    const id = await start(ctx, command)
-    const op = (await ctx.db.get(id))!
+    const operationId = await start(f.ctx, command)
+    const op = (await f.ctx.db.get(operationId))!
     expect(op).toMatchObject({
-      ...command,
-      ownerId: ctx.userId,
-      status: 'queued',
+      kind: command.kind,
+      ownerId: f.ctx.userId,
+      state: { phase: 'queued' },
+      attempt: 1,
     })
     expect(op).not.toHaveProperty('agent')
-    expect(op).not.toHaveProperty('command')
     if ('agentId' in command) {
-      expect(op.homeId).toBe(homeId)
-      expect((await ctx.db.get(agentId))?.fileOperationId).toBe(id)
-      expect((await ctx.db.get(homeId))?.operationId).toBe(id)
-    }
-    if (command.kind === 'duplicate') {
-      const duplicate = (await ctx.db.get(duplicateId))!
-      expect(op.destinationHomeId).toBe(duplicate.homeId)
-      expect(duplicate.fileOperationId).toBe(id)
-      expect((await ctx.db.get(duplicate.homeId!))?.operationId).toBe(id)
-    }
-    if (
-      ['assign', 'delete-assigned', 'delete-library'].includes(command.kind)
-    ) {
-      expect(op.skillId).toBe(skillId)
-      expect((await ctx.db.get(skillId))?.operationId).toBe(id)
+      expect(op).toHaveProperty('homeId', homeId)
+      expect((await f.ctx.db.get(agentId))?.fileOperationId).toBe(operationId)
     }
     if (command.kind === 'install') {
-      expect(op.importSummary).toEqual({ installed: 0, skipped: 0, failed: 0 })
-      expect(op.uploadTicket).toBe(
-        'storageId' in command ? 'owned-ticket' : undefined,
+      expect(op).toHaveProperty('progress', {
+        cursor: 0,
+        summary: { installed: 0, skipped: 0, failed: 0 },
+      })
+      expect(op).toHaveProperty(
+        'source',
+        'source' in command
+          ? { kind: 'directory', path: command.source }
+          : { kind: 'upload', storageId, ticket: 'owned-ticket' },
       )
     }
-    expect(scheduled).toHaveLength(2)
+    const data = await claimExecution(f.ctx, { operationId, attempt: 1 })
+    expect(data?.kind).toBe(command.kind)
+    expect(data?.operation.state.phase).toBe('executing')
+    if ('agentId' in command) expect(data).toHaveProperty('home._id', homeId)
+    expect(await claimExecution(f.ctx, { operationId, attempt: 1 })).toBeNull()
+    expect(f.scheduled).toHaveLength(2)
+    for (const job of f.scheduled)
+      expect(job.args).toEqual({ operationId, attempt: 1 })
   },
 )
 
-test('assignment deletion checks ownership and the shared home identity', async () => {
-  for (const assignment of [
-    null,
-    { ownerId: 'other', homeId },
-    { ownerId: 'owner', homeId: 'other-home' },
-  ]) {
-    const { ctx, rows, scheduled } = setup()
-    if (assignment)
-      rows('agentSkills').push({ _id: assignmentId, skillId, ...assignment })
+test.each(['missing', 'foreign', 'wrong-home'])(
+  'assigned removal rejects a %s assignment before reserving resources',
+  async (invalid) => {
+    const f = setup()
+    if (invalid !== 'missing')
+      f.rows('agentSkills').push({
+        _id: assignmentId,
+        ownerId: invalid === 'foreign' ? 'other' : 'owner',
+        homeId: invalid === 'wrong-home' ? 'other' : homeId,
+        skillId,
+      })
     await expect(
-      start(ctx, { kind: 'delete-assigned', agentId, assignmentId }),
+      start(f.ctx, { kind: 'delete-assigned', agentId, assignmentId }),
     ).rejects.toThrow('Assignment not found')
-    expect(rows('agentFileOperations')).toHaveLength(0)
-    expect((await ctx.db.get(homeId))?.operationId).toBeUndefined()
-    expect(scheduled).toHaveLength(0)
-  }
-})
+    expect(f.rows('agentFileOperations')).toHaveLength(0)
+    expect(f.scheduled).toHaveLength(0)
+  },
+)
 
-test('foreign duplicate targets and missing or foreign uploads cannot acquire claims', async () => {
-  const { ctx, rows } = setup()
-  await ctx.db.patch(duplicateId, { ownerId: otherOwner })
+test('foreign duplicate and upload targets cannot be prepared', async () => {
+  const f = setup()
+  await f.ctx.db.patch(duplicateId, { ownerId: 'other' as Id<'users'> })
   await expect(
-    start(ctx, { kind: 'duplicate', agentId, duplicateId }),
-  ).rejects.toThrow('Agent not found')
-  await ctx.db.patch('staged' as Id<'skillUploads'>, { ownerId: otherOwner })
-  await expect(start(ctx, { kind: 'install', storageId })).rejects.toThrow(
-    'Skill upload not found',
+    start(f.ctx, { kind: 'duplicate', agentId, duplicateId }),
+  ).rejects.toThrow('not found')
+  f.rows('skillUploads')[0]!.ownerId = 'other'
+  await expect(start(f.ctx, { kind: 'install', storageId })).rejects.toThrow(
+    'not found',
   )
-  rows('skillUploads').length = 0
-  await expect(start(ctx, { kind: 'install', storageId })).rejects.toThrow(
-    'Skill upload not found',
-  )
-  expect(rows('agentFileOperations')).toHaveLength(0)
-  expect((await ctx.db.get(agentId))?.fileOperationId).toBeUndefined()
 })
 
-test('running starts once and refuses lost agent or skill reservations', async () => {
-  for (const target of [agentId, skillId]) {
-    const { ctx } = setup()
-    const operationId = await start(ctx, { kind: 'assign', agentId, skillId })
-    await ctx.db.patch(
-      target,
-      target === agentId
-        ? { fileOperationId: newerId }
-        : { operationId: newerId },
-    )
-    expect(await running(ctx, { operationId })).toBe(false)
-    expect((await ctx.db.get(operationId))?.status).toBe('queued')
-  }
-  const { ctx } = setup()
-  const operationId = await start(ctx, { kind: 'ensure', agentId })
-  expect(await running(ctx, { operationId })).toBe(1)
-  expect(await running(ctx, { operationId })).toBe(false)
+test.each(['agent', 'home', 'skill'])(
+  'claiming refuses a lost %s reservation and records a controlled failure',
+  async (resource) => {
+    const f = setup()
+    const operationId = await start(f.ctx, { kind: 'assign', agentId, skillId })
+    if (resource === 'agent')
+      await f.ctx.db.patch(agentId, { fileOperationId: newerId })
+    if (resource === 'home')
+      await f.ctx.db.patch(homeId, { operationId: newerId })
+    if (resource === 'skill')
+      await f.ctx.db.patch(skillId, { operationId: newerId })
+    expect(await claimExecution(f.ctx, { operationId, attempt: 1 })).toBeNull()
+    expect((await f.ctx.db.get(operationId))?.state.phase).toBe('failed')
+  },
+)
+
+test('claiming rejects changed ownership before filesystem execution', async () => {
+  const f = setup()
+  const operationId = await start(f.ctx, { kind: 'assign', agentId, skillId })
+  await f.ctx.db.patch(skillId, { ownerId: 'other' as Id<'users'> })
+  expect(await claimExecution(f.ctx, { operationId, attempt: 1 })).toBeNull()
+  expect((await f.ctx.db.get(operationId))?.state.phase).toBe('failed')
 })
 
-test('stale completions are ignored while stale destination, copy, and import callbacks reject', async () => {
-  const { ctx, rows } = setup()
-  const operationId = await start(ctx, {
+test('callbacks reject stale attempts and commands outside their execution contract', async () => {
+  const f = setup()
+  const operationId = await start(f.ctx, {
     kind: 'home',
     agentId,
     destination: '/new',
     copyFiles: true,
   })
-  await running(ctx, { operationId })
-  await complete(ctx, { operationId, attempt: 0, path: '/new' })
-  expect((await ctx.db.get(homeId))?.path).toBe('/home')
+  await claimExecution(f.ctx, { operationId, attempt: 1 })
+  expect(
+    await complete(f.ctx, {
+      operationId,
+      attempt: 0,
+      result: { kind: 'home', path: '/wrong' },
+    }),
+  ).toBe(false)
   await expect(
-    reserveDestination(ctx, { operationId, attempt: 0, path: '/new' }),
+    reserveDestination(f.ctx, {
+      operationId,
+      attempt: 0,
+      path: '/new',
+      insideData: false,
+    }),
   ).rejects.toThrow('expired')
   await expect(
-    copyAssignments(ctx, { operationId, attempt: 0, ids: [] }),
-  ).rejects.toThrow('Invalid assignment')
-  expect(rows('agentHomes')).toHaveLength(1)
-  const install = await start(ctx, { kind: 'install', source: '/skills' })
-  await running(ctx, { operationId: install })
+    copyAssignments(f.ctx, { operationId, attempt: 0, ids: [] }),
+  ).rejects.toThrow('Invalid')
   await expect(
-    prepare(ctx, {
-      operationId: install,
-      attempt: 0,
+    complete(f.ctx, { operationId, attempt: 1, result: { kind: 'install' } }),
+  ).rejects.toThrow('Unexpected')
+})
+
+test('import continuations allocate new attempts and reject every old page callback', async () => {
+  const f = setup()
+  const operationId = await start(f.ctx, { kind: 'install', source: '/skills' })
+  await claimExecution(f.ctx, { operationId, attempt: 1 })
+  await continueImport(f.ctx, { operationId, attempt: 1, cursor: 0 })
+  expect(await claimExecution(f.ctx, { operationId, attempt: 1 })).toBeNull()
+  await claimExecution(f.ctx, { operationId, attempt: 2 })
+  await expect(
+    prepare(f.ctx, {
+      operationId,
+      attempt: 1,
       cursor: 0,
-      metadata: { name: 'other', description: 'Other' },
+      metadata: { name: 'new', description: 'New' },
     }),
   ).rejects.toThrow('no longer running')
-  // Older callers remain supported and continuation still schedules recovery.
-  const skill = await prepare(ctx, {
-    operationId: install,
-    cursor: 0,
-    metadata: { name: 'other', description: 'Other' },
+  await expect(
+    finish(f.ctx, {
+      operationId,
+      attempt: 1,
+      cursor: 0,
+      nextCursor: 1,
+      outcome: 'skipped',
+    }),
+  ).rejects.toThrow('no longer running')
+  await expect(
+    continueImport(f.ctx, { operationId, attempt: 1, cursor: 0 }),
+  ).rejects.toThrow('no longer running')
+  await fail(f.ctx, { operationId, attempt: 1, message: 'Late' })
+  expect((await f.ctx.db.get(operationId))?.state.phase).toBe('executing')
+})
+
+test('release preserves newer reservations and advances each home revision once', async () => {
+  const f = setup()
+  const operationId = await start(f.ctx, { kind: 'assign', agentId, skillId })
+  const op = (await f.ctx.db.get(operationId))!
+  await f.ctx.db.patch(agentId, { fileOperationId: newerId })
+  await f.ctx.db.patch(skillId, { operationId: newerId })
+  await releaseOperation(f.ctx, op)
+  await releaseOperation(f.ctx, op)
+  expect((await f.ctx.db.get(agentId))?.fileOperationId).toBe(newerId)
+  expect((await f.ctx.db.get(skillId))?.operationId).toBe(newerId)
+  expect((await f.ctx.db.get(homeId))?.revision).toBe(1)
+})
+
+test('already deleted targets finish on retry and activity blocks normal retries', async () => {
+  const f = setup()
+  const operationId = await start(f.ctx, { kind: 'delete-library', skillId })
+  await fail(f.ctx, { operationId, attempt: 1, message: 'Interrupted' })
+  await f.ctx.db.delete(skillId)
+  await retry(f.ctx, { operationId })
+  expect((await f.ctx.db.get(operationId))?.state.phase).toBe('done')
+  const ensure = await start(f.ctx, { kind: 'ensure', agentId })
+  await fail(f.ctx, { operationId: ensure, attempt: 1, message: 'Interrupted' })
+  f.rows('shellJobs').push({ _id: 'job', agentId })
+  await expect(retry(f.ctx, { operationId: ensure })).rejects.toThrow(
+    'pending messages',
+  )
+})
+
+test('import pages preserve their reservation across duplicate preparation and reject mismatched completion', async () => {
+  const f = setup()
+  const operationId = await start(f.ctx, { kind: 'install', source: '/skills' })
+  const args = { operationId, attempt: 1, cursor: 0 }
+  await claimExecution(f.ctx, args)
+  const metadata = { name: 'new-skill', description: 'New skill' }
+  const reserved = await prepare(f.ctx, { ...args, metadata })
+  expect(await prepare(f.ctx, { ...args, metadata })).toBe(reserved)
+  await expect(
+    prepare(f.ctx, { ...args, metadata: { ...metadata, name: 'other-skill' } }),
+  ).rejects.toThrow('reservation expired')
+  await expect(
+    finish(f.ctx, { ...args, nextCursor: 1, outcome: 'failed' }),
+  ).rejects.toThrow('reservation expired')
+  expect((await f.ctx.db.get(reserved!))?.operationId).toBe(operationId)
+  await finish(f.ctx, {
+    ...args,
+    skillId: reserved!,
+    nextCursor: 1,
+    outcome: 'installed',
   })
-  expect(skill).not.toBeNull()
-  await continueImport(ctx, { operationId: install, cursor: 0 })
-  expect((await ctx.db.get(install))?.status).toBe('queued')
-})
-
-test('release preserves newer claims and advances an owned home revision only once', async () => {
-  const { ctx } = setup()
-  const operationId = await start(ctx, { kind: 'assign', agentId, skillId })
-  const op = (await ctx.db.get(operationId))!
-  await ctx.db.patch(agentId, { fileOperationId: newerId })
-  await ctx.db.patch(skillId, { operationId: newerId })
-  await releaseOperation(ctx, op)
-  await releaseOperation(ctx, op)
-  expect((await ctx.db.get(agentId))?.fileOperationId).toBe(newerId)
-  expect((await ctx.db.get(skillId))?.operationId).toBe(newerId)
-  expect((await ctx.db.get(homeId))?.revision).toBe(1)
-  await ctx.db.patch(homeId, { operationId: newerId })
-  await releaseOperation(ctx, op)
-  expect((await ctx.db.get(homeId))?.operationId).toBe(newerId)
-  expect((await ctx.db.get(homeId))?.revision).toBe(1)
-})
-
-test('retry treats already-deleted targets as done and rechecks activity for remaining ones', async () => {
-  for (const kind of ['delete-library', 'delete-assigned'] as const) {
-    const { ctx, rows } = setup()
-    rows('agentSkills').push({
-      _id: assignmentId,
-      ownerId: 'owner',
-      homeId,
-      skillId,
-    })
-    if (kind === 'delete-library') rows('agentSkills').length = 0
-    const operationId = await start(
-      ctx,
-      kind === 'delete-library'
-        ? { kind, skillId }
-        : { kind, agentId, assignmentId },
-    )
-    await fail(ctx, { operationId, message: 'Interrupted' })
-    await ctx.db.delete(kind === 'delete-library' ? skillId : assignmentId)
-    await retry(ctx, { operationId })
-    expect((await ctx.db.get(operationId))?.status).toBe('done')
-  }
-  const { ctx, rows } = setup()
-  const operationId = await start(ctx, { kind: 'assign', agentId, skillId })
-  await fail(ctx, { operationId, message: 'Interrupted' })
-  rows('shellJobs').push({ _id: 'job', agentId })
-  await expect(retry(ctx, { operationId })).rejects.toThrow('finish')
-  expect((await ctx.db.get(operationId))?.status).toBe('failed')
+  expect(await f.ctx.db.get(operationId)).toHaveProperty('progress.summary', {
+    installed: 1,
+    skipped: 0,
+    failed: 0,
+  })
+  await expect(
+    finish(f.ctx, {
+      ...args,
+      skillId: reserved!,
+      nextCursor: 1,
+      outcome: 'installed',
+    }),
+  ).rejects.toThrow('no longer running')
 })

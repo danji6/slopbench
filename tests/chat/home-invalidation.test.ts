@@ -1,9 +1,18 @@
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { complete, fail } from '@sb/convex/model/skills/completion'
-import { watchdog } from '@sb/convex/model/skills/endpoints'
+import {
+  operation,
+  reserveDestination,
+  watchdog,
+} from '@sb/convex/model/skills/endpoints'
+import { claimExecution } from '@sb/convex/model/skills/execution'
 import { invalidateHomeCaches } from '@sb/convex/model/skills/invalidation'
-import { retry, running, start } from '@sb/convex/model/skills/operations'
-import type { InvalidateAgentHomeArgs } from '@sb/convex/types'
+import { retry, start } from '@sb/convex/model/skills/operations'
+import { cleanupRecords } from '@sb/convex/model/skills/removal'
+import type {
+  InvalidateAgentHomeArgs,
+  OperationAttemptArgs,
+} from '@sb/convex/types'
 import { expect, test } from 'bun:test'
 import { getFunctionName } from 'convex/server'
 import type { FunctionReference } from 'convex/server'
@@ -13,12 +22,15 @@ import { skillsDatabase } from '../helpers/skills-db'
 const agentId = 'agent' as Id<'agents'>
 const homeId = 'home' as Id<'agentHomes'>
 
-async function setup(count = 1) {
-  const fixture = skillsDatabase()
-  fixture
-    .rows('agents')
-    .push({ _id: agentId, ownerId: 'owner', name: 'Agent', homeId })
-  fixture.rows('agentHomes').push({
+async function setup(count = 1, kind: 'home' | 'detach' = 'home') {
+  const f = skillsDatabase()
+  f.rows('agents').push({
+    _id: agentId,
+    ownerId: 'owner',
+    name: 'Agent',
+    homeId,
+  })
+  f.rows('agentHomes').push({
     _id: homeId,
     ownerId: 'owner',
     originAgentId: agentId,
@@ -27,10 +39,12 @@ async function setup(count = 1) {
     path: '/old',
   })
   for (let i = 0; i < count; i++) {
-    fixture
-      .rows('sessionCache')
-      .push({ _id: `cache-${i}`, sessionId: `session-${i}`, agentId })
-    fixture.rows('sessionState').push({
+    f.rows('sessionCache').push({
+      _id: `cache-${i}`,
+      sessionId: `session-${i}`,
+      agentId,
+    })
+    f.rows('sessionState').push({
       _id: `state-${i}`,
       sessionId: `session-${i}`,
       toolApprovals: {
@@ -39,69 +53,72 @@ async function setup(count = 1) {
       },
     })
   }
-  const operationId = await start(fixture.ctx, {
-    kind: 'home',
-    agentId,
-    destination: '/new',
-    copyFiles: true,
-  })
-  const attempt = Number(await running(fixture.ctx, { operationId }))
-  return { ...fixture, operationId, attempt }
+  const operationId = await start(
+    f.ctx,
+    kind === 'home'
+      ? { kind, agentId, destination: '/new', copyFiles: true }
+      : { kind, agentId, removeFolder: true },
+  )
+  const args = { operationId, attempt: 1 }
+  await claimExecution(f.ctx, args)
+  if (kind === 'home')
+    await reserveDestination(f.ctx, {
+      ...args,
+      path: '/new',
+      insideData: false,
+    })
+  return { ...f, args }
 }
 
 type Fixture = Awaited<ReturnType<typeof setup>>
 
-function lastInvalidation(fixture: Fixture): InvalidateAgentHomeArgs {
-  const job = fixture.scheduled.at(-1)!
-  expect(getFunctionName(job.reference as FunctionReference<'mutation'>)).toBe(
-    'skills:_invalidateHomeCaches',
-  )
-  return job.args as InvalidateAgentHomeArgs
+function lastJob<T>(f: Fixture, name: string): T {
+  const job = [...f.scheduled]
+    .reverse()
+    .find(
+      (entry) =>
+        getFunctionName(entry.reference as FunctionReference<'mutation'>) ===
+        name,
+    )
+  expect(job).toBeDefined()
+  return job!.args as T
 }
 
-async function finishMetadata(fixture: Fixture, previousPath = '/old') {
-  await complete(fixture.ctx, {
-    operationId: fixture.operationId,
-    attempt: fixture.attempt,
-    path: '/new',
-    previousPath,
+async function finishMetadata(f: Fixture) {
+  const op = (await f.ctx.db.get(f.args.operationId))!
+  await complete(f.ctx, {
+    ...f.args,
+    result:
+      op.kind === 'home' ? { kind: 'home', path: '/new' } : { kind: 'detach' },
   })
-  return lastInvalidation(fixture)
+  return lastJob<InvalidateAgentHomeArgs>(f, 'skills:_invalidateHomeCaches')
 }
 
-test('invalidation cannot run before metadata enters the finishing phase', async () => {
+test('invalidation cannot change an executing operation', async () => {
   const f = await setup()
   const before = structuredClone(f.rows('sessionState'))
-  const op = structuredClone(await f.ctx.db.get(f.operationId))
-  await invalidateHomeCaches(f.ctx, {
-    operationId: f.operationId,
-    attempt: f.attempt,
-    cursor: null,
-    previousPath: '/old',
-  })
+  const op = structuredClone(await f.ctx.db.get(f.args.operationId))
+  await invalidateHomeCaches(f.ctx, { ...f.args, cursor: null })
   expect(f.rows('sessionState')).toEqual(before)
-  expect(await f.ctx.db.get(f.operationId)).toEqual(op)
-  expect((await f.ctx.db.get(agentId))?.fileOperationId).toBe(f.operationId)
+  expect(await f.ctx.db.get(f.args.operationId)).toEqual(op)
 })
 
-test('every page carries the attempt and reservations remain held until the last page', async () => {
+test('pages carry the attempt and hold reservations until final approval revocation', async () => {
   const f = await setup(21)
-  const initial = await finishMetadata(f)
-  expect(initial.attempt).toBe(f.attempt)
-  await invalidateHomeCaches(f.ctx, initial)
-  expect((await f.ctx.db.get(f.operationId))?.status).toBe('running')
-  expect((await f.ctx.db.get(agentId))?.fileOperationId).toBe(f.operationId)
+  await invalidateHomeCaches(f.ctx, await finishMetadata(f))
+  expect((await operation(f.ctx, f.args))?.status).toBe('running')
+  expect((await f.ctx.db.get(agentId))?.fileOperationId).toBe(
+    f.args.operationId,
+  )
   expect((await f.ctx.db.get(homeId))?.revision).toBe(0)
-  const page = lastInvalidation(f)
-  expect(page).toMatchObject({
-    attempt: f.attempt,
-    cursor: '20',
-    previousPath: '/old',
-  })
+  const page = lastJob<InvalidateAgentHomeArgs>(
+    f,
+    'skills:_invalidateHomeCaches',
+  )
+  expect(page).toEqual({ ...f.args, cursor: '20' })
   await invalidateHomeCaches(f.ctx, page)
-  expect((await f.ctx.db.get(f.operationId))?.status).toBe('done')
+  expect((await operation(f.ctx, f.args))?.status).toBe('done')
   expect((await f.ctx.db.get(agentId))?.fileOperationId).toBeUndefined()
-  expect((await f.ctx.db.get(homeId))?.operationId).toBeUndefined()
   for (const state of f.rows('sessionState'))
     expect(state.toolApprovals).toEqual({
       paths: ['/new', '/older', '/project'],
@@ -111,110 +128,112 @@ test('every page carries the attempt and reservations remain held until the last
   expect((await f.ctx.db.get(homeId))?.revision).toBe(1)
 })
 
-test('an old page cannot change approvals or finish a retried execution', async () => {
+test('execution failures and duplicate completions cannot undo committed metadata', async () => {
   const f = await setup(21)
-  await invalidateHomeCaches(f.ctx, await finishMetadata(f))
-  const oldPage = lastInvalidation(f)
-  await fail(f.ctx, {
-    operationId: f.operationId,
-    attempt: f.attempt,
-    message: 'Interrupted',
-  })
-  await retry(f.ctx, { operationId: f.operationId })
-  expect((await f.ctx.db.get(f.operationId))?.finishingHome).toBeUndefined()
-  expect((await f.ctx.db.get(f.operationId))?.previousHomePath).toBeUndefined()
-  f.attempt = Number(await running(f.ctx, { operationId: f.operationId }))
-  const before = structuredClone(f.rows('sessionState'))
-  await invalidateHomeCaches(f.ctx, oldPage)
-  expect(f.rows('sessionState')).toEqual(before)
-  const currentPage = await finishMetadata(f, '/new')
-  const op = structuredClone(await f.ctx.db.get(f.operationId))
-  await invalidateHomeCaches(f.ctx, oldPage)
-  expect(f.rows('sessionState')).toEqual(before)
-  expect(await f.ctx.db.get(f.operationId)).toEqual(op)
-  expect((await f.ctx.db.get(agentId))?.fileOperationId).toBe(f.operationId)
-  await invalidateHomeCaches(f.ctx, currentPage)
-  await invalidateHomeCaches(f.ctx, lastInvalidation(f))
-  expect((await f.ctx.db.get(f.operationId))?.status).toBe('done')
+  await finishMetadata(f)
+  const before = structuredClone(await f.ctx.db.get(f.args.operationId))
+  await fail(f.ctx, { ...f.args, message: 'Late execution failure' })
+  await complete(f.ctx, { ...f.args, result: { kind: 'home', path: '/wrong' } })
+  expect(await f.ctx.db.get(f.args.operationId)).toEqual(before)
+  await expect(retry(f.ctx, f.args)).rejects.toThrow('not found')
 })
 
-test('watchdog resumes the current finishing attempt from persisted metadata', async () => {
+test('old callbacks cannot mutate a retried attempt before or after metadata commit', async () => {
+  const f = await setup(21)
+  const old = { ...f.args, cursor: '20' }
+  await fail(f.ctx, { ...f.args, message: 'Interrupted' })
+  await retry(f.ctx, f.args)
+  f.args.attempt = 2
+  await claimExecution(f.ctx, f.args)
+  const before = structuredClone(f.rows('sessionState'))
+  await invalidateHomeCaches(f.ctx, old)
+  await finishMetadata(f)
+  await invalidateHomeCaches(f.ctx, old)
+  expect(f.rows('sessionState')).toEqual(before)
+  await invalidateHomeCaches(f.ctx, { ...f.args, cursor: null })
+  await invalidateHomeCaches(
+    f.ctx,
+    lastJob<InvalidateAgentHomeArgs>(f, 'skills:_invalidateHomeCaches'),
+  )
+  expect((await operation(f.ctx, f.args))?.status).toBe('done')
+})
+
+test('watchdogs reject old attempts and recover the current finalization phase', async () => {
   const f = await setup()
   await finishMetadata(f)
-  await watchdog(f.ctx, { operationId: f.operationId })
-  const job = lastInvalidation(f)
-  expect(job).toEqual({
-    operationId: f.operationId,
-    attempt: f.attempt,
-    cursor: null,
-    previousPath: '/old',
-  })
+  await f.ctx.db.patch(f.args.operationId, { updatedAt: 0 })
+  const count = f.scheduled.length
+  await watchdog(f.ctx, { ...f.args, attempt: 0 })
+  expect(f.scheduled).toHaveLength(count)
+  await watchdog(f.ctx, f.args)
+  const job = lastJob<InvalidateAgentHomeArgs>(
+    f,
+    'skills:_invalidateHomeCaches',
+  )
+  expect(job).toEqual({ ...f.args, cursor: null })
   await invalidateHomeCaches(f.ctx, job)
-  expect((await f.ctx.db.get(f.operationId))?.status).toBe('done')
+  expect((await operation(f.ctx, f.args))?.status).toBe('done')
 })
 
-test('legacy jobs restart from the current attempt and ignore their supplied cursor and path', async () => {
-  const f = await setup(21)
-  await finishMetadata(f, '/new')
-  const before = structuredClone(f.rows('sessionState'))
-  await invalidateHomeCaches(f.ctx, {
-    operationId: f.operationId,
-    cursor: '20',
-    previousPath: '/project',
-  })
-  expect(f.rows('sessionState')).toEqual(before)
-  const recovery = lastInvalidation(f)
-  expect(recovery).toEqual({
-    operationId: f.operationId,
-    attempt: f.attempt,
-    cursor: null,
-    previousPath: '/new',
-  })
-  await invalidateHomeCaches(f.ctx, recovery)
-  await invalidateHomeCaches(f.ctx, lastInvalidation(f))
-  for (const state of f.rows('sessionState'))
-    expect(state.toolApprovals).toEqual({
-      paths: ['/old', '/old/note', '/older', '/project'],
-      tools: ['write_file'],
-    })
-  expect((await f.ctx.db.get(f.operationId))?.status).toBe('done')
-})
-
-test('legacy finishing records without an attempt recover using attempt zero', async () => {
+test('an early watchdog preserves an active attempt and schedules its expiry check', async () => {
   const f = await setup()
-  await finishMetadata(f)
-  await f.ctx.db.patch(f.operationId, { attempt: undefined })
-  await invalidateHomeCaches(f.ctx, {
-    operationId: f.operationId,
-    cursor: '20',
-    previousPath: '/project',
-  })
-  const recovery = lastInvalidation(f)
-  expect(recovery.attempt).toBe(0)
-  await invalidateHomeCaches(f.ctx, recovery)
-  expect((await f.ctx.db.get(f.operationId))?.status).toBe('done')
+  await watchdog(f.ctx, f.args)
+  expect((await f.ctx.db.get(f.args.operationId))?.state.phase).toBe(
+    'executing',
+  )
+  expect(lastJob<OperationAttemptArgs>(f, 'skills:_watchdog')).toEqual(f.args)
 })
 
-test.each(['queued', 'failed', 'done'] as const)(
-  'invalidation ignores %s operations even with a finishing marker',
-  async (status) => {
+test('detachment invalidates first, then holds reservations through every cleanup batch', async () => {
+  const f = await setup(1, 'detach')
+  for (let i = 0; i < 101; i++)
+    f.rows('agentSkills').push({ _id: `assignment-${i}`, homeId, name: `${i}` })
+  const invalidation = await finishMetadata(f)
+  await cleanupRecords(f.ctx, f.args)
+  expect(f.rows('agentSkills')).toHaveLength(101)
+  await invalidateHomeCaches(f.ctx, invalidation)
+  expect((await operation(f.ctx, f.args))?.status).toBe('running')
+  expect((await f.ctx.db.get(f.args.operationId))?.state.phase).toBe('cleaning')
+  await cleanupRecords(f.ctx, { ...f.args, attempt: 0 })
+  expect(f.rows('agentSkills')).toHaveLength(101)
+  await cleanupRecords(f.ctx, f.args)
+  expect(f.rows('agentSkills')).toHaveLength(1)
+  expect((await f.ctx.db.get(agentId))?.fileOperationId).toBe(
+    f.args.operationId,
+  )
+  await cleanupRecords(
+    f.ctx,
+    lastJob<OperationAttemptArgs>(f, 'skills:_cleanupHomeRecords'),
+  )
+  expect(await f.ctx.db.get(homeId)).toBeNull()
+  expect((await f.ctx.db.get(agentId))?.fileOperationId).toBeUndefined()
+  expect((await operation(f.ctx, f.args))?.status).toBe('done')
+})
+
+test('cleanup preserves a home that acquired another member or a newer reservation', async () => {
+  const f = await setup(0, 'detach')
+  await invalidateHomeCaches(f.ctx, await finishMetadata(f))
+  f.rows('agents').push({ _id: 'other', ownerId: 'owner', homeId })
+  await cleanupRecords(f.ctx, f.args)
+  expect(await f.ctx.db.get(homeId)).not.toBeNull()
+  await f.ctx.db.delete('other' as Id<'agents'>)
+  await f.ctx.db.patch(homeId, {
+    operationId: 'newer' as Id<'agentFileOperations'>,
+  })
+  await cleanupRecords(f.ctx, f.args)
+  expect(await f.ctx.db.get(homeId)).not.toBeNull()
+})
+
+test.each(['queued', 'executing', 'failed', 'done'] as const)(
+  'invalidation ignores %s operations',
+  async (phase) => {
     const f = await setup()
     await finishMetadata(f)
-    await f.ctx.db.patch(f.operationId, { status })
+    await f.ctx.db.patch(f.args.operationId, {
+      state: phase === 'failed' ? { phase, error: 'Failure' } : { phase },
+    })
     const before = structuredClone(f.rows('sessionState'))
-    const scheduled = f.scheduled.length
-    await invalidateHomeCaches(f.ctx, {
-      operationId: f.operationId,
-      attempt: f.attempt,
-      cursor: null,
-      previousPath: '/old',
-    })
-    await invalidateHomeCaches(f.ctx, {
-      operationId: f.operationId,
-      cursor: null,
-      previousPath: '/old',
-    })
+    await invalidateHomeCaches(f.ctx, { ...f.args, cursor: null })
     expect(f.rows('sessionState')).toEqual(before)
-    expect(f.scheduled).toHaveLength(scheduled)
   },
 )

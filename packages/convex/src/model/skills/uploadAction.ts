@@ -40,20 +40,22 @@ export async function expireUpload(
 /** Verifies ownership once and resolves the immutable upload used by an import. */
 export async function importSource(
   ctx: ActionCtx,
-  op: Doc<'agentFileOperations'>,
+  op: Extract<Doc<'agentFileOperations'>, { kind: 'install' }>,
 ) {
-  if (!op.storageId) return { source: op.source }
+  if (op.source.kind === 'directory') return { source: op.source.path }
   const upload = await ctx.runQuery(internal.skills._getUpload, {
-    storageId: op.storageId,
+    storageId: op.source.storageId,
   })
-  const fileUrl = await ctx.storage.getUrl(op.storageId)
-  if (
+  const fileUrl = await ctx.storage.getUrl(op.source.storageId)
+
+  const unavailable =
     !upload ||
     upload.ownerId !== op.ownerId ||
-    upload.ticket !== op.uploadTicket ||
+    upload.ticket !== op.source.ticket ||
     !fileUrl
-  )
+  if (unavailable)
     throw new Error('Skill upload is unavailable; upload the ZIP again')
+
   if (!upload.verified) {
     const proof = await postSidecar<{ verified: boolean }>(
       '/agent-files/verify-upload',
@@ -61,9 +63,11 @@ export async function importSource(
     )
     if (!proof.verified)
       throw new Error('Skill upload does not belong to this import')
+
     await ctx.runMutation(internal.skills._verifyUpload, {
       uploadId: upload._id,
     })
   }
+
   return { fileUrl, ticket: upload.ticket }
 }

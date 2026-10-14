@@ -1,4 +1,4 @@
-import type { Id } from '../../_generated/dataModel'
+import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import type { AuthMutationCtx, AuthQueryCtx } from '../../functions'
@@ -6,6 +6,7 @@ import type {
   CopySkillAssignmentsArgs,
   FileOperationArgs,
   InvalidateAgentHomeArgs,
+  OperationAttemptArgs,
   ReserveHomeArgs,
   SkillAssignmentsArgs,
 } from '../../types'
@@ -15,15 +16,20 @@ import { assertHomeDestination } from './destinations'
 import { agentWithHome } from './homes'
 import {
   invalidateHomeCaches as invalidateCaches,
-  isFinishingHomeOperation,
+  isInvalidatingHomeOperation,
   scheduleHomeInvalidation,
 } from './invalidation'
 import * as Library from './library'
-import { isRunningOperation } from './lifecycle'
+import {
+  isActiveAttempt,
+  isExecutingOperation,
+  scheduleWatchdog,
+} from './lifecycle'
 import * as Operations from './operations'
+import { scheduleCleanup } from './removal'
 
 export const start = (ctx: AuthMutationCtx, args: FileOperationArgs) => {
-  if (args.kind === 'duplicate' || args.kind === 'delete-home') {
+  if (args.kind === 'duplicate') {
     error('Use the agent duplication command', 400)
   }
   return Operations.start(ctx, args)
@@ -35,32 +41,25 @@ export const operation = async (
 ) => {
   requireAdmin(ctx)
   const op = await ctx.db.get(operationId)
-  return op?.ownerId === ctx.userId
-    ? {
-        status: op.status,
-        updatedAt: op.updatedAt,
-        error: op.error,
-        summary: op.importSummary,
-      }
-    : null
+  if (!op || op.ownerId !== ctx.userId) return null
+  return {
+    status: publicOperationStatus(op.state.phase),
+    updatedAt: op.updatedAt,
+    error: op.state.phase === 'failed' ? op.state.error : undefined,
+    summary: op.kind === 'install' ? op.progress.summary : undefined,
+  }
 }
 
-export const getOperation = async (
-  ctx: QueryCtx,
-  { operationId }: { operationId: Id<'agentFileOperations'> },
-) => {
-  const operation = await ctx.db.get(operationId)
-  if (!operation) return null
-  return {
-    operation,
-    agent: operation.agentId
-      ? await agentWithHome(ctx, operation.agentId)
-      : null,
-    home: operation.homeId ? await ctx.db.get(operation.homeId) : null,
-    destinationHome: operation.destinationHomeId
-      ? await ctx.db.get(operation.destinationHomeId)
-      : null,
-    skill: operation.skillId ? await ctx.db.get(operation.skillId) : null,
+function publicOperationStatus(
+  phase: Doc<'agentFileOperations'>['state']['phase'],
+) {
+  switch (phase) {
+    case 'queued':
+    case 'done':
+    case 'failed':
+      return phase
+    default:
+      return 'running' as const
   }
 }
 
@@ -81,19 +80,23 @@ export const copyAssignments = async (
 ) => {
   const op = await ctx.db.get(operationId)
 
-  if (!isRunningOperation(op, attempt) || !op.agentId || ids.length > 20) {
+  if (!isExecutingOperation(op, attempt) || ids.length > 20) {
     error('Invalid assignment copy page', 409)
   }
 
-  const target = op.duplicateId ? await ctx.db.get(op.duplicateId) : null
-  const homeId = target?.homeId ?? op.destinationHomeId
+  const copiesAssignments =
+    op.kind === 'duplicate' || op.kind === 'home' || op.kind === 'ensure'
+  if (!copiesAssignments) error('Invalid assignment copy command', 409)
+
+  const homeId =
+    op.kind === 'duplicate' ? op.destinationHomeId : op.reservation?.homeId
   if (!homeId) error('Destination home not found', 409)
 
   for (const id of ids) {
     const row = await ctx.db.get(id)
-    if (!row || row.ownerId !== op.ownerId || row.homeId !== op.homeId) {
-      error('Assignment changed during copy', 409)
-    }
+    const changed =
+      !row || row.ownerId !== op.ownerId || row.homeId !== op.homeId
+    if (changed) error('Assignment changed during copy', 409)
 
     const exists = await ctx.db
       .query('agentSkills')
@@ -114,18 +117,22 @@ export const copyAssignments = async (
 
 export const watchdog = async (
   ctx: MutationCtx,
-  args: { operationId: Id<'agentFileOperations'> },
+  args: OperationAttemptArgs,
 ) => {
   const op = await ctx.db.get(args.operationId)
-  if (isFinishingHomeOperation(op)) {
-    await scheduleHomeInvalidation(ctx, op)
+  if (!isActiveAttempt(op, args.attempt)) return
+  const remaining = 9 * 60_000 - (Date.now() - op.updatedAt)
+  if (remaining > 0) {
+    await scheduleWatchdog(ctx, args, remaining)
     return
   }
-  if (
-    op &&
-    ['queued', 'running'].includes(op.status) &&
-    Date.now() - op.updatedAt >= 9 * 60_000
-  ) {
+  if (isInvalidatingHomeOperation(op)) {
+    await scheduleHomeInvalidation(ctx, op)
+    await scheduleWatchdog(ctx, args)
+  } else if (op.state.phase === 'cleaning') {
+    await scheduleCleanup(ctx, args)
+    await scheduleWatchdog(ctx, args)
+  } else {
     await Completion.fail(ctx, {
       ...args,
       message:
@@ -134,70 +141,88 @@ export const watchdog = async (
   }
 }
 
+type HomeOperation = Extract<
+  Doc<'agentFileOperations'>,
+  { kind: 'home' | 'ensure' }
+>
+
 export const reserveDestination = async (
   ctx: MutationCtx,
   args: ReserveHomeArgs,
 ) => {
-  const operation = await ctx.db.get(args.operationId)
-  if (!isRunningOperation(operation, args.attempt) || !operation.agentId) {
-    error('Folder operation expired', 409)
-  }
+  const op = await ctx.db.get(args.operationId)
+  const expired =
+    !isExecutingOperation(op, args.attempt) ||
+    (op.kind !== 'home' && op.kind !== 'ensure')
+  if (expired) error('Folder operation expired', 409)
+  if (op.reservation) return resumeDestination(ctx, op, args.path)
+  const home = await resolveDestination(ctx, op, args)
+  const joined = !!home && home._id !== op.homeId
+  const target = home ?? (await createDestination(ctx, op, args.path))
+  await ctx.db.patch(target._id, { operationId: op._id })
+  await ctx.db.patch(op._id, { reservation: { homeId: target._id, joined } })
+  return { home: target, joined }
+}
 
-  if (operation.destinationHomeId) {
-    const home = await ctx.db.get(operation.destinationHomeId)
-    const changed =
-      !home ||
-      home.path !== args.path ||
-      (home.operationId && home.operationId !== operation._id)
-    if (changed) {
-      error('Destination changed during retry', 409)
-    }
+async function resumeDestination(
+  ctx: MutationCtx,
+  op: HomeOperation,
+  path: string,
+) {
+  const reservation = op.reservation
+  if (!reservation) error('Destination was not reserved', 409)
+  const home = await ctx.db.get(reservation.homeId)
+  const changed =
+    !home ||
+    home.ownerId !== op.ownerId ||
+    home.path !== path ||
+    (home.operationId && home.operationId !== op._id)
+  if (changed) error('Destination changed during retry', 409)
+  await assertDestinationMembersIdle(ctx, home._id, op)
+  await ctx.db.patch(home._id, { operationId: op._id })
+  return { home, joined: reservation.joined }
+}
 
-    await assertDestinationMembersIdle(ctx, home._id, operation)
-    await ctx.db.patch(home._id, { operationId: operation._id })
-    return { home, joined: operation.joinedHome ?? false }
-  }
-
-  let existing = await assertHomeDestination(ctx, operation.agentId, args.path)
-  const source = operation.homeId ? await ctx.db.get(operation.homeId) : null
-  const initializingManagedHome =
+async function resolveDestination(
+  ctx: MutationCtx,
+  op: HomeOperation,
+  args: ReserveHomeArgs,
+) {
+  let existing = await assertHomeDestination(ctx, op.agentId, args.path)
+  const source = await ctx.db.get(op.homeId)
+  const initializing =
     !existing &&
-    !operation.destination &&
+    op.kind === 'ensure' &&
     args.insideData &&
     source?.managed &&
     !source.path
-  if (initializingManagedHome) {
+  if (initializing) {
     existing = { ...source, path: args.path }
     await ctx.db.patch(source._id, { path: args.path })
   }
-
-  if (existing?.operationId && existing.operationId !== operation._id)
+  if (existing?.operationId && existing.operationId !== op._id)
     error('Destination folder is being updated', 409)
-  if (args.insideData && !existing?.managed && operation.destination)
+  if (args.insideData && !existing?.managed && op.kind === 'home')
     error('Custom homes cannot overlap sidecar storage', 409)
+  if (existing) await assertDestinationMembersIdle(ctx, existing._id, op)
+  return existing
+}
 
-  if (existing) await assertDestinationMembersIdle(ctx, existing._id, operation)
-
-  const id =
-    existing?._id ??
-    (await ctx.db.insert('agentHomes', {
-      ownerId: operation.ownerId,
-      originAgentId: operation.agentId,
-      managed: !operation.destination,
-      path: args.path,
-      revision: 0,
-    }))
-
-  await ctx.db.patch(id, { operationId: operation._id })
-  await ctx.db.patch(operation._id, {
-    destinationHomeId: id,
-    joinedHome: !!existing && existing._id !== operation.homeId,
+async function createDestination(
+  ctx: MutationCtx,
+  op: HomeOperation,
+  path: string,
+) {
+  const id = await ctx.db.insert('agentHomes', {
+    ownerId: op.ownerId,
+    originAgentId: op.agentId,
+    managed: op.kind === 'ensure',
+    path,
+    revision: 0,
   })
-
-  return {
-    home: (await ctx.db.get(id))!,
-    joined: !!existing && existing._id !== operation.homeId,
-  }
+  const home = await ctx.db.get(id)
+  if (!home) error('Destination home no longer exists', 409)
+  return home
 }
 
 export const invalidateHomeCaches = async (

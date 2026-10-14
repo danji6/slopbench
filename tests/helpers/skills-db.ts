@@ -28,6 +28,14 @@ export function skillsDatabase() {
       }
       Object.assign(row, patch)
     },
+    replace: async (id: string, fields: Record<string, unknown>) => {
+      const row = await db.get(id)
+      if (!row) throw new Error('Missing fixture row')
+      for (const key of Object.keys(row)) {
+        if (key !== '_id' && key !== '_creationTime') delete row[key]
+      }
+      Object.assign(row, fields)
+    },
     delete: async (id: string) => {
       for (const entries of tables.values()) {
         const index = entries.findIndex((row) => row._id === id)

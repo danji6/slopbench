@@ -1,11 +1,12 @@
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { assertAgentAvailable } from '@sb/convex/model/skills/access'
-import { complete, fail } from '@sb/convex/model/skills/completion'
+import { fail } from '@sb/convex/model/skills/completion'
 import { assertHomeDestination } from '@sb/convex/model/skills/destinations'
 import { reserveDestination } from '@sb/convex/model/skills/endpoints'
 import { bindHome, ensureHome, getHome } from '@sb/convex/model/skills/homes'
+import { invalidateHomeCaches } from '@sb/convex/model/skills/invalidation'
 import { assigned, list } from '@sb/convex/model/skills/library'
-import { retry, running, start } from '@sb/convex/model/skills/operations'
+import { retry, start } from '@sb/convex/model/skills/operations'
 import {
   assertRemovableHome,
   cleanupRecords,
@@ -13,6 +14,10 @@ import {
 } from '@sb/convex/model/skills/removal'
 import { expect, test } from 'bun:test'
 
+import {
+  completeFileOperation as complete,
+  claimFileOperation as running,
+} from '../helpers/file-operations'
 import { skillsDatabase } from '../helpers/skills-db'
 
 const a = 'a' as Id<'agents'>
@@ -110,7 +115,12 @@ test('joining adopts a same-owner home and rejects foreign or nested destination
     copyFiles: true,
   })
   await running(ctx, { operationId })
-  const result = await reserveDestination(ctx, { operationId, path: '/shared' })
+  const result = await reserveDestination(ctx, {
+    operationId,
+    attempt: (await ctx.db.get(operationId))!.attempt,
+    insideData: false,
+    path: '/shared',
+  })
   expect(result.joined).toBe(true)
   expect(result.home._id).toBe(home._id)
   await complete(ctx, { operationId, path: '/shared' })
@@ -134,13 +144,31 @@ test('a retried new destination stays a copy operation instead of becoming a joi
   })
   await running(ctx, { operationId })
   expect(
-    (await reserveDestination(ctx, { operationId, path: '/new' })).joined,
+    (
+      await reserveDestination(ctx, {
+        operationId,
+        attempt: (await ctx.db.get(operationId))!.attempt,
+        insideData: false,
+        path: '/new',
+      })
+    ).joined,
   ).toBe(false)
-  await fail(ctx, { operationId, message: 'Interrupted' })
+  await fail(ctx, {
+    operationId,
+    attempt: (await ctx.db.get(operationId))!.attempt,
+    message: 'Interrupted',
+  })
   await retry(ctx, { operationId })
   await running(ctx, { operationId })
   expect(
-    (await reserveDestination(ctx, { operationId, path: '/new' })).joined,
+    (
+      await reserveDestination(ctx, {
+        operationId,
+        attempt: (await ctx.db.get(operationId))!.attempt,
+        insideData: false,
+        path: '/new',
+      })
+    ).joined,
   ).toBe(false)
 })
 
@@ -148,7 +176,11 @@ test('late completions and failures cannot overwrite a newer attempt', async () 
   const { ctx } = await setup()
   const operationId = await start(ctx, { kind: 'assign', agentId: a, skillId })
   const first = await running(ctx, { operationId })
-  await fail(ctx, { operationId, message: 'Interrupted' })
+  await fail(ctx, {
+    operationId,
+    attempt: (await ctx.db.get(operationId))!.attempt,
+    message: 'Interrupted',
+  })
   await retry(ctx, { operationId })
   const second = await running(ctx, { operationId })
   expect(second).not.toBe(first)
@@ -158,7 +190,7 @@ test('late completions and failures cannot overwrite a newer attempt', async () 
     attempt: Number(first),
     message: 'Late failure',
   })
-  expect((await ctx.db.get(operationId))?.status).toBe('running')
+  expect((await ctx.db.get(operationId))?.state.phase).toBe('executing')
 })
 
 test('cleanup is reserved only for the last member of a managed home and remains retryable', async () => {
@@ -177,12 +209,24 @@ test('cleanup is reserved only for the last member of a managed home and remains
     true,
   )
   await running(ctx, { operationId })
-  await fail(ctx, { operationId, message: 'Disk unavailable' })
+  await fail(ctx, {
+    operationId,
+    attempt: (await ctx.db.get(operationId))!.attempt,
+    message: 'Disk unavailable',
+  })
   await retry(ctx, { operationId })
-  expect((await ctx.db.get(operationId))?.status).toBe('queued')
+  expect((await ctx.db.get(operationId))?.state.phase).toBe('queued')
   await running(ctx, { operationId })
   await complete(ctx, { operationId })
-  await cleanupRecords(ctx, { homeId: home._id })
+  await invalidateHomeCaches(ctx, {
+    operationId,
+    attempt: (await ctx.db.get(operationId))!.attempt,
+    cursor: null,
+  })
+  await cleanupRecords(ctx, {
+    operationId,
+    attempt: (await ctx.db.get(operationId))!.attempt,
+  })
   expect(await ctx.db.get(home._id)).toBeNull()
 })
 
@@ -210,16 +254,32 @@ test('joining a shared home can resume its own reservation while rejecting new a
     copyFiles: true,
   })
   await running(ctx, { operationId })
-  await reserveDestination(ctx, { operationId, path: '/shared' })
+  await reserveDestination(ctx, {
+    operationId,
+    attempt: (await ctx.db.get(operationId))!.attempt,
+    insideData: false,
+    path: '/shared',
+  })
   expect(
-    (await reserveDestination(ctx, { operationId, path: '/shared' })).home._id,
+    (
+      await reserveDestination(ctx, {
+        operationId,
+        attempt: (await ctx.db.get(operationId))!.attempt,
+        insideData: false,
+        path: '/shared',
+      })
+    ).home._id,
   ).toBe(home._id)
 })
 
 test('a failed operation cannot be retried against an agent that has changed homes', async () => {
   const { ctx } = await setup(false)
   const operationId = await start(ctx, { kind: 'assign', agentId: a, skillId })
-  await fail(ctx, { operationId, message: 'Interrupted' })
+  await fail(ctx, {
+    operationId,
+    attempt: (await ctx.db.get(operationId))!.attempt,
+    message: 'Interrupted',
+  })
   const otherHome = await ensureHome(ctx, (await ctx.db.get(b))!)
   await bindHome(ctx, a, otherHome)
   await expect(retry(ctx, { operationId })).rejects.toThrow('changed folders')
@@ -241,7 +301,7 @@ test('detaching one member preserves shared files and assignments but removes it
     removeFolder: false,
   })
   await running(ctx, { operationId })
-  await complete(ctx, { operationId, previousPath: '/shared' })
+  await complete(ctx, { operationId })
   expect((await ctx.db.get(a))?.homeId).toBeUndefined()
   expect((await ctx.db.get(a))?.homeId).toBeUndefined()
   expect((await getHome(ctx, { agentId: a })).path).toBeUndefined()
@@ -290,12 +350,24 @@ test('detach-and-delete rejects shared and custom folders, then cleans up the fi
     removeFolder: true,
   })
   await running(ctx, { operationId })
-  await fail(ctx, { operationId, message: 'Disk unavailable' })
+  await fail(ctx, {
+    operationId,
+    attempt: (await ctx.db.get(operationId))!.attempt,
+    message: 'Disk unavailable',
+  })
   expect((await ctx.db.get(a))?.homeId).toBe(home._id)
   await retry(ctx, { operationId })
   await running(ctx, { operationId })
   await complete(ctx, { operationId })
-  await cleanupRecords(ctx, { homeId: home._id })
+  await invalidateHomeCaches(ctx, {
+    operationId,
+    attempt: (await ctx.db.get(operationId))!.attempt,
+    cursor: null,
+  })
+  await cleanupRecords(ctx, {
+    operationId,
+    attempt: (await ctx.db.get(operationId))!.attempt,
+  })
   expect((await ctx.db.get(a))?.homeId).toBeUndefined()
   expect(await ctx.db.get(home._id)).toBeNull()
 })
@@ -313,7 +385,7 @@ test('explicit reinitialization reuses a preserved managed home instead of dupli
   await ctx.db.patch(a, { fileOperationId: undefined })
   await ctx.db.patch(home._id, { operationId: undefined })
   const init = await start(ctx, { kind: 'ensure', agentId: a })
-  expect((await ctx.db.get(init))?.homeId).toBe(home._id)
+  expect(await ctx.db.get(init)).toHaveProperty('homeId', home._id)
   expect(rows('agentHomes')).toHaveLength(1)
   expect((await ctx.db.get(a))?.homeId).toBe(home._id)
 })

@@ -4,8 +4,9 @@ This file provides guidance for AI agents working with this project.
 
 ## Important
 
-To protect the user's privacy, avoid reading sensitive files like `.env` or any file that might
-contain sensitive information. If you need specific information, ask the user instead.
+To protect the user's privacy, avoid reading sensitive files like `.env` or any
+file that might contain sensitive information. If you need specific information,
+ask the user instead.
 
 ## Preferred Tools
 
@@ -56,8 +57,28 @@ The `package.json` contains most scripts you will need, including running tests.
 - Always add proper spacing between functions, classes, etc
 - Extract long destructured fuction signatures into dedicated types instead of inlining
 - Extract long inline types into top-level types
-- Avoid multiline expressions in conditional statements/loops and assign them to variables first
+- Avoid multiline expressions in conditional statements/loops and assign them to
+  variables first
 - Try to keep the code human readable by using common code conventions
+
+### Conditions and lifecycle checks
+
+- Express business rules by name. Conditions combining several independent
+  concerns (existence, ownership, lifecycle phase, attempt, reservation)
+  should use focused guards or domain helpers.
+- Use early returns for independent rejection cases. Keep related checks
+  together when they express one clear rule.
+- Extract repeated policies into named predicates or assertion helpers in
+  the existing domain module. Preserve TypeScript narrowing where useful.
+- For a condition used once, prefer a descriptive local boolean when it
+  makes the intent clearer. Avoid vague names like `valid` or `eligible`
+  when a specific name such as `reservationExpired` explains the rule.
+- Do not merely move a long condition into a helper or variable. Make its
+  purpose clear and separate unrelated responsibilities.
+- Avoid extracting trivial comparisons or adding generic guard frameworks.
+  Prefer the smallest abstraction that makes the calling code readable.
+- During refactors, preserve check ordering, short-circuit behavior, error
+  responses, and concurrency safeguards.
 
 ### Specific Instructions
 
@@ -70,6 +91,9 @@ The `package.json` contains most scripts you will need, including running tests.
    - Identify distinct responsibilities
    - Extract each to its own module with a descriptive name
    - Move related logic together
+   - Before finishing, review the diff for compound conditions, deep nesting,
+     repeated policies, and duplicated actions. Simplify these using existing
+     domain helpers, and run the relevant behavior tests.
 
 3. **When writing functions**
    - Keep them small and focused
@@ -80,32 +104,43 @@ The `package.json` contains most scripts you will need, including running tests.
    - If a line of code isn't obvious, comment what it does but keep the comment short
    - Multiline comments are justified when the code is complex or needs important info/notes
    - Comments must be easy to understand and convey essential context to the reader
-   - Function comments should explain what the function does, which usually means starting with a verb
+   - Function comments should explain what the function does, which usually means
+     starting with a verb
 
 5. **React & UI**
    - React components should be pure and reusable.
    - Split large JSX into smaller self-contained components where possible.
    - Always think outside of React before trying to implement a solution with it.
-   - Try to reuse existing primitives in the project, or create new reusable ones when needed.
-   - Business logic should not be tied to React components. React is merely a presentation layer.
+   - Try to reuse existing primitives in the project, or create new reusable ones
+     when needed.
+   - Business logic should not be tied to React components. React is merely a
+     presentation layer.
    - Keep UI logic separated from business logic.
-   - This project uses BaseUI instead of Radix. The key difference is the `render` prop instead of `asChild`.
+   - This project uses BaseUI instead of Radix. The key difference is the `render`
+     prop instead of `asChild`.
    - Don't use `forwardRef`, just pass refs as props (React 19+).
    - Prefer `RippleButton` over `Button` in most cases, save for very small buttons.
 
 6. **Convex**
    - Use camelCase for Convex file names, otherwise they'll be rejected.
-   - Query/Mutation handlers should be thin wrappers around business logic that lives in the `model` folder.
+   - Query/Mutation handlers should be thin wrappers around business logic that
+     lives in the `model` folder.
    - On the client, always use query/mutation hooks and avoid non-reactive calls.
-   - Whenever possible, use Convex's Infer to infer types from validator objects instead of rewriting a separate type.
-   - For handlers with more than 2 args, don't inline them; write a validator in the appropriate domain module under `validators/`.
+   - Whenever possible, use Convex's Infer to infer types from validator objects
+     instead of rewriting a separate type.
+   - For handlers with more than 2 args, don't inline them; write a validator in
+     the appropriate domain module under `validators/`.
    - Write inferred validator types in `types.ts`.
    - Use the `error()` utility function in `errors.ts` to throw server-side errors.
    - Prefix all internal queries, mutations and actions with an underscore (e.g. \_save).
-   - Use dynamic imports in Convex actions (NOT queries/mutations) to avoid memory carry-over errors.
+   - Use dynamic imports in Convex actions (NOT queries/mutations) to avoid
+     memory carry-over errors.
    - All actions go in the "convex/actions" folder.
-   - We have `convex-helpers`, always check if it offers a solution to a complex db-related issue before implementing your own.
-   - A schema change that an existing database can't satisfy needs a migration listed in `releaseMigrations` (`migrations.ts`).
+   - We have `convex-helpers`, always check if it offers a solution to a complex
+     db-related issue before implementing your own.
+   - A schema change that an existing database can't satisfy needs a migration
+     listed in `releaseMigrations` (`migrations.ts`).
 
 7. **Sidecar Server**
-   - The sidecar currently doesn't support hot-reloading. If you make changes to it, remind the user to restart it.
+   - The sidecar currently doesn't support hot-reloading. If you make changes to
+     it, remind the user to restart it.

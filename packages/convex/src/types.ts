@@ -155,6 +155,8 @@ export type SkillAssignmentsArgs = Infer<typeof V.skillAssignmentsArgsValidator>
 export type ContinueSkillImportArgs = Infer<typeof V.continueSkillImportArgsValidator> // prettier-ignore
 export type CopySkillAssignmentsArgs = Infer<typeof V.copySkillAssignmentsArgsValidator> // prettier-ignore
 export type ReserveHomeArgs = Infer<typeof V.reserveHomeArgsValidator>
+export type OperationAttemptArgs = Infer<typeof V.operationAttemptArgsValidator>
+export type OperationResult = Infer<typeof V.operationResultValidator>
 
 export type FolderView = Doc<'sessionFolders'> & {
   workspace: Session['workspace']

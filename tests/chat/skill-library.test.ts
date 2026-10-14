@@ -1,13 +1,17 @@
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { getBySessionAgent } from '@sb/convex/model/session/cache'
 import { assertAgentAvailable } from '@sb/convex/model/skills/access'
-import { complete } from '@sb/convex/model/skills/completion'
 import { assertHomeDestination } from '@sb/convex/model/skills/destinations'
+import { reserveDestination } from '@sb/convex/model/skills/endpoints'
 import { invalidateHomeCaches } from '@sb/convex/model/skills/invalidation'
 import { assigned, list } from '@sb/convex/model/skills/library'
 import { start } from '@sb/convex/model/skills/operations'
 import { expect, test } from 'bun:test'
 
+import {
+  completeFileOperation as complete,
+  claimFileOperation as running,
+} from '../helpers/file-operations'
 import { skillsDatabase } from '../helpers/skills-db'
 
 const agentId = 'agent' as Id<'agents'>
@@ -135,7 +139,7 @@ test('custom homes cannot overlap another owner’s current or reserved home', a
 })
 
 test('home transition revokes old home grants before releasing the agent', async () => {
-  const { ctx, rows, db } = setup()
+  const { ctx, rows } = setup()
   rows('sessionCache').push({ _id: 'cache', sessionId: 'session', agentId })
   rows('sessionState').push({
     _id: 'state',
@@ -151,18 +155,22 @@ test('home transition revokes old home grants before releasing the agent', async
     destination: '/new-home',
     copyFiles: true,
   })
-  await db.patch(operationId, { status: 'running' })
+  await running(ctx, { operationId })
+  await reserveDestination(ctx, {
+    operationId,
+    attempt: 1,
+    path: '/new-home',
+    insideData: false,
+  })
   await complete(ctx, {
     operationId,
     path: '/new-home',
-    previousPath: '/old-home',
   })
   expect(rows('agents')[0]!.fileOperationId).toBe(operationId)
   await invalidateHomeCaches(ctx, {
     operationId,
-    attempt: 0,
+    attempt: 1,
     cursor: null,
-    previousPath: '/old-home',
   })
   expect(rows('agents')[0]!.fileOperationId).toBeUndefined()
   expect(rows('sessionState')[0]!.toolApprovals).toEqual({

@@ -5,6 +5,7 @@ import { internalMutation, internalQuery } from './_generated/server'
 import { authMutation, authQuery } from './functions'
 import * as Completion from './model/skills/completion'
 import * as Endpoints from './model/skills/endpoints'
+import { claimExecution } from './model/skills/execution'
 import * as Homes from './model/skills/homes'
 import * as Imports from './model/skills/imports'
 import * as Library from './model/skills/library'
@@ -16,6 +17,7 @@ import {
   copySkillAssignmentsArgsValidator,
   failAgentFileArgsValidator,
   invalidateAgentHomeArgsValidator,
+  operationAttemptArgsValidator,
   reserveHomeArgsValidator,
   startFileOperationArgsValidator,
 } from './validators/fileOperations'
@@ -80,11 +82,6 @@ export const _deleteUpload = internalMutation({
   handler: Uploads.deleteUpload,
 })
 
-export const _getOperation = internalQuery({
-  args: { operationId: v.id('agentFileOperations') },
-  handler: Endpoints.getOperation,
-})
-
 export const _assignments = internalQuery({
   args: skillAssignmentsArgsValidator.fields,
   handler: Endpoints.assignments,
@@ -120,9 +117,9 @@ export const _continueImport = internalMutation({
   handler: Imports.continueImport,
 })
 
-export const _running = internalMutation({
-  args: { operationId: v.id('agentFileOperations') },
-  handler: Operations.running,
+export const _claimExecution = internalMutation({
+  args: operationAttemptArgsValidator.fields,
+  handler: claimExecution,
 })
 
 export const _copyAssignments = internalMutation({
@@ -131,7 +128,7 @@ export const _copyAssignments = internalMutation({
 })
 
 export const _watchdog = internalMutation({
-  args: { operationId: v.id('agentFileOperations') },
+  args: operationAttemptArgsValidator.fields,
   handler: Endpoints.watchdog,
 })
 
@@ -151,6 +148,6 @@ export const _invalidateHomeCaches = internalMutation({
 })
 
 export const _cleanupHomeRecords = internalMutation({
-  args: { homeId: v.id('agentHomes') },
+  args: operationAttemptArgsValidator.fields,
   handler: cleanupRecords,
 })

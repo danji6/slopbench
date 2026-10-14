@@ -3,12 +3,13 @@
 import { v } from 'convex/values'
 
 import { action, internalAction } from '../_generated/server'
+import { operationAttemptArgsValidator } from '../validators/fileOperations'
 
 export const _run = internalAction({
-  args: { operationId: v.id('agentFileOperations') },
-  handler: async (ctx, { operationId }) => {
+  args: operationAttemptArgsValidator.fields,
+  handler: async (ctx, args) => {
     const { run } = await import('../model/skills/filesAction')
-    await run(ctx, operationId)
+    await run(ctx, args)
   },
 })
 

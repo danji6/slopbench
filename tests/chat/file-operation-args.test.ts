@@ -61,7 +61,13 @@ test('the registered mutation unwraps the command before reserving filesystem wo
   )
 
   expect(rows('agentFileOperations')).toMatchObject([
-    { _id: id, kind: 'ensure', agentId, ownerId: ctx.userId, status: 'queued' },
+    {
+      _id: id,
+      kind: 'ensure',
+      agentId,
+      ownerId: ctx.userId,
+      state: { phase: 'queued' },
+    },
   ])
 })
 
@@ -70,7 +76,6 @@ test('command contracts accept each supported operation and both import sources'
     { kind: 'ensure', agentId },
     { kind: 'detach', agentId },
     { kind: 'detach', agentId, removeFolder: true },
-    { kind: 'delete-home' },
     { kind: 'install', source: '/skills' },
     { kind: 'install', storageId },
     { kind: 'assign', agentId, skillId },
@@ -91,6 +96,7 @@ test('command contracts accept each supported operation and both import sources'
 
 test('malformed commands are rejected before reserving any resources', async () => {
   const malformed: unknown[] = [
+    { kind: 'delete-home' },
     { kind: 'ensure' },
     { kind: 'detach' },
     { kind: 'assign', skillId },
@@ -156,8 +162,5 @@ test('internal-only operation kinds remain unavailable through the public entry 
   expect(() =>
     startPublicOperation(ctx, { kind: 'duplicate', agentId, duplicateId }),
   ).toThrow('agent duplication command')
-  expect(() => startPublicOperation(ctx, { kind: 'delete-home' })).toThrow(
-    'agent duplication command',
-  )
   expect(rows('agentFileOperations')).toHaveLength(0)
 })

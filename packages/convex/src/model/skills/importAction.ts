@@ -11,50 +11,58 @@ import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { postSidecar } from '../sidecar'
-import type { OperationContext } from './operations'
+import type { ExecutionContext } from './execution'
 import { importSource } from './uploadAction'
+
+type ImportContext = Extract<ExecutionContext, { kind: 'install' }>
 
 /** Discovers once, then copies and commits a bounded page of independent skills. */
 export async function importSkills(
   ctx: ActionCtx,
-  data: OperationContext,
-): Promise<Record<string, never> | undefined> {
+  data: ImportContext,
+): Promise<boolean> {
   const op = data.operation
   await discover(ctx, data)
 
   const page = await postSidecar<SkillImportPage>('/agent-files/import-page', {
     id: `${op._id}-discover`,
-    cursor: op.importCursor ?? 0,
+    cursor: op.progress.cursor,
   })
-  if (!page.entries.length && !op.importCursor)
+  if (!page.entries.length && !op.progress.cursor)
     throw new Error('No SKILL.md files found in this directory or ZIP')
 
-  let cursor = op.importCursor ?? 0
+  let cursor = op.progress.cursor
   const started = Date.now()
   for (const candidate of page.entries) {
     await installCandidate(ctx, data, candidate, cursor)
     cursor = candidate.nextCursor
-    if (Date.now() - started >= 4 * 60_000 && cursor !== page.nextCursor) {
-      await ctx.runMutation(internal.skills._continueImport, {
-        operationId: op._id,
-        attempt: op.attempt,
-        cursor,
-      })
-      return
+    const shouldYield =
+      Date.now() - started >= 4 * 60_000 && cursor !== page.nextCursor
+    if (shouldYield) {
+      await scheduleContinuation(ctx, data, cursor)
+      return false
     }
   }
   if (!page.isDone) {
-    await ctx.runMutation(internal.skills._continueImport, {
-      operationId: op._id,
-      attempt: op.attempt,
-      cursor,
-    })
-    return
+    await scheduleContinuation(ctx, data, cursor)
+    return false
   }
-  return {}
+  return true
 }
 
-async function discover(ctx: ActionCtx, data: OperationContext) {
+async function scheduleContinuation(
+  ctx: ActionCtx,
+  data: ImportContext,
+  cursor: number,
+) {
+  await ctx.runMutation(internal.skills._continueImport, {
+    operationId: data.operation._id,
+    attempt: data.operation.attempt,
+    cursor,
+  })
+}
+
+async function discover(ctx: ActionCtx, data: ImportContext) {
   const op = data.operation
   await postSidecar('/agent-files/operation', {
     id: `${op._id}-discover`,
@@ -66,7 +74,7 @@ async function discover(ctx: ActionCtx, data: OperationContext) {
 
 async function installCandidate(
   ctx: ActionCtx,
-  data: OperationContext,
+  data: ImportContext,
   candidate: SkillImportCandidate & { nextCursor: number },
   cursor: number,
 ) {

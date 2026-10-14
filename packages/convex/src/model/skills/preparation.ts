@@ -47,7 +47,6 @@ export type PreparedOperation =
       AgentTarget & { assignment: Doc<'agentSkills'>; skill: Doc<'skills'> }
     >
   | Prepared<'delete-library', { skill: Doc<'skills'> }>
-  | Prepared<'delete-home'>
   | PreparedInstall
 
 /** Resolves each command's required resources within its reserving mutation. */
@@ -67,8 +66,6 @@ export async function prepareOperation(
       await assertSkillUnused(ctx, skill._id)
       return { kind: command.kind, command, skill }
     }
-    case 'delete-home':
-      return { kind: command.kind, command }
     case 'duplicate': {
       const target = await prepareIdleAgent(ctx, command.agentId)
       const duplicate = await prepareAgent(ctx, command.duplicateId)
@@ -217,17 +214,24 @@ export async function assertHomeMissingSkill(
   if (assignment) error('This skill is already assigned', 409)
 }
 
-/** Builds persisted fields using the resources required by the prepared command. */
+/** Builds stored command fields from validated resources. */
 export function preparedFields(prepared: PreparedOperation) {
   switch (prepared.kind) {
     case 'install':
       return {
-        ...prepared.command,
-        ...(prepared.sourceType === 'upload'
-          ? { uploadTicket: prepared.upload.ticket }
-          : {}),
-        importCursor: 0,
-        importSummary: { installed: 0, skipped: 0, failed: 0 },
+        kind: prepared.kind,
+        source:
+          prepared.sourceType === 'upload'
+            ? {
+                kind: 'upload' as const,
+                storageId: prepared.command.storageId,
+                ticket: prepared.upload.ticket,
+              }
+            : { kind: 'directory' as const, path: prepared.command.source },
+        progress: {
+          cursor: 0,
+          summary: { installed: 0, skipped: 0, failed: 0 },
+        },
       }
     case 'duplicate':
       return {
@@ -242,12 +246,22 @@ export function preparedFields(prepared: PreparedOperation) {
         homeId: prepared.home._id,
         skillId: prepared.skill._id,
       }
+    case 'detach':
+      return prepared.command.removeFolder
+        ? {
+            ...prepared.command,
+            homeId: prepared.home._id,
+            removeFolder: true as const,
+          }
+        : {
+            ...prepared.command,
+            homeId: prepared.home._id,
+            removeFolder: false as const,
+          }
     case 'ensure':
     case 'home':
-    case 'detach':
       return { ...prepared.command, homeId: prepared.home._id }
     case 'delete-library':
-    case 'delete-home':
       return prepared.command
   }
 }
@@ -264,6 +278,7 @@ export function preparedTargets(prepared: PreparedOperation): OperationTargets {
     })
   return {
     agents,
+    homes: agents.map((agent) => agent.homeId),
     skillId: 'skill' in prepared ? prepared.skill._id : undefined,
   }
 }

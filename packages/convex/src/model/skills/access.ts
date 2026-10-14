@@ -64,7 +64,7 @@ export async function assertAgentHomeIdle(
 export async function assertDestinationMembersIdle(
   ctx: MutationCtx,
   homeId: Id<'agentHomes'>,
-  operation: Doc<'agentFileOperations'>,
+  operation: Extract<Doc<'agentFileOperations'>, { agentId: Id<'agents'> }>,
 ) {
   for (const member of await homeMembers(ctx, homeId)) {
     if (member._id !== operation.agentId)

@@ -160,6 +160,7 @@ import type * as model_skills_access from "../model/skills/access.js";
 import type * as model_skills_completion from "../model/skills/completion.js";
 import type * as model_skills_destinations from "../model/skills/destinations.js";
 import type * as model_skills_endpoints from "../model/skills/endpoints.js";
+import type * as model_skills_execution from "../model/skills/execution.js";
 import type * as model_skills_filesAction from "../model/skills/filesAction.js";
 import type * as model_skills_homes from "../model/skills/homes.js";
 import type * as model_skills_importAction from "../model/skills/importAction.js";
@@ -439,6 +440,7 @@ declare const fullApi: ApiFromModules<{
   "model/skills/completion": typeof model_skills_completion;
   "model/skills/destinations": typeof model_skills_destinations;
   "model/skills/endpoints": typeof model_skills_endpoints;
+  "model/skills/execution": typeof model_skills_execution;
   "model/skills/filesAction": typeof model_skills_filesAction;
   "model/skills/homes": typeof model_skills_homes;
   "model/skills/importAction": typeof model_skills_importAction;

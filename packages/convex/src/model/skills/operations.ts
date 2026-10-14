@@ -1,15 +1,13 @@
 import type { Doc, Id } from '../../_generated/dataModel'
-import type { MutationCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import type { AuthMutationCtx } from '../../functions'
 import type { FileOperationArgs } from '../../types'
-import { assertAgentIdle, requireAdmin, requireOwnedSkill } from './access'
+import { assertAgentIdle, requireAdmin } from './access'
 import {
   claimOperation,
-  holdsOperationReservations,
+  operationTargets,
   scheduleOperation,
 } from './lifecycle'
-import type { OperationTargets } from './lifecycle'
 import { validateOperationArgs } from './operationArgs'
 import {
   assertHomeMissingSkill,
@@ -26,172 +24,109 @@ export async function start(ctx: AuthMutationCtx, args: FileOperationArgs) {
   requireAdmin(ctx)
   validateOperationArgs(args)
   const prepared = await prepareOperation(ctx, args)
+  const attempt = 1
   const id = await ctx.db.insert('agentFileOperations', {
     ...preparedFields(prepared),
     ownerId: ctx.userId,
-    status: 'queued',
+    state: { phase: 'queued' },
+    attempt,
     updatedAt: Date.now(),
   })
   await claimOperation(ctx, id, preparedTargets(prepared))
-  await scheduleOperation(ctx, id)
+  await scheduleOperation(ctx, { operationId: id, attempt })
   return id
 }
 
-/** Reclaims a failed operation after rechecking its current targets and ownership. */
+/** Reclaims a failed execution after rechecking its current targets and ownership. */
 export async function retry(
   ctx: AuthMutationCtx,
   args: { operationId: Id<'agentFileOperations'> },
 ) {
   requireAdmin(ctx)
-  const operation = await requireFailedOperation(ctx, args.operationId)
-  if (await alreadyDeleted(ctx, operation)) {
-    await ctx.db.patch(operation._id, {
-      status: 'done',
-      error: undefined,
+  const op = await ctx.db.get(args.operationId)
+  const retryable =
+    op && op.ownerId === ctx.userId && op.state.phase === 'failed'
+  if (!retryable) {
+    error('Operation not found', 404)
+  }
+  if (await alreadyDeleted(ctx, op)) {
+    await ctx.db.patch(op._id, {
+      state: { phase: 'done' },
       updatedAt: Date.now(),
     })
     return
   }
-  if (operation.kind === 'delete-home' && operation.homeId) {
-    await assertRemovableHome(ctx, operation.homeId, operation._id)
-    await ctx.db.patch(operation.homeId, { operationId: operation._id })
-  }
-  const targets = await validateRetryTargets(ctx, operation)
-  await claimOperation(ctx, operation._id, targets)
-  await queueRetry(ctx, operation)
-}
-
-async function queueRetry(
-  ctx: AuthMutationCtx,
-  operation: Doc<'agentFileOperations'>,
-) {
-  await ctx.db.patch(operation._id, {
-    status: 'queued',
-    error: undefined,
-    finishingHome: undefined,
-    previousHomePath: undefined,
-    updatedAt: Date.now(),
-    ...(operation.kind === 'install'
+  await validateRetry(ctx, op)
+  const attempt = op.attempt + 1
+  const progress =
+    op.kind === 'install'
       ? {
-          importCursor: 0,
-          importSummary: { installed: 0, skipped: 0, failed: 0 },
-          importError: undefined,
+          progress: {
+            cursor: 0,
+            summary: { installed: 0, skipped: 0, failed: 0 },
+          },
         }
-      : {}),
+      : {}
+  const targets = operationTargets(op)
+  if (op.kind === 'install') targets.skillId = undefined
+  await claimOperation(ctx, op._id, targets)
+  await ctx.db.patch(op._id, {
+    state: { phase: 'queued' },
+    attempt,
+    updatedAt: Date.now(),
+    ...progress,
   })
-  await scheduleOperation(ctx, operation._id)
-}
-
-async function requireFailedOperation(
-  ctx: AuthMutationCtx,
-  id: Id<'agentFileOperations'>,
-) {
-  const operation = await ctx.db.get(id)
-  const invalid =
-    !operation ||
-    operation.ownerId !== ctx.userId ||
-    operation.status !== 'failed'
-  if (invalid) error('Operation not found', 404)
-  return operation
+  await scheduleOperation(ctx, { operationId: op._id, attempt })
 }
 
 async function alreadyDeleted(
   ctx: AuthMutationCtx,
-  operation: Doc<'agentFileOperations'>,
+  op: Doc<'agentFileOperations'>,
 ) {
-  if (operation.kind === 'delete-assigned' && operation.assignmentId)
-    return !(await ctx.db.get(operation.assignmentId))
-  if (operation.kind === 'delete-library' && operation.skillId)
-    return !(await ctx.db.get(operation.skillId))
+  if (op.kind === 'delete-assigned') return !(await ctx.db.get(op.assignmentId))
+  if (op.kind === 'delete-library') return !(await ctx.db.get(op.skillId))
   return false
 }
 
-async function validateRetryTargets(
+async function validateRetry(
   ctx: AuthMutationCtx,
-  operation: Doc<'agentFileOperations'>,
-): Promise<OperationTargets> {
-  const agents: OperationTargets['agents'] = []
-  const agent = await validateRetryHome(ctx, operation)
-  await validateRetrySkill(ctx, operation, agent)
-
-  for (const id of [operation.agentId, operation.duplicateId]) {
-    if (!id) continue
-    const agent = await assertAgentIdle(ctx, id, ctx.userId)
-    agents.push({ agentId: agent._id, homeId: agent.homeId })
+  op: Doc<'agentFileOperations'>,
+) {
+  if (op.kind === 'delete-home') {
+    const home = await assertRemovableHome(ctx, op.homeId, op._id)
+    if (home.ownerId !== ctx.userId)
+      error('Managed folder ownership changed', 409)
   }
-
-  return { agents, skillId: operation.skillId }
+  for (const { agentId, homeId } of operationTargets(op).agents) {
+    const agent = await assertAgentIdle(ctx, agentId, ctx.userId)
+    if (agent.homeId !== homeId)
+      error('The agent changed folders. Start a new operation instead.', 409)
+  }
+  await validateRetryHome(ctx, op)
+  if (!('skillId' in op)) return
+  const skill = await requireAvailableSkill(ctx, op.skillId, op.kind)
+  if (op.kind === 'delete-library') await assertSkillUnused(ctx, skill._id)
+  if (op.kind === 'assign')
+    await assertHomeMissingSkill(ctx, op.homeId, skill.name)
 }
 
 async function validateRetryHome(
   ctx: AuthMutationCtx,
-  operation: Doc<'agentFileOperations'>,
+  op: Doc<'agentFileOperations'>,
 ) {
-  const agent = operation.agentId ? await ctx.db.get(operation.agentId) : null
-
-  const changedHome =
-    operation.agentId && operation.homeId && agent?.homeId !== operation.homeId
-  if (changedHome)
-    error('The agent changed folders. Start a new operation instead.', 409)
-
-  const removalHomeId =
-    operation.kind === 'detach' && operation.removeFolder && operation.homeId
-  if (removalHomeId) {
-    const home = await ctx.db.get(removalHomeId)
-    if (!home || !agent) error('Personal folder is not assigned', 409)
-    await assertCanRemoveHome(ctx, home, agent._id)
+  if (op.kind === 'detach' && op.removeFolder) {
+    const home = await ctx.db.get(op.homeId)
+    if (!home) error('Personal folder is not assigned', 409)
+    await assertCanRemoveHome(ctx, home, op.agentId)
   }
-
-  return agent
-}
-
-async function validateRetrySkill(
-  ctx: AuthMutationCtx,
-  operation: Doc<'agentFileOperations'>,
-  agent: Doc<'agents'> | null,
-) {
-  if (!operation.skillId) return
-  const skill =
-    operation.kind === 'install'
-      ? await requireOwnedSkill(ctx, operation.skillId, ctx.userId)
-      : await requireAvailableSkill(ctx, operation.skillId, operation.kind)
-  if (skill.operationId) error('Library operation in progress', 409)
-
-  if (operation.kind === 'delete-library')
-    await assertSkillUnused(ctx, skill._id)
-
-  if (operation.kind === 'assign') {
-    if (!agent?.homeId) error('Personal folder is not assigned', 409)
-    await assertHomeMissingSkill(ctx, agent.homeId, skill.name)
+  if ('reservation' in op && op.reservation) {
+    const home = await ctx.db.get(op.reservation.homeId)
+    const unavailable =
+      !home ||
+      home.ownerId !== ctx.userId ||
+      (home.operationId && home.operationId !== op._id)
+    if (unavailable) {
+      error('Destination changed during retry', 409)
+    }
   }
-}
-
-export type OperationContext = {
-  operation: Doc<'agentFileOperations'>
-  agent: Doc<'agents'> | null
-  skill: Doc<'skills'> | null
-  home?: Doc<'agentHomes'> | null
-  destinationHome?: Doc<'agentHomes'> | null
-}
-
-/** Claims a queued operation once, while checking its current filesystem leases. */
-export async function running(
-  ctx: MutationCtx,
-  args: { operationId: Id<'agentFileOperations'> },
-) {
-  const operation = await ctx.db.get(args.operationId)
-  if (!operation || operation.status !== 'queued') return false
-  if (operation.kind === 'delete-home' && operation.homeId)
-    await assertRemovableHome(ctx, operation.homeId, operation._id)
-
-  if (!(await holdsOperationReservations(ctx, operation))) return false
-
-  const attempt = (operation.attempt ?? 0) + 1
-  await ctx.db.patch(args.operationId, {
-    attempt,
-    status: 'running',
-    updatedAt: Date.now(),
-  })
-
-  return attempt
 }

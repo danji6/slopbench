@@ -1,6 +1,6 @@
 import { errorMessage } from '@sb/core/utils/errors'
 
-import type { Id } from '../../_generated/dataModel'
+import type { Doc } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import type {
@@ -8,19 +8,23 @@ import type {
   FinishSkillImportArgs,
   PrepareSkillImportArgs,
 } from '../../types'
-import { isRunningOperation, scheduleOperation } from './lifecycle'
+import { isExecutingOperation, scheduleOperation } from './lifecycle'
+
+type ImportOperation = Extract<Doc<'agentFileOperations'>, { kind: 'install' }>
+type ImportPage = Pick<
+  PrepareSkillImportArgs,
+  'operationId' | 'cursor' | 'attempt'
+>
 
 async function runningImport(
   ctx: MutationCtx,
-  operationId: Id<'agentFileOperations'>,
-  cursor: number,
-  attempt?: number,
+  { operationId, cursor, attempt }: ImportPage,
 ) {
   const op = await ctx.db.get(operationId)
   const invalid =
-    !isRunningOperation(op, attempt) ||
+    !isExecutingOperation(op, attempt) ||
     op.kind !== 'install' ||
-    op.importCursor !== cursor
+    op.progress.cursor !== cursor
   if (invalid) {
     error('Skill import is no longer running', 409)
   }
@@ -29,17 +33,35 @@ async function runningImport(
 
 /** Reserves names atomically and leaves existing clean bundles untouched. */
 export async function prepare(ctx: MutationCtx, args: PrepareSkillImportArgs) {
-  const op = await runningImport(
-    ctx,
-    args.operationId,
-    args.cursor,
-    args.attempt,
-  )
+  const op = await runningImport(ctx, args)
 
+  if (op.progress.skillId)
+    return existingImportSkill(ctx, op, args.metadata.name)
+  return reserveImportSkill(ctx, op, args.metadata)
+}
+
+async function existingImportSkill(
+  ctx: MutationCtx,
+  op: ImportOperation,
+  name: string,
+) {
+  const id = op.progress.skillId
+  if (!id) error('Skill import reservation expired', 409)
+  const skill = await ctx.db.get(id)
+  if (!skill || skill.operationId !== op._id || skill.name !== name)
+    error('Skill import reservation expired', 409)
+  return id
+}
+
+async function reserveImportSkill(
+  ctx: MutationCtx,
+  op: ImportOperation,
+  metadata: PrepareSkillImportArgs['metadata'],
+) {
   const existing = await ctx.db
     .query('skills')
     .withIndex('by_ownerId_name', (q) =>
-      q.eq('ownerId', op.ownerId).eq('name', args.metadata.name),
+      q.eq('ownerId', op.ownerId).eq('name', metadata.name),
     )
     .first()
   if (existing?.status === 'ready') return null
@@ -52,7 +74,7 @@ export async function prepare(ctx: MutationCtx, args: PrepareSkillImportArgs) {
     error('A library operation is already running for this skill', 409)
 
   const fields = {
-    ...args.metadata,
+    ...metadata,
     status: 'installing' as const,
     operationId: op._id,
     importOperationId: op._id,
@@ -61,50 +83,60 @@ export async function prepare(ctx: MutationCtx, args: PrepareSkillImportArgs) {
     existing?._id ??
     (await ctx.db.insert('skills', { ...fields, ownerId: op.ownerId }))
   if (existing) await ctx.db.patch(skillId, fields)
-  await ctx.db.patch(op._id, { skillId, updatedAt: Date.now() })
+  await ctx.db.patch(op._id, {
+    progress: { ...op.progress, skillId },
+    updatedAt: Date.now(),
+  })
 
   return skillId
 }
 
 /** Commits one copied bundle and advances its durable discovery cursor in the same transaction. */
 export async function finish(ctx: MutationCtx, args: FinishSkillImportArgs) {
-  const op = await runningImport(
-    ctx,
-    args.operationId,
-    args.cursor,
-    args.attempt,
-  )
+  const op = await runningImport(ctx, args)
   if (args.nextCursor <= args.cursor)
     error('Invalid skill discovery cursor', 400)
 
-  if (args.skillId) {
-    const skill = await ctx.db.get(args.skillId)
-    if (op.skillId !== args.skillId || skill?.operationId !== op._id)
-      error('Skill import reservation expired', 409)
-    await ctx.db.patch(args.skillId, {
-      status: args.outcome === 'installed' ? 'ready' : 'failed',
-      operationId: undefined,
-    })
-  }
+  await commitImportSkill(ctx, op, args)
 
-  const summary = op.importSummary ?? { installed: 0, skipped: 0, failed: 0 }
+  const summary = op.progress.summary
 
   const importSummary = {
     ...summary,
     [args.outcome]: summary[args.outcome] + 1,
   }
   const importError =
-    op.importError ??
+    op.progress.error ??
     (args.message
       ? (errorMessage(args.message) ?? 'Skill import failed').slice(0, 300)
       : undefined)
 
   await ctx.db.patch(op._id, {
-    skillId: undefined,
-    importCursor: args.nextCursor,
-    importSummary,
-    importError,
+    progress: {
+      cursor: args.nextCursor,
+      summary: importSummary,
+      error: importError,
+    },
     updatedAt: Date.now(),
+  })
+}
+
+async function commitImportSkill(
+  ctx: MutationCtx,
+  op: ImportOperation,
+  args: FinishSkillImportArgs,
+) {
+  if (args.skillId !== op.progress.skillId)
+    error('Skill import reservation expired', 409)
+  if (args.outcome === 'installed' && !args.skillId)
+    error('Installed skill was not reserved', 409)
+  if (!args.skillId) return
+  const skill = await ctx.db.get(args.skillId)
+  if (skill?.operationId !== op._id)
+    error('Skill import reservation expired', 409)
+  await ctx.db.patch(args.skillId, {
+    status: args.outcome === 'installed' ? 'ready' : 'failed',
+    operationId: undefined,
   })
 }
 
@@ -113,12 +145,12 @@ export async function continueImport(
   ctx: MutationCtx,
   args: ContinueSkillImportArgs,
 ) {
-  const op = await runningImport(
-    ctx,
-    args.operationId,
-    args.cursor,
-    args.attempt,
-  )
-  await ctx.db.patch(op._id, { status: 'queued', updatedAt: Date.now() })
-  await scheduleOperation(ctx, op._id)
+  const op = await runningImport(ctx, args)
+  const attempt = op.attempt + 1
+  await ctx.db.patch(op._id, {
+    state: { phase: 'queued' },
+    attempt,
+    updatedAt: Date.now(),
+  })
+  await scheduleOperation(ctx, { operationId: op._id, attempt })
 }

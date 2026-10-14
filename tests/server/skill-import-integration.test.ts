@@ -1,13 +1,14 @@
 import type { Id } from '@sb/convex/_generated/dataModel'
 import type { ActionCtx } from '@sb/convex/_generated/server'
 import { complete, fail } from '@sb/convex/model/skills/completion'
+import { claimExecution } from '@sb/convex/model/skills/execution'
 import { run } from '@sb/convex/model/skills/filesAction'
 import {
   continueImport,
   finish,
   prepare,
 } from '@sb/convex/model/skills/imports'
-import { retry, running, start } from '@sb/convex/model/skills/operations'
+import { retry, start } from '@sb/convex/model/skills/operations'
 import type {
   CompleteAgentFileArgs,
   FinishSkillImportArgs,
@@ -67,26 +68,14 @@ afterAll(async () => {
 })
 
 function fixtureAction(fixture: ReturnType<typeof skillsDatabase>) {
-  const { ctx, db } = fixture
+  const { ctx } = fixture
   return {
-    runQuery: async (_reference: unknown, args: { operationId: string }) => {
-      const operation = await db.get(args.operationId)
-      return operation
-        ? {
-            operation: structuredClone(operation),
-            agent: null,
-            skill: operation.skillId
-              ? await db.get(String(operation.skillId))
-              : null,
-          }
-        : null
-    },
     runMutation: async (reference: unknown, args: unknown) => {
       switch (getFunctionName(reference as FunctionReference<'mutation'>)) {
-        case 'skills:_running':
-          return running(
+        case 'skills:_claimExecution':
+          return claimExecution(
             ctx,
-            args as { operationId: Id<'agentFileOperations'> },
+            args as { operationId: Id<'agentFileOperations'>; attempt: number },
           )
         case 'skills:_prepareImportSkill':
           return prepare(ctx, args as PrepareSkillImportArgs)
@@ -95,14 +84,22 @@ function fixtureAction(fixture: ReturnType<typeof skillsDatabase>) {
         case 'skills:_continueImport':
           return continueImport(
             ctx,
-            args as { operationId: Id<'agentFileOperations'>; cursor: number },
+            args as {
+              operationId: Id<'agentFileOperations'>
+              cursor: number
+              attempt: number
+            },
           )
         case 'skills:_complete':
           return complete(ctx, args as CompleteAgentFileArgs)
         case 'skills:_fail':
           return fail(
             ctx,
-            args as { operationId: Id<'agentFileOperations'>; message: string },
+            args as {
+              operationId: Id<'agentFileOperations'>
+              message: string
+              attempt: number
+            },
           )
         default:
           throw new Error('Unexpected fixture mutation')
@@ -117,10 +114,13 @@ async function drain(
 ) {
   for (
     let i = 0;
-    i < 10 && (await fixture.db.get(id))?.status === 'queued';
+    i < 10 && (await fixture.ctx.db.get(id))?.state.phase === 'queued';
     i++
   )
-    await run(fixtureAction(fixture), id)
+    await run(fixtureAction(fixture), {
+      operationId: id,
+      attempt: (await fixture.ctx.db.get(id))!.attempt,
+    })
 }
 
 async function writeSkill(directory: string, name: string) {
@@ -153,10 +153,12 @@ test('repository import installs all pages, skips duplicate copies, keeps resour
   })
   const operationId = await start(fixture.ctx, { kind: 'install', source })
   await drain(fixture, operationId)
-  const op = await fixture.db.get(operationId)
-  expect(op?.status).toBe('failed')
-  expect(op?.importSummary).toEqual({ installed: 24, skipped: 2, failed: 1 })
-  expect(op?.error).not.toContain(' at ')
+  const op = await fixture.ctx.db.get(operationId)
+  if (op?.kind !== 'install') throw new Error('Missing import operation')
+  expect(op?.state.phase).toBe('failed')
+  expect(op?.progress.summary).toEqual({ installed: 24, skipped: 2, failed: 1 })
+  expect(op.state.phase).toBe('failed')
+  if (op.state.phase === 'failed') expect(op.state.error).not.toContain(' at ')
   expect(fixture.rows('skills')).toHaveLength(25)
   const installed = fixture
     .rows('skills')
@@ -172,12 +174,15 @@ test('repository import installs all pages, skips duplicate copies, keeps resour
   await writeSkill(failed, 'repaired')
   await retry(fixture.ctx, { operationId })
   await drain(fixture, operationId)
-  expect((await fixture.db.get(operationId))?.status).toBe('done')
-  expect((await fixture.db.get(operationId))?.importSummary).toEqual({
-    installed: 1,
-    skipped: 26,
-    failed: 0,
-  })
+  expect((await fixture.ctx.db.get(operationId))?.state.phase).toBe('done')
+  expect(await fixture.ctx.db.get(operationId)).toHaveProperty(
+    'progress.summary',
+    {
+      installed: 1,
+      skipped: 26,
+      failed: 0,
+    },
+  )
   expect(fixture.rows('skills')).toHaveLength(26)
 })
 
@@ -193,18 +198,21 @@ test('a failed bundle copy leaves other installs usable and a retry retains prio
   )
   const operationId = await start(fixture.ctx, { kind: 'install', source })
   await drain(fixture, operationId)
-  expect((await fixture.db.get(operationId))?.importSummary).toEqual({
-    installed: 1,
-    skipped: 0,
-    failed: 1,
-  })
+  expect(await fixture.ctx.db.get(operationId)).toHaveProperty(
+    'progress.summary',
+    {
+      installed: 1,
+      skipped: 0,
+      failed: 1,
+    },
+  )
   const one = fixture.rows('skills').find((skill) => skill.name === 'one')!
   const bundle = path.join(libraryRoot('owner', one._id), 'one')
   await writeFile(path.join(bundle, 'retained.txt'), 'Retain on retry')
   await rm(path.join(source, 'two', 'unsupported-link'))
   await retry(fixture.ctx, { operationId })
   await drain(fixture, operationId)
-  expect((await fixture.db.get(operationId))?.status).toBe('done')
+  expect((await fixture.ctx.db.get(operationId))?.state.phase).toBe('done')
   expect(await readFile(path.join(bundle, 'retained.txt'), 'utf8')).toBe(
     'Retain on retry',
   )

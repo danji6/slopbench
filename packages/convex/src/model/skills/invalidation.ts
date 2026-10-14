@@ -3,32 +3,36 @@ import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import type { InvalidateAgentHomeArgs } from '../../types'
 import { getState, patchState } from '../session/state'
-import { isRunningOperation, releaseOperation } from './lifecycle'
+import { finishOperation } from './completion'
+import { matchesAttempt } from './lifecycle'
+import { scheduleCleanup } from './removal'
 
-type FinishingHomeOperation = Doc<'agentFileOperations'> & {
-  agentId: Id<'agents'>
+type FinishingHomeOperation = Extract<
+  Doc<'agentFileOperations'>,
+  { kind: 'home' | 'detach' }
+> & {
+  state: { phase: 'invalidating'; previousPath?: string }
 }
 
-export function isFinishingHomeOperation(
+export function isInvalidatingHomeOperation(
   operation: Doc<'agentFileOperations'> | null,
 ): operation is FinishingHomeOperation {
   return (
-    isRunningOperation(operation) &&
-    !!operation.agentId &&
-    operation.finishingHome === true
+    !!operation &&
+    (operation.kind === 'home' || operation.kind === 'detach') &&
+    operation.state.phase === 'invalidating'
   )
 }
 
 /** Restarts invalidation using the current operation's authoritative metadata. */
 export async function scheduleHomeInvalidation(
   ctx: MutationCtx,
-  operation: Doc<'agentFileOperations'>,
+  operation: FinishingHomeOperation,
 ) {
   await ctx.scheduler.runAfter(0, internal.skills._invalidateHomeCaches, {
     operationId: operation._id,
-    attempt: operation.attempt ?? 0,
+    attempt: operation.attempt,
     cursor: null,
-    previousPath: operation.previousHomePath,
   })
 }
 
@@ -38,13 +42,8 @@ export async function invalidateHomeCaches(
   args: InvalidateAgentHomeArgs,
 ) {
   const operation = await ctx.db.get(args.operationId)
-  if (!isFinishingHomeOperation(operation)) return
-  // Old scheduled jobs can request recovery, but cannot supply its path or cursor.
-  if (args.attempt === undefined) {
-    await scheduleHomeInvalidation(ctx, operation)
-    return
-  }
-  if (args.attempt !== (operation.attempt ?? 0)) return
+  if (!isInvalidatingHomeOperation(operation)) return
+  if (!matchesAttempt(operation, args.attempt)) return
   await ctx.db.patch(operation._id, { updatedAt: Date.now() })
   await invalidatePage(ctx, operation, args.cursor)
 }
@@ -60,20 +59,29 @@ async function invalidatePage(
     .paginate({ cursor, numItems: 20 })
 
   for (const row of rows.page) {
-    await revokeHomeApprovals(ctx, row.sessionId, operation.previousHomePath)
+    await revokeHomeApprovals(ctx, row.sessionId, operation.state.previousPath)
     // Revision invalidates this cache immediately; retain it until pagination finishes
   }
   if (!rows.isDone) {
     await ctx.scheduler.runAfter(0, internal.skills._invalidateHomeCaches, {
       operationId: operation._id,
-      attempt: operation.attempt ?? 0,
+      attempt: operation.attempt,
       cursor: rows.continueCursor,
-      previousPath: operation.previousHomePath,
     })
     return
   }
-  await releaseOperation(ctx, operation)
-  await ctx.db.patch(operation._id, { status: 'done', updatedAt: Date.now() })
+  if (operation.kind === 'detach' && operation.removeFolder) {
+    await ctx.db.patch(operation._id, {
+      state: { phase: 'cleaning' },
+      updatedAt: Date.now(),
+    })
+    await scheduleCleanup(ctx, {
+      operationId: operation._id,
+      attempt: operation.attempt,
+    })
+    return
+  }
+  await finishOperation(ctx, operation)
 }
 
 async function revokeHomeApprovals(

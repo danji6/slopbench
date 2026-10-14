@@ -8,14 +8,14 @@ export const skillAssignmentsArgsValidator = v.object({
 })
 
 export const prepareSkillImportArgsValidator = v.object({
-  attempt: v.optional(v.number()),
+  attempt: v.number(),
   operationId: v.id('agentFileOperations'),
   cursor: v.number(),
   metadata: v.object({ name: v.string(), description: v.string() }),
 })
 
 export const finishSkillImportArgsValidator = v.object({
-  attempt: v.optional(v.number()),
+  attempt: v.number(),
   operationId: v.id('agentFileOperations'),
   cursor: v.number(),
   nextCursor: v.number(),
@@ -37,7 +37,7 @@ export const skillListArgsValidator = v.object({
 export const continueSkillImportArgsValidator = v.object({
   operationId: v.id('agentFileOperations'),
   cursor: v.number(),
-  attempt: v.optional(v.number()),
+  attempt: v.number(),
 })
 
 /** An owner-bound upload ticket and its verified storage object. */

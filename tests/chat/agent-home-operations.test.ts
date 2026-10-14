@@ -1,11 +1,12 @@
 import type { Id } from '@sb/convex/_generated/dataModel'
 import type { ActionCtx } from '@sb/convex/_generated/server'
-import { complete, fail } from '@sb/convex/model/skills/completion'
+import { fail } from '@sb/convex/model/skills/completion'
 import * as Endpoints from '@sb/convex/model/skills/endpoints'
+import { claimExecution } from '@sb/convex/model/skills/execution'
 import { run } from '@sb/convex/model/skills/filesAction'
 import { bindHome, ensureHome } from '@sb/convex/model/skills/homes'
 import { invalidateHomeCaches } from '@sb/convex/model/skills/invalidation'
-import { running, start } from '@sb/convex/model/skills/operations'
+import { start } from '@sb/convex/model/skills/operations'
 import { cleanupRecords } from '@sb/convex/model/skills/removal'
 import { lockAgent, unlockAgent } from '@sb/sidecar/agent-files/access'
 import { resolveDestination } from '@sb/sidecar/agent-files/destination'
@@ -17,6 +18,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
+import { completeFileOperation as complete } from '../helpers/file-operations'
 import { skillsDatabase } from '../helpers/skills-db'
 
 const agentId = 'agent' as Id<'agents'>
@@ -83,10 +85,9 @@ async function fixture(
 
 function actionContext({ ctx }: ReturnType<typeof skillsDatabase>): ActionCtx {
   const handlers = {
-    'skills:_getOperation': Endpoints.getOperation,
     'skills:_agent': Endpoints.agent,
     'skills:_assignments': Endpoints.assignments,
-    'skills:_running': running,
+    'skills:_claimExecution': claimExecution,
     'skills:_reserveDestination': Endpoints.reserveDestination,
     'skills:_copyAssignments': Endpoints.copyAssignments,
     'skills:_complete': complete,
@@ -127,8 +128,8 @@ test('durable initialization recreates a missing shared managed home with all pr
     f.rows('agents').push({ _id: other, ownerId: 'owner', name: 'Other' })
     await bindHome(f.ctx, other, home)
     const operationId = await start(f.ctx, { kind: 'ensure', agentId: other })
-    await run(actionContext(f), operationId)
-    expect((await f.ctx.db.get(operationId))?.status).toBe('done')
+    await run(actionContext(f), { operationId, attempt: 1 })
+    expect((await f.ctx.db.get(operationId))?.state.phase).toBe('done')
     expect((await f.ctx.db.get(agentId))?.homeId).toBe(home._id)
     expect((await f.ctx.db.get(other))?.homeId).toBe(home._id)
     expect(f.rows('agentHomes')).toHaveLength(1)
@@ -157,14 +158,14 @@ test('durable folder changes recover a missing custom source and carry its assig
         destination: custom,
         copyFiles: true,
       })
-      await run(actionContext(f), operationId)
-      expect((await f.ctx.db.get(operationId))?.error).toBeUndefined()
+      await run(actionContext(f), { operationId, attempt: 1 })
+      expect((await f.ctx.db.get(operationId))?.state.phase).not.toBe('failed')
       await invalidateHomeCaches(f.ctx, {
         operationId,
         attempt: 1,
         cursor: null,
       })
-      expect((await f.ctx.db.get(operationId))?.status).toBe('done')
+      expect((await f.ctx.db.get(operationId))?.state.phase).toBe('done')
       expect(
         (await f.ctx.db.get((await f.ctx.db.get(agentId))!.homeId!))?.path,
       ).toBe(custom)
@@ -191,15 +192,14 @@ test('durable managed-folder deletion detaches the agent and removes its assignm
       agentId,
       removeFolder: true,
     })
-    await run(actionContext(f), operationId)
-    expect((await f.ctx.db.get(operationId))?.error).toBeUndefined()
+    await run(actionContext(f), { operationId, attempt: 1 })
+    expect((await f.ctx.db.get(operationId))?.state.phase).not.toBe('failed')
     await invalidateHomeCaches(f.ctx, {
       operationId,
       attempt: 1,
       cursor: null,
-      previousPath: home.path,
     })
-    await cleanupRecords(f.ctx, { homeId: home._id })
+    await cleanupRecords(f.ctx, { operationId, attempt: 1 })
     expect((await f.ctx.db.get(agentId))?.homeId).toBeUndefined()
     await expect(readFile(path.join(home.path!, 'note.txt'))).rejects.toThrow()
     expect(f.rows('agentSkills')).toHaveLength(0)

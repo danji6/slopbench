@@ -1,17 +1,5 @@
 import { v } from 'convex/values'
 
-export const agentFileKind = v.union(
-  v.literal('ensure'),
-  v.literal('detach'),
-  v.literal('delete-home'),
-  v.literal('install'),
-  v.literal('assign'),
-  v.literal('delete-assigned'),
-  v.literal('delete-library'),
-  v.literal('home'),
-  v.literal('duplicate'),
-)
-
 export const ensureHomeArgsValidator = v.object({
   kind: v.literal('ensure'),
   agentId: v.id('agents'),
@@ -21,10 +9,6 @@ export const detachHomeArgsValidator = v.object({
   kind: v.literal('detach'),
   agentId: v.id('agents'),
   removeFolder: v.optional(v.boolean()),
-})
-
-export const deleteHomeArgsValidator = v.object({
-  kind: v.literal('delete-home'),
 })
 
 export const installDirectoryArgsValidator = v.object({
@@ -70,7 +54,6 @@ export const duplicateHomeArgsValidator = v.object({
 export const fileOperationArgsValidator = v.union(
   ensureHomeArgsValidator,
   detachHomeArgsValidator,
-  deleteHomeArgsValidator,
   installDirectoryArgsValidator,
   installUploadArgsValidator,
   assignSkillArgsValidator,
@@ -85,74 +68,185 @@ export const startFileOperationArgsValidator = v.object({
   operation: fileOperationArgsValidator,
 })
 
-export const completeAgentFileArgsValidator = v.object({
-  attempt: v.optional(v.number()),
+/** Identifies one scheduled execution and all of its finalization pages. */
+export const operationAttemptArgsValidator = v.object({
   operationId: v.id('agentFileOperations'),
-  path: v.optional(v.string()),
-  previousPath: v.optional(v.string()),
+  attempt: v.number(),
+})
+
+const attemptFields = operationAttemptArgsValidator.fields
+
+export const operationResultValidator = v.union(
+  v.object({ kind: v.literal('ensure'), path: v.string() }),
+  v.object({ kind: v.literal('home'), path: v.string() }),
+  v.object({ kind: v.literal('duplicate'), path: v.string() }),
+  v.object({ kind: v.literal('assign'), path: v.string() }),
+  v.object({ kind: v.literal('delete-assigned') }),
+  v.object({ kind: v.literal('delete-library') }),
+  v.object({ kind: v.literal('delete-home') }),
+  v.object({ kind: v.literal('detach') }),
+  v.object({ kind: v.literal('install') }),
+)
+
+export const completeAgentFileArgsValidator = v.object({
+  ...attemptFields,
+  result: operationResultValidator,
 })
 
 export const invalidateAgentHomeArgsValidator = v.object({
-  attempt: v.optional(v.number()),
-  operationId: v.id('agentFileOperations'),
+  ...attemptFields,
   cursor: v.union(v.string(), v.null()),
-  previousPath: v.optional(v.string()),
 })
 
 export const failAgentFileArgsValidator = v.object({
-  operationId: v.id('agentFileOperations'),
+  ...attemptFields,
   message: v.string(),
-  attempt: v.optional(v.number()),
 })
 
 export const reserveHomeArgsValidator = v.object({
-  attempt: v.optional(v.number()),
-  operationId: v.id('agentFileOperations'),
+  ...attemptFields,
   path: v.string(),
-  insideData: v.optional(v.boolean()),
+  insideData: v.boolean(),
 })
 
 export const copySkillAssignmentsArgsValidator = v.object({
-  operationId: v.id('agentFileOperations'),
+  ...attemptFields,
   ids: v.array(v.id('agentSkills')),
-  attempt: v.optional(v.number()),
 })
 
-export const agentFileOperationSchema = v.object({
-  // Persisted operations include prepared targets and progress beyond command args.
-  kind: agentFileKind,
-  agentId: v.optional(v.id('agents')),
-  skillId: v.optional(v.id('skills')),
-  assignmentId: v.optional(v.id('agentSkills')),
-  source: v.optional(v.string()),
-  storageId: v.optional(v.id('_storage')),
-  destination: v.optional(v.string()),
-  copyFiles: v.optional(v.boolean()),
-  removeFolder: v.optional(v.boolean()),
-  duplicateId: v.optional(v.id('agents')),
-  homeId: v.optional(v.id('agentHomes')),
-  destinationHomeId: v.optional(v.id('agentHomes')),
-  joinedHome: v.optional(v.boolean()),
-  attempt: v.optional(v.number()),
-  ownerId: v.id('users'),
-  uploadTicket: v.optional(v.string()),
-  finishingHome: v.optional(v.boolean()),
-  previousHomePath: v.optional(v.string()),
-  importCursor: v.optional(v.number()),
-  importSummary: v.optional(
-    v.object({
-      installed: v.number(),
-      skipped: v.number(),
-      failed: v.number(),
-    }),
-  ),
-  importError: v.optional(v.string()),
-  status: v.union(
-    v.literal('queued'),
-    v.literal('running'),
-    v.literal('done'),
-    v.literal('failed'),
-  ),
-  error: v.optional(v.string()),
-  updatedAt: v.number(),
+const queuedState = v.object({ phase: v.literal('queued') })
+
+const executingState = v.object({ phase: v.literal('executing') })
+
+const doneState = v.object({ phase: v.literal('done') })
+
+const failedState = v.object({ phase: v.literal('failed'), error: v.string() })
+
+const invalidatingState = v.object({
+  phase: v.literal('invalidating'),
+  previousPath: v.optional(v.string()),
 })
+
+const cleaningState = v.object({ phase: v.literal('cleaning') })
+
+const executionState = v.union(
+  queuedState,
+  executingState,
+  doneState,
+  failedState,
+)
+
+const homeState = v.union(executionState, invalidatingState)
+
+const removalState = v.union(executionState, cleaningState)
+
+const detachState = v.union(homeState, cleaningState)
+
+const commonFields = {
+  ownerId: v.id('users'),
+  attempt: v.number(),
+  updatedAt: v.number(),
+}
+
+const agentFields = { agentId: v.id('agents'), homeId: v.id('agentHomes') }
+
+const destinationReservation = v.object({
+  homeId: v.id('agentHomes'),
+  joined: v.boolean(),
+})
+
+const importSource = v.union(
+  v.object({ kind: v.literal('directory'), path: v.string() }),
+  v.object({
+    kind: v.literal('upload'),
+    storageId: v.id('_storage'),
+    ticket: v.string(),
+  }),
+)
+
+const importProgress = v.object({
+  cursor: v.number(),
+  summary: v.object({
+    installed: v.number(),
+    skipped: v.number(),
+    failed: v.number(),
+  }),
+  skillId: v.optional(v.id('skills')),
+  error: v.optional(v.string()),
+})
+
+/** Requires each command's targets and permits only its supported lifecycle phases. */
+export const agentFileOperationSchema = v.union(
+  v.object({
+    ...commonFields,
+    ...agentFields,
+    kind: v.literal('ensure'),
+    state: executionState,
+    reservation: v.optional(destinationReservation),
+  }),
+  v.object({
+    ...commonFields,
+    ...agentFields,
+    kind: v.literal('home'),
+    destination: v.string(),
+    copyFiles: v.boolean(),
+    state: homeState,
+    reservation: v.optional(destinationReservation),
+  }),
+  v.object({
+    ...commonFields,
+    ...agentFields,
+    kind: v.literal('detach'),
+    removeFolder: v.literal(true),
+    state: detachState,
+  }),
+  v.object({
+    ...commonFields,
+    ...agentFields,
+    kind: v.literal('detach'),
+    removeFolder: v.literal(false),
+    state: homeState,
+  }),
+  v.object({
+    ...commonFields,
+    ...agentFields,
+    kind: v.literal('duplicate'),
+    duplicateId: v.id('agents'),
+    destinationHomeId: v.id('agentHomes'),
+    state: executionState,
+  }),
+  v.object({
+    ...commonFields,
+    ...agentFields,
+    kind: v.literal('assign'),
+    skillId: v.id('skills'),
+    state: executionState,
+  }),
+  v.object({
+    ...commonFields,
+    ...agentFields,
+    kind: v.literal('delete-assigned'),
+    assignmentId: v.id('agentSkills'),
+    skillId: v.id('skills'),
+    state: executionState,
+  }),
+  v.object({
+    ...commonFields,
+    kind: v.literal('delete-library'),
+    skillId: v.id('skills'),
+    state: executionState,
+  }),
+  v.object({
+    ...commonFields,
+    kind: v.literal('delete-home'),
+    homeId: v.id('agentHomes'),
+    state: removalState,
+  }),
+  v.object({
+    ...commonFields,
+    kind: v.literal('install'),
+    source: importSource,
+    progress: importProgress,
+    state: executionState,
+  }),
+)

@@ -3,9 +3,11 @@ import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import type { AuthMutationCtx } from '../../functions'
+import type { OperationAttemptArgs } from '../../types'
 import { assertAgentIdle, requireAdmin } from './access'
+import { finishOperation } from './completion'
 import { ensureHome, homeMembers } from './homes'
-import { scheduleOperation } from './lifecycle'
+import { matchesAttempt, scheduleOperation } from './lifecycle'
 
 /** Reserves cleanup before deleting the last agent, retaining authority for retries. */
 export async function prepareHomeRemoval(
@@ -24,12 +26,13 @@ export async function prepareHomeRemoval(
     kind: 'delete-home',
     homeId: home._id,
     ownerId: ctx.userId,
-    status: 'queued',
+    state: { phase: 'queued' },
+    attempt: 1,
     updatedAt: Date.now(),
   })
 
   await ctx.db.patch(home._id, { operationId })
-  await scheduleOperation(ctx, operationId)
+  await scheduleOperation(ctx, { operationId, attempt: 1 })
 
   return operationId
 }
@@ -41,33 +44,30 @@ export async function assertCanRemoveHome(
   agentId: Id<'agents'>,
 ) {
   if (!home.managed) error('Custom folders must be preserved', 409)
-  // prettier-ignore
-  if ((await homeMembers(ctx, home._id)).some((member) => member._id !== agentId))
+  const members = await homeMembers(ctx, home._id)
+  const shared = members.some((member) => member._id !== agentId)
+  if (shared) {
     error('This folder is still shared by other agents', 409)
+  }
 }
 
 /** Releases one agent's membership, preserving the home for its other members. */
 export async function detachHome(
   ctx: MutationCtx,
-  op: Doc<'agentFileOperations'>,
+  op: Extract<Doc<'agentFileOperations'>, { kind: 'detach' }>,
 ) {
-  if (!op.agentId || !op.homeId) error('Personal folder is not assigned', 409)
-
   const agent = await ctx.db.get(op.agentId)
   const home = await ctx.db.get(op.homeId)
-  if (!agent || agent.homeId !== op.homeId || home?.operationId !== op._id)
+  const changed =
+    !agent || agent.homeId !== op.homeId || home?.operationId !== op._id
+  if (changed) {
     error('Personal folder changed during detachment', 409)
+  }
   if (op.removeFolder) await assertCanRemoveHome(ctx, home, agent._id)
 
   await ctx.db.patch(agent._id, {
     homeId: undefined,
   })
-
-  if (op.removeFolder) {
-    await ctx.scheduler.runAfter(0, internal.skills._cleanupHomeRecords, {
-      homeId: home._id,
-    })
-  }
 }
 
 export async function assertRemovableHome(
@@ -83,24 +83,56 @@ export async function assertRemovableHome(
   return home
 }
 
-/** Removes assignment records in bounded batches after filesystem cleanup succeeds. */
+export async function scheduleCleanup(
+  ctx: MutationCtx,
+  args: OperationAttemptArgs,
+) {
+  await ctx.scheduler.runAfter(0, internal.skills._cleanupHomeRecords, args)
+}
+
+/** Deletes bounded record batches only for the current cleanup phase and attempt. */
 export async function cleanupRecords(
   ctx: MutationCtx,
-  { homeId }: { homeId: Id<'agentHomes'> },
+  args: OperationAttemptArgs,
 ) {
-  if ((await homeMembers(ctx, homeId)).length) return
+  const op = await ctx.db.get(args.operationId)
+  if (!matchesAttempt(op, args.attempt)) return
+  if (op.state.phase !== 'cleaning') return
 
+  const removesHome =
+    op.kind === 'delete-home' || (op.kind === 'detach' && op.removeFolder)
+  if (!removesHome) return
+
+  const home = await ctx.db.get(op.homeId)
+  if (!home) {
+    await finishOperation(ctx, op)
+    return
+  }
+  if (!home.managed || home.operationId !== op._id) return
+
+  const members = await homeMembers(ctx, home._id)
+  if (members.length) return
+
+  const hasMore = await deleteAssignmentBatch(ctx, home._id)
+  await ctx.db.patch(op._id, { updatedAt: Date.now() })
+  if (hasMore) {
+    await scheduleCleanup(ctx, args)
+    return
+  }
+
+  await ctx.db.delete(home._id)
+  await finishOperation(ctx, op)
+}
+
+async function deleteAssignmentBatch(
+  ctx: MutationCtx,
+  homeId: Id<'agentHomes'>,
+) {
+  const batchSize = 100
   const rows = await ctx.db
     .query('agentSkills')
     .withIndex('by_homeId_name', (q) => q.eq('homeId', homeId))
-    .take(100)
+    .take(batchSize)
   for (const row of rows) await ctx.db.delete(row._id)
-
-  if (rows.length === 100) {
-    await ctx.scheduler.runAfter(0, internal.skills._cleanupHomeRecords, {
-      homeId,
-    })
-  } else if (await ctx.db.get(homeId)) {
-    await ctx.db.delete(homeId)
-  }
+  return rows.length === batchSize
 }
