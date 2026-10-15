@@ -4,6 +4,141 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/?fixture=skills')
 })
 
+test('folder picker remembers confirmed selections across reloads, with no parent row', async ({
+  page,
+}) => {
+  const choose = page.getByRole('button', {
+    name: 'Choose directory',
+    exact: true,
+  })
+  const picker = page.getByRole('dialog')
+  const path = picker.getByPlaceholder('/path/to/project')
+  const recent = () =>
+    page.evaluate(() => localStorage.getItem('slopbench-recent-directories'))
+  await page.getByRole('button', { name: 'Files', exact: true }).click()
+  await choose.click()
+  await expect(
+    picker.getByRole('button', { name: 'Up', exact: true }),
+  ).toBeEnabled()
+  await expect(
+    picker.getByRole('option', { name: '..', exact: true }),
+  ).toHaveCount(0)
+  await picker.getByRole('option', { name: 'project', exact: true }).click()
+  await expect(path).toHaveValue('/fixture/custom-home/project')
+  await picker.getByRole('button', { name: 'Cancel', exact: true }).click()
+  expect(await recent()).toBeNull()
+
+  await choose.click()
+  await path.fill('/missing')
+  await picker
+    .getByRole('button', { name: 'Use this folder', exact: true })
+    .click()
+  await expect(picker).toBeVisible()
+  await expect(picker.getByRole('alert')).toHaveText(
+    'Folder not found. Check the path and try again.',
+  )
+  await expect(path).toHaveAttribute('aria-invalid', 'true')
+  await expect(path).toHaveValue('/missing')
+  await expect(
+    picker.getByRole('button', { name: 'Use this folder', exact: true }),
+  ).toBeEnabled()
+  expect(await recent()).toBeNull()
+  await path.fill('/fixture/custom-home/project')
+  await expect(picker.getByRole('alert')).toHaveCount(0)
+  await picker
+    .getByRole('button', { name: 'Use this folder', exact: true })
+    .click()
+  await expect(picker).toHaveCount(0)
+  expect(JSON.parse((await recent())!)).toEqual({
+    paths: ['/fixture/custom-home/project'],
+  })
+
+  await expect(choose).toBeEnabled()
+  await page.reload()
+  await page.getByRole('button', { name: 'Files', exact: true }).click()
+  await choose.click()
+  const directories = picker.getByRole('listbox', { name: 'Directories' })
+  await expect(
+    directories.getByText('/fixture/custom-home/project'),
+  ).toHaveCount(0)
+  await path.click()
+  const suggestions = page.getByRole('listbox', { name: 'Recent folders' })
+  await expect(suggestions).toBeVisible()
+  await path.press('ArrowDown')
+  await expect(
+    suggestions.getByRole('option', {
+      name: '/fixture/custom-home/project',
+      exact: true,
+    }),
+  ).toHaveAttribute('data-highlighted')
+  await path.press('Enter')
+  await expect(path).toHaveValue('/fixture/custom-home/project')
+  await expect(
+    picker.getByRole('option', { name: 'project', exact: true }),
+  ).toBeFocused()
+})
+
+test('path bar fuzzy searches recent folders and keeps arbitrary paths navigable', async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    localStorage.setItem(
+      'slopbench-recent-directories',
+      JSON.stringify({
+        paths: [
+          '/fixture/custom-home/project',
+          '/fixture/archives',
+          '/fixture/research',
+        ],
+      }),
+    )
+  })
+  await page.reload()
+  await page.getByRole('button', { name: 'Files', exact: true }).click()
+  await page
+    .getByRole('button', { name: 'Choose directory', exact: true })
+    .click()
+  const picker = page.getByRole('dialog')
+  const path = picker.getByRole('combobox', { name: 'Folder path' })
+  const suggestions = page.getByRole('listbox', { name: 'Recent folders' })
+  await expect(suggestions).toHaveCount(0)
+  await path.click()
+  await expect(suggestions.getByRole('option')).toHaveCount(3)
+  await path.fill('prject')
+  await expect(suggestions.getByRole('option')).toHaveCount(1)
+  await suggestions
+    .getByRole('option', { name: '/fixture/custom-home/project', exact: true })
+    .click()
+  await expect(path).toHaveValue('/fixture/custom-home/project')
+  await expect(suggestions).toHaveCount(0)
+
+  await path.click()
+  await expect(suggestions.getByRole('option')).toHaveCount(3)
+  await path.fill('zzzzzzzzzz')
+  await expect(
+    page.getByText('No matching recent folders.', { exact: true }),
+  ).toBeVisible()
+  await path.press('Escape')
+  await expect(suggestions).toHaveCount(0)
+  await expect(picker).toBeVisible()
+  await path.fill('/fixture/new-folder')
+  await path.press('Enter')
+  await expect(path).toHaveValue('/fixture/new-folder')
+  await expect(
+    picker.getByRole('option', { name: 'project', exact: true }),
+  ).toBeFocused()
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem('slopbench-recent-directories')!).paths,
+    ),
+  ).toEqual([
+    '/fixture/custom-home/project',
+    '/fixture/archives',
+    '/fixture/research',
+  ])
+})
+
 test('descriptions expand from two lines and the library scrolls beyond its first page', async ({
   page,
 }) => {

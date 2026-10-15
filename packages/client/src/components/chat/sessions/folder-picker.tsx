@@ -55,8 +55,7 @@ export function FolderPicker({
         aria-label={label}
         title={selected?.folderPath ?? rootLabel}
         variant="input"
-        className="max-w-64"
-        size="sm"
+        className="max-w-60"
         disabled={disabled}
       >
         <FolderIconView icon={selected?.icon} />

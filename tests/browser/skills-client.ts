@@ -192,7 +192,10 @@ const client = {
     await new Promise((resolve) => setTimeout(resolve, 150))
     return id
   },
-  async action(reference: FunctionReference<'action'>) {
+  async action(
+    reference: FunctionReference<'action'>,
+    args: Record<string, unknown>,
+  ) {
     const name = getFunctionName(reference)
     if (name === 'actions/skills:homeStatus') {
       await new Promise((resolve) => setTimeout(resolve, 400))
@@ -200,8 +203,18 @@ const client = {
     }
     if (name === 'actions/skills:desktop')
       return { supported: false, machine: 'fixture' }
-    if (name === 'actions/workspaces:listDirectories')
-      return { path: '/fixture/custom-home', entries: [] }
+    if (name === 'actions/workspaces:listDirectories') {
+      if (args.path === '/missing')
+        throw new Error(
+          "ENOENT: no such file or directory, realpath '/missing'",
+        )
+      const path = String(args.path ?? '/fixture/custom-home')
+      return {
+        path,
+        parent: '/fixture',
+        entries: [{ name: 'project', path: `${path}/project` }],
+      }
+    }
     throw new Error('Unsupported fixture action')
   },
 }

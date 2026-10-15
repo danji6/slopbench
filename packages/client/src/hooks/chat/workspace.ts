@@ -1,3 +1,4 @@
+import { directoryBrowseError } from '@/lib/chat/directory-browse-error'
 import { toastError } from '@/lib/notifications'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
@@ -165,6 +166,7 @@ export function useWorkspaceFileIndexByRoot(
 export function useWorkspaceBrowser() {
   const listDirectories = useAction(api.actions.workspaces.listDirectories)
   const [path, setPath] = useState('')
+  const [pathError, setPathError] = useState<string | null>(null)
   const [list, setList] = useState<DirectoryList | null>(null)
   const [busy, setBusy] = useState(false)
   const [showHidden, setShowHidden] = useState(false)
@@ -175,6 +177,12 @@ export function useWorkspaceBrowser() {
     currentRef.current = result.path
     setList(result)
     setPath(result.path)
+    setPathError(null)
+  }, [])
+
+  const editPath = useCallback((value: string) => {
+    setPath(value)
+    setPathError(null)
   }, [])
 
   const fetchList = useCallback(
@@ -190,19 +198,22 @@ export function useWorkspaceBrowser() {
     async (nextPath?: string, fallback = false, record = true) => {
       const from = currentRef.current
       setBusy(true)
+      setPathError(null)
+      if (nextPath) setPath(nextPath)
       try {
         const result = await fetchList(nextPath)
         if (record && from && from !== result.path) {
           setHistory((h) => [...h, from])
         }
         show(result)
+        return result
       } catch (err) {
-        toastError(err)
+        setPathError(directoryBrowseError(err))
         if (nextPath && fallback) {
           try {
             show(await fetchList())
-          } catch {
-            // no op
+          } catch (fallbackError) {
+            setPathError(directoryBrowseError(fallbackError))
           }
         }
       } finally {
@@ -245,7 +256,8 @@ export function useWorkspaceBrowser() {
 
   return {
     path,
-    setPath,
+    setPath: editPath,
+    pathError,
     list,
     busy,
     loadDirectories,

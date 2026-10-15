@@ -158,6 +158,21 @@ function SettingsTabsContent({
     <TabsPrimitive.Panel
       data-slot="settings-tabs-content"
       className={cn('flex-1 overflow-y-auto outline-none', className)}
+      render={({
+        onAnimationStart: _onAnimationStart,
+        onAnimationEnd: _onAnimationEnd,
+        onDrag: _onDrag,
+        onDragStart: _onDragStart,
+        onDragEnd: _onDragEnd,
+        ...renderProps
+      }) => (
+        <motion.div
+          {...renderProps}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+        />
+      )}
       {...props}
     >
       {title && (

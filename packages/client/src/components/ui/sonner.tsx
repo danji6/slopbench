@@ -16,7 +16,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }
       toastOptions={{
         style: {
-          borderRadius: 'var(--radius-4xl)',
+          borderRadius: 'var(--radius-2xl)',
         },
       }}
       {...props}

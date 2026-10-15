@@ -1,17 +1,19 @@
-import { Dialog, Input, RippleButton } from '@/components/ui'
+import { Dialog, RippleButton } from '@/components/ui'
 import { useWorkspaceBrowser } from '@/hooks/chat'
+import { rememberDirectory } from '@/lib/chat/recent-directory-store'
 import { cn } from '@/lib/utils'
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
   ArrowUpIcon,
-  CornerLeftUpIcon,
   EyeIcon,
   EyeOffIcon,
   FolderIcon,
   HouseIcon,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
+
+import { WorkspacePathInput } from './workspace-path-input'
 
 interface WorkspacePickerDialogProps {
   open: boolean
@@ -21,18 +23,19 @@ interface WorkspacePickerDialogProps {
   title?: string
 }
 
-type Row = { name: string; target?: string; isParent?: boolean }
+type Row = { name: string; target: string }
 
 export function WorkspacePickerDialog({
   open,
   onOpenChange,
   onSelect,
   initialPath,
-  title = 'Select a folder',
+  title = 'Choose a directory',
 }: WorkspacePickerDialogProps) {
   const {
     path,
     setPath,
+    pathError,
     list,
     busy,
     loadDirectories,
@@ -46,23 +49,23 @@ export function WorkspacePickerDialog({
   const listRef = useRef<HTMLDivElement | null>(null)
   const rowRefs = useRef<(HTMLButtonElement | null)[]>([])
   const pendingFocus = useRef(false)
+  const selectionVersion = useRef(0)
   const [activeIndex, setActiveIndex] = useState(-1)
+  const pathErrorId = useId()
 
   const rows = useMemo<Row[]>(() => {
-    if (!list) return []
-    return [
-      ...(list.parent
-        ? [{ name: '..', target: list.parent, isParent: true }]
-        : []),
-      ...list.entries.slice(0, 500).map((entry) => ({
-        name: entry.name,
-        target: entry.path,
-      })),
-    ]
+    return (list?.entries ?? []).slice(0, 500).map((entry) => ({
+      name: entry.name,
+      target: entry.path,
+    }))
   }, [list])
 
   useEffect(() => {
+    const version = selectionVersion.current
     if (open) void loadDirectories(initialPath || undefined, true)
+    return () => {
+      selectionVersion.current = version + 1
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Run once
   }, [open])
 
@@ -70,7 +73,8 @@ export function WorkspacePickerDialog({
   useEffect(() => {
     if (!pendingFocus.current) return
     pendingFocus.current = false
-    rowRefs.current[0]?.focus()
+    const target = rowRefs.current[0] ?? listRef.current
+    target?.focus()
   }, [list?.path])
 
   function navigate(target?: string) {
@@ -103,9 +107,14 @@ export function WorkspacePickerDialog({
     }
   }
 
-  function handleSelect() {
-    if (!path.trim()) return
-    onSelect(path.trim())
+  async function handleSelect() {
+    if (busy || !path.trim()) return
+    const version = selectionVersion.current
+    const selected = await loadDirectories(path.trim())
+    if (!selected) return
+    if (version !== selectionVersion.current) return
+    onSelect(selected.path)
+    rememberDirectory(selected.path)
     onOpenChange(false)
   }
 
@@ -115,7 +124,7 @@ export function WorkspacePickerDialog({
         <Dialog.Header>
           <Dialog.Title>{title}</Dialog.Title>
         </Dialog.Header>
-        <div className="flex flex-col gap-3 py-2" onKeyDown={handleKeyDown}>
+        <div className="flex flex-col gap-3 py-2">
           <div className="flex items-center gap-1">
             <RippleButton
               size="icon"
@@ -147,14 +156,11 @@ export function WorkspacePickerDialog({
             >
               <HouseIcon />
             </RippleButton>
-            <Input
+            <WorkspacePathInput
               value={path}
-              onChange={(event) => setPath(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') navigate(path.trim())
-              }}
-              placeholder="/path/to/project"
-              className="h-9 min-w-0 flex-1 font-mono text-xs"
+              onChange={setPath}
+              onNavigate={navigate}
+              errorId={pathError ? pathErrorId : undefined}
             />
             <RippleButton
               size="icon"
@@ -176,32 +182,37 @@ export function WorkspacePickerDialog({
               <ArrowRightIcon />
             </RippleButton>
           </div>
+          {pathError && (
+            <p
+              id={pathErrorId}
+              role="alert"
+              className="text-destructive px-3 text-xs"
+            >
+              {pathError}
+            </p>
+          )}
           <div
             ref={listRef}
             tabIndex={-1}
             role="listbox"
             aria-label="Directories"
-            className="border-border/50 h-72 overflow-auto rounded-md border"
+            onKeyDown={handleKeyDown}
+            className="border-border/50 h-72 overflow-auto rounded-md border outline-none"
           >
             {rows.map((row, index) => (
               <DirectoryRow
-                key={row.target ?? row.name}
+                key={row.target}
                 ref={(el) => {
                   rowRefs.current[index] = el
                 }}
                 name={row.name}
                 active={index === activeIndex}
-                icon={
-                  row.isParent ? (
-                    <CornerLeftUpIcon className="size-3.5 shrink-0" />
-                  ) : undefined
-                }
                 onClick={() => navigate(row.target)}
               />
             ))}
-            {list && rows.length === 0 && (
-              <p className="text-muted-foreground p-3 text-xs">
-                No subfolders here.
+            {list && list.entries.length === 0 && (
+              <p className="text-muted-foreground flex h-full items-center justify-center p-3 text-xs">
+                Empty
               </p>
             )}
           </div>
@@ -217,7 +228,7 @@ export function WorkspacePickerDialog({
           <RippleButton
             variant="primary"
             disabled={busy || !path.trim()}
-            onClick={handleSelect}
+            onClick={() => void handleSelect()}
             className="w-32"
           >
             Use this folder
@@ -231,13 +242,11 @@ export function WorkspacePickerDialog({
 function DirectoryRow({
   ref,
   name,
-  icon,
   active,
   onClick,
 }: {
   ref?: React.Ref<HTMLButtonElement>
   name: string
-  icon?: React.ReactNode
   active?: boolean
   onClick: () => void
 }) {
@@ -246,6 +255,7 @@ function DirectoryRow({
       ref={ref}
       type="button"
       role="option"
+      title={name}
       aria-selected={active}
       className={cn(
         'focus-visible:border-ring hover:bg-m3-surface-container-high flex w-full items-center gap-2 rounded-md border border-transparent px-3 py-1.5 text-left text-xs outline-0',
@@ -253,7 +263,7 @@ function DirectoryRow({
       )}
       onClick={onClick}
     >
-      {icon ?? <FolderIcon className="size-3.5 shrink-0" />}
+      <FolderIcon className="size-3.5 shrink-0" />
       <span className="truncate font-mono">{name}</span>
     </button>
   )
