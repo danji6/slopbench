@@ -166,7 +166,7 @@ export function SessionRow({
 
                   {(item.pinned || showFolder) && (
                     <span className="text-muted-foreground truncate text-start text-xs">
-                      {item.folderPath ?? item.folderName ?? 'Ungrouped'}
+                      {item.folderPath ?? item.folderName ?? 'No folder'}
                     </span>
                   )}
                   <span className="text-muted-foreground flex w-full items-center gap-1.5 text-xs">

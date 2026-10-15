@@ -93,7 +93,7 @@ test('expanded trees show children before direct sessions with independent pagin
     'header:sibling',
     'root',
     'header:b',
-    'header:ungrouped',
+    'separator:ungrouped',
   ])
   expect(
     rows.find((row) => row.kind === 'header' && row.key === 'a')?.last,
@@ -110,7 +110,7 @@ test('collapsing a parent hides all descendants without disturbing Pinned', () =
   const rows = flattenSessionTree(nodes, pages, { a: true })
   expect(
     rows.filter((row) => row.kind === 'header').map((row) => row.key),
-  ).toEqual(['pinned', 'a', 'b', 'ungrouped'])
+  ).toEqual(['pinned', 'a', 'b'])
   expect(
     rows.filter((row) => row.kind === 'session').map((row) => row.id),
   ).toEqual(['pin'])
@@ -310,4 +310,92 @@ test('a committed revision reconciles concurrent changes without restoring stale
   expect(concurrent.find((folder) => folder._id === 'n')?.parentId).toBe(
     'sibling' as Id<'sessionFolders'>,
   )
+})
+
+test('pinned folders relocate their branch without changing real ancestry', () => {
+  const pinned = nodes.map((folder) => ({
+    ...folder,
+    pinned: folder._id === 'n',
+  }))
+  const rows = flattenSessionTree(pinned, pages, {})
+  expect(
+    rows.filter((row) => row.kind === 'header').map((row) => row.key),
+  ).toEqual(['pinned', 'n', 'g', 'a', 'sibling', 'b'])
+  expect(
+    rows.find((row) => row.kind === 'header' && row.key === 'n'),
+  ).toMatchObject({
+    depth: 1,
+    ancestorIds: ['pinned'],
+    folderAncestorIds: ['a'],
+  })
+  expect(
+    rows.find((row) => row.kind === 'session' && row.id === 'deep'),
+  ).toMatchObject({
+    depth: 2,
+    ancestorIds: ['pinned', 'n'],
+    folderAncestorIds: ['a', 'n'],
+  })
+  expect(
+    rows.filter((row) => row.kind === 'footer' && row.key === 'n'),
+  ).toHaveLength(1)
+  expect(pinned.find((folder) => folder._id === 'n')?.parentId).toBe('a')
+  expect(
+    flattenSessionTree(nodes, pages, {}).find((row) => row.key === 'n'),
+  ).toMatchObject({
+    depth: 1,
+    ancestorIds: ['a'],
+  })
+})
+
+test('separately pinned descendants and sessions appear once under Pinned', () => {
+  const pinned = nodes.map((folder) => ({
+    ...folder,
+    pinned: ['a', 'n'].includes(folder._id),
+  }))
+  const withSessionPin = { ...pages, pinned: page(['nested', 'pin']) }
+  const rows = flattenSessionTree(pinned, withSessionPin, {})
+  expect(
+    rows.filter((row) => row.kind === 'header').map((row) => row.key),
+  ).toEqual(['pinned', 'a', 'sibling', 'n', 'g', 'b'])
+  expect(
+    rows.find((row) => row.kind === 'header' && row.key === 'n'),
+  ).toMatchObject({
+    depth: 1,
+    ancestorIds: ['pinned'],
+  })
+  expect(
+    rows.filter((row) => row.kind === 'session' && row.id === 'nested'),
+  ).toEqual([{ kind: 'session', key: 'pinned', id: 'nested' }])
+  const collapsedParent = flattenSessionTree(pinned, withSessionPin, {
+    a: true,
+  })
+  expect(collapsedParent.some((row) => row.key === 'n')).toBe(true)
+  expect(collapsedParent.some((row) => row.key === 'sibling')).toBe(false)
+  const collapsedPinned = flattenSessionTree(pinned, withSessionPin, {
+    pinned: true,
+  })
+  expect(
+    collapsedPinned
+      .filter((row) => row.kind === 'header')
+      .map((row) => row.key),
+  ).toEqual(['pinned', 'b'])
+  expect(collapsedPinned.some((row) => row.kind === 'session')).toBe(false)
+})
+
+test('unfiled sessions ignore saved collapse state and retain an empty drop surface', () => {
+  const unfiled = { ...pages, ungrouped: page(['loose'], 'CanLoadMore') }
+  const rows = flattenSessionTree(nodes, unfiled, { ungrouped: true })
+  expect(rows.slice(-3)).toEqual([
+    { kind: 'separator', key: 'ungrouped' },
+    { kind: 'session', key: 'ungrouped', id: 'loose' },
+    { kind: 'footer', key: 'ungrouped' },
+  ])
+  expect(
+    flattenSessionTree([], { pinned: page([]), ungrouped: page([]) }, {}).at(
+      -1,
+    ),
+  ).toEqual({
+    kind: 'separator',
+    key: 'ungrouped',
+  })
 })

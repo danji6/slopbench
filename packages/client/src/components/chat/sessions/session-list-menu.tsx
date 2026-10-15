@@ -77,13 +77,13 @@ export function SessionListMenu({
             <EyeIcon className="mr-2 size-4" />
             <span>Show hidden</span>
           </DropdownMenu.CheckboxItem>
-          <DropdownMenu.Item onClick={onCollapseAll}>
-            <ChevronsDownUpIcon className="mr-2 size-4" />
-            <span>Collapse all</span>
-          </DropdownMenu.Item>
           <DropdownMenu.Item onClick={onExpandAll}>
             <ChevronsUpDownIcon className="mr-2 size-4" />
             <span>Expand all</span>
+          </DropdownMenu.Item>
+          <DropdownMenu.Item onClick={onCollapseAll}>
+            <ChevronsDownUpIcon className="mr-2 size-4" />
+            <span>Collapse all</span>
           </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu>

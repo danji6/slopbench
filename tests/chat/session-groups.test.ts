@@ -26,7 +26,7 @@ test('groups retain manual order and deduplicate rows', () => {
     { kind: 'footer', key: 'b' },
     { kind: 'header', key: 'a' },
     { kind: 'session', key: 'a', id: 'a' },
-    { kind: 'header', key: 'ungrouped' },
+    { kind: 'separator', key: 'ungrouped' },
   ])
 })
 

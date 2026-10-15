@@ -6,7 +6,7 @@ import {
 } from '@sb/convex/model/session/folderContext'
 import { cancel } from '@sb/convex/model/session/folderTransitionLocks'
 import { begin, commit } from '@sb/convex/model/session/folderTransitions'
-import { pin, reorder } from '@sb/convex/model/session/folders'
+import { pin, pinFolder, reorder } from '@sb/convex/model/session/folders'
 import { duplicate } from '@sb/convex/model/session/sessionDuplicate'
 import { toListItem } from '@sb/convex/model/session/sessionQueries'
 import { redeem } from '@sb/convex/model/session/shares'
@@ -16,6 +16,35 @@ import { describe, expect, test } from 'bun:test'
 import { args, cancelArgs, commitArgs, setup } from './session-folder-fixture'
 
 describe('session folders', () => {
+  test('folder pins preserve workspace, hierarchy, order, and session pins', async () => {
+    const { ctx, row } = setup()
+    row('b').parentId = 'a'
+    await pin(ctx, { sessionId: 's' as never, pinned: true })
+    const before = structuredClone(row('b'))
+    const membership = structuredClone(row('own'))
+    await pinFolder(ctx, { folderId: 'b' as never, pinned: true })
+    expect(row('b')).toEqual({ ...before, pinned: true })
+    expect(row('own')).toEqual(membership)
+    expect(
+      (await getSessionWithWorkspace(ctx, 's' as never))?.workspace?.path,
+    ).toBe('/a')
+    await pinFolder(ctx, { folderId: 'b' as never, pinned: false })
+    expect(row('b')).toEqual({ ...before, pinned: undefined })
+  })
+
+  test('folder pinning rejects foreign folders and locks on ancestors', async () => {
+    const { ctx, row } = setup()
+    await expect(
+      pinFolder(ctx, { folderId: 'c' as never, pinned: true }),
+    ).rejects.toThrow('Folder not found')
+    row('b').parentId = 'a'
+    row('a').contextLock = `${Date.now() + 60000}:locked`
+    await expect(
+      pinFolder(ctx, { folderId: 'b' as never, pinned: true }),
+    ).rejects.toThrow('Folder sources are being updated')
+    expect(row('b').pinned).toBeUndefined()
+  })
+
   test('pins are personal and shared members cannot change folder authority', async () => {
     const { ctx, row } = setup()
     await pin({ ...(ctx as object), userId: 'member' } as never, {

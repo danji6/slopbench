@@ -41,7 +41,7 @@ function rowInsideCollapsedFolder(
   row: GroupRow,
   collapsed: Record<string, boolean>,
 ) {
-  if (row.key === 'search') return false
+  if (row.key === 'search' || row.key === 'ungrouped') return false
   if (row.ancestorIds?.some((key) => collapsed[key])) return true
   return row.kind !== 'header' && Boolean(collapsed[row.key])
 }

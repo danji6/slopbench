@@ -2,36 +2,29 @@ import {
   Accordion,
   ContextMenu,
   RippleButton,
+  Tooltip,
   useOptionalSidebar,
 } from '@/components/ui'
 import { useUserProfile } from '@/hooks/chat/profile'
 import { setSelectedSessionFolder } from '@/lib/ui-settings'
-import { cn } from '@/lib/utils'
 import { useDraggable } from '@dnd-kit/core'
 import type { FolderView } from '@sb/convex/types'
-import {
-  ChevronsDownUpIcon,
-  ChevronsUpDownIcon,
-  PinIcon,
-  PlusIcon,
-} from 'lucide-react'
+import { PinIcon, SquarePenIcon } from 'lucide-react'
 import { useLocation } from 'wouter'
 
 import { FolderDropTargets } from './folder-drop-targets'
+import {
+  FolderContextMenu,
+  type FolderMenuActions,
+  FolderOptionsMenu,
+} from './folder-menu'
 import { FolderIconView } from './folder-picker'
 
-type FolderHeaderProps = {
+type FolderHeaderProps = FolderMenuActions & {
   groupKey: string
   folder?: FolderView
   collapsed: boolean
   toggle: () => void
-  onCollapseAll: () => void
-  onExpandAll: () => void
-  edit: () => void
-  remove: () => void
-  reorder: (direction: -1 | 1) => void
-  createChild: () => void
-  move: () => void
   pending: boolean
 }
 
@@ -40,14 +33,8 @@ export function FolderHeader({
   folder,
   collapsed,
   toggle,
-  onCollapseAll,
-  onExpandAll,
-  edit,
-  remove,
-  reorder,
-  createChild,
-  move,
   pending,
+  ...actions
 }: FolderHeaderProps) {
   const { setNodeRef, setActivatorNodeRef, attributes, listeners } =
     useDraggable({
@@ -59,31 +46,34 @@ export function FolderHeader({
   const [, navigate] = useLocation()
   const sidebar = useOptionalSidebar()
   const userId = useUserProfile()?._id
+  const name = folder?.name ?? 'Pinned'
 
-  const selectFolder = () => {
-    if (userId && (folder || groupKey === 'ungrouped'))
-      setSelectedSessionFolder(userId, folder?._id ?? null)
+  function selectFolder() {
+    if (userId && folder) setSelectedSessionFolder(userId, folder._id)
   }
 
-  const name = folder?.name ?? (groupKey === 'pinned' ? 'Pinned' : 'Ungrouped')
-  const canCreateSession = Boolean(folder) || groupKey === 'ungrouped'
+  function compose() {
+    if (!folder) return
+    selectFolder()
+    navigate(`/?folder=${folder._id}`, { replace: true })
+    sidebar?.close()
+  }
+
+  const menu = { ...actions, pending, pinned: folder?.pinned }
 
   return (
-    <ContextMenu>
+    <ContextMenu disabled={!folder}>
       <ContextMenu.Trigger>
         <div
           ref={setNodeRef}
-          className={cn('group/folder-header relative rounded-md')}
+          className="relative flex items-center gap-0.5 rounded-md"
         >
           <RippleButton
             ref={setActivatorNodeRef}
             {...(folder ? attributes : {})}
             {...(folder ? listeners : {})}
             variant="stealth"
-            className={cn(
-              'group-hover/folder-header:bg-m3-surface-container-high h-9 w-full min-w-0 justify-start gap-1.5 rounded-md px-1 text-sm has-[>svg]:px-1',
-              canCreateSession && 'pr-10 has-[>svg]:pr-10',
-            )}
+            className="h-9 min-w-0 flex-1 justify-start gap-1.5 rounded-md px-1 text-sm has-[>svg]:px-1"
             onClick={() => {
               selectFolder()
               toggle()
@@ -96,69 +86,38 @@ export function FolderHeader({
               className="size-3"
               aria-hidden
             />
-            {groupKey === 'pinned' ? (
-              <PinIcon className="size-4" />
+            {folder ? (
+              <FolderIconView icon={folder.icon} />
             ) : (
-              <FolderIconView icon={folder?.icon} />
+              <PinIcon className="size-4" />
             )}
             <span className="truncate">{name}</span>
           </RippleButton>
-          {canCreateSession && (
-            <RippleButton
-              variant="stealth"
-              size="icon"
-              className="absolute top-1 right-1 size-7"
-              aria-label={`New session in ${name}`}
-              onClick={() => {
-                selectFolder()
-                navigate(folder ? `/?folder=${folder._id}` : '/', {
-                  replace: true,
-                })
-                sidebar?.close()
-              }}
-            >
-              <PlusIcon className="size-4" />
-            </RippleButton>
+          {folder && (
+            <>
+              <Tooltip>
+                <Tooltip.Trigger
+                  render={
+                    <RippleButton
+                      variant="stealth"
+                      size="icon"
+                      className="text-muted-foreground hover:text-foreground focus-visible:text-foreground size-7 shrink-0"
+                      aria-label={`Compose in ${name}`}
+                      onClick={compose}
+                    >
+                      <SquarePenIcon className="size-4" />
+                    </RippleButton>
+                  }
+                />
+                <Tooltip.Content>Compose</Tooltip.Content>
+              </Tooltip>
+              <FolderOptionsMenu name={name} {...menu} />
+            </>
           )}
           {folder && !pending && <FolderDropTargets folder={folder} />}
         </div>
       </ContextMenu.Trigger>
-      {folder && (
-        <ContextMenu.Content>
-          <ContextMenu.Item disabled={pending} onSelect={createChild}>
-            Create subfolder…
-          </ContextMenu.Item>
-          <ContextMenu.Item disabled={pending} onSelect={edit}>
-            Edit folder…
-          </ContextMenu.Item>
-          <ContextMenu.Item disabled={pending} onSelect={move}>
-            Move folder…
-          </ContextMenu.Item>
-          <ContextMenu.Item disabled={pending} onSelect={() => reorder(-1)}>
-            Move up
-          </ContextMenu.Item>
-          <ContextMenu.Item disabled={pending} onSelect={() => reorder(1)}>
-            Move down
-          </ContextMenu.Item>
-          <ContextMenu.Separator />
-          <ContextMenu.Item onSelect={onCollapseAll}>
-            <ChevronsDownUpIcon className="mr-2 size-4" />
-            Collapse all
-          </ContextMenu.Item>
-          <ContextMenu.Item onSelect={onExpandAll}>
-            <ChevronsUpDownIcon className="mr-2 size-4" />
-            Expand all
-          </ContextMenu.Item>
-          <ContextMenu.Separator />
-          <ContextMenu.Item
-            disabled={pending}
-            variant="destructive"
-            onSelect={remove}
-          >
-            Delete folder…
-          </ContextMenu.Item>
-        </ContextMenu.Content>
-      )}
+      {folder && <FolderContextMenu {...menu} />}
     </ContextMenu>
   )
 }

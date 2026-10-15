@@ -2,6 +2,7 @@ import { ConfirmDialog, Input, RippleButton } from '@/components/ui'
 import { useDebouncedCallback } from '@/hooks'
 import { useSession, useSessionGroups, useSessionSearch } from '@/hooks/chat'
 import { useFolderMoves } from '@/hooks/chat/folder-moves'
+import { useFolderPins } from '@/hooks/chat/folder-pins'
 import { useSessionFolderAnimation } from '@/hooks/chat/session-folder-animation'
 import {
   type FolderDropPlacement,
@@ -31,8 +32,7 @@ import type { FolderView } from '@sb/convex/types'
 import { folderBranch, folderSiblings } from '@sb/core/utils/folder-tree'
 import { useAction, useMutation } from 'convex/react'
 import { FolderPlusIcon } from 'lucide-react'
-import { memo, useRef, useState } from 'react'
-import { Virtualizer } from 'virtua'
+import { memo, useState } from 'react'
 
 import { useUnreadNotificationSessionIds } from '../notifications/notification-provider'
 import { AnimatedSessionRow } from './animated-session-row'
@@ -41,6 +41,10 @@ import { FolderGroupRow } from './folder-group-row'
 import { FolderHeader } from './folder-header'
 import { FolderMoveDialog } from './folder-move-dialog'
 import { SessionListMenu } from './session-list-menu'
+import {
+  SESSION_LIST_BACKGROUND_TARGET,
+  SessionListScrollArea,
+} from './session-list-scroll-area'
 import { SessionRow } from './session-row'
 import { SessionTitleEditor } from './session-title-editor'
 
@@ -51,7 +55,6 @@ export const SessionListView = memo(function SessionListView() {
   const unreadSessionIds = useUnreadNotificationSessionIds()
   const setSearch = useSessionSearch()
   const commitSearch = useDebouncedCallback(setSearch, SEARCH_DEBOUNCE)
-  const scrollRef = useRef<HTMLDivElement>(null)
   const [query, setQuery] = useState('')
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [editing, setEditing] = useState<FolderView | 'new' | null>(null) // prettier-ignore
@@ -75,6 +78,8 @@ export const SessionListView = memo(function SessionListView() {
     updateCollapsed(next)
   })
   const { folders } = organizing
+  const folderPins = useFolderPins()
+  const organizationPending = organizing.pending || folderPins.pending
   const [dragTitle, setDragTitle] = useState<string | null>(null)
   const [frozenRows, setFrozenRows] = useState<GroupRow[] | null>(null)
 
@@ -97,7 +102,7 @@ export const SessionListView = memo(function SessionListView() {
   function collapseAll(value: boolean, folder?: FolderView) {
     const keys = folder
       ? folderBranch(folders, folder._id).map((entry) => entry._id)
-      : ['pinned', ...folders.map((entry) => entry._id), 'ungrouped']
+      : ['pinned', ...folders.map((entry) => entry._id)]
     updateCollapsed({
       ...collapsed,
       ...Object.fromEntries(keys.map((key) => [key, value])),
@@ -120,11 +125,19 @@ export const SessionListView = memo(function SessionListView() {
     setFrozenRows(null)
     setDragTitle(null)
     const { active, over } = event
-    if (!over) return
+    if (!over || organizationPending) return
 
     try {
       if (active.data.current?.kind === 'folder') {
         const target = over.data.current
+        if (target?.kind === 'folder-pin') {
+          const pinned = await folderPins.setPinned(
+            active.id as Id<'sessionFolders'>,
+            true,
+          )
+          if (pinned) updateCollapsed({ ...collapsed, pinned: false })
+          return
+        }
         if (target?.kind === 'folder-target') {
           const input = folderDropIntent(
             folders,
@@ -163,7 +176,7 @@ export const SessionListView = memo(function SessionListView() {
         <FolderGroupRow
           row={row}
           last={row.last ?? rows[index + 1]?.key !== row.key}
-          pending={organizing.pending}
+          pending={organizationPending}
           hasSources={Boolean(
             folders.find((folder) => folder._id === row.key)?.workspace,
           )}
@@ -176,6 +189,15 @@ export const SessionListView = memo(function SessionListView() {
 
   function renderRowContent(row: GroupRow) {
     const folder = folders.find((folder) => folder._id === row.key)
+    if (row.kind === 'separator') {
+      return (
+        <div
+          className="mx-1 my-3 border-t"
+          role="separator"
+          aria-label="Sessions without a folder"
+        />
+      )
+    }
     if (row.kind === 'header') {
       return (
         <FolderHeader
@@ -188,7 +210,10 @@ export const SessionListView = memo(function SessionListView() {
           edit={() => folder && setEditing(folder)}
           remove={() => folder && setDeleting(folder)}
           reorder={(direction) => folder && order(folder, direction)}
-          pending={organizing.pending}
+          pending={organizationPending}
+          pin={() => {
+            if (folder) void folderPins.setPinned(folder._id, !folder.pinned)
+          }}
           createChild={() => {
             setNewParent(folder)
             setEditing('new')
@@ -206,11 +231,16 @@ export const SessionListView = memo(function SessionListView() {
 
     if (row.kind === 'session') {
       return (
-        <div className={cn('py-0.5', row.key !== 'search' && 'ps-3')}>
+        <div
+          className={cn(
+            'py-0.5',
+            row.key !== 'search' && row.key !== 'ungrouped' && 'ps-3',
+          )}
+        >
           <SessionRow
             showFolder={Boolean(search.trim())}
             id={row.id}
-            dropPending={organizing.pending || pendingSessionIds.has(row.id)}
+            dropPending={organizationPending || pendingSessionIds.has(row.id)}
             hasUnreadNotification={unreadSessionIds.has(row.id)}
             rename={setRenamingId}
           />
@@ -244,9 +274,15 @@ export const SessionListView = memo(function SessionListView() {
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={(args) =>
-        args.pointerCoordinates ? pointerWithin(args) : closestCenter(args)
-      }
+      collisionDetection={(args) => {
+        const collisions = args.pointerCoordinates
+          ? pointerWithin(args)
+          : closestCenter(args)
+        const targets = collisions.filter(
+          (target) => target.id !== SESSION_LIST_BACKGROUND_TARGET,
+        )
+        return targets.length ? targets : collisions
+      }}
       onDragStart={({ active }) => {
         setFrozenRows(liveRows)
         const session = Object.values(pages)
@@ -274,7 +310,7 @@ export const SessionListView = memo(function SessionListView() {
                 variant="stealth"
                 size="icon"
                 aria-label="Create folder"
-                disabled={organizing.pending}
+                disabled={organizationPending}
                 onClick={() => {
                   setNewParent(undefined)
                   setEditing('new')
@@ -299,14 +335,12 @@ export const SessionListView = memo(function SessionListView() {
             className="border-input/50 h-10"
           />
         </header>
-        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-2">
-          <Virtualizer
-            scrollRef={scrollRef as React.RefObject<HTMLElement>}
-            data={rows}
-          >
-            {renderRow}
-          </Virtualizer>
-        </div>
+        <SessionListScrollArea
+          rows={rows}
+          renderRow={renderRow}
+          searching={Boolean(search.trim())}
+          pending={organizationPending}
+        />
         {renamingId && (
           <SessionRenameDialog
             id={renamingId}
@@ -340,7 +374,7 @@ export const SessionListView = memo(function SessionListView() {
           open={Boolean(deleting)}
           onOpenChange={(open) => !open && setDeleting(null)}
           title="Delete folder?"
-          description={`This folder and all its subfolders will be deleted. Sessions will move to ${folders.find((folder) => folder._id === deleting?.parentId)?.folderPath ?? 'Ungrouped'}.${deleting?.parentId ? '' : ' Folder-provided filesystem access will be removed.'} Chats and pins will be kept.`}
+          description={`This folder and all its subfolders will be deleted. Sessions will move to ${folders.find((folder) => folder._id === deleting?.parentId)?.folderPath ?? 'no folder'}.${deleting?.parentId ? '' : ' Folder-provided filesystem access will be removed.'} Chats and session pins will be kept.`}
           confirmText="Delete folder"
           variant="destructive"
           onConfirm={async () => {

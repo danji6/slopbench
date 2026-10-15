@@ -23,23 +23,30 @@ export function FolderGroupRow({
   const { active, over } = useDndContext()
   const draggingSession = active?.data.current?.kind === 'session'
   const draggingFolder = active?.data.current?.kind === 'folder'
-  const first = row.kind === 'header'
+  const first = row.kind === 'header' || row.kind === 'separator'
 
   const ownBranch =
-    active?.id === row.key || row.ancestorIds?.includes(String(active?.id))
+    active?.id === row.key ||
+    row.folderAncestorIds?.includes(String(active?.id))
 
   const folderBody =
-    draggingFolder && !first && Boolean(row.ancestorIds) && !ownBranch
+    draggingFolder && !first && Boolean(row.folderAncestorIds) && !ownBranch
+
+  const pinTarget =
+    draggingFolder && row.kind === 'header' && row.key === 'pinned'
 
   const disabled =
     pending ||
-    (!draggingSession && !folderBody) ||
+    (!draggingSession && !folderBody && !pinTarget) ||
     (draggingSession && active?.data.current?.owned === false && hasSources)
 
-  const folderTarget =
-    draggingFolder && over?.data.current?.kind === 'folder-target'
+  const folderTarget = draggingFolder
+    ? over?.data.current?.kind === 'folder-target'
       ? over.data.current
-      : undefined
+      : over?.data.current?.kind === 'folder-pin'
+        ? { folderId: 'pinned', placement: 'inside' as const }
+        : undefined
+    : undefined
 
   const sessionTarget = over?.data.current?.groupKey as string | undefined
 
@@ -58,9 +65,11 @@ export function FolderGroupRow({
 
   const { setNodeRef } = useDroppable({
     id: `folder-drop:${row.key}:${row.kind === 'session' ? row.id : row.kind}`,
-    data: folderBody
-      ? { kind: 'folder-target', folderId: row.key, placement: 'after' }
-      : { groupKey: row.key },
+    data: pinTarget
+      ? { kind: 'folder-pin' }
+      : folderBody
+        ? { kind: 'folder-target', folderId: row.key, placement: 'after' }
+        : { groupKey: row.key },
     disabled,
   })
 

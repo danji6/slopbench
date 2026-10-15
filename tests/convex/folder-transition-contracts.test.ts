@@ -2,6 +2,7 @@ import { commitPrepared } from '@sb/convex/actions/session/folders'
 import { cancel } from '@sb/convex/model/session/folderTransitionLocks'
 import { begin, commit } from '@sb/convex/model/session/folderTransitions'
 import {
+  folderCancelArgs,
   folderChangeArgs,
   folderCommitArgs,
 } from '@sb/convex/validators/folders'
@@ -10,6 +11,82 @@ import { validate } from 'convex-helpers/validators'
 import { getFunctionName } from 'convex/server'
 
 import { args, cancelArgs, commitArgs, setup } from './session-folder-fixture'
+
+test.each([false, true])(
+  'prepared moves validate outgoing arguments and release locks (commit fails: %s)',
+  async (failCommit) => {
+    const { ctx, row } = setup()
+    const input = args({ kind: 'move-session', sessionId: 's', folderId: 'b' })
+    const prepared = await begin(ctx, input)
+    if (prepared.kind !== 'prepared') throw new Error('Expected preparation')
+    if (failCommit) row('a').revision = 2
+
+    const calls: string[] = []
+    const actionCtx = {
+      runMutation: async (
+        reference: Parameters<typeof getFunctionName>[0],
+        payload: unknown,
+      ) => {
+        const name = getFunctionName(reference)
+        calls.push(name)
+        if (name === 'sessionFolders:_commit') {
+          if (!validate(folderCommitArgs, payload)) {
+            throw new Error('Invalid commit arguments')
+          }
+          return commit(ctx, payload)
+        }
+        if (name === 'sessionFolders:_cancel') {
+          if (!validate(folderCancelArgs, payload)) {
+            throw new Error('Invalid cancellation arguments')
+          }
+          return cancel(ctx, payload)
+        }
+        throw new Error(`Unexpected mutation: ${name}`)
+      },
+    }
+    const post = async (path: string) => {
+      calls.push(path)
+    }
+    const result = commitPrepared(
+      actionCtx as never,
+      input,
+      prepared,
+      post as never,
+    )
+    if (failCommit) {
+      await expect(result).rejects.toThrow('Folder sources changed')
+    } else {
+      await result
+    }
+
+    expect(calls).toEqual([
+      '/workspace/lock',
+      'sessionFolders:_commit',
+      ...(failCommit ? ['sessionFolders:_cancel'] : []),
+      '/workspace/unlock',
+    ])
+    expect(row('s').folderId).toBe(failCommit ? 'a' : 'b')
+    expect(row('own').groupKey).toBe(failCommit ? 'a' : 'b')
+    expect(row('s').contextLock).toBeUndefined()
+    expect(row('msg').content).toBe('Preserve me')
+  },
+)
+
+test('session moves reject active locks and recover after an abandoned lock expires', async () => {
+  const { ctx, row } = setup()
+  const input = args({ kind: 'move-session', sessionId: 's', folderId: 'b' })
+  const activeToken = `${Date.now() + 60000}:abandoned`
+  row('s').contextLock = activeToken
+  await expect(begin(ctx, input)).rejects.toThrow('Session is being moved')
+  expect(row('s').contextLock).toBe(activeToken)
+
+  row('s').contextLock = `${Date.now() - 1000}:abandoned`
+  const prepared = await begin(ctx, input)
+  expect(row('s').contextLock).toBe(input.token)
+  await commit(ctx, commitArgs(input, prepared))
+  expect(row('s').folderId).toBe('b')
+  expect(row('s').contextLock).toBeUndefined()
+})
 
 test('folder commands reject missing resources and mixed operations', () => {
   const commands = [

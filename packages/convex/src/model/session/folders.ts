@@ -119,6 +119,15 @@ export async function pin(
   })
 }
 
+/** Pins a personal folder without changing its hierarchy or workspace. */
+export async function pinFolder(
+  ctx: AuthMutationCtx,
+  args: { folderId: Id<'sessionFolders'>; pinned: boolean },
+) {
+  await requireFolder(ctx, args.folderId, ctx.userId)
+  await ctx.db.patch(args.folderId, { pinned: args.pinned || undefined })
+}
+
 export async function createWithSources(
   ctx: MutationCtx,
   args: FolderCreateArgs & { subject: string },

@@ -3,6 +3,7 @@ export type FolderNode = {
   parentId?: string
   name: string
   position: number
+  pinned?: boolean
 }
 
 /** Returns ancestors followed by the selected folder, rejecting broken trees. */

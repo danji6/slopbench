@@ -60,7 +60,8 @@ export async function commitPrepared(
   try {
     if (state.needsSidecar) await post('/workspace/lock', lease)
     const revision = await ctx.runMutation(internal.sessionFolders._commit, {
-      ...args,
+      subject: args.subject,
+      token: args.token,
       plan: state.plan,
     })
     committed = true
@@ -69,7 +70,8 @@ export async function commitPrepared(
     if (!committed) {
       await ctx
         .runMutation(internal.sessionFolders._cancel, {
-          ...args,
+          subject: args.subject,
+          token: args.token,
           target: state.target,
         })
         .catch((err) => console.error('Folder cancellation failed', err))

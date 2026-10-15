@@ -111,6 +111,7 @@ export const sessionFolderSchema = v.object({
   name: v.string(),
   icon: v.optional(v.string()),
   position: v.number(),
+  pinned: v.optional(v.boolean()),
   organizationRevision: v.optional(v.number()),
   sources: v.array(folderSourceValidator),
   revision: v.number(),

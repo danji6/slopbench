@@ -17,6 +17,12 @@ const SkillToolsFixture = lazy(() =>
   })),
 )
 
+const SessionFoldersFixture = lazy(() =>
+  import('./session-folders-fixture').then((module) => ({
+    default: module.SessionFoldersFixture,
+  })),
+)
+
 function PreviewFixture() {
   const [source, setSource] = useState('{{ user }}')
   const [clicks, setClicks] = useState(0)
@@ -58,7 +64,11 @@ function PreviewFixture() {
 }
 
 createRoot(document.getElementById('root')!).render(
-  new URLSearchParams(location.search).get('fixture') === 'skill-tools' ? (
+  new URLSearchParams(location.search).get('fixture') === 'session-folders' ? (
+    <Suspense fallback={<p>Loading session folders…</p>}>
+      <SessionFoldersFixture />
+    </Suspense>
+  ) : new URLSearchParams(location.search).get('fixture') === 'skill-tools' ? (
     <Suspense fallback={<p>Loading tool fixture…</p>}>
       <SkillToolsFixture />
     </Suspense>

@@ -38,6 +38,11 @@ export const pin = authMutation({
   handler: Folders.pin,
 })
 
+export const pinFolder = authMutation({
+  args: { folderId: v.id('sessionFolders'), pinned: v.boolean() },
+  handler: Folders.pinFolder,
+})
+
 export const _begin = internalMutation({
   args: V.folderTransitionArgs.fields,
   handler: Transitions.begin,

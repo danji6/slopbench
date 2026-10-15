@@ -18,7 +18,10 @@ export function folderDropAppearance(
 
   return {
     highlighted,
-    first: highlighted && row.kind === 'header' && target?.folderId === row.key,
+    first:
+      highlighted &&
+      (row.kind === 'header' || row.kind === 'separator') &&
+      target?.folderId === row.key,
     last:
       highlighted &&
       Boolean(row.endingFolderIds?.includes(target!.folderId) ?? row.last),

@@ -1,9 +1,11 @@
 import { type IconName, IconSvg } from '@/components/icon-picker/icon-picker'
 import { Combobox } from '@/components/ui/combobox'
+import { RippleButton } from '@/components/ui/ripple-button'
 import { api } from '@sb/convex/_generated/api'
 import { orderedFolderTree } from '@sb/core/utils/folder-tree'
 import { useQuery } from 'convex/react'
-import { FolderIcon } from 'lucide-react'
+import { FolderIcon, XIcon } from 'lucide-react'
+import { useRef } from 'react'
 
 export function FolderIconView({ icon }: { icon?: string }) {
   return icon ? (
@@ -29,11 +31,12 @@ export function FolderPicker({
   onChange,
   disabled,
   organizationOnly = false,
-  rootLabel = 'Ungrouped',
+  rootLabel = 'No folder',
   label = 'Session folder',
   excludeBranchId,
   showPath = true,
 }: FolderPickerProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const folders = useQuery(api.sessionFolders.list) ?? []
   const selected = folders.find((folder) => folder._id === value)
   const available = orderedFolderTree(folders)
@@ -48,26 +51,46 @@ export function FolderPicker({
   return (
     <Combobox
       value={value ?? 'ungrouped'}
-      onValueChange={(next) => onChange(next === 'ungrouped' ? null : next)}
-      noDeselect
+      onValueChange={(next) =>
+        onChange(!next || next === 'ungrouped' ? null : next)
+      }
     >
-      <Combobox.Trigger
-        aria-label={label}
-        title={selected?.folderPath ?? rootLabel}
-        variant="input"
-        className="max-w-60"
-        disabled={disabled}
-      >
-        <FolderIconView icon={selected?.icon} />
-        <Combobox.DisplayValue
-          label={
-            value
-              ? ((showPath ? selected?.folderPath : selected?.name) ??
-                'Folder unavailable')
-              : rootLabel
-          }
-        />
-      </Combobox.Trigger>
+      <div className="flex max-w-60 min-w-0 items-center gap-1">
+        <Combobox.Trigger
+          ref={triggerRef}
+          aria-label={label}
+          title={selected?.folderPath ?? rootLabel}
+          variant="input"
+          className="min-w-0 flex-1"
+          disabled={disabled}
+        >
+          <FolderIconView icon={selected?.icon} />
+          <Combobox.DisplayValue
+            label={
+              value
+                ? ((showPath ? selected?.folderPath : selected?.name) ??
+                  'Folder unavailable')
+                : rootLabel
+            }
+          />
+        </Combobox.Trigger>
+        {value && (
+          <RippleButton
+            variant="stealth"
+            size="icon"
+            className="text-muted-foreground size-7 shrink-0"
+            aria-label={`Clear ${label.toLowerCase()}`}
+            title="Clear folder"
+            disabled={disabled}
+            onClick={() => {
+              onChange(null)
+              triggerRef.current?.focus()
+            }}
+          >
+            <XIcon className="size-4" />
+          </RippleButton>
+        )}
+      </div>
       <Combobox.Content side="top">
         <Combobox.Search
           placeholder="Search folders…"
