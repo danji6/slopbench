@@ -39,7 +39,7 @@ Grab the latest release, unzip it, and start it:
 
 On Windows, `.\start.ps1` or `.\start.bat`.
 
-Dependencies are automatically installed on first launch. Then open:
+Then open:
 
 ```text
 http://localhost:4173
