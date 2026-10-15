@@ -106,9 +106,7 @@ export function buildApprovalActions(
   return items
 }
 
-export function isApprovalRequested(part: { type: string; state?: string }) {
-  return part.type.startsWith('tool-') && part.state === 'approval-requested'
-}
+export { isPendingToolApproval as isApprovalRequested } from '@sb/core/utils/tool-parts'
 
 export function summarizeInput(input: unknown): string {
   if (input && typeof input === 'object') {

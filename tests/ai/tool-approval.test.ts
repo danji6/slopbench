@@ -1,11 +1,11 @@
 /// <reference types="bun-types" />
-import {
-  approveTool,
-  hasPendingToolApprovals,
-  patchToolApproval,
-} from '@sb/convex/model/chat'
+import { approveTool, patchToolApproval } from '@sb/convex/model/chat'
 import { getEnabledTools } from '@sb/convex/model/tool/build'
 import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
+import {
+  hasPendingToolApprovals,
+  isPendingToolApproval,
+} from '@sb/core/utils/tool-parts'
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 
 import { startPathSidecar } from '../helpers/path-sidecar'
@@ -84,6 +84,41 @@ describe('.git access requires approval without explicit path grants', () => {
 })
 
 describe('tool approval patching', () => {
+  test('pending detection does not require payload or approval identifiers', () => {
+    expect(
+      isPendingToolApproval({
+        type: 'tool-shell',
+        state: 'approval-requested',
+      }),
+    ).toBe(true)
+    for (const part of [
+      null,
+      undefined,
+      'tool-shell',
+      1,
+      {},
+      { type: 1 },
+      { type: 'text', state: 'approval-requested' },
+    ]) {
+      expect(isPendingToolApproval(part)).toBe(false)
+    }
+  })
+
+  test('response matching still requires an approval identifier', () => {
+    const part = {
+      type: 'tool-shell',
+      state: 'approval-requested',
+      toolCallId: 'call-1',
+    }
+    expect(hasPendingToolApprovals([part])).toBe(true)
+    expect(() =>
+      patchToolApproval([null, 0, part], {
+        toolCallId: 'call-1',
+        approved: true,
+      }),
+    ).toThrow('Tool approval not found')
+  })
+
   test('keeps approval pending until all requested tools are answered', () => {
     const parts = [tool('call-1', 'approval-1'), tool('call-2', 'approval-2')]
 

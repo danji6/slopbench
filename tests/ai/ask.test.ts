@@ -273,6 +273,122 @@ describe('ask tool output derivation', () => {
   })
 })
 
+describe('stored question validation', () => {
+  test.each([
+    { question: null, message: 'Each question must be an object' },
+    {
+      question: { question: ' ', options: [] },
+      message: 'Question must be between',
+    },
+    {
+      question: { question: 'Pick', options: [] },
+      message: 'Each question must contain',
+    },
+    {
+      question: { question: 'Pick', options: [null, {}] },
+      message: 'Each option must be an object',
+    },
+    {
+      question: {
+        question: 'Pick',
+        options: [{ label: ' A ' }, { label: 'a', description: '' }],
+      },
+      message: 'Option labels must be unique',
+    },
+    {
+      question: {
+        question: 'Pick',
+        options: [
+          { label: 'A', description: '', recommended: 'yes' },
+          { label: 'B' },
+        ],
+      },
+      message: 'Option description must be between',
+    },
+    {
+      question: {
+        question: 'Pick',
+        options: [{ label: 'A', recommended: 'yes' }, { label: 'B' }],
+        multiple: 'yes',
+      },
+      message: 'Recommended must be a boolean',
+    },
+    {
+      question: {
+        question: 'Pick',
+        options: [
+          { label: 'A', recommended: true },
+          { label: 'B', recommended: true },
+        ],
+        multiple: 'yes',
+      },
+      message: 'At most one option may be recommended',
+    },
+    {
+      question: {
+        question: 'Pick',
+        options: [{ label: 'A' }, { label: 'B' }],
+        multiple: 'yes',
+      },
+      message: 'Multiple must be a boolean',
+    },
+  ])('preserves the first error: $message', ({ question, message }) => {
+    expect(() =>
+      buildAskToolOutput({ questions: [question] } as never, [], 'Ada'),
+    ).toThrow(message)
+  })
+
+  test('accepts maximum-length option labels without changing whitespace derivation', () => {
+    const label = 'x'.repeat(MAX_ASK_OPTION_LABEL_CHARS)
+    const result = buildAskToolOutput(
+      {
+        questions: [
+          { question: ' Pick ', options: [{ label }, { label: 'Other' }] },
+        ],
+      },
+      [{ questionIndex: 0, selectedOptionIndices: [0] }],
+      'Ada',
+    )
+    expect(result).toMatchObject({
+      answers: [{ question: 'Pick', answer: label }],
+    })
+  })
+
+  test.each([
+    {
+      draft: {
+        customAnswer: 'x'.repeat(MAX_ASK_RESPONSE_CHARS + 1),
+        note: 'x'.repeat(MAX_ASK_RESPONSE_CHARS + 1),
+      },
+      message: 'Custom answer is too long',
+    },
+    {
+      draft: {
+        customAnswer: 'A',
+        skipped: 'yes',
+        selectedOptionIndices: 'invalid',
+      },
+      message: 'Skipped must be a boolean',
+    },
+    {
+      draft: { customAnswer: 'A', selectedOptionIndices: 'invalid' },
+      message: 'Selected option indices must be an array',
+    },
+    {
+      draft: { selectedOptionIndices: [0, 0] },
+      message: 'This question only allows one selected option',
+    },
+  ])('preserves answer error precedence: $message', ({ draft, message }) => {
+    expect(() =>
+      buildAskToolOutput(
+        { questions: [input.questions[0]!] },
+        [{ questionIndex: 0, ...draft }] as never,
+        'Ada',
+      ),
+    ).toThrow(message)
+  })
+})
+
 describe('answerQuestions mutation', () => {
   test('allows a session member to answer once and resumes the stream', async () => {
     const session = { _id: 'session_1' }

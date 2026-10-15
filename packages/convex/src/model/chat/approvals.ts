@@ -1,54 +1,41 @@
-import { internal } from '../../_generated/api'
+import { hasPendingToolApprovals } from '@sb/core/utils/tool-parts'
+
 import type { Doc } from '../../_generated/dataModel'
 import { error } from '../../errors'
 import type { AuthMutationCtx } from '../../functions'
 import { requireRole } from '../../functions'
-import {
-  analyzeShellCommand,
-  toolNamesForApproval,
-} from '../../lib/tool/approval'
-import type { Session } from '../../types'
-import type { ApproveToolArgs, RememberScope } from '../../types'
+import type { ApproveToolArgs } from '../../types'
 import { getProcessingSegmentRow, patchSegmentParts } from '../messageContents'
 import { applyModeTransition } from '../plans'
 import { getSessionWithWorkspace } from '../session/folderContext'
 import * as Memberships from '../session/memberships'
-import { _allowToolPaths as allowToolPaths } from '../session/sessions'
-import { appendApprovals, getApprovals } from '../session/state'
 import { APPROVAL_LEASE_MS } from '../stream/lifecycle'
 import { resumeIfSettled } from '../stream/subagents'
+import { type ApprovedTool, rememberApproval } from './approvalMemory'
 
-/** The tool call an approval answered. */
-type ApprovedTool = {
-  toolName: string
-  input: unknown
-  /** Sensitive paths resolved when the approval was requested. */
-  paths?: string[]
+type ApprovalResponse = Pick<
+  ApproveToolArgs,
+  'toolCallId' | 'approved' | 'reason' | 'note'
+>
+
+type ApprovalPart = {
+  type?: string
+  input?: unknown
+  state?: string
+  approvalPaths?: string[]
+  approval?: { id?: string; reason?: string; approved?: boolean; note?: string }
 }
 
 export async function approveTool(ctx: AuthMutationCtx, args: ApproveToolArgs) {
   requireRole(ctx.role, 'admin')
 
-  const { session: parentSession } = await Memberships.requireMember(
-    ctx,
-    args.sessionId,
-    ctx.userId,
-  )
-
-  const session = args.childSessionId
-    ? await getSessionWithWorkspace(ctx, args.childSessionId)
-    : parentSession
-  if (
-    !session ||
-    (args.childSessionId && session.parent?.sessionId !== args.sessionId)
-  ) {
-    error('Not found', 404)
-  }
+  const session = await resolveApprovalSession(ctx, args)
 
   const stream = await Memberships.getActiveStream(ctx, session._id)
   if (!stream) error('No tool approval is pending', 409)
-  if (stream.state.phase !== 'awaiting_approval')
+  if (stream.state.phase !== 'awaiting_approval') {
     error('No tool approval is pending', 409)
+  }
 
   const message = await ctx.db.get(stream.state.processingMessageId)
   if (!message) error('Message not found', 404)
@@ -63,11 +50,11 @@ export async function approveTool(ctx: AuthMutationCtx, args: ApproveToolArgs) {
 
   await patchSegmentParts(ctx, message._id, row, parts)
 
-  if (args.approved && matched) {
+  if (args.approved) {
     await applyPlanModeTransition(ctx, stream, matched.toolName)
   }
 
-  if (args.approved && args.remember && matched) {
+  if (args.approved && args.remember) {
     await rememberApproval(ctx, session, matched, args.remember)
   }
 
@@ -96,42 +83,18 @@ export async function applyPlanModeTransition(
   await applyModeTransition(ctx, stream.sessionId, toolName, stream._id)
 }
 
-export function patchToolApproval(
-  parts: unknown[],
-  args: {
-    toolCallId: string
-    approved: boolean
-    reason?: string
-    note?: string
-  },
-) {
+export function patchToolApproval(parts: unknown[], args: ApprovalResponse) {
   let matched: ApprovedTool | undefined
   const next = parts.map((part) => {
-    if (
-      typeof part !== 'object' ||
-      part === null ||
-      !('toolCallId' in part) ||
-      part.toolCallId !== args.toolCallId
-    ) {
+    if (typeof part !== 'object' || part === null) return part
+    if (!('toolCallId' in part) || part.toolCallId !== args.toolCallId) {
       return part
     }
 
-    const typed = part as {
-      type?: string
-      input?: unknown
-      state?: string
-      approvalPaths?: string[]
-      approval?: {
-        id?: string
-        reason?: string
-        approved?: boolean
-        note?: string
-      }
-    }
+    const typed = part as ApprovalPart
 
-    if (typed.state !== 'approval-requested' || !typed.approval?.id) {
-      return part
-    }
+    if (typed.state !== 'approval-requested') return part
+    if (!typed.approval?.id) return part
 
     matched = {
       toolName: typed.type?.replace(/^tool-/, '') ?? '',
@@ -159,65 +122,25 @@ export function patchToolApproval(
   }
 }
 
-async function rememberApproval(
+async function resolveApprovalSession(
   ctx: AuthMutationCtx,
-  session: Session,
-  matched: ApprovedTool,
-  scope: RememberScope,
+  args: ApproveToolArgs,
 ) {
-  const approvals = await getApprovals(ctx, session._id)
-
-  if (scope === 'paths') {
-    const command = (matched.input as { command?: string } | undefined)?.command
-    if (matched.toolName !== 'shell' || !command || !session.workspace) return
-
-    if (matched.paths?.length) {
-      await allowToolPaths(ctx, {
-        sessionId: session._id,
-        paths: matched.paths,
-      })
-      return
-    }
-
-    await ctx.scheduler.runAfter(
-      0,
-      internal.actions.workspaces._rememberFlaggedPaths,
-      {
-        sessionId: session._id,
-        workspaceId: session.workspace.workspaceId,
-        workspace: session.workspace,
-        command,
-      },
-    )
-
-    return
-  }
-
-  if (matched.toolName === 'shell') {
-    const command = (matched.input as { command?: string } | undefined)?.command
-    const additions = command
-      ? analyzeShellCommand(command, approvals.shell ?? []).unapproved
-      : []
-    if (additions.length === 0) return
-
-    await appendApprovals(ctx, session._id, 'shell', additions)
-    return
-  }
-
-  const tools = approvals.tools ?? []
-  const additions = toolNamesForApproval(matched.toolName).filter(
-    (toolName) => !tools.includes(toolName),
+  const { session: parentSession } = await Memberships.requireMember(
+    ctx,
+    args.sessionId,
+    ctx.userId,
   )
-  if (additions.length === 0) return
 
-  await appendApprovals(ctx, session._id, 'tools', additions)
-}
+  const session = args.childSessionId
+    ? await getSessionWithWorkspace(ctx, args.childSessionId)
+    : parentSession
+  if (!session) error('Not found', 404)
+  const unrelatedChild =
+    args.childSessionId && session.parent?.sessionId !== args.sessionId
+  if (unrelatedChild) {
+    error('Not found', 404)
+  }
 
-export function hasPendingToolApprovals(parts: unknown[]) {
-  return parts.some((part) => {
-    if (typeof part !== 'object' || part === null) return false
-    if (!('type' in part) || typeof part.type !== 'string') return false
-    if (!part.type.startsWith('tool-')) return false
-    return 'state' in part && part.state === 'approval-requested'
-  })
+  return session
 }

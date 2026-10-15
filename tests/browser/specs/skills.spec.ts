@@ -30,13 +30,12 @@ test('folder picker remembers confirmed selections across reloads, with no paren
 
   await choose.click()
   await path.fill('/missing')
+  await path.press('Escape')
   await picker
     .getByRole('button', { name: 'Use this folder', exact: true })
     .click()
   await expect(picker).toBeVisible()
-  await expect(picker.getByRole('alert')).toHaveText(
-    'Folder not found. Check the path and try again.',
-  )
+  await expect(picker.getByRole('alert')).toHaveText('Directory not found')
   await expect(path).toHaveAttribute('aria-invalid', 'true')
   await expect(path).toHaveValue('/missing')
   await expect(
@@ -44,6 +43,7 @@ test('folder picker remembers confirmed selections across reloads, with no paren
   ).toBeEnabled()
   expect(await recent()).toBeNull()
   await path.fill('/fixture/custom-home/project')
+  await path.press('Escape')
   await expect(picker.getByRole('alert')).toHaveCount(0)
   await picker
     .getByRole('button', { name: 'Use this folder', exact: true })

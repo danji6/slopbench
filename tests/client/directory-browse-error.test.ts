@@ -4,28 +4,26 @@ import { expect, test } from 'bun:test'
 test('missing folders get a useful message without system details', () => {
   const message =
     "ENOENT: no such file or directory, realpath '/home/user/gone'"
-  expect(directoryBrowseError(new Error(message))).toBe(
-    'Folder not found. Check the path and try again.',
-  )
+  expect(directoryBrowseError(new Error(message))).toBe('Directory not found')
   expect(directoryBrowseError({ data: { message } })).toBe(
-    'Folder not found. Check the path and try again.',
+    'Directory not found',
   )
 })
 
 test.each(['EACCES', 'EPERM'])(
-  'permission error %s suggests checking access',
+  'permission error %s explains the access failure',
   (code) => {
     expect(directoryBrowseError(new Error(`${code}: permission denied`))).toBe(
-      'You don’t have access to this folder. Choose another folder or check its permissions.',
+      'You don’t have access to this directory',
     )
   },
 )
 
-test('file paths and unknown failures get distinct instructions', () => {
+test('file paths and unknown failures get distinct messages', () => {
   expect(directoryBrowseError(new Error('ENOTDIR: not a directory'))).toBe(
-    'This path isn’t a folder. Choose a folder and try again.',
+    'This path isn’t a directory',
   )
   expect(directoryBrowseError(new Error('Unexpected service response'))).toBe(
-    'Couldn’t open this folder. Try again.',
+    'Couldn’t open this folder',
   )
 })

@@ -7,6 +7,7 @@ import type {
   UserAnswerDraft,
 } from '@sb/core/types'
 import { deriveAskToolOutput, hasPendingQuestions } from '@sb/core/utils/ask'
+import { hasPendingToolApprovals } from '@sb/core/utils/tool-parts'
 import type { ToolUIPart } from 'ai'
 import type { OptimisticLocalStore } from 'convex/browser'
 
@@ -148,7 +149,7 @@ export function optimisticallyAnswer(
     const target = page.find(({ _id }) => _id === stream.processingMessageId)
     const parts = target?.segments.flatMap(({ parts }) => parts) ?? []
     pendingQuestions ||= hasPendingQuestions(parts)
-    pendingApproval ||= parts.some(isPendingApproval)
+    pendingApproval ||= hasPendingToolApprovals(parts)
   }
 
   store.setQuery(
@@ -192,13 +193,4 @@ function validSelectedOptions(
 
 function questionCountLabel(prefix: string, count: number) {
   return `${prefix} ${count} ${count === 1 ? 'question' : 'questions'}`
-}
-
-function isPendingApproval(part: unknown) {
-  const typed = part as { type?: unknown; state?: unknown }
-  return (
-    typeof typed?.type === 'string' &&
-    typed.type.startsWith('tool-') &&
-    typed.state === 'approval-requested'
-  )
 }

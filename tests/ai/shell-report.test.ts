@@ -442,6 +442,58 @@ describe('_report', () => {
     })
   })
 
+  test('removes a watch without reporting when its session was deleted', async () => {
+    const { ctx, inserts, deleted, scheduled } = fakeCtx({
+      shellJobs: [watchRow({ watcherId: undefined })],
+    })
+    await _report(ctx, {
+      generation: 0,
+      shellJobId: 'watch_1' as never,
+      output: output(),
+    })
+    expect(deleted).toEqual(['watch_1'])
+    expect(inserts).toEqual([])
+    expect(scheduled).toEqual([])
+  })
+
+  test.each([
+    {
+      result: output({ text: 'x'.repeat(32 * 1024 + 1) }),
+      expected: {
+        status: 'done',
+        text: 'x'.repeat(32 * 1024) + '\n\n[Output truncated.]',
+      },
+    },
+    {
+      result: output({ text: '' }),
+      expected: { status: 'done', text: '(no output)' },
+    },
+    { result: output({ status: 'running' }), expected: { status: 'failed' } },
+    {
+      result: output({ status: 'background' }),
+      expected: { status: 'failed' },
+    },
+    {
+      result: undefined,
+      expected: { status: 'failed', text: 'The job produced no result.' },
+    },
+  ])(
+    'preserves report normalization for case $#',
+    async ({ result, expected }) => {
+      const { ctx, inserts } = fakeCtx({
+        docs: [session, agent],
+        shellJobs: [watchRow({ watcherId: undefined, userKilled: true })],
+      })
+      await _report(ctx, {
+        generation: 0,
+        shellJobId: 'watch_1' as never,
+        output: result,
+      })
+      const content = inserts.find(({ table }) => table === 'messageContents')
+      expect((content?.fields.parts as unknown[])[0]).toMatchObject(expected)
+    },
+  )
+
   test('a released watch reports nothing', async () => {
     const { ctx, inserts } = fakeCtx({ docs: [session, agent] })
 

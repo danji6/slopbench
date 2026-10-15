@@ -1,4 +1,8 @@
 import { api } from '@sb/convex/_generated/api'
+import {
+  hasPendingToolApprovals,
+  isPendingToolApproval,
+} from '@sb/core/utils/tool-parts'
 import type { OptimisticLocalStore } from 'convex/browser'
 
 import type { ApproveToolArgs } from './types'
@@ -36,12 +40,10 @@ export function optimisticallyRespondApproval(
     store.setQuery(api.chat.messagesWindow, queryArgs, { ...value, page })
 
     const target = page.find((m) => m._id === stream.processingMessageId)
-    if (
-      target &&
-      target.segments.some((segment) => hasApprovalRequested(segment.parts))
-    ) {
-      pendingRemains = true
-    }
+    pendingRemains ||=
+      target?.segments.some((segment) =>
+        hasPendingToolApprovals(segment.parts),
+      ) ?? false
   }
 
   if (!pendingRemains) {
@@ -55,12 +57,8 @@ export function optimisticallyRespondApproval(
 
 function respondToPart(parts: unknown[], args: ApproveToolArgs): unknown[] {
   return parts.map((part) => {
-    if (
-      typeof part !== 'object' ||
-      part === null ||
-      !('toolCallId' in part) ||
-      part.toolCallId !== args.toolCallId
-    ) {
+    if (typeof part !== 'object' || part === null) return part
+    if (!('toolCallId' in part) || part.toolCallId !== args.toolCallId) {
       return part
     }
     const typed = part as { state?: string; approval?: { id?: string } }
@@ -79,19 +77,6 @@ function respondToPart(parts: unknown[], args: ApproveToolArgs): unknown[] {
   })
 }
 
-function hasApprovalRequested(parts: unknown[]): boolean {
-  return parts.some(
-    (part) =>
-      typeof part === 'object' &&
-      part !== null &&
-      'type' in part &&
-      typeof part.type === 'string' &&
-      part.type.startsWith('tool-') &&
-      'state' in part &&
-      part.state === 'approval-requested',
-  )
-}
-
 /** Removes answered child requests without modifying the main session's stream. */
 function optimisticallyRespondChildApproval(
   store: OptimisticLocalStore,
@@ -106,9 +91,7 @@ function optimisticallyRespondChildApproval(
       if (request.sessionId !== args.childSessionId) return request
       return {
         ...request,
-        parts: respondToPart(request.parts, args).filter((part) =>
-          hasApprovalRequested([part]),
-        ),
+        parts: respondToPart(request.parts, args).filter(isPendingToolApproval),
       }
     })
     .filter((request) => request.parts.length > 0)

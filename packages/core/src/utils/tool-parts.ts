@@ -22,6 +22,21 @@ type ToolPartShape = {
   approval?: { id?: string }
 }
 
+/** Identifies a pending tool approval without validating its payload or IDs. */
+export function isPendingToolApproval(
+  part: unknown,
+): part is { type: `tool-${string}`; state: 'approval-requested' } {
+  if (typeof part !== 'object' || part === null) return false
+  if (!('type' in part) || typeof part.type !== 'string') return false
+  if (!part.type.startsWith('tool-')) return false
+  return 'state' in part && part.state === 'approval-requested'
+}
+
+/** Reports whether any tool call still awaits approval. */
+export function hasPendingToolApprovals(parts: readonly unknown[]): boolean {
+  return parts.some(isPendingToolApproval)
+}
+
 /**
  * Settles an unanswered tool call, which otherwise converts to a `tool-call`
  * with no `tool-result`, which providers reject, leaving the client hanging.

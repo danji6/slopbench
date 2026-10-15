@@ -32,8 +32,9 @@ export async function answerQuestions(
 
   const stream = await Memberships.getActiveStream(ctx, args.sessionId)
   if (!stream) error('No question request is pending', 409)
-  if (stream.state.phase !== 'awaiting_input')
+  if (stream.state.phase !== 'awaiting_input') {
     error('No question request is pending', 409)
+  }
 
   const row = await getProcessingSegmentRow(ctx, stream)
   if (!row) error('Message not found', 404)
@@ -94,64 +95,69 @@ export function buildAskToolOutput(
 }
 
 function validateQuestions(questions: AgentQuestion[] | undefined) {
-  if (
-    !Array.isArray(questions) ||
-    questions.length < 1 ||
-    questions.length > MAX_ASK_QUESTIONS
-  ) {
+  if (!Array.isArray(questions)) {
     error(`A request must contain 1-${MAX_ASK_QUESTIONS} questions`)
   }
-
-  for (const question of questions) {
-    if (!question || typeof question !== 'object') {
-      error('Each question must be an object')
-    }
-    assertBoundedText(question.question, MAX_ASK_QUESTION_CHARS, 'Question')
-    if (
-      !Array.isArray(question.options) ||
-      question.options.length < 2 ||
-      question.options.length > MAX_ASK_OPTIONS
-    ) {
-      error(`Each question must contain 2-${MAX_ASK_OPTIONS} options`)
-    }
-
-    const labels = new Set<string>()
-    let recommended = 0
-    for (const option of question.options) {
-      if (!option || typeof option !== 'object') {
-        error('Each option must be an object')
-      }
-      assertBoundedText(
-        option.label,
-        MAX_ASK_OPTION_LABEL_CHARS,
-        'Option label',
-      )
-      const label = option.label.trim().toLowerCase()
-      if (labels.has(label)) error('Option labels must be unique')
-      labels.add(label)
-      if (option.description !== undefined) {
-        assertBoundedText(
-          option.description,
-          MAX_ASK_OPTION_DESCRIPTION_CHARS,
-          'Option description',
-        )
-      }
-      if (
-        option.recommended !== undefined &&
-        typeof option.recommended !== 'boolean'
-      ) {
-        error('Recommended must be a boolean')
-      }
-      if (option.recommended) recommended++
-    }
-    if (recommended > 1) error('At most one option may be recommended')
-    if (
-      question.multiple !== undefined &&
-      typeof question.multiple !== 'boolean'
-    ) {
-      error('Multiple must be a boolean')
-    }
+  const invalidCount =
+    questions.length < 1 || questions.length > MAX_ASK_QUESTIONS
+  if (invalidCount) {
+    error(`A request must contain 1-${MAX_ASK_QUESTIONS} questions`)
   }
+  for (const question of questions) validateQuestion(question)
+}
+
+function validateQuestion(question: AgentQuestion) {
+  if (!question || typeof question !== 'object') {
+    error('Each question must be an object')
+  }
+  assertBoundedText(question.question, MAX_ASK_QUESTION_CHARS, 'Question')
+  validateOptions(question.options)
+
+  const invalidMultiple =
+    question.multiple !== undefined && typeof question.multiple !== 'boolean'
+  if (invalidMultiple) error('Multiple must be a boolean')
+}
+
+function validateOptions(options: AgentQuestion['options']) {
+  const invalidCount =
+    !Array.isArray(options) ||
+    options.length < 2 ||
+    options.length > MAX_ASK_OPTIONS
+  if (invalidCount) {
+    error(`Each question must contain 2-${MAX_ASK_OPTIONS} options`)
+  }
+
+  const labels = new Set<string>()
+  let recommended = 0
+  for (const option of options) {
+    validateOption(option, labels)
+    if (option.recommended) recommended++
+  }
+  if (recommended > 1) error('At most one option may be recommended')
+}
+
+function validateOption(
+  option: AgentQuestion['options'][number],
+  labels: Set<string>,
+) {
+  if (!option || typeof option !== 'object') {
+    error('Each option must be an object')
+  }
+  assertBoundedText(option.label, MAX_ASK_OPTION_LABEL_CHARS, 'Option label')
+  const label = option.label.trim().toLowerCase()
+  if (labels.has(label)) error('Option labels must be unique')
+  labels.add(label)
+
+  if (option.description !== undefined) {
+    assertBoundedText(
+      option.description,
+      MAX_ASK_OPTION_DESCRIPTION_CHARS,
+      'Option description',
+    )
+  }
+  const invalidRecommended =
+    option.recommended !== undefined && typeof option.recommended !== 'boolean'
+  if (invalidRecommended) error('Recommended must be a boolean')
 }
 
 /** Validates one response against its trusted question definition. */
@@ -162,10 +168,22 @@ function validateAnswer(question: AgentQuestion, draft: UserAnswerDraft): void {
   const hasSelection = selected.length > 0
   const skipped = draft.skipped === true
 
-  if (
-    draft.customAnswer &&
-    draft.customAnswer.length > MAX_ASK_RESPONSE_CHARS
-  ) {
+  validateAnswerFields(draft)
+  const answerCount =
+    Number(hasSelection) + Number(Boolean(customAnswer)) + Number(skipped)
+  if (answerCount !== 1) {
+    error('Choose options, provide a custom answer, or skip the question')
+  }
+  if (!hasSelection && note) {
+    error('Notes require a selected option')
+  }
+  validateSelections(question, selected)
+}
+
+function validateAnswerFields(draft: UserAnswerDraft) {
+  const customAnswerTooLong =
+    draft.customAnswer && draft.customAnswer.length > MAX_ASK_RESPONSE_CHARS
+  if (customAnswerTooLong) {
     error('Custom answer is too long')
   }
   if (draft.note && draft.note.length > MAX_ASK_RESPONSE_CHARS) {
@@ -174,37 +192,32 @@ function validateAnswer(question: AgentQuestion, draft: UserAnswerDraft): void {
   if (draft.skipped !== undefined && typeof draft.skipped !== 'boolean') {
     error('Skipped must be a boolean')
   }
-  if (
+  const invalidSelectionType =
     draft.selectedOptionIndices !== undefined &&
     !Array.isArray(draft.selectedOptionIndices)
-  ) {
+  if (invalidSelectionType) {
     error('Selected option indices must be an array')
   }
-  // prettier-ignore
-  if (Number(hasSelection) + Number(Boolean(customAnswer)) + Number(skipped) !== 1) {
-    error('Choose options, provide a custom answer, or skip the question')
-  }
-  if (!hasSelection && note) {
-    error('Notes require a selected option')
-  }
+}
+
+function validateSelections(question: AgentQuestion, selected: number[]) {
   if (!question.multiple && selected.length > 1) {
     error('This question only allows one selected option')
   }
 
-  const unique = new Set(selected)
-  if (
-    unique.size !== selected.length ||
-    selected.some(
-      (index) => !Number.isInteger(index) || !question.options[index],
-    )
-  ) {
-    error('Selected option is invalid')
-  }
+  const duplicateSelections = new Set(selected).size !== selected.length
+  if (duplicateSelections) error('Selected option is invalid')
+  const unsupportedSelection = selected.some(
+    (index) => !Number.isInteger(index) || !question.options[index],
+  )
+  if (unsupportedSelection) error('Selected option is invalid')
 }
 
 /** Enforces nonblank, bounded text after crossing a trust boundary. */
 function assertBoundedText(value: unknown, max: number, label: string) {
-  if (typeof value !== 'string' || !value.trim() || value.length > max) {
+  const invalidText =
+    typeof value !== 'string' || !value.trim() || value.length > max
+  if (invalidText) {
     error(`${label} must be between 1 and ${max} characters`)
   }
 }

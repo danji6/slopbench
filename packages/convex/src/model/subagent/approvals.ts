@@ -1,6 +1,10 @@
+import {
+  hasPendingToolApprovals,
+  isPendingToolApproval,
+} from '@sb/core/utils/tool-parts'
+
 import type { Id } from '../../_generated/dataModel'
 import type { AuthQueryCtx } from '../../functions'
-import { hasPendingToolApprovals } from '../chat/approvals'
 import { getProcessingSegmentRow } from '../messageContents'
 import { getActiveStream, requireMember } from '../session/memberships'
 import { getApprovals } from '../session/state'
@@ -21,7 +25,8 @@ export async function pendingApprovals(
       const stream = await getActiveStream(ctx, child._id)
       if (stream?.state.phase !== 'awaiting_approval') return null
       const row = await getProcessingSegmentRow(ctx, stream)
-      if (!row || !hasPendingToolApprovals(row.parts)) return null
+      if (!row) return null
+      if (!hasPendingToolApprovals(row.parts)) return null
       const agent = await ctx.db.get(stream.agentId)
       return {
         sessionId: child._id,
@@ -29,7 +34,7 @@ export async function pendingApprovals(
         agentName: agent?.name ?? 'Sub-agent',
         mode: child.mode,
         toolApprovals: await getApprovals(ctx, child._id),
-        parts: row.parts.filter((part) => hasPendingToolApprovals([part])),
+        parts: row.parts.filter(isPendingToolApproval),
       }
     }),
   )

@@ -1,4 +1,4 @@
-import { useBreakpoint } from '@/hooks'
+import { useBreakpoint } from '@/hooks/breakpoint'
 import { createUsableContext } from '@/hooks/context'
 import { cn } from '@/lib/utils'
 import { Tabs as TabsPrimitive } from '@base-ui/react/tabs'
@@ -152,27 +152,22 @@ function SettingsTabsContent({
   className,
   title,
   children,
+  value,
   ...props
 }: TabsPrimitive.Panel.Props & { title?: string }) {
+  const { value: activeValue } = useSettingsTabsContext()
+  const isActive = value === activeValue
+
   return (
     <TabsPrimitive.Panel
       data-slot="settings-tabs-content"
-      className={cn('flex-1 overflow-y-auto outline-none', className)}
-      render={({
-        onAnimationStart: _onAnimationStart,
-        onAnimationEnd: _onAnimationEnd,
-        onDrag: _onDrag,
-        onDragStart: _onDragStart,
-        onDragEnd: _onDragEnd,
-        ...renderProps
-      }) => (
-        <motion.div
-          {...renderProps}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-        />
+      className={cn(
+        'animate-in fade-in flex-1 overflow-y-auto duration-300 ease-in-out outline-none',
+        className,
       )}
+      value={value}
+      // Base UI may keep an inactive panel mounted until its animation ends.
+      hidden={!isActive}
       {...props}
     >
       {title && (

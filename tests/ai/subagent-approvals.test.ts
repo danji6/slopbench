@@ -300,6 +300,49 @@ describe('shared remembered approvals', () => {
     }
   })
 
+  test('remembers a child shell command in the shared policy', async () => {
+    const { ctx } = setup([approval('shell')])
+    await approveTool(ctx, {
+      sessionId: parentId,
+      childSessionId: childId,
+      toolCallId: 'shell',
+      approved: true,
+      remember: 'patterns',
+    })
+    for (const sessionId of [parentId, childId, siblingId]) {
+      expect((await getApprovals(ctx, sessionId)).shell).toContain('git push')
+    }
+  })
+
+  test('discovers paths asynchronously when the request has no resolved paths', async () => {
+    const { ctx, byId, scheduled } = setup([
+      approval('shell'),
+      approval('write', 'tool-write_file'),
+    ])
+    byId.get(parentId)!.folderId = 'folder-1'
+    byId.set('folder-1', {
+      _id: 'folder-1',
+      ownerId: 'user_1',
+      name: 'Test',
+      revision: 0,
+      sources: [{ id: 'root', path: '/repo', label: 'repo' }],
+    })
+    await approveTool(ctx, {
+      sessionId: parentId,
+      childSessionId: childId,
+      toolCallId: 'shell',
+      approved: true,
+      remember: 'paths',
+    })
+    expect(scheduled).toHaveLength(1)
+    expect(scheduled[0].args[2]).toMatchObject({
+      sessionId: childId,
+      command: 'git push',
+      workspaceId: 'folder-1',
+    })
+    expect((await getApprovals(ctx, parentId)).paths).toBeUndefined()
+  })
+
   test('remembers paths approved for a child in the main session', async () => {
     const { ctx, byId } = setup([
       { ...approval('shell'), approvalPaths: ['/tmp/shared'] },

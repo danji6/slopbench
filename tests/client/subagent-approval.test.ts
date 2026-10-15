@@ -48,3 +48,58 @@ test('responding to a child advances its approval queue without touching other s
   })
   expect(requests).toEqual([{ sessionId: 'child_2', parts: [part('first')] }])
 })
+
+test('root approval responses keep other pending calls and update only the active message', () => {
+  let stream = { status: 'awaiting_approval', processingMessageId: 'message' }
+  let window = {
+    page: [
+      {
+        _id: 'message',
+        segments: [
+          {
+            parts: [
+              {
+                type: 'tool-shell',
+                state: 'approval-requested',
+                toolCallId: 'first',
+              },
+              {
+                type: 'tool-write_file',
+                state: 'approval-requested',
+                toolCallId: 'second',
+              },
+              { type: 'text', state: 'approval-requested' },
+            ] as unknown[],
+          },
+        ],
+      },
+    ],
+  }
+  const store = {
+    getQuery: () => stream,
+    getAllQueries: () => [{ args: { sessionId: 'root' }, value: window }],
+    setQuery: (query: never, _args: unknown, value: never) => {
+      if (getFunctionName(query) === getFunctionName(api.chat.getActiveStream))
+        stream = value
+      else window = value
+    },
+  } as never
+  optimisticallyRespondApproval(store, {
+    sessionId: 'root' as never,
+    toolCallId: 'first',
+    approved: true,
+  })
+  expect(stream.status).toBe('awaiting_approval')
+  expect(window.page[0].segments[0].parts[0]).toMatchObject({
+    state: 'approval-responded',
+  })
+  optimisticallyRespondApproval(store, {
+    sessionId: 'root' as never,
+    toolCallId: 'second',
+    approved: false,
+  })
+  expect(stream.status).toBe('pending')
+  expect(window.page[0].segments[0].parts[1]).toMatchObject({
+    state: 'output-denied',
+  })
+})

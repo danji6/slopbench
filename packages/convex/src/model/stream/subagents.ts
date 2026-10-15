@@ -1,4 +1,5 @@
 import { hasPendingQuestions } from '@sb/core/utils/ask'
+import { hasPendingToolApprovals } from '@sb/core/utils/tool-parts'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
@@ -14,7 +15,6 @@ import {
 import type { StreamExecutionArgs } from '../../types'
 import type { Session } from '../../types'
 import { resolveSpawnableAgents } from '../agent/subagents'
-import { hasPendingToolApprovals } from '../chat/approvals'
 import { agentIdentity } from '../chat/identities'
 import {
   getProcessingSegmentRow,
