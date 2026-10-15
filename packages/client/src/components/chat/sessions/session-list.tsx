@@ -2,6 +2,7 @@ import { ConfirmDialog, Input, RippleButton } from '@/components/ui'
 import { useDebouncedCallback } from '@/hooks'
 import { useSession, useSessionGroups, useSessionSearch } from '@/hooks/chat'
 import { useFolderMoves } from '@/hooks/chat/folder-moves'
+import { useSessionFolderAnimation } from '@/hooks/chat/session-folder-animation'
 import {
   type FolderDropPlacement,
   folderDropIntent,
@@ -34,6 +35,7 @@ import { memo, useRef, useState } from 'react'
 import { Virtualizer } from 'virtua'
 
 import { useUnreadNotificationSessionIds } from '../notifications/notification-provider'
+import { AnimatedSessionRow } from './animated-session-row'
 import { FolderDialog } from './folder-dialog'
 import { FolderGroupRow } from './folder-group-row'
 import { FolderHeader } from './folder-header'
@@ -56,6 +58,7 @@ export const SessionListView = memo(function SessionListView() {
   const [newParent, setNewParent] = useState<FolderView | undefined>(undefined)
   const [deleting, setDeleting] = useState<FolderView | null>(null)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(readCollapsed) // prettier-ignore
+  const folderAnimation = useSessionFolderAnimation(collapsed)
 
   function updateCollapsed(next: Record<string, boolean>) {
     setCollapsed(next)
@@ -84,7 +87,7 @@ export const SessionListView = memo(function SessionListView() {
 
   const liveRows = search.trim()
     ? flattenSessionGroups(['search'], pages, collapsed)
-    : flattenSessionTree(folders, pages, collapsed)
+    : flattenSessionTree(folders, pages, folderAnimation.renderedCollapsed)
   const rows = frozenRows ?? liveRows
 
   function toggle(key: string) {
@@ -152,16 +155,22 @@ export const SessionListView = memo(function SessionListView() {
     const content = renderRowContent(row)
     if (row.key === 'search') return content
     return (
-      <FolderGroupRow
-        row={row}
-        last={row.last ?? rows[index + 1]?.key !== row.key}
-        pending={organizing.pending}
-        hasSources={Boolean(
-          folders.find((folder) => folder._id === row.key)?.workspace,
-        )}
+      <AnimatedSessionRow
+        key={`${row.key}:${row.kind === 'session' ? row.id : row.kind}`}
+        closing={folderAnimation.isClosing(row)}
+        opening={folderAnimation.isOpening(row)}
       >
-        {content}
-      </FolderGroupRow>
+        <FolderGroupRow
+          row={row}
+          last={row.last ?? rows[index + 1]?.key !== row.key}
+          pending={organizing.pending}
+          hasSources={Boolean(
+            folders.find((folder) => folder._id === row.key)?.workspace,
+          )}
+        >
+          {content}
+        </FolderGroupRow>
+      </AnimatedSessionRow>
     )
   }
 
@@ -216,6 +225,7 @@ export const SessionListView = memo(function SessionListView() {
           <RippleButton
             variant="stealth"
             size="sm"
+            className="w-40"
             onClick={() => page.loadMore(20)}
           >
             Load more

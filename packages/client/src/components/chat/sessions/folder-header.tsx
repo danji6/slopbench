@@ -1,12 +1,15 @@
-import { ContextMenu, RippleButton, useOptionalSidebar } from '@/components/ui'
+import {
+  Accordion,
+  ContextMenu,
+  RippleButton,
+  useOptionalSidebar,
+} from '@/components/ui'
 import { useUserProfile } from '@/hooks/chat/profile'
 import { setSelectedSessionFolder } from '@/lib/ui-settings'
 import { cn } from '@/lib/utils'
 import { useDraggable } from '@dnd-kit/core'
 import type { FolderView } from '@sb/convex/types'
 import {
-  ChevronDownIcon,
-  ChevronRightIcon,
   ChevronsDownUpIcon,
   ChevronsUpDownIcon,
   PinIcon,
@@ -88,11 +91,11 @@ export function FolderHeader({
             aria-expanded={!collapsed}
             title={folder?.folderPath}
           >
-            {collapsed ? (
-              <ChevronRightIcon className="size-3" />
-            ) : (
-              <ChevronDownIcon className="size-3" />
-            )}
+            <Accordion.Icon
+              isExpanded={!collapsed}
+              className="size-3"
+              aria-hidden
+            />
             {groupKey === 'pinned' ? (
               <PinIcon className="size-4" />
             ) : (

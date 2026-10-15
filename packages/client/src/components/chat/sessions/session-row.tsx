@@ -11,6 +11,7 @@ import {
   useSessionIsStreaming,
   useUserProfile,
 } from '@/hooks/chat'
+import { useHoverScroll } from '@/hooks/hover-scroll'
 import { formatRelativeTime } from '@/lib'
 import type { SessionParticipant } from '@/lib/chat'
 import { triggerJsonDownload } from '@/lib/chat/io'
@@ -73,6 +74,13 @@ export function SessionRow({
   const duplicateSession = useAction(api.actions.sessions.duplicate)
   const setHidden = useMutation(api.sessions.setHidden)
   const exportSession = useAction(api.actions.sessions.exportOne)
+  const displayTitle = item?.title || item?.firstMessagePreview || 'New chat'
+
+  const {
+    ref: titleRef,
+    start: scrollTitle,
+    stop: resetTitle,
+  } = useHoverScroll(displayTitle)
 
   if (!item) return null
 
@@ -118,7 +126,6 @@ export function SessionRow({
   }
 
   const timestamp = item.lastMessageAt ?? item._creationTime
-  const displayTitle = item.title || item.firstMessagePreview || 'New chat'
   const showPreview = Boolean(item.title) && Boolean(item.lastMessagePreview)
 
   return (
@@ -138,6 +145,8 @@ export function SessionRow({
                     isActive && 'bg-m3-surface-container-high',
                   )}
                   onClick={handleSelect}
+                  onHoverStart={scrollTitle}
+                  onHoverEnd={resetTitle}
                 >
                   <span className="flex w-full items-center gap-1.5">
                     <SessionStatusDot
@@ -147,7 +156,10 @@ export function SessionRow({
                     {item.hidden && (
                       <EyeOffIcon className="text-muted-foreground" />
                     )}
-                    <span className="min-w-0 flex-1 truncate text-start">
+                    <span
+                      ref={titleRef}
+                      className="min-w-0 flex-1 truncate text-start"
+                    >
                       {displayTitle}
                     </span>
                   </span>

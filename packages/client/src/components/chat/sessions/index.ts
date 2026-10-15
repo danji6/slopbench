@@ -4,6 +4,7 @@
 
 export * from './agent-combobox'
 export * from './agents-strip'
+export * from './animated-session-row'
 export * from './chat-agent-picker'
 export * from './folder-dialog'
 export * from './folder-drop-targets'
