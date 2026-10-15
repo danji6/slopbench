@@ -12,7 +12,7 @@ type FolderGroupRowProps = {
   pending?: boolean
 }
 
-/** Treats each virtualized row as part of its folder's drop surface. */
+/** Treats each row as part of its folder's drop surface. */
 export function FolderGroupRow({
   row,
   last,

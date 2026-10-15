@@ -21,8 +21,37 @@ let sessions = [
   { _id: 's2', title: 'Design chat', folderId: 'n', pinned: false },
   { _id: 's3', title: 'SlopBench chat', folderId: 'b', pinned: false },
 ]
+if (new URLSearchParams(location.search).has('manySessions')) {
+  sessions = [
+    ...sessions,
+    ...['a', 'n', 'b', ''].flatMap((folderId) =>
+      Array.from({ length: 125 }, (_, index) => ({
+        _id: `extra-${folderId}-${index}`,
+        title: `${folderId || 'Unfiled'} session ${index + 1}`,
+        folderId,
+        pinned: false,
+      })),
+    ),
+    ...Array.from({ length: 30 }, (_, index) => ({
+      _id: `pin-${index}`,
+      title: `Pinned session ${index + 1}`,
+      folderId: '',
+      pinned: true,
+    })),
+  ]
+}
+
 const listeners = new Set<() => void>()
 const cache = new Map<string, unknown>()
+const pendingSessionQueries = new Map<string, () => void>()
+export const slowSessions = new URLSearchParams(location.search).has('slowSessions') // prettier-ignore
+
+/** Releases held responses so loading assertions do not depend on timing. */
+export function resolveSessionQueries() {
+  for (const resolve of pendingSessionQueries.values()) resolve()
+  pendingSessionQueries.clear()
+  for (const listener of listeners) listener()
+}
 
 function update() {
   cache.clear()
@@ -95,7 +124,16 @@ const client = {
         return () => listeners.delete(callback)
       },
       localQueryResult() {
-        if (!cache.has(key)) cache.set(key, query(name, args))
+        if (!cache.has(key)) {
+          if (slowSessions && name === 'sessions:list') {
+            cache.set(key, undefined)
+            pendingSessionQueries.set(key, () =>
+              cache.set(key, query(name, args)),
+            )
+          } else {
+            cache.set(key, query(name, args))
+          }
+        }
         return cache.get(key)
       },
       localQueryLogs: () => [],

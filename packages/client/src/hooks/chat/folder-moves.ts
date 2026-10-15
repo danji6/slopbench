@@ -10,7 +10,7 @@ import {
   projectFolderMove,
 } from '@sb/core/utils/folder-tree'
 import { useAction } from 'convex/react'
-import { useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 
 type PendingMove = {
   input: FolderMoveArgs
@@ -34,48 +34,61 @@ export function useFolderMoves(
     folderMoveConfirmed(serverFolders, pending.input, pending.revision)
   if (confirmed) setPending(null)
 
-  let folders = serverFolders
-  if (pending && !confirmed) {
-    try {
-      folders = projectFolderMove(serverFolders, pending.input)
-    } catch {
-      /* A concurrent deletion or move is resolved by the action result. */
+  const activeMove = confirmed ? null : pending
+  const folders = useMemo(() => {
+    let projected = serverFolders
+    if (activeMove) {
+      try {
+        projected = projectFolderMove(serverFolders, activeMove.input)
+      } catch {
+        // A concurrent deletion or move is resolved by the action result
+      }
     }
-  }
-  folders = orderedFolderTree(folders).map(({ folder, path, ancestorIds }) => ({
-    ...folder,
-    folderPath: path,
-    ancestorIds,
-  }))
+    return orderedFolderTree(projected).map(
+      ({ folder, path, ancestorIds }) => ({
+        ...folder,
+        folderPath: path,
+        ancestorIds,
+      }),
+    )
+  }, [serverFolders, activeMove])
 
-  async function apply(input: FolderMoveArgs) {
-    if (inFlight.current || (pending && !confirmed)) return
-    inFlight.current = true
-    setIntent(null)
-    setPending({ input, settled: false })
-    expand(input.parentId)
-    try {
-      const revision = await move(input)
-      setPending({
-        input,
-        settled: true,
-        revision: typeof revision === 'number' ? revision : undefined,
-      })
-    } catch (err) {
-      setPending(null)
-      toastError(err, 'Could not move folder')
-    } finally {
-      inFlight.current = false
-    }
-  }
+  const apply = useCallback(
+    async (input: FolderMoveArgs) => {
+      if (inFlight.current || (pending && !confirmed)) return
+      inFlight.current = true
+      setIntent(null)
+      setPending({ input, settled: false })
+      expand(input.parentId)
+      try {
+        const revision = await move(input)
+        setPending({
+          input,
+          settled: true,
+          revision: typeof revision === 'number' ? revision : undefined,
+        })
+      } catch (err) {
+        setPending(null)
+        toastError(err, 'Could not move folder')
+      } finally {
+        inFlight.current = false
+      }
+    },
+    [pending, confirmed, expand, move],
+  )
 
-  function request(input: FolderMoveArgs, picker = false) {
-    if (inFlight.current || (pending && !confirmed)) return
-    if (picker || folderMoveNeedsConfirmation(serverFolders, input)) {
-      setChooseParent(picker)
-      setIntent(input)
-    } else void apply(input)
-  }
+  const request = useCallback(
+    (input: FolderMoveArgs, picker = false) => {
+      if (inFlight.current || (pending && !confirmed)) return
+      if (picker || folderMoveNeedsConfirmation(serverFolders, input)) {
+        setChooseParent(picker)
+        setIntent(input)
+      } else void apply(input)
+    },
+    [pending, confirmed, serverFolders, apply],
+  )
+
+  const cancel = useCallback(() => setIntent(null), [])
 
   return {
     folders,
@@ -84,6 +97,6 @@ export function useFolderMoves(
     chooseParent,
     request,
     apply,
-    cancel: () => setIntent(null),
+    cancel,
   }
 }

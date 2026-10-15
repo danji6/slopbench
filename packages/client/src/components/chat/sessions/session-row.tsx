@@ -35,7 +35,7 @@ import {
   TrashIcon,
   UserIcon,
 } from 'lucide-react'
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { useLocation } from 'wouter'
 
 import { SessionAvatar } from './session-avatar'
@@ -49,7 +49,7 @@ interface SessionRowProps {
   rename: (id: string) => void
 }
 
-export function SessionRow({
+export const SessionRow = memo(function SessionRow({
   id,
   showFolder,
   dropPending,
@@ -257,7 +257,7 @@ export function SessionRow({
       />
     </>
   )
-}
+})
 
 /** Distinguishes unread activity from a currently streaming turn. */
 function SessionStatusDot({

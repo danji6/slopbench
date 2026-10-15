@@ -2,7 +2,7 @@ import { NotificationProvider } from '@/components/chat/notifications/notificati
 import { FolderPicker } from '@/components/chat/sessions/folder-picker'
 import { SessionListView } from '@/components/chat/sessions/session-list'
 import '@/globals.css'
-import { SessionStoreProvider } from '@/hooks/chat/sessions'
+import { SessionStoreProvider, useSessionGroups } from '@/hooks/chat/sessions'
 import {
   applyTheme,
   exportSchemeCss,
@@ -13,7 +13,11 @@ import { ConvexQueryCacheProvider } from 'convex-helpers/react/cache'
 import { ConvexProvider, useQuery } from 'convex/react'
 import { useState } from 'react'
 
-import { sessionFoldersFixtureClient } from './session-folders-client'
+import {
+  resolveSessionQueries,
+  sessionFoldersFixtureClient,
+  slowSessions,
+} from './session-folders-client'
 
 function setTheme(dark: boolean) {
   const sourceColor = '#6750a4'
@@ -29,6 +33,7 @@ function Controls() {
   const [parent, setParent] = useState<string | null>(null)
   const [disabled, setDisabled] = useState(false)
   const folders = useQuery(api.sessionFolders.list)
+  const { pages } = useSessionGroups()
   return (
     <section className="flex flex-col gap-3 p-3">
       <FolderPicker
@@ -57,7 +62,20 @@ function Controls() {
       >
         Toggle theme
       </button>
+      {slowSessions && (
+        <button onClick={resolveSessionQueries}>Resolve session queries</button>
+      )}
       <output data-testid="selected-folder">{selected ?? 'none'}</output>
+      <output data-testid="loaded-pages" className="sr-only">
+        {JSON.stringify(
+          Object.fromEntries(
+            Object.entries(pages).map(([key, page]) => [
+              key,
+              page.results.length,
+            ]),
+          ),
+        )}
+      </output>
       <output data-testid="folder-state" className="sr-only">
         {JSON.stringify(folders)}
       </output>

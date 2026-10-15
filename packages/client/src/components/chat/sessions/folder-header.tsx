@@ -10,6 +10,7 @@ import { setSelectedSessionFolder } from '@/lib/ui-settings'
 import { useDraggable } from '@dnd-kit/core'
 import type { FolderView } from '@sb/convex/types'
 import { PinIcon, SquarePenIcon } from 'lucide-react'
+import { memo } from 'react'
 import { useLocation } from 'wouter'
 
 import { FolderDropTargets } from './folder-drop-targets'
@@ -28,7 +29,7 @@ type FolderHeaderProps = FolderMenuActions & {
   pending: boolean
 }
 
-export function FolderHeader({
+export const FolderHeader = memo(function FolderHeader({
   groupKey,
   folder,
   collapsed,
@@ -120,4 +121,4 @@ export function FolderHeader({
       {folder && <FolderContextMenu {...menu} />}
     </ContextMenu>
   )
-}
+})

@@ -1,8 +1,10 @@
 import { cn } from '@/lib/utils'
+import { useReducedMotion } from 'motion/react'
 import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from 'react'
@@ -116,16 +118,27 @@ function CollapsibleContent({
 }: CollapsibleContentProps) {
   const { isOpen } = useCollapsible()
   const [retained, setRetained] = useState(isOpen)
+  const reducedMotion = useReducedMotion()
+
+  useEffect(() => {
+    if (!unmountOnClose || isOpen || !retained) return
+    // Empty branches and disabled transitions may not emit transitionend
+    const timer = setTimeout(() => setRetained(false), reducedMotion ? 0 : 250)
+    return () => clearTimeout(timer)
+  }, [unmountOnClose, isOpen, retained, reducedMotion])
 
   if (unmountOnClose && isOpen && !retained) setRetained(true)
 
-  const renderChildren = !unmountOnClose || isOpen || retained
+  const renderChildren =
+    !unmountOnClose || isOpen || (retained && !reducedMotion)
 
   return (
     <div
       data-slot="collapsible-content"
+      inert={!isOpen}
+      aria-hidden={!isOpen || undefined}
       className={cn(
-        'grid transition-[grid-template-rows,opacity] duration-200 ease-in-out',
+        'grid transition-[grid-template-rows,opacity] duration-200 ease-in-out motion-reduce:transition-none',
         isOpen ? 'opacity-100' : 'pointer-events-none opacity-0',
         outerClassName,
       )}

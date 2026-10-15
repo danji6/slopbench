@@ -1,56 +1,15 @@
-import { type Locator, type Page, expect, test } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
-async function drag(
-  page: Page,
-  source: Locator,
-  destination: Locator,
-  bottom = false,
-) {
-  const from = (await source.boundingBox())!
-  const to = (await destination.boundingBox())!
-  const x = from.x + from.width / 2
-  const y = from.y + from.height / 2
-  await page.mouse.move(x, y)
-  await page.mouse.down()
-  await page.mouse.move(x + 12, y, { steps: 3 })
-  await page.mouse.move(
-    to.x + to.width / 2,
-    bottom ? to.y + to.height - 10 : to.y + to.height / 2,
-    {
-      steps: 12,
-    },
-  )
-  await page.mouse.up()
-}
+import {
+  drag,
+  folder,
+  folderState,
+  loadedPages,
+  openSessionFolders,
+  pinFolder,
+} from '../session-folders-helpers'
 
-async function folderState(page: Page) {
-  return JSON.parse(
-    (await page.getByTestId('folder-state').textContent())!,
-  ) as {
-    _id: string
-    parentId?: string
-    pinned?: boolean
-  }[]
-}
-
-const folder = (page: Page, name: string) =>
-  page.getByRole('button', { name, exact: true })
-
-async function pinFolder(page: Page, name: string) {
-  await page.getByRole('button', { name: `Options for ${name}` }).click()
-  await page.getByRole('menuitem', { name: 'Pin', exact: true }).click()
-}
-
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem(
-      'session-folder-collapse',
-      JSON.stringify({ ungrouped: true }),
-    )
-  })
-  await page.goto('/?fixture=session-folders')
-  await expect(folder(page, 'Portfolio')).toBeVisible()
-})
+test.beforeEach(async ({ page }) => openSessionFolders(page))
 
 test('picker deselects, clears without opening, restores focus, and respects disabled state', async ({
   page,
@@ -143,9 +102,15 @@ test('pinned parent, child, and session appear once and restore their original l
   await expect(folder(page, 'Design')).toBeHidden()
   await expect(page.getByText('Design chat', { exact: true })).toBeHidden()
   await folder(page, 'Pinned').click()
-  await expect(
-    page.getByTestId('sidebar').locator('[class*="starting:grid-rows"]'),
-  ).toHaveCount(0)
+  await page
+    .locator(
+      '[data-session-folder="pinned"] > [data-slot="collapsible-content"]',
+    )
+    .evaluate(async (element) => {
+      await Promise.all(
+        element.getAnimations().map((animation) => animation.finished),
+      )
+    })
   await folder(page, 'Design').click({ button: 'right' })
   await page.getByRole('menuitem', { name: 'Unpin', exact: true }).click()
   await expect(folder(page, 'Design')).toBeHidden()
@@ -195,8 +160,7 @@ test('folder drops pin without reparenting, moves preserve pins, and the separat
   await drag(
     page,
     page.getByRole('button', { name: 'Design chat', exact: false }),
-    page.getByTestId('sidebar'),
-    true,
+    separator,
   )
   await folder(page, 'Design').click()
   await expect(page.getByText('Design chat', { exact: true })).toBeVisible()
@@ -205,6 +169,50 @@ test('folder drops pin without reparenting, moves preserve pins, and the separat
     .fill('Portfolio chat')
   await expect(separator).toHaveCount(0)
   await expect(page.getByText('Portfolio chat', { exact: true })).toHaveCount(1)
+})
+
+test('folder controls retain sibling collapse state and refresh pin actions after page updates', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=session-folders&manySessions')
+  await folder(page, 'SlopBench').click()
+  await expect.poll(async () => (await loadedPages(page)).b).toBeUndefined()
+  await folder(page, 'Portfolio').click()
+  await expect.poll(async () => (await loadedPages(page)).a).toBeUndefined()
+  await folder(page, 'Portfolio').click()
+  await expect.poll(async () => (await loadedPages(page)).a).toBe(5)
+  await page
+    .locator('[data-session-folder="a"]')
+    .getByRole('button', { name: 'Load more' })
+    .last()
+    .click()
+  await expect.poll(async () => (await loadedPages(page)).a).toBe(25)
+
+  for (const pinned of [true, false, true, false]) {
+    await page.getByRole('button', { name: 'Options for Portfolio' }).click()
+    await page
+      .getByRole('menuitem', { name: pinned ? 'Pin' : 'Unpin', exact: true })
+      .click()
+    await expect
+      .poll(
+        async () =>
+          (await folderState(page)).find((entry) => entry._id === 'a')?.pinned,
+      )
+      .toBe(pinned)
+    await expect(folder(page, 'SlopBench')).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+    await expect.poll(async () => (await loadedPages(page)).b).toBeUndefined()
+  }
+
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        JSON.parse(localStorage.getItem('session-folder-collapse')!),
+      ),
+    )
+    .toMatchObject({ a: false, b: true })
 })
 
 test('narrow sidebar controls fit in both themes', async ({ page }) => {

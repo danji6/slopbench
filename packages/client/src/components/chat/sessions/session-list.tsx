@@ -1,9 +1,6 @@
 import { ConfirmDialog, Input, RippleButton } from '@/components/ui'
 import { useDebouncedCallback } from '@/hooks'
 import { useSession, useSessionGroups, useSessionSearch } from '@/hooks/chat'
-import { useFolderMoves } from '@/hooks/chat/folder-moves'
-import { useFolderPins } from '@/hooks/chat/folder-pins'
-import { useSessionFolderAnimation } from '@/hooks/chat/session-folder-animation'
 import {
   type FolderDropPlacement,
   folderDropIntent,
@@ -14,7 +11,6 @@ import {
   flattenSessionTree,
 } from '@/lib/chat/session-groups'
 import { toastError } from '@/lib/notifications'
-import { cn } from '@/lib/utils'
 import {
   DndContext,
   type DragEndEvent,
@@ -29,26 +25,26 @@ import {
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import type { FolderView } from '@sb/convex/types'
-import { folderBranch, folderSiblings } from '@sb/core/utils/folder-tree'
 import { useAction, useMutation } from 'convex/react'
 import { FolderPlusIcon } from 'lucide-react'
-import { memo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 
 import { useUnreadNotificationSessionIds } from '../notifications/notification-provider'
-import { AnimatedSessionRow } from './animated-session-row'
 import { FolderDialog } from './folder-dialog'
 import { FolderGroupRow } from './folder-group-row'
 import { FolderHeader } from './folder-header'
 import { FolderMoveDialog } from './folder-move-dialog'
 import { SessionListMenu } from './session-list-menu'
-import {
-  SESSION_LIST_BACKGROUND_TARGET,
-  SessionListScrollArea,
-} from './session-list-scroll-area'
-import { SessionRow } from './session-row'
+import { SessionListRow } from './session-list-row'
+import { SessionListScrollArea } from './session-list-scroll-area'
+import type { SessionPageControls } from './session-page'
 import { SessionTitleEditor } from './session-title-editor'
+import { SessionTree } from './session-tree'
+import { useFolderControls } from './use-folder-controls'
 
 const SEARCH_DEBOUNCE = 250
+// Keep sensor identity stable so folder toggles don't update every draggable.
+const MOUSE_SENSOR_OPTIONS = { activationConstraint: { distance: 8 } }
 
 export const SessionListView = memo(function SessionListView() {
   const { pages, folders: serverFolders, search, pendingSessionIds, dropSession } = useSessionGroups() // prettier-ignore
@@ -57,69 +53,47 @@ export const SessionListView = memo(function SessionListView() {
   const commitSearch = useDebouncedCallback(setSearch, SEARCH_DEBOUNCE)
   const [query, setQuery] = useState('')
   const [renamingId, setRenamingId] = useState<string | null>(null)
-  const [editing, setEditing] = useState<FolderView | 'new' | null>(null) // prettier-ignore
-  const [newParent, setNewParent] = useState<FolderView | undefined>(undefined)
-  const [deleting, setDeleting] = useState<FolderView | null>(null)
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(readCollapsed) // prettier-ignore
-  const folderAnimation = useSessionFolderAnimation(collapsed)
-
-  function updateCollapsed(next: Record<string, boolean>) {
-    setCollapsed(next)
-    saveCollapsed(next)
-  }
-
-  const organizing = useFolderMoves(serverFolders, (parentId) => {
-    if (!parentId) return
-    const parent = serverFolders.find((folder) => folder._id === parentId)
-    const next = { ...collapsed }
-    for (const id of [...(parent?.ancestorIds ?? []), parentId]) {
-      next[id] = false
-    }
-    updateCollapsed(next)
-  })
-  const { folders } = organizing
-  const folderPins = useFolderPins()
-  const organizationPending = organizing.pending || folderPins.pending
+  const {
+    folders,
+    collapsed,
+    setCollapsed,
+    headers,
+    collapseAll,
+    organizing,
+    folderPins,
+    pending: organizationPending,
+    editing,
+    setEditing,
+    newParent,
+    deleting,
+    setDeleting,
+    createFolder,
+  } = useFolderControls(serverFolders)
   const [dragTitle, setDragTitle] = useState<string | null>(null)
   const [frozenRows, setFrozenRows] = useState<GroupRow[] | null>(null)
 
   const change = useAction(api.actions.folders.change)
 
   const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(MouseSensor, MOUSE_SENSOR_OPTIONS),
     useSensor(KeyboardSensor),
   )
 
-  const liveRows = search.trim()
-    ? flattenSessionGroups(['search'], pages, collapsed)
-    : flattenSessionTree(folders, pages, folderAnimation.renderedCollapsed)
+  const liveRows = useMemo(
+    () =>
+      search.trim()
+        ? flattenSessionGroups(['search'], pages, {})
+        : flattenSessionTree(folders, pages, {}),
+    [search, pages, folders],
+  )
   const rows = frozenRows ?? liveRows
-
-  function toggle(key: string) {
-    updateCollapsed({ ...collapsed, [key]: !collapsed[key] })
-  }
-
-  function collapseAll(value: boolean, folder?: FolderView) {
-    const keys = folder
-      ? folderBranch(folders, folder._id).map((entry) => entry._id)
-      : ['pinned', ...folders.map((entry) => entry._id)]
-    updateCollapsed({
-      ...collapsed,
-      ...Object.fromEntries(keys.map((key) => [key, value])),
-    })
-  }
-
-  function order(folder: FolderView, direction: -1 | 1) {
-    const siblings = folderSiblings(folders, folder.parentId)
-    const index = siblings.findIndex((f) => f._id === folder._id)
-    if (index + direction < 0 || index + direction >= siblings.length) return
-    organizing.request({
-      folderId: folder._id,
-      parentId: folder.parentId ?? null,
-      beforeFolderId:
-        direction < 0 ? siblings[index - 1]?._id : siblings[index + 2]?._id,
-    })
-  }
+  const foldersById = useMemo(
+    () =>
+      new Map<string, FolderView>(
+        folders.map((folder) => [folder._id, folder]),
+      ),
+    [folders],
+  )
 
   async function drop(event: DragEndEvent) {
     setFrozenRows(null)
@@ -135,7 +109,7 @@ export const SessionListView = memo(function SessionListView() {
             active.id as Id<'sessionFolders'>,
             true,
           )
-          if (pinned) updateCollapsed({ ...collapsed, pinned: false })
+          if (pinned) setCollapsed((current) => ({ ...current, pinned: false }))
           return
         }
         if (target?.kind === 'folder-target') {
@@ -164,38 +138,45 @@ export const SessionListView = memo(function SessionListView() {
     }
   }
 
-  function renderRow(row: GroupRow, index: number) {
-    const content = renderRowContent(row)
+  function renderRow(row: GroupRow, controls?: SessionPageControls) {
+    if (row.kind === 'session') {
+      return (
+        <SessionListRow
+          row={row}
+          pending={organizationPending}
+          dropPending={organizationPending || pendingSessionIds.has(row.id)}
+          hasSources={Boolean(foldersById.get(row.key)?.workspace)}
+          hasUnreadNotification={unreadSessionIds.has(row.id)}
+          showFolder={Boolean(search.trim())}
+          rename={setRenamingId}
+        />
+      )
+    }
+    const content = renderRowContent(row, controls)
     if (row.key === 'search') return content
     return (
-      <AnimatedSessionRow
-        key={`${row.key}:${row.kind === 'session' ? row.id : row.kind}`}
-        closing={folderAnimation.isClosing(row)}
-        opening={folderAnimation.isOpening(row)}
+      <FolderGroupRow
+        row={row}
+        last={Boolean(row.last)}
+        pending={organizationPending}
+        hasSources={Boolean(foldersById.get(row.key)?.workspace)}
       >
-        <FolderGroupRow
-          row={row}
-          last={row.last ?? rows[index + 1]?.key !== row.key}
-          pending={organizationPending}
-          hasSources={Boolean(
-            folders.find((folder) => folder._id === row.key)?.workspace,
-          )}
-        >
-          {content}
-        </FolderGroupRow>
-      </AnimatedSessionRow>
+        {content}
+      </FolderGroupRow>
     )
   }
 
-  function renderRowContent(row: GroupRow) {
-    const folder = folders.find((folder) => folder._id === row.key)
+  function renderRowContent(row: GroupRow, controls?: SessionPageControls) {
+    const folder = foldersById.get(row.key)
     if (row.kind === 'separator') {
       return (
-        <div
-          className="mx-1 my-3 border-t"
-          role="separator"
-          aria-label="Sessions without a folder"
-        />
+        <div className="px-1 py-3">
+          <div
+            className="border-t"
+            role="separator"
+            aria-label="Sessions without a folder"
+          />
+        </div>
       )
     }
     if (row.kind === 'header') {
@@ -204,68 +185,29 @@ export const SessionListView = memo(function SessionListView() {
           groupKey={row.key}
           folder={folder}
           collapsed={Boolean(collapsed[row.key])}
-          toggle={() => toggle(row.key)}
-          onCollapseAll={() => collapseAll(true, folder)}
-          onExpandAll={() => collapseAll(false, folder)}
-          edit={() => folder && setEditing(folder)}
-          remove={() => folder && setDeleting(folder)}
-          reorder={(direction) => folder && order(folder, direction)}
           pending={organizationPending}
-          pin={() => {
-            if (folder) void folderPins.setPinned(folder._id, !folder.pinned)
-          }}
-          createChild={() => {
-            setNewParent(folder)
-            setEditing('new')
-          }}
-          move={() =>
-            folder &&
-            organizing.request(
-              { folderId: folder._id, parentId: folder.parentId ?? null },
-              true,
-            )
-          }
+          {...headers.get(row.key)!}
         />
       )
     }
 
-    if (row.kind === 'session') {
-      return (
-        <div
-          className={cn(
-            'py-0.5',
-            row.key !== 'search' && row.key !== 'ungrouped' && 'ps-3',
-          )}
-        >
-          <SessionRow
-            showFolder={Boolean(search.trim())}
-            id={row.id}
-            dropPending={organizationPending || pendingSessionIds.has(row.id)}
-            hasUnreadNotification={unreadSessionIds.has(row.id)}
-            rename={setRenamingId}
-          />
-        </div>
-      )
-    }
-
     const page = pages[row.key]
+    if (!page || page.status === 'LoadingFirstPage') return null
+
     return (
-      <div className="px-2 py-2 text-center text-xs">
-        {page?.status === 'CanLoadMore' ? (
+      <div className="px-2 py-1 text-xs">
+        {page.status === 'Exhausted' ? (
+          <span className="text-muted-foreground">No matching sessions</span>
+        ) : (
           <RippleButton
             variant="stealth"
             size="sm"
-            className="w-40"
-            onClick={() => page.loadMore(20)}
+            className="text-muted-foreground hover:text-foreground justify-start text-xs font-normal no-underline"
+            disabled={page.status === 'LoadingMore' || controls?.revealing}
+            onClick={controls?.loadMore ?? (() => page.loadMore(20))}
           >
             Load more
           </RippleButton>
-        ) : (
-          <span className="text-muted-foreground">
-            {!page || page.status.startsWith('Loading')
-              ? 'Loading…'
-              : 'No matching sessions'}
-          </span>
         )}
       </div>
     )
@@ -274,15 +216,9 @@ export const SessionListView = memo(function SessionListView() {
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={(args) => {
-        const collisions = args.pointerCoordinates
-          ? pointerWithin(args)
-          : closestCenter(args)
-        const targets = collisions.filter(
-          (target) => target.id !== SESSION_LIST_BACKGROUND_TARGET,
-        )
-        return targets.length ? targets : collisions
-      }}
+      collisionDetection={(args) =>
+        args.pointerCoordinates ? pointerWithin(args) : closestCenter(args)
+      }
       onDragStart={({ active }) => {
         setFrozenRows(liveRows)
         const session = Object.values(pages)
@@ -311,10 +247,7 @@ export const SessionListView = memo(function SessionListView() {
                 size="icon"
                 aria-label="Create folder"
                 disabled={organizationPending}
-                onClick={() => {
-                  setNewParent(undefined)
-                  setEditing('new')
-                }}
+                onClick={createFolder}
               >
                 <FolderPlusIcon />
               </RippleButton>
@@ -335,12 +268,16 @@ export const SessionListView = memo(function SessionListView() {
             className="border-input/50 h-10"
           />
         </header>
-        <SessionListScrollArea
-          rows={rows}
-          renderRow={renderRow}
-          searching={Boolean(search.trim())}
-          pending={organizationPending}
-        />
+        <SessionListScrollArea>
+          <SessionTree
+            rows={rows}
+            collapsed={collapsed}
+            renderRow={renderRow}
+            search={search}
+            pages={pages}
+            dragging={Boolean(frozenRows)}
+          />
+        </SessionListScrollArea>
         {renamingId && (
           <SessionRenameDialog
             id={renamingId}
@@ -400,22 +337,6 @@ export const SessionListView = memo(function SessionListView() {
     </DndContext>
   )
 })
-
-function readCollapsed(): Record<string, boolean> {
-  try {
-    return JSON.parse(localStorage.getItem('session-folder-collapse') ?? '{}')
-  } catch {
-    return {}
-  }
-}
-
-function saveCollapsed(value: Record<string, boolean>) {
-  try {
-    localStorage.setItem('session-folder-collapse', JSON.stringify(value))
-  } catch {
-    /* Storage may be unavailable. */
-  }
-}
 
 function SessionRenameDialog({
   id,

@@ -8,8 +8,7 @@ import type { PaginationMetadata } from '@/lib/chat/message-store'
 import { type SessionStore, createSessionStore } from '@/lib/chat/session-store'
 import { api } from '@sb/convex/_generated/api'
 import type { FolderView } from '@sb/convex/types'
-import { usePaginatedQuery } from 'convex-helpers/react/cache'
-import { useQuery } from 'convex/react'
+import { usePaginatedQuery, useQuery } from 'convex/react'
 import {
   type ReactNode,
   useCallback,
@@ -20,8 +19,8 @@ import {
 
 import { useSessionDrops } from './session-drops'
 
-const INITIAL_NUM_ITEMS = 5
-const INITIAL_SEARCH_ITEMS = 20
+const INITIAL_FOLDER_ITEMS = 5
+const INITIAL_LIST_ITEMS = 20
 
 const [SessionStoreContext, useSessionStore] =
   createUsableContext<SessionStore>('SessionStore')
@@ -55,6 +54,11 @@ const [SessionGroupsContext, useSessionGroups] = createUsableContext<{
 
 export { useSessionGroups }
 
+type PublishPage = (key: string, page: SessionGroupPage | null) => void
+
+const [SessionPagesContext, usePublishSessionPage] =
+  createUsableContext<PublishPage>('SessionPages')
+
 export function SessionStoreProvider({ children }: { children: ReactNode }) {
   const [store] = useState(createSessionStore)
   const [search, setSearch] = useState('')
@@ -64,10 +68,6 @@ export function SessionStoreProvider({ children }: { children: ReactNode }) {
   const { pages, pendingSessionIds, dropSession } = useSessionDrops(serverPages, folders) // prettier-ignore
   const activeId = useActiveSessionId()
   const streamingIds = useActiveStreamSessionIds()
-  const keys = search.trim()
-    ? ['search']
-    : ['pinned', ...folders.map((f) => f._id), 'ungrouped']
-
   const publish = useCallback((key: string, page: SessionGroupPage | null) => {
     setPages((current) => {
       const next = { ...current }
@@ -77,7 +77,7 @@ export function SessionStoreProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  const results = keys.flatMap((key) => pages[key]?.results ?? [])
+  const results = Object.values(pages).flatMap((page) => page.results)
   useLayoutEffect(() => {
     store.sync({
       results,
@@ -97,16 +97,9 @@ export function SessionStoreProvider({ children }: { children: ReactNode }) {
           <SessionGroupsContext.Provider
             value={{ pages, search, folders, pendingSessionIds, dropSession }}
           >
-            {keys.map((key) => (
-              <GroupQuery
-                key={key}
-                groupKey={key}
-                search={search}
-                showHidden={showHidden}
-                publish={publish}
-              />
-            ))}
-            {children}
+            <SessionPagesContext.Provider value={publish}>
+              {children}
+            </SessionPagesContext.Provider>
           </SessionGroupsContext.Provider>
         </SessionShowHiddenContext.Provider>
       </SessionSearchContext.Provider>
@@ -114,17 +107,17 @@ export function SessionStoreProvider({ children }: { children: ReactNode }) {
   )
 }
 
-function GroupQuery({
+/** Loads a group's pages only while its contents are mounted. */
+export function SessionGroupQuery({
   groupKey,
-  search,
-  showHidden,
-  publish,
+  search = '',
 }: {
   groupKey: string
-  search: string
-  showHidden: boolean
-  publish: (key: string, page: SessionGroupPage | null) => void
+  search?: string
 }) {
+  const publish = usePublishSessionPage()
+  const { showHidden } = useSessionShowHidden()
+  const isFlatList = groupKey === 'search' || groupKey === 'ungrouped'
   const { results, status, loadMore } = usePaginatedQuery(
     api.sessions.list,
     {
@@ -133,8 +126,7 @@ function GroupQuery({
       showHidden: showHidden || undefined,
     },
     {
-      initialNumItems:
-        groupKey === 'search' ? INITIAL_SEARCH_ITEMS : INITIAL_NUM_ITEMS,
+      initialNumItems: isFlatList ? INITIAL_LIST_ITEMS : INITIAL_FOLDER_ITEMS,
     },
   )
 

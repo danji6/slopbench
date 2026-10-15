@@ -42,7 +42,6 @@ export function useHoverScroll(text: string) {
   useEffect(() => {
     const element = ref.current
     if (!element) return
-    reset()
     const observer = new ResizeObserver(() => {
       if (hovering.current) start()
     })

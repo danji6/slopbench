@@ -21,7 +21,7 @@ export type GroupRow = (
 ) &
   GroupRowMetadata
 
-/** Flattens independently paginated groups into one virtualized sidebar. */
+/** Flattens independently paginated groups into sidebar rows. */
 export function flattenSessionGroups(
   keys: string[],
   pages: Record<string, { results: SessionListItem[]; status: string }>,
@@ -49,11 +49,11 @@ export function flattenSessionGroups(
       seen.add(session._id)
       rows.push({ kind: 'session', key, id: session._id })
     }
-    if (
-      !page ||
-      page.status !== 'Exhausted' ||
-      (key === 'search' && !page.results.length)
-    ) {
+    const hasMore =
+      page?.status === 'CanLoadMore' || page?.status === 'LoadingMore'
+    const emptySearch =
+      key === 'search' && page?.status === 'Exhausted' && !page.results.length
+    if (hasMore || emptySearch) {
       rows.push({ kind: 'footer', key })
     }
 
@@ -134,4 +134,31 @@ export function flattenSessionTree(
   appendSessions('ungrouped')
 
   return rows
+}
+
+export type SessionTreeNode = {
+  row: GroupRow
+  children: SessionTreeNode[]
+  endingFolderIds?: string[]
+}
+
+/** Groups display rows into branches while retaining their drag/drop boundaries. */
+export function nestSessionRows(rows: GroupRow[]): SessionTreeNode[] {
+  const roots: SessionTreeNode[] = []
+  const branches = new Map<string, SessionTreeNode>()
+  for (const [index, row] of rows.entries()) {
+    const node: SessionTreeNode = {
+      row: { ...row, last: row.last ?? rows[index + 1]?.key !== row.key },
+      children: [],
+    }
+    const parentKey = row.kind === 'header' ? row.ancestorIds?.at(-1) : row.key
+    const parent = parentKey ? branches.get(parentKey) : undefined
+    ;(parent?.children ?? roots).push(node)
+    if (row.kind === 'header') branches.set(row.key, node)
+    for (const id of row.endingFolderIds ?? []) {
+      const branch = branches.get(id)
+      if (branch) branch.endingFolderIds = row.endingFolderIds
+    }
+  }
+  return roots
 }
