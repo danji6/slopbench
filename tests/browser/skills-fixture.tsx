@@ -1,6 +1,7 @@
 import { AgentFiles } from '@/components/chat/skills/agent-files'
 import { AgentSkills } from '@/components/chat/skills/agent-skills'
 import { SkillLibrary } from '@/components/chat/skills/skill-library'
+import { SettingsTabs } from '@/components/ui/settings-tabs'
 import '@/globals.css'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { ConvexProvider } from 'convex/react'
@@ -52,7 +53,18 @@ export function SkillsFixture() {
             {tab === 'files' ? (
               <AgentFiles agentId={'fixture-agent' as Id<'agents'>} />
             ) : (
-              <AgentSkills agentId={'fixture-agent' as Id<'agents'>} />
+              <SettingsTabs
+                value="skills"
+                className="h-[min(60svh,500px)] min-h-0"
+              >
+                <SettingsTabs.Content
+                  value="skills"
+                  title="Skills"
+                  className="flex min-h-0 min-w-0 flex-col overflow-hidden"
+                >
+                  <AgentSkills agentId={'fixture-agent' as Id<'agents'>} />
+                </SettingsTabs.Content>
+              </SettingsTabs>
             )}
           </>
         ) : (

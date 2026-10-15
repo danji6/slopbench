@@ -47,7 +47,7 @@ async function setup(shared = true) {
   return { ...fixture, home }
 }
 
-test('shared assignments are visible and excluded from both agents’ available lists', async () => {
+test('shared assignments are marked as added and excluded by the not-added filter', async () => {
   const { ctx, home } = await setup()
   const operationId = await start(ctx, { kind: 'assign', agentId: a, skillId })
   await expect(assertAgentAvailable(ctx, b)).rejects.toThrow('updated')
@@ -57,14 +57,15 @@ test('shared assignments are visible and excluded from both agents’ available 
     paginationOpts: { cursor: null, numItems: 20 },
   })
   expect(page.page.map((row) => row.name)).toEqual(['review'])
-  expect(
-    (
-      await list(ctx, {
-        agentId: b,
-        paginationOpts: { cursor: null, numItems: 20 },
-      })
-    ).page,
-  ).toEqual([])
+  for (const agentId of [a, b]) {
+    const args = { agentId, paginationOpts: { cursor: null, numItems: 20 } }
+    const skills = await list(ctx, args)
+    expect(skills.page).toHaveLength(1)
+    expect(skills.page[0]!.assignmentId).toBe(page.page[0]!._id)
+    expect(
+      (await list(ctx, { ...args, assignment: 'not-added' })).page,
+    ).toEqual([])
+  }
   expect((await getHome(ctx, { agentId: b })).members).toHaveLength(2)
   expect((await getHome(ctx, { agentId: a })).revision).toBe(
     (await ctx.db.get(home._id))!.revision,

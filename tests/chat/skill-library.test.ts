@@ -228,3 +228,79 @@ test('orphaned processing messages and watched jobs block home transitions', asy
     start(ctx, { kind: 'home', agentId, destination: '/new', copyFiles: true }),
   ).rejects.toThrow('shell jobs')
 })
+
+test('library keeps assigned skills and filters assignments across pages and shared homes', async () => {
+  const { ctx, rows } = setup()
+  rows('agents').push({ _id: 'shared-agent', ownerId: 'owner', homeId: 'home' })
+  rows('agentSkills').push({
+    _id: 'assignment',
+    ownerId: 'owner',
+    homeId: 'home',
+    skillId,
+    name: 'review',
+    description: 'An edited local description.',
+  })
+  rows('agentSkills').push({
+    _id: 'foreign-assignment',
+    ownerId: 'other',
+    homeId: 'other-home',
+    skillId,
+    name: 'review',
+    description: 'Foreign copy.',
+  })
+  for (let i = 0; i < 25; i++)
+    rows('skills').push({
+      _id: `extra-${i}`,
+      ownerId: 'owner',
+      name: `extra-${i}`,
+      description: 'Extra skill',
+      status: 'ready',
+    })
+  const args = {
+    agentId: 'shared-agent' as Id<'agents'>,
+    paginationOpts: { cursor: null, numItems: 20 },
+  }
+  const assignmentId = 'assignment' as Id<'agentSkills'>
+  const added = await list(ctx, { ...args, assignment: 'added' })
+  expect(added.page.map((skill) => skill.assignmentId)).toEqual([assignmentId])
+  expect(added.page[0]!.description).toBe('Review changes.')
+  expect(added.isDone).toBe(true)
+  const missing = await list(ctx, {
+    ...args,
+    assignment: 'added',
+    search: 'extra',
+  })
+  expect(missing.page).toHaveLength(0)
+  const all = await list(ctx, { ...args, search: ' REVIEW ' })
+  expect(all.page.map((skill) => skill.assignmentId)).toEqual([assignmentId])
+  const notAdded = await list(ctx, {
+    ...args,
+    assignment: 'not-added',
+    search: 'review',
+  })
+  expect(notAdded.page).toHaveLength(0)
+  const available = await list(ctx, {
+    ...args,
+    agentId,
+    assignment: 'not-added',
+    search: 'extra',
+  })
+  expect(available.page).toHaveLength(20)
+  rows('agents').push({ _id: 'no-home', ownerId: 'owner' })
+  const noHome = { ...args, agentId: 'no-home' as Id<'agents'> }
+  expect(
+    (await list(ctx, { ...noHome, assignment: 'added' })).page,
+  ).toHaveLength(0)
+  expect(
+    (await list(ctx, { ...noHome, assignment: 'not-added' })).page,
+  ).toHaveLength(20)
+  await expect(
+    list({ ...ctx, role: 'user' }, { ...args, assignment: 'added' }),
+  ).rejects.toThrow('Forbidden')
+  await expect(
+    list(
+      { ...ctx, userId: 'other' as Id<'users'> },
+      { ...args, assignment: 'added' },
+    ),
+  ).rejects.toThrow('not found')
+})

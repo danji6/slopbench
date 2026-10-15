@@ -32,6 +32,7 @@ export const skillListArgsValidator = v.object({
   paginationOpts: paginationOptsValidator,
   search: v.optional(v.string()),
   agentId: v.optional(v.id('agents')),
+  assignment: v.optional(v.union(v.literal('added'), v.literal('not-added'))),
 })
 
 export const continueSkillImportArgsValidator = v.object({

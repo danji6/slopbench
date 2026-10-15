@@ -75,19 +75,21 @@ function query(name: string, args: Record<string, unknown>) {
   if (name === 'skills:operation')
     return operations.get(String(args.operationId))
   if (name === 'skills:list') {
-    const all = page(
-      library.filter((skill) =>
-        skill.name.startsWith(String(args.search ?? '')),
-      ),
-      args.paginationOpts as Parameters<typeof page>[1],
-    )
-    return {
-      ...all,
-      page: all.page.filter(
-        (skill) =>
-          !args.agentId || !assigned.some((copy) => copy.name === skill.name),
-      ),
-    }
+    const skills = library
+      .filter((skill) => {
+        if (!skill.name.startsWith(String(args.search ?? ''))) return false
+        const added = assigned.some((copy) => copy.name === skill.name)
+        if (args.assignment === 'added') return added
+        if (args.assignment === 'not-added') return !added
+        return true
+      })
+      .map((skill) => ({
+        ...skill,
+        assignmentId: args.agentId
+          ? (assigned.find((copy) => copy.name === skill.name)?._id ?? null)
+          : null,
+      }))
+    return page(skills, args.paginationOpts as Parameters<typeof page>[1])
   }
   if (name === 'skills:assigned')
     return page(assigned, args.paginationOpts as Parameters<typeof page>[1])

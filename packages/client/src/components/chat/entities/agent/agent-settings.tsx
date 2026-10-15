@@ -373,7 +373,11 @@ function AgentSettingsDialog() {
                   />
                 </SettingsTabs.Content>
 
-                <SettingsTabs.Content value="skills" title="Skills">
+                <SettingsTabs.Content
+                  value="skills"
+                  title="Skills"
+                  className="flex min-h-0 min-w-0 flex-col overflow-hidden"
+                >
                   <AgentSkills
                     agentId={newAgent ? undefined : (agentId ?? undefined)}
                   />

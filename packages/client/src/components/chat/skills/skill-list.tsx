@@ -1,17 +1,23 @@
 import { RippleButton } from '@/components/ui'
-import type { Doc } from '@sb/convex/_generated/dataModel'
+import { cn } from '@/lib/utils'
+import type { Doc, Id } from '@sb/convex/_generated/dataModel'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Virtualizer } from 'virtua'
 
-export type SkillListItem =
-  | Pick<Doc<'skills'>, '_id' | 'name' | 'description'>
-  | Pick<Doc<'agentSkills'>, '_id' | 'name' | 'description'>
+export type SkillListItem = Pick<
+  Doc<'skills'>,
+  '_id' | 'name' | 'description' | 'status'
+> & {
+  assignmentId: Id<'agentSkills'> | null
+}
 
 type SkillListProps = {
   items: SkillListItem[]
   actionLabel: string
   busy: boolean
   onAction: (item: SkillListItem) => void
+  onRemove?: (item: SkillListItem) => void
+  className?: string
   status: 'LoadingFirstPage' | 'CanLoadMore' | 'LoadingMore' | 'Exhausted'
   loadMore: (count: number) => void
 }
@@ -21,6 +27,8 @@ export function SkillList({
   actionLabel,
   busy,
   onAction,
+  onRemove,
+  className,
   status,
   loadMore,
 }: SkillListProps) {
@@ -28,30 +36,20 @@ export function SkillList({
   return (
     <div
       ref={scroll}
-      className="max-h-96 overflow-y-auto"
-      aria-label={`${actionLabel} skills`}
+      role="list"
+      className={cn('max-h-96 overflow-x-hidden overflow-y-auto', className)}
+      aria-label={onRemove ? 'Agent skills' : `${actionLabel} skills`}
     >
       <Virtualizer scrollRef={scroll}>
         {items.map((item) => (
-          <div
+          <SkillRow
             key={item._id}
-            className="border-border flex items-start gap-3 border-b py-3"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="font-medium wrap-break-word">
-                {item.name || 'Installing skill…'}
-              </p>
-              <SkillDescription description={item.description} />
-            </div>
-            <RippleButton
-              size="sm"
-              variant="input"
-              disabled={busy}
-              onClick={() => onAction(item)}
-            >
-              {actionLabel}
-            </RippleButton>
-          </div>
+            item={item}
+            actionLabel={actionLabel}
+            busy={busy}
+            onAction={onAction}
+            onRemove={onRemove}
+          />
         ))}
         <SkillLoadMore
           key="load-more"
@@ -61,6 +59,60 @@ export function SkillList({
           root={scroll}
         />
       </Virtualizer>
+    </div>
+  )
+}
+
+type SkillRowProps = Pick<
+  SkillListProps,
+  'actionLabel' | 'busy' | 'onAction' | 'onRemove'
+> & { item: SkillListItem }
+
+function SkillRow({
+  item,
+  actionLabel,
+  busy,
+  onAction,
+  onRemove,
+}: SkillRowProps) {
+  const added = !!onRemove && item.assignmentId !== null
+  const unavailable = !!onRemove && item.status !== 'ready'
+  return (
+    <div
+      role="listitem"
+      className="border-border flex flex-wrap items-start gap-3 border-b py-3"
+    >
+      <div className="min-w-0 flex-1 basis-40">
+        <p className="font-medium wrap-break-word">
+          <span>{item.name || 'Installing skill…'}</span>
+          {added && (
+            <span className="text-primary ml-2 text-sm font-bold">
+              (Added)
+            </span>
+          )}
+        </p>
+        <SkillDescription description={item.description} />
+      </div>
+      <div className="flex shrink-0 gap-2">
+        <RippleButton
+          size="sm"
+          variant="input"
+          disabled={busy || added || unavailable}
+          onClick={() => onAction(item)}
+        >
+          {actionLabel}
+        </RippleButton>
+        {added && (
+          <RippleButton
+            size="sm"
+            variant="input"
+            disabled={busy}
+            onClick={() => onRemove?.(item)}
+          >
+            Remove
+          </RippleButton>
+        )}
+      </div>
     </div>
   )
 }

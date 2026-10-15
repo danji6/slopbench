@@ -6,7 +6,7 @@ import type { AuthQueryCtx } from '../../functions'
 import type { SkillListArgs } from '../../types'
 import { requireAdmin, requireOwnedAgent } from './access'
 
-/** Filters availability against all home assignments, not just client-loaded pages. */
+/** Includes assignment state from the whole home, independent of client-loaded pages. */
 export async function list(ctx: AuthQueryCtx, args: SkillListArgs) {
   requireAdmin(ctx)
 
@@ -14,6 +14,9 @@ export async function list(ctx: AuthQueryCtx, args: SkillListArgs) {
     ? await requireOwnedAgent(ctx, args.agentId, ctx.userId)
     : null
   const prefix = args.search?.trim().toLowerCase() ?? ''
+  if (agent && args.assignment === 'added') {
+    return addedSkills(ctx, agent._id, args.paginationOpts, prefix)
+  }
   const result = await ctx.db
     .query('skills')
     .withIndex('by_ownerId_name', (q) => {
@@ -23,23 +26,41 @@ export async function list(ctx: AuthQueryCtx, args: SkillListArgs) {
         : owned
     })
     .paginate(args.paginationOpts)
-  if (!agent) return result
-
-  const available = await Promise.all(
+  const skills = await Promise.all(
     result.page.map(async (skill) => {
-      if (skill.status !== 'ready') return false
-      if (!agent.homeId) return true
-      const assignment = await ctx.db
-        .query('agentSkills')
-        .withIndex('by_homeId_name', (q) =>
-          q.eq('homeId', agent.homeId!).eq('name', skill.name),
-        )
-        .first()
-      return !assignment
+      const assignment = agent?.homeId
+        ? await ctx.db
+            .query('agentSkills')
+            .withIndex('by_homeId_name', (q) =>
+              q.eq('homeId', agent.homeId!).eq('name', skill.name),
+            )
+            .first()
+        : null
+      return { ...skill, assignmentId: assignment?._id ?? null }
     }),
   )
 
-  return { ...result, page: result.page.filter((_, i) => available[i]) }
+  const page =
+    args.assignment === 'not-added'
+      ? skills.filter((skill) => !skill.assignmentId)
+      : skills
+  return { ...result, page }
+}
+
+async function addedSkills(
+  ctx: AuthQueryCtx,
+  agentId: Id<'agents'>,
+  options: PaginationOptions,
+  prefix: string,
+) {
+  const result = await assignmentPage(ctx, agentId, options, prefix)
+  const skills = await Promise.all(
+    result.page.map(async (assignment) => {
+      const skill = await ctx.db.get(assignment.skillId)
+      return skill ? { ...skill, assignmentId: assignment._id } : null
+    }),
+  )
+  return { ...result, page: skills.filter((skill) => skill !== null) }
 }
 
 export async function assigned(

@@ -4,11 +4,16 @@ import type { ReactNode } from 'react'
 
 type AgentFileAccessProps = {
   agentId?: Id<'agents'>
+  className?: string
   children: (agentId: Id<'agents'>) => ReactNode
 }
 
 /** Shows filesystem controls only for a saved agent and an administrator. */
-export function AgentFileAccess({ agentId, children }: AgentFileAccessProps) {
+export function AgentFileAccess({
+  agentId,
+  className,
+  children,
+}: AgentFileAccessProps) {
   const admin = useIsAdmin()
   if (!admin) {
     return (
@@ -24,5 +29,9 @@ export function AgentFileAccess({ agentId, children }: AgentFileAccessProps) {
       </p>
     )
   }
-  return <div key={agentId}>{children(agentId)}</div>
+  return (
+    <div key={agentId} className={className}>
+      {children(agentId)}
+    </div>
+  )
 }
