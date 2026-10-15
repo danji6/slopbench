@@ -4,6 +4,7 @@
 
 export * from './file-change-block'
 export * from './highlighted-command'
+export * from './list-skills-block'
 export * from './load-full-output'
 export * from './plan-block'
 export * from './question-block'

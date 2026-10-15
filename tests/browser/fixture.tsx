@@ -11,6 +11,12 @@ const SkillsFixture = lazy(() =>
   })),
 )
 
+const SkillToolsFixture = lazy(() =>
+  import('./skill-tools-fixture').then((module) => ({
+    default: module.SkillToolsFixture,
+  })),
+)
+
 function PreviewFixture() {
   const [source, setSource] = useState('{{ user }}')
   const [clicks, setClicks] = useState(0)
@@ -52,7 +58,11 @@ function PreviewFixture() {
 }
 
 createRoot(document.getElementById('root')!).render(
-  new URLSearchParams(location.search).get('fixture') === 'skills' ? (
+  new URLSearchParams(location.search).get('fixture') === 'skill-tools' ? (
+    <Suspense fallback={<p>Loading tool fixture…</p>}>
+      <SkillToolsFixture />
+    </Suspense>
+  ) : new URLSearchParams(location.search).get('fixture') === 'skills' ? (
     <Suspense fallback={<p>Loading skills fixture…</p>}>
       <SkillsFixture />
     </Suspense>

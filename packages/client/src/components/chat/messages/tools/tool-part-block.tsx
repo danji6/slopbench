@@ -2,11 +2,12 @@ import type { ToolUIPart } from 'ai'
 
 import { ToolBlock } from '../tool-block'
 import { FileChangeBlock } from './file-change-block'
+import { ListSkillsBlock } from './list-skills-block'
 import { PlanBlock } from './plan-block'
+import { QuestionBlock } from './question-block'
 import { ShellBlock } from './shell-block'
 import { SubagentBlock } from './subagent-block'
 import { EditTodoBlock, WriteTodoBlock } from './todo-block'
-import { QuestionBlock } from './question-block'
 import { WebFetchBlock } from './web-fetch-block'
 
 export type ToolRendererProps = {
@@ -25,6 +26,8 @@ export function ToolPartBlock(props: ToolRendererProps) {
       return <ShellBlock {...props} />
     case 'web_fetch':
       return <WebFetchBlock {...props} />
+    case 'list_skills':
+      return <ListSkillsBlock {...props} />
     case 'task':
       return <SubagentBlock {...props} />
     case 'write_plan':

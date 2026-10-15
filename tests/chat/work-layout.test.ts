@@ -243,6 +243,30 @@ test('typed messages without reasoning headers retain their body reasoning', () 
 })
 
 describe('work summaries', () => {
+  test('labels skill listings once without counting them as other tools', () => {
+    for (const count of [1, 3]) {
+      const msg = message(
+        Array.from({ length: count }, (_, index) =>
+          tool('list_skills', `skills-${index}`, { search: 'game' }),
+        ),
+      )
+      expect(
+        summarizeWork(layout(msg).work[0], segmentGroupsFor(msg, undefined))
+          .label,
+      ).toBe('Listed skills')
+    }
+
+    const mixed = message([
+      tool('read_file', 'file', { path: 'SKILL.md' }),
+      tool('list_skills', 'skills'),
+      tool('custom', 'other'),
+    ])
+    expect(
+      summarizeWork(layout(mixed).work[0], segmentGroupsFor(mixed, undefined))
+        .label,
+    ).toBe('Read 1 file, listed skills, 1 other tool call')
+  })
+
   test('deduplicates file paths per category, combines writes/edits, and excludes output polls', () => {
     const msg = message([
       tool('read_file', 'r1', { path: 'a' }),

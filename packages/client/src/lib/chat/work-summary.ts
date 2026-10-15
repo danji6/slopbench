@@ -49,6 +49,7 @@ function activityLabel(tools: ToolUIPart[]): string {
   let attachmentReadCalls = 0
   const changes = new Set<string>()
   let commands = 0
+  let listedSkills = false
   let other = 0
 
   for (const part of tools) {
@@ -64,6 +65,8 @@ function activityLabel(tools: ToolUIPart[]): string {
       changes.add(path)
     } else if (part.type === 'tool-shell') {
       commands++
+    } else if (part.type === 'tool-list_skills') {
+      listedSkills = true
     } else if (part.type !== 'tool-shell_output') {
       other++
     }
@@ -75,6 +78,7 @@ function activityLabel(tools: ToolUIPart[]): string {
       attachmentReadLabel(attachmentReadCalls),
       countLabel(changes.size, 'edited', 'file'),
       countLabel(commands, 'ran', 'command'),
+      listedSkills ? 'listed skills' : '',
       other ? `${other} other tool ${other === 1 ? 'call' : 'calls'}` : '',
     ]
       .filter(Boolean)
