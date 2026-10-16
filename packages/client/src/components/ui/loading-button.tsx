@@ -43,7 +43,9 @@ export function LoadingButton({
           className="size-5 shrink-0 animate-spin text-current"
         />
       </motion.span>
-      {children}
+      <span className="inline-flex items-center justify-center gap-2">
+        {children}
+      </span>
     </RippleButton>
   )
 }

@@ -83,6 +83,7 @@ function CollapsibleTrigger({
       variant="stealth"
       size="lg"
       data-slot="collapsible-trigger"
+      aria-expanded={isOpen}
       className={cn(
         'focus-visible:border-ring hover:bg-m3-surface-container-high group/collapsible flex w-full items-center justify-between rounded-none border border-transparent font-bold transition-colors outline-none focus-visible:border focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50',
         className,

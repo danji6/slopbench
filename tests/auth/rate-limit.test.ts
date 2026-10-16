@@ -128,6 +128,13 @@ describe('auth failure rate limit', () => {
     expect(authFailureRateLimit('/api/auth/convex/token', '203.0.113.4')).toBe(
       null,
     )
+    expect(
+      authFailureRateLimit('/api/auth/change-password', '203.0.113.4'),
+    ).toEqual({
+      key: rateLimitKey('auth:change-password', '203.0.113.4'),
+      ...AUTH_FAILURE_RATE_LIMIT,
+    })
+    expect(authFailureRateLimit('/api/auth/sign-out', '203.0.113.4')).toBe(null)
   })
 
   test('counts caller failures but not server failures', () => {

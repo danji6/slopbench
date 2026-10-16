@@ -13,6 +13,7 @@ import {
   SettingsTabs,
 } from '@/components/ui'
 import { getFontFamily } from '@/fonts'
+import { useAccountSecurity } from '@/hooks/account-security'
 import {
   useMcpServers,
   useModelProviders,
@@ -44,6 +45,11 @@ import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 
 import { ShellSettings } from '../shell-settings'
+import {
+  AccountLogoutConfirmation,
+  AccountSecurityForm,
+  AccountSecuritySettings,
+} from './account-security-settings'
 import { AppearanceSettings } from './appearance-settings'
 import { BehaviorSettings } from './behavior-settings'
 import { McpSettings } from './mcp-settings'
@@ -230,11 +236,12 @@ function ChatSettingsDialog({
       view.open(USER_SETTINGS_DEFAULT_TAB)
       return
     }
-    if (isDirty || saving) return
+    if (isDirty || saving || security.pending) return
     view.close()
   }
 
   function handleClose() {
+    if (security.pending) return
     view.close()
   }
 
@@ -266,6 +273,23 @@ function ChatSettingsDialog({
   })
 
   const { saving, apply, save } = useSettingsSave(form, persist, handleClose)
+  const security = useAccountSecurity({
+    active: open && activeTab === 'user',
+    settingsBusy: saving,
+    hasUnsavedSettings: isDirty,
+    onLoggedOut: () => {
+      discard()
+      view.close()
+    },
+  })
+
+  function handleApply(event: React.SubmitEvent<HTMLFormElement>) {
+    if (security.pending) {
+      event.preventDefault()
+      return
+    }
+    void apply(event)
+  }
 
   if (!settings) return null
 
@@ -282,17 +306,19 @@ function ChatSettingsDialog({
           )}
         >
           <LoadingOverlay
-            show={saving}
+            show={saving || security.pending}
             className="bg-background/40 rounded-lg backdrop-blur-none"
           />
 
-          <form className="flex min-h-0 flex-1 flex-col" onSubmit={apply}>
+          <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleApply}>
             <Dialog.Header className="px-6 py-4">
               <Dialog.Title>Settings</Dialog.Title>
             </Dialog.Header>
             <SettingsTabs
               value={activeTab}
-              onValueChange={(tab: string) => view.setValue(tab)}
+              onValueChange={(tab: string) => {
+                if (!security.pending) view.setValue(tab)
+              }}
               className="border-border min-h-0 flex-1 border-t"
             >
               <SettingsTabs.List className="border-border">
@@ -325,6 +351,7 @@ function ChatSettingsDialog({
                   onStageAvatar={handleStageAvatar}
                   onClearAvatar={() => setAvatarCleared(true)}
                 />
+                <AccountSecuritySettings security={security} />
               </SettingsTabs.Content>
 
               <SettingsTabs.Content value="behavior" title="Behavior">
@@ -381,12 +408,13 @@ function ChatSettingsDialog({
 
             <SettingsFooter
               isDirty={isDirty}
-              busy={saving}
+              busy={saving || security.pending}
               onClose={handleClose}
               onDiscard={handleDiscard}
               onSave={save}
             />
           </form>
+          <AccountSecurityForm security={security} />
         </Dialog.Content>
       </ThemeScope>
 
@@ -400,8 +428,7 @@ function ChatSettingsDialog({
         cancelText="Keep editing"
         onConfirm={closeGuard.confirm}
       />
+      <AccountLogoutConfirmation security={security} />
     </Dialog>
   )
 }
-
-/** Drops API keys before the draft is written to local storage. */

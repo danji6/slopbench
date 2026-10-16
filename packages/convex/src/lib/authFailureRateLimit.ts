@@ -3,6 +3,7 @@ import { RETRY_AFTER_HEADER, rateLimitKey } from './rateLimits'
 const AUTH_FAILURE_SCOPES: Record<string, string> = {
   '/api/auth/sign-in/username': 'auth:sign-in',
   '/api/auth/sign-up/email': 'auth:sign-up',
+  '/api/auth/change-password': 'auth:change-password',
 }
 
 export const AUTH_FAILURE_RATE_LIMIT = { limit: 1, windowMs: 3_000 }

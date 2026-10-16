@@ -8,6 +8,7 @@ import {
 } from '@/components/ui'
 import { useCountdown } from '@/hooks/countdown'
 import { signIn, signUp } from '@/lib/auth/client'
+import { retryAfterSeconds } from '@/lib/auth/retry-after'
 import { extractErrorMessage } from '@/lib/errors'
 import { cn } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
@@ -35,7 +36,7 @@ export function LoginForm() {
   // The lockout window is owned by the server, the form only obeys it
   const fetchOptions = { onError: lockForRetryWindow }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SubmitEvent) {
     e.preventDefault()
     if (locked || loading) return
     setError(null)
@@ -134,10 +135,4 @@ export function LoginForm() {
       </Card.Root>
     </div>
   )
-}
-
-/** Seconds to wait, as decided by the server after an auth failure. */
-function retryAfterSeconds(response: Response): number {
-  const seconds = Number(response.headers.get('X-Retry-After'))
-  return Number.isFinite(seconds) && seconds > 0 ? seconds : 0
 }

@@ -3,4 +3,6 @@
  */
 
 export * from './client'
+export * from './password'
+export * from './retry-after'
 export * from './site-url'

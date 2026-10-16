@@ -23,6 +23,12 @@ const SessionFoldersFixture = lazy(() =>
   })),
 )
 
+const AccountSecurityFixture = lazy(() =>
+  import('./account-security-fixture').then((module) => ({
+    default: module.AccountSecurityFixture,
+  })),
+)
+
 function PreviewFixture() {
   const [source, setSource] = useState('{{ user }}')
   const [clicks, setClicks] = useState(0)
@@ -64,7 +70,12 @@ function PreviewFixture() {
 }
 
 createRoot(document.getElementById('root')!).render(
-  new URLSearchParams(location.search).get('fixture') === 'session-folders' ? (
+  new URLSearchParams(location.search).get('fixture') === 'account-security' ? (
+    <Suspense fallback={<p>Loading account settings…</p>}>
+      <AccountSecurityFixture />
+    </Suspense>
+  ) : new URLSearchParams(location.search).get('fixture') ===
+    'session-folders' ? (
     <Suspense fallback={<p>Loading session folders…</p>}>
       <SessionFoldersFixture />
     </Suspense>

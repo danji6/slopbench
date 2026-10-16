@@ -2,7 +2,9 @@ import { cn } from '@/lib/utils'
 import { type VariantProps, cva } from 'class-variance-authority'
 import type * as React from 'react'
 
-import { Input, RippleButton, Textarea } from '.'
+import { Input } from './input'
+import { RippleButton } from './ripple-button'
+import { Textarea } from './textarea'
 
 const inputGroupVariants = cva(
   cn(
