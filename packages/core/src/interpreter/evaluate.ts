@@ -2,19 +2,18 @@ import { CONSUMED_LINE, formatOutput } from './format'
 import { parse } from './parse'
 import { createSandbox } from './sandbox'
 import { createVariableStore } from './store'
-import type { Condition, EvalContext, VariableStore } from './types'
+import type {
+  Condition,
+  EvalContext,
+  FileScopeOptions,
+  ReadFileOptions,
+  VariableStore,
+} from './types'
 
 /** Host-provided functions exposed to dynamic blocks (all synchronous). */
 export type EvalHelpers = {
-  readFile?: (
-    path: string,
-    wrap?: boolean,
-    options?: { scope?: 'workspace' | 'agent' },
-  ) => string
-  fileExists?: (
-    path: string,
-    options?: { scope?: 'workspace' | 'agent' },
-  ) => boolean
+  readFile?: (path: string, options?: ReadFileOptions) => string
+  fileExists?: (path: string, options?: FileScopeOptions) => boolean
 }
 
 export function evaluate(

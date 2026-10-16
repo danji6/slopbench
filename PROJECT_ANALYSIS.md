@@ -1162,7 +1162,10 @@ tables/placeholder.
   lazily load Acorn analysis for local bindings, lexical scope, helper argument
   values, and active parameters. Prompt editors use the same JavaScript provider
   within individual interpreter code regions, offering environment names,
-  region-local bindings, signatures, and configured argument choices.
+  region-local bindings, signatures, and configured argument choices. Recursive
+  field metadata completes inline object keys and values, filters existing
+  sibling keys, and shows active field descriptions. Object and key insertions
+  retrigger completion while preserving enclosing snippet tab stops.
 - `snippet-stops`: multi-stop snippet insertion for completions
 - `reveal-insert`: scrolls a below-caret insertion into view without ever
   touching window scroll
@@ -1190,7 +1193,8 @@ with `selection`, `paragraph`, `message`, `toEnd`, or `toStart`; omitting the
 value or passing an empty string deletes the targeted content. Scripts can be
 pinned to the bubble toolbar, reordered in the script manager, and edited in a
 JavaScript `CodeEditor` with completions for helper
-names and variables.
+names and variables. The message context menu also opens the script manager,
+including on read-only messages; the bubble toolbar has no built-in Delete action.
 
 Prompt content editing uses `PromptContentEditor`, a Tiptap Markdown editor
 with normal Markdown blocks plus interpreter directives, highlighted and
@@ -1545,9 +1549,12 @@ directives while leaving normal fenced code and inline backticks alone:
 Directive lines leave no blank gap in the output. Dynamic code receives a fixed
 bindings map from `packages/core/src/interpreter/env.ts`: `user`, `owner`,
 `agent` (with `assistant`/`char`/`ai` aliases), `tools`, `isAdmin`,
-`userCount`, `agentCount`, `workDir`, `fileExists(path)`,
-`readFile(path, wrap?, { scope }?)`, and `getVar`/`setVar` backed by the session
-environment store.
+`userCount`, `agentCount`, `workDir`, `fileExists(path, { scope }?)`,
+`readFile(path, { wrap, scope }?)`, and `getVar`/`setVar` backed by the session
+environment store. File wrapping defaults to a `<file>` block, and the default
+scope is `workspace`; use `{ wrap: false, scope: 'agent' }` to read raw personal
+file contents. The former positional wrap and third options arguments are no
+longer accepted: saved prompts using them must be updated manually.
 
 Provider history is built from eligible done messages up to the stream context
 boundary, joined through each turn's selected-version segments in order. For

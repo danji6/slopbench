@@ -77,8 +77,8 @@ export class CompletionController {
     } finally {
       this.applying = false
     }
-    // A function snippet can place the caret directly in a completable argument
-    this.request(item.snippet !== undefined ? 'triggerCharacter' : 'selection')
+    const retrigger = item.snippet !== undefined || item.retrigger
+    this.request(retrigger ? 'triggerCharacter' : 'selection')
   }
 
   private publish(session: CompletionSession | null) {
@@ -161,7 +161,7 @@ export class CompletionController {
       const map = this.options.document(editor)
       const previous = map?.text[map.offset - 1]
       const trigger =
-        previous && ['(', ',', "'", '"'].includes(previous)
+        previous && ['(', ',', '{', ':', "'", '"'].includes(previous)
           ? 'triggerCharacter'
           : 'typing'
       this.request(trigger)

@@ -4,7 +4,12 @@ import type { QuickJSContext, QuickJSHandle } from 'quickjs-emscripten'
 import { SESSION_ENV_NAMES } from './env'
 import type { EvalHelpers } from './evaluate'
 import { EVAL_LIMITS } from './limits'
-import type { EvalContext, JsonValue, VariableStore } from './types'
+import type {
+  EvalContext,
+  JsonValue,
+  ReadFileOptions,
+  VariableStore,
+} from './types'
 
 /** Loads the isolated engine before synchronous rendering inside a worker. */
 export const initializeEvaluator = getQuickJS
@@ -91,22 +96,15 @@ function bindHelpers(
       store.set(stringArg(vm, key), JSON.parse(encoded) as JsonValue)
       return vm.undefined
     },
-    readFile: (
-      path: QuickJSHandle,
-      wrap?: QuickJSHandle,
-      options?: QuickJSHandle,
-    ) =>
-      vm.newString(
-        helpers.readFile?.(
-          stringArg(vm, path),
-          !wrap || vm.typeof(wrap) === 'undefined'
-            ? undefined
-            : vm.dump(wrap) !== false,
-          helperScope(vm, options),
-        ) ?? '',
-      ),
+    readFile: (...args: QuickJSHandle[]) => {
+      if (args.length > 2) throw new Error('readFile accepts path and options')
+      const [path, options] = args
+      const filePath = stringArg(vm, path!)
+      const settings = helperOptions(vm, options, true)
+      return vm.newString(helpers.readFile?.(filePath, settings) ?? '')
+    },
     fileExists: (path: QuickJSHandle, options?: QuickJSHandle) =>
-      helpers.fileExists?.(stringArg(vm, path), helperScope(vm, options))
+      helpers.fileExists?.(stringArg(vm, path), helperOptions(vm, options))
         ? vm.true
         : vm.false,
   }
@@ -128,20 +126,29 @@ function jsonHandle(vm: QuickJSContext, value: unknown): QuickJSHandle {
   return vm.unwrapResult(vm.evalCode(`(${JSON.stringify(value)})`))
 }
 
-function helperScope(
+/** Copies only validated file options across the guest boundary. */
+function helperOptions(
   vm: QuickJSContext,
   options?: QuickJSHandle,
-): { scope?: 'workspace' | 'agent' } | undefined {
-  if (!options || vm.typeof(options) === 'undefined') return undefined
-  const value = vm.dump(options) as { scope?: unknown } | null
-  if (
-    !value ||
-    typeof value !== 'object' ||
-    (value.scope !== undefined &&
-      value.scope !== 'workspace' &&
-      value.scope !== 'agent')
-  ) {
+  allowWrap = false,
+): ReadFileOptions | undefined {
+  if (!options || vm.typeof(options) === 'undefined') {
+    return undefined
+  }
+
+  const value = vm.dump(options) as ReadFileOptions | null
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Expected a filesystem options object')
+  }
+
+  const { scope, wrap } = value
+  if (scope !== undefined && scope !== 'workspace' && scope !== 'agent') {
     throw new Error('Invalid filesystem scope')
   }
-  return { scope: value.scope }
+
+  if (allowWrap && wrap !== undefined && typeof wrap !== 'boolean') {
+    throw new Error('Expected a boolean wrap option')
+  }
+
+  return allowWrap ? { scope, wrap } : { scope }
 }

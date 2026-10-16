@@ -59,11 +59,13 @@ test('both absolute and relative home access require an explicit scope', () => {
 
 test('dynamic helpers select personal files explicitly without a project fallback', () => {
   const read = createFileHelper(undefined, undefined, personal)
-  expect(() => read('note.txt', false)).toThrow('scope')
-  expect(read('note.txt', false, { scope: 'agent' })).toBe('Personal note')
-  expect(read(path.join(personal, 'note.txt'), false, { scope: 'agent' })).toBe(
+  expect(() => read('note.txt', { wrap: false })).toThrow('scope')
+  expect(read('note.txt', { wrap: false, scope: 'agent' })).toBe(
     'Personal note',
   )
+  expect(
+    read(path.join(personal, 'note.txt'), { wrap: false, scope: 'agent' }),
+  ).toBe('Personal note')
   const exists = createFileExistsHelper(undefined, undefined, personal)
   expect(exists('note.txt')).toBe(false)
   expect(exists('note.txt', { scope: 'agent' })).toBe(true)

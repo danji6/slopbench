@@ -1,5 +1,6 @@
 import type {
   CompletionItem,
+  CompletionParameter,
   SignatureHelp,
 } from '@sb/core/code-completion/types'
 import type { Editor } from '@tiptap/react'
@@ -106,6 +107,13 @@ export function CompletionPopup(props: CompletionPopupProps) {
 
 function SignatureHint({ signature }: { signature: SignatureHelp }) {
   const param = signature.params[signature.activeParameter]
+  let field: CompletionParameter | undefined = param
+
+  for (const name of signature.activePropertyPath ?? [])
+    field = field?.properties?.find((entry) => entry.name === name)
+
+  const property = signature.activePropertyPath?.join('.')
+
   return (
     <div
       data-slot="signature-help"
@@ -131,8 +139,11 @@ function SignatureHint({ signature }: { signature: SignatureHelp }) {
         ))}
         )
       </div>
-      {param?.description && (
-        <div className="text-muted-foreground mt-1">{param.description}</div>
+      {field?.description && (
+        <div className="text-muted-foreground mt-1">
+          {property && <span className="font-mono">{property}: </span>}
+          {field.description}
+        </div>
       )}
     </div>
   )

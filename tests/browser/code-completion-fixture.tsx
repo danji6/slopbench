@@ -12,6 +12,29 @@ import { useState } from 'react'
 const symbols: Completion[] = [
   ...SCRIPT_COMPLETIONS,
   {
+    label: 'configure',
+    kind: 'function',
+    snippet: 'configure($1, ${2:tail})$0',
+    params: [
+      {
+        name: 'options',
+        properties: [
+          {
+            name: 'nested',
+            properties: [
+              {
+                name: 'scope',
+                values: ['workspace', 'agent'],
+                description: 'Nested scope',
+              },
+            ],
+          },
+        ],
+      },
+      { name: 'tail' },
+    ],
+  },
+  {
     label: 'wrap',
     kind: 'function',
     snippet: 'wrap(${1:text}, ${2:message})$0',

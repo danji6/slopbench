@@ -24,7 +24,11 @@ export function applyCompletion(
     item.snippet === undefined
       ? { text: item.insertText ?? item.label, stops: [] }
       : parseSnippet(item.snippet)
-  const first = stops[0] ?? { start: text.length, end: text.length }
+  const caret = Math.max(
+    0,
+    Math.min(text.length, item.caretOffset ?? text.length),
+  )
+  const first = stops[0] ?? { start: caret, end: caret }
 
   editor
     .chain()

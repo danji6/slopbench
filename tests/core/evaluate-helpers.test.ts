@@ -1,5 +1,6 @@
 /// <reference types="bun-types" />
 import { evaluate } from '@sb/core/interpreter/evaluate'
+import type { ReadFileOptions } from '@sb/core/interpreter/types'
 import { describe, expect, test } from 'bun:test'
 
 describe('evaluate file helper', () => {
@@ -26,17 +27,56 @@ describe('evaluate file helper', () => {
     expect(evaluate(text, {}, undefined, { readFile: () => '' })).toBe('')
   })
 
-  test('forwards the wrap argument to the helper', () => {
-    const readFile = (path: string, wrap = true) =>
-      wrap ? `<file path="${path}">wrapped</file>` : 'raw'
+  test('forwards wrap in the options object to the helper', () => {
+    const readFile = (path: string, options?: ReadFileOptions) =>
+      options?.wrap !== false ? `<file path="${path}">wrapped</file>` : 'raw'
     expect(
       evaluate("{{ readFile('AGENTS.md') }}", {}, undefined, { readFile }),
     ).toBe('<file path="AGENTS.md">wrapped</file>')
     expect(
-      evaluate("{{ readFile('AGENTS.md', false) }}", {}, undefined, {
+      evaluate("{{ readFile('AGENTS.md', { wrap: false }) }}", {}, undefined, {
         readFile,
       }),
     ).toBe('raw')
+  })
+
+  test('copies both options and preserves omitted options', () => {
+    const calls: unknown[][] = []
+    const readFile = (...args: [string, ReadFileOptions?]) => {
+      calls.push(args)
+      return 'ok'
+    }
+    for (const source of [
+      "readFile('note')",
+      "readFile('note', undefined)",
+      "readFile('note', {})",
+      "readFile('note', { wrap: false, scope: 'agent' })",
+    ])
+      evaluate(`{{ ${source} }}`, {}, undefined, { readFile })
+    expect(calls).toEqual([
+      ['note', undefined],
+      ['note', undefined],
+      ['note', { wrap: undefined, scope: undefined }],
+      ['note', { wrap: false, scope: 'agent' }],
+    ])
+  })
+
+  test.each([
+    'false',
+    'true',
+    'null',
+    '[]',
+    "'agent'",
+    "{ scope: 'other' }",
+    "{ wrap: 'false' }",
+    '{ wrap: 0 }',
+    "undefined, { scope: 'agent' }",
+  ])('rejects invalid or legacy options: %s', (options) => {
+    expect(() =>
+      evaluate(`{{ readFile('note', ${options}) }}`, {}, undefined, {
+        readFile: () => 'should not run',
+      }),
+    ).toThrow('Dynamic JavaScript')
   })
 
   test('defaults to an empty string when no helper is provided', () => {

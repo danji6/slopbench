@@ -243,7 +243,7 @@ for (const language of ['css', 'json']) {
   })
 }
 
-test('prompt readFile offers wrap choices and literal scope options with active parameter hints', async ({
+test('prompt readFile completes object fields and their values with active hints', async ({
   page,
 }) => {
   await page.getByLabel('Prompt editor', { exact: true }).check()
@@ -251,18 +251,23 @@ test('prompt readFile offers wrap choices and literal scope options with active 
   await page.keyboard.press('Control+Space')
   await expect(
     page.locator('[data-slot="signature-help"] .font-bold'),
-  ).toHaveText('wrap?')
-  await page.getByRole('option', { name: 'false value' }).click()
-  await expect(editorFor(page)).toHaveText(
-    "Intro {{ readFile('notes.md', false) }} End",
+  ).toHaveText('options?')
+  await page.getByRole('option', { name: '{} value', exact: true }).click()
+  await page.getByRole('option', { name: 'wrap property', exact: true }).click()
+  await expect(page.locator('[data-slot="signature-help"]')).toContainText(
+    'Wrap the contents in a <file> block',
   )
+  await page.getByRole('option', { name: 'false value', exact: true }).click()
   await page.keyboard.type(', ')
   await expect(
-    page.locator('[data-slot="signature-help"] .font-bold'),
-  ).toHaveText('options?')
-  await page.getByRole('option', { name: 'agent value' }).click()
+    popupFor(page).getByRole('option', { name: 'wrap property', exact: true }),
+  ).toHaveCount(0)
+  await page
+    .getByRole('option', { name: 'scope property', exact: true })
+    .click()
+  await page.getByRole('option', { name: 'agent value', exact: true }).click()
   await expect(editorFor(page)).toHaveText(
-    "Intro {{ readFile('notes.md', false, { scope: 'agent' }) }} End",
+    "Intro {{ readFile('notes.md', {wrap: false, scope: 'agent'}) }} End",
   )
 })
 
@@ -272,12 +277,15 @@ test('prompt fileExists completes scope options across paragraphs', async ({
   await page.getByLabel('Prompt editor', { exact: true }).check()
   await setSource(
     page,
-    "Introduction\n#eval\nreturn fileExists('notes.md', ▌)\n#end\nConclusion",
+    "Introduction\n#eval\nreturn fileExists('notes.md', { sc▌ope: 'agent' })\n#end\nConclusion",
   )
   await page.keyboard.press('Control+Space')
   await expect(page.locator('[data-slot="signature-help"]')).toContainText(
     'fileExists(path, options?)',
   )
+  await page
+    .getByRole('option', { name: 'scope property', exact: true })
+    .click()
   await page.getByRole('option', { name: 'workspace value' }).click()
   await expect
     .poll(() =>
@@ -306,7 +314,9 @@ test('prompt snippet arguments offer hints and completions stay out of prose and
   await page.keyboard.insertText('notes.md')
   await page.keyboard.press('ArrowRight')
   await page.keyboard.type(', ')
-  await expect(page.getByRole('option', { name: 'true value' })).toBeVisible()
+  await expect(
+    page.getByRole('option', { name: '{} value', exact: true }),
+  ).toBeVisible()
   await page.getByRole('button', { name: 'Outside editor' }).click()
   await setSource(page, "{{ readFile('model▌') }}")
   await page.keyboard.press('Control+Space')
@@ -315,4 +325,31 @@ test('prompt snippet arguments offer hints and completions stay out of prose and
   await setSource(page, 'plain readF▌')
   await page.keyboard.press('Control+Space')
   await expect(popupFor(page)).toHaveCount(0)
+})
+
+test('nested object completions preserve the surrounding function snippet stops', async ({
+  page,
+}) => {
+  await setSource(page, 'conf▌')
+  await page.keyboard.press('Control+Space')
+  await page
+    .getByRole('option', { name: 'configure function', exact: true })
+    .click()
+  await page.getByRole('option', { name: '{} value', exact: true }).click()
+  await page
+    .getByRole('option', { name: 'nested property', exact: true })
+    .click()
+  await page.getByRole('option', { name: '{} value', exact: true }).click()
+  await page
+    .getByRole('option', { name: 'scope property', exact: true })
+    .click()
+  await expect(page.locator('[data-slot="signature-help"]')).toContainText(
+    'nested.scope: Nested scope',
+  )
+  await page.getByRole('option', { name: 'agent value', exact: true }).click()
+  await expect(page.getByLabel('Saved code')).toHaveText(
+    "configure({nested: {scope: 'agent'}}, tail)",
+  )
+  await page.keyboard.press('Tab')
+  await expect.poll(() => selectedText(page)).toBe('tail')
 })

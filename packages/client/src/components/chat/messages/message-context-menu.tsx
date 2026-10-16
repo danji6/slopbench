@@ -7,6 +7,7 @@ import {
   useHasNewerMessages,
   useRetryMessage,
 } from '@/hooks/chat'
+import { useOpenScriptManager } from '@/hooks/chat/script-manager'
 import { extractTextFromMessage, isEditableMessage } from '@/lib/chat'
 import type { MessageRecord } from '@/lib/chat'
 import {
@@ -26,7 +27,13 @@ import {
   isTextUIPart,
   isToolUIPart,
 } from 'ai'
-import { CopyIcon, PencilIcon, RotateCcwIcon, Trash2Icon } from 'lucide-react'
+import {
+  CopyIcon,
+  GanttChartIcon,
+  PencilIcon,
+  RotateCcwIcon,
+  Trash2Icon,
+} from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 
 import { prefetchRichTextEditor } from './editor/editable-text'
@@ -74,7 +81,6 @@ type MenuState = {
     submenu: boolean
   }
   retry: boolean
-  hasTopItems: boolean
 }
 
 function copy(text: string) {
@@ -89,6 +95,7 @@ export function MessageContextMenu({
   children,
 }: MessageContextMenuProps) {
   const editCtx = useMessageEdit()
+  const openScriptManager = useOpenScriptManager()
   const deleteMessage = useDeleteMessage()
   const deleteMessageParts = useDeleteMessageParts()
   const deleteMessagesFrom = useDeleteMessagesFrom()
@@ -162,17 +169,7 @@ export function MessageContextMenu({
     })
   }
 
-  const ownsReasoning = row.kind === 'header' && row.reasoning !== undefined
-
   if (isEditing) return children
-  if (
-    !menu.hasTopItems &&
-    !menu.delete.message &&
-    !menu.retry &&
-    !ownsReasoning
-  ) {
-    return children
-  }
 
   return (
     <>
@@ -185,9 +182,7 @@ export function MessageContextMenu({
                 <RotateCcwIcon />
                 Retry
               </ContextMenu.Item>
-              {(menu.hasTopItems || menu.delete.message) && (
-                <ContextMenu.Separator />
-              )}
+              <ContextMenu.Separator />
             </>
           )}
           <EditMenu
@@ -196,7 +191,11 @@ export function MessageContextMenu({
             onEditMessage={startEditMessage}
           />
           <CopyMenu copy={menu.copy} />
-          {menu.hasTopItems && menu.delete.message && <ContextMenu.Separator />}
+          <ContextMenu.Item onSelect={openScriptManager}>
+            <GanttChartIcon />
+            Scripts
+          </ContextMenu.Item>
+          {menu.delete.message && <ContextMenu.Separator />}
           {menu.delete.message && (
             <DeleteMenu
               deleteState={menu.delete}
@@ -496,12 +495,6 @@ function getMessageContextMenuState(
         blockAddresses.length > 0,
     },
     retry: canMutate && message.role === 'assistant',
-    hasTopItems: Boolean(
-      availableEditBlock ||
-      availableEditMessageText ||
-      canCopyBlock ||
-      messageText,
-    ),
   }
 }
 

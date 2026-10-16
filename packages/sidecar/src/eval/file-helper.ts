@@ -1,3 +1,7 @@
+import type {
+  FileScopeOptions,
+  ReadFileOptions,
+} from '@sb/core/interpreter/types'
 import { fileBlock } from '@sb/core/workspace/blocks'
 import {
   closeSync,
@@ -52,7 +56,7 @@ function resolveInside(
 }
 
 /**
- * Builds the `readFile(path, wrap)` helper exposed to dynamic prompt blocks:
+ * Builds the `readFile(path, options)` helper exposed to dynamic prompt blocks:
  * - Reads are confined to the workspace root (throws if outside the workspace).
  * - A missing file or no bound workspace returns ''.
  * - `wrap` wraps the content in a `<file path="...">` block.
@@ -61,8 +65,8 @@ export function createFileHelper(
   workDir: string | undefined,
   workDirs?: string[],
   agentDir?: string,
-): (filePath: string, wrap?: boolean, options?: ScopeOptions) => string {
-  return (filePath, wrap = true, options) => {
+): (filePath: string, options?: ReadFileOptions) => string {
+  return (filePath, options) => {
     const target = scopedTarget(
       { workDir, workDirs, agentDir },
       filePath,
@@ -79,7 +83,7 @@ export function createFileHelper(
     if (content.length > MAX_FILE_BYTES) {
       content = `${content.slice(0, MAX_FILE_BYTES)}\n[truncated]`
     }
-    return wrap ? fileBlock(filePath, content) : content
+    return options?.wrap === false ? content : fileBlock(filePath, content)
   }
 }
 
@@ -107,7 +111,7 @@ export function createFileExistsHelper(
   workDir: string | undefined,
   workDirs?: string[],
   agentDir?: string,
-): (filePath: string, options?: ScopeOptions) => boolean {
+): (filePath: string, options?: FileScopeOptions) => boolean {
   return (filePath, options) => {
     try {
       const target = scopedTarget(
@@ -122,13 +126,12 @@ export function createFileExistsHelper(
   }
 }
 
-type ScopeOptions = { scope?: 'workspace' | 'agent' }
 type HelperRoots = { workDir?: string; workDirs?: string[]; agentDir?: string }
 
 function scopedTarget(
   input: HelperRoots,
   filePath: string,
-  options?: ScopeOptions,
+  options?: FileScopeOptions,
 ) {
   const personal = options?.scope === 'agent'
   const root = resolveRoot(personal ? input.agentDir : input.workDir)

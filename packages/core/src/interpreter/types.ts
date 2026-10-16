@@ -6,6 +6,10 @@ export type JsonValue =
   | JsonValue[]
   | { [key: string]: JsonValue } // prettier-ignore
 
+export type FileScopeOptions = { scope?: 'workspace' | 'agent' }
+
+export type ReadFileOptions = FileScopeOptions & { wrap?: boolean }
+
 export type EvalContext = {
   user?: string
   assistant?: string

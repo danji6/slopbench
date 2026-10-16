@@ -83,12 +83,12 @@ async function labelsAt(editor: Editor, needle: string): Promise<string[]> {
 
 describe('session completions across the interpreter grammar', () => {
   test.each([
-    "Introduction {{ readFile('notes.md', ▌) }} Conclusion",
-    "Introduction\n#eval\nreturn readFile('notes.md', ▌)\n#end\nConclusion",
-    "#if readFile('notes.md', ▌)\nBody\n#endif",
-    "#if\nreturn readFile('notes.md', ▌)\n#then\nBody\n#endif",
-    "#elif readFile('notes.md', ▌)\nBody\n#endif",
-    "#eval\nreturn readFile('notes.md', ▌",
+    "Introduction {{ readFile('notes.md', { wrap: ▌ }) }} Conclusion",
+    "Introduction\n#eval\nreturn readFile('notes.md', { wrap: ▌ })\n#end\nConclusion",
+    "#if readFile('notes.md', { wrap: ▌ })\nBody\n#endif",
+    "#if\nreturn readFile('notes.md', { wrap: ▌ })\n#then\nBody\n#endif",
+    "#elif readFile('notes.md', { wrap: ▌ })\nBody\n#endif",
+    "#eval\nreturn readFile('notes.md', { wrap: ▌",
   ])('offers wrap choices within %s', async (source) => {
     const result = await completePrompt(source)
     expect(result.items.map((item) => item.label)).toEqual(['true', 'false'])
@@ -97,21 +97,38 @@ describe('session completions across the interpreter grammar', () => {
     expect(result.signature?.from).toBe(source.indexOf('('))
   })
 
-  test('inserts literal booleans and complete scope options without adding quotes', async () => {
+  test('inserts individual field values without changing surrounding syntax', async () => {
     expect(
-      await insertPrompt("Intro {{ readFile('notes.md', fa▌) }} End", 'false'),
-    ).toBe("Intro {{ readFile('notes.md', false) }} End")
+      await insertPrompt(
+        "Intro {{ readFile('notes.md', { wrap: fa▌ }) }} End",
+        'false',
+      ),
+    ).toBe("Intro {{ readFile('notes.md', { wrap: false }) }} End")
     expect(
-      await insertPrompt("{{ fileExists('notes.md', a▌) }}", 'agent'),
+      await insertPrompt(
+        "{{ fileExists('notes.md', { scope: 'a▌' }) }}",
+        'agent',
+      ),
     ).toBe("{{ fileExists('notes.md', { scope: 'agent' }) }}")
     expect(
       await insertPrompt(
-        "#eval\nreturn readFile('notes.md', true, ▌)\n#end",
+        "#eval\nreturn readFile('notes.md', { scope: ▌ })\n#end",
         'workspace',
       ),
-    ).toBe(
-      "#eval\nreturn readFile('notes.md', true, { scope: 'workspace' })\n#end",
+    ).toBe("#eval\nreturn readFile('notes.md', { scope: 'workspace' })\n#end")
+  })
+
+  test('maps object keys and field hints across prompt paragraphs', async () => {
+    const source = "Intro\n#eval\nreadFile('note', {\n  wr▌\n})\n#end\nEnd"
+    expect(await insertPrompt(source, 'wrap')).toBe(
+      source.replace('wr▌', 'wrap: '),
     )
+    const result = await completePrompt(
+      "{{ readFile('note', { wrap: ▌ }) }}",
+      'selection',
+    )
+    expect(result.items).toEqual([])
+    expect(result.signature?.activePropertyPath).toEqual(['wrap'])
   })
 
   test('shows parameter hints on caret movement without opening suggestions', async () => {

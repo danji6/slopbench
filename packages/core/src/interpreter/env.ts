@@ -5,16 +5,35 @@ export type SessionEnvParam = CompletionParameter & {
   description: string
 }
 
+const FILE_SCOPE: SessionEnvParam = {
+  name: 'scope',
+  description: 'Resolve relative paths in the workspace (default) or agent folder', // prettier-ignore
+  optional: true,
+  values: ['workspace', 'agent'],
+}
+
 const FILE_SCOPE_OPTIONS: SessionEnvParam = {
   name: 'options',
-  description:
-    'Use { scope: "workspace" } (default) or { scope: "agent" } for relative paths',
+  description: 'Options for resolving files in the workspace or agent folder',
   optional: true,
-  values: ['workspace', 'agent'].map((scope) => ({
-    label: scope,
-    insertText: `{ scope: '${scope}' }`,
-    description: `Resolve relative paths in the ${scope} folder`,
-  })),
+  properties: [FILE_SCOPE],
+}
+
+const READ_FILE_OPTIONS: SessionEnvParam = {
+  ...FILE_SCOPE_OPTIONS,
+  description: 'Options for file wrapping and filesystem scope',
+  properties: [
+    {
+      name: 'wrap',
+      description: 'Wrap the contents in a <file> block (default: true)',
+      optional: true,
+      values: ['true', 'false'].map((value) => ({
+        label: value,
+        insertText: value,
+      })),
+    },
+    FILE_SCOPE,
+  ],
 }
 
 export type SessionEnvEntry = {
@@ -119,16 +138,7 @@ export const SESSION_ENV: SessionEnvEntry[] = [
         name: 'path',
         description: 'Path relative to the selected scope, or an absolute path',
       },
-      {
-        name: 'wrap',
-        description: 'Wrap the contents in a fenced code block (default: true)',
-        optional: true,
-        values: ['true', 'false'].map((value) => ({
-          label: value,
-          insertText: value,
-        })),
-      },
-      FILE_SCOPE_OPTIONS,
+      READ_FILE_OPTIONS,
     ],
     snippet: "readFile('${1:path}')",
   },

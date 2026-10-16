@@ -3,7 +3,7 @@ export type Completion = {
   label: string
   detail?: string
   description?: string
-  kind?: 'variable' | 'function' | 'class' | 'parameter' | 'value'
+  kind?: 'variable' | 'function' | 'class' | 'parameter' | 'property' | 'value'
   /** Literal insertion text; unlike snippets, dollar signs are preserved. */
   insertText?: string
   /** Supports $1, ${1:placeholder}, and the final caret $0. */
@@ -17,6 +17,8 @@ export type CompletionParameter = {
   optional?: boolean
   /** Strings insert quoted values; objects supply literal JavaScript edits. */
   values?: readonly (string | CompletionValue)[]
+  /** Fields offered inside an inline object literal. */
+  properties?: readonly CompletionParameter[]
 }
 
 export type CompletionValue = {
@@ -34,12 +36,19 @@ export type CompletionRequest = {
   trigger: 'typing' | 'explicit' | 'triggerCharacter' | 'selection'
 }
 
-export type CompletionItem = Completion & CompletionRange
+export type CompletionItem = Completion &
+  CompletionRange & {
+    /** Caret offset relative to the inserted text, preserving outer snippet stops. */
+    caretOffset?: number
+    /** Requests suggestions immediately after accepting this edit. */
+    retrigger?: boolean
+  }
 
 export type SignatureHelp = {
   label: string
   params: CompletionParameter[]
   activeParameter: number
+  activePropertyPath?: readonly string[]
   /** Source offset of the call's opening parenthesis. */
   from: number
 }

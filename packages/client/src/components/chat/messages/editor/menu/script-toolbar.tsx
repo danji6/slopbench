@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils'
 import type { Editor } from '@tiptap/react'
 import {
   BoldIcon,
-  DeleteIcon,
   GanttChartIcon,
   ItalicIcon,
   QuoteIcon,
@@ -39,13 +38,7 @@ const DEFAULT_ACTIONS: DefaultAction[] = [
     name: 'Clear formatting',
     icon: <RemoveFormattingIcon />,
     editorAction: (editor) => editor.chain().focus().unsetAllMarks().run(),
-  },
-  {
-    id: 'delete',
-    name: 'Delete',
-    icon: <DeleteIcon />,
     separator: true,
-    editorAction: (editor) => editor.chain().focus().deleteSelection().run(),
   },
   {
     id: 'bold',

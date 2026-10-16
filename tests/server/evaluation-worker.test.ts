@@ -133,7 +133,7 @@ describe('packaged Node evaluation workers', () => {
   }, 10_000)
 
   test('requires explicit filesystem authority, independent of guest context', async () => {
-    const text = '{{ readFile("fixture.txt", false) }}'
+    const text = '{{ readFile("fixture.txt", { wrap: false }) }}'
     const denied = await evaluate([text], {
       context: { workDir: root, isAdmin: true },
     })

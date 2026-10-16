@@ -32,12 +32,14 @@ describe('createFileHelper', () => {
 
   test('reads files relative to the workspace root, unwrapped', () => {
     const file = createFileHelper(root)
-    expect(file('AGENTS.md', false)).toBe('Use bun.\n')
-    expect(file('docs/STYLE.md', false)).toBe('Tabs.\n')
+    expect(file('AGENTS.md', { wrap: false })).toBe('Use bun.\n')
+    expect(file('docs/STYLE.md', { wrap: false })).toBe('Tabs.\n')
   })
 
   test('wraps content in a file block by default', () => {
     const file = createFileHelper(root)
+    expect(file('AGENTS.md', {})).toBe(file('AGENTS.md'))
+    expect(file('AGENTS.md', { wrap: true })).toBe(file('AGENTS.md'))
     expect(file('AGENTS.md')).toBe(
       '<file path="AGENTS.md">\nUse bun.\n\n</file>',
     )
@@ -70,7 +72,7 @@ describe('createFileHelper', () => {
 
   test('truncates oversized files', async () => {
     await writeFile(path.join(root, 'big.txt'), 'x'.repeat(60_000), 'utf-8')
-    const content = createFileHelper(root)('big.txt', false)
+    const content = createFileHelper(root)('big.txt', { wrap: false })
     expect(content.endsWith('\n[truncated]')).toBe(true)
     expect(content.length).toBeLessThan(60_000)
   })

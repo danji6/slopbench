@@ -17,6 +17,12 @@ const CodeCompletionFixture = lazy(() =>
   })),
 )
 
+const ScriptMenusFixture = lazy(() =>
+  import('./script-menus-fixture').then((module) => ({
+    default: module.ScriptMenusFixture,
+  })),
+)
+
 const SkillsFixture = lazy(() =>
   import('./skills-fixture').then((module) => ({
     default: module.SkillsFixture,
@@ -82,7 +88,12 @@ function PreviewFixture() {
 }
 
 createRoot(document.getElementById('root')!).render(
-  new URLSearchParams(location.search).get('fixture') === 'code-completion' ? (
+  new URLSearchParams(location.search).get('fixture') === 'script-menus' ? (
+    <Suspense fallback={<p>Loading menus…</p>}>
+      <ScriptMenusFixture />
+    </Suspense>
+  ) : new URLSearchParams(location.search).get('fixture') ===
+    'code-completion' ? (
     <Suspense fallback={<p>Loading code editor…</p>}>
       <CodeCompletionFixture />
     </Suspense>

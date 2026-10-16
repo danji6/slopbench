@@ -1,11 +1,7 @@
-import {
-  SESSION_ENV,
-  type SessionEnvEntry,
-  type SessionEnvParam,
-  isEnvFunction,
-} from './env'
+import type { CompletionParameter } from '../code-completion/types'
+import { SESSION_ENV, type SessionEnvEntry, isEnvFunction } from './env'
 
-const paramSignature = (param: SessionEnvParam) =>
+const paramSignature = (param: CompletionParameter) =>
   `${param.name}${param.optional ? '?' : ''}`
 
 const functionSignature = (entry: SessionEnvEntry) =>
@@ -15,11 +11,24 @@ const variableRows = SESSION_ENV.filter((entry) => !isEnvFunction(entry))
   .map((entry) => `| \`${entry.name}\` | ${entry.description} |`)
   .join('\n')
 
+function parameterRows(
+  params: readonly CompletionParameter[],
+  prefix = '',
+): string {
+  return params
+    .map((param) => {
+      const name = `${prefix}${param.name}`
+      const row = `- \`${name}${param.optional ? '?' : ''}\` — ${param.description ?? ''}`
+      return param.properties
+        ? `${row}\n${parameterRows(param.properties, `${name}.`)}`
+        : row
+    })
+    .join('\n')
+}
+
 const functionSections = SESSION_ENV.filter(isEnvFunction)
   .map((entry) => {
-    const params = (entry.params ?? [])
-      .map((param) => `- \`${paramSignature(param)}\` — ${param.description}`)
-      .join('\n')
+    const params = parameterRows(entry.params ?? [])
     return `\`${functionSignature(entry)}\`\n\n${entry.description}\n\n${params}`
   })
   .join('\n\n')
