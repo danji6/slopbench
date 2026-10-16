@@ -8,13 +8,14 @@ import { BlockOpeners } from '@/lib/tiptap/extensions/block-openers'
 import { CodeEdit } from '@/lib/tiptap/extensions/code-edit'
 import { EditableLines } from '@/lib/tiptap/extensions/editable-lines'
 import { HardBreakKeys } from '@/lib/tiptap/extensions/hard-break'
+import { InlineSource } from '@/lib/tiptap/extensions/inline-source'
 import { LineBreaks } from '@/lib/tiptap/extensions/line-breaks'
 import { LineStarterKit } from '@/lib/tiptap/extensions/line-starter-kit'
 import { MarkExit } from '@/lib/tiptap/extensions/mark-exit'
-import { Markdown } from '@/lib/tiptap/extensions/markdown'
 import { MarkdownClipboard } from '@/lib/tiptap/extensions/markdown-clipboard'
 import { MarkdownMath } from '@/lib/tiptap/extensions/markdown-math'
 import { RevealInsert } from '@/lib/tiptap/extensions/reveal-insert'
+import { SourceMarkdown } from '@/lib/tiptap/extensions/source-markdown'
 import { TabIndent } from '@/lib/tiptap/extensions/tab-indent'
 import type { Extensions } from '@tiptap/core'
 import { Placeholder } from '@tiptap/extension-placeholder'
@@ -64,7 +65,8 @@ export function editorKit({
       lineNumbers: true,
       ...(debounce == null ? {} : { debounce }),
     }),
-    Markdown,
+    SourceMarkdown,
+    InlineSource,
     EditableLines.configure({ collapseBlocks }),
     ...(math
       ? [MarkdownMath, MathDecoration.configure({ mathMode: math })]

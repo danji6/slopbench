@@ -47,9 +47,9 @@ for (const prefix of ['', 'abc ']) {
   test(`renders italic immediately after ${JSON.stringify(prefix)}`, () => {
     const e = open()
     type(e, `${prefix}*test*`)
-    expect(e.state.doc.textContent).toBe(`${prefix}test`)
-    expect(e.state.doc.firstChild?.lastChild?.marks[0]?.type.name).toBe(
-      'italic',
+    expect(e.state.doc.textContent).toBe(`${prefix}*test*`)
+    expect(e.view.dom.querySelector('.md-source-italic')?.textContent).toBe(
+      'test',
     )
   })
 
@@ -58,9 +58,9 @@ for (const prefix of ['', 'abc ']) {
     e.commands.setTextSelection(9)
     enter(e)
     type(e, `${prefix}*test*`)
-    expect(e.state.doc.firstChild?.lastChild?.text).toBe('test')
-    expect(e.state.doc.firstChild?.lastChild?.marks[0]?.type.name).toBe(
-      'italic',
+    expect(e.state.doc.firstChild?.lastChild?.text).toBe(`${prefix}*test*`)
+    expect(e.view.dom.querySelector('.md-source-italic')?.textContent).toBe(
+      'test',
     )
   })
 }
@@ -114,10 +114,12 @@ for (const [name, delimiter] of [
     e.commands.setTextSelection(9)
     enter(e)
     type(e, `${delimiter}test${delimiter}`)
-    expect(e.state.doc.firstChild?.lastChild?.text).toBe('test')
-    expect(
-      e.state.doc.firstChild?.lastChild?.marks.map((mark) => mark.type.name),
-    ).toEqual([name])
+    expect(e.state.doc.firstChild?.lastChild?.text).toBe(
+      `${delimiter}test${delimiter}`,
+    )
+    expect(e.view.dom.querySelector(`.md-source-${name}`)?.textContent).toBe(
+      'test',
+    )
   })
 }
 
@@ -204,13 +206,13 @@ test('standalone HTML previews retain their own block', () => {
   expect(serializeDocumentToMarkdown(e)).toBe(source)
 })
 
-test('input-rule formatting can still be undone with Backspace', () => {
+test('Backspace removes only the last source symbol after typing formatting', () => {
   const e = open('previous')
   e.commands.setTextSelection(9)
   enter(e)
   type(e, '*test*')
   const event = new KeyboardEvent('keydown', { key: 'Backspace' })
   e.view.someProp('handleKeyDown', (fn) => fn(e.view, event))
-  expect(e.state.doc.firstChild?.lastChild?.text).toBe('*test*')
+  expect(e.state.doc.firstChild?.lastChild?.text).toBe('*test')
   expect(e.state.doc.firstChild?.lastChild?.marks.length).toBe(0)
 })

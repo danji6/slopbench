@@ -231,10 +231,19 @@ test('narrow sidebar controls fit in both themes', async ({ page }) => {
       compose.boundingBox(),
       options.boundingBox(),
     ])
-    expect(boxes[0]!.x + boxes[0]!.width).toBeLessThanOrEqual(boxes[1]!.x)
+    const row = await header.evaluate((element) => {
+      const { x, width } = element.parentElement!.getBoundingClientRect()
+      const label = element.querySelector('span.truncate')!
+      return { x, width, labelRight: label.getBoundingClientRect().right }
+    })
+    expect(boxes[0]!.x).toBe(row.x)
+    expect(boxes[0]!.width).toBe(row.width)
+    expect(row.labelRight).toBeLessThanOrEqual(boxes[1]!.x)
     expect(boxes[1]!.x + boxes[1]!.width).toBeLessThanOrEqual(boxes[2]!.x)
     expect(boxes[2]!.x + boxes[2]!.width).toBeLessThanOrEqual(260)
+    await header.hover({ position: { x: 8, y: 18 } })
     await page.screenshot({
+      animations: 'disabled',
       path: `/tmp/slopbench-session-folders-${dark ? 'dark' : 'light'}.png`,
     })
   }

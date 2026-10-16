@@ -5,6 +5,10 @@ import {
   QuotedTextDecoration,
   setEditorMathMode,
 } from '@/lib/tiptap/decorations'
+import {
+  collectSourceSpans,
+  sourceDelimiterRanges,
+} from '@/lib/tiptap/inline-source'
 import { editorKit } from '@/lib/tiptap/kit'
 import { serializeDocumentToMarkdown } from '@/lib/tiptap/serialize'
 import { cn } from '@/lib/utils'
@@ -181,6 +185,11 @@ function buildTextPositions(editor: Editor): {
   posMap: number[]
 } {
   const { doc } = editor.state
+  const spans = editor.markdown ? collectSourceSpans(doc, editor.markdown) : []
+  const hiddenPositions = new Set<number>()
+  for (const range of sourceDelimiterRanges(spans)) {
+    for (let pos = range.from; pos < range.to; pos++) hiddenPositions.add(pos)
+  }
   let docText = ''
   const posMap: number[] = []
 
@@ -188,7 +197,7 @@ function buildTextPositions(editor: Editor): {
     if (node.isText && node.text) {
       for (let i = 0; i < node.text.length; i++) {
         const char = node.text[i]
-        if (!/\s/.test(char)) {
+        if (!/\s/.test(char) && !hiddenPositions.has(pos + i)) {
           let normChar = char
           // Undo smart quoting from the markdown renderer
           if (char === '\u2018' || char === '\u2019') normChar = "'"

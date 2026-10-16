@@ -68,8 +68,10 @@
   @apply my-0 leading-normal;
 }
 
-.ProseMirror :not(pre) > code {
-  @apply text-m3-on-surface/80 bg-m3-surface-container-low! relative rounded border px-1 py-0.5 font-mono text-sm;
+.ProseMirror :not(pre) > code,
+.ProseMirror .md-source-code {
+  /* Positioned inline backgrounds paint over the native editing caret. */
+  @apply text-m3-on-surface/80 bg-m3-surface-container-low! rounded border px-1 py-0.5 font-mono text-sm;
 }
 
 .ProseMirror pre {
@@ -244,4 +246,26 @@
     -webkit-user-select: text;
     user-select: text;
   }
+}
+
+/* Delimiters remain document text; revealing them never changes the document. */
+.ProseMirror .md-source-delimiter {
+  @apply text-muted-foreground;
+}
+
+.ProseMirror [data-source-hidden='true'] {
+  display: none;
+}
+
+.ProseMirror .md-source-bold {
+  font-weight: bold;
+}
+
+.ProseMirror .md-source-italic {
+  @apply text-m3-secondary/80;
+  font-style: italic;
+}
+
+.ProseMirror .md-source-strike {
+  text-decoration: line-through;
 }

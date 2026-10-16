@@ -1,5 +1,6 @@
 import type { MathMode } from '@/lib/chat'
 import { renderMathHtml } from '@/lib/katex/render'
+import { sourceCodeRanges } from '@/lib/tiptap/source-context'
 import { Extension } from '@tiptap/core'
 import type { Node } from '@tiptap/pm/model'
 import type { Selection } from '@tiptap/pm/state'
@@ -93,7 +94,9 @@ function collectSpans(doc: Node, mathMode: MathMode): Span[] {
   if (mathMode === 'off') return []
 
   const spans: Span[] = []
+  const code = sourceCodeRanges(doc)
   doc.descendants((node, pos) => {
+    if (node.type.spec.code) return false
     if (!node.isBlock || !node.inlineContent) return
 
     // A block that is entirely a `$$..$$` renders centered display
@@ -110,8 +113,14 @@ function collectSpans(doc: Node, mathMode: MathMode): Span[] {
 
     node.descendants((child, childPos) => {
       if (!child.isText || !child.text) return
+      if (child.marks.some((mark) => mark.type.spec.code)) return
       const base = pos + 1 + childPos
       for (const span of findMath(child.text, mathMode)) {
+        const inCode = code.some(
+          (range) =>
+            base + span.start < range.to && base + span.end > range.from,
+        )
+        if (inCode) continue
         spans.push({
           from: base + span.start,
           to: base + span.end,

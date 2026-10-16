@@ -5,6 +5,12 @@ import { createRoot } from 'react-dom/client'
 import { CheckboxFixture } from './checkbox-fixture'
 import { ScrollFixture } from './scroll-fixture'
 
+const InlineSourceFixture = lazy(() =>
+  import('./inline-source-fixture').then((module) => ({
+    default: module.InlineSourceFixture,
+  })),
+)
+
 const SkillsFixture = lazy(() =>
   import('./skills-fixture').then((module) => ({
     default: module.SkillsFixture,
@@ -70,7 +76,12 @@ function PreviewFixture() {
 }
 
 createRoot(document.getElementById('root')!).render(
-  new URLSearchParams(location.search).get('fixture') === 'account-security' ? (
+  new URLSearchParams(location.search).get('fixture') === 'inline-source' ? (
+    <Suspense fallback={<p>Loading editor…</p>}>
+      <InlineSourceFixture />
+    </Suspense>
+  ) : new URLSearchParams(location.search).get('fixture') ===
+    'account-security' ? (
     <Suspense fallback={<p>Loading account settings…</p>}>
       <AccountSecurityFixture />
     </Suspense>

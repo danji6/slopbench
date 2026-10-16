@@ -1,10 +1,11 @@
+import { inSourceCode } from '@/lib/tiptap/inline-source'
 import {
   type PositionRange,
   caretLine,
   inTopLevelParagraph,
 } from '@/lib/tiptap/lines'
+import { sourceCodeManager } from '@/lib/tiptap/source-context'
 import { Extension } from '@tiptap/core'
-import type { ResolvedPos } from '@tiptap/pm/model'
 import {
   type EditorState,
   Plugin,
@@ -61,7 +62,9 @@ export function openLineBlock(editor: Editor): boolean {
 /** Whether typing `typed` at the caret completes a block opener. */
 export function opensBlock(state: EditorState, typed: string): boolean {
   const { $from, empty } = state.selection
-  if (!empty || !inTopLevelParagraph($from) || inCodeMark($from)) return false
+  if (!empty) return false
+  if (!inTopLevelParagraph($from)) return false
+  if (inSourceCode($from, sourceCodeManager(state))) return false
 
   const line = caretLine(state)
   if (!line) return false
@@ -134,10 +137,4 @@ function offerToRules(view: EditorView, text: string): boolean {
     handler(view, caret, caret, text, insert),
   )
   return handled === true
-}
-
-/** Whether the caret sits in code, where input rules never fire. */
-function inCodeMark($pos: ResolvedPos): boolean {
-  const marks = $pos.marks()
-  return marks.some((mark) => mark.type.spec.code)
 }

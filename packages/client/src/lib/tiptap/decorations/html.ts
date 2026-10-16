@@ -1,5 +1,7 @@
 import { renderSanitizedHtml } from '@/lib/markdown/html'
 import { findHtmlSpans, isWholeHtml } from '@/lib/markdown/html-scan'
+import type { SourceSpan } from '@/lib/tiptap/inline-source'
+import { sourceCodeRanges } from '@/lib/tiptap/source-context'
 import { Extension } from '@tiptap/core'
 import type { Node } from '@tiptap/pm/model'
 import type { Selection } from '@tiptap/pm/state'
@@ -59,6 +61,7 @@ type Span = { from: number; to: number; html: string; block: boolean }
 /** Walks the doc for every HTML span, independent of the current selection. */
 function collectSpans(doc: Node): Span[] {
   const spans: Span[] = []
+  const code = sourceCodeRanges(doc)
 
   doc.descendants((node, pos) => {
     // Skip HTML inside code blocks
@@ -77,7 +80,7 @@ function collectSpans(doc: Node): Span[] {
       return false
     }
 
-    for (const segment of inlineSegments(node, pos)) {
+    for (const segment of inlineSegments(node, pos, code)) {
       for (const span of findHtmlSpans(segment.text)) {
         spans.push({
           from: segment.positions[span.start],
@@ -100,7 +103,11 @@ type Segment = { text: string; positions: number[] }
  * A block's inline content flattened into scannable runs, each mapping every
  * character back to its position.
  */
-function inlineSegments(node: Node, pos: number): Segment[] {
+function inlineSegments(
+  node: Node,
+  pos: number,
+  code: SourceSpan[],
+): Segment[] {
   const segments: Segment[] = []
   let text = ''
   let positions: number[] = []
@@ -116,9 +123,16 @@ function inlineSegments(node: Node, pos: number): Segment[] {
     const from = pos + 1 + offset
 
     if (child.isText && child.text && !isCode(child)) {
-      for (let i = 0; i < child.text.length; i++) positions.push(from + i)
-      text += child.text
-      end = from + child.text.length
+      for (let i = 0; i < child.text.length; i++) {
+        const at = from + i
+        if (code.some((range) => at >= range.from && at < range.to)) {
+          flush()
+          continue
+        }
+        positions.push(at)
+        text += child.text[i]
+        end = at + 1
+      }
     } else if (child.type.name === 'hardBreak') {
       positions.push(from)
       text += '\n'
