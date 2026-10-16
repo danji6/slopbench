@@ -8,7 +8,6 @@ export const SCRIPT_COMPLETIONS: Completion[] = [
   ...SCRIPT_HELPER_NAMES.map((name) => ({
     label: name,
     detail: 'function',
-    // `delete*` take no arguments, `replace*` land the caret inside the parentheses
-    snippet: name.startsWith('delete') ? `${name}()` : `${name}($0)`,
+    snippet: `${name}($0)`,
   })),
 ]

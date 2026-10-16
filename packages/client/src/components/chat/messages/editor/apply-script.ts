@@ -18,16 +18,11 @@ type Range = { from: number; to: number }
 
 /** Helpers exposed to user scripts for editing beyond the selection. */
 const SCRIPT_HELPERS = {
-  replaceSelection: (value: string) => new ScriptOp('selection', String(value)),
-  replaceParagraph: (value: string) => new ScriptOp('paragraph', String(value)),
-  replaceMessage: (value: string) => new ScriptOp('message', String(value)),
-  replaceToEnd: (value: string) => new ScriptOp('toEnd', String(value)),
-  replaceToStart: (value: string) => new ScriptOp('toStart', String(value)),
-  deleteSelection: () => new ScriptOp('selection', ''),
-  deleteParagraph: () => new ScriptOp('paragraph', ''),
-  deleteMessage: () => new ScriptOp('message', ''),
-  deleteToEnd: () => new ScriptOp('toEnd', ''),
-  deleteToStart: () => new ScriptOp('toStart', ''),
+  replaceSelection: (value = '') => new ScriptOp('selection', String(value)),
+  replaceParagraph: (value = '') => new ScriptOp('paragraph', String(value)),
+  replaceMessage: (value = '') => new ScriptOp('message', String(value)),
+  replaceToEnd: (value = '') => new ScriptOp('toEnd', String(value)),
+  replaceToStart: (value = '') => new ScriptOp('toStart', String(value)),
 }
 
 const HELPER_NAMES = Object.keys(SCRIPT_HELPERS) as Array<

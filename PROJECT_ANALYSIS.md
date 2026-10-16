@@ -1181,9 +1181,10 @@ restores line indentation that the mdast→hast conversion would otherwise eat.
 Editor scripts are user-owned text transforms stored in `editorScripts`. A
 script receives `text`, `paragraph`, `message`, and the Tiptap `editor`; it
 can return a string to replace the selection or call helpers such as
-`replaceParagraph`, `replaceMessage`, `replaceToEnd`, and matching delete
-helpers. Scripts can be pinned to the bubble toolbar, reordered in the script
-manager, and edited in a JavaScript `CodeEditor` with completions for helper
+`replaceParagraph`, `replaceMessage`, and `replaceToEnd`; omitting the value
+or passing an empty string deletes the targeted content. Scripts can be pinned
+to the bubble toolbar, reordered in the script manager, and edited in a
+JavaScript `CodeEditor` with completions for helper
 names and variables.
 
 Prompt content editing uses `PromptContentEditor`, a Tiptap Markdown editor
