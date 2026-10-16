@@ -1,3 +1,5 @@
+import { SCRIPT_COMPLETIONS } from '@/components/chat/messages/editor/script-completions'
+import { PromptContentEditor } from '@/components/chat/prompts/prompt-content-editor'
 import { CodeEditor } from '@/components/ui/code-editor'
 import '@/globals.css'
 import { completionWord } from '@sb/core/code-completion/engine'
@@ -8,20 +10,7 @@ import type {
 import { useState } from 'react'
 
 const symbols: Completion[] = [
-  { label: 'text', kind: 'variable' },
-  { label: 'message', kind: 'variable' },
-  {
-    label: 'replace',
-    kind: 'function',
-    snippet: 'replace($0)',
-    params: [
-      {
-        name: 'scope',
-        values: ['selection', 'paragraph', 'message', 'toEnd', 'toStart'],
-      },
-      { name: 'value', optional: true, description: 'Replacement text' },
-    ],
-  },
+  ...SCRIPT_COMPLETIONS,
   {
     label: 'wrap',
     kind: 'function',
@@ -46,6 +35,7 @@ export function CodeCompletionFixture() {
   const [other, setOther] = useState('')
   const [language, setLanguage] = useState('javascript')
   const [slow, setSlow] = useState(false)
+  const [prompt, setPrompt] = useState(false)
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-4 p-4">
       <label>
@@ -76,21 +66,38 @@ export function CodeCompletionFixture() {
         />
         Delayed provider
       </label>
-      <div data-testid="primary-editor">
-        <CodeEditor
-          value={source}
-          onChange={setSource}
-          language={language}
-          completions={
-            slow
-              ? slowProvider
-              : language === 'javascript'
-                ? symbols
-                : undefined
-          }
-          fullscreenId="completion-primary"
-          className="h-40"
+      <label>
+        <input
+          type="checkbox"
+          checked={prompt}
+          onChange={(event) => setPrompt(event.target.checked)}
         />
+        Prompt editor
+      </label>
+      <div data-testid="primary-editor">
+        {prompt ? (
+          <PromptContentEditor
+            value={source}
+            onChange={setSource}
+            fullscreenId="completion-prompt"
+            className="h-40"
+          />
+        ) : (
+          <CodeEditor
+            value={source}
+            onChange={setSource}
+            language={language}
+            completions={
+              slow
+                ? slowProvider
+                : language === 'javascript'
+                  ? symbols
+                  : undefined
+            }
+            fullscreenId="completion-primary"
+            className="h-40"
+          />
+        )}
       </div>
       <output aria-label="Saved code">{source}</output>
       <div data-testid="other-editor">

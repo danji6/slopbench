@@ -15,7 +15,14 @@ export type CompletionParameter = {
   name: string
   description?: string
   optional?: boolean
-  values?: readonly string[]
+  /** Strings insert quoted values; objects supply literal JavaScript edits. */
+  values?: readonly (string | CompletionValue)[]
+}
+
+export type CompletionValue = {
+  label: string
+  insertText: string
+  description?: string
 }
 
 export type CompletionRange = { from: number; to: number }

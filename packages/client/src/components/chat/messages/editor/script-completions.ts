@@ -1,6 +1,10 @@
 import type { Completion } from '@/components/ui/code-completion'
 
-import { SCRIPT_HELPER_NAMES, SCRIPT_VARIABLES } from './apply-script'
+import {
+  SCRIPT_HELPER_NAMES,
+  SCRIPT_SCOPES,
+  SCRIPT_VARIABLES,
+} from './apply-script'
 
 /** Tab-completion entries for the script editor. */
 export const SCRIPT_COMPLETIONS: Completion[] = [
@@ -10,6 +14,11 @@ export const SCRIPT_COMPLETIONS: Completion[] = [
     detail: 'function',
     snippet: `${name}($0)`,
     params: [
+      {
+        name: 'scope',
+        description: 'The part of the message to replace.',
+        values: SCRIPT_SCOPES,
+      },
       {
         name: 'value',
         optional: true,

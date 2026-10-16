@@ -18,6 +18,7 @@ export type SyntaxToken = {
 }
 
 type Line = { text: string; start: number }
+type CodeRange = { from: number; to: number }
 
 const RE_EVAL = /^([ \t]*)(#eval)[ \t]*$/
 const RE_END = /^([ \t]*)(#end)[ \t]*$/
@@ -168,29 +169,43 @@ export function scanInterpreterSyntax(text: string): SyntaxToken[] {
  * allow completions to appear while the block is still being typed.
  */
 export function isInCodeContext(text: string, offset: number): boolean {
-  const lines = splitLines(text)
-  let mode: 'normal' | 'eval' | 'cond' = 'normal'
+  return interpreterCodeRange(text, offset) !== undefined
+}
 
-  for (const line of lines) {
+/** Finds the active JavaScript region without including directives or prose. */
+export function interpreterCodeRange(
+  text: string,
+  offset: number,
+): CodeRange | undefined {
+  const lines = splitLines(text)
+  let block: { from: number; closer: RegExp } | undefined
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
     const lineEnd = line.start + line.text.length
     const onThisLine = offset >= line.start && offset <= lineEnd
 
-    if (mode !== 'normal') {
-      const closer = mode === 'eval' ? RE_END : RE_THEN
-      if (closer.test(line.text)) {
-        mode = 'normal'
+    if (block) {
+      if (block.closer.test(line.text)) {
+        block = undefined
         continue
       }
-      if (onThisLine) return true
+      if (onThisLine) {
+        const close = findCloser(lines, i, block.closer)
+        return {
+          from: block.from,
+          to: close === -1 ? text.length : lines[close].start,
+        }
+      }
       continue
     }
 
     if (RE_EVAL.test(line.text)) {
-      mode = 'eval'
+      block = { from: lineEnd + 1, closer: RE_END }
       continue
     }
     if (RE_IF_BARE.test(line.text)) {
-      mode = 'cond'
+      block = { from: lineEnd + 1, closer: RE_THEN }
       continue
     }
 
@@ -198,23 +213,21 @@ export function isInCodeContext(text: string, offset: number): boolean {
     if (exprM && onThisLine) {
       const exprStart =
         line.start + exprM[1].length + exprM[2].length + exprM[3].length
-      return offset >= exprStart
+      if (offset >= exprStart) return { from: exprStart, to: lineEnd }
+      return
     }
 
-    if (onThisLine) return inInlineBraces(line, offset)
+    if (onThisLine) return inlineCodeRange(line, offset)
   }
-
-  return false
 }
 
-/** Whether `offset` falls inside a `{{..}}` on `line`. */
-function inInlineBraces(line: Line, offset: number): boolean {
+/** Finds the `{{..}}` expression containing the caret on a line. */
+function inlineCodeRange(line: Line, offset: number): CodeRange | undefined {
   RE_INLINE.lastIndex = 0
   let match: RegExpExecArray | null
   while ((match = RE_INLINE.exec(line.text)) !== null) {
     const open = line.start + match.index + 2
     const close = line.start + match.index + match[0].length - 2
-    if (offset >= open && offset <= close) return true
+    if (offset >= open && offset <= close) return { from: open, to: close }
   }
-  return false
 }

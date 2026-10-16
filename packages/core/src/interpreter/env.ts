@@ -1,11 +1,20 @@
-/** A single parameter of a session environment function. */
-export type SessionEnvParam = {
-  /** Parameter name, as it appears in the signature. */
-  name: string
-  /** Short description shown in the function's parameter list. */
+import type { CompletionParameter } from '../code-completion/types'
+
+/** A documented parameter of a session environment function. */
+export type SessionEnvParam = CompletionParameter & {
   description: string
-  /** Marks an optional parameter (rendered with a trailing `?`). */
-  optional?: boolean
+}
+
+const FILE_SCOPE_OPTIONS: SessionEnvParam = {
+  name: 'options',
+  description:
+    'Use { scope: "workspace" } (default) or { scope: "agent" } for relative paths',
+  optional: true,
+  values: ['workspace', 'agent'].map((scope) => ({
+    label: scope,
+    insertText: `{ scope: '${scope}' }`,
+    description: `Resolve relative paths in the ${scope} folder`,
+  })),
 }
 
 export type SessionEnvEntry = {
@@ -98,11 +107,7 @@ export const SESSION_ENV: SessionEnvEntry[] = [
         name: 'path',
         description: 'Path relative to the selected scope, or an absolute path',
       },
-      {
-        name: 'options',
-        description: 'Use { scope: "agent" } for agent folder relative paths',
-        optional: true,
-      },
+      FILE_SCOPE_OPTIONS,
     ],
     snippet: "fileExists('${1:path}')",
   },
@@ -118,12 +123,12 @@ export const SESSION_ENV: SessionEnvEntry[] = [
         name: 'wrap',
         description: 'Wrap the contents in a fenced code block (default: true)',
         optional: true,
+        values: ['true', 'false'].map((value) => ({
+          label: value,
+          insertText: value,
+        })),
       },
-      {
-        name: 'options',
-        description: 'Use { scope: "agent" } for agent folder relative paths',
-        optional: true,
-      },
+      FILE_SCOPE_OPTIONS,
     ],
     snippet: "readFile('${1:path}')",
   },

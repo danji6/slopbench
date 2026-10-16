@@ -10,11 +10,29 @@ async function setSource(page: Page, marked: string) {
   const source = marked.replace('▌', '')
   await page.getByLabel('Source', { exact: true }).fill(source)
   const editor = editorFor(page)
-  await expect(editor).toHaveText(source)
+  await expect
+    .poll(() =>
+      editor.evaluate((element) =>
+        (element as HTMLElement & { editor: Editor }).editor.getText({
+          blockSeparator: '\n',
+        }),
+      ),
+    )
+    .toBe(source)
   await editor.evaluate(
     (element, offset) => {
       const current = (element as HTMLElement & { editor: Editor }).editor
-      current.commands.setTextSelection(offset + 1)
+      let remaining = offset
+      let position = 1
+      current.state.doc.descendants((node, pos) => {
+        if (!node.isTextblock) return
+        if (remaining >= 0 && remaining <= node.textContent.length) {
+          position = pos + 1 + remaining
+        }
+        remaining -= node.textContent.length + 1
+        return false
+      })
+      current.commands.setTextSelection(position)
       current.view.focus()
     },
     offset < 0 ? source.length : offset,
@@ -224,3 +242,77 @@ for (const language of ['css', 'json']) {
     await expect(popupFor(page)).toHaveCount(0)
   })
 }
+
+test('prompt readFile offers wrap choices and literal scope options with active parameter hints', async ({
+  page,
+}) => {
+  await page.getByLabel('Prompt editor', { exact: true }).check()
+  await setSource(page, "Intro {{ readFile('notes.md', ▌) }} End")
+  await page.keyboard.press('Control+Space')
+  await expect(
+    page.locator('[data-slot="signature-help"] .font-bold'),
+  ).toHaveText('wrap?')
+  await page.getByRole('option', { name: 'false value' }).click()
+  await expect(editorFor(page)).toHaveText(
+    "Intro {{ readFile('notes.md', false) }} End",
+  )
+  await page.keyboard.type(', ')
+  await expect(
+    page.locator('[data-slot="signature-help"] .font-bold'),
+  ).toHaveText('options?')
+  await page.getByRole('option', { name: 'agent value' }).click()
+  await expect(editorFor(page)).toHaveText(
+    "Intro {{ readFile('notes.md', false, { scope: 'agent' }) }} End",
+  )
+})
+
+test('prompt fileExists completes scope options across paragraphs', async ({
+  page,
+}) => {
+  await page.getByLabel('Prompt editor', { exact: true }).check()
+  await setSource(
+    page,
+    "Introduction\n#eval\nreturn fileExists('notes.md', ▌)\n#end\nConclusion",
+  )
+  await page.keyboard.press('Control+Space')
+  await expect(page.locator('[data-slot="signature-help"]')).toContainText(
+    'fileExists(path, options?)',
+  )
+  await page.getByRole('option', { name: 'workspace value' }).click()
+  await expect
+    .poll(() =>
+      editorFor(page).evaluate((element) =>
+        (element as HTMLElement & { editor: Editor }).editor.getText({
+          blockSeparator: '\n',
+        }),
+      ),
+    )
+    .toBe(
+      "Introduction\n#eval\nreturn fileExists('notes.md', { scope: 'workspace' })\n#end\nConclusion",
+    )
+})
+
+test('prompt snippet arguments offer hints and completions stay out of prose and file paths', async ({
+  page,
+}) => {
+  await page.getByLabel('Prompt editor', { exact: true }).check()
+  await setSource(page, '{{ readF▌ }}')
+  await page.keyboard.press('Control+Space')
+  await expect(
+    page.getByRole('option', { name: 'readFile function' }),
+  ).toBeVisible()
+  await page.keyboard.press('Enter')
+  await expect.poll(() => selectedText(page)).toBe('path')
+  await page.keyboard.insertText('notes.md')
+  await page.keyboard.press('ArrowRight')
+  await page.keyboard.type(', ')
+  await expect(page.getByRole('option', { name: 'true value' })).toBeVisible()
+  await page.getByRole('button', { name: 'Outside editor' }).click()
+  await setSource(page, "{{ readFile('model▌') }}")
+  await page.keyboard.press('Control+Space')
+  await expect(popupFor(page).getByRole('option')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Outside editor' }).click()
+  await setSource(page, 'plain readF▌')
+  await page.keyboard.press('Control+Space')
+  await expect(popupFor(page)).toHaveCount(0)
+})

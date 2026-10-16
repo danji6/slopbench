@@ -4,7 +4,15 @@ import type { Editor } from '@tiptap/react'
  * The part of the document a script wants to change.
  * `toEnd`/`toStart` span between the selection and either end.
  */
-type Scope = 'selection' | 'paragraph' | 'message' | 'toEnd' | 'toStart'
+export const SCRIPT_SCOPES = [
+  'selection',
+  'paragraph',
+  'message',
+  'toEnd',
+  'toStart',
+] as const
+
+type Scope = (typeof SCRIPT_SCOPES)[number]
 
 /** A targeted edit produced by a script's helper functions. */
 class ScriptOp {
@@ -18,11 +26,12 @@ type Range = { from: number; to: number }
 
 /** Helpers exposed to user scripts for editing beyond the selection. */
 const SCRIPT_HELPERS = {
-  replaceSelection: (value = '') => new ScriptOp('selection', String(value)),
-  replaceParagraph: (value = '') => new ScriptOp('paragraph', String(value)),
-  replaceMessage: (value = '') => new ScriptOp('message', String(value)),
-  replaceToEnd: (value = '') => new ScriptOp('toEnd', String(value)),
-  replaceToStart: (value = '') => new ScriptOp('toStart', String(value)),
+  replace: (scope: Scope, value = '') => {
+    if (!SCRIPT_SCOPES.includes(scope)) {
+      throw new Error(`Unknown replacement scope: ${scope}`)
+    }
+    return new ScriptOp(scope, String(value))
+  },
 }
 
 const HELPER_NAMES = Object.keys(SCRIPT_HELPERS) as Array<

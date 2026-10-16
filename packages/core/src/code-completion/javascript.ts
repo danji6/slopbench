@@ -8,6 +8,7 @@ import type {
   CompletionItem,
   CompletionProvider,
   CompletionRequest,
+  CompletionValue,
   SignatureHelp,
 } from './types'
 
@@ -125,7 +126,7 @@ function identifierItem(
 function argumentValues(
   request: CompletionRequest,
   range: { from: number; to: number },
-  values: readonly string[],
+  values: readonly (string | CompletionValue)[],
 ): CompletionItem[] | undefined {
   const end = Math.min(range.to, request.text.length)
   const argument = request.text.slice(range.from, end)
@@ -134,20 +135,26 @@ function argumentValues(
   const quote = raw[0]
   const quoted = quote === "'" || quote === '"'
 
-  if (quoted) return quotedValues(request, from, raw, values)
+  if (quoted) {
+    const strings = values.filter((value) => typeof value === 'string')
+    return quotedValues(request, from, raw, strings)
+  }
   if (!/^[\p{ID_Continue}$]*$/u.test(raw)) return
 
   const query = request.text.slice(from, request.offset)
 
   return fuzzyFilter(
-    values.map((label) => ({ label })),
+    values.map((value) =>
+      typeof value === 'string'
+        ? { label: value, insertText: quoteValue(value, "'") }
+        : value,
+    ),
     query,
   ).map((entry) => ({
     ...entry,
     kind: 'value',
     from,
     to: from + raw.length,
-    insertText: quoteValue(entry.label, "'"),
   }))
 }
 

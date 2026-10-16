@@ -55,7 +55,7 @@ export function FolderPicker({
         onChange(!next || next === 'ungrouped' ? null : next)
       }
     >
-      <div className="flex max-w-60 min-w-0 items-center gap-1.5">
+      <div className="flex max-w-xs min-w-0 items-center gap-1.5">
         <Combobox.Trigger
           ref={triggerRef}
           aria-label={label}
@@ -91,7 +91,10 @@ export function FolderPicker({
           </RippleButton>
         )}
       </div>
-      <Combobox.Content side="top">
+      <Combobox.Content
+        side="top"
+        className="w-[calc(min(fit-content,100%,200px))]"
+      >
         <Combobox.Search
           placeholder="Search folders…"
           aria-label="Search folders"

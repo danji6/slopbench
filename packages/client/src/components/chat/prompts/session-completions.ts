@@ -1,7 +1,7 @@
 import type { CompletionDocumentSource } from '@/lib/completion/document'
+import { javascriptSource } from '@/lib/completion/javascript-source'
 import { collectDocText, offsetAt } from '@/lib/tiptap/interpreter-doc'
-import { isInCodeContext } from '@/lib/tiptap/interpreter-syntax'
-import { staticCompletions } from '@sb/core/code-completion/engine'
+import { interpreterCodeRange } from '@/lib/tiptap/interpreter-syntax'
 import type {
   Completion,
   CompletionProvider,
@@ -15,13 +15,28 @@ const SESSION_COMPLETIONS: Completion[] = SESSION_ENV.map((entry) => ({
   snippet: entry.snippet,
   params: entry.params,
 }))
-const environmentProvider = staticCompletions(SESSION_COMPLETIONS)
+const environmentProvider = javascriptSource(SESSION_COMPLETIONS)
 
-/** Offers session names only within the prompt interpreter's code regions. */
-export const sessionCompletionSource: CompletionProvider = (request) => {
-  if (!isInCodeContext(request.text, request.offset)) return { items: [] }
-  if (request.trigger === 'selection') return { items: [] }
-  return environmentProvider(request)
+/** Completes JavaScript within one interpreter region, preserving prompt offsets. */
+export const sessionCompletionSource: CompletionProvider = async (request) => {
+  const range = interpreterCodeRange(request.text, request.offset)
+  if (!range) return { items: [] }
+  const result = await environmentProvider({
+    ...request,
+    text: request.text.slice(range.from, range.to),
+    offset: request.offset - range.from,
+  })
+  return {
+    items: result.items.map((item) => ({
+      ...item,
+      from: item.from + range.from,
+      to: item.to + range.from,
+    })),
+    signature: result.signature && {
+      ...result.signature,
+      from: result.signature.from + range.from,
+    },
+  }
 }
 
 /** Maps prompt text across paragraphs, excluding fenced code blocks. */

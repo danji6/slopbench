@@ -450,12 +450,12 @@ return text.toUpperCase()
 
 **Editing beyond the selection**
 
-Return one of these helpers to choose which content to replace:
-- \`replaceParagraph(value)\`
-- \`replaceMessage(value)\`
-- \`replaceToEnd(value)\` (from the selection to the end)
-- \`replaceToStart(value)\` (from the start to the selection)
-- \`replaceSelection(value)\`
+Return \`replace(scope, value)\` to choose which content to replace:
+- \`'selection'\` — the selected text
+- \`'paragraph'\` — the paragraph containing the selection
+- \`'message'\` — the entire message
+- \`'toEnd'\` — from the selection to the end
+- \`'toStart'\` — from the start to the selection
 
 Omit \`value\` or pass an empty string (\`''\`) to delete the targeted content.
 
@@ -464,19 +464,19 @@ Omit \`value\` or pass an empty string (\`''\`) to delete the targeted content.
 Delete the current paragraph:
 
 \`\`\`js
-return replaceParagraph()
+return replace('paragraph')
 \`\`\`
 
 Replace every occurrence in the message:
 
 \`\`\`js
-return replaceMessage(message.replaceAll('old', 'new'))
+return replace('message', message.replaceAll('old', 'new'))
 \`\`\`
 
 Delete everything from the selection to the end:
 
 \`\`\`js
-return replaceToEnd()
+return replace('toEnd')
 \`\`\`
 `.trim()
 

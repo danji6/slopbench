@@ -183,6 +183,27 @@ describe('JavaScript lexical completions', () => {
 })
 
 describe('argument values and signature hints', () => {
+  test('supports mixed string choices and literal JavaScript choices', async () => {
+    const provider = javascriptCompletions([
+      {
+        label: 'choose',
+        params: [
+          {
+            name: 'value',
+            values: ['text', { label: 'false', insertText: 'false' }],
+          },
+        ],
+      },
+    ])
+    const result = await provider(request('choose(▌)'))
+    expect(result.items.map((item) => item.insertText)).toEqual([
+      "'text'",
+      'false',
+    ])
+    const quoted = await provider(request("choose('▌')"))
+    expect(quoted.items.map((item) => item.label)).toEqual(['text'])
+  })
+
   test('suggests every scope on an empty argument or opening quote', async () => {
     for (const source of ['replace(▌)', "replace('▌')", 'replace(▌']) {
       expect(await labels(source, 'triggerCharacter')).toEqual([

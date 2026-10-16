@@ -1160,8 +1160,9 @@ tables/placeholder.
   Fuse matching, literal insertion, snippets, Ctrl+Space, keyboard navigation,
   and viewport-aware suggestions/signature hints. JavaScript code editors
   lazily load Acorn analysis for local bindings, lexical scope, helper argument
-  values, and active parameters. Prompt editors share the provider/UI layer
-  while retaining interpreter-context environment suggestions.
+  values, and active parameters. Prompt editors use the same JavaScript provider
+  within individual interpreter code regions, offering environment names,
+  region-local bindings, signatures, and configured argument choices.
 - `snippet-stops`: multi-stop snippet insertion for completions
 - `reveal-insert`: scrolls a below-caret insertion into view without ever
   touching window scroll
@@ -1184,10 +1185,10 @@ restores line indentation that the mdast→hast conversion would otherwise eat.
 
 Editor scripts are user-owned text transforms stored in `editorScripts`. A
 script receives `text`, `paragraph`, `message`, and the Tiptap `editor`; it
-can return a string to replace the selection or call helpers such as
-`replaceParagraph`, `replaceMessage`, and `replaceToEnd`; omitting the value
-or passing an empty string deletes the targeted content. Scripts can be pinned
-to the bubble toolbar, reordered in the script manager, and edited in a
+can return a string to replace the selection or call `replace(scope, value)`
+with `selection`, `paragraph`, `message`, `toEnd`, or `toStart`; omitting the
+value or passing an empty string deletes the targeted content. Scripts can be
+pinned to the bubble toolbar, reordered in the script manager, and edited in a
 JavaScript `CodeEditor` with completions for helper
 names and variables.
 
