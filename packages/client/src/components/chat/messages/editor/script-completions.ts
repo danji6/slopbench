@@ -9,5 +9,13 @@ export const SCRIPT_COMPLETIONS: Completion[] = [
     label: name,
     detail: 'function',
     snippet: `${name}($0)`,
+    params: [
+      {
+        name: 'value',
+        optional: true,
+        description:
+          'Replacement text. Omit or pass an empty string to delete.',
+      },
+    ],
   })),
 ]

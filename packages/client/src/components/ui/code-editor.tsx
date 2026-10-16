@@ -1,3 +1,4 @@
+import { javascriptSource } from '@/lib/completion/javascript-source'
 import { handleSelectAllDelete } from '@/lib/editor-clear'
 import { getHighlighter } from '@/lib/shiki/core'
 import { theme, themeName } from '@/lib/shiki/theme'
@@ -13,7 +14,7 @@ import { useEditor } from '@tiptap/react'
 import { StarterKit } from '@tiptap/starter-kit'
 import { type VariantProps, cva } from 'class-variance-authority'
 import type { MouseEvent } from 'react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 
 import { CodeBlockShiki } from './code-block-shiki'
 import { type CompletionSource, useCodeCompletion } from './code-completion'
@@ -53,7 +54,7 @@ export type CodeEditorProps = VariantProps<typeof codeEditorVariants> & {
   /** Class applied to the editable element. */
   editorClassName?: string
   autoFocus?: boolean
-  /** Tab-completion entries shown while typing a word. */
+  /** Host-defined symbols or a contextual provider, merged with language support. */
   completions?: CompletionSource
 }
 
@@ -114,6 +115,8 @@ export function CodeEditor({
     editorProps: {
       attributes: {
         'data-slot': 'code-editor',
+        role: 'textbox',
+        'aria-multiline': 'true',
         class: cn(
           'size-full min-h-16 [&_pre]:pr-10! group-data-[fullscreen]/fullscreen:[&_pre]:pr-4!',
           editorClassName,
@@ -131,7 +134,16 @@ export function CodeEditor({
     editor.commands.setContent(toDoc(value, language), { emitUpdate: false })
   }, [editor, value, language])
 
-  const completionPopup = useCodeCompletion(editor, completions)
+  const completionSource = useMemo(
+    () =>
+      ['javascript', 'js'].includes(language)
+        ? javascriptSource(completions)
+        : completions,
+    [language, completions],
+  )
+  const completionPopup = useCodeCompletion(editor, completionSource, {
+    language,
+  })
 
   function focusEditor(event: MouseEvent<HTMLDivElement>) {
     const target = event.target

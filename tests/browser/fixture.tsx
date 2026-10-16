@@ -11,6 +11,12 @@ const InlineSourceFixture = lazy(() =>
   })),
 )
 
+const CodeCompletionFixture = lazy(() =>
+  import('./code-completion-fixture').then((module) => ({
+    default: module.CodeCompletionFixture,
+  })),
+)
+
 const SkillsFixture = lazy(() =>
   import('./skills-fixture').then((module) => ({
     default: module.SkillsFixture,
@@ -76,7 +82,12 @@ function PreviewFixture() {
 }
 
 createRoot(document.getElementById('root')!).render(
-  new URLSearchParams(location.search).get('fixture') === 'inline-source' ? (
+  new URLSearchParams(location.search).get('fixture') === 'code-completion' ? (
+    <Suspense fallback={<p>Loading code editor…</p>}>
+      <CodeCompletionFixture />
+    </Suspense>
+  ) : new URLSearchParams(location.search).get('fixture') ===
+    'inline-source' ? (
     <Suspense fallback={<p>Loading editor…</p>}>
       <InlineSourceFixture />
     </Suspense>

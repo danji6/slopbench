@@ -1156,8 +1156,12 @@ tables/placeholder.
   line-number-aware backspace handling
 - `CodeEditor`: a standalone one-block code editor used for JavaScript scripts
   and CSS settings fields
-- `useCodeCompletion`: caret-anchored completions with Fuse matching,
-  snippets, keyboard navigation, and delayed display while typing
+- `useCodeCompletion`: context-aware providers with source-offset edit ranges,
+  Fuse matching, literal insertion, snippets, Ctrl+Space, keyboard navigation,
+  and viewport-aware suggestions/signature hints. JavaScript code editors
+  lazily load Acorn analysis for local bindings, lexical scope, helper argument
+  values, and active parameters. Prompt editors share the provider/UI layer
+  while retaining interpreter-context environment suggestions.
 - `snippet-stops`: multi-stop snippet insertion for completions
 - `reveal-insert`: scrolls a below-caret insertion into view without ever
   touching window scroll

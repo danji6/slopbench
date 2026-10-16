@@ -1,5 +1,6 @@
-import type { Completion } from '@/components/ui/code-completion'
 import Fuse from 'fuse.js'
+
+import type { Completion } from './types'
 
 /** Builds a Fuse index over a completion list, matched on the `label`. */
 export function makeFuse(completions: Completion[]): Fuse<Completion> {
@@ -20,6 +21,13 @@ export function rankMatches(
     .search(query)
     .map((result) => result.item)
     .filter((item) => isRelevantMatch(item.label, query))
+    .sort((a, b) => matchRank(a.label, query) - matchRank(b.label, query))
+}
+
+function matchRank(label: string, query: string): number {
+  if (label === query) return 0
+  if (label.toLowerCase() === query.toLowerCase()) return 1
+  return label.toLowerCase().startsWith(query.toLowerCase()) ? 2 : 3
 }
 
 /**

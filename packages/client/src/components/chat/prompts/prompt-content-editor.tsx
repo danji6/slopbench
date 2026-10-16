@@ -23,7 +23,10 @@ import { useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 import { useEffect, useImperativeHandle, useRef } from 'react'
 
-import { sessionCompletionSource } from './session-completions'
+import {
+  promptCompletionDocument,
+  sessionCompletionSource,
+} from './session-completions'
 
 export type PromptContentEditorProps = {
   value: string
@@ -88,6 +91,8 @@ export function PromptContentEditor({
     editorProps: {
       attributes: {
         'data-slot': 'editor',
+        role: 'textbox',
+        'aria-multiline': 'true',
         class: cn('min-h-full p-4', className),
       },
       handleKeyDown: handleSelectAllDelete,
@@ -119,10 +124,9 @@ export function PromptContentEditor({
     })
   }, [editor, value])
 
-  const completionPopup = useCodeCompletion(
-    editor,
-    sessionCompletionSource(editor),
-  )
+  const completionPopup = useCodeCompletion(editor, sessionCompletionSource, {
+    document: promptCompletionDocument,
+  })
 
   return (
     <FullscreenEditor id={fullscreenId}>

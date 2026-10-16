@@ -1,6 +1,11 @@
 /// <reference types="bun-types" />
-import { sessionCompletionSource } from '@/components/chat/prompts/session-completions'
+import {
+  promptCompletionDocument,
+  sessionCompletionSource,
+} from '@/components/chat/prompts/session-completions'
+import { applyCompletion } from '@/lib/completion/edits'
 import { Markdown } from '@/lib/tiptap/extensions/markdown'
+import { collectCompletions } from '@sb/core/code-completion/engine'
 import { TextSelection } from '@tiptap/pm/state'
 import { Editor } from '@tiptap/react'
 import { StarterKit } from '@tiptap/starter-kit'
@@ -42,14 +47,21 @@ function caretAfter(editor: Editor, needle: string): void {
   )
 }
 
-/** The completion labels offered at the caret for `query`. */
-function labelsAt(editor: Editor, needle: string, query: string): string[] {
+/** The completion labels offered at the caret after `needle`. */
+async function labelsAt(editor: Editor, needle: string): Promise<string[]> {
   caretAfter(editor, needle)
-  return sessionCompletionSource(editor)(query).map((c) => c.label)
+  const map = promptCompletionDocument(editor)!
+  const result = await collectCompletions([sessionCompletionSource], {
+    text: map.text,
+    offset: map.offset,
+    language: 'javascript',
+    trigger: 'typing',
+  })
+  return result.items.map((c) => c.label)
 }
 
 describe('session completions across the interpreter grammar', () => {
-  test('offers model variables in eval blocks and conditions', () => {
+  test('offers model variables in eval blocks and conditions', async () => {
     for (const lines of [
       ['#eval', 'model', '#end'],
       ['#if model', 'body', '#endif'],
@@ -57,40 +69,90 @@ describe('session completions across the interpreter grammar', () => {
       ['{{ model }}'],
     ]) {
       const e = editorWith(...lines)
-      expect(labelsAt(e, 'model', 'model')).toEqual(
+      expect(await labelsAt(e, 'model')).toEqual(
         expect.arrayContaining(['modelId', 'modelName']),
       )
       e.destroy()
     }
   })
 
-  test('offers env entries inside an eval body on its own paragraph', () => {
+  test('offers env entries inside an eval body on its own paragraph', async () => {
     const e = editorWith('#eval', 'getV', '#end')
-    expect(labelsAt(e, 'getV', 'getV')).toContain('getVar')
+    expect(await labelsAt(e, 'getV')).toContain('getVar')
     e.destroy()
   })
 
-  test('offers env entries in a single-line condition expression', () => {
+  test('offers env entries in a single-line condition expression', async () => {
     const e = editorWith('#if userC', 'body', '#endif')
-    expect(labelsAt(e, 'userC', 'userC')).toContain('userCount')
+    expect(await labelsAt(e, 'userC')).toContain('userCount')
     e.destroy()
   })
 
-  test('offers env entries in a multiline condition body', () => {
+  test('offers env entries in a multiline condition body', async () => {
     const e = editorWith('#if', 'userC', '#then', 'body', '#endif')
-    expect(labelsAt(e, 'userC', 'userC')).toContain('userCount')
+    expect(await labelsAt(e, 'userC')).toContain('userCount')
     e.destroy()
   })
 
-  test('fuzzy-matches an abbreviation of an env entry', () => {
+  test('fuzzy-matches an abbreviation of an env entry', async () => {
     const e = editorWith('#eval', 'gv', '#end')
-    expect(labelsAt(e, 'gv', 'gv')).toContain('getVar')
+    expect(await labelsAt(e, 'gv')).toContain('getVar')
     e.destroy()
   })
 
-  test('offers nothing in ordinary prose', () => {
+  test('offers nothing in ordinary prose', async () => {
     const e = editorWith('just some getVar prose here')
-    expect(labelsAt(e, 'getVar', 'getVar')).toEqual([])
+    expect(await labelsAt(e, 'getVar')).toEqual([])
     e.destroy()
+  })
+
+  test('replaces identifier suffixes across paragraph mappings without touching prose', async () => {
+    const editor = editorWith(
+      'Introduction',
+      '#eval',
+      'modelName',
+      '#end',
+      'Conclusion',
+    )
+    try {
+      caretAfter(editor, 'modelNa')
+      const map = promptCompletionDocument(editor)!
+      const result = await collectCompletions([sessionCompletionSource], {
+        text: map.text,
+        offset: map.offset,
+        language: 'javascript',
+        trigger: 'explicit',
+      })
+      const item = result.items.find((item) => item.label === 'modelName')!
+      expect(map.text.slice(item.from, item.to)).toBe('modelName')
+      expect(applyCompletion(editor, map, item)).toBe(true)
+      expect(
+        editor.state.doc.textBetween(0, editor.state.doc.content.size, '\n'),
+      ).toBe('Introduction\n#eval\nmodelName\n#end\nConclusion')
+    } finally {
+      editor.destroy()
+    }
+  })
+
+  test('manual requests work at empty expression starts and ignore prose', async () => {
+    for (const [line, needle, expected] of [
+      ['{{  }}', '{{ ', true],
+      ['Ordinary ', 'Ordinary ', false],
+    ] as const) {
+      const editor = editorWith(line)
+      try {
+        caretAfter(editor, needle)
+        const map = promptCompletionDocument(editor)!
+        const result = await collectCompletions([sessionCompletionSource], {
+          text: map.text,
+          offset: map.offset,
+          language: 'javascript',
+          trigger: 'explicit',
+        })
+        expect(result.items.length > 0).toBe(expected)
+      } finally {
+        editor.destroy()
+      }
+    }
   })
 })

@@ -4,7 +4,6 @@
 
 export * from './clipboard'
 export * from './close-guard'
-export * from './completion-match'
 export * from './errors'
 export * from './evaluation-worker'
 export * from './event-emitter'
