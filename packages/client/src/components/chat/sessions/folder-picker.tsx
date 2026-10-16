@@ -55,7 +55,7 @@ export function FolderPicker({
         onChange(!next || next === 'ungrouped' ? null : next)
       }
     >
-      <div className="flex max-w-60 min-w-0 items-center gap-1">
+      <div className="flex max-w-60 min-w-0 items-center gap-1.5">
         <Combobox.Trigger
           ref={triggerRef}
           aria-label={label}
@@ -78,7 +78,7 @@ export function FolderPicker({
           <RippleButton
             variant="stealth"
             size="icon"
-            className="text-muted-foreground size-7 shrink-0"
+            className="text-muted-foreground size-8 shrink-0"
             aria-label={`Clear ${label.toLowerCase()}`}
             title="Clear folder"
             disabled={disabled}
@@ -87,7 +87,7 @@ export function FolderPicker({
               triggerRef.current?.focus()
             }}
           >
-            <XIcon className="size-4" />
+            <XIcon />
           </RippleButton>
         )}
       </div>

@@ -7,6 +7,7 @@ import {
 } from '@/components/ui'
 import { useUserProfile } from '@/hooks/chat/profile'
 import { setSelectedSessionFolder } from '@/lib/ui-settings'
+import { cn } from '@/lib/utils'
 import { useDraggable } from '@dnd-kit/core'
 import type { FolderView } from '@sb/convex/types'
 import { PinIcon, SquarePenIcon } from 'lucide-react'
@@ -67,14 +68,17 @@ export const FolderHeader = memo(function FolderHeader({
       <ContextMenu.Trigger>
         <div
           ref={setNodeRef}
-          className="relative flex items-center gap-0.5 rounded-md"
+          className={cn(
+            'relative grid items-center gap-x-0.5 rounded-md',
+            folder ? 'grid-cols-[minmax(0,1fr)_auto]' : 'grid-cols-1',
+          )}
         >
           <RippleButton
             ref={setActivatorNodeRef}
             {...(folder ? attributes : {})}
             {...(folder ? listeners : {})}
             variant="stealth"
-            className="h-9 min-w-0 flex-1 justify-start gap-1.5 rounded-md px-1 text-sm has-[>svg]:px-1"
+            className="col-span-full row-start-1 grid h-9 w-full min-w-0 grid-cols-subgrid rounded-md px-2 text-sm"
             onClick={() => {
               selectFolder()
               toggle()
@@ -82,38 +86,40 @@ export const FolderHeader = memo(function FolderHeader({
             aria-expanded={!collapsed}
             title={folder?.folderPath}
           >
-            <Accordion.Icon
-              isExpanded={!collapsed}
-              className="size-3"
-              aria-hidden
-            />
-            {folder ? (
-              <FolderIconView icon={folder.icon} />
-            ) : (
-              <PinIcon className="size-4" />
-            )}
-            <span className="truncate">{name}</span>
+            <span className="flex min-w-0 items-center gap-1.5">
+              <Accordion.Icon
+                isExpanded={!collapsed}
+                className="size-3"
+                aria-hidden
+              />
+              {folder ? (
+                <FolderIconView icon={folder.icon} />
+              ) : (
+                <PinIcon className="size-4" />
+              )}
+              <span className="truncate">{name}</span>
+            </span>
           </RippleButton>
           {folder && (
-            <>
+            <div className="relative z-10 col-start-2 row-start-1 flex items-center gap-0.5">
               <Tooltip>
                 <Tooltip.Trigger
                   render={
                     <RippleButton
                       variant="stealth"
                       size="icon"
-                      className="text-muted-foreground hover:text-foreground focus-visible:text-foreground size-7 shrink-0"
+                      className="text-muted-foreground hover:text-foreground focus-visible:text-foreground size-8 shrink-0"
                       aria-label={`Compose in ${name}`}
                       onClick={compose}
                     >
-                      <SquarePenIcon className="size-4" />
+                      <SquarePenIcon />
                     </RippleButton>
                   }
                 />
                 <Tooltip.Content>Compose</Tooltip.Content>
               </Tooltip>
               <FolderOptionsMenu name={name} {...menu} />
-            </>
+            </div>
           )}
           {folder && !pending && <FolderDropTargets folder={folder} />}
         </div>

@@ -1,17 +1,15 @@
 import { md } from '@/components/markdown'
 import {
-  Accordion,
-  Collapsible,
   Combobox,
   ConfirmDialog,
   HelpPopoverLabel,
   Input,
   Label,
   RippleButton,
+  SettingsCollapsible,
   Switch,
-  useCollapsible,
 } from '@/components/ui'
-import { cn, generateId } from '@/lib/utils'
+import { generateId } from '@/lib/utils'
 import type { ReasoningTier } from '@sb/core/types'
 import { EyeIcon, EyeOffIcon, PlusIcon, Trash2Icon } from 'lucide-react'
 import { useState } from 'react'
@@ -123,98 +121,88 @@ export function ProviderCard({
   }
 
   return (
-    <Collapsible
+    <SettingsCollapsible
       open={expanded}
       onOpenChange={setExpanded}
-      className="bg-m3-surface-container-low border-input w-full rounded-2xl border"
+      label={providerLabel}
+      labelClassName={!provider.enabled ? 'text-muted-foreground' : undefined}
+      actions={
+        <ProviderCardActions
+          enabled={provider.enabled}
+          modelCount={provider.models.length}
+          onToggleEnabled={(v) => onChange({ enabled: v })}
+          onRemove={onRemove}
+        />
+      }
+      contentClassName="gap-3.5"
+      unmountOnClose
     >
-      <ProviderCardHeader
-        label={providerLabel}
-        enabled={provider.enabled}
-        modelCount={provider.models.length}
-        onToggleEnabled={(v) => onChange({ enabled: v })}
-        onRemove={onRemove}
+      <ProviderTypeField
+        providers={providers}
+        value={comboboxValue}
+        showCustomInput={showCustomInput}
+        providerId={provider.id}
+        typeError={typeError}
+        onChange={handleProviderChange}
+        onCustomNameChange={(id) => onChange({ id })}
       />
 
-      <Collapsible.Content className="gap-3.5" unmountOnClose>
-        <ProviderTypeField
-          providers={providers}
-          value={comboboxValue}
-          showCustomInput={showCustomInput}
-          providerId={provider.id}
-          typeError={typeError}
-          onChange={handleProviderChange}
-          onCustomNameChange={(id) => onChange({ id })}
-        />
+      <ProviderApiKeyField
+        value={provider.apiKey}
+        hasKey={provider.hasKey}
+        showKey={showKey}
+        onToggleKey={() => setShowKey((v) => !v)}
+        onChange={(apiKey) => onChange({ apiKey })}
+      />
 
-        <ProviderApiKeyField
-          value={provider.apiKey}
-          hasKey={provider.hasKey}
-          showKey={showKey}
-          onToggleKey={() => setShowKey((v) => !v)}
-          onChange={(apiKey) => onChange({ apiKey })}
-        />
+      <ProviderBaseURLField
+        providerId={provider.id}
+        isCustom={comboboxValue === '_other'}
+        requiresBaseURL={requiresBaseURL}
+        value={provider.baseURL}
+        error={baseURLError}
+        onChange={(baseURL) => onChange({ baseURL })}
+      />
 
-        <ProviderBaseURLField
-          providerId={provider.id}
-          isCustom={comboboxValue === '_other'}
-          requiresBaseURL={requiresBaseURL}
-          value={provider.baseURL}
-          error={baseURLError}
-          onChange={(baseURL) => onChange({ baseURL })}
-        />
+      <ProviderExtraHeaders
+        editorId={provider._clientId ?? provider.id}
+        value={provider.extraHeaders ?? ''}
+        onChange={(value) => onChange({ extraHeaders: value || undefined })}
+      />
 
-        <ProviderExtraHeaders
-          editorId={provider._clientId ?? provider.id}
-          value={provider.extraHeaders ?? ''}
-          onChange={(value) => onChange({ extraHeaders: value || undefined })}
-        />
-
-        <ProviderModelList
-          models={provider.models}
-          editorId={provider._clientId ?? provider.id}
-          defaultReasoning={knownProvider?.defaultReasoning}
-          binaryReasoningParameter={
-            knownProvider?.binaryReasoningParameter ??
-            providerFormBinaryParameter(provider.id)
-          }
-          expandedModelIds={expandedModelIds}
-          onAdd={addModel}
-          onUpdate={updateModel}
-          onRemove={removeModel}
-          onExpandedChange={setModelExpanded}
-        />
-      </Collapsible.Content>
-    </Collapsible>
+      <ProviderModelList
+        models={provider.models}
+        editorId={provider._clientId ?? provider.id}
+        defaultReasoning={knownProvider?.defaultReasoning}
+        binaryReasoningParameter={
+          knownProvider?.binaryReasoningParameter ??
+          providerFormBinaryParameter(provider.id)
+        }
+        expandedModelIds={expandedModelIds}
+        onAdd={addModel}
+        onUpdate={updateModel}
+        onRemove={removeModel}
+        onExpandedChange={setModelExpanded}
+      />
+    </SettingsCollapsible>
   )
 }
 
-type ProviderCardHeaderProps = {
-  label: string
+type ProviderCardActionsProps = {
   enabled: boolean
   modelCount: number
   onToggleEnabled: (enabled: boolean) => void
   onRemove: () => void
 }
 
-function ProviderCardHeader({
-  label,
+function ProviderCardActions({
   enabled,
   modelCount,
   onToggleEnabled,
   onRemove,
-}: ProviderCardHeaderProps) {
+}: ProviderCardActionsProps) {
   return (
-    <div className="flex items-center gap-4 px-2 py-1">
-      <ExpandToggle />
-      <span
-        className={cn(
-          'text-md flex-1 font-semibold',
-          !enabled && 'text-muted-foreground',
-        )}
-      >
-        {label}
-      </span>
+    <>
       <span className="text-muted-foreground text-sm">
         {modelCount} model{modelCount !== 1 ? 's' : ''}
       </span>
@@ -241,7 +229,7 @@ function ProviderCardHeader({
           <Trash2Icon />
         </RippleButton>
       </ConfirmDialog>
-    </div>
+    </>
   )
 }
 
@@ -482,22 +470,4 @@ function ProviderModelList({
 /** Keeps provider form defaults usable while newer metadata is loading. */
 function providerFormBinaryParameter(providerId: string) {
   return providerId === 'ollama' ? 'think' : undefined
-}
-
-function ExpandToggle() {
-  const { isOpen, toggle } = useCollapsible()
-  return (
-    <RippleButton
-      variant="stealth"
-      size="icon"
-      className="size-8"
-      onClick={toggle}
-      aria-label={isOpen ? 'Collapse' : 'Expand'}
-    >
-      <Accordion.Icon
-        isExpanded={isOpen}
-        className="text-muted-foreground size-4"
-      />
-    </RippleButton>
-  )
 }

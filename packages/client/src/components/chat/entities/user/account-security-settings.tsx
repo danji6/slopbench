@@ -1,9 +1,9 @@
 import { AlertMessage } from '@/components/ui/alert-message'
-import { Collapsible } from '@/components/ui/collapsible'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { LoadingButton } from '@/components/ui/loading-button'
+import { SettingsCollapsible } from '@/components/ui/settings-collapsible'
 import { SettingsList } from '@/components/ui/settings-list'
 import type { AccountSecurity, PasswordFields } from '@/hooks/account-security'
 import { validateNewPassword } from '@/lib/auth/password'
@@ -17,59 +17,49 @@ export function AccountSecuritySettings({ security }: AccountSecurityProps) {
   return (
     <SettingsList className="pb-4">
       <SettingsList.Item unclickable unhoverable>
-        <Collapsible>
-          <h3>
-            <Collapsible.Trigger
-              disabled={busy}
-              aria-controls={`${formId}-password-section`}
-              className="h-10 rounded-full text-base font-semibold"
+        <SettingsCollapsible
+          label="Change password"
+          disabled={busy}
+          contentClassName="pt-2 pb-4"
+        >
+          <div className="flex w-full max-w-80 flex-col gap-4">
+            <PasswordField
+              security={security}
+              name="oldPassword"
+              label="Old password"
+            />
+            <PasswordField
+              security={security}
+              name="newPassword"
+              label="New password"
+            />
+            <PasswordField
+              security={security}
+              name="repeatNewPassword"
+              label="Repeat new password"
+            />
+            {form.formState.errors.root?.message && (
+              <AlertMessage role="alert" dismissible={false}>
+                {form.formState.errors.root.message}
+              </AlertMessage>
+            )}
+            {retrySeconds > 0 && (
+              <p role="status" className="text-muted-foreground text-sm">
+                Try again in {retrySeconds} seconds.
+              </p>
+            )}
+            <LoadingButton
+              type="submit"
+              form={formId}
+              variant="primary"
+              loading={security.changingPassword}
+              disabled={busy || retrySeconds > 0}
+              className="self-start"
             >
               Change password
-            </Collapsible.Trigger>
-          </h3>
-          <Collapsible.Content
-            id={`${formId}-password-section`}
-            className="pt-2 pb-0"
-          >
-            <div className="flex w-full max-w-80 flex-col gap-4">
-              <PasswordField
-                security={security}
-                name="oldPassword"
-                label="Old password"
-              />
-              <PasswordField
-                security={security}
-                name="newPassword"
-                label="New password"
-              />
-              <PasswordField
-                security={security}
-                name="repeatNewPassword"
-                label="Repeat new password"
-              />
-              {form.formState.errors.root?.message && (
-                <AlertMessage role="alert" dismissible={false}>
-                  {form.formState.errors.root.message}
-                </AlertMessage>
-              )}
-              {retrySeconds > 0 && (
-                <p role="status" className="text-muted-foreground text-sm">
-                  Try again in {retrySeconds} seconds.
-                </p>
-              )}
-              <LoadingButton
-                type="submit"
-                form={formId}
-                variant="primary"
-                loading={security.changingPassword}
-                disabled={busy || retrySeconds > 0}
-                className="self-start"
-              >
-                Change password
-              </LoadingButton>
-            </div>
-          </Collapsible.Content>
-        </Collapsible>
+            </LoadingButton>
+          </div>
+        </SettingsCollapsible>
       </SettingsList.Item>
       <SettingsList.Item unclickable unhoverable>
         {security.logoutError && (

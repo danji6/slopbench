@@ -98,11 +98,11 @@ export function FolderOptionsMenu({
           <RippleButton
             variant="stealth"
             size="icon"
-            className="text-muted-foreground hover:text-foreground focus-visible:text-foreground size-7 shrink-0"
+            className="text-muted-foreground hover:text-foreground focus-visible:text-foreground size-8 shrink-0"
             aria-label={`Options for ${name}`}
             title="Folder options"
           >
-            <MoreHorizontalIcon className="size-4" />
+            <MoreHorizontalIcon />
           </RippleButton>
         }
       />
