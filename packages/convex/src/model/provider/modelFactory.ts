@@ -1,3 +1,4 @@
+import { providerFeatures } from '@sb/core/provider-registry'
 import type { ModelReasoning } from '@sb/core/types'
 import type { LanguageModel, LanguageModelMiddleware } from 'ai'
 
@@ -28,114 +29,46 @@ export async function createLanguageModel(
   requestFetch?: typeof fetch,
 ): Promise<LanguageModel> {
   const baseURL = credentials?.baseURL
-  const apiKey = credentials?.apiKey || undefined
+
+  const managedAccount = providerFeatures(
+    providerId,
+    credentials?.auth,
+  ).accountSignIn
+
+  const apiKey = managedAccount
+    ? 'sidecar-managed'
+    : credentials?.apiKey || undefined
+
   if (providerRequiresBaseURL(providerId) && !baseURL) {
     error('Provider URL not specified.')
   }
 
-  const videoModel = await createVideoModel({
-    providerId,
-    modelId,
-    baseURL,
-    apiKey,
-    requestFetch,
-  })
+  const videoModel = managedAccount
+    ? undefined
+    : await createVideoModel({
+        providerId,
+        modelId,
+        baseURL,
+        apiKey,
+        requestFetch,
+      })
 
   const withMiddleware = (model: LanguageModel) =>
     withProviderMiddleware({ model, videoModel })
 
-  switch (providerId) {
-    case 'anthropic': {
-      const { createAnthropic } = await import('@ai-sdk/anthropic')
-      return withMiddleware(
-        createAnthropic({ apiKey, baseURL, fetch: requestFetch })(modelId),
-      )
-    }
-    case 'alibaba': {
-      const { createAlibaba } = await import('@ai-sdk/alibaba')
-      return withMiddleware(
-        createAlibaba({ apiKey, baseURL, fetch: requestFetch })(modelId),
-      )
-    }
-    case 'deepseek': {
-      const { createDeepSeek } = await import('@ai-sdk/deepseek')
-      return withMiddleware(
-        createDeepSeek({ apiKey, baseURL, fetch: requestFetch })(modelId),
-      )
-    }
-    case 'mistral': {
-      const { createMistral } = await import('@ai-sdk/mistral')
-      return withMiddleware(
-        createMistral({ apiKey, baseURL, fetch: requestFetch })(modelId),
-      )
-    }
-    case 'moonshotai': {
-      const { createMoonshotAI } = await import('@ai-sdk/moonshotai')
-      const model = createMoonshotAI({ apiKey, baseURL, fetch: requestFetch })(
-        modelId,
-      )
-      return withMiddleware(model)
-    }
-    case 'ollama': {
-      return withMiddleware(
-        await createOllamaModel(
-          modelId,
-          baseURL,
-          apiKey,
-          reasoning,
-          reasoningEffort,
-          requestFetch,
-        ),
-      )
-    }
-    case 'openai': {
-      const { createOpenAI } = await import('@ai-sdk/openai')
-      return withMiddleware(
-        createOpenAI({ apiKey, baseURL, fetch: requestFetch })(modelId),
-      )
-    }
-    case 'openrouter': {
-      const { createOpenRouter } = await import('@openrouter/ai-sdk-provider')
-      return withMiddleware(
-        createOpenRouter({ apiKey, baseURL, fetch: requestFetch })(modelId, {
-          usage: { include: true },
-        }),
-      )
-    }
-    case 'qwen': {
-      const { createOpenAI } = await import('@ai-sdk/openai')
-      const model = createOpenAI({
-        apiKey,
-        baseURL,
-        fetch: requestFetch,
-      }).chat(modelId)
-      return withMiddleware(model)
-    }
-    default: {
-      if (!baseURL) error('Provider URL not specified.')
-      const { createOpenAI } = await import('@ai-sdk/openai')
-
-      if (baseURL.endsWith('/responses')) {
-        const model = createOpenAI({
-          apiKey,
-          baseURL: baseURL.slice(0, -'/responses'.length),
-          fetch: requestFetch,
-        }).responses(modelId)
-        return withMiddleware(model)
-      }
-
-      const chatBase = baseURL.endsWith('/chat/completions')
-        ? baseURL.slice(0, -'/chat/completions'.length)
-        : baseURL
-
-      const model = createOpenAI({
-        apiKey,
-        baseURL: chatBase,
-        fetch: requestFetch,
-      }).chat(modelId)
-      return withMiddleware(model)
-    }
-  }
+  const { inferenceAdapter } = await import('./inferenceFactory')
+  const adapter = await inferenceAdapter(providerId)
+  return withMiddleware(
+    await adapter({
+      providerId,
+      modelId,
+      baseURL,
+      apiKey,
+      reasoning,
+      reasoningEffort,
+      requestFetch,
+    }),
+  )
 }
 
 /** A model API that handles video uploads, currently by using the MoonshotAI API. */

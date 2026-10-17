@@ -2,6 +2,7 @@ import { PROMPT_MARKERS } from '@sb/convex/model/prompt/markers'
 import { providerRequiresBaseURL } from '@sb/convex/model/provider/known'
 import { parseModelExtraParameters } from '@sb/core/model-parameters'
 import { parseProviderExtraHeaders } from '@sb/core/provider-headers'
+import type { InferenceParameters, ModelReasoning } from '@sb/core/types'
 import { REASONING_TIERS } from '@sb/core/types'
 import { MCP_TRANSPORTS, SEARCH_ENGINE_IDS } from '@sb/core/types'
 import { z } from 'zod/v4'
@@ -59,6 +60,14 @@ export const modelEntrySchema = z
         z.object({ type: z.literal('none') }),
       ])
       .optional(),
+    discoveredOutputLimit: z.number().optional(),
+    discoveredParameters: z.array(z.string()).optional(),
+    discoveredInference: z.custom<InferenceParameters>().optional(),
+    discoveredLabel: z.string().optional(),
+    discoveredContextWindow: z.number().optional(),
+    discoveredReasoning: z.custom<ModelReasoning>().optional(),
+    source: z.enum(['manual', 'discovered']).optional(),
+    available: z.boolean().optional(),
     inference: z
       .object({
         temperature: z.number().optional(),
@@ -85,6 +94,11 @@ export const modelEntrySchema = z
 export const providerSchema = z
   .object({
     id: z.string(),
+    connectionId: z.string().optional(),
+    configRevision: z.number().optional(),
+    previewId: z.string().optional(),
+    name: z.string().optional(),
+    auth: z.enum(['apiKey', 'chatgpt']).optional(),
     apiKey: z.string().optional(),
     hasKey: z.boolean().default(false),
     baseURL: z.string().optional(),
@@ -178,7 +192,10 @@ export const settingsFormSchema = z.object({
   libraryReminders: z.array(reminderPromptSchema),
   compactionPrompts: z.array(promptSchema),
   impersonationPrompts: z.array(promptSchema),
-  providers: z.array(providerSchema).superRefine(providerRefinement),
+  providers: z.array(providerSchema),
+  removedProviders: z
+    .array(z.object({ providerId: z.string(), configRevision: z.number() }))
+    .optional(),
 })
 
 export type SettingsFormValues = z.infer<typeof settingsFormSchema>
@@ -188,21 +205,3 @@ export type LibraryPrompt = z.infer<typeof promptSchema>
 export type WebSearchInstanceFormValues = z.infer<typeof webSearchInstanceSchema> // prettier-ignore
 export type McpServerFormValues = z.infer<typeof mcpServerSchema>
 export type McpToolMetaFormValues = z.infer<typeof mcpToolMetaSchema>
-
-function providerRefinement(
-  providers: z.infer<typeof providerSchema>[],
-  ctx: z.RefinementCtx,
-) {
-  const seen = new Set<string>()
-  providers.forEach((p, i) => {
-    if (!p.id) return
-    if (seen.has(p.id)) {
-      ctx.addIssue({
-        code: 'custom',
-        message: `Provider "${p.id}" is already configured`,
-        path: [i, 'id'],
-      })
-    }
-    seen.add(p.id)
-  })
-}

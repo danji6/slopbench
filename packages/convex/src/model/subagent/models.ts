@@ -11,7 +11,10 @@ import type {
   ModelSelection,
   ReasoningEffort,
 } from '../../types'
-import { findModelSelection } from '../provider/providers'
+import {
+  findCredentialsForModel,
+  findModelSelection,
+} from '../provider/providers'
 import { resolve as resolveProviders } from '../providers'
 
 export type SubagentModelSettings = {
@@ -44,7 +47,8 @@ export async function resolveSubagentModel(
       providers.filter((provider) => provider.enabled),
       override.modelId,
     )
-    if (!selected) {
+    const credentials = findCredentialsForModel(providers, selected?.id)
+    if (!selected || credentials?.model?.available === false) {
       return {
         error: `Cannot spawn sub-agent "${agent.name}": model "${override.modelId}" is unavailable. Select an enabled model in the parent agent's sub-agent settings.`,
       }

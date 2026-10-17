@@ -2,6 +2,7 @@
 import type { Doc } from '@sb/convex/_generated/dataModel'
 import { _suspendStep } from '@sb/convex/model/stream/subagents'
 import { resolveSubagentModel } from '@sb/convex/model/subagent/models'
+import { modelReference } from '@sb/core/model-reference'
 import type { AgentSubagentOverride, ModelReasoning } from '@sb/core/types'
 import { describe, expect, test } from 'bun:test'
 
@@ -103,7 +104,11 @@ describe('subagent model resolution', () => {
       setup([{ agentId: 'explore', modelId: 'fast' }]),
     )
     expect(modelOnly.settings).toMatchObject({
-      model: { id: 'fast', label: 'Fast', contextWindow: 32768 },
+      model: {
+        id: modelReference('provider', 'fast'),
+        label: 'Fast',
+        contextWindow: 32768,
+      },
       reasoningEffort: 'high',
     })
     const reasoningOnly = await resolve(
@@ -126,8 +131,12 @@ describe('subagent model resolution', () => {
         overrides: [{ agentId: 'explore', modelId: 'capable' }],
       },
     }
-    expect((await resolve(fixture)).settings?.model?.id).toBe('fast')
-    expect((await resolve(fixture, other)).settings?.model?.id).toBe('capable')
+    expect((await resolve(fixture)).settings?.model?.id).toBe(
+      modelReference('provider', 'fast'),
+    )
+    expect((await resolve(fixture, other)).settings?.model?.id).toBe(
+      modelReference('provider', 'capable'),
+    )
     expect(session.model.id).toBe('parent-model')
   })
 
@@ -180,13 +189,13 @@ describe('spawning configured subagents', () => {
         fields.reasoningEffort,
       ]),
     ).toMatchObject([
-      ['explore', { id: 'fast' }, 'low'],
-      ['review', { id: 'capable' }, 'high'],
+      ['explore', { id: modelReference('provider', 'fast') }, 'low'],
+      ['review', { id: modelReference('provider', 'capable') }, 'high'],
     ])
     expect(fixture.byId.get('session')?.model).toEqual(session.model)
     fixture.parent.subAgents.overrides = []
     expect(children[0].fields).toMatchObject({
-      model: { id: 'fast' },
+      model: { id: modelReference('provider', 'fast') },
       reasoningEffort: 'low',
     })
   })

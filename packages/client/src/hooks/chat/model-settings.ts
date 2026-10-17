@@ -64,6 +64,7 @@ export function useActiveModelSettings(): ActiveModelSettingsState {
     return {
       ...configured,
       ...sessionModel,
+      subscription: configured?.subscription,
       inference: configured?.inference,
     }
   }, [isLoading, modelId, models, sessionModel])

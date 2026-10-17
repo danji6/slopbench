@@ -3,6 +3,7 @@ import { Suspense, lazy, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { CheckboxFixture } from './checkbox-fixture'
+import { ProviderConnectionsFixture } from './provider-connections-fixture'
 import { ScrollFixture } from './scroll-fixture'
 
 const InlineSourceFixture = lazy(() =>
@@ -88,7 +89,10 @@ function PreviewFixture() {
 }
 
 createRoot(document.getElementById('root')!).render(
-  new URLSearchParams(location.search).get('fixture') === 'script-menus' ? (
+  new URLSearchParams(location.search).get('fixture') ===
+    'provider-connections' ? (
+    <ProviderConnectionsFixture />
+  ) : new URLSearchParams(location.search).get('fixture') === 'script-menus' ? (
     <Suspense fallback={<p>Loading menus…</p>}>
       <ScriptMenusFixture />
     </Suspense>

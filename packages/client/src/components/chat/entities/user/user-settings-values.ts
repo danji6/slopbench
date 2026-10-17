@@ -6,6 +6,7 @@ import {
   type useSettings,
 } from '@/hooks/chat'
 import { FONT_OVERRIDE_KEYS } from '@/hooks/font'
+import { providerForm } from '@/lib/provider-settings'
 import { type SettingsOverride } from '@/lib/settings-override'
 import { generateId } from '@/lib/utils'
 import {
@@ -141,18 +142,7 @@ export function loadedSettingsValues({
     impersonationPrompts: impersonationPrompts.length
       ? impersonationPrompts
       : createDefaultImpersonationPrompts(),
-    providers: (providers ?? []).map((p) => ({
-      id: p.id,
-      baseURL: p.baseURL,
-      extraHeaders: p.extraHeaders,
-      enabled: p.enabled,
-      models: p.models.map((model) => ({
-        ...model,
-        _clientId: generateId(),
-      })),
-      hasKey: p.hasKey,
-      _clientId: generateId(),
-    })),
+    providers: providers.map(providerForm),
   }
 }
 

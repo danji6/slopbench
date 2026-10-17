@@ -1,5 +1,6 @@
 import type { SharedV3ProviderOptions } from '@ai-sdk/provider'
 import { normalizeReasoningEffort } from '@sb/core/model-reasoning'
+import { parseModelReference } from '@sb/core/model-reference'
 import type { LanguageModel } from 'ai'
 
 import { error } from '../../errors'
@@ -12,6 +13,7 @@ import { type ReasoningValue } from './reasoningOptions'
 import { applyReasoning } from './reasoningOptions'
 import { applyReasoningReplayPolicy } from './reasoningReplay'
 import { createProviderFetch } from './request'
+import { inferenceTransport } from './transports'
 
 export { applyReasoningReplayPolicy } from './reasoningReplay'
 export { getReasoningPartPolicy } from './reasoningReplay'
@@ -43,12 +45,18 @@ export async function getProviderOptions(
     )
   }
 
+  model = parseModelReference(model).modelId
+  if (credentials.model?.available === false) {
+    error(
+      'This model is no longer listed. Refresh discovery or choose another model in provider settings.',
+    )
+  }
+
+  const transport = inferenceTransport(credentials)
   const providerId = credentials.providerId
-  const reasoning = resolveModelReasoning(
-    providerId,
-    credentials.model?.reasoning,
-  )
+  const reasoning = resolveModelReasoning(providerId, credentials.model?.reasoning) // prettier-ignore
   const normalizedEffort = normalizeReasoningEffort(reasoningEffort, reasoning)
+
   const requestFetch = createProviderFetch({
     providerId,
     reasoning,
@@ -56,8 +64,10 @@ export async function getProviderOptions(
     extraParameters: credentials.model?.extraParameters,
     extraHeaders: credentials.extraHeaders,
     onRequest,
-    fetch: fetchOverride,
+    fetch: fetchOverride ?? transport?.fetch,
+    transformRequest: transport?.transformRequest,
   })
+
   const created = await createLanguageModel(
     providerId,
     model,
@@ -72,6 +82,18 @@ export async function getProviderOptions(
   }
   result = await applyReasoning(result, providerId, model, normalizedEffort)
   result = applyPenalties(result, providerId, credentials.model?.inference)
+
+  if (transport) {
+    result = {
+      ...result,
+      languageModel: await transport.wrap(result.languageModel),
+      reasoning: result.reasoning,
+      providerOptions: {
+        ...result.providerOptions,
+        openai: { ...result.providerOptions?.openai, ...transport.options },
+      },
+    }
+  }
 
   return result
 }

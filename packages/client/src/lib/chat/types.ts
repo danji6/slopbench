@@ -7,9 +7,7 @@ import type {
   SessionMember as CoreSessionMember,
   SessionParticipant as CoreSessionParticipant,
   UpdateAgentArgs as CoreUpdateAgentArgs,
-  InferenceParameters,
   MessageRole,
-  ModelReasoning,
 } from '@sb/core/types'
 import type { ChatStatus, FileUIPart, UIMessage } from 'ai'
 
@@ -109,18 +107,7 @@ export type MessagesEventData = {
   summaryId?: string
 }
 
-export type UIModel = {
-  id: string
-  label?: string
-  contextWindow?: number
-  local?: boolean
-  reasoning?: ModelReasoning
-  inference?: InferenceParameters
-}
-
-export type UIModelConfig = {
-  models: UIModel[]
-}
+export type { UIModel, UIModelConfig } from '@sb/core/types/providers'
 
 /** Identifies one attachment occurrence before it is uploaded. */
 export type PendingFilePart = FileUIPart & { id: string }

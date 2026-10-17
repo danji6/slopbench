@@ -1,9 +1,11 @@
 /// <reference types="bun-types" />
 import { list as listMcp, replaceAll as replaceMcp } from '@sb/convex/model/mcp'
 import {
+  create as createProvider,
   list as listProviders,
-  replaceAll as replaceProviders,
+  remove as removeProvider,
   setModelInference,
+  update as updateProvider,
 } from '@sb/convex/model/providers'
 import { MAX_MCP_SCHEMA_CHARS } from '@sb/core/limits'
 import { describe, expect, test } from 'bun:test'
@@ -34,6 +36,7 @@ function makeCtx(seed: Record<string, Row[]> = {}) {
 
   const ctx = {
     userId: OWNER,
+    scheduler: { runAfter: async () => 'scheduled' },
     db: {
       get: async (id: string) => find(id) ?? null,
       insert: async (table: string, doc: Record<string, unknown>) => {
@@ -251,15 +254,11 @@ describe('model providers', () => {
   test('round-trips a custom provider endpoint', async () => {
     const { ctx, tables } = makeCtx()
 
-    await replaceProviders(ctx, {
-      providers: [
-        {
-          key: 'custom-service',
-          baseURL: 'https://custom.example/v1',
-          enabled: true,
-          models: [],
-        },
-      ],
+    await createProvider(ctx, {
+      key: 'custom-service',
+      baseURL: 'https://custom.example/v1',
+      enabled: true,
+      models: [],
     })
 
     expect(tables.modelProviders[0].baseURL).toBe('https://custom.example/v1')
@@ -271,15 +270,11 @@ describe('model providers', () => {
   test('round-trips a manually configured Qwen endpoint', async () => {
     const { ctx, tables } = makeCtx()
 
-    await replaceProviders(ctx, {
-      providers: [
-        {
-          key: 'qwen',
-          baseURL: 'https://qwen.example/v1',
-          enabled: true,
-          models: [],
-        },
-      ],
+    await createProvider(ctx, {
+      key: 'qwen',
+      baseURL: 'https://qwen.example/v1',
+      enabled: true,
+      models: [],
     })
 
     expect(tables.modelProviders[0].baseURL).toBe('https://qwen.example/v1')
@@ -291,16 +286,17 @@ describe('model providers', () => {
   test('the key lands in credentials and never in the listing', async () => {
     const { ctx, tables } = makeCtx()
 
-    await replaceProviders(ctx, {
-      providers: [
-        { key: 'openai', enabled: true, models: [], apiKey: 'sk-test' },
-      ],
+    await createProvider(ctx, {
+      key: 'openai',
+      enabled: true,
+      models: [],
+      apiKey: 'sk-test',
     })
 
     expect(tables.modelProviders[0]).not.toHaveProperty('apiKey')
     expect(tables.credentials[0]).toMatchObject({
       scope: 'provider',
-      ref: 'openai',
+      ref: tables.modelProviders[0]._id,
       apiKey: 'sk-test',
     })
 
@@ -312,12 +308,15 @@ describe('model providers', () => {
   test('removing a provider drops its credential', async () => {
     const { ctx, tables } = makeCtx()
 
-    await replaceProviders(ctx, {
-      providers: [
-        { key: 'openai', enabled: true, models: [], apiKey: 'sk-test' },
-      ],
+    await createProvider(ctx, {
+      key: 'openai',
+      enabled: true,
+      models: [],
+      apiKey: 'sk-test',
     })
-    await replaceProviders(ctx, { providers: [] })
+    await removeProvider(ctx, {
+      providerId: tables.modelProviders[0]._id as never,
+    })
 
     expect(tables.modelProviders).toEqual([])
     expect(tables.credentials).toEqual([])
@@ -335,15 +334,11 @@ describe('model providers', () => {
       inference: { temperature: 0.4, topP: 0.8 },
     }
 
-    await replaceProviders(ctx, {
-      providers: [
-        {
-          key: 'custom',
-          enabled: true,
-          extraHeaders: '{"X-Custom":"value"}',
-          models: [model],
-        },
-      ],
+    await createProvider(ctx, {
+      key: 'custom',
+      enabled: true,
+      extraHeaders: '{"X-Custom":"value"}',
+      models: [model],
     })
 
     expect(tables.modelProviders[0].models).toEqual([model])
@@ -354,16 +349,12 @@ describe('model providers', () => {
 
   test('updates one model inference configuration without rewriting siblings', async () => {
     const { ctx, tables } = makeCtx()
-    await replaceProviders(ctx, {
-      providers: [
-        {
-          key: 'openai',
-          enabled: true,
-          models: [
-            { id: 'model-a', label: 'A' },
-            { id: 'model-b', inference: { temperature: 0.2 } },
-          ],
-        },
+    await createProvider(ctx, {
+      key: 'openai',
+      enabled: true,
+      models: [
+        { id: 'model-a', label: 'A' },
+        { id: 'model-b', inference: { temperature: 0.2 } },
       ],
     })
 
@@ -384,14 +375,10 @@ describe('model providers', () => {
 
   test('clears an empty model inference configuration', async () => {
     const { ctx, tables } = makeCtx()
-    await replaceProviders(ctx, {
-      providers: [
-        {
-          key: 'openai',
-          enabled: true,
-          models: [{ id: 'model-a', inference: { temperature: 0.2 } }],
-        },
-      ],
+    await createProvider(ctx, {
+      key: 'openai',
+      enabled: true,
+      models: [{ id: 'model-a', inference: { temperature: 0.2 } }],
     })
 
     await setModelInference(ctx, { modelId: 'model-a', inference: {} })
@@ -427,14 +414,9 @@ describe('model providers', () => {
       parameter: 'think',
     })
 
-    await replaceProviders(ctx, {
-      providers: [
-        {
-          key: 'ollama',
-          enabled: true,
-          models: listed[0].models,
-        },
-      ],
+    await updateProvider(ctx, {
+      providerId: tables.modelProviders[0]._id as never,
+      models: listed[0].models,
     })
     expect(tables.modelProviders[0].models).toEqual(listed[0].models)
   })
@@ -443,14 +425,10 @@ describe('model providers', () => {
     const { ctx } = makeCtx()
 
     expect(
-      replaceProviders(ctx, {
-        providers: [
-          {
-            key: 'custom',
-            enabled: true,
-            models: [{ id: 'bad', extraParameters: '{"messages":[]}' }],
-          },
-        ],
+      createProvider(ctx, {
+        key: 'custom',
+        enabled: true,
+        models: [{ id: 'bad', extraParameters: '{"messages":[]}' }],
       }),
     ).rejects.toThrow('reserved fields')
   })
@@ -459,15 +437,11 @@ describe('model providers', () => {
     const { ctx } = makeCtx()
 
     expect(
-      replaceProviders(ctx, {
-        providers: [
-          {
-            key: 'custom',
-            enabled: true,
-            extraHeaders: '{"Host":"example.com"}',
-            models: [],
-          },
-        ],
+      createProvider(ctx, {
+        key: 'custom',
+        enabled: true,
+        extraHeaders: '{"Host":"example.com"}',
+        models: [],
       }),
     ).rejects.toThrow('managed by the HTTP transport')
   })

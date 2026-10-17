@@ -34,10 +34,7 @@ export async function refreshForOwner(ctx: MutationCtx, ownerId: Id<'users'>) {
     for (const link of links) {
       const session = await ctx.db.get(link.sessionId)
       if (session?.activeAgentId !== agent._id || !session.model) continue
-
-      const model =
-        findModelSelection(providers, session.model.id) ??
-        ({ id: session.model.id } as ModelSelection)
+      const model = findModelSelection(providers, session.model.id) ?? session.model // prettier-ignore
       await ctx.db.patch(session._id, { model })
     }
   }

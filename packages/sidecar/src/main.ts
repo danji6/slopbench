@@ -58,6 +58,7 @@ import {
   validateSources,
   validateSourcesSchema,
 } from './mcp/workspace/context'
+import { providerRoutes } from './providers/openai/routes'
 import { shellRoutes } from './shell/routes'
 import { updateStatus } from './update/status'
 
@@ -67,6 +68,8 @@ export function createApp(authenticate: MiddlewareHandler) {
   const app = new Hono()
   app.get('/health', (c) => c.json({ ready: true }))
   app.use('*', authenticate)
+
+  app.route('/providers/chatgpt', providerRoutes)
 
   app.post('/mcp', handleMcpRequest)
 

@@ -30,6 +30,7 @@
     "\\/lib\\/dynamic-block\\.ts$",
     "\\/lib\\/editor-clear\\.ts$",
     "\\/lib\\/command-filter\\.ts$",
-    "\\/user-settings-(values|persistence)\\.ts$"
+    "\\/user-settings-(values|persistence)\\.ts$",
+    "\\/entities\\/user\\/providers\\/openai\\/sign-in\\.tsx$"
   ]
 }

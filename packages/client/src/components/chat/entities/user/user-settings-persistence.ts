@@ -1,17 +1,21 @@
 import {
   useClearProfileAvatar,
   useMcpServersSave,
-  useModelProvidersSave,
   useSettingsUpdate,
   useUploadProfileAvatar,
   useUserPromptSetsSave,
 } from '@/hooks/chat'
 import { FONT_OVERRIDE_KEYS } from '@/hooks/font'
+import { providerSaveInput } from '@/lib/provider-settings'
 import {
   type SettingsOverride,
   setSettingsOverride,
 } from '@/lib/settings-override'
 import { snapshotTheme } from '@/lib/theme-worker'
+import { api } from '@sb/convex/_generated/api'
+import type { Id } from '@sb/convex/_generated/dataModel'
+import { providerFeatures } from '@sb/core/provider-registry'
+import { useAction, useMutation } from 'convex/react'
 import type { UseFormReturn } from 'react-hook-form'
 
 import type { SettingsFormValues } from './settings-schema'
@@ -38,8 +42,9 @@ export function useUserSettingsPersistence({
   const updateSettings = useSettingsUpdate()
   const uploadAvatar = useUploadProfileAvatar()
   const clearAvatar = useClearProfileAvatar()
-  const saveProviders = useModelProvidersSave()
   const saveMcpServers = useMcpServersSave()
+  const saveProviders = useMutation(api.providers.save)
+  const discover = useAction(api.actions.providerConnections.discover)
   const savePromptSets = useUserPromptSetsSave()
 
   return async function persist(values: SettingsFormValues) {
@@ -50,6 +55,7 @@ export function useUserSettingsPersistence({
       await clearAvatar()
     }
     setAvatarCleared(false)
+
     await updateSettings({
       patch: {
         displayName: values.displayName,
@@ -86,23 +92,6 @@ export function useUserSettingsPersistence({
       compactionPrompts: values.compactionPrompts,
       impersonationPrompts: values.impersonationPrompts,
     })
-    await saveProviders({
-      providers: values.providers.map((p) => ({
-        key: p.id,
-        baseURL: p.baseURL,
-        extraHeaders: p.extraHeaders,
-        enabled: p.enabled,
-        models: p.models.map((model) => ({
-          id: model.id,
-          label: model.label,
-          contextWindow: model.contextWindow,
-          reasoning: model.reasoning,
-          inference: model.inference,
-          extraParameters: model.extraParameters,
-        })),
-        apiKey: p.apiKey,
-      })),
-    })
     await saveMcpServers({
       servers: values.mcpServers.map((server) => ({
         key: server.id,
@@ -121,7 +110,9 @@ export function useUserSettingsPersistence({
         })),
       })),
     })
+
     const { enabled, ...fontOverride } = values.override.fonts
+
     if (enabled) {
       setSettingsOverride(fontOverride)
     } else {
@@ -129,7 +120,35 @@ export function useUserSettingsPersistence({
       for (const key of FONT_OVERRIDE_KEYS) cleared[key] = undefined
       setSettingsOverride(cleared)
     }
-    form.reset(values)
+
+    const savedProviders = await saveProviders({
+      connections: values.providers.map(providerSaveInput),
+      removed: (values.removedProviders ?? []).map((row) => ({
+        ...row,
+        providerId: row.providerId as Id<'modelProviders'>,
+      })),
+    })
+
+    const providers = values.providers.map((row) => {
+      const saved = savedProviders.find(
+        (connection) =>
+          connection.clientId === (row._clientId ?? row.connectionId),
+      )!
+      return {
+        ...row,
+        apiKey: undefined,
+        hasKey: row.apiKey !== undefined ? !!row.apiKey : row.hasKey,
+        connectionId: saved.providerId,
+        configRevision: saved.configRevision,
+        previewId: undefined,
+      }
+    })
+
+    form.reset({ ...values, providers, removedProviders: [] })
+    for (const row of providers) {
+      if (row.enabled && providerFeatures(row.id, row.auth).discovery)
+        void discover({ providerId: row.connectionId }).catch(() => {})
+    }
     draft.clear()
   }
 }

@@ -39,6 +39,10 @@ import {
   userSchema,
   userSessionSchema,
 } from './validators'
+import {
+  catalogRowSchema,
+  discoveryPreviewSchema,
+} from './validators/discovery'
 
 const schemaValidation = true
 
@@ -126,6 +130,12 @@ export default defineSchema({
 
   mcpTools: defineTable(mcpToolSchema)
     .index('by_serverId_order', ['serverId', 'order']),
+
+  discoveryPreviews: defineTable(discoveryPreviewSchema),
+
+  modelCatalog: defineTable(catalogRowSchema)
+    .index('by_generation', ['generation'])
+    .index('by_connection_generation_order', ['connectionId', 'generation', 'order']),
 
   modelProviders: defineTable(modelProviderSchema)
     .index('by_ownerId_order', ['ownerId', 'order']),

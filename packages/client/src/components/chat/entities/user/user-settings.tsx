@@ -366,11 +366,7 @@ function ChatSettingsDialog({
               </SettingsTabs.Content>
 
               <SettingsTabs.Content value="models" title="Models">
-                <ModelSettings
-                  control={form.control}
-                  setValue={form.setValue}
-                  providers={providerIds}
-                />
+                <ModelSettings providers={providerIds} form={form} />
               </SettingsTabs.Content>
 
               <SettingsTabs.Content value="skills" title="Skills">

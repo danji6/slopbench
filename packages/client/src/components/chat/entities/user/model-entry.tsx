@@ -30,6 +30,7 @@ import type { ModelEntryFormValues } from './settings-schema'
 
 type ModelRowProps = {
   model: ModelEntryFormValues
+  catalogOnly?: boolean
   editorId: string
   defaultReasoning?: ModelReasoning
   binaryReasoningParameter?: string
@@ -41,6 +42,7 @@ type ModelRowProps = {
 
 export function ModelRow({
   model,
+  catalogOnly,
   editorId,
   defaultReasoning,
   binaryReasoningParameter,
@@ -50,8 +52,13 @@ export function ModelRow({
   onRemove,
 }: ModelRowProps) {
   const [tab, setTab] = useState('configuration')
+
   const configuredReasoning =
-    model.reasoning ?? defaultReasoning ?? defaultModelReasoning()
+    model.reasoning ??
+    model.discoveredReasoning ??
+    defaultReasoning ??
+    defaultModelReasoning()
+
   const reasoning =
     normalizeBinaryReasoningParameter(
       configuredReasoning,
@@ -66,7 +73,7 @@ export function ModelRow({
       label={
         <span className="flex min-w-0 flex-col">
           <span className="truncate text-sm font-semibold">
-            {model.label || model.id || 'New model'}
+            {model.label || model.discoveredLabel || model.id || 'New model'}
           </span>
           {model.label && model.id && (
             <span className="text-muted-foreground truncate font-mono text-xs font-normal">
@@ -90,9 +97,13 @@ export function ModelRow({
       unmountOnClose
     >
       <div className="flex min-w-0 flex-col gap-2">
-        <ModelIdentity model={model} onChange={onChange} />
+        <ModelIdentity
+          model={model}
+          catalogOnly={catalogOnly}
+          onChange={onChange}
+        />
         <ContextWindowField
-          value={model.contextWindow}
+          value={model.contextWindow ?? model.discoveredContextWindow}
           onChange={(contextWindow) => onChange({ contextWindow })}
         />
       </div>
@@ -112,6 +123,16 @@ export function ModelRow({
                 }
                 onChange={(value) => onChange({ reasoning: value })}
               />
+              {model.discoveredReasoning && model.reasoning !== undefined && (
+                <RippleButton
+                  size="sm"
+                  variant="stealth"
+                  className="self-start"
+                  onClick={() => onChange({ reasoning: undefined })}
+                >
+                  Use discovered reasoning
+                </RippleButton>
+              )}
               <ExtraParametersField
                 editorId={editorId}
                 value={model.extraParameters ?? ''}
@@ -124,9 +145,18 @@ export function ModelRow({
           <Tabs.Content value="inference">
             <InferenceSettings
               density="compact"
-              value={model.inference}
+              value={{ ...model.discoveredInference, ...model.inference }}
               onChange={(inference) => onChange({ inference })}
             />
+            {model.discoveredInference && model.inference !== undefined && (
+              <RippleButton
+                size="sm"
+                variant="stealth"
+                onClick={() => onChange({ inference: undefined })}
+              >
+                Use discovered inference defaults
+              </RippleButton>
+            )}
           </Tabs.Content>
         </Tabs.Panels>
       </Tabs>
@@ -136,8 +166,9 @@ export function ModelRow({
 
 function ModelIdentity({
   model,
+  catalogOnly,
   onChange,
-}: Pick<ModelRowProps, 'model' | 'onChange'>) {
+}: Pick<ModelRowProps, 'model' | 'onChange' | 'catalogOnly'>) {
   return (
     <>
       <div className="flex flex-col gap-1.5">
@@ -145,6 +176,7 @@ function ModelIdentity({
         <Input
           className="h-9 font-mono text-sm"
           placeholder="e.g. model-id"
+          disabled={catalogOnly}
           value={model.id}
           onChange={(event) => onChange({ id: event.target.value })}
         />
@@ -154,13 +186,21 @@ function ModelIdentity({
           Display name <span className="opacity-60">(optional)</span>
         </Label>
         <Input
-          className="h-9 max-w-48 text-sm"
-          placeholder="e.g. Model Name"
-          value={model.label ?? ''}
-          onChange={(event) =>
-            onChange({ label: event.target.value || undefined })
-          }
+          className="h-9 w-full text-sm"
+          placeholder={model.discoveredLabel ?? 'e.g. Model Name'}
+          value={model.label ?? model.discoveredLabel ?? ''}
+          onChange={(event) => onChange({ label: event.target.value })}
         />
+        {model.discoveredLabel && model.label !== undefined && (
+          <RippleButton
+            size="sm"
+            variant="stealth"
+            className="self-start"
+            onClick={() => onChange({ label: undefined })}
+          >
+            Use discovered value
+          </RippleButton>
+        )}
       </div>
     </>
   )

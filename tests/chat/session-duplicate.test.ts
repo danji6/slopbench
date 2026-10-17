@@ -9,6 +9,7 @@ import {
   setModel,
   setReasoningEffort,
 } from '@sb/convex/model/session/sessions'
+import { modelReference } from '@sb/core/model-reference'
 import { describe, expect, test } from 'bun:test'
 
 type Row = Record<string, unknown> & { _id: string }
@@ -547,7 +548,10 @@ describe('session model binding', () => {
     const { ctx, tables } = makeCtx()
     const session = seedSession(tables, {
       activeAgentId: 'agents_1',
-      model: { id: 'model-a', label: 'Old label' },
+      model: {
+        id: modelReference('provider_1', 'model-a'),
+        label: 'Old label',
+      },
     })
     tables.agents.push(
       { _id: 'agents_0', ownerId: OWNER, name: 'Inactive' },
@@ -576,7 +580,9 @@ describe('session model binding', () => {
 
     await refreshForOwner(ctx as never, OWNER as Id<'users'>)
 
-    expect((session.model as { id: string; label?: string }).id).toBe('model-a')
+    expect((session.model as { id: string; label?: string }).id).toBe(
+      modelReference('provider_1', 'model-a'),
+    )
     expect((session.model as { id: string; label?: string }).label).toBe(
       'Updated label',
     )

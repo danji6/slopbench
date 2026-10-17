@@ -1,55 +1,83 @@
 import { RippleButton, SettingsList } from '@/components/ui'
+import { useModelProviders } from '@/hooks/chat/integrations'
+import { useProviderDiscoveryCoordinator } from '@/hooks/chat/provider-discovery'
+import { useProviderSettingsSync } from '@/hooks/chat/provider-settings'
+import { networkChanged } from '@/lib/provider-settings'
 import { generateId } from '@/lib/utils'
-import { PlusIcon } from 'lucide-react'
-import { useState } from 'react'
-import type { Control, FieldErrors, UseFormSetValue } from 'react-hook-form'
-import { useFieldArray, useFormState, useWatch } from 'react-hook-form'
+import { type UseFormReturn, useWatch } from 'react-hook-form'
 
 import { ProviderCard } from './provider-card'
+import { ProviderDiscovery } from './provider-discovery'
 import type { ProviderOption } from './provider-types'
 import type { ProviderFormValues, SettingsFormValues } from './settings-schema'
 
-export type {
-  ModelEntryFormValues,
-  ProviderFormValues,
-} from './settings-schema'
-
-type ModelSettingsProps = {
-  control: Control<SettingsFormValues>
-  setValue: UseFormSetValue<SettingsFormValues>
+type Props = {
   providers?: ProviderOption[]
+  form: UseFormReturn<SettingsFormValues>
 }
 
-export function ModelSettings({
-  control,
-  setValue,
-  providers,
-}: ModelSettingsProps) {
-  const { fields, append, remove } = useFieldArray<
-    SettingsFormValues,
-    'providers',
-    'rhfKey'
-  >({
-    control,
-    name: 'providers',
-    keyName: 'rhfKey',
-  })
+export function ModelSettings({ providers, form }: Props) {
+  const connections = useModelProviders()
 
-  const [newProviderClientId, setNewProviderClientId] = useState<string | null>(null) // prettier-ignore
-  const { errors } = useFormState({ control })
-  const providerValues = useWatch({ control, name: 'providers' })
-  const providerErrors = (errors.providers ?? []) as FieldErrors<ProviderFormValues>[] // prettier-ignore
+  useProviderSettingsSync(form, connections)
+  useProviderDiscoveryCoordinator(true)
 
-  function addProvider() {
-    const clientId = generateId()
-    setNewProviderClientId(clientId)
-    append({
-      id: '',
-      enabled: true,
-      hasKey: false,
-      models: [],
-      _clientId: clientId,
-    })
+  const values = useWatch({ control: form.control, name: 'providers' })
+
+  function patch(index: number, update: Partial<ProviderFormValues>) {
+    const current = form.getValues('providers')
+    const value = current[index]
+    const next = {
+      ...value,
+      ...(networkChanged(value, update) ? { previewId: undefined } : {}),
+      ...update,
+    }
+    form.setValue(
+      'providers',
+      current.map((row, i) => (i === index ? next : row)),
+      { shouldDirty: true },
+    )
+  }
+
+  function remove(index: number) {
+    const current = form.getValues('providers')
+    const value = current[index]
+    if (value.connectionId)
+      form.setValue(
+        'removedProviders',
+        [
+          ...(form.getValues('removedProviders') ?? []),
+          {
+            providerId: value.connectionId,
+            configRevision: value.configRevision ?? 0,
+          },
+        ],
+        { shouldDirty: true },
+      )
+    form.setValue(
+      'providers',
+      current.filter((_, i) => i !== index),
+      { shouldDirty: true },
+    )
+  }
+
+  function handleAdd() {
+    form.setValue(
+      'providers',
+      [
+        ...form.getValues('providers'),
+        {
+          id: '',
+          name: '',
+          auth: 'apiKey',
+          models: [],
+          enabled: true,
+          hasKey: false,
+          _clientId: generateId(),
+        },
+      ],
+      { shouldDirty: true },
+    )
   }
 
   return (
@@ -58,44 +86,33 @@ export function ModelSettings({
         unclickable
         unhoverable
         orientation="vertical"
-        label="Providers"
+        label="Provider connections"
         description="Configure AI providers and their models."
       >
         <div className="flex flex-col gap-2">
-          {fields.map((field, index) => {
-            const provider = providerValues[index] ?? field
-            return (
-              <ProviderCard
-                key={field._clientId}
-                provider={provider}
-                defaultOpen={field._clientId === newProviderClientId}
-                providers={providers}
-                typeError={
-                  providerErrors[index]?.id?.message as string | undefined
-                }
-                baseURLError={
-                  providerErrors[index]?.baseURL?.message as string | undefined
-                }
-                // Field array update remounts the row, resetting selection and undo
-                onChange={(patch) =>
-                  setValue(
-                    `providers.${index}`,
-                    { ...provider, ...patch },
-                    { shouldDirty: true },
-                  )
-                }
-                onRemove={() => remove(index)}
+          {values.map((value, index) => (
+            <ProviderCard
+              key={value._clientId ?? value.connectionId}
+              provider={value}
+              saved={!!value.connectionId}
+              defaultOpen={!value.connectionId}
+              providers={providers}
+              onChange={(update) => patch(index, update)}
+              onRemove={() => remove(index)}
+            >
+              <ProviderDiscovery
+                provider={value}
+                onChange={(update) => patch(index, update)}
               />
-            )
-          })}
+            </ProviderCard>
+          ))}
           <RippleButton
             variant="input"
             size="sm"
-            className="mt-1 self-start"
-            onClick={addProvider}
+            disabled={!connections}
+            onClick={handleAdd}
           >
-            <PlusIcon />
-            Add provider
+            Add connection
           </RippleButton>
         </div>
       </SettingsList.Item>

@@ -16,10 +16,6 @@ export function useModelProviders(): ModelProviderView[] | undefined {
   return useQuery(api.providers.list, {})
 }
 
-export function useModelProvidersSave() {
-  return useMutation(api.providers.replaceAll)
-}
-
 /** Reads a server's tools without storing them. */
 export function useMcpToolDiscovery() {
   return useAction(api.actions.mcp.discoverMcpTools)

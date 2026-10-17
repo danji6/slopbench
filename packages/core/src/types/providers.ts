@@ -34,3 +34,19 @@ export type ContextOptions = {
   shareAgentDisplayNames?: boolean
   maskOtherAgents?: boolean
 }
+
+/** A connection-qualified model offered in a picker. */
+export type UIModel = {
+  id: string
+  label?: string
+  contextWindow?: number
+  connectionId?: string
+  connectionName?: string
+  available?: boolean
+  subscription?: boolean
+  local?: boolean
+  reasoning?: ModelReasoning
+  inference?: InferenceParameters
+}
+
+export type UIModelConfig = { models: UIModel[] }

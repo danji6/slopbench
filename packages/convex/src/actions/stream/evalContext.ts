@@ -1,6 +1,7 @@
 'use node'
 
 import type { EvalContext } from '@sb/core/interpreter/types'
+import { parseModelReference } from '@sb/core/model-reference'
 import { toDisplayName, toOptionalName } from '@sb/core/utils/names'
 
 import type { Doc } from '../../_generated/dataModel'
@@ -43,8 +44,14 @@ export function buildEvalContext({
     assistant: agent.name,
     user: toOptionalName(invokerSettings?.displayName),
     owner: toDisplayName(ownerSettings?.displayName),
-    modelId: session.model?.id,
-    modelName: session.model?.label ?? session.model?.id,
+    modelId: session.model
+      ? parseModelReference(session.model.id).modelId
+      : undefined,
+    modelName:
+      session.model?.label ??
+      (session.model
+        ? parseModelReference(session.model.id).modelId
+        : undefined),
     tools: toolNames,
     isAdmin: minRole(invoker.role, 'admin'),
     userCount,

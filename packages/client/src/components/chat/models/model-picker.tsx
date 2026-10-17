@@ -1,8 +1,9 @@
 import { Combobox, type ComboboxTriggerProps } from '@/components/ui'
 import { useModels } from '@/hooks/chat'
+import { useProviderDiscoveryCoordinator } from '@/hooks/chat/provider-discovery'
 import type { UIModel } from '@/lib/chat'
 import { cn } from '@/lib/utils'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 export type ModelPickerProps = ComboboxTriggerProps & {
   className?: string
@@ -23,31 +24,26 @@ export function ModelPicker({
   ...props
 }: ModelPickerProps) {
   const { models, isLoading } = useModels()
+  const [open, setOpen] = useState(false)
+  useProviderDiscoveryCoordinator(open)
 
-  const [localModels, cloudModels] = useMemo(() => {
-    return models.reduce(
-      (acc, m) => {
-        if (m.local) {
-          acc[0].push(
-            <Combobox.Item key={m.id} value={m.id}>
-              {m.label ?? m.id}
-            </Combobox.Item>,
-          )
-        } else {
-          acc[1].push(
-            <Combobox.Item key={m.id} value={m.id}>
-              {m.label ?? m.id}
-            </Combobox.Item>,
-          )
-        }
-        return acc
-      },
-      [[] as React.ReactNode[], [] as React.ReactNode[]],
-    )
+  const groups = useMemo(() => {
+    const groups = new Map<string, UIModel[]>()
+    for (const model of models) {
+      const name =
+        model.connectionId ??
+        model.connectionName ??
+        (model.local ? 'Local Models' : 'Cloud Models')
+      const group = groups.get(name) ?? []
+      group.push(model)
+      groups.set(name, group)
+    }
+    return [...groups]
   }, [models])
 
   return (
     <Combobox
+      onOpenChange={setOpen}
       value={inheritLabel && !value ? '__inherit__' : value}
       onValueChange={(v) =>
         onValueChange(inheritLabel && v === '__inherit__' ? '' : v || '')
@@ -71,7 +67,11 @@ export function ModelPicker({
             const m =
               models.find((candidate) => candidate.id === val) ??
               (selectedModel?.id === val ? selectedModel : undefined)
-            return m ? (m.label ?? m.id) : undefined
+            return m
+              ? `${m.label ?? m.id}${m.available === false ? ' (unavailable)' : ''}`
+              : val
+                ? 'Unavailable model, check your settings'
+                : undefined
           }}
         </Combobox.DisplayValue>
       </Combobox.Trigger>
@@ -89,15 +89,23 @@ export function ModelPicker({
           {inheritLabel && (
             <Combobox.Item value="__inherit__">{inheritLabel}</Combobox.Item>
           )}
-          <Combobox.Group heading="Cloud Models">{cloudModels}</Combobox.Group>
-          {localModels.length > 0 && (
-            <>
-              <Combobox.Separator />
-              <Combobox.Group heading="Local Models">
-                {localModels}
-              </Combobox.Group>
-            </>
-          )}
+          {groups.map(([name, entries]) => (
+            <Combobox.Group
+              key={name}
+              heading={entries[0]?.connectionName ?? name}
+            >
+              {entries.map((model) => (
+                <Combobox.Item
+                  key={model.id}
+                  value={model.id}
+                  disabled={model.available === false}
+                >
+                  {model.label ?? model.id}
+                  {model.available === false ? ' (not listed)' : ''}
+                </Combobox.Item>
+              ))}
+            </Combobox.Group>
+          ))}
         </Combobox.List>
       </Combobox.Content>
     </Combobox>

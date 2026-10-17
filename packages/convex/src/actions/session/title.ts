@@ -74,10 +74,8 @@ async function composeTitle(
   }
 
   try {
-    const [{ getProviderOptions }, { generateText }] = await Promise.all([
-      import('../../model/provider/options'),
-      import('ai'),
-    ])
+    const [{ getProviderOptions }, { generateText, streamText }] =
+      await Promise.all([import('../../model/provider/options'), import('ai')])
 
     const { languageModel, providerOptions } = await getProviderOptions(
       resolved.modelId,
@@ -85,7 +83,9 @@ async function composeTitle(
       resolved.credentials,
     )
 
-    const result = await generateText({
+    const generate =
+      resolved.credentials.auth === 'chatgpt' ? streamText : generateText
+    const result = await generate({
       model: languageModel,
       system: TITLE_SYSTEM_PROMPT,
       prompt: resolved.exchange,
@@ -94,7 +94,7 @@ async function composeTitle(
       providerOptions,
     })
 
-    const cleaned = sanitizeTitle(result.text)
+    const cleaned = sanitizeTitle(await result.text)
     if (cleaned) return cleaned
 
     console.warn(

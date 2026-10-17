@@ -192,7 +192,9 @@ export const stripProviderMetadata = <TOOLS extends ToolSet>(_: {
         chunk.type === 'finish-step' ||
         chunk.type === 'reasoning-start' ||
         chunk.type === 'reasoning-delta' ||
-        chunk.type === 'reasoning-end'
+        chunk.type === 'reasoning-end' ||
+        (chunk.type === 'tool-call' &&
+          typeof chunk.providerMetadata?.openai?.namespace === 'string')
       if (!keep && 'providerMetadata' in chunk) {
         const { providerMetadata: _, ...rest } =
           chunk as TextStreamPart<TOOLS> & {
