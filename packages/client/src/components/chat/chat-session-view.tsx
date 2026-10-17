@@ -116,7 +116,7 @@ export function ChatSessionView({
   fileIndex,
 }: ChatSessionViewProps) {
   const session = useActiveSession()
-  // Sub-agent child sessions are read-only (banner instead of composer)
+  // Sub-agent sessions expose approvals and navigation instead of a composer.
   const subagentParent = session?.parent
 
   // Composer
@@ -367,7 +367,7 @@ export function ChatSessionView({
                     }
                   />
                 )}
-                {!subagentParent && showApproval && (
+                {showApproval && (
                   <ToolApprovalPicker
                     key={childApproval?.sessionId ?? session?._id}
                     childApproval={childApproval}

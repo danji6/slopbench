@@ -42,6 +42,12 @@ const SessionFoldersFixture = lazy(() =>
   })),
 )
 
+const SubagentApprovalsFixture = lazy(() =>
+  import('./subagent-approvals-fixture').then((module) => ({
+    default: module.SubagentApprovalsFixture,
+  })),
+)
+
 const AccountSecurityFixture = lazy(() =>
   import('./account-security-fixture').then((module) => ({
     default: module.AccountSecurityFixture,
@@ -90,6 +96,11 @@ function PreviewFixture() {
 
 createRoot(document.getElementById('root')!).render(
   new URLSearchParams(location.search).get('fixture') ===
+    'subagent-approvals' ? (
+    <Suspense fallback={<p>Loading approvals…</p>}>
+      <SubagentApprovalsFixture />
+    </Suspense>
+  ) : new URLSearchParams(location.search).get('fixture') ===
     'provider-connections' ? (
     <ProviderConnectionsFixture />
   ) : new URLSearchParams(location.search).get('fixture') === 'script-menus' ? (

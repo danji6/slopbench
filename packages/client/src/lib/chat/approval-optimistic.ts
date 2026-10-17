@@ -4,8 +4,17 @@ import {
   isPendingToolApproval,
 } from '@sb/core/utils/tool-parts'
 import type { OptimisticLocalStore } from 'convex/browser'
+import type { FunctionReturnType } from 'convex/server'
 
+import { hydrateLiveSegments } from './live-segments'
 import type { ApproveToolArgs } from './types'
+
+type LiveSegments = FunctionReturnType<typeof api.chat.processingMessageSegments> // prettier-ignore
+
+type ApprovalTarget = {
+  sessionId: ApproveToolArgs['sessionId']
+  messageId?: string
+}
 
 export function optimisticallyRespondApproval(
   store: OptimisticLocalStore,
@@ -13,22 +22,72 @@ export function optimisticallyRespondApproval(
 ) {
   if (args.childSessionId) {
     optimisticallyRespondChildApproval(store, args)
-    return
   }
 
+  const sessionId = args.childSessionId ?? args.sessionId
   const stream = store.getQuery(api.chat.getActiveStream, {
-    sessionId: args.sessionId,
+    sessionId,
   })
   if (!stream || stream.status !== 'awaiting_approval') return
 
-  let pendingRemains = false
+  const target = { sessionId, messageId: stream.processingMessageId }
+  const liveSegments = respondToLiveSegments(store, args, target)
+  const { foundMessage, pendingRemains } = respondToMessageWindows(
+    store,
+    args,
+    target,
+    liveSegments,
+  )
+  if (foundMessage && !pendingRemains) {
+    store.setQuery(
+      api.chat.getActiveStream,
+      { sessionId },
+      { ...stream, status: 'pending' },
+    )
+  }
+}
+
+/** Updates mutable tool parts, which are queried separately from the window. */
+function respondToLiveSegments(
+  store: OptimisticLocalStore,
+  args: ApproveToolArgs,
+  { sessionId, messageId }: ApprovalTarget,
+) {
+  const rows = store.getQuery(api.chat.processingMessageSegments, { sessionId })
+  const next = rows?.map((row) =>
+    row.messageId === messageId
+      ? {
+          ...row,
+          segment: {
+            ...row.segment,
+            parts: respondToPart(row.segment.parts, args),
+          },
+        }
+      : row,
+  )
+  if (next) {
+    store.setQuery(api.chat.processingMessageSegments, { sessionId }, next)
+  }
+  return next
+}
+
+function respondToMessageWindows(
+  store: OptimisticLocalStore,
+  args: ApproveToolArgs,
+  { sessionId, messageId }: ApprovalTarget,
+  liveSegments: LiveSegments | undefined,
+) {
+  const live = liveSegments?.find((row) => row.messageId === messageId)
+  let pendingRemains = live ? hasPendingToolApprovals(live.segment.parts) : false // prettier-ignore
+  let foundMessage = Boolean(live)
+
   for (const { args: queryArgs, value } of store.getAllQueries(
     api.chat.messagesWindow,
   )) {
-    if (!value || queryArgs.sessionId !== args.sessionId) continue
+    if (!value || queryArgs.sessionId !== sessionId) continue
 
     const page = value.page.map((message) => {
-      if (message._id !== stream.processingMessageId) return message
+      if (message._id !== messageId) return message
       return {
         ...message,
         segments: message.segments.map((segment) => ({
@@ -39,20 +98,18 @@ export function optimisticallyRespondApproval(
     })
     store.setQuery(api.chat.messagesWindow, queryArgs, { ...value, page })
 
-    const target = page.find((m) => m._id === stream.processingMessageId)
-    pendingRemains ||=
-      target?.segments.some((segment) =>
-        hasPendingToolApprovals(segment.parts),
-      ) ?? false
+    const target = page.find((m) => m._id === messageId)
+    if (!target) continue
+
+    foundMessage = true
+    const [hydrated] = hydrateLiveSegments([target], liveSegments ?? [])
+    pendingRemains ||= hydrated.segments.some((segment) => {
+      const awaitingLiveParts = segment.live && segment.parts.length === 0
+      return awaitingLiveParts || hasPendingToolApprovals(segment.parts)
+    })
   }
 
-  if (!pendingRemains) {
-    store.setQuery(
-      api.chat.getActiveStream,
-      { sessionId: args.sessionId },
-      { ...stream, status: 'pending' },
-    )
-  }
+  return { foundMessage, pendingRemains }
 }
 
 function respondToPart(parts: unknown[], args: ApproveToolArgs): unknown[] {

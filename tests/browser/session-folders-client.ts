@@ -21,6 +21,12 @@ let sessions = [
   { _id: 's2', title: 'Design chat', folderId: 'n', pinned: false },
   { _id: 's3', title: 'SlopBench chat', folderId: 'b', pinned: false },
 ]
+if (new URLSearchParams(location.search).has('longTitle')) {
+  sessions[0].title =
+    'Portfolio chat with a title that scrolls across the session row '
+      .repeat(4)
+      .trim()
+}
 if (new URLSearchParams(location.search).has('manySessions')) {
   sessions = [
     ...sessions,

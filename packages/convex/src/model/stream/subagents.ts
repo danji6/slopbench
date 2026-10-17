@@ -360,7 +360,7 @@ export async function deliverChildReport(
   if (!message) return
 
   await reserveInvokeTurn(ctx, {
-    session: parentSession,
+    sessionId: parentSession._id,
     boundaryMessage: message,
     invokedBy: childStream.invokedBy,
   })

@@ -43,7 +43,7 @@ export async function deliverShellReport(
   if (!message) return
 
   await reserveInvokeTurn(ctx, {
-    session,
+    sessionId: session._id,
     boundaryMessage: message,
     invokedBy: row.invokedBy,
   })

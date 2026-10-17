@@ -81,9 +81,11 @@ export function useToolApprovalPicker({
       if (!session || !part) return
       draft.clear()
       try {
+        const childSessionId =
+          childApproval?.sessionId ?? (session.parent ? session._id : undefined)
         await approveTool({
-          sessionId: session._id,
-          ...(childApproval ? { childSessionId: childApproval.sessionId } : {}),
+          sessionId: session.parent?.sessionId ?? session._id,
+          ...(childSessionId ? { childSessionId } : {}),
           toolCallId: part.toolCallId,
           approved,
           ...(remember ? { remember } : {}),

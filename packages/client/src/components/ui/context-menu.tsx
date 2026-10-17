@@ -23,6 +23,7 @@ const SUBMENU_OFFSET = 4
 
 type ContextMenuContextValue = {
   point: OpenContextMenuPoint | null
+  triggerRef: React.RefObject<HTMLDivElement | null>
   triggerProps: React.HTMLAttributes<HTMLElement>
   close: () => void
 }
@@ -108,6 +109,7 @@ function ContextMenuRoot({
 }: ContextMenuProps) {
   const [point, setPoint] = useState<OpenContextMenuPoint | null>(null)
   const [subCoordinator] = useState(createSubCoordinator)
+  const triggerRef = useRef<HTMLDivElement>(null)
   const openKeyRef = useRef(0)
   const touchStartRef = useRef<ContextMenuPoint | null>(null)
   const longPressRef = useRef<ReturnType<typeof setTimeout> | undefined>(
@@ -210,6 +212,13 @@ function ContextMenuRoot({
 
     const dismiss = () => setPoint(null)
 
+    function onScroll(event: Event) {
+      const target = event.target
+      const scrollsTrigger =
+        target instanceof Element && target.contains(triggerRef.current)
+      if (target === window || target === document || scrollsTrigger) dismiss()
+    }
+
     function onPointerDown(event: PointerEvent) {
       if (event.button === 2) return // right-clicks handled below
       const target = event.target as Element | null
@@ -241,7 +250,7 @@ function ContextMenuRoot({
 
     window.addEventListener('pointerdown', onPointerDown, true)
     window.addEventListener('contextmenu', onContextMenu, true)
-    window.addEventListener('scroll', dismiss, true)
+    window.addEventListener('scroll', onScroll, true)
     window.addEventListener('resize', dismiss)
     window.addEventListener('blur', dismiss)
     document.addEventListener('keydown', onKey)
@@ -249,7 +258,7 @@ function ContextMenuRoot({
     return () => {
       window.removeEventListener('pointerdown', onPointerDown, true)
       window.removeEventListener('contextmenu', onContextMenu, true)
-      window.removeEventListener('scroll', dismiss, true)
+      window.removeEventListener('scroll', onScroll, true)
       window.removeEventListener('resize', dismiss)
       window.removeEventListener('blur', dismiss)
       document.removeEventListener('keydown', onKey)
@@ -257,7 +266,9 @@ function ContextMenuRoot({
   }, [point])
 
   return (
-    <ContextMenuContext.Provider value={{ point, triggerProps, close }}>
+    <ContextMenuContext.Provider
+      value={{ point, triggerRef, triggerProps, close }}
+    >
       <SubCoordinatorContext.Provider value={subCoordinator}>
         {children}
       </SubCoordinatorContext.Provider>
@@ -272,10 +283,14 @@ function ContextMenuTrigger({
   children: React.ReactNode
   className?: string
 }) {
-  const { triggerProps } = useContextMenu()
+  const { triggerRef, triggerProps } = useContextMenu()
 
   return (
-    <div className={cn('contents', className)} {...triggerProps}>
+    <div
+      ref={triggerRef}
+      className={cn('contents', className)}
+      {...triggerProps}
+    >
       {children}
     </div>
   )

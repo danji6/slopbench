@@ -22,7 +22,7 @@ export async function reserveFollowUp(
 
   return Boolean(
     await reserveInvokeTurn(ctx, {
-      session,
+      sessionId: stream.sessionId,
       boundaryMessage,
       invokedBy: stream.invokedBy,
     }),
@@ -69,7 +69,7 @@ export async function earliestUnconsumedMessage(
 }
 
 export type ReserveInvokeTurnArgs = {
-  session: Doc<'sessions'>
+  sessionId: Id<'sessions'>
   boundaryMessage: Doc<'messages'>
   invokedBy: Id<'users'>
 }
@@ -81,8 +81,10 @@ export type ReserveInvokeTurnArgs = {
  */
 export async function reserveInvokeTurn(
   ctx: MutationCtx,
-  { session, boundaryMessage, invokedBy }: ReserveInvokeTurnArgs,
+  { sessionId, boundaryMessage, invokedBy }: ReserveInvokeTurnArgs,
 ) {
+  const session = await getSessionWithWorkspace(ctx, sessionId)
+  if (!session) return
   if (session.contextLock) return
   if (session.settings?.disabled) return
   if (!session.activeAgentId) return
