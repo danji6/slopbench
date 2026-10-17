@@ -36,12 +36,7 @@ export function useProviderSettingsSync(
               if (!remote) return model
               return {
                 ...model,
-                discoveredLabel: remote.discoveredLabel,
-                discoveredContextWindow: remote.discoveredContextWindow,
-                discoveredReasoning: remote.discoveredReasoning,
-                discoveredOutputLimit: remote.discoveredOutputLimit,
-                discoveredParameters: remote.discoveredParameters,
-                discoveredInference: remote.discoveredInference,
+                discovered: remote.discovered,
                 available:
                   model.source === 'discovered'
                     ? remote.available
@@ -52,15 +47,13 @@ export function useProviderSettingsSync(
     })
 
     for (const saved of connections) {
-      if (
-        !removed.has(saved._id) &&
-        !merged.some(
-          (row) =>
-            row.connectionId === saved._id ||
-            (!!saved.identityKey && row._clientId === saved.identityKey),
-        )
+      if (removed.has(saved._id)) continue
+      const alreadyPresent = merged.some(
+        (row) =>
+          row.connectionId === saved._id ||
+          (!!saved.identityKey && row._clientId === saved.identityKey),
       )
-        merged.push(providerForm(saved))
+      if (!alreadyPresent) merged.push(providerForm(saved))
     }
 
     form.setValue('providers', merged, { shouldDirty: false })

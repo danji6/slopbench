@@ -1,7 +1,6 @@
+import type { ScrollDeps } from '@/components/chat/messages/message-list/deps'
+import type { WindowSlide } from '@/hooks/chat/message-list/window-slide'
 import { useCallback, useEffect, useRef } from 'react'
-
-import type { ScrollDeps } from '../deps'
-import type { WindowSlide } from './window-slide'
 
 /** Page Up/Down scrolling that pulls in the next window at the edges. */
 export function usePageScroll(deps: ScrollDeps, slide: WindowSlide) {

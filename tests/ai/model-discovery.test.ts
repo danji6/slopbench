@@ -210,11 +210,11 @@ test('extracts advertised provider metadata without inventing reasoning tiers', 
   )
   expect(router[0]).toMatchObject({
     contextWindow: 128000,
-    outputLimit: 16000,
-    supportedParameters: ['reasoning', 'temperature'],
-    inference: { temperature: 0.6, topP: 0.9 },
   })
   expect(router[0].reasoning).toBeUndefined()
+  expect(router[0]).not.toHaveProperty('inference')
+  expect(router[0]).not.toHaveProperty('outputLimit')
+  expect(router[0]).not.toHaveProperty('supportedParameters')
   const anthropic = await discoverModels(
     { id: 'anthropic' },
     responses([
@@ -252,7 +252,6 @@ test('extracts advertised provider metadata without inventing reasoning tiers', 
     }),
   ).toMatchObject({
     contextWindow: 128000,
-    inference: { temperature: 0.8 },
     reasoning: { type: 'effort', efforts: ['low', 'high'] },
   })
 })

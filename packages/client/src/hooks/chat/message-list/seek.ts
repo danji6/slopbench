@@ -1,3 +1,5 @@
+import type { ScrollDeps } from '@/components/chat/messages/message-list/deps'
+import { openToolBlock } from '@/components/chat/messages/tools/tool-shell'
 import type { useMessageStore } from '@/hooks/chat'
 import { getNavPaddingPx } from '@/hooks/nav-padding'
 import { type MessageRow, findToolRow } from '@/lib/chat/rows'
@@ -5,9 +7,6 @@ import { workExpansion } from '@/lib/chat/work-state'
 import type { ScrollOperation } from '@/lib/scroll-coordinator'
 import { trackUntilSettled } from '@/lib/scroll-settle'
 import { useCallback, useEffect, useRef, useState } from 'react'
-
-import { openToolBlock } from '../../tools/tool-shell'
-import type { ScrollDeps } from '../deps'
 
 type AnchorAround = (target: {
   _id: string
@@ -272,12 +271,11 @@ export function useSeek(
         ? messageStore.getRows().find((row) => row.key === target.rowKey)
         : undefined
       const hiddenRow = toolRow ?? savedRow
-      if (
-        hiddenRow?.kind === 'group' &&
-        hiddenRow.workId &&
-        !workExpansion.getSnapshot().has(hiddenRow.workId)
-      ) {
-        workExpansion.setOpen(hiddenRow.workId, true)
+      const hiddenWorkId =
+        hiddenRow?.kind === 'group' ? hiddenRow.workId : undefined
+      const workCollapsed = hiddenWorkId && !workExpansion.getSnapshot().has(hiddenWorkId) // prettier-ignore
+      if (workCollapsed) {
+        workExpansion.setOpen(hiddenWorkId, true)
         return
       }
       if (target.toolCallId) openToolBlock(target.id, target.toolCallId)

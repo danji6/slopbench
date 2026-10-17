@@ -1,11 +1,10 @@
+import type { FolderMenuActions } from '@/components/chat/sessions/folder-menu'
 import { useFolderMoves } from '@/hooks/chat/folder-moves'
 import { useFolderPins } from '@/hooks/chat/folder-pins'
 import { readCollapsed, saveCollapsed } from '@/lib/chat/session-folder-state'
 import type { FolderView } from '@sb/convex/types'
 import { folderBranch, folderSiblings } from '@sb/core/utils/folder-tree'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-
-import type { FolderMenuActions } from './folder-menu'
 
 type FolderHeaderActions = FolderMenuActions & { toggle: () => void }
 

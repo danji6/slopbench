@@ -2,7 +2,7 @@ import { PROMPT_MARKERS } from '@sb/convex/model/prompt/markers'
 import { providerRequiresBaseURL } from '@sb/convex/model/provider/known'
 import { parseModelExtraParameters } from '@sb/core/model-parameters'
 import { parseProviderExtraHeaders } from '@sb/core/provider-headers'
-import type { InferenceParameters, ModelReasoning } from '@sb/core/types'
+import type { ModelReasoning } from '@sb/core/types'
 import { REASONING_TIERS } from '@sb/core/types'
 import { MCP_TRANSPORTS, SEARCH_ENGINE_IDS } from '@sb/core/types'
 import { z } from 'zod/v4'
@@ -60,12 +60,13 @@ export const modelEntrySchema = z
         z.object({ type: z.literal('none') }),
       ])
       .optional(),
-    discoveredOutputLimit: z.number().optional(),
-    discoveredParameters: z.array(z.string()).optional(),
-    discoveredInference: z.custom<InferenceParameters>().optional(),
-    discoveredLabel: z.string().optional(),
-    discoveredContextWindow: z.number().optional(),
-    discoveredReasoning: z.custom<ModelReasoning>().optional(),
+    discovered: z
+      .object({
+        label: z.string().optional(),
+        contextWindow: z.number().optional(),
+        reasoning: z.custom<ModelReasoning>().optional(),
+      })
+      .optional(),
     source: z.enum(['manual', 'discovered']).optional(),
     available: z.boolean().optional(),
     inference: z

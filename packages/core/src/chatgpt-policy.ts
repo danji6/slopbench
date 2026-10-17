@@ -15,12 +15,10 @@ export function prepareChatGPTRequest(body: Record<string, unknown>) {
     })
     .filter(Boolean)
 
-  const serializedInput = JSON.stringify(result.input)
-  if (
-    /"(?:type|media_type)":"(?:input_audio|input_video|audio\/[^" ]+|video\/[^" ]+)"/.test(
-      serializedInput,
-    )
-  ) {
+  const audioOrVideoPattern =
+    /"(?:type|media_type)":"(?:input_audio|input_video|audio\/[^" ]+|video\/[^" ]+)"/ // prettier-ignore
+  const hasAudioOrVideo = audioOrVideoPattern.test(JSON.stringify(result.input))
+  if (hasAudioOrVideo) {
     throw new Error(
       'ChatGPT plan access does not support audio or video inputs',
     )

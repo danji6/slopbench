@@ -1,5 +1,4 @@
-import { discoveredFields } from '@sb/core/discovered-model'
-import { DISCOVERY_STALE_MS } from '@sb/core/model-discovery'
+import { modelMetadata } from '@sb/core/discovered-model'
 import type { DiscoveredModel } from '@sb/core/model-discovery'
 
 import { internal } from '../../_generated/api'
@@ -8,31 +7,34 @@ import type { MutationCtx, QueryCtx } from '../../_generated/server'
 import type { AuthQueryCtx } from '../../functions'
 import type { DetailTargetsArgs, DiscoveryRun } from '../../types'
 import { requireOwned } from '../providers'
+import {
+  canBeginDiscovery,
+  cancelDiscovery,
+  completeDiscovery,
+  discoveryRefreshing,
+} from './discoveryState'
 
 export async function catalog(
   ctx: AuthQueryCtx,
   { providerId }: { providerId: Id<'modelProviders'> },
 ) {
   const provider = await requireOwned(ctx, providerId)
-  const rows = provider.discoveryGeneration
+  const generation = provider.discovery?.generation
+  const rows = generation
     ? await ctx.db
         .query('modelCatalog')
         .withIndex('by_connection_generation_order', (q) =>
-          q
-            .eq('connectionId', providerId)
-            .eq('generation', provider.discoveryGeneration!),
+          q.eq('connectionId', providerId).eq('generation', generation),
         )
         .collect()
     : []
   return {
     models: rows.map((row) => row.model),
-    generation: provider.discoveryGeneration,
+    generation: provider.discovery?.generation,
     revision: provider.configRevision ?? 0,
-    refreshedAt: provider.discoveredAt,
-    error: provider.discoveryError,
-    refreshing:
-      !!provider.discoveryStartedAt &&
-      Date.now() - provider.discoveryStartedAt < 120_000,
+    refreshedAt: provider.discovery?.refreshedAt,
+    error: provider.discovery?.error,
+    refreshing: discoveryRefreshing(provider.discovery),
   }
 }
 
@@ -42,52 +44,17 @@ export async function begin(
 ) {
   const provider = await requireRun(ctx, args)
 
-  if (!provider) {
-    return false
-  }
-  if (
-    provider.discoveryStartedAt &&
-    Date.now() - provider.discoveryStartedAt < 120_000
-  ) {
-    return false
-  }
-  if (
-    provider.discoveryRateLimitedUntil &&
-    provider.discoveryRateLimitedUntil > Date.now()
-  ) {
-    return false
-  }
-  if (
-    !args.force &&
-    provider.discoveryRetryAt &&
-    provider.discoveryRetryAt > Date.now()
-  ) {
-    return false
-  }
-  if (!args.force && provider.discoveryBlocked) {
-    return false
-  }
-
-  const cooldown = args.force ? 10_000 : 60_000
-  if (
-    provider.discoveryAttemptedAt &&
-    Date.now() - provider.discoveryAttemptedAt < cooldown
-  ) {
-    return false
-  }
-  if (
-    !args.force &&
-    provider.discoveredAt &&
-    Date.now() - provider.discoveredAt < DISCOVERY_STALE_MS
-  ) {
-    return false
-  }
+  if (!provider) return false
+  if (!canBeginDiscovery(provider.discovery, args.force)) return false
 
   await ctx.db.patch(args.providerId, {
-    discoveryStartedAt: Date.now(),
-    discoveryAttemptedAt: Date.now(),
-    discoveryError: undefined,
-    discoveryAttempt: args.generation,
+    discovery: {
+      ...provider.discovery,
+      startedAt: Date.now(),
+      attemptedAt: Date.now(),
+      error: undefined,
+      attempt: args.generation,
+    },
   })
 
   const { force: _, ...run } = args
@@ -127,20 +94,21 @@ export async function finish(
   if (!provider) return
   if (args.failure) {
     await ctx.db.patch(args.providerId, {
-      discoveryStartedAt: undefined,
-      discoveryAttempt: undefined,
-      discoveryError: args.failure,
-      discoveryFailures: (provider.discoveryFailures ?? 0) + 1,
-      discoveryRetryAt: Math.max(
-        args.retryAfter ?? 0,
-        Date.now() +
-          Math.min(
-            60 * 60_000,
-            60_000 * 2 ** Math.min(provider.discoveryFailures ?? 0, 6),
-          ),
-      ),
-      discoveryBlocked: args.blocked,
-      discoveryRateLimitedUntil: args.retryAfter,
+      discovery: {
+        ...cancelDiscovery(provider.discovery),
+        error: args.failure,
+        failures: (provider.discovery?.failures ?? 0) + 1,
+        retryAt: Math.max(
+          args.retryAfter ?? 0,
+          Date.now() +
+            Math.min(
+              60 * 60_000,
+              60_000 * 2 ** Math.min(provider.discovery?.failures ?? 0, 6),
+            ),
+        ),
+        blocked: args.blocked,
+        rateLimitedUntil: args.retryAfter,
+      },
     })
     return
   }
@@ -152,24 +120,23 @@ export async function finish(
     )
     .collect()
 
-  const previous = provider.discoveryGeneration
+  const previousGeneration = provider.discovery?.generation
+  const previous = previousGeneration
     ? await ctx.db
         .query('modelCatalog')
         .withIndex('by_connection_generation_order', (q) =>
           q
             .eq('connectionId', args.providerId)
-            .eq('generation', provider.discoveryGeneration!),
+            .eq('generation', previousGeneration),
         )
         .collect()
     : []
 
   for (const row of rows) {
     const cached = previous.find((old) => old.model.id === row.model.id)?.model
-    if (
-      cached?.detailsLoaded &&
-      cached.detailKey &&
-      cached.detailKey === row.model.detailKey
-    ) {
+    const detailsUnchanged =
+      cached?.detailsLoaded && cached.detailKey && cached.detailKey === row.model.detailKey // prettier-ignore
+    if (detailsUnchanged) {
       row.model = { ...cached, ...row.model, detailsLoaded: true }
       await ctx.db.patch(row._id, { model: row.model })
     }
@@ -177,22 +144,14 @@ export async function finish(
 
   const ids = new Set(rows.map((row) => row.model.id))
   await ctx.db.patch(args.providerId, {
-    discoveryGeneration: args.generation,
-    discoveryFailures: undefined,
-    discoveryRateLimitedUntil: undefined,
-    discoveryRetryAt: undefined,
-    discoveryBlocked: undefined,
-    discoveredAt: Date.now(),
-    discoveryStartedAt: undefined,
-    discoveryAttempt: undefined,
-    discoveryError: undefined,
+    discovery: completeDiscovery(args.generation, provider.discovery),
     models: provider.models.map((model) => {
       const discovered = rows.find((row) => row.model.id === model.id)?.model
       return {
         ...model,
         available:
           model.source === 'discovered' ? ids.has(model.id) : model.available,
-        ...(discovered ? discoveredFields(discovered) : {}),
+        ...(discovered ? { discovered: modelMetadata(discovered) } : {}),
       }
     }),
   })
@@ -208,7 +167,7 @@ async function requireRun(ctx: MutationCtx, args: DiscoveryRun) {
 
 async function requireAttempt(ctx: MutationCtx, args: DiscoveryRun) {
   const provider = await requireRun(ctx, args)
-  return provider?.discoveryAttempt === args.generation ? provider : null
+  return provider?.discovery?.attempt === args.generation ? provider : null
 }
 
 /** Deletes old and interrupted catalogs in bounded batches. */
@@ -224,19 +183,18 @@ export async function cleanup(
     )
     .filter((q) =>
       q.and(
-        q.neq(q.field('generation'), provider?.discoveryGeneration ?? ''),
-        q.neq(q.field('generation'), provider?.discoveryAttempt ?? ''),
+        q.neq(q.field('generation'), provider?.discovery?.generation ?? ''),
+        q.neq(q.field('generation'), provider?.discovery?.attempt ?? ''),
       ),
     )
     .take(200)
   // Called only after a run finishes; never remove an active attempt
   let deleted = 0
   for (const row of rows) {
-    if (
-      row.generation === provider?.discoveryGeneration ||
-      row.generation === provider?.discoveryAttempt
-    )
-      continue
+    const generationInUse =
+      row.generation === provider?.discovery?.generation ||
+      row.generation === provider?.discovery?.attempt
+    if (generationInUse) continue
     await ctx.db.delete(row._id)
     deleted++
   }
@@ -253,9 +211,10 @@ export async function expire(ctx: MutationCtx, args: DiscoveryRun) {
   const provider = await requireAttempt(ctx, args)
   if (!provider) return
   await ctx.db.patch(args.providerId, {
-    discoveryAttempt: undefined,
-    discoveryStartedAt: undefined,
-    discoveryError: 'Model refresh was interrupted. Retry discovery.',
+    discovery: {
+      ...cancelDiscovery(provider.discovery),
+      error: 'Model refresh was interrupted. Retry discovery.',
+    },
   })
   await cleanup(ctx, { providerId: args.providerId })
 }
@@ -268,16 +227,7 @@ export async function reset(
   const row = await ctx.db.get(providerId)
   if (!row) return
   await ctx.db.patch(providerId, {
-    discoveryGeneration: undefined,
-    discoveredAt: undefined,
-    discoveryAttempt: undefined,
-    discoveryStartedAt: undefined,
-    discoveryAttemptedAt: undefined,
-    discoveryRetryAt: undefined,
-    discoveryBlocked: undefined,
-    discoveryFailures: undefined,
-    discoveryRateLimitedUntil: undefined,
-    discoveryError: undefined,
+    discovery: undefined,
     models: row.models.map((model) =>
       model.source === 'discovered' ? { ...model, available: false } : model,
     ),
@@ -289,7 +239,7 @@ export async function enrich(
   args: DiscoveryRun & { model: DiscoveredModel },
 ) {
   const provider = await requireRun(ctx, args)
-  if (!provider || provider.discoveryGeneration !== args.generation) return
+  if (!provider || provider.discovery?.generation !== args.generation) return
 
   const rows = await ctx.db
     .query('modelCatalog')
@@ -304,7 +254,7 @@ export async function enrich(
   await ctx.db.patch(args.providerId, {
     models: provider.models.map((model) =>
       model.id === args.model.id
-        ? { ...model, ...discoveredFields(args.model) }
+        ? { ...model, discovered: modelMetadata(args.model) }
         : model,
     ),
   })
@@ -318,12 +268,8 @@ export async function detailTargets(ctx: QueryCtx, args: DetailTargetsArgs) {
   if (!provider || provider.ownerId !== args.ownerId) {
     return []
   }
-  if (
-    (provider.configRevision ?? 0) !== args.revision ||
-    provider.discoveryGeneration !== args.generation
-  ) {
-    return []
-  }
+  if ((provider.configRevision ?? 0) !== args.revision) return []
+  if (provider.discovery?.generation !== args.generation) return []
 
   const rows = await ctx.db
     .query('modelCatalog')

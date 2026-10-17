@@ -1,5 +1,5 @@
-import type { PendingMessage } from '@/lib/chat'
 import { useComposerDraft } from '@/lib/chat/composer-draft-store'
+import type { PendingMessage } from '@/lib/chat'
 import { registerFocusReturn } from '@/lib/focus-return'
 import {
   serializeBlocksToMarkdown,

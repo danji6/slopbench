@@ -1,13 +1,12 @@
-import type { useMessageStore } from '@/hooks/chat'
-import { getNavPaddingPx } from '@/hooks/nav-padding'
-import { useCallback, useEffect, useRef } from 'react'
-
-import type { ScrollDeps } from '../deps'
+import type { ScrollDeps } from '@/components/chat/messages/message-list/deps'
 import {
   appendedMessageIds,
   firstMessageRowIndex,
   latestRemoteUserMessageId,
-} from '../helpers'
+} from '@/components/chat/messages/message-list/helpers'
+import type { useMessageStore } from '@/hooks/chat'
+import { getNavPaddingPx } from '@/hooks/nav-padding'
+import { useCallback, useEffect, useRef } from 'react'
 
 type RevealOptions = {
   returnToLatest: () => void

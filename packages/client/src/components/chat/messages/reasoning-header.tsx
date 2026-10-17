@@ -1,15 +1,15 @@
 import { Accordion, Button } from '@/components/ui'
+import { useCollapsible } from '@/hooks/chat/collapsible'
+import { useReasoningLabel } from '@/hooks/chat/reasoning-label'
 import type { MessageRole } from '@/lib/chat'
 import { cn } from '@/lib/utils'
 import type { ReasoningPart } from '@sb/convex/types'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
-import { useCollapsible } from './collapsible-store'
 import { useGrowOnly } from './grow-only'
 import { MessageHeader, type MessageSender } from './message-header'
 import { useMessageHighlight } from './message-highlight-context'
 import { useMessageList } from './message-list/message-list-context'
-import { useReasoningLabel } from './reasoning-label'
 import { SmoothText } from './smooth-text'
 
 export type ReasoningHeaderProps = {

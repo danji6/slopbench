@@ -20,11 +20,10 @@ export async function listenForAuthorization(
   let consumed = false
   const server = createServer((request, response) => {
     const url = new URL(request.url ?? '/', 'http://127.0.0.1')
-    if (
-      url.pathname !== '/auth/callback' ||
-      url.searchParams.get('state') !== pending.state ||
-      consumed
-    ) {
+    const matchesCallback =
+      url.pathname === '/auth/callback' &&
+      url.searchParams.get('state') === pending.state
+    if (!matchesCallback || consumed) {
       response.writeHead(400).end('Invalid authorization callback.')
       return
     }

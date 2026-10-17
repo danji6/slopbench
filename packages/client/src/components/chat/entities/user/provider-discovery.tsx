@@ -2,7 +2,7 @@ import { Input, RippleButton } from '@/components/ui'
 import { providerInput } from '@/lib/provider-settings'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
-import { discoveredFields } from '@sb/core/discovered-model'
+import { modelMetadata } from '@sb/core/discovered-model'
 import type { DiscoveredModel } from '@sb/core/model-discovery'
 import { providerFeatures } from '@sb/core/provider-registry'
 import { useAction, useMutation, useQuery } from 'convex/react'
@@ -97,7 +97,9 @@ export function ProviderDiscovery({ provider, onChange }: Props) {
               )
               return {
                 ...model,
-                ...(discovered ? discoveredFields(discovered) : {}),
+                ...(discovered
+                  ? { discovered: modelMetadata(discovered) }
+                  : {}),
                 available:
                   model.source === 'discovered'
                     ? !!discovered
@@ -150,18 +152,15 @@ export function ProviderDiscovery({ provider, onChange }: Props) {
     }
 
     const latest = current.current
-    if (
-      !sameNetwork(provider, latest) ||
-      latest.models.some((row) => row.id === model.id)
-    ) {
-      return
-    }
+    if (!sameNetwork(provider, latest)) return
+    const alreadySelected = latest.models.some((row) => row.id === model.id)
+    if (alreadySelected) return
 
     const models: ProviderFormValues['models'] = [
       ...latest.models,
       {
         id: model.id,
-        ...discoveredFields(enriched),
+        discovered: modelMetadata(enriched),
         source: 'discovered',
         available: true,
         _clientId: crypto.randomUUID(),

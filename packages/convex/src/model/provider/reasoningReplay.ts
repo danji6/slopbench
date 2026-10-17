@@ -106,10 +106,10 @@ export function keepAnthropicReplayableReasoning(
 ): LanguageModelV4ReasoningPart | null {
   const anthropic = part.providerOptions?.anthropic as
     { signature?: unknown; redactedData?: unknown } | undefined
-  if (
-    typeof anthropic?.signature !== 'string' &&
-    typeof anthropic?.redactedData !== 'string'
-  ) {
+  const hasReplayData =
+    typeof anthropic?.signature === 'string' ||
+    typeof anthropic?.redactedData === 'string'
+  if (!hasReplayData) {
     return null
   }
   return part

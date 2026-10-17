@@ -2,7 +2,7 @@ import { discoveryFingerprint } from '@sb/core/discovery-fingerprint'
 import type { DiscoveryConnection } from '@sb/core/model-discovery'
 
 import { internal } from '../../_generated/api'
-import type { Id } from '../../_generated/dataModel'
+import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import type { AuthMutationCtx, AuthQueryCtx } from '../../functions'
@@ -27,14 +27,11 @@ export async function previewModels(
   previewId: Id<'discoveryPreviews'>,
   connection: DiscoveryConnection,
 ) {
-  const preview = await ctx.db.get(previewId)
-  if (
-    !preview ||
-    preview.ownerId !== ctx.userId ||
-    preview.expiresAt < Date.now()
-  ) {
-    error('Discovery preview expired. Refresh models again.', 409)
-  }
+  const preview = requireCurrentPreview(
+    await ctx.db.get(previewId),
+    ctx.userId,
+    'Discovery preview expired. Refresh models again.',
+  )
   if (preview.fingerprint !== (await discoveryFingerprint(connection))) {
     error('Connection changed. Refresh models before saving.', 409)
   }
@@ -74,13 +71,8 @@ export async function catalog(
   { previewId }: { previewId: Id<'discoveryPreviews'> },
 ) {
   const preview = await ctx.db.get(previewId)
-  if (
-    !preview ||
-    preview.ownerId !== ctx.userId ||
-    preview.expiresAt < Date.now()
-  ) {
-    return null
-  }
+  if (!ownsPreview(preview, ctx.userId)) return null
+  if (preview.expiresAt < Date.now()) return null
 
   const rows = await ctx.db
     .query('modelCatalog')
@@ -93,18 +85,12 @@ export async function catalog(
 }
 
 export async function enrich(ctx: MutationCtx, args: PreviewDetailArgs) {
-  const preview = await ctx.db.get(args.previewId)
-  if (
-    !preview ||
-    preview.ownerId !== args.ownerId ||
-    preview.fingerprint !== args.fingerprint ||
-    preview.expiresAt < Date.now()
-  ) {
-    error(
-      'Discovery preview expired or connection changed. Refresh models again.',
-      409,
-    )
-  }
+  requireCurrentPreview(
+    await ctx.db.get(args.previewId),
+    args.ownerId,
+    'Discovery preview expired or connection changed. Refresh models again.',
+    args.fingerprint,
+  )
 
   const rows = await ctx.db
     .query('modelCatalog')
@@ -115,4 +101,26 @@ export async function enrich(ctx: MutationCtx, args: PreviewDetailArgs) {
     error('Model details changed. Refresh models again.', 409)
 
   await ctx.db.patch(row._id, { model: args.model })
+}
+
+/** Checks ownership before reading preview lifecycle or connection details. */
+function ownsPreview(
+  preview: Doc<'discoveryPreviews'> | null,
+  ownerId: Id<'users'>,
+): preview is Doc<'discoveryPreviews'> {
+  return !!preview && preview.ownerId === ownerId
+}
+
+function requireCurrentPreview(
+  preview: Doc<'discoveryPreviews'> | null,
+  ownerId: Id<'users'>,
+  message: string,
+  fingerprint?: string,
+) {
+  if (!ownsPreview(preview, ownerId)) error(message, 409)
+  if (fingerprint !== undefined && preview.fingerprint !== fingerprint) {
+    error(message, 409)
+  }
+  if (preview.expiresAt < Date.now()) error(message, 409)
+  return preview
 }

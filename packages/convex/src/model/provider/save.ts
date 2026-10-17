@@ -1,4 +1,4 @@
-import { discoveredFields } from '@sb/core/discovered-model'
+import { modelMetadata } from '@sb/core/discovered-model'
 import type { DiscoveredModel } from '@sb/core/model-discovery'
 import { providerFeatures } from '@sb/core/provider-registry'
 
@@ -9,6 +9,7 @@ import type { AuthMutationCtx } from '../../functions'
 import type { EnsureConnectionArgs, SaveProvidersArgs } from '../../types'
 import * as Credentials from '../credentials'
 import * as Providers from '../providers'
+import { completeDiscovery } from './discoveryState'
 import { previewModels } from './previews'
 
 type ConnectionInput = SaveProvidersArgs['connections'][number]
@@ -124,13 +125,9 @@ async function publishPreview(
   providerId: Id<'modelProviders'>,
   previewId: Id<'discoveryPreviews'>,
 ) {
+  const provider = await Providers.requireOwned(ctx, providerId)
   await ctx.db.patch(providerId, {
-    discoveryGeneration: previewId,
-    discoveredAt: Date.now(),
-    discoveryBlocked: undefined,
-    discoveryRetryAt: undefined,
-    discoveryRateLimitedUntil: undefined,
-    discoveryFailures: undefined,
+    discovery: completeDiscovery(previewId, provider.discovery),
   })
 
   const rows = await ctx.db
@@ -176,6 +173,6 @@ function mergePreview(
       if (!configured) error('Model is not in this discovery preview', 400)
       return { ...model, available: false }
     }
-    return { ...model, ...discoveredFields(discovered), available: true }
+    return { ...model, discovered: modelMetadata(discovered), available: true }
   })
 }

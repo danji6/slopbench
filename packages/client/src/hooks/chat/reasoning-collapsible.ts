@@ -1,4 +1,4 @@
-import { useCollapsible } from './collapsible-store'
+import { useCollapsible } from '@/hooks/chat/collapsible'
 
 /** Keeps a reasoning block expanded across remounts. */
 export function useReasoningOpen(

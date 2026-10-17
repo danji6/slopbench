@@ -154,12 +154,12 @@ function scopedTarget(
 
   if (target && home && !personal) {
     const relative = path.relative(home, target)
-    if (
+    const insidePersonalHome =
       !relative ||
       (!path.isAbsolute(relative) &&
         relative !== '..' &&
         !relative.startsWith(`..${path.sep}`))
-    ) {
+    if (insidePersonalHome) {
       throw new Error('Personal files require scope: "agent"')
     }
   }
@@ -168,16 +168,11 @@ function scopedTarget(
 }
 
 function assertSources(roots: string[], target: string) {
-  if (
-    !roots.some((root) => {
-      const rel = path.relative(root, target)
-      return (
-        rel !== '..' &&
-        !rel.startsWith(`..${path.sep}`) &&
-        !path.isAbsolute(rel)
-      )
-    })
-  ) {
+  const insideConfiguredSource = roots.some((root) => {
+    const relative = path.relative(root, target)
+    return relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative) // prettier-ignore
+  })
+  if (!insideConfiguredSource) {
     throw new Error('Path escapes the configured workspace sources')
   }
 }

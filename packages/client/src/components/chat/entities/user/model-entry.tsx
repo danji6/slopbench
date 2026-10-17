@@ -11,6 +11,7 @@ import {
   Tabs,
 } from '@/components/ui'
 import { expandNumber } from '@/lib/utils'
+import { effectiveModel } from '@sb/core/discovered-model'
 import { parseModelExtraParameters } from '@sb/core/model-parameters'
 import {
   DEFAULT_BINARY_REASONING_PARAMETER,
@@ -52,12 +53,10 @@ export function ModelRow({
   onRemove,
 }: ModelRowProps) {
   const [tab, setTab] = useState('configuration')
+  const resolved = effectiveModel(model)
 
   const configuredReasoning =
-    model.reasoning ??
-    model.discoveredReasoning ??
-    defaultReasoning ??
-    defaultModelReasoning()
+    resolved.reasoning ?? defaultReasoning ?? defaultModelReasoning()
 
   const reasoning =
     normalizeBinaryReasoningParameter(
@@ -73,7 +72,7 @@ export function ModelRow({
       label={
         <span className="flex min-w-0 flex-col">
           <span className="truncate text-sm font-semibold">
-            {model.label || model.discoveredLabel || model.id || 'New model'}
+            {resolved.label || model.id || 'New model'}
           </span>
           {model.label && model.id && (
             <span className="text-muted-foreground truncate font-mono text-xs font-normal">
@@ -103,7 +102,7 @@ export function ModelRow({
           onChange={onChange}
         />
         <ContextWindowField
-          value={model.contextWindow ?? model.discoveredContextWindow}
+          value={resolved.contextWindow}
           onChange={(contextWindow) => onChange({ contextWindow })}
         />
       </div>
@@ -123,7 +122,7 @@ export function ModelRow({
                 }
                 onChange={(value) => onChange({ reasoning: value })}
               />
-              {model.discoveredReasoning && model.reasoning !== undefined && (
+              {model.discovered?.reasoning && model.reasoning !== undefined && (
                 <RippleButton
                   size="sm"
                   variant="stealth"
@@ -145,18 +144,9 @@ export function ModelRow({
           <Tabs.Content value="inference">
             <InferenceSettings
               density="compact"
-              value={{ ...model.discoveredInference, ...model.inference }}
+              value={model.inference ?? {}}
               onChange={(inference) => onChange({ inference })}
             />
-            {model.discoveredInference && model.inference !== undefined && (
-              <RippleButton
-                size="sm"
-                variant="stealth"
-                onClick={() => onChange({ inference: undefined })}
-              >
-                Use discovered inference defaults
-              </RippleButton>
-            )}
           </Tabs.Content>
         </Tabs.Panels>
       </Tabs>
@@ -169,6 +159,8 @@ function ModelIdentity({
   catalogOnly,
   onChange,
 }: Pick<ModelRowProps, 'model' | 'onChange' | 'catalogOnly'>) {
+  const resolved = effectiveModel(model)
+
   return (
     <>
       <div className="flex flex-col gap-1.5">
@@ -187,11 +179,11 @@ function ModelIdentity({
         </Label>
         <Input
           className="h-9 w-full text-sm"
-          placeholder={model.discoveredLabel ?? 'e.g. Model Name'}
-          value={model.label ?? model.discoveredLabel ?? ''}
+          placeholder={model.discovered?.label ?? 'e.g. Model Name'}
+          value={resolved.label ?? ''}
           onChange={(event) => onChange({ label: event.target.value })}
         />
-        {model.discoveredLabel && model.label !== undefined && (
+        {model.discovered?.label && model.label !== undefined && (
           <RippleButton
             size="sm"
             variant="stealth"

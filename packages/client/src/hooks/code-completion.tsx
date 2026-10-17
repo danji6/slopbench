@@ -1,3 +1,4 @@
+import { CompletionPopup } from '@/components/ui/completion-popup'
 import {
   CompletionController,
   type CompletionSession,
@@ -10,8 +11,6 @@ import { staticCompletions } from '@sb/core/code-completion/engine'
 import type { CompletionSource } from '@sb/core/code-completion/types'
 import type { Editor } from '@tiptap/react'
 import { type ReactNode, useEffect, useId, useMemo, useState } from 'react'
-
-import { CompletionPopup } from './completion-popup'
 
 export type {
   Completion,

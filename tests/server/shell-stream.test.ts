@@ -3,7 +3,6 @@ import type * as ShellToolModule from '@sb/convex/model/tool/shell'
 import type { ShellToolOutput } from '@sb/convex/types'
 import type * as RegistryModule from '@sb/sidecar/shell/registry'
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
-import { Hono } from 'hono'
 
 process.env.CHAT_JOB_MODE = 'script'
 process.env.CHAT_SIDECAR_DATA_DIR ??= process.cwd()
@@ -22,8 +21,8 @@ beforeAll(async () => {
   registry = await import('@sb/sidecar/shell/registry')
   shellTool = await import('@sb/convex/model/tool/shell')
 
-  const app = new Hono()
-  app.route('/shell', (await import('@sb/sidecar/shell/routes')).shellRoutes)
+  const { createApp } = await import('@sb/sidecar/main')
+  const app = createApp(async (_c, next) => next())
   server = Bun.serve({ port: PORT, fetch: (req) => app.fetch(req) })
 })
 

@@ -132,6 +132,7 @@ import type * as model_provider_discovery_ollama from "../model/provider/discove
 import type * as model_provider_discovery_openai from "../model/provider/discovery/openai.js";
 import type * as model_provider_discovery_openrouter from "../model/provider/discovery/openrouter.js";
 import type * as model_provider_discovery_types from "../model/provider/discovery/types.js";
+import type * as model_provider_discoveryState from "../model/provider/discoveryState.js";
 import type * as model_provider_inferenceFactory from "../model/provider/inferenceFactory.js";
 import type * as model_provider_inferenceOptions from "../model/provider/inferenceOptions.js";
 import type * as model_provider_inferenceTypes from "../model/provider/inferenceTypes.js";
@@ -449,6 +450,7 @@ declare const fullApi: ApiFromModules<{
   "model/provider/discovery/openai": typeof model_provider_discovery_openai;
   "model/provider/discovery/openrouter": typeof model_provider_discovery_openrouter;
   "model/provider/discovery/types": typeof model_provider_discovery_types;
+  "model/provider/discoveryState": typeof model_provider_discoveryState;
   "model/provider/inferenceFactory": typeof model_provider_inferenceFactory;
   "model/provider/inferenceOptions": typeof model_provider_inferenceOptions;
   "model/provider/inferenceTypes": typeof model_provider_inferenceTypes;

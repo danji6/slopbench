@@ -1,8 +1,8 @@
+import { useCollapsible } from '@/hooks/chat/collapsible'
 import type { ShellReportPart } from '@/lib/chat/parts'
 import { SquareTerminalIcon } from 'lucide-react'
 
 import { CollapsibleBlock } from './collapsible-block'
-import { useCollapsible } from './collapsible-store'
 import { HighlightedCommand } from './tools/highlighted-command'
 
 const STATUS_LABELS: Record<ShellReportPart['status'], string> = {

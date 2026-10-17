@@ -1,5 +1,5 @@
+import { useClipboard } from '@/hooks/clipboard'
 import type { Prompt } from '@/lib/chat'
-import { useClipboard } from '@/lib/clipboard'
 import { z } from 'zod'
 
 // TODO make backward compatible

@@ -1,3 +1,5 @@
+import type { SettingsFormValues } from '@/components/chat/entities/user/settings-schema'
+import { normalizeWebSearchInstances } from '@/components/chat/entities/user/user-settings-values'
 import {
   useClearProfileAvatar,
   useMcpServersSave,
@@ -17,9 +19,6 @@ import type { Id } from '@sb/convex/_generated/dataModel'
 import { providerFeatures } from '@sb/core/provider-registry'
 import { useAction, useMutation } from 'convex/react'
 import type { UseFormReturn } from 'react-hook-form'
-
-import type { SettingsFormValues } from './settings-schema'
-import { normalizeWebSearchInstances } from './user-settings-values'
 
 type PersistenceInput = {
   pendingAvatar: File | null

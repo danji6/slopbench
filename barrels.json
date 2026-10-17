@@ -31,6 +31,9 @@
     "\\/lib\\/editor-clear\\.ts$",
     "\\/lib\\/command-filter\\.ts$",
     "\\/user-settings-(values|persistence)\\.ts$",
-    "\\/entities\\/user\\/providers\\/openai\\/sign-in\\.tsx$"
+    "\\/entities\\/user\\/providers\\/openai\\/sign-in\\.tsx$",
+    "\\/hooks\\/chat\\/message-list\\/",
+    "\\/hooks\\/chat\\/shell-state\\.ts$",
+    "\\/hooks\\/code-completion\\.tsx$"
   ]
 }

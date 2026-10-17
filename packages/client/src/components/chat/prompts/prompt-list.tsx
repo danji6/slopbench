@@ -2,6 +2,7 @@ import { ConfirmDialog, RippleButton } from '@/components/ui'
 import { DropdownMenu } from '@/components/ui/dropdown-menu'
 import type { SortableHandleProps } from '@/components/ui/sortable-list'
 import { SortableList } from '@/components/ui/sortable-list'
+import { usePromptClipboard } from '@/hooks/chat/prompt-clipboard'
 import { usePromptEditorView } from '@/hooks/chat/prompt-editor'
 import type { OrderedItem, Prompt } from '@/lib/chat'
 import type { MergedPromptItem } from '@/lib/chat/prompts'
@@ -23,7 +24,6 @@ import {
 import type { ReactNode } from 'react'
 import { useState } from 'react'
 
-import { usePromptClipboard } from './prompt-clipboard'
 import { PromptEditor } from './prompt-editor'
 
 export type PromptListProps = {

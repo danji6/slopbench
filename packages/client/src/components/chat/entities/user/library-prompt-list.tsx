@@ -1,11 +1,11 @@
 import { PromptEditor } from '@/components/chat/prompts'
-import { usePromptClipboard } from '@/components/chat/prompts/prompt-clipboard'
 import {
   ConfirmDialog,
   RippleButton,
   SearchableList,
   TooltipButton,
 } from '@/components/ui'
+import { usePromptClipboard } from '@/hooks/chat/prompt-clipboard'
 import { useLibraryPromptEditorView } from '@/hooks/chat/prompt-editor'
 import { newPrompt } from '@/lib/chat'
 import type { Prompt } from '@/lib/chat'

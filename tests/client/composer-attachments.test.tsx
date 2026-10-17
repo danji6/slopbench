@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import type { useComposerAttachments } from '@/components/chat/composer/use-composer-attachments'
+import type { useComposerAttachments } from '@/hooks/chat/composer-attachments'
 import * as draftStore from '@/lib/chat/composer-attachment-draft-store'
 import type { PendingMessage } from '@/lib/chat/types'
 import { editorKit } from '@/lib/tiptap/kit'
@@ -26,8 +26,7 @@ let writeDraft: ReturnType<
 
 beforeAll(async () => {
   ;(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true
-  const module =
-    await import('@/components/chat/composer/use-composer-attachments')
+  const module = await import('@/hooks/chat/composer-attachments')
   useAttachments = module.useComposerAttachments
 })
 

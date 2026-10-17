@@ -36,12 +36,12 @@ export async function discoverModels(
   let next: string | undefined = first.href
   while (next) {
     const url: URL = new URL(next, first)
-    if (
-      url.origin !== first.origin ||
-      url.pathname !== first.pathname ||
-      url.username ||
-      url.password
-    ) {
+    const endpointChanged =
+      url.origin !== first.origin || url.pathname !== first.pathname
+    if (endpointChanged) {
+      throw new Error('Unsafe model catalog pagination')
+    }
+    if (url.username || url.password) {
       throw new Error('Unsafe model catalog pagination')
     }
     if (visited.has(url.href) || visited.size >= 100)

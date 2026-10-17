@@ -1,8 +1,8 @@
+import { useReasoningOpen } from '@/hooks/chat/reasoning-collapsible'
+import { useReasoningLabel } from '@/hooks/chat/reasoning-label'
 import type { ReasoningPart } from '@sb/convex/types'
 
 import { CollapsibleBlock } from './collapsible-block'
-import { useReasoningOpen } from './reasoning-collapsible'
-import { useReasoningLabel } from './reasoning-label'
 import { SmoothText } from './smooth-text'
 
 export type ReasoningBlockProps = {

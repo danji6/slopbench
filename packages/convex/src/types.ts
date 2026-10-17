@@ -200,3 +200,5 @@ export type StorePreviewArgs = Infer<typeof V.storePreviewArgsValidator>
 export type PreviewModelDetailsArgs = Infer<typeof V.previewModelDetailsArgsValidator> // prettier-ignore
 export type RemovedConnectionArgs = Infer<typeof V.removedConnectionArgsValidator> // prettier-ignore
 export type DetailTargetsArgs = Infer<typeof V.detailTargetsArgsValidator>
+
+export type ProviderDiscovery = Infer<typeof V.providerDiscoveryValidator>

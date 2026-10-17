@@ -23,6 +23,7 @@ import {
 } from '@/hooks/chat'
 import { useFormDraft } from '@/hooks/chat/form-draft'
 import { useSettingsSave } from '@/hooks/chat/settings-save'
+import { useUserSettingsPersistence } from '@/hooks/chat/user-settings-persistence'
 import { useScopedTheme } from '@/hooks/theme'
 import { useView, useViewCloseGuard } from '@/hooks/view'
 import { USER_SETTINGS_DRAFT_KEY } from '@/lib/chat/editor-draft-store'
@@ -56,7 +57,6 @@ import { McpSettings } from './mcp-settings'
 import { ModelSettings } from './model-settings'
 import { ProfileSettings } from './profile-settings'
 import type { SettingsFormValues } from './settings-schema'
-import { useUserSettingsPersistence } from './user-settings-persistence'
 import {
   defaultSettingsValues,
   loadedSettingsValues,

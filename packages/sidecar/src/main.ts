@@ -58,8 +58,28 @@ import {
   validateSources,
   validateSourcesSchema,
 } from './mcp/workspace/context'
-import { providerRoutes } from './providers/openai/routes'
-import { shellRoutes } from './shell/routes'
+import {
+  cancelChatGPTSignIn,
+  chatGPTHost,
+  chatGPTModels,
+  chatGPTResponses,
+  chatGPTStatus,
+  disconnectChatGPT,
+  prepareChatGPTTransfer,
+  startChatGPTSignIn,
+} from './providers/openai/handlers'
+import {
+  backgroundShell,
+  killSessionShell,
+  killShell,
+  listShell,
+  pollShell,
+  resizeShell,
+  shellInfo,
+  shellStdin,
+  startShell,
+  streamShell,
+} from './shell/handlers'
 import { updateStatus } from './update/status'
 
 const PORT = Number(process.env.MCP_PORT ?? 3212)
@@ -69,7 +89,14 @@ export function createApp(authenticate: MiddlewareHandler) {
   app.get('/health', (c) => c.json({ ready: true }))
   app.use('*', authenticate)
 
-  app.route('/providers/chatgpt', providerRoutes)
+  app.post('/providers/chatgpt/prepare-transfer', prepareChatGPTTransfer)
+  app.post('/providers/chatgpt/start', startChatGPTSignIn)
+  app.post('/providers/chatgpt/status', chatGPTStatus)
+  app.post('/providers/chatgpt/cancel', cancelChatGPTSignIn)
+  app.post('/providers/chatgpt/host', chatGPTHost)
+  app.post('/providers/chatgpt/disconnect', disconnectChatGPT)
+  app.post('/providers/chatgpt/models', chatGPTModels)
+  app.post('/providers/chatgpt/responses', chatGPTResponses)
 
   app.post('/mcp', handleMcpRequest)
 
@@ -107,7 +134,16 @@ export function createApp(authenticate: MiddlewareHandler) {
     }
   })
 
-  app.route('/shell', shellRoutes)
+  app.get('/shell/info', shellInfo)
+  app.post('/shell/start', startShell)
+  app.post('/shell/poll', pollShell)
+  app.get('/shell/stream', streamShell)
+  app.post('/shell/stdin', shellStdin)
+  app.post('/shell/kill', killShell)
+  app.post('/shell/background', backgroundShell)
+  app.post('/shell/resize', resizeShell)
+  app.post('/shell/list', listShell)
+  app.post('/shell/kill_session', killSessionShell)
 
   app.post('/eval/prompts', async (c) =>
     c.json(await evaluatePrompts(promptsSchema.parse(await c.req.json()))),

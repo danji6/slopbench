@@ -97,15 +97,9 @@ export class Scroller {
   /** Preserves a visible tail after its bottom padding has grown in the DOM. */
   private _compensateBottomInset(delta: number) {
     const target = this.target
-    if (
-      !target ||
-      !this._ready ||
-      delta <= 0 ||
-      this._manualScrollActive ||
-      this._shiftInProgress ||
-      this._userScrollIntent === 'up'
-    )
-      return
+    if (!target || !this._ready || delta <= 0) return
+    if (this._manualScrollActive || this._shiftInProgress) return
+    if (this._userScrollIntent === 'up') return
 
     const bottom = Math.max(
       0,
@@ -306,15 +300,9 @@ export class Scroller {
     !this._shiftInProgress
 
   lockScroll = () => {
-    if (
-      this.scrollLock ||
-      !this._enabled ||
-      this.isFollowing ||
-      this._manualScrollActive ||
-      this._userScrollIntent === 'up'
-    ) {
-      return
-    }
+    if (this.scrollLock || !this._enabled) return
+    if (this.isFollowing || this._manualScrollActive) return
+    if (this._userScrollIntent === 'up') return
 
     const target = this.target
     if (!target) return
@@ -445,13 +433,13 @@ export class Scroller {
             this.onPositionChange?.(this.autoScrolling)
             return
           }
-          if (
+          const shouldFollowContent =
             this._enabled &&
             !this._manualScrollActive &&
             !this.scrollLock &&
             !this.isFollowing &&
             !this._shiftInProgress
-          ) {
+          if (shouldFollowContent) {
             this.lockScroll()
           }
           this.onPositionChange?.(this.autoScrolling)

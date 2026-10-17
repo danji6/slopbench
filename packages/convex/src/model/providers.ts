@@ -18,6 +18,7 @@ import {
   validateCatalogModels,
   validateConnection,
 } from './provider/connectionConfig'
+import { cancelDiscovery } from './provider/discoveryState'
 import { getProviderDefinition } from './provider/known'
 
 /** What the settings UI renders. */
@@ -128,19 +129,16 @@ export async function update(
   if ('extraHeaders' in patch) {
     patch.extraHeaders = patch.extraHeaders || undefined
   }
-  if (
-    configRevision !== undefined &&
-    configRevision !== (provider.configRevision ?? 0)
-  ) {
+  const connectionChanged =
+    configRevision !== undefined && configRevision !== (provider.configRevision ?? 0) // prettier-ignore
+  if (connectionChanged) {
     error('Connection changed. Reload before saving.', 409)
   }
 
   validateConnection({ ...provider, ...patch })
 
-  if (
-    providerFeatures(provider.key, provider.auth).accountSignIn &&
-    apiKey !== undefined
-  ) {
+  const usesAccountSignIn = providerFeatures(provider.key, provider.auth).accountSignIn // prettier-ignore
+  if (usesAccountSignIn && apiKey !== undefined) {
     error('This connection uses ChatGPT sign-in', 400)
   }
 
@@ -166,8 +164,7 @@ export async function update(
         : provider.name,
     models,
     configRevision: (provider.configRevision ?? 0) + 1,
-    discoveryAttempt: undefined,
-    discoveryStartedAt: undefined,
+    discovery: cancelDiscovery(provider.discovery),
     ...(networkChanged && !preview ? invalidateConnectionCatalog(models) : {}),
   })
 
@@ -178,14 +175,7 @@ export async function update(
 
 function invalidateConnectionCatalog(models: ModelEntry[]) {
   return {
-    discoveryGeneration: undefined,
-    discoveredAt: undefined,
-    discoveryAttemptedAt: undefined,
-    discoveryError: undefined,
-    discoveryBlocked: undefined,
-    discoveryFailures: undefined,
-    discoveryRateLimitedUntil: undefined,
-    discoveryRetryAt: undefined,
+    discovery: undefined,
     models: models.map((model) =>
       model.source === 'discovered' ? { ...model, available: false } : model,
     ),

@@ -25,7 +25,7 @@ export const run = migrations.runner()
  * Migrations an install must apply before this release can read its database,
  * in the order they have to run.
  *
- * Keep the shared manifest append-only and add its generated reference here.
+ * Public migrations use the append-only shared manifest.
  */
 const releaseMigrations: MigrationFunctionReference[] = []
 

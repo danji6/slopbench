@@ -1,5 +1,5 @@
+import { useClipboard } from '@/hooks/clipboard'
 import type { ReminderPrompt } from '@/lib/chat'
-import { useClipboard } from '@/lib/clipboard'
 import { z } from 'zod'
 
 const reminderClipboardSchema = z.object({

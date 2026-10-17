@@ -6,6 +6,7 @@ import {
   TooltipButton,
 } from '@/components/ui'
 import { useReminderEditorView } from '@/hooks/chat/prompt-editor'
+import { useReminderClipboard } from '@/hooks/chat/reminder-clipboard'
 import { newReminderPrompt } from '@/lib/chat'
 import type { ReminderPrompt } from '@/lib/chat'
 import { getEditorDraft, reminderDraftKey } from '@/lib/chat/editor-draft-store'
@@ -21,7 +22,6 @@ import {
 import type { ReactNode } from 'react'
 import { useMemo, useState } from 'react'
 
-import { useReminderClipboard } from './reminder-clipboard'
 import { ReminderEditor } from './reminder-editor'
 
 type ReminderListItem = ReminderPrompt & { isLibrary?: boolean }

@@ -107,7 +107,7 @@ describe('ChatGPT OAuth lifecycle', () => {
   test('validates state, exchanges exact PKCE redirect and stores protected credentials', async () => {
     const { key, url, callback } = await authorize('a')
     expect(url.searchParams.get('client_id')).toBe('dynamic_agent_client')
-    expect(url.searchParams.get('agent_name_hint')).toBe('Slopbench')
+    expect(url.searchParams.get('agent_name_hint')).toBe('slopbench')
     expect(url.searchParams.get('code_challenge_method')).toBe('S256')
     expect(url.searchParams.get('ext_agent_host_id')).toStartWith('urn:uuid:')
     const wrong = new URL(callback)
@@ -180,14 +180,39 @@ describe('ChatGPT OAuth lifecycle', () => {
         registration: { ...record, hostId: 'another-host' },
       }),
     ).rejects.toThrow('host identifier')
-    await importTransfer({
-      setup,
-      registration: { ...record, hostId: setup.hostId },
-    })
+    const registration = { ...record, hostId: setup.hostId }
+    await expect(
+      importTransfer({ setup: { ...setup, nonce: 'replaced' }, registration }),
+    ).rejects.toThrow('ticket')
+    await expect(
+      importTransfer({
+        setup,
+        registration: { ...registration, refreshToken: undefined },
+      }),
+    ).rejects.toThrow('Incomplete transferred registration')
+    await expect(
+      importTransfer({
+        setup,
+        registration: { ...registration, subject: 'another-account' },
+      }),
+    ).rejects.toThrow('identity does not match')
+    expect((await readRegistration(key))?.transferNonce).toBe(setup.nonce)
+    await importTransfer({ setup, registration })
     expect((await connectionStatus(key)).status).toBe('connected')
     await expect(
       importTransfer({ setup, registration: record }),
     ).rejects.toThrow('ticket')
+  })
+  test('expired transfer tickets leave the pending registration untouched', async () => {
+    const key = { ownerId: 'fixture-owner', connectionId: 'expired' }
+    const setup = await prepareTransfer(key)
+    const pending = (await readRegistration(key))!
+    const expired = { ...pending, transferExpiresAt: Date.now() - 1 }
+    await withRegistrationLock(key, () => saveRegistration(key, expired))
+    await expect(
+      importTransfer({ setup, registration: setup.registration }),
+    ).rejects.toThrow('ticket')
+    expect(await readRegistration(key)).toEqual(expired)
   })
   test('disconnect clears renewable credentials but retains the registration', async () => {
     const key = { ownerId: 'fixture-owner', connectionId: 'a' }

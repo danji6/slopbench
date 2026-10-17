@@ -1,7 +1,7 @@
+import { useCollapsible } from '@/hooks/chat/collapsible'
 import { AlertCircleIcon } from 'lucide-react'
 
 import { CollapsibleBlock } from './collapsible-block'
-import { useCollapsible } from './collapsible-store'
 import { useMessageList } from './message-list/message-list-context'
 
 export function ErrorBlock({

@@ -8,6 +8,7 @@ import {
   type SortableHandleProps,
   SortableList,
 } from '@/components/ui/sortable-list'
+import { usePromptClipboard } from '@/hooks/chat/prompt-clipboard'
 import { useOperationPromptEditorView } from '@/hooks/chat/prompt-editor'
 import type { Prompt } from '@/lib/chat'
 import { getEditorDraft, promptDraftKey } from '@/lib/chat/editor-draft-store'
@@ -24,7 +25,6 @@ import {
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import { usePromptClipboard } from './prompt-clipboard'
 import { PromptEditor } from './prompt-editor'
 
 type OperationPromptListProps = {

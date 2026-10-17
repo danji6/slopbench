@@ -1,4 +1,8 @@
 import { useInvertSend } from '@/hooks/chat'
+import { useComposerAttachments } from '@/hooks/chat/composer-attachments'
+import { useComposerEditor } from '@/hooks/chat/composer-editor'
+import type { ComposerHandle } from '@/hooks/chat/composer-editor'
+import { useComposerMentions } from '@/hooks/chat/composer-mentions'
 import type { WorkspaceFileIndex } from '@/hooks/chat/workspace'
 import { useFullscreenView } from '@/hooks/fullscreen'
 import type { PendingMessage } from '@/lib/chat'
@@ -40,12 +44,8 @@ import {
 import { ComposerActions } from './composer-toolbar'
 import type { ComposerToolbarMode } from './composer-toolbar'
 import { SendButton } from './send-button'
-import { useComposerAttachments } from './use-composer-attachments'
-import { useComposerEditor } from './use-composer-editor'
-import type { ComposerHandle } from './use-composer-editor'
-import { useComposerMentions } from './use-composer-mentions'
 
-export type { ComposerHandle } from './use-composer-editor'
+export type { ComposerHandle } from '@/hooks/chat/composer-editor'
 
 const ComposerEditor = lazy(() =>
   import('./composer-editor').then((module) => ({

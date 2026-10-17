@@ -1,3 +1,7 @@
+import {
+  type CompletionSource,
+  useCodeCompletion,
+} from '@/hooks/code-completion'
 import { javascriptSource } from '@/lib/completion/javascript-source'
 import { handleSelectAllDelete } from '@/lib/editor-clear'
 import { getHighlighter } from '@/lib/shiki/core'
@@ -17,7 +21,6 @@ import type { MouseEvent } from 'react'
 import { useEffect, useMemo, useRef } from 'react'
 
 import { CodeBlockShiki } from './code-block-shiki'
-import { type CompletionSource, useCodeCompletion } from './code-completion'
 import { EditorScrollArea } from './editor-scroll-area'
 import { FullscreenEditor, fullscreenFill } from './fullscreen-editor'
 

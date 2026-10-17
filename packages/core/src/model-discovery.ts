@@ -1,13 +1,10 @@
-import type { InferenceParameters, ModelReasoning } from './types/providers'
+import type { ModelReasoning } from './types/providers'
 
 export type DiscoveredModel = {
   id: string
   label?: string
   contextWindow?: number
   reasoning?: ModelReasoning
-  outputLimit?: number
-  supportedParameters?: string[]
-  inference?: InferenceParameters
   detailsLoaded?: boolean
   detailKey?: string
 }

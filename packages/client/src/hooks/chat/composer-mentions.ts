@@ -84,23 +84,16 @@ export function useComposerMentions({
 
   const handleKey = useCallback(
     (event: KeyboardEvent): boolean => {
-      if (
-        !open ||
-        !MENTION_KEYS.has(event.key) ||
-        (event.key === 'Enter' && event.shiftKey)
-      ) {
-        return false
-      }
+      if (!open) return false
+      if (!MENTION_KEYS.has(event.key)) return false
+      if (event.key === 'Enter' && event.shiftKey) return false
 
       const count = matches.length
       if (event.key === 'ArrowDown') {
         setSelectedIndex((index) => (index + 1) % count)
       } else if (event.key === 'ArrowUp') {
         setSelectedIndex((index) => (index - 1 + count) % count)
-      } else if (
-        event.key === 'Tab' ||
-        (event.key === 'Enter' && !event.shiftKey)
-      ) {
+      } else if (event.key === 'Tab' || event.key === 'Enter') {
         select(matches[selectedIndex] ?? matches[0]!)
       } else if (event.key === 'Escape') {
         setDismissedMention(signature)

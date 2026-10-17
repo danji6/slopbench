@@ -121,10 +121,9 @@ export async function preview(
   const saved = args.providerId
     ? await ownedConnection(ctx, args.providerId)
     : undefined
-  if (
-    saved &&
-    (saved.id !== args.key || saved.auth !== (args.auth ?? 'apiKey'))
-  ) {
+  const connectionTypeChanged =
+    saved && (saved.id !== args.key || saved.auth !== (args.auth ?? 'apiKey'))
+  if (connectionTypeChanged) {
     error('Connection type changed', 400)
   }
 

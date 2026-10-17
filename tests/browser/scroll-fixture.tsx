@@ -1,6 +1,6 @@
 import type { ScrollDeps } from '@/components/chat/messages/message-list/deps'
-import { useFollowEdges } from '@/components/chat/messages/message-list/hooks/follow-edges'
-import { useSeek } from '@/components/chat/messages/message-list/hooks/seek'
+import { useFollowEdges } from '@/hooks/chat/message-list/follow-edges'
+import { useSeek } from '@/hooks/chat/message-list/seek'
 import { useScroller } from '@/hooks/scroller'
 import { createMessageStore } from '@/lib/chat/message-store'
 import type { MessageRow } from '@/lib/chat/rows'

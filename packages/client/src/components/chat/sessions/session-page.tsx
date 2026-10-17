@@ -1,8 +1,7 @@
+import { useSessionPageReveal } from '@/hooks/chat/session-page-reveal'
 import type { SessionGroupPage } from '@/hooks/chat/sessions'
 import type { GroupRow } from '@/lib/chat/session-groups'
 import type { ReactNode } from 'react'
-
-import { useSessionPageReveal } from './use-session-page-reveal'
 
 export type SessionPageControls = {
   loadMore: () => void

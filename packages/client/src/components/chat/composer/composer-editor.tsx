@@ -1,4 +1,5 @@
 import { fullscreenGrow } from '@/components/ui'
+import { usePlaceholder } from '@/hooks/chat/composer-placeholder'
 import { isCovered } from '@/lib/focus-return'
 import { MentionDecoration } from '@/lib/tiptap/decorations/mention'
 import { ShellHighlight } from '@/lib/tiptap/decorations/shell'
@@ -8,8 +9,6 @@ import type { EditorView } from '@tiptap/pm/view'
 import { EditorContent, useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 import { useEffect, useMemo, useRef } from 'react'
-
-import { usePlaceholder } from './use-placeholder'
 
 export type ComposerEditorProps = {
   placeholder?: string

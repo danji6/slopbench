@@ -42,14 +42,14 @@ export function sanitizeToolSegment(segment: ModelMessage[]): ModelMessage[] {
 
         const content = message.content.filter((part) => {
           if (part.type !== 'tool-call' || part.providerExecuted) return true
-          if (
+          const hasFutureResponse =
             futureResultIds.has(part.toolCallId) ||
             hasFutureApprovalResponse(
               message.content,
               part.toolCallId,
               futureApprovalIds,
             )
-          ) {
+          if (hasFutureResponse) {
             keptCallIds.add(part.toolCallId)
             return true
           }

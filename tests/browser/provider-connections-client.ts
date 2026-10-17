@@ -50,7 +50,7 @@ function query(name: string, args: Record<string, unknown>) {
         row.enabled
           ? row.models.map((model) => ({
               ...model,
-              label: model.label ?? model.discoveredLabel,
+              label: model.label ?? model.discovered?.label,
               id: modelReference(row._id, model.id),
               connectionId: row._id,
               connectionName: row.name,

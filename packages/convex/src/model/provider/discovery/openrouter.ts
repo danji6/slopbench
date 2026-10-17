@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { inferenceDefaults, positive } from './metadata'
+import { positive } from './metadata'
 import type { DiscoveryAdapter } from './types'
 
 const schema = z.object({
@@ -9,11 +9,6 @@ const schema = z.object({
       id: z.string().min(1).max(1024),
       name: z.string().max(1024).optional(),
       context_length: z.number().nullish(),
-      supported_parameters: z.array(z.string()).nullish(),
-      default_parameters: z.record(z.string(), z.unknown()).nullish(),
-      top_provider: z
-        .object({ max_completion_tokens: z.number().nullish() })
-        .nullish(),
       architecture: z
         .object({ output_modalities: z.array(z.string()).optional() })
         .optional(),
@@ -41,9 +36,6 @@ export const openRouterAdapter: DiscoveryAdapter = {
           id: m.id,
           label: m.name,
           contextWindow: positive(m.context_length),
-          outputLimit: positive(m.top_provider?.max_completion_tokens),
-          supportedParameters: m.supported_parameters ?? undefined,
-          inference: inferenceDefaults(m.default_parameters),
         })),
     }
   },

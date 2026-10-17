@@ -1,5 +1,6 @@
+import type { ChatProps } from '@/components/chat/chat-types'
+import type { AgentItem } from '@/components/chat/sessions/agent-combobox'
 import { getFontFamily } from '@/fonts'
-import { useStableValue } from '@/hooks'
 import {
   useActiveAgent,
   useActiveSession,
@@ -8,11 +9,9 @@ import {
   useValidatedSessionId,
 } from '@/hooks/chat'
 import { resolveFonts, useSettingsOverride } from '@/hooks/font'
+import { useStableValue } from '@/hooks/stable-value'
 import { useTheme } from '@/hooks/theme'
 import { type CSSProperties, useMemo, useSyncExternalStore } from 'react'
-
-import type { ChatProps } from './chat-types'
-import type { AgentItem } from './sessions/agent-combobox'
 
 type ChatShellState = {
   activeSessionId: string | null

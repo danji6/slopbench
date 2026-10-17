@@ -1,7 +1,7 @@
 import { shellLabel } from '@sb/core/shell/name'
 import { selectFileWorkspace } from '@sb/core/workspace/personal'
-import { type Context, Hono } from 'hono'
-import { type SSEStreamingApi, streamSSE } from 'hono/streaming'
+import type { Context, Handler } from 'hono'
+import { streamSSE } from 'hono/streaming'
 import { ZodError, z } from 'zod'
 
 import { withAgentFiles } from '../agent-files/access'
@@ -12,7 +12,6 @@ import {
 import { requireWorkspace } from '../mcp/workspace/workspace'
 import {
   type ShellJobStream,
-  type ShellStreamEvent,
   backgroundShellJob,
   killSessionShellJobs,
   killShellJob,
@@ -23,6 +22,7 @@ import {
   subscribeShellJob,
   writeStdin,
 } from './registry'
+import { pumpShellJobStream } from './stream'
 import { shellPath } from './system-shell'
 
 const jobFields = {
@@ -69,19 +69,17 @@ const killSessionSchema = z.object({
   includeBackground: z.boolean().optional(),
 })
 
-export const shellRoutes = new Hono()
-
 /** What an unconfigured shell resolves to on this host. */
-shellRoutes.get('/info', (c) => {
+export const shellInfo: Handler = (c) => {
   try {
     const shell = shellPath()
     return c.json({ shell, label: shellLabel(shell) })
   } catch (err: unknown) {
     return jobError(c, err)
   }
-})
+}
 
-shellRoutes.post('/start', async (c) => {
+export const startShell: Handler = async (c) => {
   try {
     const input = startSchema.parse(await c.req.json())
     input.workspace = selectFileWorkspace(input.workspace, input.scope)
@@ -106,18 +104,18 @@ shellRoutes.post('/start', async (c) => {
   } catch (err: unknown) {
     return jobError(c, err)
   }
-})
+}
 
-shellRoutes.post('/poll', async (c) => {
+export const pollShell: Handler = async (c) => {
   try {
     const input = pollSchema.parse(await c.req.json())
     return c.json(pollShellJob(input.jobId, input.sessionId, input.offset))
   } catch (err: unknown) {
     return jobError(c, err)
   }
-})
+}
 
-shellRoutes.get('/stream', (c) => {
+export const streamShell: Handler = (c) => {
   let stream: ShellJobStream
   let maxBytes: number | undefined
   try {
@@ -133,9 +131,9 @@ shellRoutes.get('/stream', (c) => {
     return jobError(c, err)
   }
   return streamSSE(c, (sse) => pumpShellJobStream(sse, stream, maxBytes))
-})
+}
 
-shellRoutes.post('/stdin', async (c) => {
+export const shellStdin: Handler = async (c) => {
   try {
     const input = stdinSchema.parse(await c.req.json())
     writeStdin(input.jobId, input.sessionId, input.data)
@@ -143,9 +141,9 @@ shellRoutes.post('/stdin', async (c) => {
   } catch (err: unknown) {
     return jobError(c, err)
   }
-})
+}
 
-shellRoutes.post('/kill', async (c) => {
+export const killShell: Handler = async (c) => {
   try {
     const input = killSchema.parse(await c.req.json())
     killShellJob(input.jobId, input.sessionId)
@@ -153,9 +151,9 @@ shellRoutes.post('/kill', async (c) => {
   } catch (err: unknown) {
     return jobError(c, err)
   }
-})
+}
 
-shellRoutes.post('/background', async (c) => {
+export const backgroundShell: Handler = async (c) => {
   try {
     const input = killSchema.parse(await c.req.json())
     backgroundShellJob(input.jobId, input.sessionId)
@@ -163,9 +161,9 @@ shellRoutes.post('/background', async (c) => {
   } catch (err: unknown) {
     return jobError(c, err)
   }
-})
+}
 
-shellRoutes.post('/resize', async (c) => {
+export const resizeShell: Handler = async (c) => {
   try {
     const input = resizeSchema.parse(await c.req.json())
     resizeShellJob(input.jobId, input.sessionId, input.cols, input.rows)
@@ -173,18 +171,18 @@ shellRoutes.post('/resize', async (c) => {
   } catch (err: unknown) {
     return jobError(c, err)
   }
-})
+}
 
-shellRoutes.post('/list', async (c) => {
+export const listShell: Handler = async (c) => {
   try {
     const input = sessionSchema.parse(await c.req.json())
     return c.json({ jobs: listShellJobs(input.sessionId) })
   } catch (err: unknown) {
     return jobError(c, err)
   }
-})
+}
 
-shellRoutes.post('/kill_session', async (c) => {
+export const killSessionShell: Handler = async (c) => {
   try {
     const input = killSessionSchema.parse(await c.req.json())
     const killed = killSessionShellJobs(
@@ -196,116 +194,6 @@ shellRoutes.post('/kill_session', async (c) => {
   } catch (err: unknown) {
     return jobError(c, err)
   }
-})
-
-const PING_MS = 15_000
-const PING = Symbol('ping')
-
-/** Replays the snapshot then pushes live events, with an idle keep-alive ping. */
-async function pumpShellJobStream(
-  sse: SSEStreamingApi,
-  stream: ShellJobStream,
-  maxBytes?: number,
-) {
-  const { initial, status, exitCode, background, waiting, registered, events } =
-    stream
-  let aborted = false
-  let sent = 0
-  sse.onAbort(() => {
-    aborted = true
-    stream.unsubscribe()
-  })
-
-  const budgetSpent = () => maxBytes !== undefined && sent >= maxBytes
-
-  try {
-    if (initial.chunk) {
-      sent += await writeChunk(sse, {
-        text: initial.chunk,
-        nextOffset: initial.nextOffset,
-        bufferStart: initial.bufferStart,
-      })
-    }
-
-    if (!registered || status !== 'running') {
-      await sse.writeSSE({
-        event: 'end',
-        data: JSON.stringify({ status, exitCode }),
-      })
-      return
-    }
-
-    if (budgetSpent()) return
-
-    await sse.writeSSE({
-      event: 'meta',
-      data: JSON.stringify({ background, waiting }),
-    })
-
-    let pending = events.next()
-    while (!aborted && !budgetSpent()) {
-      let timer: ReturnType<typeof setTimeout> | undefined
-      const ping = new Promise<typeof PING>((resolve) => {
-        timer = setTimeout(() => resolve(PING), PING_MS)
-      })
-      let result: IteratorResult<ShellStreamEvent> | typeof PING
-      try {
-        result = await Promise.race([pending, ping])
-      } finally {
-        clearTimeout(timer)
-      }
-
-      if (result === PING) {
-        await sse.write(': ping\n\n')
-        continue
-      }
-      if (result.done) break
-      pending = events.next()
-      const { open, bytes } = await writeEvent(sse, result.value)
-      sent += bytes
-      if (!open) break
-    }
-  } finally {
-    stream.unsubscribe()
-    await events.return?.(undefined).catch(() => {})
-  }
-}
-
-/** Writes a chunk frame and returns the payload byte count. */
-async function writeChunk(
-  sse: SSEStreamingApi,
-  payload: { text: string; nextOffset: number; bufferStart?: number },
-): Promise<number> {
-  const data = JSON.stringify(payload)
-  await sse.writeSSE({ event: 'chunk', data })
-  return data.length
-}
-
-/** Writes one event. `open` is false once the `end` event is sent. */
-async function writeEvent(
-  sse: SSEStreamingApi,
-  ev: ShellStreamEvent,
-): Promise<{ open: boolean; bytes: number }> {
-  if (ev.type === 'chunk') {
-    const bytes = await writeChunk(sse, {
-      text: ev.text,
-      nextOffset: ev.nextOffset,
-    })
-    return { open: true, bytes }
-  }
-  if (ev.type === 'meta') {
-    await sse.writeSSE({
-      event: 'meta',
-      data: JSON.stringify({ background: ev.background, waiting: ev.waiting }),
-    })
-    return { open: true, bytes: 0 }
-  }
-
-  await sse.writeSSE({
-    event: 'end',
-    data: JSON.stringify({ status: ev.status, exitCode: ev.exitCode }),
-  })
-  return { open: false, bytes: 0 }
 }
 
 function jobError(c: Context, err: unknown) {

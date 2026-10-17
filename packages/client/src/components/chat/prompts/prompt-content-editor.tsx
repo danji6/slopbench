@@ -4,7 +4,7 @@ import {
   codeEditorVariants,
   fullscreenFill,
 } from '@/components/ui'
-import { useCodeCompletion } from '@/components/ui/code-completion'
+import { useCodeCompletion } from '@/hooks/code-completion'
 import { useEditorBaseline } from '@/hooks/editor-baseline'
 import { handleSelectAllDelete } from '@/lib/editor-clear'
 import { InterpreterHighlight } from '@/lib/tiptap/decorations'

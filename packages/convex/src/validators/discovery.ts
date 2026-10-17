@@ -1,18 +1,10 @@
 import { v } from 'convex/values'
 
-import {
-  inferenceParametersValidator,
-  modelReasoningValidator,
-} from './providers'
+import { modelMetadataValidator } from './providers'
 
 export const discoveredModelValidator = v.object({
+  ...modelMetadataValidator.fields,
   id: v.string(),
-  label: v.optional(v.string()),
-  contextWindow: v.optional(v.number()),
-  reasoning: v.optional(modelReasoningValidator),
-  outputLimit: v.optional(v.number()),
-  supportedParameters: v.optional(v.array(v.string())),
-  inference: v.optional(inferenceParametersValidator),
   detailKey: v.optional(v.string()),
   detailsLoaded: v.optional(v.boolean()),
 })

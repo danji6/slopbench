@@ -13,6 +13,20 @@ import {
   useWindowControls,
   useWindowMetadata,
 } from '@/hooks/chat'
+import { useDelayedVisibility } from '@/hooks/chat/message-list/delayed-visibility'
+import { useFollowEdges } from '@/hooks/chat/message-list/follow-edges'
+import { useInitialPosition } from '@/hooks/chat/message-list/initial-position'
+import { useMessageReveal } from '@/hooks/chat/message-list/message-reveal'
+import { usePageScroll } from '@/hooks/chat/message-list/page-scroll'
+import { useScrollPersistence } from '@/hooks/chat/message-list/scroll-persistence'
+import { type SeekTargetOptions, useSeek } from '@/hooks/chat/message-list/seek'
+import {
+  useConditionalFollow,
+  useConditionalScroll,
+} from '@/hooks/chat/message-list/stream-reveal'
+import { useVersionCrossfade } from '@/hooks/chat/message-list/version-crossfade'
+import { useVersionHold } from '@/hooks/chat/message-list/version-hold'
+import { useWindowSlide } from '@/hooks/chat/message-list/window-slide'
 import { getNavPaddingPx } from '@/hooks/nav-padding'
 import { useScroller } from '@/hooks/scroller'
 import type { MessageRow } from '@/lib/chat/rows'
@@ -34,20 +48,6 @@ import { ChatScrollArea } from '../../chat-scroll-area'
 import { useMessageEdit } from '../editor/message-edit-context'
 import { MessageRowView } from '../message-row-view'
 import type { ScrollDeps, WindowMeta } from './deps'
-import { useDelayedVisibility } from './hooks/delayed-visibility'
-import { useFollowEdges } from './hooks/follow-edges'
-import { useInitialPosition } from './hooks/initial-position'
-import { useMessageReveal } from './hooks/message-reveal'
-import { usePageScroll } from './hooks/page-scroll'
-import { useScrollPersistence } from './hooks/scroll-persistence'
-import { type SeekTargetOptions, useSeek } from './hooks/seek'
-import {
-  useConditionalFollow,
-  useConditionalScroll,
-} from './hooks/stream-reveal'
-import { useVersionCrossfade } from './hooks/version-crossfade'
-import { useVersionHold } from './hooks/version-hold'
-import { useWindowSlide } from './hooks/window-slide'
 import { MessageListContent } from './message-list-content'
 import { MessageListContext } from './message-list-context'
 

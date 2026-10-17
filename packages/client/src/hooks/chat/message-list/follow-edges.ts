@@ -1,11 +1,10 @@
+import type { ScrollDeps } from '@/components/chat/messages/message-list/deps'
 import type { MessageRow } from '@/lib/chat/rows'
 import { isOngoingStream } from '@/lib/chat/stream'
 import type { ScrollOperation } from '@/lib/scroll-coordinator'
 import { trackUntilSettled } from '@/lib/scroll-settle'
 import type { ChatStatus } from 'ai'
 import { useCallback, useEffect, useRef } from 'react'
-
-import type { ScrollDeps } from '../deps'
 
 type FollowEdgesOptions = {
   returnToLatest: () => void

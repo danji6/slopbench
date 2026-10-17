@@ -1,8 +1,7 @@
+import type { ScrollDeps } from '@/components/chat/messages/message-list/deps'
 import { getNavPaddingPx } from '@/hooks/nav-padding'
 import { trackUntilSettled } from '@/lib/scroll-settle'
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
-
-import type { ScrollDeps } from '../deps'
 
 type WindowSlideOptions = {
   extendOlder: () => boolean

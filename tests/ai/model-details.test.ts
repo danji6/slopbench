@@ -56,16 +56,17 @@ test('user overrides take precedence over optional discovered values', () => {
     contextWindow: 4000,
     reasoning: { type: 'none' as const },
     inference: { temperature: 0.4 },
-    discoveredLabel: 'Provider',
-    discoveredContextWindow: 128000,
-    discoveredReasoning: { type: 'effort' as const, efforts: ['low' as const] },
-    discoveredInference: { temperature: 0.8, topP: 0.9 },
+    discovered: {
+      label: 'Provider',
+      contextWindow: 128000,
+      reasoning: { type: 'effort' as const, efforts: ['low' as const] },
+    },
   }
   expect(effectiveModel(model)).toMatchObject({
     label: 'Mine',
     contextWindow: 4000,
     reasoning: { type: 'none' },
-    inference: { temperature: 0.4, topP: 0.9 },
+    inference: { temperature: 0.4 },
   })
   expect(
     effectiveModel({
@@ -78,7 +79,7 @@ test('user overrides take precedence over optional discovered values', () => {
   ).toMatchObject({
     label: 'Provider',
     contextWindow: 128000,
-    reasoning: model.discoveredReasoning,
-    inference: model.discoveredInference,
+    reasoning: model.discovered.reasoning,
+    inference: undefined,
   })
 })

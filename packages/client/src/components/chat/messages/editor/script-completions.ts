@@ -1,4 +1,4 @@
-import type { Completion } from '@/components/ui/code-completion'
+import type { Completion } from '@/hooks/code-completion'
 
 import {
   SCRIPT_HELPER_NAMES,

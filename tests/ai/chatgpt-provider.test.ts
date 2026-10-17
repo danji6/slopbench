@@ -1,7 +1,7 @@
 import { getProviderOptions } from '@sb/convex/model/provider/options'
 import { prepareChatGPTRequest } from '@sb/core/chatgpt-policy'
 import { modelReference } from '@sb/core/model-reference'
-import { requireCompletedStream } from '@sb/sidecar/providers/openai/routes'
+import { requireCompletedStream } from '@sb/sidecar/providers/openai/stream'
 import { streamText, tool } from 'ai'
 import { describe, expect, test } from 'bun:test'
 import { z } from 'zod'

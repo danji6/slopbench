@@ -1,13 +1,12 @@
+import type { ScrollDeps } from '@/components/chat/messages/message-list/deps'
 import type { useMessageStore } from '@/hooks/chat'
+import type { SeekTargetOptions } from '@/hooks/chat/message-list/seek'
 import { getNavPaddingPx } from '@/hooks/nav-padding'
 import {
   getSavedScroll,
   setSavedScroll,
 } from '@/lib/chat/scroll-position-store'
 import { useCallback, useEffect, useRef } from 'react'
-
-import type { ScrollDeps } from '../deps'
-import type { SeekTargetOptions } from './seek'
 
 /** Debounce for capturing the scroll position while the user scrolls. */
 const CAPTURE_DEBOUNCE_MS = 300

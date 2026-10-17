@@ -48,14 +48,29 @@ const modelSelectionFields = {
 
 export const modelSelectionValidator = v.object(modelSelectionFields)
 
+/** Provider-reported defaults, kept separate from explicit model settings. */
+export const modelMetadataValidator = v.object({
+  label: v.optional(v.string()),
+  contextWindow: v.optional(v.number()),
+  reasoning: v.optional(modelReasoningValidator),
+})
+
+export const providerDiscoveryValidator = v.object({
+  attempt: v.optional(v.string()),
+  generation: v.optional(v.string()),
+  attemptedAt: v.optional(v.number()),
+  startedAt: v.optional(v.number()),
+  refreshedAt: v.optional(v.number()),
+  error: v.optional(v.string()),
+  failures: v.optional(v.number()),
+  retryAt: v.optional(v.number()),
+  rateLimitedUntil: v.optional(v.number()),
+  blocked: v.optional(v.boolean()),
+})
+
 export const modelEntryValidator = v.object({
   ...modelSelectionFields,
-  discoveredOutputLimit: v.optional(v.number()),
-  discoveredParameters: v.optional(v.array(v.string())),
-  discoveredInference: v.optional(inferenceParametersValidator),
-  discoveredLabel: v.optional(v.string()),
-  discoveredContextWindow: v.optional(v.number()),
-  discoveredReasoning: v.optional(modelReasoningValidator),
+  discovered: v.optional(modelMetadataValidator),
   source: v.optional(v.union(v.literal('manual'), v.literal('discovered'))),
   available: v.optional(v.boolean()),
   inference: v.optional(inferenceParametersValidator),
@@ -117,16 +132,7 @@ export const setModelInferenceArgsValidator = v.object({
 export const modelProviderSchema = v.object({
   ...connectionFields,
   configRevision: v.optional(v.number()),
-  discoveryAttempt: v.optional(v.string()),
-  discoveryGeneration: v.optional(v.string()),
-  discoveryAttemptedAt: v.optional(v.number()),
-  discoveryStartedAt: v.optional(v.number()),
-  discoveredAt: v.optional(v.number()),
-  discoveryError: v.optional(v.string()),
-  discoveryFailures: v.optional(v.number()),
-  discoveryRetryAt: v.optional(v.number()),
-  discoveryRateLimitedUntil: v.optional(v.number()),
-  discoveryBlocked: v.optional(v.boolean()),
+  discovery: v.optional(providerDiscoveryValidator),
   identityKey: v.optional(v.string()),
   ownerId: v.id('users'),
   /** The provider id, e.g. 'ollama'. */

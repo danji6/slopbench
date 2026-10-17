@@ -14,7 +14,6 @@ const schema = z.object({
       display_name: z.string().max(1024).optional(),
       lifecycle: z.string().optional(),
       max_input_tokens: z.number().nullish(),
-      max_tokens: z.number().nullish(),
       capabilities: z
         .object({
           effort: z
@@ -59,7 +58,6 @@ export const anthropicAdapter: DiscoveryAdapter = {
             id: m.id,
             label: m.display_name,
             contextWindow: positive(m.max_input_tokens),
-            outputLimit: positive(m.max_tokens),
             reasoning: efforts.length
               ? { type: 'effort', efforts }
               : m.capabilities?.thinking?.supported === false

@@ -5,6 +5,16 @@ import { ZodError } from 'zod'
 import { EvaluationBusyError } from './eval/pool'
 
 export function sidecarError(err: Error, c: Context) {
+  // Keep provider diagnostics out of I/O logs, which may contain callback data.
+  if (c.req.path.startsWith('/providers/chatgpt/')) {
+    return c.json(
+      {
+        error:
+          err instanceof ZodError ? 'Invalid provider request' : err.message,
+      },
+      400,
+    )
+  }
   if (c.req.path.startsWith('/eval/')) {
     if (err instanceof ZodError)
       return c.json({ error: 'Invalid evaluation request' }, 400)

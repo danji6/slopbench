@@ -1,4 +1,4 @@
-import { discoveredFields } from '@sb/core/discovered-model'
+import { modelMetadata } from '@sb/core/discovered-model'
 import { limitError } from '@sb/core/limit-errors'
 import { MAX_PROVIDER_MODELS } from '@sb/core/limits'
 import { parseModelExtraParameters } from '@sb/core/model-parameters'
@@ -27,10 +27,9 @@ export function validateConnection(args: CreateModelProviderArgs) {
   const features = providerFeatures(args.key, auth)
   if (features.fixedEndpoint && (args.baseURL || args.extraHeaders))
     error('Account connections use fixed provider endpoints', 400)
-  if (
-    features.catalogOnly &&
-    args.models.some((model) => model.source !== 'discovered')
-  ) {
+  if (!features.catalogOnly) return
+  const hasManualModels = args.models.some((model) => model.source !== 'discovered') // prettier-ignore
+  if (hasManualModels) {
     error('Choose subscription models from discovery', 400)
   }
 }
@@ -90,13 +89,12 @@ export async function validateCatalogModels(
   provider: Doc<'modelProviders'>,
   models: ModelEntry[],
 ) {
-  const rows = provider.discoveryGeneration
+  const generation = provider.discovery?.generation
+  const rows = generation
     ? await ctx.db
         .query('modelCatalog')
         .withIndex('by_connection_generation_order', (q) =>
-          q
-            .eq('connectionId', provider._id)
-            .eq('generation', provider.discoveryGeneration!),
+          q.eq('connectionId', provider._id).eq('generation', generation),
         )
         .collect()
     : []
@@ -107,11 +105,9 @@ export async function validateCatalogModels(
     const alreadyConfigured = provider.models.some(
       (current) => current.id === model.id && current.source === 'discovered',
     )
-    if (
-      model.source === 'discovered' &&
-      !ids.has(model.id) &&
-      !alreadyConfigured
-    ) {
+    const requiresDiscovery =
+      model.source === 'discovered' && !ids.has(model.id) && !alreadyConfigured
+    if (requiresDiscovery) {
       error('Refresh discovery before enabling this model', 400)
     }
 
@@ -120,7 +116,7 @@ export async function validateCatalogModels(
     return {
       ...model,
       available: model.source === 'discovered' ? ids.has(model.id) : undefined,
-      ...(discovered ? discoveredFields(discovered) : {}),
+      ...(discovered ? { discovered: modelMetadata(discovered) } : {}),
     }
   })
 }

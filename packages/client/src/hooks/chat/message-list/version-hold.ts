@@ -1,8 +1,7 @@
+import type { ScrollDeps } from '@/components/chat/messages/message-list/deps'
 import { useVersionChange } from '@/hooks/chat/message-version'
 import type { MessageStore } from '@/lib/chat/message-store'
 import type { ChatStatus } from 'ai'
-
-import type { ScrollDeps } from '../deps'
 
 type VersionHoldOptions = {
   messageIds: string[]

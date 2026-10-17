@@ -1,11 +1,11 @@
 import { Accordion, Button } from '@/components/ui'
 import { Collapsible, useCollapsible } from '@/components/ui/collapsible'
+import { useScrollIntoView } from '@/hooks/chat/scroll-into-view'
 import { cn } from '@/lib/utils'
 import { useEffect, useRef, useState } from 'react'
 
 import { useGrowOnly } from './grow-only'
 import { useMessageList } from './message-list/message-list-context'
-import { useScrollIntoView } from './scroll-into-view'
 
 const TRIGGER_FOCUS =
   'has-[>div>[data-block-trigger]:focus-visible]:border-ring'

@@ -53,15 +53,17 @@ export const trackGeneratedOutput =
   (_: { tools: TOOLS }) =>
     new TransformStream<TextStreamPart<TOOLS>, TextStreamPart<TOOLS>>({
       transform(chunk, controller) {
-        if (
-          ((chunk.type === 'text-delta' || chunk.type === 'reasoning-delta') &&
-            chunk.text.trim().length > 0) ||
+        const hasGeneratedText =
+          (chunk.type === 'text-delta' || chunk.type === 'reasoning-delta') &&
+          chunk.text.trim().length > 0
+        const hasGeneratedOutput =
+          hasGeneratedText ||
           chunk.type === 'tool-call' ||
           chunk.type === 'tool-result' ||
           chunk.type === 'tool-error' ||
           chunk.type === 'file' ||
           chunk.type === 'source'
-        ) {
+        if (hasGeneratedOutput) {
           tracker.hasOutput = true
         }
         controller.enqueue(chunk)

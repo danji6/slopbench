@@ -20,7 +20,8 @@ process.env.CHAT_SIDECAR_DATA_DIR ??= process.cwd()
 
 /** Lazy import: routes pull in workspace, which needs the data dir set above. */
 async function getShellRoutes() {
-  return (await import('@sb/sidecar/shell/routes')).shellRoutes
+  const { createApp } = await import('@sb/sidecar/main')
+  return createApp(async (_c, next) => next())
 }
 
 const session = { sessionId: 'session-1', workspaceId: 'ws-1' }
@@ -481,7 +482,7 @@ describe('GET /shell/stream route', () => {
     const shellRoutes = await getShellRoutes()
     const { jobId } = await start('echo route-hello')
     const response = await shellRoutes.request(
-      `/stream?sessionId=${session.sessionId}&jobId=${jobId}&offset=0`,
+      `/shell/stream?sessionId=${session.sessionId}&jobId=${jobId}&offset=0`,
     )
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toContain('text/event-stream')
@@ -501,7 +502,7 @@ describe('GET /shell/stream route', () => {
   test('returns 404 for an unknown job', async () => {
     const shellRoutes = await getShellRoutes()
     const response = await shellRoutes.request(
-      `/stream?sessionId=${session.sessionId}&jobId=nope&offset=0`,
+      `/shell/stream?sessionId=${session.sessionId}&jobId=nope&offset=0`,
     )
     expect(response.status).toBe(404)
   })
@@ -514,7 +515,7 @@ describe('GET /shell/stream route', () => {
     await Bun.sleep(300) // let output buffer past the budget while still running
 
     const response = await shellRoutes.request(
-      `/stream?sessionId=${session.sessionId}&jobId=${jobId}&offset=0&maxBytes=200`,
+      `/shell/stream?sessionId=${session.sessionId}&jobId=${jobId}&offset=0&maxBytes=200`,
     )
     expect(response.status).toBe(200)
 

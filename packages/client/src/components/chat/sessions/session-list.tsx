@@ -1,6 +1,7 @@
 import { ConfirmDialog, Input, RippleButton } from '@/components/ui'
 import { useDebouncedCallback } from '@/hooks'
 import { useSession, useSessionGroups, useSessionSearch } from '@/hooks/chat'
+import { useFolderControls } from '@/hooks/chat/folder-controls'
 import {
   type FolderDropPlacement,
   folderDropIntent,
@@ -40,7 +41,6 @@ import { SessionListScrollArea } from './session-list-scroll-area'
 import type { SessionPageControls } from './session-page'
 import { SessionTitleEditor } from './session-title-editor'
 import { SessionTree } from './session-tree'
-import { useFolderControls } from './use-folder-controls'
 
 const SEARCH_DEBOUNCE = 250
 // Keep sensor identity stable so folder toggles don't update every draggable.

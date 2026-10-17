@@ -119,13 +119,13 @@ export function useJobTail(
       cacheTail(key, next)
 
       // Skip re-renders when nothing changed
-      if (
+      const tailUnchanged =
         prev &&
         prev.term === next.term &&
         prev.termOffset === next.termOffset &&
         prev.status === next.status &&
         prev.waiting === next.waiting
-      ) {
+      if (tailUnchanged) {
         return
       }
       setTail(next)

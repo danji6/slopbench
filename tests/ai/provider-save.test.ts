@@ -120,7 +120,7 @@ test('preview adoption requires the same owner and exact network configuration, 
   ).rejects.toThrow('preview expired')
   const saved = await saveProviders(ctx, { connections: [input], removed: [] })
   const id = saved[0].providerId
-  expect(find(id)?.discoveryGeneration).toBe(previewId)
+  expect((await ctx.db.get(id))?.discovery?.generation).toBe(previewId)
   expect((await resolve(ctx, ctx.userId))[0].models[0]).toMatchObject({
     label: 'Custom',
     contextWindow: 128000,
@@ -128,7 +128,7 @@ test('preview adoption requires the same owner and exact network configuration, 
     available: true,
   })
   await deletePreview(ctx, { previewId })
-  expect(find(id)?.discoveryGeneration).toBe(previewId)
+  expect((await ctx.db.get(id))?.discovery?.generation).toBe(previewId)
   expect(find(previewId)).toBeUndefined()
 })
 

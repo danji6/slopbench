@@ -1,12 +1,12 @@
 import { CodeAppearanceContext } from '@/components/markdown/code-appearance'
 import { DialogErrorBoundary } from '@/components/ui'
 import { useResolvedSettings } from '@/hooks/chat/resolved-settings'
+import { useChatShellState } from '@/hooks/chat/shell-state'
 import type { PendingMessage } from '@/lib/chat'
 import { cn } from '@/lib/utils'
 import { useMemo, useState } from 'react'
 
 import { ChatSession } from './chat-session'
-import { useChatShellState } from './chat-shell-state'
 import { ChatSidebars } from './chat-sidebars'
 import type { ChatProps } from './chat-types'
 import { DraftRestoreDialog } from './draft-restore-dialog'

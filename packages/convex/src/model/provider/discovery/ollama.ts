@@ -6,7 +6,7 @@ import { parseProviderExtraHeaders } from '@sb/core/provider-headers'
 import { REASONING_TIERS } from '@sb/core/types'
 import { z } from 'zod'
 
-import { inferenceDefaults, positive } from './metadata'
+import { positive } from './metadata'
 import type { DiscoveryAdapter } from './types'
 
 export function ollamaBase(c: DiscoveryConnection) {
@@ -60,7 +60,6 @@ export const ollamaAdapter: DiscoveryAdapter = {
 
 const detail = z.object({
   model_info: z.record(z.string(), z.unknown()).optional(),
-  parameters: z.string().optional(),
   thinking: z
     .object({ values: z.array(z.union([z.boolean(), z.string()])) })
     .optional(),
@@ -73,16 +72,9 @@ export function ollamaMetadata(data: unknown): Partial<DiscoveredModel> {
   const maximum = parsed.model_info?.[`${architecture}.context_length`]
   const values = parsed.thinking?.values
   const efforts = REASONING_TIERS.filter((tier) => values?.includes(tier))
-  const parameters = Object.fromEntries(
-    (parsed.parameters ?? '').split('\n').map((line) => {
-      const [key, value] = line.trim().split(/\s+/)
-      return [key, Number(value)]
-    }),
-  )
 
   return {
     contextWindow: positive(maximum),
-    inference: inferenceDefaults(parameters),
     reasoning: efforts.length
       ? { type: 'effort', efforts }
       : values?.some((v) => typeof v === 'boolean')

@@ -48,13 +48,7 @@ export function splitShellChain(command: string): ChainSegment[] {
       text += scanned.text
       hasSubstitution ||= scanned.hasSubstitution
       i = scanned.next
-    } else if (
-      ch === '`' ||
-      (ch === '$' && next === '(') ||
-      ((ch === '<' || ch === '>') && next === '(') ||
-      ch === '(' ||
-      ch === ')'
-    ) {
+    } else if (startsSubstitution(ch, next)) {
       hasSubstitution = true
       text += ch
       i++
@@ -227,4 +221,12 @@ export function tokenizeShell(text: string): ShellToken[] {
   flush()
 
   return tokens
+}
+
+/** Recognizes command substitution, process substitution, and subshell syntax. */
+function startsSubstitution(character: string, next: string | undefined) {
+  if (character === '`') return true
+  if (character === '$' && next === '(') return true
+  if ((character === '<' || character === '>') && next === '(') return true
+  return character === '(' || character === ')'
 }

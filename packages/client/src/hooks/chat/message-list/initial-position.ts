@@ -1,7 +1,6 @@
+import type { ScrollDeps } from '@/components/chat/messages/message-list/deps'
 import { trackHeightSettle } from '@/lib/scroll-settle'
 import { useEffect, useLayoutEffect, useRef } from 'react'
-
-import type { ScrollDeps } from '../deps'
 
 type InitialPositionOptions = {
   isLoading: boolean
