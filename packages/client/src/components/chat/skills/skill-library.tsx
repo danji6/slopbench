@@ -17,6 +17,7 @@ import { FileOperationStatus } from './operation-status'
 import { SkillImport } from './skill-import'
 import { SkillList } from './skill-list'
 import type { SkillListItem } from './skill-list'
+import { SkillVerification } from './skill-verification'
 
 type AssignmentFilter = 'all' | 'added' | 'not-added'
 
@@ -101,6 +102,7 @@ export function SkillLibrary({ agentId }: { agentId?: Id<'agents'> }) {
             <SkillFilter value={assignment} onValueChange={setAssignment} />
           )}
         </div>
+        {!agentId && <SkillVerification disabled={operation.busy} />}
         <FileOperationStatus operation={operation} />
       </div>
       <SkillList

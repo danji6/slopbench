@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, readdir, rename, rm, stat } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { createInterface } from 'node:readline/promises'
@@ -14,10 +14,12 @@ import {
 import { deriveAdminKey } from './runner/convex'
 import { loadEnvFile } from './runner/env-file'
 import { bunx } from './runner/processes'
+import { rebuildDataDirectory } from './runner/prune-data'
 
 // This script prunes Convex's old data accumulated after every push. The flow:
 // - Export a snapshot from the current `.data` folder
 // - Rename `.data` to `.data.bak(-1,2..)`
+// - Copy non-Convex application files, including `.sidecar`, into fresh `.data`
 // - In a fresh `.data`, deploy functions once (a single current module set)
 // - Import the snapshot
 
@@ -43,6 +45,12 @@ export async function pruneDeployment(args: string[]) {
   if (await isBackendUp(config.convexSelfHostedUrl)) {
     throw new Error(
       `A Convex backend is already running at ${config.convexSelfHostedUrl}. Stop the app before pruning.`,
+    )
+  }
+  const sidecarUrl = `http://127.0.0.1:${config.sidecarPort}`
+  if (await isServiceUp(`${sidecarUrl}/health`)) {
+    throw new Error(
+      `A sidecar is already running at ${sidecarUrl}. Stop it before pruning so skill files cannot change during the backup.`,
     )
   }
 
@@ -97,11 +105,7 @@ async function rebuildFromSnapshot(
   adminKey: string,
   snapshot: string,
 ) {
-  const backup = nextBackupPath(config.dataDir)
-  await rename(config.dataDir, backup)
-  console.log(`\nBacked up ${rel(config.dataDir)} -> ${rel(backup)}`)
-
-  try {
+  const backup = await rebuildDataDirectory(config.dataDir, async () => {
     await withBackend(config, async () => {
       // Deploy first to avoid table number collisions
       console.log('Deploying functions to install schema and components...')
@@ -109,13 +113,8 @@ async function rebuildFromSnapshot(
       console.log('Importing snapshot...')
       await runConvex(config, adminKey, ['import', '--replace-all', '--yes', snapshot]) // prettier-ignore
     })
-  } catch (error) {
-    console.error('\nRebuild failed, restoring the backup...')
-    await rm(config.dataDir, { recursive: true, force: true })
-    await rename(backup, config.dataDir)
-    console.error(`Restored ${rel(config.dataDir)} from ${rel(backup)}.`)
-    throw error
-  }
+  })
+  console.log(`\nBacked up ${rel(config.dataDir)} -> ${rel(backup)}`)
 }
 
 async function withBackend(config: RunnerConfig, fn: () => Promise<void>) {
@@ -175,18 +174,13 @@ async function runConvex(
   }
 }
 
-function nextBackupPath(dataDir: string) {
-  const base = `${dataDir}.bak`
-  if (!existsSync(base)) return base
-  for (let i = 1; ; i++) {
-    const candidate = `${base}-${i}`
-    if (!existsSync(candidate)) return candidate
-  }
+async function isBackendUp(url: string) {
+  return isServiceUp(`${url}/version`)
 }
 
-async function isBackendUp(url: string) {
+async function isServiceUp(url: string) {
   try {
-    return (await fetch(`${url}/version`)).ok
+    return (await fetch(url)).ok
   } catch {
     return false
   }

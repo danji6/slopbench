@@ -17,8 +17,10 @@ import {
   importPageSchema,
   operationSchema,
   uploadProofSchema,
+  verifyLibrarySchema,
 } from './agent-files/schemas'
 import { verifySkillUpload } from './agent-files/upload'
+import { verifyLibrary } from './agent-files/verify-library'
 import { sidecarAuthentication } from './auth'
 import { messageSchema, promptsSchema } from './eval/schemas'
 import { evaluateMessage, evaluatePrompts } from './eval/service'
@@ -177,6 +179,10 @@ export function createApp(authenticate: MiddlewareHandler) {
 
   app.post('/agent-files/metadata', async (c) =>
     c.json(await skillMetadata(catalogSchema.parse(await c.req.json()))),
+  )
+
+  app.post('/agent-files/verify-library', async (c) =>
+    c.json(await verifyLibrary(verifyLibrarySchema.parse(await c.req.json()))),
   )
 
   app.post('/agent-files/lock', async (c) => {

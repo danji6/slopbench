@@ -46,6 +46,11 @@ export const catalogSchema = homeSchema.extend({
   names: z.array(z.string()).max(20),
 })
 
+export const verifyLibrarySchema = z.object({
+  ownerId: z.string(),
+  skills: z.array(z.object({ skillId: z.string(), name: z.string() })).max(20),
+})
+
 export const agentLockSchema = z.object({
   agentId: z.string(),
   token: z.string(),

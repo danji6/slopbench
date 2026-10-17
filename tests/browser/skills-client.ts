@@ -27,6 +27,16 @@ let homeExists = false
 let lastOperation: Record<string, unknown> = {}
 let sequence = 0
 let failNext = false
+let failVerification = false
+const missingLibraryData = new Set(['skill-0', 'skill-84'])
+
+export function failNextSkillCheck() {
+  failVerification = true
+}
+
+export function restoreFixtureSkillData() {
+  missingLibraryData.clear()
+}
 const operations = new Map<
   string,
   { status: string; updatedAt: number; error?: string }
@@ -199,6 +209,37 @@ const client = {
     args: Record<string, unknown>,
   ) {
     const name = getFunctionName(reference)
+    if (name === 'actions/skills:checkLibraryPage') {
+      await new Promise((resolve) => setTimeout(resolve, 80))
+      if (failVerification) {
+        failVerification = false
+        throw new Error('Sidecar unavailable')
+      }
+      const result = page(
+        library,
+        args.paginationOpts as Parameters<typeof page>[1],
+      )
+      return {
+        ...result,
+        checked: result.page.length,
+        skipped: 0,
+        missing: result.page
+          .filter((skill) => missingLibraryData.has(skill._id))
+          .map((skill) => ({ skillId: skill._id, name: skill.name })),
+      }
+    }
+    if (name === 'actions/skills:removeMissingSkills') {
+      const ids = new Set(args.skillIds as string[])
+      const removed = library.filter(
+        (skill) => ids.has(skill._id) && missingLibraryData.has(skill._id),
+      )
+      for (const skill of removed) {
+        library.splice(library.indexOf(skill), 1)
+        assigned = assigned.filter((copy) => copy.name !== skill.name)
+      }
+      update()
+      return { removed: removed.length }
+    }
     if (name === 'actions/skills:homeStatus') {
       await new Promise((resolve) => setTimeout(resolve, 400))
       return { exists: homeExists }

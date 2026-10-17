@@ -8,9 +8,11 @@ import { ConvexProvider } from 'convex/react'
 import { useState } from 'react'
 
 import {
+  failNextSkillCheck,
   failNextSkillOperation,
   latestSkillOperation,
   removeFixtureHome,
+  restoreFixtureSkillData,
   setFixtureHome,
   skillsFixtureClient,
 } from './skills-client'
@@ -36,6 +38,8 @@ export function SkillsFixture() {
           </button>
         </nav>
         <button onClick={failNextSkillOperation}>Fail next operation</button>
+        <button onClick={failNextSkillCheck}>Fail next skill check</button>
+        <button onClick={restoreFixtureSkillData}>Restore skill data</button>
         <button onClick={() => setFixtureHome(true)}>
           Assign managed fixture folder
         </button>

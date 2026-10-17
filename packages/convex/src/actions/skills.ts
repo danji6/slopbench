@@ -1,9 +1,33 @@
 'use node'
 
+import { paginationOptsValidator } from 'convex/server'
 import { v } from 'convex/values'
 
 import { action, internalAction } from '../_generated/server'
 import { operationAttemptArgsValidator } from '../validators/fileOperations'
+import {
+  skillVerificationPageValidator,
+  verifySkillIdsValidator,
+} from '../validators/skills'
+
+export const checkLibraryPage = action({
+  args: { paginationOpts: paginationOptsValidator },
+  returns: skillVerificationPageValidator,
+  handler: async (ctx, args) => {
+    const { checkLibraryPage } =
+      await import('../model/skills/verificationAction')
+    return checkLibraryPage(ctx, args)
+  },
+})
+
+export const removeMissingSkills = action({
+  args: verifySkillIdsValidator.fields,
+  handler: async (ctx, args) => {
+    const { removeMissingSkills } =
+      await import('../model/skills/verificationAction')
+    return removeMissingSkills(ctx, args)
+  },
+})
 
 export const _run = internalAction({
   args: operationAttemptArgsValidator.fields,

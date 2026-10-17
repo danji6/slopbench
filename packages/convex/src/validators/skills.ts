@@ -1,6 +1,24 @@
 import { paginationOptsValidator } from 'convex/server'
 import { v } from 'convex/values'
 
+export const verifySkillIdsValidator = v.object({
+  skillIds: v.array(v.id('skills')),
+})
+
+export const skillVerificationPageValidator = v.object({
+  missing: v.array(v.object({ skillId: v.id('skills'), name: v.string() })),
+  checked: v.number(),
+  skipped: v.number(),
+  isDone: v.boolean(),
+  continueCursor: v.string(),
+})
+
+export const removeMissingSkillArgsValidator = v.object({
+  skillId: v.id('skills'),
+  ownerId: v.id('users'),
+  importOperationId: v.optional(v.id('agentFileOperations')),
+})
+
 export const skillAssignmentsArgsValidator = v.object({
   agentId: v.id('agents'),
   paginationOpts: paginationOptsValidator,

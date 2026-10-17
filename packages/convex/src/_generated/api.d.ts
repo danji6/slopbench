@@ -209,6 +209,8 @@ import type * as model_skills_removal from "../model/skills/removal.js";
 import type * as model_skills_runtime from "../model/skills/runtime.js";
 import type * as model_skills_uploadAction from "../model/skills/uploadAction.js";
 import type * as model_skills_uploads from "../model/skills/uploads.js";
+import type * as model_skills_verification from "../model/skills/verification.js";
+import type * as model_skills_verificationAction from "../model/skills/verificationAction.js";
 import type * as model_stream_execution from "../model/stream/execution.js";
 import type * as model_stream_expiry from "../model/stream/expiry.js";
 import type * as model_stream_generatedFiles from "../model/stream/generatedFiles.js";
@@ -527,6 +529,8 @@ declare const fullApi: ApiFromModules<{
   "model/skills/runtime": typeof model_skills_runtime;
   "model/skills/uploadAction": typeof model_skills_uploadAction;
   "model/skills/uploads": typeof model_skills_uploads;
+  "model/skills/verification": typeof model_skills_verification;
+  "model/skills/verificationAction": typeof model_skills_verificationAction;
   "model/stream/execution": typeof model_stream_execution;
   "model/stream/expiry": typeof model_stream_expiry;
   "model/stream/generatedFiles": typeof model_stream_generatedFiles;

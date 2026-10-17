@@ -12,6 +12,7 @@ import * as Library from './model/skills/library'
 import * as Operations from './model/skills/operations'
 import { cleanupRecords } from './model/skills/removal'
 import * as Uploads from './model/skills/uploads'
+import * as Verification from './model/skills/verification'
 import {
   completeAgentFileArgsValidator,
   copySkillAssignmentsArgsValidator,
@@ -25,13 +26,25 @@ import {
   continueSkillImportArgsValidator,
   finishSkillImportArgsValidator,
   prepareSkillImportArgsValidator,
+  removeMissingSkillArgsValidator,
   skillAssignmentsArgsValidator,
   skillListArgsValidator,
+  verifySkillIdsValidator,
 } from './validators/skills'
 
 export const list = authQuery({
   args: skillListArgsValidator.fields,
   handler: Library.list,
+})
+
+export const verificationTargets = authQuery({
+  args: verifySkillIdsValidator.fields,
+  handler: Verification.verificationTargets,
+})
+
+export const _removeMissingSkill = internalMutation({
+  args: removeMissingSkillArgsValidator.fields,
+  handler: Verification.removeMissingSkill,
 })
 
 export const assigned = authQuery({
