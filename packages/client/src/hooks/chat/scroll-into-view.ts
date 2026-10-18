@@ -70,6 +70,7 @@ export function useScrollIntoView({
     let frames = 0
     let stableFrames = 0
     let prevScrollHeight = -1
+    let prevBlockHeight = -1
     let cancelled = false
 
     const cancel = () => {
@@ -122,8 +123,13 @@ export function useScrollIntoView({
       if (cancelled) return cleanup()
 
       const scrollHeight = getScrollHeight()
-      stableFrames = scrollHeight === prevScrollHeight ? stableFrames + 1 : 0
+      // A short page can keep the same scrollHeight while the block expands
+      const blockHeight = blockEl.getBoundingClientRect().height
+      const layoutUnchanged =
+        scrollHeight === prevScrollHeight && blockHeight === prevBlockHeight
+      stableFrames = layoutUnchanged ? stableFrames + 1 : 0
       prevScrollHeight = scrollHeight
+      prevBlockHeight = blockHeight
 
       if (stableFrames >= 2 || ++frames >= 60) {
         reveal()

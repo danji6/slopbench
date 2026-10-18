@@ -105,10 +105,7 @@ test('indicator follows layout changes after mount without changing tabs', async
     triggers.forEach((trigger, index) => {
       mockLayout(trigger, (index * width) / 3, width / 3)
     })
-    // The --active-tab-* variables are committed by BaseUI itself. The inline
-    // left/right the indicator animates to comes from motion's frame loop, which
-    // stays bound to the happy-dom window that was live when motion was imported,
-    // so it never ticks once another DOM file has registered a new one.
+    // Base UI owns the measurements; browser tests verify the rendered bounds.
     await settle(() => {
       expect(indicator.hidden).toBe(false)
       expect(cssVar(indicator, '--active-tab-left')).toBe('0px')

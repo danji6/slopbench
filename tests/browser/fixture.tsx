@@ -54,6 +54,12 @@ const AccountSecurityFixture = lazy(() =>
   })),
 )
 
+const UiLayoutFixture = lazy(() =>
+  import('./ui-layout-fixture').then((module) => ({
+    default: module.UiLayoutFixture,
+  })),
+)
+
 function PreviewFixture() {
   const [source, setSource] = useState('{{ user }}')
   const [clicks, setClicks] = useState(0)
@@ -95,7 +101,11 @@ function PreviewFixture() {
 }
 
 createRoot(document.getElementById('root')!).render(
-  new URLSearchParams(location.search).get('fixture') ===
+  new URLSearchParams(location.search).get('fixture') === 'ui-layout' ? (
+    <Suspense fallback={<p>Loading layout…</p>}>
+      <UiLayoutFixture />
+    </Suspense>
+  ) : new URLSearchParams(location.search).get('fixture') ===
     'subagent-approvals' ? (
     <Suspense fallback={<p>Loading approvals…</p>}>
       <SubagentApprovalsFixture />

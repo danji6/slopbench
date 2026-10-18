@@ -129,7 +129,7 @@ function AccordionIcon({
 }: {
   isExpanded: boolean
 } & React.SVGProps<SVGSVGElement>) {
-  const chevronPath = 'M 6 10 L 12 16 L 18 10'
+  const chevronPath = 'M 6 9 L 12 15 L 18 9'
   const minusPath = 'M 6 12 L 12 12 L 18 12'
 
   return (

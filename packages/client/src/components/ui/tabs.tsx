@@ -200,7 +200,7 @@ function TabsIndicator() {
       right: movingLeft ? STAGGER_DELAY : 0,
       top: 0,
       bottom: 0,
-      duration: direction ? DURATION : 0,
+      duration: DURATION,
     }
   }
 
@@ -208,62 +208,25 @@ function TabsIndicator() {
 
   return (
     <TabsPrimitive.Indicator
-      render={(
-        {
-          onAnimationStart: _onAnimationStart,
-          onAnimationEnd: _onAnimationEnd,
-          onDrag: _onDrag,
-          onDragStart: _onDragStart,
-          onDragEnd: _onDragEnd,
-          ...renderProps
-        },
-        { activeTabPosition, activeTabSize },
-      ) => (
-        <motion.span
-          {...renderProps}
-          className={cn(
-            'absolute',
-            variant === 'pill'
-              ? 'bg-m3-secondary rounded-full'
-              : 'bg-primary pointer-events-none z-10',
-          )}
-          animate={
-            activeTabPosition && activeTabSize
-              ? {
-                  ...activeTabPosition,
-                  top:
-                    variant === 'pill'
-                      ? activeTabPosition.top
-                      : activeTabPosition.top + activeTabSize.height - 3,
-                  bottom: variant === 'pill' ? activeTabPosition.bottom : 0,
-                }
-              : undefined
-          }
-          initial={false}
-          transition={{
-            left: {
-              duration,
-              ease: [0.4, 0, 0.2, 1],
-              delay: delays.left,
-            },
-            right: {
-              duration,
-              ease: [0.4, 0, 0.2, 1],
-              delay: delays.right,
-            },
-            top: {
-              duration,
-              ease: [0.4, 0, 0.2, 1],
-              delay: delays.top,
-            },
-            bottom: {
-              duration,
-              ease: [0.4, 0, 0.2, 1],
-              delay: delays.bottom,
-            },
-          }}
-        />
+      className={cn(
+        'absolute',
+        variant === 'pill'
+          ? 'bg-m3-secondary rounded-full'
+          : 'bg-primary pointer-events-none z-10',
       )}
+      style={{
+        left: 'var(--active-tab-left)',
+        right: 'var(--active-tab-right)',
+        top:
+          variant === 'pill'
+            ? 'var(--active-tab-top)'
+            : 'calc(var(--active-tab-top) + var(--active-tab-height) - 3px)',
+        bottom: variant === 'pill' ? 'var(--active-tab-bottom)' : 0,
+        transitionProperty: 'left, right, top, bottom',
+        transitionDuration: `${duration}s`,
+        transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
+        transitionDelay: `${delays.left}s, ${delays.right}s, ${delays.top}s, ${delays.bottom}s`,
+      }}
     />
   )
 }
