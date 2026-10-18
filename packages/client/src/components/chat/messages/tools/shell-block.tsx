@@ -29,23 +29,26 @@ import { LoadFullOutput } from './load-full-output'
 import { useShellGroup } from './shell-group-block'
 import { ToolShell } from './tool-shell'
 
-export function ShellBlock({
-  part,
-  messageId,
-  forceError,
-  dense,
-  alwaysExpand,
-}: {
+type ShellBlockProps = {
   part: ToolUIPart
   messageId: string
   forceError?: boolean
   dense?: boolean
   /** Opens the block as soon as it has a body. */
   alwaysExpand?: boolean
-}) {
+}
+
+export function ShellBlock({
+  part,
+  messageId,
+  forceError,
+  dense,
+  alwaysExpand,
+}: ShellBlockProps) {
   const input = part.input as
     | {
         command?: string
+        cwd?: string
         description?: string
         jobId?: string
         run_in_background?: boolean
@@ -260,17 +263,21 @@ export function ShellBlock({
   )
 }
 
+type ShellLabelProps = {
+  input:
+    | { command?: string; cwd?: string; description?: string; jobId?: string }
+    | undefined
+  output: ShellToolOutput | undefined
+  background?: boolean
+  terminated?: boolean
+}
+
 function ShellLabel({
   input,
   output,
   background,
   terminated,
-}: {
-  input: { command?: string; description?: string; jobId?: string } | undefined
-  output: ShellToolOutput | undefined
-  background?: boolean
-  terminated?: boolean
-}) {
+}: ShellLabelProps) {
   const status = terminated
     ? 'terminated'
     : output?.status === 'background' || background
@@ -295,11 +302,26 @@ function ShellLabel({
           </span>
         )}
       </span>
+      {input?.cwd && (
+        <span className="text-muted-foreground font-mono text-[11px] break-all">
+          cwd: {input.cwd}
+        </span>
+      )}
       {description && (
         <span className="text-muted-foreground text-[11px]">{description}</span>
       )}
     </span>
   )
+}
+
+type ShellTerminalProps = {
+  jobId: string
+  term: string
+  termOffset: number
+  live: boolean
+  showingFull: boolean
+  emulator: boolean
+  fixedHeight: boolean
 }
 
 function ShellTerminal({
@@ -310,15 +332,7 @@ function ShellTerminal({
   showingFull,
   emulator,
   fixedHeight,
-}: {
-  jobId: string
-  term: string
-  termOffset: number
-  live: boolean
-  showingFull: boolean
-  emulator: boolean
-  fixedHeight: boolean
-}) {
+}: ShellTerminalProps) {
   const sessionId = useActiveSessionId() as Id<'sessions'> | null
   const isAdmin = useIsWorkspaceAdmin()
   const handleRef = useRef<TerminalHandle>(null)
@@ -372,15 +386,13 @@ function ShellTerminal({
   )
 }
 
-function KillButton({
-  jobId,
-  onKilled,
-  onError,
-}: {
+type KillButtonProps = {
   jobId: string
   onKilled: () => void
   onError: () => void
-}) {
+}
+
+function KillButton({ jobId, onKilled, onError }: KillButtonProps) {
   const sessionId = useActiveSessionId() as Id<'sessions'> | null
   const isAdmin = useIsWorkspaceAdmin()
   const killTerminal = useAction(api.actions.terminals.kill)
@@ -408,15 +420,17 @@ function KillButton({
   )
 }
 
+type SendToBackgroundButtonProps = {
+  jobId: string
+  onDetached: () => void
+  onError: () => void
+}
+
 function SendToBackgroundButton({
   jobId,
   onDetached,
   onError,
-}: {
-  jobId: string
-  onDetached: () => void
-  onError: () => void
-}) {
+}: SendToBackgroundButtonProps) {
   const sessionId = useActiveSessionId() as Id<'sessions'> | null
   const isAdmin = useIsWorkspaceAdmin()
   const sendToBackground = useAction(api.actions.terminals.background)

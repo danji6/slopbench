@@ -12,6 +12,7 @@ export type ConfirmDialogAction = {
   text: string
   onConfirm?: () => void
   variant?: ButtonProps['variant']
+  disabled?: boolean
 }
 
 export type ConfirmDialogProps = Omit<
@@ -21,6 +22,7 @@ export type ConfirmDialogProps = Omit<
   variant?: ButtonProps['variant']
   title?: React.ReactNode
   description?: React.ReactNode
+  confirmDisabled?: boolean
   confirmText?: string
   cancelText?: string
   onConfirm?: () => void
@@ -41,6 +43,7 @@ export function ConfirmDialog({
   title,
   description,
   confirmText = 'Confirm',
+  confirmDisabled,
   cancelText = 'Cancel',
   onConfirm,
   onCancel,
@@ -111,6 +114,7 @@ export function ConfirmDialog({
           {extraAction && (
             <AlertDialog.Action
               className={actionClassName}
+              disabled={extraAction.disabled}
               variant={extraAction.variant ?? variant}
               onClick={() => {
                 extraAction.onConfirm?.()
@@ -127,6 +131,7 @@ export function ConfirmDialog({
               extraAction &&
                 'col-span-2 w-[calc(50%-0.25rem)] justify-self-center sm:col-span-1 sm:w-auto sm:justify-self-stretch',
             )}
+            disabled={confirmDisabled}
             onClick={handleConfirm}
           >
             {confirmText}

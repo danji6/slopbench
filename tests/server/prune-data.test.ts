@@ -28,10 +28,10 @@ async function fixture() {
     'convex.sqlite3-shm': 'old shm',
     'convex.sqlite3-journal': 'old rollback journal',
     'storage/modules/old': 'old modules',
-    '.sidecar/skills/owner/skill/review/SKILL.md': 'library instructions',
-    '.sidecar/skills/owner/skill/review/tool.bin': 'binary resource',
-    '.sidecar/agents/owner/agent/.agents/skills/review/SKILL.md': 'agent edits',
-    '.sidecar/agent-operations/op/done.json': 'operation receipt',
+    'sidecar/skills/owner/skill/review/SKILL.md': 'library instructions',
+    'sidecar/skills/owner/skill/review/tool.bin': 'binary resource',
+    'sidecar/agents/owner/agent/skills/review/SKILL.md': 'agent edits',
+    'sidecar/agent-operations/op/done.json': 'operation receipt',
     'other-state/cache': 'application state',
   }
   for (const [name, value] of Object.entries(files)) {
@@ -45,7 +45,7 @@ async function fixture() {
 test('prune preserves application files in both the active directory and full backup', async () => {
   const { root, data, files } = await fixture()
   await mkdir(`${data}.bak`)
-  await symlink('../other-state/cache', join(data, '.sidecar', 'link'))
+  await symlink('../other-state/cache', join(data, 'sidecar', 'link'))
   const backup = await rebuildDataDirectory(data, async () => {
     expect(await Bun.file(join(data, 'convex.sqlite3')).exists()).toBe(false)
     expect(await Bun.file(join(data, 'storage/modules/old')).exists()).toBe(
@@ -59,10 +59,10 @@ test('prune preserves application files in both the active directory and full ba
   expect(backup).toBe(join(root, 'data.bak-1'))
   for (const [name, value] of Object.entries(files)) {
     expect(await readFile(join(backup, name), 'utf8')).toBe(value)
-    if (name.startsWith('.sidecar/') || name.startsWith('other-state/'))
+    if (name.startsWith('sidecar/') || name.startsWith('other-state/'))
       expect(await readFile(join(data, name), 'utf8')).toBe(value)
   }
-  expect(await readlink(join(data, '.sidecar/link'))).toBe(
+  expect(await readlink(join(data, 'sidecar/link'))).toBe(
     '../other-state/cache',
   )
   expect(await readFile(join(data, 'convex.sqlite3'), 'utf8')).toBe(
@@ -89,7 +89,7 @@ test('failed rebuild restores the complete original directory, including sidecar
 
 test('prune also works before any sidecar storage exists', async () => {
   const { data } = await fixture()
-  await rm(join(data, '.sidecar'), { recursive: true })
+  await rm(join(data, 'sidecar'), { recursive: true })
   await rebuildDataDirectory(data, async () => {
     await writeFile(join(data, 'convex.sqlite3'), 'new')
   })

@@ -80,7 +80,7 @@ test('command contracts accept each supported operation and both import sources'
     { kind: 'install', storageId },
     { kind: 'assign', agentId, skillId },
     { kind: 'delete-assigned', agentId, assignmentId },
-    { kind: 'delete-library', skillId },
+    { kind: 'delete-library', mode: 'keep-copies', skillId },
     { kind: 'home', agentId, destination: '/new', copyFiles: false },
     { kind: 'duplicate', agentId, duplicateId },
   ]
@@ -104,6 +104,8 @@ test('malformed commands are rejected before reserving any resources', async () 
     { kind: 'delete-assigned', assignmentId },
     { kind: 'delete-assigned', agentId },
     { kind: 'delete-library' },
+    { kind: 'delete-library', skillId },
+    { kind: 'delete-library', skillId, mode: 'invalid' },
     { kind: 'duplicate', agentId },
     { kind: 'duplicate', duplicateId },
     { kind: 'home', agentId, destination: '/new' },
@@ -111,7 +113,7 @@ test('malformed commands are rejected before reserving any resources', async () 
     { kind: 'install' },
     { kind: 'install', source: '/skills', storageId },
     { kind: 'ensure', agentId, removeFolder: true },
-    { kind: 'delete-library', skillId, assignmentId },
+    { kind: 'delete-library', mode: 'keep-copies', skillId, assignmentId },
   ]
   const { ctx, rows, scheduled } = skillsDatabase()
 

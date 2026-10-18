@@ -101,18 +101,8 @@ describe('personal homes and independent skills', () => {
         skillId,
         name: 'code-review',
       })
-    const a = path.join(
-      managedHome(owner, 'a'),
-      '.agents',
-      'skills',
-      'code-review',
-    )
-    const b = path.join(
-      managedHome(owner, 'b'),
-      '.agents',
-      'skills',
-      'code-review',
-    )
+    const a = path.join(managedHome(owner, 'a'), 'skills', 'code-review')
+    const b = path.join(managedHome(owner, 'b'), 'skills', 'code-review')
     await writeFile(path.join(a, 'SKILL.md'), 'customized')
     await writeFile(path.join(a, 'added.txt'), 'extra')
     expect(await readFile(path.join(b, 'SKILL.md'), 'utf8')).toBe(metadata)
@@ -193,7 +183,7 @@ describe('personal homes and independent skills', () => {
     const home = managedHome(owner, 'a')
     await writeFile(path.join(home, 'notes.md'), 'keep at original location')
     await writeFile(
-      path.join(home, '.agents', 'skills', 'code-review', 'SKILL.md'),
+      path.join(home, 'skills', 'code-review', 'SKILL.md'),
       'modified',
     )
     const destination = path.join(root, 'fresh-home')
@@ -226,7 +216,7 @@ describe('personal homes and independent skills', () => {
     })
     expect(
       await readFile(
-        path.join(destination, '.agents', 'skills', 'code-review', 'SKILL.md'),
+        path.join(destination, 'skills', 'code-review', 'SKILL.md'),
         'utf8',
       ),
     ).toBe(metadata)
@@ -250,7 +240,7 @@ describe('personal homes and independent skills', () => {
     const duplicate = managedHome(owner, 'copy')
     expect(
       await readFile(
-        path.join(duplicate, '.agents', 'skills', 'code-review', 'SKILL.md'),
+        path.join(duplicate, 'skills', 'code-review', 'SKILL.md'),
         'utf8',
       ),
     ).toBe('modified')
@@ -340,7 +330,7 @@ test('a publish interrupted before its acknowledgement preserves customized copi
   await runFileOperation(operation)
   const copy = path.join(
     managedHome(owner, 'recover'),
-    '.agents/skills/code-review/SKILL.md',
+    'skills/code-review/SKILL.md',
   )
   await writeFile(copy, 'customized after publish')
   await rm(path.join(operationRoot(operation.id), 'done.json'))
@@ -412,7 +402,7 @@ test('changing a deleted custom source restores pristine skills even when carry-
   })
   expect(
     await readFile(
-      path.join(destination, '.agents/skills/code-review/SKILL.md'),
+      path.join(destination, 'skills/code-review/SKILL.md'),
       'utf8',
     ),
   ).toBe(metadata)
@@ -454,7 +444,7 @@ test('a deleted managed home can be recreated for a shared member using its orig
   })
   expect(
     await readFile(
-      path.join(destination, '.agents/skills/code-review/SKILL.md'),
+      path.join(destination, 'skills/code-review/SKILL.md'),
       'utf8',
     ),
   ).toBe(metadata)

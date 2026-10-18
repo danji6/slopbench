@@ -15,6 +15,7 @@ export type StartShellJobInput = {
   workspaceId: string
   command: string
   cwd: string
+  environment?: { AGENT_DIR?: string; WORKSPACE_DIR?: string }
   timeoutSeconds?: number
   background?: boolean
   cols?: number

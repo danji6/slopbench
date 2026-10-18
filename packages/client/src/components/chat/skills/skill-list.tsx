@@ -1,15 +1,10 @@
-import { RippleButton } from '@/components/ui'
+import { RippleButton, Switch } from '@/components/ui'
 import { cn } from '@/lib/utils'
-import type { Doc, Id } from '@sb/convex/_generated/dataModel'
+import type { SkillListItem } from '@sb/convex/model/skills/skillListing'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Virtualizer } from 'virtua'
 
-export type SkillListItem = Pick<
-  Doc<'skills'>,
-  '_id' | 'name' | 'description' | 'status'
-> & {
-  assignmentId: Id<'agentSkills'> | null
-}
+export type { SkillListItem } from '@sb/convex/model/skills/skillListing'
 
 type SkillListProps = {
   items: SkillListItem[]
@@ -17,6 +12,7 @@ type SkillListProps = {
   busy: boolean
   onAction: (item: SkillListItem) => void
   onRemove?: (item: SkillListItem) => void
+  onToggle?: (item: SkillListItem, enabled: boolean) => void
   className?: string
   status: 'LoadingFirstPage' | 'CanLoadMore' | 'LoadingMore' | 'Exhausted'
   loadMore: (count: number) => void
@@ -28,6 +24,7 @@ export function SkillList({
   busy,
   onAction,
   onRemove,
+  onToggle,
   className,
   status,
   loadMore,
@@ -49,6 +46,7 @@ export function SkillList({
             busy={busy}
             onAction={onAction}
             onRemove={onRemove}
+            onToggle={onToggle}
           />
         ))}
         <SkillLoadMore
@@ -65,7 +63,7 @@ export function SkillList({
 
 type SkillRowProps = Pick<
   SkillListProps,
-  'actionLabel' | 'busy' | 'onAction' | 'onRemove'
+  'actionLabel' | 'busy' | 'onAction' | 'onRemove' | 'onToggle'
 > & { item: SkillListItem }
 
 function SkillRow({
@@ -74,6 +72,7 @@ function SkillRow({
   busy,
   onAction,
   onRemove,
+  onToggle,
 }: SkillRowProps) {
   const added = !!onRemove && item.assignmentId !== null
   const unavailable = !!onRemove && item.status !== 'ready'
@@ -86,14 +85,24 @@ function SkillRow({
         <p className="font-medium wrap-break-word">
           <span>{item.name || 'Installing skill…'}</span>
           {added && (
-            <span className="text-primary ml-2 text-sm font-bold">
-              (Added)
-            </span>
+            <span className="text-primary ml-2 text-sm font-bold">(Added)</span>
           )}
         </p>
+        {!item.libraryAvailable && added && (
+          <p className="text-muted-foreground text-xs">Agent copy</p>
+        )}
         <SkillDescription description={item.description} />
       </div>
-      <div className="flex shrink-0 gap-2">
+      <div className="flex shrink-0 items-center gap-3">
+        {added && onToggle && (
+          <Switch
+            size="sm"
+            aria-label={`Enable ${item.name}`}
+            checked={item.enabled}
+            disabled={busy}
+            onCheckedChange={(enabled) => onToggle(item, enabled)}
+          />
+        )}
         <RippleButton
           size="sm"
           variant="input"

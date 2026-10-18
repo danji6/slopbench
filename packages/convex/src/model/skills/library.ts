@@ -1,10 +1,12 @@
 import type { PaginationOptions } from 'convex/server'
 
-import type { Id } from '../../_generated/dataModel'
+import type { Doc, Id } from '../../_generated/dataModel'
 import type { QueryCtx } from '../../_generated/server'
 import type { AuthQueryCtx } from '../../functions'
 import type { SkillListArgs } from '../../types'
 import { requireAdmin, requireOwnedAgent } from './access'
+import { isSkillEnabled } from './preferences'
+import { allAgentSkills, assignedSkillItem } from './skillListing'
 
 /** Includes assignment state from the whole home, independent of client-loaded pages. */
 export async function list(ctx: AuthQueryCtx, args: SkillListArgs) {
@@ -14,9 +16,20 @@ export async function list(ctx: AuthQueryCtx, args: SkillListArgs) {
     ? await requireOwnedAgent(ctx, args.agentId, ctx.userId)
     : null
   const prefix = args.search?.trim().toLowerCase() ?? ''
+
   if (agent && args.assignment === 'added') {
-    return addedSkills(ctx, agent._id, args.paginationOpts, prefix)
+    return addedSkills(ctx, agent, args.paginationOpts, prefix)
   }
+  if (agent) {
+    return allAgentSkills(
+      ctx,
+      agent,
+      args.paginationOpts,
+      prefix,
+      args.assignment === 'not-added',
+    )
+  }
+
   const result = await ctx.db
     .query('skills')
     .withIndex('by_ownerId_name', (q) => {
@@ -26,41 +39,29 @@ export async function list(ctx: AuthQueryCtx, args: SkillListArgs) {
         : owned
     })
     .paginate(args.paginationOpts)
-  const skills = await Promise.all(
-    result.page.map(async (skill) => {
-      const assignment = agent?.homeId
-        ? await ctx.db
-            .query('agentSkills')
-            .withIndex('by_homeId_name', (q) =>
-              q.eq('homeId', agent.homeId!).eq('name', skill.name),
-            )
-            .first()
-        : null
-      return { ...skill, assignmentId: assignment?._id ?? null }
-    }),
-  )
 
-  const page =
-    args.assignment === 'not-added'
-      ? skills.filter((skill) => !skill.assignmentId)
-      : skills
-  return { ...result, page }
+  return {
+    ...result,
+    page: result.page.map((skill) => ({
+      ...skill,
+      assignmentId: null,
+      enabled: true,
+      libraryAvailable: true,
+    })),
+  }
 }
 
 async function addedSkills(
   ctx: AuthQueryCtx,
-  agentId: Id<'agents'>,
+  agent: Doc<'agents'>,
   options: PaginationOptions,
   prefix: string,
 ) {
-  const result = await assignmentPage(ctx, agentId, options, prefix)
-  const skills = await Promise.all(
-    result.page.map(async (assignment) => {
-      const skill = await ctx.db.get(assignment.skillId)
-      return skill ? { ...skill, assignmentId: assignment._id } : null
-    }),
+  const result = await assignmentPage(ctx, agent._id, options, prefix)
+  const page = await Promise.all(
+    result.page.map((assignment) => assignedSkillItem(ctx, agent, assignment)),
   )
-  return { ...result, page: skills.filter((skill) => skill !== null) }
+  return { ...result, page }
 }
 
 export async function assigned(
@@ -72,15 +73,20 @@ export async function assigned(
   return assignmentPage(ctx, args.agentId, args.paginationOpts)
 }
 
+/** Keeps every assignment for file operations unless a catalog requests enabled skills. */
 export async function assignmentPage(
   ctx: QueryCtx,
   agentId: Id<'agents'>,
   options: PaginationOptions,
   prefix = '',
+  enabledOnly = false,
 ) {
   const agent = await ctx.db.get(agentId)
-  if (!agent?.homeId) return { page: [], isDone: true, continueCursor: '' }
-  return ctx.db
+  if (!agent?.homeId) {
+    return { page: [], isDone: true, continueCursor: '' }
+  }
+
+  const result = await ctx.db
     .query('agentSkills')
     .withIndex('by_homeId_name', (q) => {
       const home = q.eq('homeId', agent.homeId!)
@@ -89,4 +95,20 @@ export async function assignmentPage(
         : home
     })
     .paginate(options)
+
+  return {
+    ...result,
+    page: enabledOnly
+      ? result.page.filter((row) => isSkillEnabled(agent, row.skillId))
+      : result.page,
+  }
+}
+
+/** Reports whether an assignment can still be reinstalled from its library bundle. */
+export async function assignmentLibrary(
+  ctx: QueryCtx,
+  { assignmentId }: { assignmentId: Id<'agentSkills'> },
+) {
+  const row = await ctx.db.get(assignmentId)
+  return row ? !!(await ctx.db.get(row.skillId)) : false
 }

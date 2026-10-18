@@ -19,7 +19,7 @@ import { rebuildDataDirectory } from './runner/prune-data'
 // This script prunes Convex's old data accumulated after every push. The flow:
 // - Export a snapshot from the current `.data` folder
 // - Rename `.data` to `.data.bak(-1,2..)`
-// - Copy non-Convex application files, including `.sidecar`, into fresh `.data`
+// - Copy non-Convex application files, including `sidecar`, into fresh `.data`
 // - In a fresh `.data`, deploy functions once (a single current module set)
 // - Import the snapshot
 

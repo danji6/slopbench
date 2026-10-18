@@ -266,8 +266,8 @@ function workspaceNoteBody(previous: Workspace, next: Workspace): string[] {
 
   const personal = next.agentHome
     ? [
-        `Your persistent personal folder is ${next.agentHome.path}.`,
-        'File tools and shell commands require scope: "agent" to use your personal folder.',
+        'Your persistent personal folder is agent://.',
+        'Use agent:// paths for personal files and cwd: "agent://" for shell commands.',
       ]
     : []
 

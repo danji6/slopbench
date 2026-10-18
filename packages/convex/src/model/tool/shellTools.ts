@@ -1,10 +1,5 @@
-import {
-  TOOL_DESCRIPTIONS,
-  fileScopeDescription,
-  fileScopeField,
-  shellToolDescription,
-} from '@sb/core/types'
-import { selectFileWorkspace } from '@sb/core/workspace/personal'
+import { TOOL_DESCRIPTIONS, shellToolDescription } from '@sb/core/types'
+import { parseScopedPath } from '@sb/core/workspace/scoped-path'
 
 import {
   analyzeShellPathCandidates,
@@ -35,10 +30,13 @@ export async function createShellTool(context: WorkspaceToolContext) {
       context.shell,
       !!context.workspace?.agentHome,
     ),
-    inputSchema: z.object({
-      scope: fileScopeField.describe(
-        fileScopeDescription(!!context.workspace?.agentHome),
-      ),
+    inputSchema: z.strictObject({
+      cwd: z
+        .string()
+        .optional()
+        .describe(
+          'Working directory: workspace-relative, absolute, workspace:// or agent:// (default: workspace://)',
+        ),
       command: z.string().describe('Shell command to execute'),
       description: z
         .string()
@@ -51,23 +49,28 @@ export async function createShellTool(context: WorkspaceToolContext) {
         .describe('Run in the background and return the job id immediately'),
     }),
     needsApproval: (input) =>
-      shellNeedsApproval(input.command, {
-        ...context,
-        workspace: context.workspace
-          ? selectFileWorkspace(context.workspace, input.scope)
-          : undefined,
-      }),
+      shellNeedsApproval(input.command, context, input.cwd),
     toModelOutput: shellToModelOutput,
-    execute: (input, { abortSignal, toolCallId }) =>
-      trackJob(
+    execute: async function* (input, { abortSignal, toolCallId }) {
+      const approvals = await context.approvals?.()
+      // Reaching execute means this invocation passed its approval gate
+      const cwdGrant =
+        input.cwd && !parseScopedPath(input.cwd).explicit ? [input.cwd] : []
+      const allowedPaths = [...(approvals?.paths ?? []), ...cwdGrant]
+      yield* trackJob(
         executeShellJob(
-          { ...workspaceArgs(context), ...jobRef(context, toolCallId) },
+          {
+            ...workspaceArgs(context),
+            ...jobRef(context, toolCallId),
+            allowedPaths,
+          },
           input,
           { abortSignal },
         ),
         context,
         { command: input.command, toolCallId },
-      ),
+      )
+    },
   })
 }
 
@@ -80,12 +83,13 @@ export async function createShellOutputTool(context: WorkspaceToolContext) {
       wait_seconds: z.number().optional(),
     }),
     toModelOutput: shellToModelOutput,
-    execute: (input, { abortSignal, toolCallId }) =>
-      trackJob(
+    execute: async function* (input, { abortSignal, toolCallId }) {
+      yield* trackJob(
         executeShellOutput(workspaceArgs(context), input, { abortSignal }),
         context,
         { command: `shell_output ${input.jobId}`, toolCallId },
-      ),
+      )
+    },
   })
 }
 
@@ -139,6 +143,7 @@ function jobRef(context: WorkspaceToolContext, toolCallId: string) {
 async function shellNeedsApproval(
   command: string,
   context: WorkspaceToolContext,
+  cwd = 'workspace://',
 ): Promise<boolean> {
   const approvals = await context.approvals?.()
   if (isUnrestrictedAccess(approvals)) return false
@@ -148,8 +153,13 @@ async function shellNeedsApproval(
   if (!isToolAutoApproved('shell', { command }, approvals)) return true
   const { candidates, complete } = analyzeShellPathCandidates(command)
   if (!complete) return true
-  if (!candidates.length) return false
-  const result = await checkToolPaths(candidates, context, approvals?.paths)
+  const result = await checkToolPaths(
+    candidates,
+    context,
+    approvals?.paths,
+    false,
+    cwd,
+  )
   return !result?.complete || result.uncovered.length > 0
 }
 
@@ -160,11 +170,11 @@ async function shellNeedsApproval(
 export async function getFlaggedPaths(
   command: string,
   context: Pick<WorkspaceToolContext, 'sessionId' | 'workspaceId' | 'workspace'>, // prettier-ignore
+  cwd = 'workspace://',
 ): Promise<string[] | null> {
   const { candidates: paths, complete } = analyzeShellPathCandidates(command)
   if (!complete) return null
-  if (paths.length === 0) return []
 
-  const result = await checkToolPaths(paths, context)
+  const result = await checkToolPaths(paths, context, [], false, cwd)
   return result?.complete ? result.flagged : null
 }

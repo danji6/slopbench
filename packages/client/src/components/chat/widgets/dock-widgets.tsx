@@ -17,8 +17,9 @@ export function DockWidgets({
   return (
     <div
       ref={ref}
+      data-slot="dock-widgets"
       className={cn(
-        'pointer-events-none mb-3 flex h-9 items-center gap-2 px-1',
+        'pointer-events-none mb-(--dock-widgets-gap) flex h-(--dock-widgets-height) items-center gap-2 px-1',
         className,
       )}
     >

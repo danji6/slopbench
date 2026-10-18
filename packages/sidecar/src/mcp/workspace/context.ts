@@ -1,8 +1,10 @@
+import type { FolderWorkspace } from '@sb/core/types/workspace'
 import { transitionActive } from '@sb/core/workspace/transition'
 import { realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
 
+import { withAgentFiles } from '../../agent-files/access'
 import { expandHome } from './paths'
 
 export const sourceSchema = z.object({
@@ -103,4 +105,15 @@ export async function withWorkspaceOperation<T>(
     if (count) active.set(sessionId, count)
     else active.delete(sessionId)
   }
+}
+
+/** Holds personal folder and project transition guards for a filesystem operation. */
+export function withFilesystemOperation<T>(
+  input: { sessionId: string; workspace?: FolderWorkspace },
+  operation: () => Promise<T>,
+): Promise<T> {
+  const home = input.workspace?.agentHome
+  return withAgentFiles(home?.homeId ?? home?.agentId, () =>
+    withWorkspaceOperation(input.sessionId, operation),
+  )
 }

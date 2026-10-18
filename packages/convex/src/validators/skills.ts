@@ -23,6 +23,13 @@ export const skillAssignmentsArgsValidator = v.object({
   agentId: v.id('agents'),
   paginationOpts: paginationOptsValidator,
   search: v.optional(v.string()),
+  enabledOnly: v.optional(v.boolean()),
+})
+
+export const setSkillEnabledArgsValidator = v.object({
+  agentId: v.id('agents'),
+  assignmentId: v.id('agentSkills'),
+  enabled: v.boolean(),
 })
 
 export const prepareSkillImportArgsValidator = v.object({
@@ -83,6 +90,7 @@ export const skillSchema = v.object({
 export const agentSkillSchema = v.object({
   homeId: v.id('agentHomes'),
   ownerId: v.id('users'),
+  /** Retains the source identity for toggles after the library bundle is deleted. */
   skillId: v.id('skills'),
   name: v.string(),
   description: v.string(),

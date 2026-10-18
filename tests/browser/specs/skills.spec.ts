@@ -4,6 +4,71 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/?fixture=skills')
 })
 
+test('skill toggles persist per agent while sharing assignments and leaving the library unchanged', async ({
+  page,
+}) => {
+  await page
+    .getByRole('button', { name: 'Assign managed fixture folder', exact: true })
+    .click()
+  await page
+    .getByRole('button', { name: 'Share fixture folder', exact: true })
+    .click()
+  const toggle = page.getByRole('switch', {
+    name: 'Enable skill-00',
+    exact: true,
+  })
+  await expect(toggle).toBeChecked()
+  await expect(page.getByRole('switch')).toHaveCount(1)
+  await toggle.click()
+  await expect(toggle).not.toBeChecked()
+  await expect(
+    page.getByText('Toggles apply only to this agent.', { exact: false }),
+  ).toBeVisible()
+  await page.getByRole('searchbox').fill('skill-00')
+  await expect(toggle).not.toBeChecked()
+  await page
+    .getByRole('button', { name: 'Other agent settings', exact: true })
+    .click()
+  await expect(toggle).toBeChecked()
+  await page
+    .getByRole('button', { name: 'Agent settings', exact: true })
+    .click()
+  await expect(toggle).not.toBeChecked()
+  await page.getByRole('button', { name: 'Skill library', exact: true }).click()
+  await expect(page.getByRole('switch')).toHaveCount(0)
+  await expect(page.getByText('skill-00', { exact: true })).toBeVisible()
+  await page.reload()
+  await page
+    .getByRole('button', { name: 'Assign managed fixture folder', exact: true })
+    .click()
+  await expect(toggle).not.toBeChecked()
+  await toggle.press('Space')
+  await expect(toggle).toBeChecked()
+})
+
+test('failed skill toggles retain the saved state and allow retry', async ({
+  page,
+}) => {
+  await page
+    .getByRole('button', { name: 'Assign managed fixture folder', exact: true })
+    .click()
+  const toggle = page.getByRole('switch', {
+    name: 'Enable skill-00',
+    exact: true,
+  })
+  await expect(toggle).toBeChecked()
+  await page
+    .getByRole('button', { name: 'Fail next operation', exact: true })
+    .click()
+  await toggle.click()
+  await expect(page.getByRole('alert')).toHaveText('Fixture toggle failed')
+  await expect(toggle).toBeChecked()
+  await expect(toggle).toBeEnabled()
+  await toggle.click()
+  await expect(toggle).not.toBeChecked()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+})
+
 test('folder picker remembers confirmed selections across reloads, with no parent row', async ({
   page,
 }) => {
@@ -471,10 +536,9 @@ test('only the skills list scrolls while search and filter stay visible', async 
       )
       .toBe(true)
     await page.getByRole('button', { name: 'Show less' }).first().click()
+    await list.hover()
     const before = await page.getByRole('searchbox').boundingBox()
-    await list.evaluate((element) => {
-      element.scrollTop = 250
-    })
+    await page.mouse.wheel(0, 250)
     await expect
       .poll(() => list.evaluate((element) => element.scrollTop))
       .toBeGreaterThan(0)

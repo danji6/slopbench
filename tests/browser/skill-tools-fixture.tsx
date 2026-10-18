@@ -12,7 +12,7 @@ const entries = Array.from({ length: 20 }, (_, index) => ({
   name: index === 19 ? `skill-${'long-name-'.repeat(16)}` : `skill-${index}`,
   description: 'Private skill description',
   absolutePath: '/private/agent-home/skills/example',
-  path: '.agents/skills/example/SKILL.md',
+  path: 'agent://skills/example/SKILL.md',
 }))
 
 export function SkillToolsFixture() {

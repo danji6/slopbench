@@ -35,7 +35,7 @@ test('recursive discovery pages every skill, including nested and root skills, w
       path.join(source, 'skills', `nested-${i}`, 'deeper'),
       `skill-${i}`,
     )
-  await skill(path.join(source, '.agents', 'skills', 'copy'), 'skill-0')
+  await skill(path.join(source, 'skills', 'copy'), 'skill-0')
   await skill(path.join(source, '.git', 'ignored'), 'ignored')
   const external = path.join(root, 'external')
   await skill(external, 'external')

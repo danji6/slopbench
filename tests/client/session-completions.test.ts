@@ -104,18 +104,8 @@ describe('session completions across the interpreter grammar', () => {
         'false',
       ),
     ).toBe("Intro {{ readFile('notes.md', { wrap: false }) }} End")
-    expect(
-      await insertPrompt(
-        "{{ fileExists('notes.md', { scope: 'a▌' }) }}",
-        'agent',
-      ),
-    ).toBe("{{ fileExists('notes.md', { scope: 'agent' }) }}")
-    expect(
-      await insertPrompt(
-        "#eval\nreturn readFile('notes.md', { scope: ▌ })\n#end",
-        'workspace',
-      ),
-    ).toBe("#eval\nreturn readFile('notes.md', { scope: 'workspace' })\n#end")
+    const removed = await completePrompt("{{ readFile('note', { sc▌ }) }}")
+    expect(removed.items.map((item) => item.label)).not.toContain('scope')
   })
 
   test('maps object keys and field hints across prompt paragraphs', async () => {
@@ -132,14 +122,11 @@ describe('session completions across the interpreter grammar', () => {
   })
 
   test('shows parameter hints on caret movement without opening suggestions', async () => {
-    const result = await completePrompt(
-      "{{ fileExists('notes.md', ▌) }}",
-      'selection',
-    )
+    const result = await completePrompt('{{ fileExists(▌) }}', 'selection')
     expect(result.items).toEqual([])
     expect(result.signature?.label).toBe('fileExists')
-    expect(result.signature?.params[1]?.description).toContain('workspace')
-    expect(result.signature?.activeParameter).toBe(1)
+    expect(result.signature?.params).toHaveLength(1)
+    expect(result.signature?.activeParameter).toBe(0)
   })
 
   test('offers locals only within their own code region and respects helper shadowing', async () => {

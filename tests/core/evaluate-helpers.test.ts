@@ -50,14 +50,14 @@ describe('evaluate file helper', () => {
       "readFile('note')",
       "readFile('note', undefined)",
       "readFile('note', {})",
-      "readFile('note', { wrap: false, scope: 'agent' })",
+      "readFile('agent://note', { wrap: false })",
     ])
       evaluate(`{{ ${source} }}`, {}, undefined, { readFile })
     expect(calls).toEqual([
       ['note', undefined],
       ['note', undefined],
-      ['note', { wrap: undefined, scope: undefined }],
-      ['note', { wrap: false, scope: 'agent' }],
+      ['note', { wrap: undefined }],
+      ['agent://note', { wrap: false }],
     ])
   })
 
@@ -68,6 +68,7 @@ describe('evaluate file helper', () => {
     '[]',
     "'agent'",
     "{ scope: 'other' }",
+    "{ scope: 'agent' }",
     "{ wrap: 'false' }",
     '{ wrap: 0 }',
     "undefined, { scope: 'agent' }",

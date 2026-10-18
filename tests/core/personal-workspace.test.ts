@@ -19,7 +19,7 @@ const project = {
 
 test('personal scope keeps project grants anchored and leaves project sources unchanged', () => {
   const context = withAgentHome(project, home)
-  const personal = selectFileWorkspace(context, 'agent')
+  const personal = selectFileWorkspace(context, 'agent://')
   expect(context.path).toBe('/project')
   expect(context.sources).toEqual(project.sources)
   expect(personal.path).toBe(home.path)
@@ -33,14 +33,16 @@ test('personal scope keeps project grants anchored and leaves project sources un
 test('home-only sessions require explicit personal scope', () => {
   const context = withAgentHome(undefined, home)
   expect(context.path).toBe(home.path)
-  expect(() => selectFileWorkspace(context, 'workspace')).toThrow('no project')
+  expect(() => selectFileWorkspace(context, 'workspace://')).toThrow(
+    'no project',
+  )
   const note = buildWorkspaceNoteContent(undefined, {
     ...context,
     folderId: undefined,
   })
-  expect(note).toContain('scope: "agent"')
-  expect(note).toContain('require scope: "agent"')
-  expect(() => selectFileWorkspace(context)).toThrow('scope: "agent"')
+  expect(note).toContain('agent://')
+  expect(note).toContain('Use agent://')
+  expect(() => selectFileWorkspace(context)).toThrow('agent://')
 })
 
 test('catalog discovery exposes continuation and omits unavailable instructions', () => {
@@ -49,14 +51,14 @@ test('catalog discovery exposes continuation and omits unavailable instructions'
       {
         name: 'review',
         description: 'Review code',
-        path: '.agents/skills/review/SKILL.md',
+        path: 'agent://skills/review/SKILL.md',
       },
       { name: 'broken', description: '', path: '', error: 'Missing SKILL.md' },
     ],
     cursor: 'next-page',
     isDone: false,
   })
-  expect(note).toContain('scope: "agent"')
+  expect(note).toContain('agent://')
   expect(note).toContain('list_skills')
   expect(note).toContain('next-page')
   expect(note).toContain('broken: unavailable')
@@ -118,13 +120,11 @@ test('description compatibility preserves standard YAML and rejects unrelated ma
 test('agents without a personal folder receive no personal-scope guidance', async () => {
   const { TOOL_DESCRIPTIONS, shellToolDescription } =
     await import('@sb/core/types/tool-descriptions')
-  const { fileScopeField } = await import('@sb/core/types/workspace-tools')
   for (const text of [
     buildWorkspaceNoteContent(undefined, undefined),
     buildWorkspaceNoteContent(undefined, project),
     TOOL_DESCRIPTIONS.read_file,
     shellToolDescription(),
-    fileScopeField.description,
   ]) {
     expect(text ?? '').not.toContain('"agent"')
   }
@@ -134,6 +134,6 @@ test('agents without a personal folder receive no personal-scope guidance', asyn
   try {
     selectFileWorkspace({ ...project, agentOnly: true })
   } catch (error) {
-    expect(String(error)).not.toContain('scope: "agent"')
+    expect(String(error)).not.toContain('agent://')
   }
 })

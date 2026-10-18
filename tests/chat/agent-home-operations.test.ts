@@ -6,6 +6,8 @@ import { claimExecution } from '@sb/convex/model/skills/execution'
 import { run } from '@sb/convex/model/skills/filesAction'
 import { bindHome, ensureHome } from '@sb/convex/model/skills/homes'
 import { invalidateHomeCaches } from '@sb/convex/model/skills/invalidation'
+import { assignmentLibrary } from '@sb/convex/model/skills/library'
+import { removeDeletedAssignment } from '@sb/convex/model/skills/libraryDeletion'
 import { start } from '@sb/convex/model/skills/operations'
 import { cleanupRecords } from '@sb/convex/model/skills/removal'
 import { lockAgent, unlockAgent } from '@sb/sidecar/agent-files/access'
@@ -87,6 +89,8 @@ function actionContext({ ctx }: ReturnType<typeof skillsDatabase>): ActionCtx {
   const handlers = {
     'skills:_agent': Endpoints.agent,
     'skills:_assignments': Endpoints.assignments,
+    'skills:_assignmentLibrary': assignmentLibrary,
+    'skills:_removeDeletedAssignment': removeDeletedAssignment,
     'skills:_claimExecution': claimExecution,
     'skills:_reserveDestination': Endpoints.reserveDestination,
     'skills:_copyAssignments': Endpoints.copyAssignments,
@@ -134,10 +138,7 @@ test('durable initialization recreates a missing shared managed home with all pr
     expect((await f.ctx.db.get(other))?.homeId).toBe(home._id)
     expect(f.rows('agentHomes')).toHaveLength(1)
     expect(
-      await readFile(
-        path.join(home.path!, '.agents/skills/review/SKILL.md'),
-        'utf8',
-      ),
+      await readFile(path.join(home.path!, 'skills/review/SKILL.md'), 'utf8'),
     ).toContain('Pristine instructions')
   })
 })
@@ -170,10 +171,7 @@ test('durable folder changes recover a missing custom source and carry its assig
         (await f.ctx.db.get((await f.ctx.db.get(agentId))!.homeId!))?.path,
       ).toBe(custom)
       expect(
-        await readFile(
-          path.join(custom, '.agents/skills/review/SKILL.md'),
-          'utf8',
-        ),
+        await readFile(path.join(custom, 'skills/review/SKILL.md'), 'utf8'),
       ).toContain('Pristine instructions')
       expect(f.rows('agentSkills')).toHaveLength(2)
     } finally {
@@ -204,5 +202,50 @@ test('durable managed-folder deletion detaches the agent and removes its assignm
     await expect(readFile(path.join(home.path!, 'note.txt'))).rejects.toThrow()
     expect(f.rows('agentSkills')).toHaveLength(0)
     expect(f.rows('agentHomes')).toHaveLength(0)
+  })
+})
+
+test('durable keep-copies deletion preserves edited skills through a fresh folder transition', async () => {
+  await fixture(async (f) => {
+    const home = await assign(f)
+    const skill = path.join(home.path!, 'skills', 'review')
+    await mkdir(skill, { recursive: true })
+    await writeFile(path.join(skill, 'SKILL.md'), 'Agent-edited instructions')
+    await writeFile(path.join(skill, 'notes.txt'), 'Agent notes')
+    const deletion = await start(f.ctx, {
+      kind: 'delete-library',
+      skillId,
+      mode: 'keep-copies',
+    })
+    await run(actionContext(f), { operationId: deletion, attempt: 1 })
+    expect((await f.ctx.db.get(deletion))?.state.phase).toBe('done')
+    expect(await f.ctx.db.get(skillId)).toBeNull()
+    expect(f.rows('agentSkills')).toHaveLength(1)
+    const custom = await mkdtemp(path.join(tmpdir(), 'retained-home-'))
+    try {
+      const transition = await start(f.ctx, {
+        kind: 'home',
+        agentId,
+        destination: custom,
+        copyFiles: false,
+      })
+      await run(actionContext(f), { operationId: transition, attempt: 1 })
+      expect((await f.ctx.db.get(transition))?.state.phase).toBe('invalidating')
+      await invalidateHomeCaches(f.ctx, {
+        operationId: transition,
+        attempt: 1,
+        cursor: null,
+      })
+      expect((await f.ctx.db.get(transition))?.state.phase).toBe('done')
+      expect(
+        await readFile(path.join(custom, 'skills/review/SKILL.md'), 'utf8'),
+      ).toBe('Agent-edited instructions')
+      expect(
+        await readFile(path.join(custom, 'skills/review/notes.txt'), 'utf8'),
+      ).toBe('Agent notes')
+      expect(f.rows('agentSkills')).toHaveLength(2)
+    } finally {
+      await rm(custom, { recursive: true, force: true })
+    }
   })
 })

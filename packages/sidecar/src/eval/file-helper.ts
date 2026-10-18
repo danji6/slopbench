@@ -1,8 +1,9 @@
-import type {
-  FileScopeOptions,
-  ReadFileOptions,
-} from '@sb/core/interpreter/types'
+import type { ReadFileOptions } from '@sb/core/interpreter/types'
 import { fileBlock } from '@sb/core/workspace/blocks'
+import {
+  type ScopedPath,
+  parseScopedPath,
+} from '@sb/core/workspace/scoped-path'
 import {
   closeSync,
   fstatSync,
@@ -45,11 +46,21 @@ function resolveInside(
     : path.resolve(root, filePath)
   assertSources(roots, candidate)
 
-  let target: string
-  try {
-    target = realpathSync(candidate)
-  } catch {
-    return null
+  let target = path.parse(candidate).root
+  const raw = path.isAbsolute(filePath)
+    ? filePath
+    : `${root}${path.sep}${filePath}`
+  for (const segment of raw.slice(target.length).split(path.sep)) {
+    if (!segment || segment === '.') continue
+    if (segment === '..') {
+      target = path.dirname(target)
+      continue
+    }
+    try {
+      target = realpathSync(path.join(target, segment))
+    } catch {
+      return null
+    }
   }
   assertSources(roots, target)
   return target
@@ -67,10 +78,12 @@ export function createFileHelper(
   agentDir?: string,
 ): (filePath: string, options?: ReadFileOptions) => string {
   return (filePath, options) => {
+    if (options && Object.keys(options).some((key) => key !== 'wrap')) {
+      throw new Error('Unsupported file option')
+    }
     const target = scopedTarget(
       { workDir, workDirs, agentDir },
-      filePath,
-      options,
+      parseScopedPath(filePath),
     )
     if (!target) return ''
 
@@ -111,14 +124,11 @@ export function createFileExistsHelper(
   workDir: string | undefined,
   workDirs?: string[],
   agentDir?: string,
-): (filePath: string, options?: FileScopeOptions) => boolean {
-  return (filePath, options) => {
+): (filePath: string) => boolean {
+  return (filePath) => {
+    const parsed = parseScopedPath(filePath)
     try {
-      const target = scopedTarget(
-        { workDir, workDirs, agentDir },
-        filePath,
-        options,
-      )
+      const target = scopedTarget({ workDir, workDirs, agentDir }, parsed)
       return target !== null && statSync(target).isFile()
     } catch {
       return false
@@ -128,28 +138,22 @@ export function createFileExistsHelper(
 
 type HelperRoots = { workDir?: string; workDirs?: string[]; agentDir?: string }
 
-function scopedTarget(
-  input: HelperRoots,
-  filePath: string,
-  options?: FileScopeOptions,
-) {
-  const personal = options?.scope === 'agent'
+function scopedTarget(input: HelperRoots, parsed: ScopedPath) {
+  const personal = parsed.scope === 'agent'
   const root = resolveRoot(personal ? input.agentDir : input.workDir)
   if (!root) {
     if (!personal && resolveRoot(input.agentDir)) {
-      throw new Error(
-        'No project workspace. Use scope: "agent" for personal files.',
-      )
+      throw new Error('No project workspace')
     }
     return null
   }
 
-  const roots = personal
+  const roots = parsed.explicit
     ? [root]
     : (input.workDirs ?? [root]).filter(
         (source) => resolveRoot(source) === source,
       )
-  const target = resolveInside(root, filePath, roots)
+  const target = resolveInside(root, parsed.path, roots)
   const home = resolveRoot(input.agentDir)
 
   if (target && home && !personal) {
@@ -160,7 +164,7 @@ function scopedTarget(
         relative !== '..' &&
         !relative.startsWith(`..${path.sep}`))
     if (insidePersonalHome) {
-      throw new Error('Personal files require scope: "agent"')
+      throw new Error('Agent personal files require an agent:// path')
     }
   }
 

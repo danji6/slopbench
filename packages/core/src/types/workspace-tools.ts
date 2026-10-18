@@ -1,12 +1,6 @@
 import { z } from 'zod'
 
 import { ATTACHMENT_READ_MAX_BYTES } from '../const'
-import { fileScopeDescription } from './tool-descriptions'
-
-export const fileScopeField = z
-  .enum(['workspace', 'agent'])
-  .optional()
-  .describe(fileScopeDescription())
 
 export const readAttachmentFields = {
   reference: z.string().describe('Attachment reference to read'),
@@ -28,7 +22,6 @@ export const readAttachmentFields = {
 } as const
 
 export const readFileFields = {
-  scope: fileScopeField,
   path: z.string().describe('Relative or absolute path to read'),
   byteOffset: z
     .number()
@@ -53,7 +46,6 @@ export const readFileFields = {
 } as const
 
 export const writeFileFields = {
-  scope: fileScopeField,
   path: z
     .string({ error: 'path is required: a relative or absolute file path.' })
     .describe('Relative or absolute path to write'),
@@ -66,7 +58,6 @@ export const writeFileFields = {
 } as const
 
 export const editFileFields = {
-  scope: fileScopeField,
   path: z
     .string({ error: 'path is required: a relative or absolute file path.' })
     .describe('Relative or absolute path to edit'),

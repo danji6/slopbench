@@ -1,7 +1,8 @@
 import type { AgentHome } from '../skills/types'
 import type { FolderWorkspace } from '../types/workspace'
+import { parseScopedPath } from './scoped-path'
 
-export type FileScope = 'workspace' | 'agent'
+export type { FileScope } from './scoped-path'
 
 /** Adds an agent home without changing the project's path or ordered source authority. */
 export function withAgentHome(
@@ -25,18 +26,18 @@ export function withAgentHome(
 /** Keeps approval entries relative to their original base when a tool selects the home. */
 export function selectFileWorkspace(
   workspace: FolderWorkspace,
-  scope?: FileScope,
-  filePath?: string,
+  filePath = 'workspace://',
 ): FolderWorkspace {
+  const { scope, path } = parseScopedPath(filePath)
   if (scope !== 'agent' && workspace.agentOnly) {
     throw new Error(
       workspace.agentHome
-        ? 'This session has no project workspace. Use scope: "agent" for personal files.'
+        ? 'This session has no project workspace. Use agent:// for personal files.'
         : 'This session has no project workspace.',
     )
   }
 
-  assertPersonalScope(workspace, filePath, scope)
+  assertPersonalScope(workspace, path, scope)
   if (scope !== 'agent') return { ...workspace, fileScope: 'workspace' }
 
   const home = workspace.agentHome
@@ -58,7 +59,7 @@ export function selectFileWorkspace(
 
 /** Identifies a relative file reference without depending on the browser's host OS. */
 export function isRelativeFilePath(value: string): boolean {
-  return !/^(?:[\\/]|[a-z]:[\\/])/i.test(value)
+  return !/^(?:[\\/]|[a-z]:[\\/]|[a-z][a-z\d+.-]*:\/\/)/i.test(value)
 }
 
 /** Requires explicit home selection even when a tool supplies an absolute path. */
@@ -73,7 +74,7 @@ export function assertPersonalScope(
   )
   const home = normalizePath(workspace.agentHome.path)
   if (target === home || target.startsWith(`${home}/`))
-    throw new Error('Personal files require scope: "agent"')
+    throw new Error('Personal files require an agent:// path')
 }
 
 function normalizePath(value: string) {

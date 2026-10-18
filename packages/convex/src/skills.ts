@@ -9,7 +9,9 @@ import { claimExecution } from './model/skills/execution'
 import * as Homes from './model/skills/homes'
 import * as Imports from './model/skills/imports'
 import * as Library from './model/skills/library'
+import * as LibraryDeletion from './model/skills/libraryDeletion'
 import * as Operations from './model/skills/operations'
+import * as Preferences from './model/skills/preferences'
 import { cleanupRecords } from './model/skills/removal'
 import * as Uploads from './model/skills/uploads'
 import * as Verification from './model/skills/verification'
@@ -19,6 +21,7 @@ import {
   failAgentFileArgsValidator,
   invalidateAgentHomeArgsValidator,
   operationAttemptArgsValidator,
+  removeDeletedAssignmentArgsValidator,
   reserveHomeArgsValidator,
   startFileOperationArgsValidator,
 } from './validators/fileOperations'
@@ -27,6 +30,7 @@ import {
   finishSkillImportArgsValidator,
   prepareSkillImportArgsValidator,
   removeMissingSkillArgsValidator,
+  setSkillEnabledArgsValidator,
   skillAssignmentsArgsValidator,
   skillListArgsValidator,
   verifySkillIdsValidator,
@@ -35,6 +39,26 @@ import {
 export const list = authQuery({
   args: skillListArgsValidator.fields,
   handler: Library.list,
+})
+
+export const deletionPreview = authQuery({
+  args: { skillId: v.id('skills') },
+  handler: LibraryDeletion.deletionPreview,
+})
+
+export const _removeDeletedAssignment = internalMutation({
+  args: removeDeletedAssignmentArgsValidator.fields,
+  handler: LibraryDeletion.removeDeletedAssignment,
+})
+
+export const _assignmentLibrary = internalQuery({
+  args: { assignmentId: v.id('agentSkills') },
+  handler: Library.assignmentLibrary,
+})
+
+export const setEnabled = authMutation({
+  args: setSkillEnabledArgsValidator.fields,
+  handler: Preferences.setEnabled,
 })
 
 export const verificationTargets = authQuery({

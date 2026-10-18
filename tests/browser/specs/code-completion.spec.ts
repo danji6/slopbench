@@ -258,46 +258,29 @@ test('prompt readFile completes object fields and their values with active hints
     'Wrap the contents in a <file> block',
   )
   await page.getByRole('option', { name: 'false value', exact: true }).click()
-  await page.keyboard.type(', ')
-  await expect(
-    popupFor(page).getByRole('option', { name: 'wrap property', exact: true }),
-  ).toHaveCount(0)
-  await page
-    .getByRole('option', { name: 'scope property', exact: true })
-    .click()
-  await page.getByRole('option', { name: 'agent value', exact: true }).click()
   await expect(editorFor(page)).toHaveText(
-    "Intro {{ readFile('notes.md', {wrap: false, scope: 'agent'}) }} End",
+    "Intro {{ readFile('notes.md', {wrap: false}) }} End",
   )
+  await expect(
+    page.getByRole('option', { name: 'scope property', exact: true }),
+  ).toHaveCount(0)
 })
 
-test('prompt fileExists completes scope options across paragraphs', async ({
+test('prompt fileExists has only a path parameter across paragraphs', async ({
   page,
 }) => {
   await page.getByLabel('Prompt editor', { exact: true }).check()
   await setSource(
     page,
-    "Introduction\n#eval\nreturn fileExists('notes.md', { sc▌ope: 'agent' })\n#end\nConclusion",
+    "Introduction\n#eval\nreturn fileExists('agent://notes.md'▌)\n#end\nConclusion",
   )
   await page.keyboard.press('Control+Space')
   await expect(page.locator('[data-slot="signature-help"]')).toContainText(
-    'fileExists(path, options?)',
+    'fileExists(path)',
   )
-  await page
-    .getByRole('option', { name: 'scope property', exact: true })
-    .click()
-  await page.getByRole('option', { name: 'workspace value' }).click()
-  await expect
-    .poll(() =>
-      editorFor(page).evaluate((element) =>
-        (element as HTMLElement & { editor: Editor }).editor.getText({
-          blockSeparator: '\n',
-        }),
-      ),
-    )
-    .toBe(
-      "Introduction\n#eval\nreturn fileExists('notes.md', { scope: 'workspace' })\n#end\nConclusion",
-    )
+  await expect(
+    page.getByRole('option', { name: 'scope property', exact: true }),
+  ).toHaveCount(0)
 })
 
 test('prompt snippet arguments offer hints and completions stay out of prose and file paths', async ({

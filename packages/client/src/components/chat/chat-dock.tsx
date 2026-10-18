@@ -63,6 +63,7 @@ export function ChatDock({
   return (
     <motion.div
       ref={dockRef}
+      data-slot="chat-dock"
       animate={{ y: hidden ? hideDistance + HIDE_OVERSHOOT : 0 }}
       transition={{ type: 'spring', stiffness: 400, damping: 38 }}
       className="relative"
@@ -70,8 +71,9 @@ export function ChatDock({
     >
       <motion.div
         ref={alertRef}
+        data-slot="chat-dock-alert"
         className={cn(
-          'pointer-events-auto absolute right-0 bottom-full left-0 mx-auto flex flex-col items-center',
+          'pointer-events-auto absolute right-0 left-0 mx-auto flex flex-col items-center',
           hidden && 'pointer-events-none',
         )}
         style={{ width: `calc(${width} - var(--spacing)*8)` }}

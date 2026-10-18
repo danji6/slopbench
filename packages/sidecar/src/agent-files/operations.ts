@@ -51,6 +51,7 @@ export type FileOperation = {
   fileUrl?: string
   homeOperationId?: string
   copyFiles?: boolean
+  sourceHome?: { path?: string; originAgentId: string }
   kind:
     | 'install'
     | 'delete-home'
@@ -152,7 +153,7 @@ async function execute(input: FileOperation) {
 export function skillCopy(home: string, name: string) {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name))
     throw new Error('Invalid skill directory name')
-  return path.join(home, '.agents', 'skills', name)
+  return path.join(home, 'skills', name)
 }
 
 async function installSkill(input: FileOperation) {
@@ -241,10 +242,26 @@ async function assignSkill(input: FileOperation, stagingHome?: string) {
   const staging = path.join(operationRoot(input.id), 'copy')
 
   await rm(staging, { recursive: true, force: true })
-  await copyTree(
-    path.join(libraryRoot(input.ownerId, input.skillId!), input.name!),
-    staging,
-  )
+  const source = input.sourceHome
+    ? skillCopy(
+        await resolveHome(
+          input.ownerId,
+          input.sourceHome.originAgentId,
+          input.sourceHome.path,
+        ),
+        input.name!,
+      )
+    : path.join(libraryRoot(input.ownerId, input.skillId!), input.name!)
+  try {
+    await copyTree(source, staging)
+  } catch (cause) {
+    if (input.sourceHome && isMissing(cause))
+      throw new Error(
+        `Agent copy of ${input.name} is missing; it cannot be restored from the deleted library bundle`,
+        { cause },
+      )
+    throw cause
+  }
   await mkdir(path.dirname(target), { recursive: true })
 
   try {

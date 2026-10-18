@@ -9,6 +9,7 @@ import { bindHome } from './homes'
 import { scheduleHomeInvalidation } from './invalidation'
 import {
   holdsAgentReservation,
+  holdsOperationReservations,
   isExecutingOperation,
   matchesAttempt,
   releaseOperation,
@@ -83,6 +84,15 @@ async function commitMetadata(
         await ctx.db.delete(op.assignmentId)
       return
     case 'delete-library':
+      if (!(await holdsOperationReservations(ctx, op)))
+        error('Library deletion reservation expired', 409)
+      if (op.mode === 'delete-all') {
+        const remaining = await ctx.db
+          .query('agentSkills')
+          .withIndex('by_skillId', (q) => q.eq('skillId', op.skillId))
+          .first()
+        if (remaining) error('Assigned copies must finish deleting first', 409)
+      }
       if (await ctx.db.get(op.skillId)) await ctx.db.delete(op.skillId)
       return
     case 'home':

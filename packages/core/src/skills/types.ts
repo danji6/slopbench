@@ -33,7 +33,6 @@ export type SkillImportSummary = {
 
 export type SkillCatalogEntry = SkillMetadata & {
   path: string
-  absolutePath?: string
   error?: string
 }
 

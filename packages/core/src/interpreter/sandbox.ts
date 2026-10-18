@@ -100,13 +100,13 @@ function bindHelpers(
       if (args.length > 2) throw new Error('readFile accepts path and options')
       const [path, options] = args
       const filePath = stringArg(vm, path!)
-      const settings = helperOptions(vm, options, true)
+      const settings = helperOptions(vm, options)
       return vm.newString(helpers.readFile?.(filePath, settings) ?? '')
     },
-    fileExists: (path: QuickJSHandle, options?: QuickJSHandle) =>
-      helpers.fileExists?.(stringArg(vm, path), helperOptions(vm, options))
-        ? vm.true
-        : vm.false,
+    fileExists: (...args: QuickJSHandle[]) => {
+      if (args.length !== 1) throw new Error('fileExists accepts only a path')
+      return helpers.fileExists?.(stringArg(vm, args[0]!)) ? vm.true : vm.false
+    },
   }
   for (const [name, callback] of Object.entries(functions)) {
     const handle = vm.newFunction(name, callback)
@@ -130,7 +130,6 @@ function jsonHandle(vm: QuickJSContext, value: unknown): QuickJSHandle {
 function helperOptions(
   vm: QuickJSContext,
   options?: QuickJSHandle,
-  allowWrap = false,
 ): ReadFileOptions | undefined {
   if (!options || vm.typeof(options) === 'undefined') {
     return undefined
@@ -141,14 +140,12 @@ function helperOptions(
     throw new Error('Expected a filesystem options object')
   }
 
-  const { scope, wrap } = value
-  if (scope !== undefined && scope !== 'workspace' && scope !== 'agent') {
-    throw new Error('Invalid filesystem scope')
+  if (Object.keys(value).some((key) => key !== 'wrap')) {
+    throw new Error('Unsupported file option')
   }
-
-  if (allowWrap && wrap !== undefined && typeof wrap !== 'boolean') {
+  const { wrap } = value
+  if (wrap !== undefined && typeof wrap !== 'boolean') {
     throw new Error('Expected a boolean wrap option')
   }
-
-  return allowWrap ? { scope, wrap } : { scope }
+  return { wrap }
 }

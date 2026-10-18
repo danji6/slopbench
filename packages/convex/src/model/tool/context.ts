@@ -46,12 +46,18 @@ export type ToolMeta = {
   requiresWorkspace?: boolean
 }
 
-export function workspaceArgs(context: WorkspaceToolContext) {
+export function fileWorkspaceArgs(context: WorkspaceToolContext) {
   return {
     sessionId: context.sessionId,
-    owner: context.ownerId,
     workspaceId: context.workspaceId,
     workspace: context.workspace,
+  }
+}
+
+export function workspaceArgs(context: WorkspaceToolContext) {
+  return {
+    ...fileWorkspaceArgs(context),
+    owner: context.ownerId,
     shell: context.shell,
     allowInteractiveShells: context.allowInteractiveShells ?? false,
   }

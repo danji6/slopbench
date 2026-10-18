@@ -61,12 +61,11 @@ export function SkillImport({
   return (
     <div className="space-y-3">
       <p className="text-muted-foreground text-sm">
-        Install all skills found recursively in a directory or ZIP. Each skill’s
-        resources and binaries are preserved. Existing names are skipped.
+        Install skills found recursively in a directory or ZIP.
       </p>
       <Input
-        aria-label="Skill directory on the sidecar"
-        placeholder="Directory on the sidecar…"
+        aria-label="Skill directory"
+        placeholder="/path/to/skill"
         {...form.register('source')}
       />
       <div className="flex flex-wrap gap-2">

@@ -38,7 +38,7 @@ describe('shellToolDescription', () => {
 
   test('names none when there is none to name', () => {
     expect(shellToolDescription()).toContain(
-      'Run a shell command in the primary project source',
+      'Run a shell command in cwd (default: primary project source)',
     )
   })
 })

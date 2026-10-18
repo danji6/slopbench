@@ -28,15 +28,7 @@ const edit_file = inline`
 /** Adds personal file guidance only when a home is available for this turn. */
 export function fileToolDescription(description: string, hasAgentHome = false) {
   return hasAgentHome
-    ? `${description} Use scope: "agent" for personal files, including absolute paths.`
-    : description
-}
-
-/** Describes scope selection using the current turn's available filesystem. */
-export function fileScopeDescription(hasAgentHome = false) {
-  const description = 'Filesystem scope (default: "workspace").'
-  return hasAgentHome
-    ? `${description} Use scope: "agent" for your personal folder.`
+    ? `${description} Use agent:// paths for personal files.`
     : description
 }
 
@@ -46,13 +38,15 @@ export function shellToolDescription(
 ): string {
   const where = shell ? ` with ${shellLabel(shell)}` : ''
   const personal = hasAgentHome
-    ? ' Select scope: "agent" to run it in your personal folder.'
-    : ''
+    ? ' Set cwd to agent:// or an agent:// subdirectory to run in your personal folder.' +
+      ' Paths inside command use normal shell syntax, not filesystem prefixes.' +
+      ' AGENT_DIR and WORKSPACE_DIR environment variables provide available absolute roots'
+    : 'The WORKSPACE_DIR environment variable provides the absolute root'
   return inline`
-    Run a shell command${where} in the primary project source.${personal} Set
-    run_in_background for long-running commands and read them later
-    with shell_output. Pass a description whenever the command isn't
-    self-explanatory, so the user can review it at a glance.`
+    Run a shell command${where} in cwd (default: primary project source).${personal}.
+    Set run_in_background for long-running commands and read them later with
+    shell_output. Pass a description whenever the command isn't self-explanatory,
+    so the user can review it at a glance.`
 }
 
 const shell_output = inline`
@@ -114,7 +108,7 @@ const task = [
 
 const skills = inline`
   'List your skills. Use search to match a skill name or cursor to continue a
-  page. Read the chosen SKILL.md using read_file with "agent" scope before
+  page. Read the chosen SKILL.md using read_file using its agent:// path before
   following it.'`
 
 export const TOOL_DESCRIPTIONS = {

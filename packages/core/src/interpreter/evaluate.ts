@@ -5,7 +5,6 @@ import { createVariableStore } from './store'
 import type {
   Condition,
   EvalContext,
-  FileScopeOptions,
   ReadFileOptions,
   VariableStore,
 } from './types'
@@ -13,7 +12,7 @@ import type {
 /** Host-provided functions exposed to dynamic blocks (all synchronous). */
 export type EvalHelpers = {
   readFile?: (path: string, options?: ReadFileOptions) => string
-  fileExists?: (path: string, options?: FileScopeOptions) => boolean
+  fileExists?: (path: string) => boolean
 }
 
 export function evaluate(

@@ -69,6 +69,7 @@ export const assignments = (ctx: QueryCtx, args: SkillAssignmentsArgs) =>
     args.agentId,
     args.paginationOpts,
     args.search?.trim().toLowerCase(),
+    args.enabledOnly,
   )
 
 export const agent = (ctx: QueryCtx, { agentId }: { agentId: Id<'agents'> }) =>

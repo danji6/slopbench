@@ -26,6 +26,7 @@ export type ShellJobProcess = {
 export type SpawnShellJobInput = {
   command: string
   cwd: string
+  environment?: { AGENT_DIR?: string; WORKSPACE_DIR?: string }
   cols: number
   rows: number
   shell?: string
@@ -150,7 +151,10 @@ function spawnNodePty(
     cols: input.cols,
     rows: input.rows,
     cwd: input.cwd,
-    env: jobEnv({ TERM: 'xterm-256color' }) as Record<string, string>,
+    env: jobEnv({ TERM: 'xterm-256color' }, input.environment) as Record<
+      string,
+      string
+    >,
   })
 
   return {
@@ -188,7 +192,10 @@ function spawnScriptPty(input: SpawnShellJobInput): ShellJobProcess {
   const child = spawn('script', ['-qefc', sized, '/dev/null'], {
     cwd: input.cwd,
     detached: true,
-    env: jobEnv({ SHELL: shellPath(input.shell), TERM: 'xterm-256color' }),
+    env: jobEnv(
+      { SHELL: shellPath(input.shell), TERM: 'xterm-256color' },
+      input.environment,
+    ),
     stdio: ['pipe', 'pipe', 'pipe'],
   })
   return wrapChildProcess(child, 'script')
@@ -199,7 +206,7 @@ function spawnPipe(input: SpawnShellJobInput): ShellJobProcess {
   const child = spawn(file, args, {
     cwd: input.cwd,
     detached: process.platform !== 'win32',
-    env: jobEnv(),
+    env: jobEnv({}, input.environment),
     stdio: ['pipe', 'pipe', 'pipe'],
     windowsHide: true,
   })

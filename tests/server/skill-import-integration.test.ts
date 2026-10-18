@@ -136,7 +136,7 @@ test('repository import installs all pages, skips duplicate copies, keeps resour
   const source = path.join(root, 'repository')
   for (let i = 0; i < 25; i++)
     await writeSkill(path.join(source, 'skills', `skill-${i}`), `skill-${i}`)
-  await writeSkill(path.join(source, '.agents', 'skills', 'copy'), 'skill-5')
+  await writeSkill(path.join(source, 'skills', 'copy'), 'skill-5')
   const failed = path.join(source, 'broken')
   await mkdir(failed)
   await writeFile(path.join(failed, 'SKILL.md'), 'Broken frontmatter')

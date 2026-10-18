@@ -59,15 +59,12 @@ test('pending assignments fence turns and library removal; completion commits th
   const { ctx, rows } = setup()
   const operationId = await start(ctx, { kind: 'assign', agentId, skillId })
   await expect(assertAgentAvailable(ctx, agentId)).rejects.toThrow('updated')
-  await expect(start(ctx, { kind: 'delete-library', skillId })).rejects.toThrow(
-    'finish',
-  )
+  await expect(
+    start(ctx, { kind: 'delete-library', mode: 'keep-copies', skillId }),
+  ).rejects.toThrow('finish')
   await complete(ctx, { operationId })
   expect(rows('agentSkills')).toHaveLength(1)
   expect(rows('agents')[0]!.fileOperationId).toBeUndefined()
-  await expect(start(ctx, { kind: 'delete-library', skillId })).rejects.toThrow(
-    'Remove',
-  )
   await expect(
     start(ctx, { kind: 'assign', agentId, skillId }),
   ).rejects.toThrow('already assigned')
@@ -263,7 +260,7 @@ test('library keeps assigned skills and filters assignments across pages and sha
   const assignmentId = 'assignment' as Id<'agentSkills'>
   const added = await list(ctx, { ...args, assignment: 'added' })
   expect(added.page.map((skill) => skill.assignmentId)).toEqual([assignmentId])
-  expect(added.page[0]!.description).toBe('Review changes.')
+  expect(added.page[0]!.description).toBe('An edited local description.')
   expect(added.isDone).toBe(true)
   const missing = await list(ctx, {
     ...args,

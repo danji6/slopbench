@@ -124,9 +124,16 @@ function signalGroup(pid: number, signal: NodeJS.Signals): boolean {
 }
 
 /** Environment shared by every job. */
-export function jobEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
+export function jobEnv(
+  extra: Record<string, string> = {},
+  roots: { AGENT_DIR?: string; WORKSPACE_DIR?: string } = {},
+): NodeJS.ProcessEnv {
   const env = { ...process.env, ...extra }
   delete env.SIDECAR_SECRET
+  delete env.AGENT_DIR
+  delete env.WORKSPACE_DIR
+  if (roots.AGENT_DIR) env.AGENT_DIR = roots.AGENT_DIR
+  if (roots.WORKSPACE_DIR) env.WORKSPACE_DIR = roots.WORKSPACE_DIR
   return {
     ...env,
     PAGER: 'cat',

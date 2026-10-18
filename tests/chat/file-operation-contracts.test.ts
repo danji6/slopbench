@@ -62,7 +62,7 @@ const operations = [
     skillId: 'skill',
     assignmentId: 'assignment',
   },
-  { ...common, kind: 'delete-library', skillId: 'skill' },
+  { ...common, kind: 'delete-library', mode: 'keep-copies', skillId: 'skill' },
   { ...common, kind: 'delete-home', homeId: 'home' },
   {
     ...common,
@@ -77,6 +77,8 @@ test.each(operations)(
   (op) => {
     expect(validate(agentFileOperationSchema, op)).toBe(true)
     for (const key of Object.keys(op)) {
+      if (op.kind === 'delete-assigned' && key === 'skillId') continue
+      if (op.kind === 'delete-library' && key === 'mode') continue
       const missing = { ...op } as Record<string, unknown>
       delete missing[key]
       expect(validate(agentFileOperationSchema, missing)).toBe(false)

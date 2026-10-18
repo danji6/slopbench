@@ -36,13 +36,16 @@ test('file and shell descriptions follow home availability without leaking betwe
     const available = !!workspace && 'agentHome' in workspace
     for (const tool of tools) {
       const schema = z.toJSONSchema(tool.inputSchema as z.ZodObject)
-      const scope = schema.properties?.scope as { description: string }
+      expect(schema.properties?.scope).toBeUndefined()
       expect(typeof tool.description).toBe('string')
-      expect((tool.description as string).includes('scope: "agent"')).toBe(
-        available,
-      )
-      expect(scope.description.includes('scope: "agent"')).toBe(available)
-      expect(scope.description).toContain('default: "workspace"')
+      expect((tool.description as string).includes('agent://')).toBe(available)
+      expect(
+        (tool.inputSchema as z.ZodObject).safeParse({
+          path: 'file',
+          command: 'pwd',
+          scope: 'agent',
+        }).success,
+      ).toBe(false)
     }
     expect(tools[3].description).toContain('with fish')
   }

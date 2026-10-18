@@ -1,7 +1,5 @@
 import { getToolErrorText, getToolStatus } from '@/lib/chat'
 import { cn } from '@/lib/utils'
-import { isRelativeFilePath } from '@sb/core/workspace/personal'
-import type { FileScope } from '@sb/core/workspace/personal'
 import type { ToolUIPart } from 'ai'
 import { FileTextIcon } from 'lucide-react'
 
@@ -9,7 +7,6 @@ import { CollapsibleBlock } from '../collapsible-block'
 
 type ReadFileInput = {
   path?: string
-  scope?: FileScope
   offset?: number
   limit?: number
 }
@@ -95,7 +92,5 @@ function partRunning(part: ToolUIPart, toolErrors?: string[]): boolean {
 
 function partPersonalPath(part: ToolUIPart): boolean {
   const input = part.input as ReadFileInput | undefined
-  return (
-    input?.scope === 'agent' && !!input.path && isRelativeFilePath(input.path)
-  )
+  return !!input?.path?.startsWith('agent://')
 }

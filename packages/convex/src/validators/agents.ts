@@ -98,6 +98,8 @@ export const agentSchema = v.object({
   /** Names of the selected tools. */
   tools: v.optional(v.array(v.string())),
   trimContext: v.optional(v.boolean()),
+  /** Library skills omitted from this agent's catalog. */
+  disabledSkillIds: v.optional(v.array(v.id('skills'))),
   contextWindow: v.optional(v.number()),
   outputTokens: v.optional(v.number()),
   shareUserDisplayNames: v.optional(v.boolean()),

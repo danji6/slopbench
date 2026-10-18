@@ -1,0 +1,17 @@
+@layer components {
+  [data-slot='chat-dock'] {
+    --dock-widgets-height: --spacing(9);
+    --dock-widgets-gap: --spacing(3);
+  }
+
+  [data-slot='chat-dock-alert'] {
+    bottom: 100%;
+  }
+
+  /* Reuse the reserved row only when neither widgets nor the toolbar occupy it. */
+  [data-slot='chat-layout']:not(:has([data-slot='chat-toolbar']))
+    [data-slot='chat-dock']:has([data-slot='dock-widgets']:empty:not(.hidden))
+    > [data-slot='chat-dock-alert'] {
+    bottom: calc(100% - var(--dock-widgets-height) - var(--dock-widgets-gap));
+  }
+}

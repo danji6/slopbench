@@ -4,6 +4,8 @@ import { error } from '../../errors'
 import type { OperationAttemptArgs } from '../../types'
 import { requireOwnedAgent, requireOwnedSkill } from './access'
 import { fail } from './completion'
+import { deletionTargets } from './libraryDeletion'
+import type { LibraryDeletionTarget } from './libraryDeletion'
 import { holdsOperationReservations, matchesAttempt } from './lifecycle'
 import { assertRemovableHome } from './removal'
 
@@ -29,11 +31,18 @@ export type ExecutionContext =
         destinationHome: Doc<'agentHomes'>
       }
     >
+  | Context<'assign', AgentTarget & { skill: Doc<'skills'> }>
   | Context<
-      'assign' | 'delete-assigned',
-      AgentTarget & { skill: Doc<'skills'> }
+      'delete-assigned',
+      AgentTarget & {
+        assignment: Doc<'agentSkills'>
+        skill: Doc<'skills'> | null
+      }
     >
-  | Context<'delete-library', { skill: Doc<'skills'> }>
+  | Context<
+      'delete-library',
+      { skill: Doc<'skills'>; targets: LibraryDeletionTarget[] }
+    >
   | Context<'delete-home', { home: Doc<'agentHomes'> }>
   | Context<'install'>
 
@@ -93,7 +102,10 @@ async function resolveExecution(
     }
     case 'delete-library': {
       const skill = await requireOwnedSkill(ctx, op.skillId, op.ownerId)
-      return { kind: op.kind, operation: op, skill }
+      const targets = await deletionTargets(ctx, skill)
+      if (targets.some(({ home }) => !op.homeIds?.includes(home._id)))
+        error('Skill assignments changed before deletion', 409)
+      return { kind: op.kind, operation: op, skill, targets }
     }
     case 'duplicate':
       return resolveDuplicate(ctx, op)
@@ -127,19 +139,23 @@ async function resolveSkillCommand(
   op: Extract<ExecutingOperation, { kind: 'assign' | 'delete-assigned' }>,
 ): Promise<Extract<ExecutionContext, { kind: 'assign' | 'delete-assigned' }>> {
   const target = await resolveAgent(ctx, op)
-  const skill = await requireOwnedSkill(ctx, op.skillId, op.ownerId)
-  if (op.kind === 'assign')
+  if (op.kind === 'assign') {
+    const skill = await requireOwnedSkill(ctx, op.skillId, op.ownerId)
     return { kind: op.kind, operation: op, ...target, skill }
+  }
+  const skill = op.skillId
+    ? await requireOwnedSkill(ctx, op.skillId, op.ownerId)
+    : null
 
   const assignment = await ctx.db.get(op.assignmentId)
   const changed =
     !assignment ||
     assignment.ownerId !== op.ownerId ||
     assignment.homeId !== op.homeId ||
-    assignment.skillId !== op.skillId
+    (!!op.skillId && assignment.skillId !== op.skillId)
   if (changed) error('Assignment changed before execution', 409)
 
-  return { kind: op.kind, operation: op, ...target, skill }
+  return { kind: op.kind, operation: op, ...target, skill, assignment }
 }
 
 async function resolveAgentCommand(

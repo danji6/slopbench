@@ -35,12 +35,10 @@ describe('workspaceChanged', () => {
         agentHome: { ...home, revision: 1 },
       }),
     ).toBe(false)
-    expect(buildWorkspaceNoteContent(project, personal)).toContain(
-      'scope: "agent"',
-    )
+    expect(buildWorkspaceNoteContent(project, personal)).toContain('agent://')
     const detached = buildWorkspaceNoteContent(personal, project)
     expect(detached).toContain('personal folder is no longer available')
-    expect(detached).not.toContain('scope: "agent"')
+    expect(detached).not.toContain('agent://')
   })
 
   test('changing sources within the same folder counts as a change', () => {

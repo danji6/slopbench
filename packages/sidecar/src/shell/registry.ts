@@ -73,6 +73,7 @@ export async function startShellJob(
   const proc = await spawnJob({
     command: input.command,
     cwd: input.cwd,
+    environment: input.environment,
     cols: input.cols ?? 80,
     rows: input.rows ?? 24,
     shell: input.shell,

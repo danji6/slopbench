@@ -3,6 +3,7 @@ import { error } from '../../errors'
 import type { AuthMutationCtx } from '../../functions'
 import type { FileOperationArgs } from '../../types'
 import { assertAgentIdle, requireAdmin } from './access'
+import { prepareLibraryDeletion } from './libraryDeletion'
 import {
   claimOperation,
   operationTargets,
@@ -11,7 +12,6 @@ import {
 import { validateOperationArgs } from './operationArgs'
 import {
   assertHomeMissingSkill,
-  assertSkillUnused,
   prepareOperation,
   preparedFields,
   preparedTargets,
@@ -43,12 +43,11 @@ export async function retry(
   args: { operationId: Id<'agentFileOperations'> },
 ) {
   requireAdmin(ctx)
+
   const op = await ctx.db.get(args.operationId)
-  const retryable =
-    op && op.ownerId === ctx.userId && op.state.phase === 'failed'
-  if (!retryable) {
-    error('Operation not found', 404)
-  }
+  const retryable = op && op.ownerId === ctx.userId && op.state.phase === 'failed' // prettier-ignore
+  if (!retryable) error('Operation not found', 404)
+
   if (await alreadyDeleted(ctx, op)) {
     await ctx.db.patch(op._id, {
       state: { phase: 'done' },
@@ -56,7 +55,16 @@ export async function retry(
     })
     return
   }
+
   await validateRetry(ctx, op)
+
+  if (op.kind === 'delete-library') {
+    const skill = await requireAvailableSkill(ctx, op.skillId, op.kind)
+    const targets = await prepareLibraryDeletion(ctx, skill)
+    op.homeIds = targets.map(({ home }) => home._id)
+    await ctx.db.patch(op._id, { homeIds: op.homeIds })
+  }
+
   const attempt = op.attempt + 1
   const progress =
     op.kind === 'install'
@@ -69,6 +77,7 @@ export async function retry(
       : {}
   const targets = operationTargets(op)
   if (op.kind === 'install') targets.skillId = undefined
+
   await claimOperation(ctx, op._id, targets)
   await ctx.db.patch(op._id, {
     state: { phase: 'queued' },
@@ -97,15 +106,18 @@ async function validateRetry(
     if (home.ownerId !== ctx.userId)
       error('Managed folder ownership changed', 409)
   }
+
   for (const { agentId, homeId } of operationTargets(op).agents) {
     const agent = await assertAgentIdle(ctx, agentId, ctx.userId)
     if (agent.homeId !== homeId)
       error('The agent changed folders. Start a new operation instead.', 409)
   }
+
   await validateRetryHome(ctx, op)
-  if (!('skillId' in op)) return
+
+  if (!('skillId' in op) || !op.skillId) return
+
   const skill = await requireAvailableSkill(ctx, op.skillId, op.kind)
-  if (op.kind === 'delete-library') await assertSkillUnused(ctx, skill._id)
   if (op.kind === 'assign')
     await assertHomeMissingSkill(ctx, op.homeId, skill.name)
 }

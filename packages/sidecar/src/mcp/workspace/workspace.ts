@@ -8,25 +8,22 @@ import {
   restoreLineEndings,
   stripBom,
 } from '@sb/core/workspace/edit'
-import { assertPersonalScope } from '@sb/core/workspace/personal'
 import {
-  copyFile,
-  mkdir,
-  realpath,
-  rm,
-  stat,
-  writeFile,
-} from 'node:fs/promises'
+  assertPersonalScope,
+  selectFileWorkspace,
+} from '@sb/core/workspace/personal'
+import { copyFile, mkdir, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
 
-import { withAgentFiles } from '../../agent-files/access'
-import { assertPlainPath } from '../../agent-files/storage'
 import { readTextPage } from '../../files/read-text'
+import { resolveShellDirectory } from '../../shell/directory'
 import { assertCheckpointTarget, isOutside, resolveToolPath } from './access'
-import { checkPaths } from './check-paths'
 import { runCommand } from './command'
-import { withWorkspaceOperation, workspaceContextSchema } from './context'
+import { withFilesystemOperation, workspaceContextSchema } from './context'
+import { resolveFileToolPath } from './file-path'
+import { requireWorkspace } from './resolve-workspace'
+import { checkScopedPaths } from './scoped-checks'
 import {
   createCheckpoint,
   readSnapshot,
@@ -34,6 +31,8 @@ import {
   updateStore,
   withFileQueue,
 } from './store'
+
+export { requireWorkspace } from './resolve-workspace'
 
 export const restoreCheckpointSchema = z.object({
   allowedPaths: z.array(z.string()).optional(),
@@ -288,65 +287,40 @@ async function runWorkspaceCommandImpl(input: {
   workspaceId: string
   workspace?: FolderWorkspace
   command: string
+  cwd?: string
+  allowedPaths?: string[]
   timeout?: number
   signal?: AbortSignal
 }) {
-  const workspace = await requireWorkspace(
-    input.sessionId,
-    input.workspaceId,
-    input.workspace,
-  )
+  const directory = await resolveShellDirectory(input)
   return runCommand(
     input.command,
-    workspace.root,
+    directory.cwd,
     input.timeout ?? 30,
     input.signal,
+    directory.environment,
   )
-}
-
-/** Inspect paths using the same resolver as dedicated file tools. */
-async function checkFlaggedPathsImpl(input: {
-  sessionId: string
-  workspaceId: string
-  workspace?: FolderWorkspace
-  paths: string[]
-  allowedPaths?: string[]
-  literal?: boolean
-}) {
-  const workspace = await requireWorkspace(
-    input.sessionId,
-    input.workspaceId,
-    input.workspace,
-  )
-  const result = await checkPaths(
-    workspace.root,
-    input,
-    workspace.roots,
-    workspace.grantRoot,
-  )
-  if (input.literal) {
-    for (const item of result.resolved)
-      assertPersonalScope(input.workspace, item.absolutePath)
-  }
-  return result
 }
 
 async function restoreLatestCheckpointImpl(
   input: z.infer<typeof restoreCheckpointSchema>,
 ) {
-  const workspace = await requireWorkspace(
-    input.sessionId,
-    input.workspaceId,
-    input.workspace,
-  )
   const latest = (await readStore()).checkpoints
     .slice()
     .reverse()
     .find((item) => item.sessionId === input.sessionId)
-
   if (!latest) throw new Error('No checkpoint to restore')
 
-  assertPersonalScope(input.workspace, latest.absolutePath)
+  const selected = input.workspace
+    ? selectFileWorkspace(input.workspace, latest.relativePath)
+    : undefined
+  const workspace = await requireWorkspace(
+    input.sessionId,
+    input.workspaceId,
+    selected,
+  )
+  assertPersonalScope(selected, latest.absolutePath)
+
   return withFileQueue(latest.absolutePath, () =>
     updateStore(async (state) => {
       const checkpoint = state.checkpoints
@@ -386,62 +360,6 @@ async function restoreLatestCheckpointImpl(
   )
 }
 
-export async function requireWorkspace(
-  sessionId: string,
-  workspaceId: string,
-  context?: FolderWorkspace,
-) {
-  if (context) {
-    if (context.agentOnly && context.fileScope !== 'agent') {
-      throw new Error(
-        context.agentHome
-          ? 'No project workspace. Use scope: "agent" for personal files.'
-          : 'No project workspace.',
-      )
-    }
-    if (context.workspaceId !== workspaceId || !context.sources?.length)
-      throw new Error('Invalid folder workspace context')
-
-    const roots = await Promise.all(
-      context.sources.map(async (source) => {
-        const root = await realpath(source.path)
-        if (root !== source.path || !(await stat(root)).isDirectory())
-          throw new Error(`Source directory changed: ${source.path}`)
-        return root
-      }),
-    )
-    if (roots[0] !== context.path)
-      throw new Error('Primary source does not match the workspace')
-
-    if (context.agentHome) {
-      await assertPlainPath(context.agentHome.path)
-      if (
-        (await realpath(context.agentHome.path)) !== context.agentHome.path ||
-        !(await stat(context.agentHome.path)).isDirectory()
-      ) {
-        throw new Error('Personal folder changed')
-      }
-    }
-    return {
-      workspaceId,
-      sessionId,
-      root: roots[0]!,
-      roots: [
-        ...new Set([
-          ...roots,
-          ...(context.agentHome && context.fileScope === 'agent'
-            ? [await realpath(context.agentHome.path)]
-            : []),
-        ]),
-      ],
-      grantRoot: context.approvalRoot ?? roots[0]!,
-      label: context.label,
-    }
-  }
-
-  throw new Error('Workspace is not configured for this session')
-}
-
 export async function resolveExistingFile(
   root: string,
   filePath: string,
@@ -449,7 +367,7 @@ export async function resolveExistingFile(
   roots?: string[],
   grantRoot?: string,
 ) {
-  const target = await resolveToolPath(
+  const target = await resolveFileToolPath(
     root,
     filePath,
     allowedPaths,
@@ -483,7 +401,7 @@ async function resolveWritablePath(
   roots?: string[],
   grantRoot?: string,
 ) {
-  return resolveToolPath(root, filePath, allowedPaths, roots, grantRoot)
+  return resolveFileToolPath(root, filePath, allowedPaths, roots, grantRoot)
 }
 
 const MAX_DIFF_BYTES = 50_000
@@ -496,83 +414,64 @@ function capDiff(diff: string): string {
 export function readWorkspaceFile(
   input: Parameters<typeof readWorkspaceFileImpl>[0],
 ) {
-  return withAgentFiles(
-    input.workspace?.agentHome?.homeId ?? input.workspace?.agentHome?.agentId,
-    () =>
-      withWorkspaceOperation(input.sessionId, () =>
-        readWorkspaceFileImpl(input),
-      ),
+  return withFilesystemOperation(input, () =>
+    readWorkspaceFileImpl(fileOperationInput(input)),
   )
 }
 
 export function writeWorkspaceFile(
   input: Parameters<typeof writeWorkspaceFileImpl>[0],
 ) {
-  return withAgentFiles(
-    input.workspace?.agentHome?.homeId ?? input.workspace?.agentHome?.agentId,
-    () =>
-      withWorkspaceOperation(input.sessionId, () =>
-        writeWorkspaceFileImpl(input),
-      ),
+  return withFilesystemOperation(input, () =>
+    writeWorkspaceFileImpl(fileOperationInput(input)),
   )
 }
 
 export function editWorkspaceFile(
   input: Parameters<typeof editWorkspaceFileImpl>[0],
 ) {
-  return withAgentFiles(
-    input.workspace?.agentHome?.homeId ?? input.workspace?.agentHome?.agentId,
-    () =>
-      withWorkspaceOperation(input.sessionId, () =>
-        editWorkspaceFileImpl(input),
-      ),
+  return withFilesystemOperation(input, () =>
+    editWorkspaceFileImpl(fileOperationInput(input)),
   )
 }
 
 export function previewWorkspaceDiff(
   input: Parameters<typeof previewWorkspaceDiffImpl>[0],
 ) {
-  return withAgentFiles(
-    input.workspace?.agentHome?.homeId ?? input.workspace?.agentHome?.agentId,
-    () =>
-      withWorkspaceOperation(input.sessionId, () =>
-        previewWorkspaceDiffImpl(input),
-      ),
+  return withFilesystemOperation(input, () =>
+    previewWorkspaceDiffImpl(fileOperationInput(input)),
   )
 }
 
 export function runWorkspaceCommand(
   input: Parameters<typeof runWorkspaceCommandImpl>[0],
 ) {
-  return withAgentFiles(
-    input.workspace?.agentHome?.homeId ?? input.workspace?.agentHome?.agentId,
-    () =>
-      withWorkspaceOperation(input.sessionId, () =>
-        runWorkspaceCommandImpl(input),
-      ),
-  )
+  return withFilesystemOperation(input, () => runWorkspaceCommandImpl(input))
 }
 
 export function checkFlaggedPaths(
-  input: Parameters<typeof checkFlaggedPathsImpl>[0],
+  input: Parameters<typeof checkScopedPaths>[0],
 ) {
-  return withAgentFiles(
-    input.workspace?.agentHome?.homeId ?? input.workspace?.agentHome?.agentId,
-    () =>
-      withWorkspaceOperation(input.sessionId, () =>
-        checkFlaggedPathsImpl(input),
-      ),
-  )
+  return withFilesystemOperation(input, () => checkScopedPaths(input))
 }
 
 export function restoreLatestCheckpoint(
   input: Parameters<typeof restoreLatestCheckpointImpl>[0],
 ) {
-  return withAgentFiles(
-    input.workspace?.agentHome?.homeId ?? input.workspace?.agentHome?.agentId,
-    () =>
-      withWorkspaceOperation(input.sessionId, () =>
-        restoreLatestCheckpointImpl(input),
-      ),
+  return withFilesystemOperation(input, () =>
+    restoreLatestCheckpointImpl(input),
   )
+}
+
+type FileOperationInput = {
+  workspace?: FolderWorkspace
+  filePath: string
+}
+
+function fileOperationInput<T extends FileOperationInput>(input: T): T {
+  if (!input.workspace) return input
+  return {
+    ...input,
+    workspace: selectFileWorkspace(input.workspace, input.filePath),
+  }
 }

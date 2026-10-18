@@ -1,7 +1,7 @@
 import type { SkillCatalogEntry } from './types'
 
-export const SKILL_CATALOG_CHARACTERS = 12_000
-export const SKILL_DESCRIPTION_CHARACTERS = 160
+export const SKILL_CATALOG_CHARACTERS = 10_000
+export const SKILL_DESCRIPTION_CHARACTERS = 1_000
 
 export function compactDescription(value: string) {
   const text = value.replace(/\s+/g, ' ').trim()

@@ -4,7 +4,7 @@ import {
   RippleButton,
   SearchInput,
 } from '@/components/ui'
-import { useHomeOperation } from '@/hooks/chat/skills'
+import { useHomeOperation, useSkillToggle } from '@/hooks/chat/skills'
 import { useIsAdmin } from '@/hooks/chat/tools'
 import { cn } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
@@ -13,6 +13,7 @@ import { usePaginatedQuery } from 'convex/react'
 import { ListFilterIcon } from 'lucide-react'
 import { useState } from 'react'
 
+import { LibraryDeletionDialog } from './library-deletion-dialog'
 import { FileOperationStatus } from './operation-status'
 import { SkillImport } from './skill-import'
 import { SkillList } from './skill-list'
@@ -24,6 +25,7 @@ type AssignmentFilter = 'all' | 'added' | 'not-added'
 export function SkillLibrary({ agentId }: { agentId?: Id<'agents'> }) {
   const admin = useIsAdmin()
   const { operation, home } = useHomeOperation(agentId)
+  const toggle = useSkillToggle(agentId)
   const [search, setSearch] = useState('')
   const [assignment, setAssignment] = useState<AssignmentFilter>('all')
   const [deleting, setDeleting] = useState<SkillListItem>()
@@ -64,8 +66,6 @@ export function SkillLibrary({ agentId }: { agentId?: Id<'agents'> }) {
         agentId,
         assignmentId: deleting.assignmentId,
       })
-    } else if (!agentId) {
-      void operation.run({ kind: 'delete-library', skillId: deleting._id })
     }
   }
 
@@ -104,6 +104,11 @@ export function SkillLibrary({ agentId }: { agentId?: Id<'agents'> }) {
         </div>
         {!agentId && <SkillVerification disabled={operation.busy} />}
         <FileOperationStatus operation={operation} />
+        {toggle.error && (
+          <p role="alert" className="text-destructive text-sm">
+            {toggle.error}
+          </p>
+        )}
       </div>
       <SkillList
         key={JSON.stringify([search, assignment])}
@@ -112,12 +117,35 @@ export function SkillLibrary({ agentId }: { agentId?: Id<'agents'> }) {
         status={page.status}
         loadMore={page.loadMore}
         actionLabel={agentId ? 'Add' : 'Delete'}
-        busy={operation.busy}
+        busy={operation.busy || toggle.saving}
         onAction={choose}
         onRemove={agentId ? setDeleting : undefined}
+        onToggle={
+          agentId
+            ? (item, enabled) => {
+                if (item.assignmentId)
+                  void toggle.setEnabled(item.assignmentId, enabled)
+              }
+            : undefined
+        }
       />
+      {!agentId && deleting && (
+        <LibraryDeletionDialog
+          item={deleting}
+          busy={operation.busy}
+          onClose={() => setDeleting(undefined)}
+          onDelete={(mode) => {
+            void operation.run({
+              kind: 'delete-library',
+              skillId: deleting._id,
+              mode,
+            })
+            setDeleting(undefined)
+          }}
+        />
+      )}
       <ConfirmDialog
-        open={!!deleting}
+        open={!!agentId && !!deleting}
         onOpenChange={(open) => !open && setDeleting(undefined)}
         title={agentId ? 'Delete this agent’s skill?' : 'Delete library skill?'}
         description={

@@ -3,6 +3,7 @@ import type { FolderWorkspace } from '@sb/core/types/workspace'
 import { type ShellStreamEvent } from '../sidecar'
 
 export type ShellJobContext = {
+  allowedPaths?: string[]
   sessionId: string
   /** Session that owns this job's lifecycle. */
   owner?: string
@@ -17,7 +18,7 @@ export type ShellJobContext = {
 }
 
 export type ShellJobInput = {
-  scope?: 'workspace' | 'agent'
+  cwd?: string
   command: string
   /** Display-only summary of what the command does. */
   description?: string

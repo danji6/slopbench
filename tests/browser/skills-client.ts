@@ -15,7 +15,19 @@ const library = Array.from({ length: 85 }, (_, index) => ({
       : `Workflow ${index}`,
   status: 'ready',
 }))
-let assigned = [{ ...library[0]!, _id: 'assignment-0' }]
+let assigned = [
+  { ...library[0]!, skillId: library[0]!._id, _id: 'assignment-0' },
+]
+let busyAgent = false
+
+export function toggleBusySkillAgent() {
+  busyAgent = !busyAgent
+  update()
+}
+window.addEventListener('skills-fixture-toggle-busy', toggleBusySkillAgent)
+const disabledSkills = new Set<string>(
+  JSON.parse(sessionStorage.getItem('fixture-disabled-skills') ?? '[]'),
+)
 let home = {
   homeId: 'fixture-home',
   managed: true,
@@ -61,6 +73,17 @@ export function removeFixtureHome() {
   window.dispatchEvent(new Event('focus'))
 }
 
+export function shareFixtureHome() {
+  home = {
+    ...home,
+    members: [
+      { id: 'fixture-agent', name: 'Fixture' },
+      { id: 'other-agent', name: 'Other' },
+    ],
+  }
+  update()
+}
+
 function update() {
   cache.clear()
   for (const listener of listeners) listener()
@@ -84,8 +107,32 @@ function query(name: string, args: Record<string, unknown>) {
   if (name === 'skills:getHome') return home
   if (name === 'skills:operation')
     return operations.get(String(args.operationId))
+  if (name === 'skills:deletionPreview') {
+    const used = assigned.some((copy) => copy.skillId === args.skillId)
+    return {
+      homes: used
+        ? [
+            {
+              id: home.homeId,
+              path: home.path ?? '/fixture/managed-home',
+              agents: home.members,
+            },
+          ]
+        : [],
+      blockers:
+        used && busyAgent
+          ? ['Fixture: turns, tools, or a folder operation are still running']
+          : [],
+    }
+  }
   if (name === 'skills:list') {
-    const skills = library
+    const copies = args.agentId
+      ? assigned
+          .filter((copy) => !library.some((skill) => skill.name === copy.name))
+          .map((copy) => ({ ...copy, _id: copy.skillId }))
+      : []
+    const skills = [...library, ...copies]
+      .sort((a, b) => a.name.localeCompare(b.name))
       .filter((skill) => {
         if (!skill.name.startsWith(String(args.search ?? ''))) return false
         const added = assigned.some((copy) => copy.name === skill.name)
@@ -98,6 +145,8 @@ function query(name: string, args: Record<string, unknown>) {
         assignmentId: args.agentId
           ? (assigned.find((copy) => copy.name === skill.name)?._id ?? null)
           : null,
+        enabled: !disabledSkills.has(`${args.agentId}:${skill._id}`),
+        libraryAvailable: library.some((entry) => entry._id === skill._id),
       }))
     return page(skills, args.paginationOpts as Parameters<typeof page>[1])
   }
@@ -132,9 +181,18 @@ function apply(args: Record<string, unknown>) {
   }
   if (args.kind === 'delete-assigned')
     assigned = assigned.filter((item) => item._id !== args.assignmentId)
+  if (args.kind === 'delete-library') {
+    const index = library.findIndex((entry) => entry._id === args.skillId)
+    if (index >= 0) library.splice(index, 1)
+    if (args.mode === 'delete-all')
+      assigned = assigned.filter((copy) => copy.skillId !== args.skillId)
+  }
   if (args.kind === 'assign') {
     const skill = library.find((entry) => entry._id === args.skillId)!
-    assigned = [...assigned, { ...skill, _id: `assignment-${skill._id}` }]
+    assigned = [
+      ...assigned,
+      { ...skill, skillId: skill._id, _id: `assignment-${skill._id}` },
+    ]
   }
 }
 
@@ -190,6 +248,25 @@ const client = {
     args: Record<string, unknown>,
   ) {
     const name = getFunctionName(reference)
+    if (name === 'skills:setEnabled') {
+      await new Promise((resolve) => setTimeout(resolve, 150))
+      if (failNext) {
+        failNext = false
+        throw new Error('Fixture toggle failed')
+      }
+      const assignment = assigned.find(
+        (copy) => copy._id === args.assignmentId,
+      )!
+      const key = `${args.agentId}:${assignment.skillId}`
+      if (args.enabled) disabledSkills.delete(key)
+      else disabledSkills.add(key)
+      sessionStorage.setItem(
+        'fixture-disabled-skills',
+        JSON.stringify([...disabledSkills]),
+      )
+      update()
+      return
+    }
     if (name === 'skills:retry') {
       schedule(String(args.operationId), lastOperation)
       update()
@@ -198,6 +275,8 @@ const client = {
     if (name !== 'skills:start')
       throw new Error(`Unsupported fixture mutation: ${name}`)
     const operation = args.operation as Record<string, unknown>
+    if (operation.kind === 'delete-library' && busyAgent)
+      throw new Error('Fixture is still running')
     lastOperation = operation
     const id = `operation-${++sequence}`
     schedule(id, operation)

@@ -4,9 +4,40 @@ import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import type { FileOperationArgs } from '@sb/convex/types'
 import { useMutation, useQuery } from 'convex/react'
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 
 import { useIsAdmin } from './tools'
+
+/** Saves one agent's skill visibility independently of its shared folder. */
+export function useSkillToggle(agentId?: Id<'agents'>) {
+  const mutate = useMutation(api.skills.setEnabled)
+  const inFlight = useRef(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string>()
+
+  async function setEnabled(assignmentId: Id<'agentSkills'>, enabled: boolean) {
+    if (!agentId || inFlight.current) return
+    inFlight.current = true
+    setSaving(true)
+    setError(undefined)
+    try {
+      await mutate({ agentId, assignmentId, enabled })
+    } catch (error) {
+      setError(extractErrorMessage(error))
+    } finally {
+      inFlight.current = false
+      setSaving(false)
+    }
+  }
+
+  return { setEnabled, saving, error }
+}
 
 export function useHomeOperation(agentId?: Id<'agents'>) {
   const admin = useIsAdmin()

@@ -8,7 +8,6 @@ import {
   webSearchSchema,
   writeFileFields,
 } from '@sb/core/types'
-import { selectFileWorkspace } from '@sb/core/workspace/personal'
 import type { Context } from 'hono'
 import { z } from 'zod'
 
@@ -89,18 +88,17 @@ function buildMcpServer(): McpServer {
     'read_file',
     {
       description: TOOL_DESCRIPTIONS.read_file,
-      inputSchema: {
+      inputSchema: z.strictObject({
         ...workspaceFields,
         ...readFileFields,
         allowedPaths: z.array(z.string()).optional(),
-      },
+      }),
     },
     async ({
       sessionId,
       workspaceId,
       workspace,
       path,
-      scope,
       offset,
       limit,
       byteOffset,
@@ -109,7 +107,7 @@ function buildMcpServer(): McpServer {
       const result = await readWorkspaceFile({
         sessionId,
         workspaceId,
-        workspace: selectFileWorkspace(workspace, scope, path),
+        workspace,
         filePath: path,
         allowedPaths,
         offset,
@@ -124,25 +122,24 @@ function buildMcpServer(): McpServer {
     'write_file',
     {
       description: TOOL_DESCRIPTIONS.write_file,
-      inputSchema: {
+      inputSchema: z.strictObject({
         ...workspaceFields,
         ...writeFileFields,
         allowedPaths: z.array(z.string()).optional(),
-      },
+      }),
     },
     async ({
       sessionId,
       workspaceId,
       workspace,
       path,
-      scope,
       content,
       allowedPaths,
     }) => {
       const result = await writeWorkspaceFile({
         sessionId,
         workspaceId,
-        workspace: selectFileWorkspace(workspace, scope, path),
+        workspace,
         filePath: path,
         allowedPaths,
         content,
@@ -155,25 +152,24 @@ function buildMcpServer(): McpServer {
     'edit_file',
     {
       description: TOOL_DESCRIPTIONS.edit_file,
-      inputSchema: {
+      inputSchema: z.strictObject({
         ...workspaceFields,
         ...editFileFields,
         allowedPaths: z.array(z.string()).optional(),
-      },
+      }),
     },
     async ({
       sessionId,
       workspaceId,
       workspace,
       path,
-      scope,
       edits,
       allowedPaths,
     }) => {
       const result = await editWorkspaceFile({
         sessionId,
         workspaceId,
-        workspace: selectFileWorkspace(workspace, scope, path),
+        workspace,
         filePath: path,
         allowedPaths,
         edits,
@@ -187,18 +183,30 @@ function buildMcpServer(): McpServer {
     {
       description:
         'Run a (bash) shell command in the configured session workspace and return stdout/stderr.',
-      inputSchema: {
+      inputSchema: z.strictObject({
         ...workspaceFields,
         command: z.string(),
+        cwd: z.string().optional(),
+        allowedPaths: z.array(z.string()).optional(),
         timeout: z.number().optional(),
-      },
+      }),
     },
-    async ({ sessionId, workspaceId, workspace, command, timeout }) => {
+    async ({
+      sessionId,
+      workspaceId,
+      workspace,
+      command,
+      cwd,
+      allowedPaths,
+      timeout,
+    }) => {
       const result = await runWorkspaceCommand({
         sessionId,
         workspaceId,
         workspace,
         command,
+        cwd,
+        allowedPaths,
         timeout,
       })
       return { content: [{ type: 'text' as const, text: result.output }] }
@@ -210,12 +218,13 @@ function buildMcpServer(): McpServer {
     {
       description:
         'Report which of the given paths are sensitive (git-ignored or outside the workspace). Globs are expanded.',
-      inputSchema: {
+      inputSchema: z.strictObject({
         ...workspaceFields,
         paths: z.array(z.string()),
         allowedPaths: z.array(z.string()).optional(),
         literal: z.boolean().optional(),
-      },
+        cwd: z.string().optional(),
+      }),
     },
     async ({
       sessionId,
@@ -224,6 +233,7 @@ function buildMcpServer(): McpServer {
       paths,
       allowedPaths,
       literal,
+      cwd,
     }) => {
       const result = await checkFlaggedPaths({
         sessionId,
@@ -232,6 +242,7 @@ function buildMcpServer(): McpServer {
         paths,
         allowedPaths,
         literal,
+        cwd,
       })
       return { content: [{ type: 'text' as const, text: formatJson(result) }] }
     },

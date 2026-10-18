@@ -13,6 +13,7 @@ export async function checkToolPaths(
   context: Pick<WorkspaceToolContext, 'sessionId' | 'workspaceId' | 'workspace'>, // prettier-ignore
   allowedPaths: string[] = [],
   literal = false,
+  cwd?: string,
 ): Promise<PathCheckResult | null> {
   try {
     const text = await callMcpTool('check_paths', {
@@ -22,6 +23,7 @@ export async function checkToolPaths(
       paths,
       allowedPaths,
       literal,
+      cwd,
     })
     const result = JSON.parse(text) as PathCheckResult
     if (

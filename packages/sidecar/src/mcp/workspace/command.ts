@@ -14,6 +14,7 @@ export async function runCommand(
   cwd: string,
   timeoutSeconds: number,
   signal?: AbortSignal,
+  environment?: { AGENT_DIR?: string; WORKSPACE_DIR?: string },
 ) {
   return new Promise<{ exitCode: number | null; output: string }>(
     (resolve, reject) => {
@@ -21,7 +22,7 @@ export async function runCommand(
       const child = spawn(file, args, {
         cwd,
         detached: process.platform !== 'win32',
-        env: jobEnv(),
+        env: jobEnv({}, environment),
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
       })

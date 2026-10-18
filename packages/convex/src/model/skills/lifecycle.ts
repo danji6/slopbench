@@ -17,13 +17,22 @@ export function operationTargets(op: Operation): OperationTargets {
   const agents: AgentReservation[] = []
   const homes = new Set<Id<'agentHomes'>>()
 
-  if ('agentId' in op) agents.push({ agentId: op.agentId, homeId: op.homeId })
-  if ('homeId' in op) homes.add(op.homeId)
+  if ('agentId' in op) {
+    agents.push({ agentId: op.agentId, homeId: op.homeId })
+  }
+  if ('homeId' in op) {
+    homes.add(op.homeId)
+  }
+  if (op.kind === 'delete-library') {
+    for (const homeId of op.homeIds ?? []) homes.add(homeId)
+  }
   if (op.kind === 'duplicate') {
     agents.push({ agentId: op.duplicateId, homeId: op.destinationHomeId })
     homes.add(op.destinationHomeId)
   }
-  if ('reservation' in op && op.reservation) homes.add(op.reservation.homeId)
+  if ('reservation' in op && op.reservation) {
+    homes.add(op.reservation.homeId)
+  }
 
   const skillId =
     op.kind === 'install'

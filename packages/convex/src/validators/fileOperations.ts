@@ -33,9 +33,15 @@ export const deleteAssignedSkillArgsValidator = v.object({
   assignmentId: v.id('agentSkills'),
 })
 
+export const libraryDeletionModeValidator = v.union(
+  v.literal('delete-all'),
+  v.literal('keep-copies'),
+)
+
 export const deleteLibrarySkillArgsValidator = v.object({
   kind: v.literal('delete-library'),
   skillId: v.id('skills'),
+  mode: libraryDeletionModeValidator,
 })
 
 export const changeHomeArgsValidator = v.object({
@@ -107,6 +113,11 @@ export const reserveHomeArgsValidator = v.object({
   ...attemptFields,
   path: v.string(),
   insideData: v.boolean(),
+})
+
+export const removeDeletedAssignmentArgsValidator = v.object({
+  ...attemptFields,
+  assignmentId: v.id('agentSkills'),
 })
 
 export const copySkillAssignmentsArgsValidator = v.object({
@@ -227,13 +238,15 @@ export const agentFileOperationSchema = v.union(
     ...agentFields,
     kind: v.literal('delete-assigned'),
     assignmentId: v.id('agentSkills'),
-    skillId: v.id('skills'),
+    skillId: v.optional(v.id('skills')),
     state: executionState,
   }),
   v.object({
     ...commonFields,
     kind: v.literal('delete-library'),
     skillId: v.id('skills'),
+    mode: v.optional(libraryDeletionModeValidator),
+    homeIds: v.optional(v.array(v.id('agentHomes'))),
     state: executionState,
   }),
   v.object({

@@ -39,9 +39,10 @@ export const _rememberFlaggedPaths = internalAction({
     workspaceId: v.string(),
     workspace: v.optional(workspaceRefValidator),
     command: v.string(),
+    cwd: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const flagged = await getFlaggedPaths(args.command, args)
+    const flagged = await getFlaggedPaths(args.command, args, args.cwd)
     if (!flagged || flagged.length === 0) return
     await ctx.runMutation(internal.sessions._allowToolPaths, {
       sessionId: args.sessionId,

@@ -2,8 +2,6 @@
 
 import type { FolderWorkspace } from '@sb/core/types/workspace'
 import { pathApprovalStatus } from '@sb/core/workspace/path-policy'
-import { selectFileWorkspace } from '@sb/core/workspace/personal'
-import type { FileScope } from '@sb/core/workspace/personal'
 import type { UIMessage } from 'ai'
 
 import { internal } from '../../_generated/api'
@@ -83,7 +81,6 @@ type PreviewDiffInput = {
   path?: string
   content?: string
   edits?: unknown
-  scope?: FileScope
 }
 
 export async function withPreviewDiff(
@@ -98,9 +95,6 @@ export async function withPreviewDiff(
       '/workspace/preview-diff',
       {
         ...context,
-        workspace: context.workspace
-          ? selectFileWorkspace(context.workspace, input.scope, input.path)
-          : undefined,
         filePath: input.path,
         content: input.content,
         edits: input.edits,
@@ -117,12 +111,19 @@ export async function withApprovalPaths(
   context: ApprovalContext,
   part: UIMessage['parts'][number],
 ) {
-  const command = (part as { input?: { command?: string } }).input?.command
+  const input = (part as { input?: { command?: string; cwd?: string } }).input
+  const command = input?.command
   if (typeof command !== 'string') return part
 
   const { candidates, complete } = analyzeShellPathCandidates(command)
   const result = complete
-    ? await checkToolPaths(candidates, context, context.allowedPaths)
+    ? await checkToolPaths(
+        candidates,
+        context,
+        context.allowedPaths,
+        false,
+        input?.cwd ?? 'workspace://',
+      )
     : null
 
   return {

@@ -14,12 +14,15 @@ import {
   removeFixtureHome,
   restoreFixtureSkillData,
   setFixtureHome,
+  shareFixtureHome,
   skillsFixtureClient,
+  toggleBusySkillAgent,
 } from './skills-client'
 
 /** Production settings components with an isolated reactive backend fixture. */
 export function SkillsFixture() {
   const [view, setView] = useState('agent')
+  const [agentId, setAgentId] = useState('fixture-agent' as Id<'agents'>)
   const [tab, setTab] = useState('skills')
   const [operation, setOperation] = useState('')
   return (
@@ -29,7 +32,22 @@ export function SkillsFixture() {
           Personal agent files — browser fixture
         </h1>
         <nav className="flex gap-4 py-4">
-          <button onClick={() => setView('agent')}>Agent settings</button>
+          <button
+            onClick={() => {
+              setAgentId('fixture-agent' as Id<'agents'>)
+              setView('agent')
+            }}
+          >
+            Agent settings
+          </button>
+          <button
+            onClick={() => {
+              setAgentId('other-agent' as Id<'agents'>)
+              setView('agent')
+            }}
+          >
+            Other agent settings
+          </button>
           <button onClick={() => setView('library')}>Skill library</button>
           <button
             onClick={() => setOperation(JSON.stringify(latestSkillOperation()))}
@@ -49,13 +67,15 @@ export function SkillsFixture() {
         <button onClick={removeFixtureHome}>
           Remove fixture folder on disk
         </button>
+        <button onClick={toggleBusySkillAgent}>Toggle busy agent</button>
+        <button onClick={shareFixtureHome}>Share fixture folder</button>
         <output aria-label="Last operation">{operation}</output>
         {view === 'agent' ? (
           <>
             <button onClick={() => setTab('skills')}>Skills</button>
             <button onClick={() => setTab('files')}>Files</button>
             {tab === 'files' ? (
-              <AgentFiles agentId={'fixture-agent' as Id<'agents'>} />
+              <AgentFiles agentId={agentId} />
             ) : (
               <SettingsTabs
                 value="skills"
@@ -66,7 +86,7 @@ export function SkillsFixture() {
                   title="Skills"
                   className="flex min-h-0 min-w-0 flex-col overflow-hidden"
                 >
-                  <AgentSkills agentId={'fixture-agent' as Id<'agents'>} />
+                  <AgentSkills agentId={agentId} />
                 </SettingsTabs.Content>
               </SettingsTabs>
             )}

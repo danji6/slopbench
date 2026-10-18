@@ -76,7 +76,7 @@ export type RunnerConfig = {
 
 export const projectRoot = resolve(import.meta.dir, '../..')
 export const dataDir = resolve(projectRoot, process.env.CHAT_DATA_DIR ?? '.data') // prettier-ignore
-export const sidecarDataDir = resolve(dataDir, '.sidecar')
+export const sidecarDataDir = resolve(dataDir, 'sidecar')
 export const defaultEnvFile = resolve(projectRoot, '.env.local')
 
 /** Reads the pins from disk. An update swaps the file, so callers that run

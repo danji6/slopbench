@@ -63,7 +63,7 @@ const commands: FileOperationArgs[] = [
   { kind: 'duplicate', agentId, duplicateId },
   { kind: 'assign', agentId, skillId },
   { kind: 'delete-assigned', agentId, assignmentId },
-  { kind: 'delete-library', skillId },
+  { kind: 'delete-library', mode: 'keep-copies', skillId },
   { kind: 'install', source: '/skills' },
   { kind: 'install', storageId },
 ]
@@ -248,7 +248,11 @@ test('release preserves newer reservations and advances each home revision once'
 
 test('already deleted targets finish on retry and activity blocks normal retries', async () => {
   const f = setup()
-  const operationId = await start(f.ctx, { kind: 'delete-library', skillId })
+  const operationId = await start(f.ctx, {
+    kind: 'delete-library',
+    mode: 'keep-copies',
+    skillId,
+  })
   await fail(f.ctx, { operationId, attempt: 1, message: 'Interrupted' })
   await f.ctx.db.delete(skillId)
   await retry(f.ctx, { operationId })

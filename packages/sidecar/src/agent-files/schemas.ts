@@ -28,6 +28,9 @@ export const operationSchema = z.object({
   fileUrl: z.string().optional(),
   homeOperationId: z.string().optional(),
   copyFiles: z.boolean().optional(),
+  sourceHome: z
+    .object({ path: z.string().optional(), originAgentId: z.string() })
+    .optional(),
   kind: z.enum([
     'install',
     'delete-home',

@@ -75,6 +75,7 @@ async function rememberPaths(
       workspaceId: session.workspace.workspaceId,
       workspace: session.workspace,
       command,
+      cwd: (matched.input as { cwd?: string }).cwd,
     },
   )
 }

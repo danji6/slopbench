@@ -11,6 +11,7 @@ import type { OperationAttemptArgs, OperationResult } from '../../types'
 import { postSidecar } from '../sidecar'
 import type { ExecutionContext } from './execution'
 import { importSkills } from './importAction'
+import { deleteLibrary } from './libraryDeletionAction'
 
 type AgentContext = Extract<ExecutionContext, { agent: unknown }>
 
@@ -62,6 +63,8 @@ async function lockResources(
   locked: string[],
 ) {
   const homes = 'home' in data ? [data.home._id] : []
+  if (data.kind === 'delete-library')
+    homes.push(...(data.operation.homeIds ?? []))
   if (data.kind === 'duplicate') homes.push(data.destinationHome._id)
   for (const id of new Set(homes)) await lockHome(id, token, locked)
 }
@@ -107,8 +110,13 @@ function operationBase(
     originAgentId: home?.originAgentId,
     destinationHomeId: destination?._id,
     destinationOriginAgentId: destination?.originAgentId,
-    skillId: 'skill' in data ? data.skill._id : undefined,
-    name: 'skill' in data ? data.skill.name : undefined,
+    skillId: 'skill' in data ? data.skill?._id : undefined,
+    name:
+      data.kind === 'delete-assigned'
+        ? data.assignment.name
+        : 'skill' in data
+          ? data.skill?.name
+          : undefined,
   }
 }
 
@@ -141,8 +149,10 @@ async function execute(
         kind: data.kind,
       })
       return { kind: data.kind, ...(await ensureHome(data)) }
-    case 'delete-assigned':
     case 'delete-library':
+      await deleteLibrary(ctx, data)
+      return { kind: data.kind }
+    case 'delete-assigned':
       await postSidecar('/agent-files/operation', {
         ...operationBase(data),
         kind: data.kind,
@@ -280,7 +290,7 @@ async function processAssignments(
         ids: page.page.map((row) => row._id),
       })
     } else {
-      await stageAssignments(data, page.page)
+      await stageAssignments(ctx, data, page.page)
     }
     if (page.isDone) break
     cursor = page.continueCursor
@@ -288,11 +298,16 @@ async function processAssignments(
 }
 
 async function stageAssignments(
+  ctx: ActionCtx,
   data: AssignmentContext,
   rows: Doc<'agentSkills'>[],
 ) {
   const op = data.operation
   for (const row of rows) {
+    const libraryAvailable = await ctx.runQuery(
+      internal.skills._assignmentLibrary,
+      { assignmentId: row._id },
+    )
     await postSidecar('/agent-files/operation', {
       id: `${op._id}-${row._id}`,
       kind: 'stage-home-skill',
@@ -300,6 +315,9 @@ async function stageAssignments(
       agentId: data.agent._id,
       skillId: row.skillId,
       name: row.name,
+      sourceHome: libraryAvailable
+        ? undefined
+        : { path: data.home.path, originAgentId: data.home.originAgentId },
       homeOperationId: op._id,
     })
   }

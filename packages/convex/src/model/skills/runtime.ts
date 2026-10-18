@@ -60,6 +60,7 @@ export async function readSkillCatalog(
     agentId: agent._id,
     paginationOpts: { cursor: decoded.cursor, numItems: SKILL_PAGE_SIZE },
     search,
+    enabledOnly: true,
   })
 
   const result = await postSidecar<{ entries: SkillCatalogEntry[] }>(
@@ -113,7 +114,7 @@ export async function compactSkillCatalog(
 export function catalogNote(page: SkillCatalogPage) {
   if (!page.entries.length && page.isDone) return ''
   return [
-    'Assigned skills: read the relevant SKILL.md with read_file and scope: "agent" before following its instructions. Paths below are relative to your personal folder.',
+    'Assigned skills: read the relevant SKILL.md with read_file using its agent:// path before following its instructions.',
     ...page.entries.map(catalogEntryText),
     ...(!page.isDone
       ? [

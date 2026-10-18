@@ -5,23 +5,10 @@ export type SessionEnvParam = CompletionParameter & {
   description: string
 }
 
-const FILE_SCOPE: SessionEnvParam = {
-  name: 'scope',
-  description: 'Resolve relative paths in the workspace (default) or agent folder', // prettier-ignore
-  optional: true,
-  values: ['workspace', 'agent'],
-}
-
-const FILE_SCOPE_OPTIONS: SessionEnvParam = {
-  name: 'options',
-  description: 'Options for resolving files in the workspace or agent folder',
-  optional: true,
-  properties: [FILE_SCOPE],
-}
-
 const READ_FILE_OPTIONS: SessionEnvParam = {
-  ...FILE_SCOPE_OPTIONS,
-  description: 'Options for file wrapping and filesystem scope',
+  name: 'options',
+  description: 'Options for file wrapping',
+  optional: true,
   properties: [
     {
       name: 'wrap',
@@ -32,7 +19,6 @@ const READ_FILE_OPTIONS: SessionEnvParam = {
         insertText: value,
       })),
     },
-    FILE_SCOPE,
   ],
 }
 
@@ -120,23 +106,26 @@ export const SESSION_ENV: SessionEnvEntry[] = [
   },
   {
     name: 'fileExists',
-    description: 'Check whether a file exists in the selected scope',
+    description:
+      'Check whether a file exists in the workspace or personal folder',
     params: [
       {
         name: 'path',
-        description: 'Path relative to the selected scope, or an absolute path',
+        description:
+          'Workspace-relative, absolute, workspace:// or agent:// path',
       },
-      FILE_SCOPE_OPTIONS,
     ],
     snippet: "fileExists('${1:path}')",
   },
   {
     name: 'readFile',
-    description: 'Read a file in the selected scope and inject its contents',
+    description:
+      'Read a file in the workspace or personal folder and inject its contents',
     params: [
       {
         name: 'path',
-        description: 'Path relative to the selected scope, or an absolute path',
+        description:
+          'Workspace-relative, absolute, workspace:// or agent:// path',
       },
       READ_FILE_OPTIONS,
     ],

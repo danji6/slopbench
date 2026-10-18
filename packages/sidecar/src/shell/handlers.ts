@@ -1,5 +1,4 @@
 import { shellLabel } from '@sb/core/shell/name'
-import { selectFileWorkspace } from '@sb/core/workspace/personal'
 import type { Context, Handler } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { ZodError, z } from 'zod'
@@ -9,7 +8,7 @@ import {
   withWorkspaceOperation,
   workspaceContextSchema,
 } from '../mcp/workspace/context'
-import { requireWorkspace } from '../mcp/workspace/workspace'
+import { resolveShellDirectory } from './directory'
 import {
   type ShellJobStream,
   backgroundShellJob,
@@ -30,7 +29,7 @@ const jobFields = {
   jobId: z.string(),
 }
 
-const startSchema = z.object({
+const startSchema = z.strictObject({
   sessionId: z.string(),
   owner: z.string().optional(),
   messageId: z.string().optional(),
@@ -39,7 +38,8 @@ const startSchema = z.object({
   workspaceId: z.string(),
   workspace: workspaceContextSchema,
   command: z.string().min(1),
-  scope: z.enum(['workspace', 'agent']).optional(),
+  cwd: z.string().optional(),
+  allowedPaths: z.array(z.string()).optional(),
   timeoutSeconds: z.number().optional(),
   background: z.boolean().optional(),
   cols: z.number().int().min(20).max(500).optional(),
@@ -82,21 +82,17 @@ export const shellInfo: Handler = (c) => {
 export const startShell: Handler = async (c) => {
   try {
     const input = startSchema.parse(await c.req.json())
-    input.workspace = selectFileWorkspace(input.workspace, input.scope)
     const result = await withAgentFiles(
       input.workspace.agentHome?.homeId ?? input.workspace.agentHome?.agentId,
       () =>
         withWorkspaceOperation(input.sessionId, async () => {
-          const workspace = await requireWorkspace(
-            input.sessionId,
-            input.workspaceId,
-            input.workspace,
-          )
+          const directory = await resolveShellDirectory(input)
           return startShellJob({
             ...input,
             agentId: input.workspace.agentHome?.agentId,
             homeId: input.workspace.agentHome?.homeId,
-            cwd: workspace.root,
+            cwd: directory.cwd,
+            environment: directory.environment,
           })
         }),
     )

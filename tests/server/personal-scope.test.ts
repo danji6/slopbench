@@ -44,31 +44,25 @@ test('both absolute and relative home access require an explicit scope', () => {
     home,
   )
   expect(() =>
-    selectFileWorkspace(workspace, undefined, path.join(personal, 'note.txt')),
-  ).toThrow('scope')
-  expect(() =>
-    selectFileWorkspace(workspace, undefined, '../home/note.txt'),
-  ).toThrow('scope')
-  expect(selectFileWorkspace(workspace, 'agent', 'note.txt').path).toBe(
-    personal,
+    selectFileWorkspace(workspace, path.join(personal, 'note.txt')),
+  ).toThrow('agent://')
+  expect(() => selectFileWorkspace(workspace, '../home/note.txt')).toThrow(
+    'agent://',
   )
+  expect(selectFileWorkspace(workspace, 'agent://note.txt').path).toBe(personal)
   expect(() => selectFileWorkspace(withAgentHome(undefined, home))).toThrow(
-    'scope',
+    'agent://',
   )
 })
 
 test('dynamic helpers select personal files explicitly without a project fallback', () => {
   const read = createFileHelper(undefined, undefined, personal)
-  expect(() => read('note.txt', { wrap: false })).toThrow('scope')
-  expect(read('note.txt', { wrap: false, scope: 'agent' })).toBe(
-    'Personal note',
-  )
-  expect(
-    read(path.join(personal, 'note.txt'), { wrap: false, scope: 'agent' }),
-  ).toBe('Personal note')
+  expect(() => read('note.txt', { wrap: false })).toThrow('agent://')
+  expect(read('agent://note.txt', { wrap: false })).toBe('Personal note')
+  expect(read('agent://note.txt', { wrap: false })).toBe('Personal note')
   const exists = createFileExistsHelper(undefined, undefined, personal)
   expect(exists('note.txt')).toBe(false)
-  expect(exists('note.txt', { scope: 'agent' })).toBe(true)
+  expect(exists('agent://note.txt')).toBe(true)
 })
 
 test('managed cleanup refuses arbitrary paths and symlink substitutions', async () => {
@@ -140,20 +134,19 @@ test('direct sidecar reads and previews reject home access hidden behind a proje
     filePath: 'personal-link/note.txt',
     allowedPaths: [personal],
   }
-  await expect(readWorkspaceFile(input)).rejects.toThrow('scope')
+  await expect(readWorkspaceFile(input)).rejects.toThrow('agent://')
   expect(
     await previewWorkspaceDiff({ ...input, content: 'replacement' }),
   ).toEqual({ diff: '' })
   await expect(
     checkFlaggedPaths({ ...input, paths: [input.filePath], literal: true }),
-  ).rejects.toThrow('scope')
-  const selected = selectFileWorkspace(workspace, 'agent')
+  ).rejects.toThrow('agent://')
   expect(
     (
       await readWorkspaceFile({
         ...input,
-        workspace: selected,
-        filePath: 'note.txt',
+        workspace,
+        filePath: 'agent://note.txt',
       })
     ).content,
   ).toContain('Personal note')

@@ -72,8 +72,8 @@ export async function assertDestinationMembersIdle(
   }
 }
 
-async function assertMemberIdle(
-  ctx: MutationCtx,
+export async function assertMemberIdle(
+  ctx: QueryCtx,
   agent: Doc<'agents'>,
   operationId?: Id<'agentFileOperations'>,
 ) {

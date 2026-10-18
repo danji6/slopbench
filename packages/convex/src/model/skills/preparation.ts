@@ -8,6 +8,8 @@ import {
   requireOwnedSkill,
 } from './access'
 import { ensureHome } from './homes'
+import { prepareLibraryDeletion } from './libraryDeletion'
+import type { LibraryDeletionTarget } from './libraryDeletion'
 import type { OperationTargets } from './lifecycle'
 import { assertCanRemoveHome } from './removal'
 
@@ -44,9 +46,15 @@ export type PreparedOperation =
   | Prepared<'assign', AgentTarget & { skill: Doc<'skills'> }>
   | Prepared<
       'delete-assigned',
-      AgentTarget & { assignment: Doc<'agentSkills'>; skill: Doc<'skills'> }
+      AgentTarget & {
+        assignment: Doc<'agentSkills'>
+        skill: Doc<'skills'> | null
+      }
     >
-  | Prepared<'delete-library', { skill: Doc<'skills'> }>
+  | Prepared<
+      'delete-library',
+      { skill: Doc<'skills'>; targets: LibraryDeletionTarget[] }
+    >
   | PreparedInstall
 
 /** Resolves each command's required resources within its reserving mutation. */
@@ -63,8 +71,8 @@ export async function prepareOperation(
         command.skillId,
         command.kind,
       )
-      await assertSkillUnused(ctx, skill._id)
-      return { kind: command.kind, command, skill }
+      const targets = await prepareLibraryDeletion(ctx, skill)
+      return { kind: command.kind, command, skill, targets }
     }
     case 'duplicate': {
       const target = await prepareIdleAgent(ctx, command.agentId)
@@ -122,11 +130,10 @@ async function prepareAssignedRemoval(
     command.assignmentId,
     target.home._id,
   )
-  const skill = await requireAvailableSkill(
-    ctx,
-    assignment.skillId,
-    command.kind,
-  )
+  const existing = await ctx.db.get(assignment.skillId)
+  const skill = existing
+    ? await requireAvailableSkill(ctx, existing._id, command.kind)
+    : null
   return { kind: command.kind, command, ...target, assignment, skill }
 }
 
@@ -187,21 +194,6 @@ export async function requireAvailableSkill(
   return skill
 }
 
-export async function assertSkillUnused(
-  ctx: AuthMutationCtx,
-  skillId: Id<'skills'>,
-) {
-  const assigned = await ctx.db
-    .query('agentSkills')
-    .withIndex('by_skillId', (q) => q.eq('skillId', skillId))
-    .first()
-  if (assigned)
-    error(
-      'Remove this skill from its agents before deleting the library bundle',
-      409,
-    )
-}
-
 export async function assertHomeMissingSkill(
   ctx: AuthMutationCtx,
   homeId: Id<'agentHomes'>,
@@ -240,11 +232,16 @@ export function preparedFields(prepared: PreparedOperation) {
         destinationHomeId: prepared.duplicate.home._id,
       }
     case 'assign':
-    case 'delete-assigned':
       return {
         ...prepared.command,
         homeId: prepared.home._id,
         skillId: prepared.skill._id,
+      }
+    case 'delete-assigned':
+      return {
+        ...prepared.command,
+        homeId: prepared.home._id,
+        skillId: prepared.skill?._id,
       }
     case 'detach':
       return prepared.command.removeFolder
@@ -262,7 +259,10 @@ export function preparedFields(prepared: PreparedOperation) {
     case 'home':
       return { ...prepared.command, homeId: prepared.home._id }
     case 'delete-library':
-      return prepared.command
+      return {
+        ...prepared.command,
+        homeIds: prepared.targets.map(({ home }) => home._id),
+      }
   }
 }
 
@@ -278,7 +278,10 @@ export function preparedTargets(prepared: PreparedOperation): OperationTargets {
     })
   return {
     agents,
-    homes: agents.map((agent) => agent.homeId),
-    skillId: 'skill' in prepared ? prepared.skill._id : undefined,
+    homes:
+      prepared.kind === 'delete-library'
+        ? prepared.targets.map(({ home }) => home._id)
+        : agents.map((agent) => agent.homeId),
+    skillId: 'skill' in prepared ? prepared.skill?._id : undefined,
   }
 }

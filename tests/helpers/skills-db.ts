@@ -46,6 +46,32 @@ export function skillsDatabase() {
     },
     query: (table: string) => {
       const predicates: ((row: Row) => boolean)[] = []
+      let descending = false
+      const compare = (a: unknown, b: unknown) =>
+        a === b
+          ? 0
+          : a === undefined
+            ? -1
+            : b === undefined
+              ? 1
+              : a! < b!
+                ? -1
+                : 1
+      const range = (
+        key: string,
+        value: unknown,
+        accepts: (comparison: number) => boolean,
+      ) => {
+        predicates.push((row) =>
+          accepts(
+            compare(
+              key === '_creationTime' ? (row[key] ?? 0) : row[key],
+              value,
+            ),
+          ),
+        )
+        return index
+      }
       const index = {
         eq: (key: string, value: unknown) => {
           predicates.push(
@@ -62,28 +88,36 @@ export function skillsDatabase() {
           )
           return index
         },
-        gte: (key: string, value: string) => {
-          predicates.push((row) => String(row[key] ?? '') >= value)
-          return index
-        },
-        lt: (key: string, value: string) => {
-          predicates.push((row) => String(row[key] ?? '') < value)
-          return index
-        },
+        gte: (key: string, value: unknown) => range(key, value, (n) => n >= 0),
+        gt: (key: string, value: unknown) => range(key, value, (n) => n > 0),
+        lte: (key: string, value: unknown) => range(key, value, (n) => n <= 0),
+        lt: (key: string, value: unknown) => range(key, value, (n) => n < 0),
       }
       const selected = () =>
         rows(table)
           .filter((row) => predicates.every((predicate) => predicate(row)))
-          .sort((a, b) =>
-            String(a.name ?? '').localeCompare(String(b.name ?? '')),
-          )
+          .map((row) => ({ _creationTime: 0, ...row }))
+          .sort((a, b) => {
+            const order =
+              compare((a as Row).name, (b as Row).name) ||
+              compare(a._creationTime, b._creationTime) ||
+              compare(a._id, b._id)
+            return descending ? -order : order
+          })
       const query = {
         withIndex: (
           _name: string,
           select: (range: typeof index) => unknown,
         ) => {
-          select(index)
+          select?.(index)
           return query
+        },
+        order: (direction: string) => {
+          descending = direction === 'desc'
+          return query
+        },
+        async *[Symbol.asyncIterator]() {
+          yield* selected()
         },
         first: async () => selected()[0] ?? null,
         unique: async () => selected()[0] ?? null,
