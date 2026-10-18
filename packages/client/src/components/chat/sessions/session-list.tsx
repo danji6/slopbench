@@ -1,6 +1,5 @@
-import { ConfirmDialog, Input, RippleButton } from '@/components/ui'
-import { useDebouncedCallback } from '@/hooks'
-import { useSession, useSessionGroups, useSessionSearch } from '@/hooks/chat'
+import { ConfirmDialog, RippleButton } from '@/components/ui'
+import { useSession, useSessionGroups } from '@/hooks/chat'
 import { useFolderControls } from '@/hooks/chat/folder-controls'
 import {
   type FolderDropPlacement,
@@ -39,19 +38,16 @@ import { SessionListMenu } from './session-list-menu'
 import { SessionListRow } from './session-list-row'
 import { SessionListScrollArea } from './session-list-scroll-area'
 import type { SessionPageControls } from './session-page'
+import { SessionSearch } from './session-search'
 import { SessionTitleEditor } from './session-title-editor'
 import { SessionTree } from './session-tree'
 
-const SEARCH_DEBOUNCE = 250
 // Keep sensor identity stable so folder toggles don't update every draggable.
 const MOUSE_SENSOR_OPTIONS = { activationConstraint: { distance: 8 } }
 
 export const SessionListView = memo(function SessionListView() {
   const { pages, folders: serverFolders, search, pendingSessionIds, dropSession } = useSessionGroups() // prettier-ignore
   const unreadSessionIds = useUnreadNotificationSessionIds()
-  const setSearch = useSessionSearch()
-  const commitSearch = useDebouncedCallback(setSearch, SEARCH_DEBOUNCE)
-  const [query, setQuery] = useState('')
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const {
     folders,
@@ -257,16 +253,7 @@ export const SessionListView = memo(function SessionListView() {
               />
             </div>
           </div>
-          <Input
-            placeholder="Search…"
-            aria-label="Search sessions"
-            value={query}
-            onValueChange={(value) => {
-              setQuery(value)
-              commitSearch.run(value)
-            }}
-            className="border-input/50 h-10"
-          />
+          <SessionSearch />
         </header>
         <SessionListScrollArea>
           <SessionTree

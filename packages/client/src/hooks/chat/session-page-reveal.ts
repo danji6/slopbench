@@ -80,9 +80,12 @@ export function useSessionPageReveal({
     }
     if (request.phase === 'revealing') return
 
-    if (page?.status === 'LoadingMore') request.phase = 'loading'
+    if (page?.status === 'LoadingMore') {
+      request.phase = 'loading'
+      return
+    }
     if (ids.length <= request.ids.length) {
-      const finishedLoading = request.phase === 'loading' && page?.status !== 'LoadingMore' // prettier-ignore
+      const finishedLoading = request.phase === 'loading'
       if (finishedLoading || page?.status === 'Exhausted') reset()
       return
     }

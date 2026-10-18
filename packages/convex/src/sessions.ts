@@ -1,4 +1,3 @@
-import { paginationOptsValidator } from 'convex/server'
 import { v } from 'convex/values'
 
 import { internalMutation, internalQuery } from './_generated/server'
@@ -28,12 +27,7 @@ export const duplicate = authMutation({
 })
 
 export const list = authQuery({
-  args: {
-    paginationOpts: paginationOptsValidator,
-    groupKey: v.optional(v.string()),
-    search: v.optional(v.string()),
-    showHidden: v.optional(v.boolean()),
-  },
+  args: V.listSessionsArgsValidator.fields,
   handler: Sessions.list,
 })
 

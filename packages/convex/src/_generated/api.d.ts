@@ -178,6 +178,7 @@ import type * as model_session_personalFolders from "../model/session/personalFo
 import type * as model_session_sessionAccess from "../model/session/sessionAccess.js";
 import type * as model_session_sessionDuplicate from "../model/session/sessionDuplicate.js";
 import type * as model_session_sessionQueries from "../model/session/sessionQueries.js";
+import type * as model_session_sessionSearch from "../model/session/sessionSearch.js";
 import type * as model_session_sessionSettings from "../model/session/sessionSettings.js";
 import type * as model_session_sessionTeardown from "../model/session/sessionTeardown.js";
 import type * as model_session_sessionWorkspace from "../model/session/sessionWorkspace.js";
@@ -502,6 +503,7 @@ declare const fullApi: ApiFromModules<{
   "model/session/sessionAccess": typeof model_session_sessionAccess;
   "model/session/sessionDuplicate": typeof model_session_sessionDuplicate;
   "model/session/sessionQueries": typeof model_session_sessionQueries;
+  "model/session/sessionSearch": typeof model_session_sessionSearch;
   "model/session/sessionSettings": typeof model_session_sessionSettings;
   "model/session/sessionTeardown": typeof model_session_sessionTeardown;
   "model/session/sessionWorkspace": typeof model_session_sessionWorkspace;

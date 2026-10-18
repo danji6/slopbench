@@ -8,6 +8,7 @@ import type { PaginationMetadata } from '@/lib/chat/message-store'
 import { type SessionStore, createSessionStore } from '@/lib/chat/session-store'
 import { api } from '@sb/convex/_generated/api'
 import type { FolderView } from '@sb/convex/types'
+import { parseSessionSearch } from '@sb/core/session-search/parse'
 import { usePaginatedQuery, useQuery } from 'convex/react'
 import {
   type ReactNode,
@@ -18,6 +19,7 @@ import {
 } from 'react'
 
 import { useSessionDrops } from './session-drops'
+import { useSessionSearchPage } from './session-search-page'
 
 const INITIAL_FOLDER_ITEMS = 5
 const INITIAL_LIST_ITEMS = 20
@@ -115,19 +117,46 @@ export function SessionGroupQuery({
   groupKey: string
   search?: string
 }) {
-  const publish = usePublishSessionPage()
   const { showHidden } = useSessionShowHidden()
+  const query = search.trim()
+  return (
+    <SessionGroupLoader
+      key={JSON.stringify([groupKey, query, showHidden])}
+      groupKey={groupKey}
+      search={query}
+      showHidden={showHidden}
+    />
+  )
+}
+
+type SessionGroupLoaderProps = {
+  groupKey: string
+  search: string
+  showHidden: boolean
+}
+
+function SessionGroupLoader({
+  groupKey,
+  search,
+  showHidden,
+}: SessionGroupLoaderProps) {
+  const publish = usePublishSessionPage()
   const isFlatList = groupKey === 'search' || groupKey === 'ungrouped'
-  const { results, status, loadMore } = usePaginatedQuery(
+  const candidates = usePaginatedQuery(
     api.sessions.list,
     {
       groupKey: groupKey === 'search' ? undefined : groupKey,
-      search: search.trim() || undefined,
+      search: search || undefined,
       showHidden: showHidden || undefined,
     },
     {
       initialNumItems: isFlatList ? INITIAL_LIST_ITEMS : INITIAL_FOLDER_ITEMS,
     },
+  )
+  const hasFilters = parseSessionSearch(search).clauses.length > 0
+  const { results, status, loadMore } = useSessionSearchPage(
+    candidates,
+    hasFilters,
   )
 
   useLayoutEffect(() => {

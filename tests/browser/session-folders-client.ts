@@ -1,3 +1,6 @@
+import { matchesSessionSearch } from '@sb/core/session-search/filters'
+import { parseSessionSearch } from '@sb/core/session-search/parse'
+import type { SessionParticipant } from '@sb/core/types/sessions'
 import { folderTrail, projectFolderMove } from '@sb/core/utils/folder-tree'
 import type { ConvexReactClient } from 'convex/react'
 import { type FunctionReference, getFunctionName } from 'convex/server'
@@ -11,16 +14,37 @@ type FixtureFolder = {
   organizationRevision?: number
 }
 
+type FixtureSession = {
+  _id: string
+  title: string
+  folderId: string
+  pinned: boolean
+  hidden?: boolean
+}
+
+const searchFixtures = new URLSearchParams(location.search).has(
+  'searchFixtures',
+)
+
 let folders: FixtureFolder[] = [
   { _id: 'a', name: 'Portfolio', position: 0 },
   { _id: 'n', name: 'Design', parentId: 'a', position: 0 },
   { _id: 'b', name: 'SlopBench', position: 1 },
 ]
-let sessions = [
+let sessions: FixtureSession[] = [
   { _id: 's1', title: 'Portfolio chat', folderId: 'a', pinned: false },
   { _id: 's2', title: 'Design chat', folderId: 'n', pinned: false },
   { _id: 's3', title: 'SlopBench chat', folderId: 'b', pinned: false },
 ]
+if (searchFixtures) {
+  sessions.push({
+    _id: 'hidden',
+    title: 'Hidden chat',
+    folderId: '',
+    pinned: false,
+    hidden: true,
+  })
+}
 if (new URLSearchParams(location.search).has('longTitle')) {
   sessions[0].title =
     'Portfolio chat with a title that scrolls across the session row '
@@ -79,27 +103,52 @@ function folderViews() {
   })
 }
 
-function query(name: string, args: Record<string, unknown>) {
-  if (name === 'users:getProfile')
-    return { _id: 'fixture-owner', role: 'admin' }
-  if (name === 'sessionFolders:list') return folderViews()
-  if (name === 'notifications:list' || name === 'streams:activeSessionIds')
-    return []
-  if (name !== 'sessions:list') return null
-  const term = String(args.search ?? '').toLowerCase()
-  const matches = sessions.filter((session) =>
-    term
-      ? session.title.toLowerCase().includes(term)
-      : (session.pinned ? 'pinned' : session.folderId || 'ungrouped') ===
-        args.groupKey,
-  )
+function participants(session: FixtureSession): SessionParticipant[] {
+  if (!searchFixtures) return []
+  const agentNames: Record<string, string> = {
+    s1: 'Alice "The Architect"',
+    s2: 'Codebase Explorer',
+    s3: 'Code,Codebase Explorer',
+    hidden: 'Hidden Agent',
+  }
+  const extraIndex = Number(session._id.match(/^extra-.*-(\d+)$/)?.[1] ?? -1)
+  const name =
+    agentNames[session._id] ??
+    (extraIndex >= 0 && extraIndex % 10 === 0 ? 'Rare Agent' : 'Ordinary Agent')
+  return [
+    { id: 'viewer', kind: 'user', name: 'Jane' },
+    { id: `agent-${session._id}`, kind: 'agent', name },
+  ]
+}
+
+function sessionPage(args: Record<string, unknown>) {
+  const raw = String(args.search ?? '')
+  const search = parseSessionSearch(raw)
+  const candidates = sessions.filter((session) => {
+    if (session.hidden && !args.showHidden) return false
+    if (search.text)
+      return session.title.toLowerCase().includes(search.text.toLowerCase())
+    if (raw.trim()) return true
+    return (
+      (session.pinned ? 'pinned' : session.folderId || 'ungrouped') ===
+      args.groupKey
+    )
+  })
   const { cursor, numItems } = args.paginationOpts as {
     cursor: string | null
     numItems: number
   }
   const start = Number(cursor ?? 0)
+  const page = candidates.slice(start, start + numItems).filter((session) =>
+    matchesSessionSearch(search.clauses, {
+      folderNames: session.folderId
+        ? folderTrail(folders, session.folderId).map((f) => f.name)
+        : [],
+      participants: participants(session),
+    }),
+  )
   return {
-    page: matches.slice(start, start + numItems).map((session) => {
+    page: page.map((session) => {
       const folder = folderViews().find(
         (entry) => entry._id === session.folderId,
       )
@@ -107,14 +156,24 @@ function query(name: string, args: Record<string, unknown>) {
         ...session,
         _creationTime: 0,
         owned: true,
-        participants: [],
+        participants: participants(session),
         folderName: folder?.name,
         folderPath: folder?.folderPath,
       }
     }),
     continueCursor: String(start + numItems),
-    isDone: start + numItems >= matches.length,
+    isDone: start + numItems >= candidates.length,
   }
+}
+
+function query(name: string, args: Record<string, unknown>) {
+  if (name === 'users:getProfile')
+    return { _id: 'fixture-owner', role: 'admin' }
+  if (name === 'sessionFolders:list') return folderViews()
+  if (name === 'notifications:list' || name === 'streams:activeSessionIds')
+    return []
+  if (name !== 'sessions:list') return null
+  return sessionPage(args)
 }
 
 const client = {

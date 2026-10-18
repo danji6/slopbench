@@ -7,11 +7,28 @@ import { Dialog } from './dialog'
 import { Label } from './label'
 import { Popover } from './popover'
 
-export function HelpButton({ children }: { children: React.ReactNode }) {
+type HelpButtonProps = {
+  children: React.ReactNode
+  title?: React.ReactNode
+  trigger?: React.ReactElement
+  contentProps?: React.ComponentProps<typeof Popover.Content>
+}
+
+export function HelpButton({
+  children,
+  title,
+  trigger = <HelpTrigger />,
+  contentProps,
+}: HelpButtonProps) {
   return (
     <Popover>
-      <Popover.Trigger render={<HelpTrigger />} />
-      <Popover.Content>{children}</Popover.Content>
+      <Popover.Trigger render={trigger} />
+      <Popover.Content {...contentProps}>
+        {title && (
+          <Popover.Title className="font-semibold">{title}</Popover.Title>
+        )}
+        {children}
+      </Popover.Content>
     </Popover>
   )
 }

@@ -143,6 +143,7 @@ export type CreateGeneratedAttachmentArgs = Infer<typeof V.createGeneratedAttach
 export type CreateAgentArgs = Infer<typeof V.createAgentArgsValidator>
 export type UpdateAgentArgs = Infer<typeof V.updateAgentArgsValidator>
 export type UpdateSessionArgs = Infer<typeof V.updateSessionArgsValidator>
+export type ListSessionsArgs = Infer<typeof V.listSessionsArgsValidator>
 export type CreateScriptArgs = Infer<typeof V.createScriptArgsValidator>
 export type UpdateScriptArgs = Infer<typeof V.updateScriptArgsValidator>
 export type ApproveToolArgs = Infer<typeof V.approveToolArgsValidator>

@@ -14,7 +14,7 @@ export const capitalize = (text: string): string =>
   text.substring(0, 1).toUpperCase() + text.substring(1)
 
 export function dedent(
-  strings: TemplateStringsArray,
+  strings: TemplateStringsArray | string,
   ...values: unknown[]
 ): string {
   const raw = String.raw({ raw: strings }, ...values)

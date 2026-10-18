@@ -147,7 +147,7 @@ export function MarkdownSnippet(props: MarkdownRendererProps) {
 }
 
 export function md(
-  strings: TemplateStringsArray,
+  strings: TemplateStringsArray | string,
   ...values: unknown[]
 ): React.ReactElement {
   return <MarkdownSnippet>{dedent(strings, ...values)}</MarkdownSnippet>

@@ -1,10 +1,11 @@
+import { parseSessionSearch } from '@sb/core/session-search/parse'
 import { toDisplayName } from '@sb/core/utils/names'
-import type { PaginationOptions } from 'convex/server'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { QueryCtx } from '../../_generated/server'
 import { type AuthQueryCtx } from '../../functions'
 import type {
+  ListSessionsArgs,
   SessionListItem,
   SessionMode,
   SessionParticipant,
@@ -12,52 +13,24 @@ import type {
 import { getByOwnerId as getSettings } from '../settings'
 import { readFolderTrail } from './folderTree'
 import { getMember } from './memberships'
+import { sessionListQuery, sessionSearchMatcher } from './sessionSearch'
 import { getApprovals, getState } from './state'
 
 export async function list(
   ctx: AuthQueryCtx,
-  {
-    paginationOpts,
-    search,
-    groupKey,
-    showHidden,
-  }: {
-    paginationOpts: PaginationOptions
-    groupKey?: string
-    search?: string
-    showHidden?: boolean
-  },
+  args: ListSessionsArgs,
 ): Promise<{
   page: SessionListItem[]
   isDone: boolean
   continueCursor: string
 }> {
-  const term = search?.trim()
-
-  // userSessions is queried instead because it contains shared sessions too
-  const query = term
-    ? ctx.db
-        .query('userSessions')
-        .withSearchIndex('search_title', (q) =>
-          q
-            .search('title', term)
-            .eq('userId', ctx.userId)
-            .eq('hidden', undefined),
-        )
-    : ctx.db
-        .query('userSessions')
-        .withIndex('by_user_group_activity', (q) =>
-          q
-            .eq('userId', ctx.userId)
-            .eq('hidden', undefined)
-            .eq('groupKey', groupKey ?? 'ungrouped'),
-        )
-        .order('desc')
-
-  const visible = showHidden
+  const { text, clauses } = parseSessionSearch(args.search ?? '')
+  const query = sessionListQuery(ctx, args, text)
+  const visible = args.showHidden
     ? query
     : query.filter((q) => q.neq(q.field('userHidden'), true))
-  const result = await visible.paginate(paginationOpts)
+  const result = await visible.paginate(args.paginationOpts)
+  const matches = await sessionSearchMatcher(ctx, clauses)
 
   const page = await Promise.all(
     result.page.map(async (row) => {
@@ -69,7 +42,9 @@ export async function list(
 
   return {
     ...result,
-    page: page.filter((item): item is SessionListItem => item !== null),
+    page: page.filter(
+      (item): item is SessionListItem => item !== null && matches(item),
+    ),
   }
 }
 

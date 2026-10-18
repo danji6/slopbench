@@ -1,3 +1,4 @@
+import { paginationOptsValidator } from 'convex/server'
 import { v } from 'convex/values'
 
 import { approvalModeValidator, toolApprovalsValidator } from './approvals'
@@ -8,6 +9,13 @@ import { sessionArchiveValidator } from './sessionArchives'
 import { sessionModeValidator } from './sessionModes'
 import { toolManifestValidator } from './tools'
 import { workspaceRefValidator } from './workspaces'
+
+export const listSessionsArgsValidator = v.object({
+  paginationOpts: paginationOptsValidator,
+  groupKey: v.optional(v.string()),
+  search: v.optional(v.string()),
+  showHidden: v.optional(v.boolean()),
+})
 
 export const sessionSettingsValidator = v.object({
   disabled: v.optional(v.boolean()),
