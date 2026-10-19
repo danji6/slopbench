@@ -10,6 +10,7 @@ import { CodeEdit } from '@/lib/tiptap/extensions/code-edit'
 import { RevealInsert } from '@/lib/tiptap/extensions/reveal-insert'
 import { SnippetStops } from '@/lib/tiptap/extensions/snippet-stops'
 import { TabIndent } from '@/lib/tiptap/extensions/tab-indent'
+import { XmlTags } from '@/lib/tiptap/extensions/xml-tags'
 import { cn } from '@/lib/utils'
 import { Node } from '@tiptap/core'
 import { Placeholder } from '@tiptap/extension-placeholder'
@@ -100,6 +101,7 @@ export function CodeEditor({
         lineNumbers,
       }),
       CodeEdit,
+      XmlTags,
       RevealInsert,
       SnippetStops,
       // CodeEdit already handles Tab, this guards odd selection states

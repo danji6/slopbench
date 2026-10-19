@@ -1,5 +1,6 @@
 /// <reference types="bun-types" />
 import {
+  insertBeforeSystemBoundary,
   mergePrompts as mergeClientPrompts,
   upsertPrompt,
 } from '@/lib/chat/prompts'
@@ -11,7 +12,7 @@ import {
   mergePrompts as mergeServerPrompts,
   removeStarterPrompts,
 } from '@sb/convex/model/prompt/prompts'
-import type { Prompt, PromptItem } from '@sb/convex/types'
+import type { OrderedItem, Prompt, PromptItem } from '@sb/convex/types'
 import { describe, expect, test } from 'bun:test'
 
 const firstSystem: Prompt = {
@@ -216,6 +217,106 @@ const libraryPrompt: Prompt = {
   visible: false,
   starter: false,
 }
+
+describe('adding agent prompts', () => {
+  const boundary: PromptItem = { type: 'system-boundary' }
+  const boundaryKey = promptItemKey(boundary)
+  const ownItems = [firstSystem, boundary, messageHistory]
+
+  test('adds successive prompts before the boundary without an explicit order', () => {
+    const added = insertBeforeSystemBoundary(ownItems, secondSystem)
+    const pasted = insertBeforeSystemBoundary(added, sharedSystem)
+    const merged = mergeClientPrompts({ prompts: pasted })
+
+    expect(merged.items.map((m) => promptItemKey(m.item))).toEqual([
+      firstSystem.id,
+      secondSystem.id,
+      sharedSystem.id,
+      boundaryKey,
+      historyKey,
+    ])
+    expect(ownItems).toEqual([firstSystem, boundary, messageHistory])
+  })
+
+  test('keeps manual ordering when inserting an own prompt', () => {
+    const order: OrderedItem[] = [
+      { kind: 'own', id: historyKey },
+      { kind: 'library', id: libraryPrompt.id },
+      { kind: 'own', id: boundaryKey },
+      { kind: 'own', id: firstSystem.id },
+    ]
+    const merged = mergeClientPrompts(
+      {
+        prompts: insertBeforeSystemBoundary(ownItems, secondSystem),
+        promptOrder: insertBeforeSystemBoundary(order, {
+          kind: 'own',
+          id: secondSystem.id,
+        }),
+      },
+      [libraryPrompt],
+    )
+
+    expect(merged.items.map((m) => promptItemKey(m.item))).toEqual([
+      historyKey,
+      libraryPrompt.id,
+      secondSystem.id,
+      boundaryKey,
+      firstSystem.id,
+    ])
+    expect(order).toHaveLength(4)
+  })
+
+  test('inserts library references before a boundary absent from stored order', () => {
+    const source = {
+      prompts: ownItems,
+      promptOrder: [{ kind: 'own' as const, id: firstSystem.id }],
+    }
+    const displayed = mergeClientPrompts(source).items
+    const order = displayed.map(({ item }): OrderedItem => ({
+      kind: 'own',
+      id: promptItemKey(item),
+    }))
+    const merged = mergeClientPrompts(
+      {
+        ...source,
+        promptOrder: insertBeforeSystemBoundary(order, {
+          kind: 'library',
+          id: libraryPrompt.id,
+        }),
+      },
+      [libraryPrompt],
+    )
+
+    expect(merged.items.map((m) => promptItemKey(m.item))).toEqual([
+      firstSystem.id,
+      libraryPrompt.id,
+      boundaryKey,
+      historyKey,
+    ])
+    expect(merged.items[1].isLibrary).toBe(true)
+  })
+
+  test('appends when there is no system boundary', () => {
+    expect(
+      insertBeforeSystemBoundary([firstSystem, messageHistory], secondSystem),
+    ).toEqual([firstSystem, messageHistory, secondSystem])
+  })
+
+  test('does not mistake a library prompt ID for the boundary marker', () => {
+    const order: OrderedItem[] = [
+      { kind: 'library', id: boundaryKey },
+      { kind: 'own', id: historyKey },
+      { kind: 'own', id: boundaryKey },
+    ]
+    const added: OrderedItem = { kind: 'own', id: secondSystem.id }
+    expect(insertBeforeSystemBoundary(order, added)).toEqual([
+      order[0],
+      order[1],
+      added,
+      order[2],
+    ])
+  })
+})
 
 describe('library prompts', () => {
   test('server resolves referenced library prompts in order', () => {

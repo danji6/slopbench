@@ -17,6 +17,7 @@ import { MarkdownMath } from '@/lib/tiptap/extensions/markdown-math'
 import { RevealInsert } from '@/lib/tiptap/extensions/reveal-insert'
 import { SourceMarkdown } from '@/lib/tiptap/extensions/source-markdown'
 import { TabIndent } from '@/lib/tiptap/extensions/tab-indent'
+import { XmlTags } from '@/lib/tiptap/extensions/xml-tags'
 import type { Extensions } from '@tiptap/core'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { Table } from '@tiptap/extension-table'
@@ -82,6 +83,7 @@ export function editorKit({
     HtmlDecoration,
     MarkdownClipboard.configure({ collapseBlocks }),
     CodeEdit,
+    XmlTags,
     LineBreaks,
     MarkExit,
     HardBreakKeys,

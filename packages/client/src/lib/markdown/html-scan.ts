@@ -1,3 +1,5 @@
+import { isHtmlVoidTag } from '@sb/core/xml-tags'
+
 import { allowedTags } from './sanitize'
 
 /** A complete HTML element found in a run of text. */
@@ -7,23 +9,6 @@ const OPEN_TAG =
   /<([a-zA-Z][\w.-]*)((?:\s+[^\s"'>/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?)*)\s*(\/?)>/y
 const CLOSE_TAG = /<\/([a-zA-Z][\w.-]*)\s*>/y
 const COMMENT = /<!--[\s\S]*?-->/y
-
-const VOID_TAGS = new Set([
-  'area',
-  'base',
-  'br',
-  'col',
-  'embed',
-  'hr',
-  'img',
-  'input',
-  'link',
-  'meta',
-  'param',
-  'source',
-  'track',
-  'wbr',
-])
 
 type Tag = {
   kind: 'open' | 'close' | 'comment'
@@ -141,7 +126,7 @@ function matchTag(text: string, i: number): Tag | null {
     kind: 'open',
     name,
     end: OPEN_TAG.lastIndex,
-    empty: open[3] === '/' || VOID_TAGS.has(name),
+    empty: open[3] === '/' || isHtmlVoidTag(name),
   }
 }
 

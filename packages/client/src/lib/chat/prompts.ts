@@ -59,6 +59,21 @@ export function newReminderPrompt(
   }
 }
 
+/** Inserts a prompt or order reference before the system boundary, if present. */
+export function insertBeforeSystemBoundary<T extends PromptItem | OrderedItem>(
+  items: readonly T[],
+  item: T,
+): T[] {
+  const boundaryKey = promptItemKey({ type: 'system-boundary' })
+  const index = items.findIndex((entry) =>
+    'kind' in entry
+      ? entry.kind === 'own' && entry.id === boundaryKey
+      : promptItemKey(entry) === boundaryKey,
+  )
+  if (index === -1) return [...items, item]
+  return [...items.slice(0, index), item, ...items.slice(index)]
+}
+
 /**
  * Applies an edit to the prompt matching `key`, appending it when the list
  * doesn't have it yet.

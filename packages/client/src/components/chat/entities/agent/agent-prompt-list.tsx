@@ -1,7 +1,12 @@
 import { AddFromLibrary, PromptList } from '@/components/chat/prompts'
 import { useLibraryPrompts } from '@/hooks/chat'
 import type { OrderedItem, Prompt, PromptItem } from '@/lib/chat'
-import { mergePrompts, newPrompt, upsertPrompt } from '@/lib/chat/prompts'
+import {
+  insertBeforeSystemBoundary,
+  mergePrompts,
+  newPrompt,
+  upsertPrompt,
+} from '@/lib/chat/prompts'
 import type { MergedPromptItem } from '@/lib/chat/prompts'
 import {
   ensurePromptMarkers,
@@ -51,13 +56,13 @@ export function AgentPromptList({ control }: AgentPromptListProps) {
   }
 
   function handleAddItem(item: PromptItem) {
-    promptsField.onChange([...prompts, item])
-    if (promptOrder) {
-      orderField.onChange([
-        ...promptOrder,
-        { kind: 'own' as const, id: promptItemKey(item) },
-      ])
-    }
+    promptsField.onChange(insertBeforeSystemBoundary(prompts, item))
+    if (promptOrder) addToOrder({ kind: 'own', id: promptItemKey(item) })
+  }
+
+  function addToOrder(item: OrderedItem) {
+    const order = mergeResult.items.map(toOrderedItem)
+    orderField.onChange(insertBeforeSystemBoundary(order, item))
   }
 
   function handleAdd() {
@@ -69,16 +74,16 @@ export function AgentPromptList({ control }: AgentPromptListProps) {
   }
 
   function handleAddLibrary(id: string) {
-    const order = promptOrder ?? mergeResult.items.map(toOrderedItem)
-    orderField.onChange([...order, { kind: 'library' as const, id }])
+    addToOrder({ kind: 'library', id })
   }
 
   function handleEdit(key: string, data: Partial<Prompt>) {
     const isNew = !prompts.some((p) => promptItemKey(p) === key)
-    promptsField.onChange(upsertPrompt(prompts, key, data))
-    if (isNew && promptOrder) {
-      orderField.onChange([...promptOrder, { kind: 'own' as const, id: key }])
+    if (isNew) {
+      handleAddItem(newPrompt({ ...data, id: key }))
+      return
     }
+    promptsField.onChange(upsertPrompt(prompts, key, data))
   }
 
   function handleDelete(key: string) {

@@ -6,6 +6,12 @@ import { CheckboxFixture } from './checkbox-fixture'
 import { ProviderConnectionsFixture } from './provider-connections-fixture'
 import { ScrollFixture } from './scroll-fixture'
 
+const XmlTagsFixture = lazy(() =>
+  import('./xml-tags-fixture').then((module) => ({
+    default: module.XmlTagsFixture,
+  })),
+)
+
 const InlineSourceFixture = lazy(() =>
   import('./inline-source-fixture').then((module) => ({
     default: module.InlineSourceFixture,
@@ -117,7 +123,11 @@ function PreviewFixture() {
 }
 
 createRoot(document.getElementById('root')!).render(
-  new URLSearchParams(location.search).get('fixture') === 'notifications' ? (
+  new URLSearchParams(location.search).get('fixture') === 'xml-tags' ? (
+    <Suspense fallback={<p>Loading XML editors…</p>}>
+      <XmlTagsFixture />
+    </Suspense>
+  ) : new URLSearchParams(location.search).get('fixture') === 'notifications' ? (
     <Suspense fallback={<p>Loading notifications…</p>}>
       <NotificationsFixture />
     </Suspense>
