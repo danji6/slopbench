@@ -15,7 +15,9 @@ export function SkillDiscoveryToggle({
       checked={checked}
       onCheckedChange={onChange}
       disabled={disabled}
-      className="text-xs"
+      size="xs"
+      className="ml-auto shrink-0 gap-1.5 text-[0.625rem]"
+      labelClassName="min-w-max whitespace-nowrap"
     >
       Allow <code>.agents/skills</code>
     </LabeledCheckbox>

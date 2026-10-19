@@ -11,16 +11,14 @@ const client = {
   }),
 } as unknown as ConvexReactClient
 
-/** Exercises the source-specific option in the shared directory picker. */
+/** Exercises the shared directory picker for sources and agent homes. */
 export function SkillSourceFixture() {
   const [open, setOpen] = useState(false)
-  const [source, setSource] = useState(true)
   const [result, setResult] = useState('')
   return (
     <ConvexProvider client={client}>
       <button
         onClick={() => {
-          setSource(true)
           setOpen(true)
         }}
       >
@@ -28,7 +26,6 @@ export function SkillSourceFixture() {
       </button>
       <button
         onClick={() => {
-          setSource(false)
           setOpen(true)
         }}
       >
@@ -38,10 +35,7 @@ export function SkillSourceFixture() {
       <WorkspacePickerDialog
         open={open}
         onOpenChange={setOpen}
-        skillDiscovery={source}
-        onSelect={(root, discoverSkills) =>
-          setResult(JSON.stringify({ root, discoverSkills }))
-        }
+        onSelect={(root) => setResult(JSON.stringify({ root }))}
       />
     </ConvexProvider>
   )

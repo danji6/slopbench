@@ -13,14 +13,12 @@ import {
 } from 'lucide-react'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 
-import { SkillDiscoveryToggle } from './skill-discovery-toggle'
 import { WorkspacePathInput } from './workspace-path-input'
 
 interface WorkspacePickerDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSelect: (root: string, discoverSkills?: boolean) => void
-  skillDiscovery?: boolean
+  onSelect: (root: string) => void
   initialPath?: string
   title?: string
 }
@@ -32,7 +30,6 @@ export function WorkspacePickerDialog({
   onOpenChange,
   onSelect,
   initialPath,
-  skillDiscovery = false,
   title = 'Choose a directory',
 }: WorkspacePickerDialogProps) {
   const {
@@ -55,7 +52,6 @@ export function WorkspacePickerDialog({
   const selectionVersion = useRef(0)
   const [activeIndex, setActiveIndex] = useState(-1)
   const pathErrorId = useId()
-  const [discoverSkills, setDiscoverSkills] = useState(true)
 
   const rows = useMemo<Row[]>(() => {
     return (list?.entries ?? []).slice(0, 500).map((entry) => ({
@@ -113,24 +109,19 @@ export function WorkspacePickerDialog({
     }
   }
 
-  function handleOpenChange(next: boolean) {
-    if (!next) setDiscoverSkills(true)
-    onOpenChange(next)
-  }
-
   async function handleSelect() {
     if (busy || !path.trim()) return
     const version = selectionVersion.current
     const selected = await loadDirectories(path.trim())
     if (!selected) return
     if (version !== selectionVersion.current) return
-    onSelect(selected.path, skillDiscovery ? discoverSkills : undefined)
+    onSelect(selected.path)
     rememberDirectory(selected.path)
-    handleOpenChange(false)
+    onOpenChange(false)
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <Dialog.Content className="sm:max-w-2xl" initialFocus={listRef}>
         <Dialog.Header>
           <Dialog.Title>{title}</Dialog.Title>
@@ -228,22 +219,10 @@ export function WorkspacePickerDialog({
             )}
           </div>
         </div>
-        {skillDiscovery && (
-          <div className="space-y-2 pb-3">
-            <SkillDiscoveryToggle
-              checked={discoverSkills}
-              onChange={setDiscoverSkills}
-            />
-            <p className="text-muted-foreground text-xs">
-              Make skills in this directory available to agents. Instructions
-              load when needed.
-            </p>
-          </div>
-        )}
         <Dialog.Footer className="flex-row">
           <RippleButton
             variant="input"
-            onClick={() => handleOpenChange(false)}
+            onClick={() => onOpenChange(false)}
             className="ml-auto w-32"
           >
             Cancel

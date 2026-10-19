@@ -72,13 +72,13 @@ export function FolderDialog({
     }
   }
 
-  function addSource(path: string, discoverSkills = true) {
+  function addSource(path: string) {
     if (!sources.some((source) => source.path === path))
       setSources((current) => [
         ...current,
         {
           id: generateId(),
-          discoverSkills,
+          discoverSkills: true,
           path,
           label: path.split('/').filter(Boolean).at(-1) ?? path,
         },
@@ -147,7 +147,7 @@ export function FolderDialog({
                       <div className="flex items-center gap-2">
                         <span className="truncate">{source.label}</span>
                         {index === 0 && (
-                          <span className="bg-muted rounded px-1.5 text-xs">
+                          <span className="bg-muted shrink-0 rounded px-1.5 text-xs">
                             Primary
                           </span>
                         )}
@@ -158,22 +158,20 @@ export function FolderDialog({
                       >
                         {source.path}
                       </div>
-                      <div className="mt-2">
-                        <SkillDiscoveryToggle
-                          checked={source.discoverSkills !== false}
-                          disabled={!canEditSources || busy}
-                          onChange={(discoverSkills) =>
-                            setSources((current) =>
-                              current.map((item) =>
-                                item.id === source.id
-                                  ? { ...item, discoverSkills }
-                                  : item,
-                              ),
-                            )
-                          }
-                        />
-                      </div>
                     </div>
+                    <SkillDiscoveryToggle
+                      checked={source.discoverSkills !== false}
+                      disabled={!canEditSources || busy}
+                      onChange={(discoverSkills) =>
+                        setSources((current) =>
+                          current.map((item) =>
+                            item.id === source.id
+                              ? { ...item, discoverSkills }
+                              : item,
+                          ),
+                        )
+                      }
+                    />
                     {canEditSources && index > 0 && (
                       <RippleButton
                         size="icon"
@@ -241,7 +239,6 @@ export function FolderDialog({
       </Dialog>
       <WorkspacePickerDialog
         open={browsing}
-        skillDiscovery
         onOpenChange={setBrowsing}
         initialPath={recent[0]}
         onSelect={addSource}
