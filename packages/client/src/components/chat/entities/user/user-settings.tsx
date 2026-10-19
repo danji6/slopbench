@@ -8,8 +8,10 @@ import {
   LoadingOverlay,
   RippleButton,
   type RippleButtonProps,
+  SettingsDialogTitle,
   SettingsFooter,
   SettingsList,
+  SettingsSwitchButton,
   SettingsTabs,
 } from '@/components/ui'
 import { getFontFamily } from '@/fonts'
@@ -21,6 +23,7 @@ import {
   useReminderItems,
   useSettings,
 } from '@/hooks/chat'
+import { useOpenAgentEditor } from '@/hooks/chat/agent-editor'
 import { useFormDraft } from '@/hooks/chat/form-draft'
 import { useSettingsSave } from '@/hooks/chat/settings-save'
 import { useUserSettingsPersistence } from '@/hooks/chat/user-settings-persistence'
@@ -67,6 +70,14 @@ import { WebSearchSettings } from './web-search-settings'
 /** `?view=` segment owned by user settings; its value is the active tab. */
 const USER_SETTINGS_VIEW = 'settings'
 const USER_SETTINGS_DEFAULT_TAB = 'user'
+const USER_SETTINGS_TABS = [
+  { value: 'user', label: 'Account', icon: UserIcon },
+  { value: 'behavior', label: 'Behavior', icon: ActivityIcon },
+  { value: 'models', label: 'Models', icon: BotIcon },
+  { value: 'skills', label: 'Skills', icon: BlocksIcon },
+  { value: 'tools', label: 'Tools', icon: WrenchIcon },
+  { value: 'appearance', label: 'Appearance', icon: PaletteIcon },
+]
 
 export type ChatSettingsProps = RippleButtonProps & {
   collapsed?: boolean
@@ -74,13 +85,21 @@ export type ChatSettingsProps = RippleButtonProps & {
 
 export function ChatSettingsButton({
   collapsed = false,
+  onClick,
   ...props
 }: ChatSettingsProps) {
-  const trigger = (
+  const view = useView(USER_SETTINGS_VIEW)
+
+  return (
     <RippleButton
       {...props}
       variant="stealth"
       size={!collapsed ? 'default' : 'icon'}
+      aria-label="Settings"
+      onClick={(event) => {
+        onClick?.(event)
+        if (!event.defaultPrevented) view.open(USER_SETTINGS_DEFAULT_TAB)
+      }}
       className={cn(
         'text-muted-foreground rounded-full',
         !collapsed &&
@@ -91,27 +110,23 @@ export function ChatSettingsButton({
       {!collapsed && <span>Settings</span>}
     </RippleButton>
   )
+}
 
+export function UserSettings() {
   return (
     <ErrorBoundary
-      fallback={(fallback) => (
-        <ChatSettingsFallback {...fallback} trigger={trigger} />
-      )}
+      fallback={(fallback) => <ChatSettingsFallback {...fallback} />}
     >
-      <ChatSettingsDialog trigger={trigger} />
+      <ChatSettingsDialog />
     </ErrorBoundary>
   )
 }
 
-function ChatSettingsFallback({
-  error,
-  trigger,
-}: FallbackProps & { trigger: React.ReactElement<Record<string, unknown>> }) {
+function ChatSettingsFallback({ error }: FallbackProps) {
   const view = useView(USER_SETTINGS_VIEW)
 
   return (
     <Dialog open={view.active} onOpenChange={(next) => !next && view.close()}>
-      <Dialog.Trigger render={trigger} />
       <Dialog.Content className="max-w-md">
         <Dialog.Header>
           <Dialog.Title>Settings</Dialog.Title>
@@ -127,14 +142,15 @@ function ChatSettingsFallback({
   )
 }
 
-function ChatSettingsDialog({
-  trigger,
-}: {
-  trigger: React.ReactElement<Record<string, unknown>>
-}) {
+function ChatSettingsDialog() {
   const view = useView(USER_SETTINGS_VIEW)
   const open = view.active
+  const openAgentEditor = useOpenAgentEditor(USER_SETTINGS_VIEW)
+  const [switchPending, setSwitchPending] = useState(false)
   const activeTab = view.value ?? USER_SETTINGS_DEFAULT_TAB
+  const activeTabLabel = USER_SETTINGS_TABS.find(
+    (tab) => tab.value === activeTab,
+  )?.label
 
   const settings = useSettings()
   const providerIds = useQuery(api.models.providerIds)
@@ -291,11 +307,24 @@ function ChatSettingsDialog({
     void apply(event)
   }
 
+  function switchToAgents() {
+    if (isDirty) setSwitchPending(true)
+    else openAgentEditor()
+  }
+
+  function discardAndSwitch() {
+    discard()
+    openAgentEditor()
+  }
+
+  async function saveAndSwitch() {
+    if (await apply()) openAgentEditor()
+  }
+
   if (!settings) return null
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <Dialog.Trigger render={trigger} />
       <ThemeScope className={themeScope}>
         <Dialog.Content
           showCloseButton={false}
@@ -312,7 +341,18 @@ function ChatSettingsDialog({
 
           <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleApply}>
             <Dialog.Header className="px-6 py-4">
-              <Dialog.Title>Settings</Dialog.Title>
+              <SettingsDialogTitle
+                section={activeTabLabel}
+                action={
+                  <SettingsSwitchButton
+                    target="agent"
+                    disabled={saving || security.pending}
+                    onClick={switchToAgents}
+                  />
+                }
+              >
+                Settings
+              </SettingsDialogTitle>
             </Dialog.Header>
             <SettingsTabs
               value={activeTab}
@@ -322,27 +362,19 @@ function ChatSettingsDialog({
               className="border-border min-h-0 flex-1 border-t"
             >
               <SettingsTabs.List className="border-border">
-                <SettingsTabs.Trigger value="user" icon={<UserIcon />}>
-                  Account
-                </SettingsTabs.Trigger>
-                <SettingsTabs.Trigger value="behavior" icon={<ActivityIcon />}>
-                  Behavior
-                </SettingsTabs.Trigger>
-                <SettingsTabs.Trigger value="models" icon={<BotIcon />}>
-                  Models
-                </SettingsTabs.Trigger>
-                <SettingsTabs.Trigger value="skills" icon={<BlocksIcon />}>
-                  Skills
-                </SettingsTabs.Trigger>
-                <SettingsTabs.Trigger value="tools" icon={<WrenchIcon />}>
-                  Tools
-                </SettingsTabs.Trigger>
-                <SettingsTabs.Trigger value="appearance" icon={<PaletteIcon />}>
-                  Appearance
-                </SettingsTabs.Trigger>
+                {USER_SETTINGS_TABS.map(({ value, label, icon: Icon }) => (
+                  <SettingsTabs.Trigger
+                    key={value}
+                    value={value}
+                    icon={<Icon />}
+                    aria-label={label}
+                  >
+                    {label}
+                  </SettingsTabs.Trigger>
+                ))}
               </SettingsTabs.List>
 
-              <SettingsTabs.Content value="user" title="Account">
+              <SettingsTabs.Content value="user">
                 <ProfileSettings
                   control={form.control}
                   avatarId={settings.avatarId}
@@ -354,25 +386,28 @@ function ChatSettingsDialog({
                 <AccountSecuritySettings security={security} />
               </SettingsTabs.Content>
 
-              <SettingsTabs.Content value="behavior" title="Behavior">
+              <SettingsTabs.Content value="behavior">
                 <BehaviorSettings control={form.control} />
               </SettingsTabs.Content>
 
-              <SettingsTabs.Content value="appearance" title="Appearance">
+              <SettingsTabs.Content value="appearance">
                 <AppearanceSettings
                   control={form.control}
                   setValue={form.setValue}
                 />
               </SettingsTabs.Content>
 
-              <SettingsTabs.Content value="models" title="Models">
+              <SettingsTabs.Content value="models">
                 <ModelSettings providers={providerIds} form={form} />
               </SettingsTabs.Content>
 
-              <SettingsTabs.Content value="skills" title="Skills">
+              <SettingsTabs.Content
+                value="skills"
+                className="flex min-h-0 min-w-0 flex-col overflow-hidden"
+              >
                 <SkillLibrary />
               </SettingsTabs.Content>
-              <SettingsTabs.Content value="tools" title="Tools">
+              <SettingsTabs.Content value="tools">
                 <SettingsList>
                   <Controller
                     control={form.control}
@@ -415,14 +450,33 @@ function ChatSettingsDialog({
       </ThemeScope>
 
       <ConfirmDialog
-        open={closeGuard.pending}
-        onOpenChange={(o) => !o && closeGuard.cancel()}
+        open={switchPending || closeGuard.pending}
+        onOpenChange={(o) => {
+          if (o) return
+          setSwitchPending(false)
+          closeGuard.cancel()
+        }}
         variant="destructive"
-        title="Discard changes?"
-        description="Your unsaved changes will be lost."
+        title={
+          switchPending ? 'Save changes before switching?' : 'Discard changes?'
+        }
+        description={
+          switchPending
+            ? 'You have unsaved changes to your settings.'
+            : 'Your unsaved changes will be lost.'
+        }
         confirmText="Discard"
         cancelText="Keep editing"
-        onConfirm={closeGuard.confirm}
+        onConfirm={switchPending ? discardAndSwitch : closeGuard.confirm}
+        extraAction={
+          switchPending
+            ? {
+                text: 'Save',
+                variant: 'primary',
+                onConfirm: saveAndSwitch,
+              }
+            : undefined
+        }
       />
       <AccountLogoutConfirmation security={security} />
     </Dialog>

@@ -1,5 +1,5 @@
-import { useComposerDraft } from '@/lib/chat/composer-draft-store'
 import type { PendingMessage } from '@/lib/chat'
+import { useComposerDraft } from '@/lib/chat/composer-draft-store'
 import { registerFocusReturn } from '@/lib/focus-return'
 import {
   serializeBlocksToMarkdown,
@@ -15,6 +15,8 @@ import {
   useState,
 } from 'react'
 import type { MouseEvent, Ref, RefObject } from 'react'
+
+import { useComposerCloseGuard } from './composer-close-guard'
 
 const INTERACTIVE = 'a,button,img,input,select,textarea,[contenteditable]'
 
@@ -43,6 +45,7 @@ export function useComposerEditor({
   onTyping,
   restoreMessage,
 }: UseComposerEditorOptions) {
+  useComposerCloseGuard(editorRef)
   const draft = useComposerDraft(draftKey)
   const [message, setMessage] = useState('')
   const [caret, setCaret] = useState(0)

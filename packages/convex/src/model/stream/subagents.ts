@@ -23,7 +23,7 @@ import {
   patchSegmentParts,
 } from '../messageContents'
 import { syncActivity } from '../messages'
-import { notifyAgentEvent } from '../notifications'
+import { notifyAgentEvent, notifyToolApprovals } from '../notifications'
 import { createPlanLinkPart, getBySession as getPlan } from '../plans'
 import { getSessionWithWorkspace } from '../session/folderContext'
 import { getActiveStream } from '../session/memberships'
@@ -122,11 +122,16 @@ async function park(
   })
 
   const session = await getSessionWithWorkspace(ctx, stream.sessionId)
+  const sessionId = session?.parent?.sessionId ?? stream.sessionId
+  if (status === 'awaiting_approval') {
+    await notifyToolApprovals(ctx, stream, sessionId)
+    return
+  }
 
   await notifyAgentEvent(ctx, {
-    sessionId: session?.parent?.sessionId ?? stream.sessionId,
+    sessionId,
     agentId: stream.agentId,
-    kind: status === 'awaiting_input' ? 'input_required' : 'approval_required',
+    kind: 'input_required',
     sourceMessageId: session?.parent
       ? undefined
       : stream.state.processingMessageId,

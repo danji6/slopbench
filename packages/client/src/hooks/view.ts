@@ -22,6 +22,8 @@ export type ViewHandle = {
   setValue: (value: string | undefined, options?: SegmentOptions) => void
   /** Closes this view and anything nested below it. */
   close: () => void
+  /** Switches to another view, dropping this view and its children. */
+  switchTo: (name: string, value?: string) => void
 }
 
 /** The whole view path. Re-renders whenever any part of it changes. */
@@ -73,6 +75,15 @@ export function useView(name: string): ViewHandle {
       setValue: (value, options) =>
         go((path) => withViewSegment(path, { name, value }, options), true),
       close: () => go((path) => withoutViewSegment(path, name), false),
+      switchTo: (target, value) =>
+        go(
+          (path) =>
+            withViewSegment(withoutViewSegment(path, name), {
+              name: target,
+              value,
+            }),
+          false,
+        ),
     }),
     [go, name, segment],
   )

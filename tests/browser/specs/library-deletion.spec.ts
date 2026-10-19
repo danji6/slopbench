@@ -14,6 +14,44 @@ async function openDeletion(page: Page) {
   return page.getByRole('alertdialog')
 }
 
+test('user skills scroll within the list while the tab and controls stay fixed', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: 'Skill library', exact: true }).click()
+  const panel = page.getByRole('tabpanel')
+  const list = page.getByRole('list', { name: 'Delete skills', exact: true })
+  const search = page.getByRole('searchbox')
+  for (const width of [1000, 375]) {
+    await page.setViewportSize({ width, height: 800 })
+    await expect(list.getByRole('listitem').first()).toBeInViewport()
+    await page.getByRole('button', { name: 'Show more' }).first().click()
+    await expect
+      .poll(() =>
+        panel.evaluate(
+          (element) =>
+            element.scrollHeight <= element.clientHeight &&
+            element.scrollWidth <= element.clientWidth,
+        ),
+      )
+      .toBe(true)
+    await page.getByRole('button', { name: 'Show less' }).first().click()
+    const before = await search.boundingBox()
+    await list.hover()
+    await page.mouse.wheel(0, 250)
+    await expect
+      .poll(() => list.evaluate((element) => element.scrollTop))
+      .toBeGreaterThan(0)
+    expect(await search.boundingBox()).toEqual(before)
+    await expect(page.getByRole('button', { name: 'Upload ZIP' })).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Check installed skills' }),
+    ).toBeVisible()
+    await list.evaluate((element) => {
+      element.scrollTop = 0
+    })
+  }
+})
+
 test('confirmation shows affected agents, cancels safely, and keeps usable agent copies', async ({
   page,
 }) => {

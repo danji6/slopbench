@@ -1,14 +1,23 @@
+import { approvalSummary } from '@sb/core/approval-presentation'
 import {
   MAX_NOTIFICATION_PREVIEW_CHARS,
   MAX_READ_NOTIFICATIONS,
   MAX_UNREAD_NOTIFICATIONS,
 } from '@sb/core/limits'
+import { isPendingToolApproval } from '@sb/core/utils/tool-parts'
 
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx } from '../_generated/server'
 import { error } from '../errors'
 import type { AuthMutationCtx, AuthQueryCtx } from '../functions'
-import type { NotificationKind, NotificationStatus } from '../types'
+import type {
+  NotificationApproval,
+  NotificationApprovalAction,
+  NotificationKind,
+  NotificationStatus,
+} from '../types'
+import { getProcessingSegmentRow } from './messageContents'
+import * as ApprovalNotifications from './notificationApprovals'
 
 /** Denormalized activity snapshot persisted once per recipient. */
 type NotificationEvent = {
@@ -18,6 +27,7 @@ type NotificationEvent = {
   actorAvatarId?: Id<'avatars'>
   preview?: string
   sourceMessageId?: Id<'messages'>
+  approval?: NotificationApproval
 }
 
 /** Normalizes notification previews to one bounded line. */
@@ -77,6 +87,7 @@ export async function notifyAgentEvent(
     kind: Exclude<NotificationKind, 'user_message'>
     preview?: string
     sourceMessageId?: Id<'messages'>
+    approval?: NotificationApproval
   },
 ) {
   const [session, agent] = await Promise.all([
@@ -92,7 +103,46 @@ export async function notifyAgentEvent(
     actorAvatarId: agent.avatarId,
     preview: args.preview,
     sourceMessageId: args.sourceMessageId,
+    approval: args.approval,
   })
+}
+
+/** Creates an independent, described notification for each pending tool call. */
+export async function notifyToolApprovals(
+  ctx: MutationCtx,
+  stream: Doc<'streams'>,
+  sessionId: Id<'sessions'>,
+) {
+  const row = await getProcessingSegmentRow(ctx, stream)
+  const messageId = stream.state.processingMessageId
+  if (!row || !messageId) return
+
+  for (const part of row.parts) {
+    if (!isPendingToolApproval(part)) continue
+    const call = part as typeof part & {
+      toolCallId?: string
+      input?: unknown
+      approval?: { id?: string }
+    }
+    if (!call.toolCallId || !call.approval?.id) continue
+    await notifyAgentEvent(ctx, {
+      sessionId,
+      agentId: stream.agentId,
+      kind: 'approval_required',
+      sourceMessageId: messageId,
+      preview: notificationPreview(
+        approvalSummary(call.type.slice(5), call.input),
+        'Approval required',
+      ),
+      approval: {
+        streamId: stream._id,
+        messageId,
+        contentId: row._id,
+        toolCallId: call.toolCallId,
+        approvalId: call.approval.id,
+      },
+    })
+  }
 }
 
 /** Persists one notification snapshot for each eligible session member. */
@@ -124,6 +174,7 @@ async function fanOut(
       actorAvatarId: event.actorAvatarId,
       preview: event.preview,
       sourceMessageId: event.sourceMessageId,
+      approval: event.approval,
     })
     await pruneStatus(ctx, member.userId, 'unread')
   }
@@ -135,13 +186,37 @@ export async function list(
   { status }: { status: NotificationStatus },
 ) {
   const limit = statusLimit(status)
-  return ctx.db
+  const rows = await ctx.db
     .query('notifications')
     .withIndex('by_recipientId_status_readAt', (q) =>
       q.eq('recipientId', ctx.userId).eq('status', status),
     )
     .order('desc')
     .take(limit)
+  return Promise.all(
+    rows.map((row) => ApprovalNotifications.withApprovalActions(ctx, row)),
+  )
+}
+
+/** Responds to the owned notification and records read state in one transaction. */
+export async function respondApproval(
+  ctx: AuthMutationCtx,
+  {
+    notificationId,
+    action,
+  }: {
+    notificationId: Id<'notifications'>
+    action: NotificationApprovalAction
+  },
+) {
+  const notification = await requireOwned(ctx, notificationId)
+  const status = await ApprovalNotifications.respondApproval(
+    ctx,
+    notification,
+    action,
+  )
+  await markRead(ctx, { notificationId })
+  return status
 }
 
 /** Marks one owned notification as read and enforces read retention. */

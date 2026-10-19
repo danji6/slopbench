@@ -26,6 +26,12 @@ describe('notification presentation', () => {
   test('uses the required approval and error copy', () => {
     expect(
       notificationBody({ ...item, kind: 'approval_required' } as never),
+    ).toBe('A concise answer')
+    expect(
+      notificationBody({
+        actorName: 'Ada',
+        kind: 'approval_required',
+      } as never),
     ).toBe('Ada needs your attention')
     expect(notificationBody({ ...item, kind: 'turn_error' } as never)).toBe(
       "Ada's turn ended with an error",

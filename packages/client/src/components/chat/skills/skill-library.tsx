@@ -6,7 +6,6 @@ import {
 } from '@/components/ui'
 import { useHomeOperation, useSkillToggle } from '@/hooks/chat/skills'
 import { useIsAdmin } from '@/hooks/chat/tools'
-import { cn } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { usePaginatedQuery } from 'convex/react'
@@ -70,14 +69,7 @@ export function SkillLibrary({ agentId }: { agentId?: Id<'agents'> }) {
   }
 
   return (
-    <div
-      className={cn(
-        'p-4',
-        agentId
-          ? 'flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden'
-          : 'space-y-4',
-      )}
-    >
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden p-4">
       <div className="shrink-0 space-y-4">
         {!agentId && <SkillImport operation={operation} />}
         {agentId && home && home.members.length > 1 && (
@@ -92,7 +84,7 @@ export function SkillLibrary({ agentId }: { agentId?: Id<'agents'> }) {
         )}
         <div className="flex items-center gap-2">
           <SearchInput
-            className="min-w-0 flex-1"
+            className="h-9 min-w-0 flex-1"
             aria-label="Search skill names"
             placeholder="Search skill names…"
             value={search}
@@ -112,7 +104,7 @@ export function SkillLibrary({ agentId }: { agentId?: Id<'agents'> }) {
       </div>
       <SkillList
         key={JSON.stringify([search, assignment])}
-        className={agentId ? 'max-h-none min-h-0 flex-1' : undefined}
+        className="max-h-none min-h-0 flex-1"
         items={page.results}
         status={page.status}
         loadMore={page.loadMore}

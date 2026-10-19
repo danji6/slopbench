@@ -1,11 +1,11 @@
 /**
- * Asks the browser to confirm before unloading the page, guarding against
- * accidental closes.
+ * Asks the browser to confirm before unloading while work needs protection.
  *
  * @returns {() => void} Removes the guard.
  */
-export function installCloseGuard(): () => void {
+export function installCloseGuard(shouldGuard: () => boolean): () => void {
   const guard = (event: BeforeUnloadEvent) => {
+    if (!shouldGuard()) return
     event.preventDefault()
   }
 

@@ -9,7 +9,9 @@ import {
   LoadingOverlay,
   RippleButton,
   type RippleButtonProps,
+  SettingsDialogTitle,
   SettingsFooter,
+  SettingsSwitchButton,
   SettingsTabs,
 } from '@/components/ui'
 import { useStableValue } from '@/hooks'
@@ -71,6 +73,15 @@ import { ProfileSettings } from './profile-settings'
 import { SubagentSettings } from './subagent-settings'
 import { ToolSettings } from './tool-settings'
 
+const AGENT_SETTINGS_TABS = [
+  { value: 'profile', label: 'Profile', icon: UserIcon },
+  { value: 'behavior', label: 'Behavior', icon: ActivityIcon },
+  { value: 'skills', label: 'Skills', icon: BlocksIcon },
+  { value: 'tools', label: 'Tools', icon: WrenchIcon },
+  { value: 'subagents', label: 'Sub-agents', icon: NetworkIcon },
+  { value: 'appearance', label: 'Appearance', icon: PaletteIcon },
+]
+
 export function AgentSettings() {
   const agentId = useEditingAgentId()
 
@@ -126,6 +137,9 @@ function AgentSettingsDialog() {
   const activeTab = ['files', 'context'].includes(requestedTab)
     ? 'behavior'
     : requestedTab
+  const activeTabLabel = AGENT_SETTINGS_TABS.find(
+    (tab) => tab.value === activeTab,
+  )?.label
   // The id leads the local state while the document is fetched
   const agentId = useEditingAgentId()
   const liveAgent = useOwnedAgent(agentId)
@@ -259,6 +273,10 @@ function AgentSettingsDialog() {
     if (action && (await apply())) action()
   }
 
+  function switchToUserSettings() {
+    guard(() => view.switchTo('settings', 'user'), true)
+  }
+
   return (
     <Dialog
       open={open}
@@ -277,15 +295,21 @@ function AgentSettingsDialog() {
             className="rounded-lg bg-transparent backdrop-blur-none"
           />
 
-          <Dialog.Header className="flex flex-col justify-between border-b px-6 py-4 text-left sm:flex-row sm:items-center">
-            <div className="flex flex-col gap-2 text-left">
-              <Dialog.Title>Agents</Dialog.Title>
-              <Dialog.Description className="text-muted-foreground">
-                Manage your agents.
-              </Dialog.Description>
-            </div>
+          <Dialog.Header className="justify-between gap-3 border-b px-6 py-4 text-left sm:flex-row sm:items-center">
+            <SettingsDialogTitle
+              section={newAgent || editingAgent ? activeTabLabel : undefined}
+              action={
+                <SettingsSwitchButton
+                  target="user"
+                  disabled={saving}
+                  onClick={switchToUserSettings}
+                />
+              }
+            >
+              Agents
+            </SettingsDialogTitle>
             <AgentPicker
-              className="mt-2 w-fit max-w-full min-w-80"
+              className="w-full min-w-0 shrink-0 sm:w-80"
               confirmSwitch={(action) => guard(action, true)}
             />
           </Dialog.Header>
@@ -307,36 +331,19 @@ function AgentSettingsDialog() {
                 className="min-h-0 flex-1"
               >
                 <SettingsTabs.List className="border-border">
-                  <SettingsTabs.Trigger value="profile" icon={<UserIcon />}>
-                    Profile
-                  </SettingsTabs.Trigger>
-                  <SettingsTabs.Trigger
-                    value="behavior"
-                    icon={<ActivityIcon />}
-                  >
-                    Behavior
-                  </SettingsTabs.Trigger>
-                  <SettingsTabs.Trigger value="skills" icon={<BlocksIcon />}>
-                    Skills
-                  </SettingsTabs.Trigger>
-                  <SettingsTabs.Trigger value="tools" icon={<WrenchIcon />}>
-                    Tools
-                  </SettingsTabs.Trigger>
-                  <SettingsTabs.Trigger
-                    value="subagents"
-                    icon={<NetworkIcon />}
-                  >
-                    Sub-agents
-                  </SettingsTabs.Trigger>
-                  <SettingsTabs.Trigger
-                    value="appearance"
-                    icon={<PaletteIcon />}
-                  >
-                    Appearance
-                  </SettingsTabs.Trigger>
+                  {AGENT_SETTINGS_TABS.map(({ value, label, icon: Icon }) => (
+                    <SettingsTabs.Trigger
+                      key={value}
+                      value={value}
+                      icon={<Icon />}
+                      aria-label={label}
+                    >
+                      {label}
+                    </SettingsTabs.Trigger>
+                  ))}
                 </SettingsTabs.List>
 
-                <SettingsTabs.Content value="profile" title="Profile">
+                <SettingsTabs.Content value="profile">
                   <ProfileSettings
                     control={form.control}
                     avatarId={editingAgent?.avatarId}
@@ -358,7 +365,7 @@ function AgentSettingsDialog() {
                   />
                 </SettingsTabs.Content>
 
-                <SettingsTabs.Content value="subagents" title="Sub-agents">
+                <SettingsTabs.Content value="subagents">
                   <SubagentSettings control={form.control} />
                 </SettingsTabs.Content>
 
@@ -375,14 +382,13 @@ function AgentSettingsDialog() {
 
                 <SettingsTabs.Content
                   value="skills"
-                  title="Skills"
                   className="flex min-h-0 min-w-0 flex-col overflow-hidden"
                 >
                   <AgentSkills
                     agentId={newAgent ? undefined : (agentId ?? undefined)}
                   />
                 </SettingsTabs.Content>
-                <SettingsTabs.Content value="appearance" title="Appearance">
+                <SettingsTabs.Content value="appearance">
                   <AppearanceSettings control={form.control} />
                 </SettingsTabs.Content>
               </SettingsTabs>
@@ -432,7 +438,7 @@ function AgentSettingsDialog() {
         extraAction={
           pendingAction?.canSave
             ? {
-                text: 'Save and switch',
+                text: 'Save',
                 variant: 'primary',
                 onConfirm: savePending,
               }

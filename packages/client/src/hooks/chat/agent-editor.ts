@@ -21,8 +21,8 @@ export function useAgentEditorOpen(): boolean {
   return useAgentEditorView().active
 }
 
-export function useOpenAgentEditor(): () => void {
-  const view = useAgentEditorView()
+export function useOpenAgentEditor(fromView = AGENT_EDITOR_VIEW): () => void {
+  const view = useView(fromView)
   const owned = useOwnedAgents()
   const activeAgent = useActiveAgent()
 
@@ -32,6 +32,6 @@ export function useOpenAgentEditor(): () => void {
     const fallback = owned?.find((agent) => agent._id === activeAgent?._id)
     if (!isNewAgent() && !editable && fallback) setEditingAgentId(fallback._id)
 
-    view.open(AGENT_EDITOR_DEFAULT_TAB)
+    view.switchTo(AGENT_EDITOR_VIEW, AGENT_EDITOR_DEFAULT_TAB)
   }, [view, owned, activeAgent])
 }

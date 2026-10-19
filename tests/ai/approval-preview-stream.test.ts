@@ -22,7 +22,10 @@ type ApprovalPart = UIMessage['parts'][number] & {
   approvalPaths?: string[]
 }
 
-function approvalModel(command: string) {
+function approvalModel(
+  command: string,
+  description = 'Inspect the requested workspace files',
+) {
   return new MockLanguageModelV4({
     doStream: async () => ({
       stream: new ReadableStream({
@@ -32,7 +35,7 @@ function approvalModel(command: string) {
             type: 'tool-call',
             toolCallId: 'shell-call',
             toolName: 'shell',
-            input: JSON.stringify({ command }),
+            input: JSON.stringify({ command, description }),
           })
           controller.enqueue({
             type: 'finish',
@@ -81,7 +84,11 @@ function captureApprovalContext() {
   return { ctx, patches, approvalSessions }
 }
 
-function streamSetup(isSubagent: boolean, command: string): Setup {
+function streamSetup(
+  isSubagent: boolean,
+  command: string,
+  description?: string,
+): Setup {
   return {
     isSubagent,
     stream: { sessionId: isSubagent ? 'child' : 'parent', invokedBy: 'user' },
@@ -89,12 +96,15 @@ function streamSetup(isSubagent: boolean, command: string): Setup {
     workspace: { workspaceId: 'workspace' },
     workspaceSessionId: 'parent',
     agent: { autoApprove: { paths: ['agent-grant'] } },
-    resolved: { languageModel: approvalModel(command) },
+    resolved: { languageModel: approvalModel(command, description) },
     messages: [{ role: 'user', content: 'Search the workspace.' }],
     requestLog: {},
     tools: {
       shell: tool({
-        inputSchema: z.object({ command: z.string() }),
+        inputSchema: z.object({
+          command: z.string(),
+          description: z.string().optional(),
+        }),
         needsApproval: true,
       }),
     },
@@ -126,6 +136,27 @@ describe('approval details are attached before requests are published', () => {
   })
   afterAll(async () => {
     await sidecar.close()
+  })
+
+  test('automatically denied shell calls retain retry guidance without parking for approval', async () => {
+    const { ctx, patches } = captureApprovalContext()
+    const result = await consumeProviderStep(
+      ctx,
+      'stream' as never,
+      streamSetup(false, 'git push origin main', '   '),
+      Date.now() + 60_000,
+    )
+    expect(result.awaitingApproval).toBe(false)
+    expect(patches.flat()).toContainEqual(
+      expect.objectContaining({
+        type: 'tool-shell',
+        state: 'output-denied',
+        approval: expect.objectContaining({
+          approved: false,
+          reason: expect.stringContaining('Re-run the command'),
+        }),
+      }),
+    )
   })
 
   for (const isSubagent of [false, true]) {

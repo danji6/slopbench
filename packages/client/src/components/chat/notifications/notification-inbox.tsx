@@ -1,10 +1,13 @@
 import { Popover, QuickTooltip, RippleButton, Tabs } from '@/components/ui'
-import { notificationBody } from '@/lib/chat/notification-ui'
+import {
+  type NotificationItem,
+  notificationBody,
+} from '@/lib/chat/notification-ui'
 import { cn, formatRelativeTime } from '@/lib/utils'
-import type { Doc } from '@sb/convex/_generated/dataModel'
 import { BellIcon, BroomIcon, MailOpenIcon } from 'lucide-react'
 import { useState } from 'react'
 
+import { NotificationApprovalActions } from './notification-approval-actions'
 import { NotificationAvatar } from './notification-avatar'
 import { useNotifications } from './notification-provider'
 
@@ -147,7 +150,7 @@ function NotificationList({
   empty,
   unread = false,
 }: {
-  items: Doc<'notifications'>[]
+  items: NotificationItem[]
   empty: string
   unread?: boolean
 }) {
@@ -176,15 +179,15 @@ function NotificationRow({
   notification,
   unread,
 }: {
-  notification: Doc<'notifications'>
+  notification: NotificationItem
   unread: boolean
 }) {
-  const { openSession, markRead } = useNotifications()
+  const { openSession, markRead, respondApproval } = useNotifications()
 
   return (
     <div
       className={cn(
-        'hover:bg-m3-surface-container-high group flex items-center rounded-lg',
+        'hover:bg-m3-surface-container-high group flex flex-wrap items-center rounded-lg',
         !unread && 'text-muted-foreground',
       )}
     >
@@ -216,6 +219,14 @@ function NotificationRow({
           </span>
         </span>
       </Popover.Close>
+      {notification.approvalActions.length > 0 && (
+        <div className="order-last w-full px-2 pb-2 pl-12">
+          <NotificationApprovalActions
+            options={notification.approvalActions}
+            onRespond={(action) => respondApproval(notification, action)}
+          />
+        </div>
+      )}
       {unread && (
         <RippleButton
           variant="stealth"

@@ -92,7 +92,15 @@ export function SkillsFixture() {
             )}
           </>
         ) : (
-          <SkillLibrary />
+          <SettingsTabs value="skills" className="h-[min(60svh,500px)] min-h-0">
+            <SettingsTabs.Content
+              value="skills"
+              title="Skills"
+              className="flex min-h-0 min-w-0 flex-col overflow-hidden"
+            >
+              <SkillLibrary />
+            </SettingsTabs.Content>
+          </SettingsTabs>
         )}
       </main>
     </ConvexProvider>

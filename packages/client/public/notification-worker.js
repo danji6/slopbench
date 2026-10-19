@@ -1,10 +1,9 @@
 /* global self, caches, URL, Response */
 
-/** Stores read actions until an authenticated page can persist them. */
-const ACTION_CACHE = 'slopbench-notification-actions-v1'
+const ACTION_CACHE = 'slopbench-notification-actions-v2'
 const ACTION_PATH = '/__notification_actions__/'
+const APPROVAL_ACTIONS = new Set(['allow', 'allow-session', 'deny'])
 
-// This worker has no fetch lifecycle, so updates are safe to activate immediately
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting())
 })
@@ -13,53 +12,50 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim())
 })
 
-// Native notification clicks can arrive without any app tab running
+// Retain the selected action until an authenticated page acknowledges it.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const data = event.notification.data || {}
-  const notificationId = data.notificationId
-  const sessionId = data.sessionId
-
+  const { notificationId, sessionId } = event.notification.data || {}
+  if (!notificationId) return
+  const action = event.action === 'dismiss' ? 'read' : event.action || 'show'
+  if (action !== 'read' && action !== 'show' && !APPROVAL_ACTIONS.has(action))
+    return
   event.waitUntil(
-    event.action === 'dismiss'
-      ? markRead(notificationId)
-      : showSession(notificationId, sessionId),
+    deliverAction({
+      type: 'slopbench:notification-action',
+      action,
+      notificationId,
+      sessionId,
+      requestId: `${notificationId}:${action}`,
+    }),
   )
 })
 
-/** Delivers a read action now or queues it for the next app startup. */
-async function markRead(notificationId) {
-  if (!notificationId) return
-  const windows = await self.clients.matchAll({
-    type: 'window',
-    includeUncontrolled: true,
-  })
-  if (windows.length > 0) {
-    for (const client of windows) {
-      client.postMessage({
-        type: 'slopbench:notification-action',
-        action: 'read',
-        notificationId,
-      })
-    }
-    return
-  }
+self.addEventListener('message', (event) => {
+  if (event.data?.type !== 'slopbench:notification-action-ack') return
+  const requestId = event.data.requestId
+  if (typeof requestId !== 'string') return
+  event.waitUntil(
+    caches
+      .open(ACTION_CACHE)
+      .then((cache) => cache.delete(actionUrl(requestId))),
+  )
+})
 
-  const cache = await caches.open(ACTION_CACHE)
-  const url = new URL(
-    `${ACTION_PATH}${encodeURIComponent(notificationId)}`,
+function actionUrl(requestId) {
+  return new URL(
+    `${ACTION_PATH}${encodeURIComponent(requestId)}`,
     self.location.origin,
   )
-  await cache.put(url, new Response('read'))
 }
 
-/** Marks the alert read, then focuses or opens its session. */
-async function showSession(notificationId, sessionId) {
-  if (!sessionId) return
-  const destination = new URL(
-    `/?id=${encodeURIComponent(sessionId)}`,
-    self.location.origin,
-  ).href
+/** Chooses one page so background approvals do not run in every tab. */
+async function deliverAction(action) {
+  const cache = await caches.open(ACTION_CACHE)
+  await cache.put(
+    actionUrl(action.requestId),
+    new Response(JSON.stringify(action)),
+  )
   const windows = await self.clients.matchAll({
     type: 'window',
     includeUncontrolled: true,
@@ -69,14 +65,16 @@ async function showSession(notificationId, sessionId) {
     windows.find((window) => window.visibilityState === 'visible') ||
     windows[0]
   if (client) {
-    client.postMessage({
-      type: 'slopbench:notification-action',
-      action: 'show',
-      notificationId,
-      sessionId,
-    })
-    return client.focus()
+    client.postMessage(action)
+    if (action.action === 'show') return client.focus()
+    return
   }
-  await markRead(notificationId)
-  return self.clients.openWindow(destination)
+  // Dismiss stays quiet; approval clicks open a page to authenticate and apply it.
+  if (action.action === 'read' || !action.sessionId) return
+  return self.clients.openWindow(
+    new URL(
+      `/?id=${encodeURIComponent(action.sessionId)}`,
+      self.location.origin,
+    ).href,
+  )
 }

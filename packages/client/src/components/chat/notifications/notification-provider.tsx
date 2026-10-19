@@ -1,25 +1,34 @@
-import { RippleButton } from '@/components/ui'
 import { useActiveSessionId } from '@/hooks/chat'
 import { createUsableContext } from '@/hooks/context'
+import { useTabPresence } from '@/hooks/notification-presence'
 import {
   type NotificationItem,
-  notificationBody,
-  notificationTag,
   notificationToastId,
 } from '@/lib/chat/notification-ui'
-import { updateNotificationFavicon } from '@/lib/notification-favicon'
 import {
-  type NotificationPeer,
-  type NotificationSurface,
-  chooseNotificationSurface,
-} from '@/lib/notification-presence'
-import { toast } from '@/lib/notifications'
-import { generateId } from '@/lib/utils'
+  closeDesktopNotification,
+  registerNotificationWorker,
+  showDesktopNotification,
+  supportsDesktopNotifications,
+} from '@/lib/notification-desktop'
+import { updateNotificationFavicon } from '@/lib/notification-favicon'
+import { pageIsFocused } from '@/lib/notification-presence'
+import {
+  acknowledgeWorkerAction,
+  drainPendingWorkerActions,
+  isWorkerAction,
+} from '@/lib/notification-worker-actions'
+import { toast, toastError } from '@/lib/notifications'
 import { api } from '@sb/convex/_generated/api'
-import type { Doc, Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@sb/convex/_generated/dataModel'
 import { MAX_READ_NOTIFICATIONS } from '@sb/core/limits'
+import type {
+  NotificationApprovalAction,
+  NotificationWorkerAction,
+} from '@sb/core/notification-actions'
 import type { OptimisticLocalStore } from 'convex/browser'
 import { useMutation, useQuery } from 'convex/react'
+import { ConvexError } from 'convex/values'
 import {
   type ReactNode,
   useCallback,
@@ -30,7 +39,7 @@ import {
 } from 'react'
 import { useLocation } from 'wouter'
 
-import { NotificationAvatar } from './notification-avatar'
+import { showNotificationToast } from './notification-toast'
 
 type DesktopPermission = NotificationPermission | 'unsupported'
 
@@ -44,6 +53,10 @@ type NotificationContextValue = {
   markAllRead: () => void
   clearRead: () => void
   enableDesktop: () => Promise<void>
+  respondApproval: (
+    notification: NotificationItem,
+    action: NotificationApprovalAction,
+  ) => Promise<void>
 }
 
 const [NotificationContext, useNotifications] =
@@ -72,6 +85,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     api.notifications.markRead,
   ).withOptimisticUpdate(optimisticallyMarkNotificationRead)
   const markManyRead = useMutation(api.notifications.markManyRead)
+  const respondApprovalMutation = useMutation(api.notifications.respondApproval)
   const markAllReadMutation = useMutation(api.notifications.markAllRead)
   const markSessionRead = useMutation(api.notifications.markSessionRead)
   const discardSession = useMutation(api.notifications.discardSession)
@@ -82,7 +96,15 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   // A null baseline prevents replaying the startup backlog as new alerts
   const knownUnread = useRef<Set<string> | null>(null)
   // Tracks surfaced alerts so read transitions can close their UI
-  const surfaced = useRef(new Set<string>())
+  const surfaced = useRef(
+    new Map<string, { surface: 'toast' | 'desktop'; actions: string }>(),
+  )
+
+  const latestUnread = useRef(unread)
+  useEffect(() => {
+    latestUnread.current = unread
+  }, [unread])
+
   const presence = useTabPresence(activeSessionId)
 
   const markRead = useCallback(
@@ -133,26 +155,74 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     updateNotificationFavicon(unread.length)
   }, [unread.length])
 
+  const respondApproval = useCallback(
+    async (
+      notification: NotificationItem,
+      action: NotificationApprovalAction,
+    ) => {
+      try {
+        const status = await respondApprovalMutation({
+          notificationId: notification._id,
+          action,
+        })
+        if (status === 'stale')
+          toast.info('This approval is no longer pending.')
+      } catch (error) {
+        toastError(error)
+        throw error
+      }
+    },
+    [respondApprovalMutation],
+  )
+
+  const applyWorkerAction = useCallback(
+    async (action: NotificationWorkerAction) => {
+      if (action.action === 'read' || action.action === 'show') {
+        await markManyRead({
+          notificationIds: [action.notificationId as Id<'notifications'>],
+        })
+        if (action.action === 'show' && action.sessionId) {
+          navigate(`/?id=${action.sessionId}`)
+          window.focus()
+        }
+      } else {
+        try {
+          await respondApprovalMutation({
+            notificationId: action.notificationId as Id<'notifications'>,
+            action: action.action,
+          })
+        } catch (error) {
+          const code =
+            error instanceof ConvexError ? error.data?.code : undefined
+          if (![403, 404, 409].includes(code)) throw error
+          // Deleted requests or lost permissions cannot be retried by this account
+          toastError(error)
+        }
+      }
+      acknowledgeWorkerAction(action)
+    },
+    [markManyRead, navigate, respondApprovalMutation],
+  )
+
   useEffect(() => {
     if (!supportsDesktopNotifications()) return
-    void registerNotificationWorker()
-    const onMessage = (event: MessageEvent<WorkerAction>) => {
-      if (event.data?.type !== 'slopbench:notification-action') return
-      if (event.data.notificationId) {
-        void markManyRead({
-          notificationIds: [event.data.notificationId as Id<'notifications'>],
-        })
-      }
-      if (event.data.action === 'show' && event.data.sessionId) {
-        navigate(`/?id=${event.data.sessionId}`)
-        window.focus()
-      }
+    const onMessage = (event: MessageEvent<unknown>) => {
+      if (!isWorkerAction(event.data)) return
+      void applyWorkerAction(event.data).catch(toastError)
     }
     navigator.serviceWorker.addEventListener('message', onMessage)
-    void drainPendingWorkerActions(markManyRead)
-    return () =>
+    const drain = () => {
+      void registerNotificationWorker()
+        .then(() => drainPendingWorkerActions(applyWorkerAction))
+        .catch(toastError)
+    }
+    drain()
+    window.addEventListener('focus', drain)
+    return () => {
       navigator.serviceWorker.removeEventListener('message', onMessage)
-  }, [markManyRead, navigate])
+      window.removeEventListener('focus', drain)
+    }
+  }, [applyWorkerAction])
 
   useEffect(() => {
     if (!activeSessionId) return
@@ -179,34 +249,70 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
     if (previous === null) return
     const added = unread.filter((item) => !previous.has(item._id))
-    for (const notification of added) {
-      void presence.decide(notification.sessionId).then((decision) => {
+    for (const addedNotification of added) {
+      void presence.decide(addedNotification.sessionId).then((decision) => {
+        const notification = latestUnread.current.find(
+          (item) => item._id === addedNotification._id,
+        )
+        if (!notification) return
+        if (notification.approval && !notification.approvalPending) return
         if (decision === 'discard') {
           void discardSession({ sessionId: notification.sessionId })
           return
         }
         if (decision === 'toast') {
-          surfaced.current.add(notification._id)
-          showNotificationToast(notification, show, markRead)
+          surfaced.current.set(notification._id, {
+            surface: 'toast',
+            actions: JSON.stringify(notification.approvalActions),
+          })
+          showNotificationToast(notification, show, markRead, respondApproval)
           return
         }
         if (decision === 'desktop') {
-          surfaced.current.add(notification._id)
-          void showDesktopNotification(notification)
+          surfaced.current.set(notification._id, {
+            surface: 'desktop',
+            actions: JSON.stringify(notification.approvalActions),
+          })
+          void showDesktopNotification(notification, () =>
+            latestUnread.current.some(
+              (item) =>
+                item._id === notification._id &&
+                (!item.approval || item.approvalPending),
+            ),
+          ).catch(toastError)
         }
       })
     }
-  }, [discardSession, markRead, presence, show, unread, unreadResult])
+  }, [
+    discardSession,
+    markRead,
+    presence,
+    respondApproval,
+    show,
+    unread,
+    unreadResult,
+  ])
 
   useEffect(() => {
-    const unreadIds = new Set(unread.map((item) => item._id))
-    for (const notificationId of surfaced.current) {
-      if (unreadIds.has(notificationId as Id<'notifications'>)) continue
+    for (const [notificationId, surface] of surfaced.current) {
+      const notification = unread.find((item) => item._id === notificationId)
+      const pending =
+        notification && (!notification.approval || notification.approvalPending)
+      if (pending) {
+        const actions = JSON.stringify(notification.approvalActions)
+        if (surface.actions !== actions) {
+          surfaced.current.set(notificationId, { ...surface, actions })
+          if (surface.surface === 'toast')
+            showNotificationToast(notification, show, markRead, respondApproval)
+          else void showDesktopNotification(notification).catch(toastError)
+        }
+        continue
+      }
       toast.dismiss(notificationToastId(notificationId))
       void closeDesktopNotification(notificationId)
       surfaced.current.delete(notificationId)
     }
-  }, [unread])
+  }, [unread, markRead, respondApproval, show])
 
   return (
     <NotificationContext.Provider
@@ -220,6 +326,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         markAllRead: markAll,
         clearRead,
         enableDesktop,
+        respondApproval,
       }}
     >
       {children}
@@ -247,7 +354,7 @@ function optimisticallyMarkNotificationRead(
   const read = store.getQuery(api.notifications.list, readArgs)
   if (!read) return
 
-  const readNotification: Doc<'notifications'> = {
+  const readNotification: NotificationItem = {
     ...notification,
     status: 'read',
     readAt: Date.now(),
@@ -259,252 +366,8 @@ function optimisticallyMarkNotificationRead(
   )
 }
 
-function NotificationToast({
-  notification,
-  onShow,
-  onRead,
-}: {
-  notification: NotificationItem
-  onShow: () => void
-  onRead: () => void
-}) {
-  return (
-    <div className="bg-popover text-popover-foreground ring-foreground/10 flex w-88 gap-3 rounded-xl p-3 shadow-md ring-1">
-      <NotificationAvatar notification={notification} className="size-9" />
-      <div className="min-w-0 flex-1">
-        <div className="truncate font-medium">{notification.actorName}</div>
-        <div className="line-clamp-2 text-sm">
-          {notificationBody(notification)}
-        </div>
-        <div className="text-muted-foreground truncate text-xs">
-          {notification.sessionTitle}
-        </div>
-        <div className="mt-2 flex justify-end gap-1">
-          <RippleButton variant="stealth" size="sm" onClick={onRead}>
-            Dismiss
-          </RippleButton>
-          <RippleButton variant="primary" size="sm" onClick={onShow}>
-            Show
-          </RippleButton>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/** Shows an in-app notification without changing read state. */
-function showNotificationToast(
-  notification: NotificationItem,
-  show: (notification: NotificationItem) => void,
-  markRead: (notification: NotificationItem) => void,
-) {
-  const id = notificationToastId(notification._id)
-  toast.custom(
-    () => (
-      <NotificationToast
-        notification={notification}
-        onShow={() => {
-          show(notification)
-          toast.dismiss(id)
-        }}
-        onRead={() => {
-          markRead(notification)
-          toast.dismiss(id)
-        }}
-      />
-    ),
-    { id },
-  )
-}
-
-/** Shows a native notification when browser permission allows it. */
-async function showDesktopNotification(notification: NotificationItem) {
-  if (
-    !supportsDesktopNotifications() ||
-    Notification.permission !== 'granted'
-  ) {
-    return
-  }
-  const registration = await registerNotificationWorker()
-  const options: NotificationOptions & {
-    actions: Array<{ action: string; title: string }>
-  } = {
-    body: notificationBody(notification),
-    icon: '/favicon.svg',
-    tag: notificationTag(notification._id),
-    data: {
-      notificationId: notification._id,
-      sessionId: notification.sessionId,
-    },
-    actions: [{ action: 'dismiss', title: 'Dismiss' }],
-  }
-  await registration.showNotification(notification.actorName, options)
-}
-
-/** Closes the native alert associated with a notification record. */
-async function closeDesktopNotification(notificationId: string) {
-  if (!('serviceWorker' in navigator)) return
-  const registration = await navigator.serviceWorker.getRegistration()
-  const notifications = await registration?.getNotifications({
-    tag: notificationTag(notificationId),
-  })
-  notifications?.forEach((notification) => notification.close())
-}
-
-/** Reuses the root-scoped service worker registration within this page. */
-let workerRegistration: Promise<ServiceWorkerRegistration> | null = null
-
-/** Registers the worker that handles native notification actions. */
-function registerNotificationWorker() {
-  workerRegistration ??= navigator.serviceWorker.register(
-    '/notification-worker.js',
-  )
-  return workerRegistration
-}
-
-function supportsDesktopNotifications() {
-  return (
-    window.isSecureContext &&
-    'Notification' in window &&
-    'serviceWorker' in navigator
-  )
-}
-
 function readDesktopPermission(): DesktopPermission {
   return supportsDesktopNotifications()
     ? Notification.permission
     : 'unsupported'
-}
-
-/** Must match the service worker's cache for actions received without a page. */
-const ACTION_CACHE = 'slopbench-notification-actions-v1'
-
-type MarkManyRead = ReturnType<
-  typeof useMutation<typeof api.notifications.markManyRead>
->
-
-/** Applies service worker actions queued while every app tab was closed. */
-async function drainPendingWorkerActions(markManyRead: MarkManyRead) {
-  if (!('caches' in window)) return
-  const cache = await caches.open(ACTION_CACHE)
-  const keys = await cache.keys()
-  const notificationIds = keys.flatMap((request) => {
-    const marker = '/__notification_actions__/'
-    const index = request.url.indexOf(marker)
-    return index === -1
-      ? []
-      : [decodeURIComponent(request.url.slice(index + marker.length))]
-  })
-  if (notificationIds.length === 0) return
-  await markManyRead({
-    notificationIds: notificationIds as Id<'notifications'>[],
-  })
-  await Promise.all(keys.map((request) => cache.delete(request)))
-}
-
-type PresenceMessage = {
-  type: 'presence' | 'probe' | 'leave'
-  tabId: string
-  startedAt: number
-  focused: boolean
-  sessionId: string | null
-  at: number
-}
-
-type Peer = Omit<PresenceMessage, 'type'>
-
-/** Tracks live same origin tabs and arbitrates which one surfaces each alert. */
-function useTabPresence(activeSessionId: string | null) {
-  const [tabId] = useState(generateId)
-  const [startedAt] = useState(Date.now)
-  const peers = useRef(new Map<string, Peer>())
-  const channel = useRef<BroadcastChannel | null>(null)
-  const sessionRef = useRef(activeSessionId)
-
-  useEffect(() => {
-    sessionRef.current = activeSessionId
-  }, [activeSessionId])
-
-  const announce = useCallback(
-    (type: PresenceMessage['type'] = 'presence') => {
-      channel.current?.postMessage({
-        type,
-        tabId,
-        startedAt,
-        focused: pageIsFocused(),
-        sessionId: sessionRef.current,
-        at: Date.now(),
-      } satisfies PresenceMessage)
-    },
-    [startedAt, tabId],
-  )
-
-  useEffect(() => {
-    if (!('BroadcastChannel' in window)) return
-    const next = new BroadcastChannel('slopbench-notification-presence')
-    channel.current = next
-    next.onmessage = (event: MessageEvent<PresenceMessage>) => {
-      const message = event.data
-      if (!message || message.tabId === tabId) return
-      if (message.type === 'leave') peers.current.delete(message.tabId)
-      else peers.current.set(message.tabId, message)
-      if (message.type === 'probe') announce()
-    }
-    announce()
-    const interval = window.setInterval(announce, 4_000)
-    const onState = () => announce()
-    const onUnload = () => announce('leave')
-    window.addEventListener('focus', onState)
-    window.addEventListener('blur', onState)
-    window.addEventListener('pagehide', onUnload)
-    document.addEventListener('visibilitychange', onState)
-    return () => {
-      announce('leave')
-      window.clearInterval(interval)
-      window.removeEventListener('focus', onState)
-      window.removeEventListener('blur', onState)
-      window.removeEventListener('pagehide', onUnload)
-      document.removeEventListener('visibilitychange', onState)
-      next.close()
-      channel.current = null
-    }
-  }, [announce, tabId])
-
-  useEffect(() => announce(), [activeSessionId, announce])
-
-  const decide = useCallback(
-    async (sessionId: string): Promise<NotificationSurface> => {
-      announce('probe')
-      // Give peer tabs a brief window to answer the probe
-      await new Promise((resolve) => window.setTimeout(resolve, 75))
-      const now = Date.now()
-      const own: Peer = {
-        tabId,
-        startedAt,
-        focused: pageIsFocused(),
-        sessionId: sessionRef.current,
-        at: now,
-      }
-      const live: NotificationPeer[] = [
-        own,
-        ...[...peers.current.values()].filter((peer) => now - peer.at < 10_000),
-      ]
-      return chooseNotificationSurface(live, own.tabId, sessionId)
-    },
-    [announce, startedAt, tabId],
-  )
-
-  return useMemo(() => ({ decide }), [decide])
-}
-
-/** True only when the page is both visible and the active browser surface. */
-function pageIsFocused() {
-  return document.visibilityState === 'visible' && document.hasFocus()
-}
-
-type WorkerAction = {
-  type: 'slopbench:notification-action'
-  action?: 'read' | 'show'
-  notificationId?: string
-  sessionId?: string
 }

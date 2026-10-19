@@ -1,12 +1,15 @@
-import type { Doc } from '@sb/convex/_generated/dataModel'
+import type { api } from '@sb/convex/_generated/api'
+import type { FunctionReturnType } from 'convex/server'
 
-export type NotificationItem = Doc<'notifications'>
+export type NotificationItem = FunctionReturnType<
+  typeof api.notifications.list
+>[number]
 
 /** Formats the body shared by toast and desktop surfaces. */
 export function notificationBody(notification: NotificationItem): string {
   switch (notification.kind) {
     case 'approval_required':
-      return `${notification.actorName} needs your attention`
+      return (notification.preview || `${notification.actorName} needs your attention`) // prettier-ignore
     case 'input_required':
       return `${notification.actorName} has questions for you`
     case 'turn_error':

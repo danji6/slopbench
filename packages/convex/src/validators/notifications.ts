@@ -1,5 +1,19 @@
 import { v } from 'convex/values'
 
+export const notificationApprovalValidator = v.object({
+  streamId: v.id('streams'),
+  messageId: v.id('messages'),
+  contentId: v.id('messageContents'),
+  toolCallId: v.string(),
+  approvalId: v.string(),
+})
+
+export const notificationApprovalActionValidator = v.union(
+  v.literal('allow'),
+  v.literal('allow-session'),
+  v.literal('deny'),
+)
+
 /** Activity kinds that can produce durable notifications. */
 export const notificationKindValidator = v.union(
   v.literal('user_message'),
@@ -27,4 +41,5 @@ export const notificationSchema = v.object({
   actorAvatarId: v.optional(v.id('avatars')),
   preview: v.optional(v.string()),
   sourceMessageId: v.optional(v.id('messages')),
+  approval: v.optional(notificationApprovalValidator),
 })

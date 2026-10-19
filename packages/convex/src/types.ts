@@ -61,7 +61,7 @@ export type SessionParticipant = CoreSessionParticipant<
 
 export type PrepareContextNoteArgs = Infer<
   typeof V.prepareContextNoteArgsValidator
-  >
+>
 
 /**
  * Payloads carried by the `messages.extra` field, keyed by the message `type`
@@ -123,6 +123,8 @@ export type ReminderScope = Infer<typeof V.reminderScopeValidator>
 export type CredentialScope = Infer<typeof V.credentialScopeValidator>
 export type NotificationKind = Infer<typeof V.notificationKindValidator>
 export type NotificationStatus = Infer<typeof V.notificationStatusValidator>
+export type NotificationApproval = Infer<typeof V.notificationApprovalValidator>
+export type NotificationApprovalAction = Infer<typeof V.notificationApprovalActionValidator> // prettier-ignore
 
 export type SessionMode = Infer<typeof V.sessionModeValidator>
 export type ApprovalMode = Infer<typeof V.approvalModeValidator>

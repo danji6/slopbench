@@ -26,3 +26,8 @@ export function chooseNotificationSurface(
   )[0]
   return leader?.tabId === ownTabId ? 'desktop' : 'none'
 }
+
+/** True only when the page is both visible and the active browser surface. */
+export function pageIsFocused() {
+  return document.visibilityState === 'visible' && document.hasFocus()
+}

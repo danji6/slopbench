@@ -66,6 +66,7 @@ export function SkillImport({
       <Input
         aria-label="Skill directory"
         placeholder="/path/to/skill"
+        className="h-9"
         {...form.register('source')}
       />
       <div className="flex flex-wrap gap-2">

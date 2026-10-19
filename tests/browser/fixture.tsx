@@ -54,6 +54,10 @@ const SubagentApprovalsFixture = lazy(() =>
   })),
 )
 
+const NotificationsFixture = lazy(() =>
+  import('./notifications-fixture').then((module) => ({ default: module.NotificationsFixture })),
+)
+
 const AccountSecurityFixture = lazy(() =>
   import('./account-security-fixture').then((module) => ({
     default: module.AccountSecurityFixture,
@@ -63,6 +67,12 @@ const AccountSecurityFixture = lazy(() =>
 const UiLayoutFixture = lazy(() =>
   import('./ui-layout-fixture').then((module) => ({
     default: module.UiLayoutFixture,
+  })),
+)
+
+const SidebarFixture = lazy(() =>
+  import('./sidebar-fixture').then((module) => ({
+    default: module.SidebarFixture,
   })),
 )
 
@@ -107,7 +117,15 @@ function PreviewFixture() {
 }
 
 createRoot(document.getElementById('root')!).render(
-  new URLSearchParams(location.search).get('fixture') === 'ui-layout' ? (
+  new URLSearchParams(location.search).get('fixture') === 'notifications' ? (
+    <Suspense fallback={<p>Loading notifications…</p>}>
+      <NotificationsFixture />
+    </Suspense>
+  ) : new URLSearchParams(location.search).get('fixture') === 'sidebar' ? (
+    <Suspense fallback={<p>Loading sidebar…</p>}>
+      <SidebarFixture />
+    </Suspense>
+  ) : new URLSearchParams(location.search).get('fixture') === 'ui-layout' ? (
     <Suspense fallback={<p>Loading layout…</p>}>
       <UiLayoutFixture />
     </Suspense>

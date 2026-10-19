@@ -412,6 +412,9 @@ function SidebarToggle({
   ...props
 }: SidebarToggleProps) {
   const { toggle, isMobile, side, pinned, togglePinned, isOpen } = useSidebar()
+  const layer = useContext(SidebarLayerContext)
+  // Keep each layer's geometry stable while it fades out
+  const isExpanded = layer ? layer === 'expanded' : isOpen
 
   if (isMobile) return null
 
@@ -426,7 +429,7 @@ function SidebarToggle({
     </RippleButton>
   )
 
-  if (!isOpen) {
+  if (!isExpanded) {
     return (
       <Sidebar.Item data-slot="sidebar-toggle" className="w-auto" {...props}>
         {toggleButton}

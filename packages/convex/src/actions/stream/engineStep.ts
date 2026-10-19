@@ -65,11 +65,13 @@ export async function consumeProviderStep(
       trackToolErrors,
     },
     { repairToolCall },
+    { shellApprovalPolicy },
     { applyReasoningDurations, createReasoningTracker, trackReasoningTimings },
   ] = await Promise.all([
     import('ai'),
     import('../../model/stream/transformers'),
     import('../../model/tool/repair'),
+    import('../../model/tool/shellApproval'),
     import('../../model/stream/reasoning'),
   ])
 
@@ -122,6 +124,7 @@ export async function consumeProviderStep(
       allowSystemInMessages: true,
       messages: setup.messages,
       tools: Object.keys(setup.tools).length ? setup.tools : undefined,
+      toolApproval: shellApprovalPolicy(setup.tools),
       stopWhen: stepCountIs(1),
       // Approved tools execute before the first provider call. Add their notes
       // once the SDK tool results exist, without disrupting the resume.
