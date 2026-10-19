@@ -10,6 +10,7 @@ import {
   showDesktopNotificationOnce,
 } from '@/lib/notification-desktop'
 import { toast, toastError } from '@/lib/notifications'
+import { APP_ID } from '@sb/core/const'
 import type { NotificationApprovalAction } from '@sb/core/notification-actions'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -33,7 +34,7 @@ type DeliveryOptions = {
 }
 
 type StackPreference = { minimized: boolean; seen: string[] }
-const STACK_KEY = 'slopbench:notification-stack'
+const STACK_KEY = `${APP_ID}:notification-stack`
 
 function readStackPreference(): StackPreference {
   try {

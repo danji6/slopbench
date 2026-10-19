@@ -1,8 +1,13 @@
 import { convexClient } from '@convex-dev/better-auth/client/plugins'
+import { APP_ID } from '@sb/core/const'
+import { getGlobalBroadcastChannel } from 'better-auth/client'
 import { usernameClient } from 'better-auth/client/plugins'
 import { createAuthClient } from 'better-auth/react'
 
 import { getAuthSiteUrl } from './site-url'
+
+// Set the shared channel name before session subscriptions initialize it.
+getGlobalBroadcastChannel(`${APP_ID}-better-auth.message`)
 
 export const authClient = createAuthClient({
   baseURL: getAuthSiteUrl({

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { APP_ID } from '@sb/core/const'
 
 import {
   drag,
@@ -208,8 +209,10 @@ test('folder controls retain sibling collapse state and refresh pin actions afte
 
   await expect
     .poll(() =>
-      page.evaluate(() =>
-        JSON.parse(localStorage.getItem('session-folder-collapse')!),
+      page.evaluate(
+        (appId) =>
+          JSON.parse(localStorage.getItem(`${appId}-session-folder-collapse`)!),
+        APP_ID,
       ),
     )
     .toMatchObject({ a: false, b: true })

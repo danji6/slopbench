@@ -3,6 +3,7 @@ import {
   notificationBody,
   notificationTag,
 } from '@/lib/chat/notification-ui'
+import { APP_ID } from '@sb/core/const'
 import { desktopApprovalActions } from '@sb/core/notification-actions'
 
 /** Shows a native notification when browser permission allows it. */
@@ -71,7 +72,7 @@ export function supportsDesktopNotifications() {
   )
 }
 
-const DELIVERY_KEY = 'slopbench:desktop-delivery'
+const DELIVERY_KEY = `${APP_ID}:desktop-delivery`
 
 function deliveredNotifications(): Record<string, number> {
   try {

@@ -1,4 +1,5 @@
 import { type Locator, type Page, expect } from '@playwright/test'
+import { APP_ID } from '@sb/core/const'
 
 export async function dragTo(
   page: Page,
@@ -55,12 +56,12 @@ export async function loadedPages(page: Page): Promise<Record<string, number>> {
 }
 
 export async function openSessionFolders(page: Page) {
-  await page.addInitScript(() => {
+  await page.addInitScript((appId) => {
     localStorage.setItem(
-      'session-folder-collapse',
+      `${appId}-session-folder-collapse`,
       JSON.stringify({ ungrouped: true }),
     )
-  })
+  }, APP_ID)
   await page.goto('/?fixture=session-folders')
   await expect(folder(page, 'Portfolio')).toBeVisible()
 }

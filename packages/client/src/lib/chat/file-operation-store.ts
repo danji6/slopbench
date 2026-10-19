@@ -1,4 +1,5 @@
 import type { Id } from '@sb/convex/_generated/dataModel'
+import { APP_ID } from '@sb/core/const'
 
 type OperationState = {
   id?: Id<'agentFileOperations'>
@@ -15,12 +16,11 @@ const listeners = new Map<string, Set<() => void>>()
 
 /** Shares submission and recovery state across every control for one home. */
 export function fileOperationStore(key: string) {
+  const storageKey = `${APP_ID}-active-agent-files:${key}`
   if (!states.has(key)) {
     let id: Id<'agentFileOperations'> | undefined
     try {
-      id =
-        (localStorage.getItem(`active-agent-files:${key}`) as typeof id) ||
-        undefined
+      id = (localStorage.getItem(storageKey) as typeof id) || undefined
     } catch {
       /* Storage is optional. */
     }
@@ -40,10 +40,8 @@ export function fileOperationStore(key: string) {
       const next = { ...states.get(key)!, ...patch }
       states.set(key, next)
       try {
-        localStorage.removeItem(`agent-files:${key}`)
-        if (next.id && next.pending)
-          localStorage.setItem(`active-agent-files:${key}`, next.id)
-        else localStorage.removeItem(`active-agent-files:${key}`)
+        if (next.id && next.pending) localStorage.setItem(storageKey, next.id)
+        else localStorage.removeItem(storageKey)
       } catch {
         /* Storage is optional. */
       }
