@@ -1,6 +1,8 @@
+import { paginationOptsValidator } from 'convex/server'
 import { v } from 'convex/values'
 
 import { authMutation, authQuery } from './functions'
+import * as Requests from './model/notificationRequests'
 import * as Notifications from './model/notifications'
 import {
   notificationApprovalActionValidator,
@@ -50,4 +52,22 @@ export const discardSession = authMutation({
 export const clearRead = authMutation({
   args: {},
   handler: Notifications.clearRead,
+})
+
+export const pendingPage = authQuery({
+  args: {
+    paginationOpts: paginationOptsValidator,
+    state: v.union(v.literal('pending'), v.literal('expired')),
+  },
+  handler: Requests.pendingPage,
+})
+
+export const summary = authQuery({
+  args: {},
+  handler: Requests.summary,
+})
+
+export const acknowledge = authMutation({
+  args: { notificationId: v.id('notifications') },
+  handler: Requests.acknowledge,
 })

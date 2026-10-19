@@ -4,6 +4,8 @@ import {
   MAX_READ_NOTIFICATIONS,
   MAX_UNREAD_NOTIFICATIONS,
 } from '@sb/core/limits'
+import type { AskToolInput } from '@sb/core/types'
+import { isPendingAskPart } from '@sb/core/utils/ask'
 import { isPendingToolApproval } from '@sb/core/utils/tool-parts'
 
 import type { Doc, Id } from '../_generated/dataModel'
@@ -14,10 +16,12 @@ import type {
   NotificationApproval,
   NotificationApprovalAction,
   NotificationKind,
+  NotificationRequest,
   NotificationStatus,
 } from '../types'
 import { getProcessingSegmentRow } from './messageContents'
 import * as ApprovalNotifications from './notificationApprovals'
+import { hasRequest, settleRequest } from './notificationRequests'
 
 /** Denormalized activity snapshot persisted once per recipient. */
 type NotificationEvent = {
@@ -28,6 +32,7 @@ type NotificationEvent = {
   preview?: string
   sourceMessageId?: Id<'messages'>
   approval?: NotificationApproval
+  request?: NotificationRequest
 }
 
 /** Normalizes notification previews to one bounded line. */
@@ -88,6 +93,7 @@ export async function notifyAgentEvent(
     preview?: string
     sourceMessageId?: Id<'messages'>
     approval?: NotificationApproval
+    request?: NotificationRequest
   },
 ) {
   const [session, agent] = await Promise.all([
@@ -104,6 +110,7 @@ export async function notifyAgentEvent(
     preview: args.preview,
     sourceMessageId: args.sourceMessageId,
     approval: args.approval,
+    request: args.request,
   })
 }
 
@@ -134,6 +141,12 @@ export async function notifyToolApprovals(
         approvalSummary(call.type.slice(5), call.input),
         'Approval required',
       ),
+      request: {
+        streamId: stream._id,
+        messageId,
+        contentId: row._id,
+        toolCallId: call.toolCallId,
+      },
       approval: {
         streamId: stream._id,
         messageId,
@@ -143,6 +156,47 @@ export async function notifyToolApprovals(
       },
     })
   }
+}
+
+/** Creates one durable notification for each pending question invocation. */
+export async function notifyQuestions(
+  ctx: MutationCtx,
+  stream: Doc<'streams'>,
+  sessionId: Id<'sessions'>,
+) {
+  const row = await getProcessingSegmentRow(ctx, stream)
+  const messageId = stream.state.processingMessageId
+  if (!row || !messageId) return
+  for (const part of row.parts) {
+    if (!isPendingAskPart(part)) continue
+    await notifyAgentEvent(ctx, {
+      sessionId,
+      agentId: stream.agentId,
+      kind: 'input_required',
+      sourceMessageId: messageId,
+      preview: questionPreview(part.input),
+      request: {
+        streamId: stream._id,
+        messageId,
+        contentId: row._id,
+        toolCallId: part.toolCallId,
+      },
+    })
+  }
+}
+
+/** Keeps the question count visible even when the first question is long. */
+function questionPreview(input: AskToolInput) {
+  const questions = Array.isArray(input?.questions) ? input.questions : []
+  const first = questions[0]?.question
+  const preview = notificationPreview(
+    typeof first === 'string' ? first : '',
+    'Answer needed',
+  )
+  const suffix = questions.length > 1 ? ` (${questions.length} questions)` : ''
+  return (
+    preview.slice(0, MAX_NOTIFICATION_PREVIEW_CHARS - suffix.length) + suffix
+  )
 }
 
 /** Persists one notification snapshot for each eligible session member. */
@@ -164,6 +218,9 @@ async function fanOut(
 
   for (const member of members) {
     if (member.userId === excludedUserId) continue
+    const duplicate =
+      event.request && (await hasRequest(ctx, member.userId, event.request))
+    if (duplicate) continue
     await ctx.db.insert('notifications', {
       recipientId: member.userId,
       sessionId: event.sessionId,
@@ -175,6 +232,9 @@ async function fanOut(
       preview: event.preview,
       sourceMessageId: event.sourceMessageId,
       approval: event.approval,
+      request: event.request,
+      requestState: event.request ? 'pending' : undefined,
+      attention: event.request ? true : undefined,
     })
     await pruneStatus(ctx, member.userId, 'unread')
   }
@@ -192,9 +252,10 @@ export async function list(
       q.eq('recipientId', ctx.userId).eq('status', status),
     )
     .order('desc')
-    .take(limit)
+    .collect()
+  const ordinary = rows.filter((row) => !row.attention).slice(0, limit)
   return Promise.all(
-    rows.map((row) => ApprovalNotifications.withApprovalActions(ctx, row)),
+    ordinary.map((row) => ApprovalNotifications.withApprovalActions(ctx, row)),
   )
 }
 
@@ -215,6 +276,15 @@ export async function respondApproval(
     notification,
     action,
   )
+  if (status === 'stale' && notification.request) {
+    const stream = await ctx.db.get(notification.request.streamId)
+    const expired = stream && stream.leaseExpiresAt < Date.now()
+    await settleRequest(
+      ctx,
+      notification.request,
+      expired ? 'expired' : 'unavailable',
+    )
+  }
   await markRead(ctx, { notificationId })
   return status
 }
@@ -225,7 +295,7 @@ export async function markRead(
   { notificationId }: { notificationId: Id<'notifications'> },
 ) {
   const notification = await requireOwned(ctx, notificationId)
-  if (notification.status === 'read') return
+  if (notification.status === 'read' || notification.attention) return
   await ctx.db.patch(notificationId, { status: 'read', readAt: Date.now() })
   await pruneStatus(ctx, ctx.userId, 'read')
 }
@@ -243,7 +313,8 @@ export async function markManyRead(
     const notification = await ctx.db.get(notificationId)
     if (
       notification?.recipientId !== ctx.userId ||
-      notification.status === 'read'
+      notification.status === 'read' ||
+      notification.attention
     ) {
       continue
     }
@@ -257,6 +328,7 @@ export async function markAllRead(ctx: AuthMutationCtx) {
   const rows = await unreadForRecipient(ctx, ctx.userId)
   const now = Date.now()
   for (const row of rows) {
+    if (row.attention) continue
     await ctx.db.patch(row._id, { status: 'read', readAt: now })
   }
   await pruneStatus(ctx, ctx.userId, 'read')
@@ -270,7 +342,7 @@ export async function markSessionRead(
   const rows = await forRecipientSession(ctx, ctx.userId, sessionId)
   const now = Date.now()
   for (const row of rows) {
-    if (row.status === 'unread') {
+    if (row.status === 'unread' && !row.attention) {
       await ctx.db.patch(row._id, { status: 'read', readAt: now })
     }
   }
@@ -284,7 +356,7 @@ export async function discardSession(
 ) {
   const rows = await forRecipientSession(ctx, ctx.userId, sessionId)
   for (const row of rows) {
-    if (row.status === 'unread') await ctx.db.delete(row._id)
+    if (row.status === 'unread' && !row.attention) await ctx.db.delete(row._id)
   }
 }
 
@@ -296,7 +368,9 @@ export async function clearRead(ctx: AuthMutationCtx) {
       q.eq('recipientId', ctx.userId).eq('status', 'read'),
     )
     .collect()
-  for (const row of rows) await ctx.db.delete(row._id)
+  for (const row of rows) {
+    if (!row.attention) await ctx.db.delete(row._id)
+  }
 }
 
 /** Removes all notifications belonging to a deleted session. */
@@ -368,7 +442,9 @@ async function pruneStatus(
     )
     .order('desc')
     .collect()
-  for (const row of rows.slice(statusLimit(status))) {
+  for (const row of rows
+    .filter((row) => !row.attention)
+    .slice(statusLimit(status))) {
     await ctx.db.delete(row._id)
   }
 }

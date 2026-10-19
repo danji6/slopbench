@@ -7,6 +7,8 @@ import { useSyncExternalStore } from 'react'
 
 import {
   addApproval,
+  addQuestion,
+  expireRequests,
   notificationControls,
   notificationsClient,
 } from './notifications-client'
@@ -31,6 +33,18 @@ export function NotificationsFixture() {
           </button>
           <button onClick={notificationControls.release}>
             Complete response
+          </button>
+          <button onClick={addQuestion}>Notify question</button>
+          <button onClick={expireRequests}>Expire requests</button>
+          <button
+            onClick={() => {
+              for (let index = 0; index < 30; index++) addApproval()
+            }}
+          >
+            Notify thirty
+          </button>
+          <button onClick={notificationControls.settleNewest}>
+            Resolve newest
           </button>
           <NotificationInboxButton />
           <output aria-label="Approval mutations" className="sr-only">

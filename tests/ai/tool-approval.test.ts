@@ -245,6 +245,7 @@ describe('plan approval timing', () => {
         },
         query: (table: string) => ({
           withIndex: () => ({
+            collect: async () => [],
             unique: async () =>
               table === 'userSessions'
                 ? membership

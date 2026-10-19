@@ -59,6 +59,7 @@ export const settingsMutableFields = {
   displayName: v.optional(v.string()),
   allowInteractiveShells: v.optional(v.boolean()),
   autoTitle: v.optional(v.boolean()),
+  desktopNotifications: v.optional(v.boolean()),
   titleModel: v.optional(v.string()),
   invertSend: v.optional(v.boolean()),
   groupBySender: v.optional(v.boolean()),

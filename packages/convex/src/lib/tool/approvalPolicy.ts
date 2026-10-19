@@ -10,8 +10,6 @@ import {
   toolNamesForApproval,
 } from './approval'
 
-export type { ApprovalHold } from '@sb/core/approval-presentation'
-
 export function alwaysLabel(
   toolName: string,
   input: unknown,

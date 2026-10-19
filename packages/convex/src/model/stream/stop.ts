@@ -2,6 +2,7 @@ import { internal } from '../../_generated/api'
 import type { Doc } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import { scheduleTitle } from '../messages'
+import { settleStream } from '../notificationRequests'
 import { cancelScheduledExecution } from './execution'
 
 type StopOptions = { suppressReport?: boolean }
@@ -19,6 +20,7 @@ export async function stopExecution(
     return
   }
 
+  await settleStream(ctx, stream._id, 'cancelled')
   await cancelScheduledExecution(ctx, stream)
 
   const retryError =
@@ -56,6 +58,7 @@ export async function requestImmediateStop(
 ) {
   if (stream.state.phase === 'stopping') return 'finalizing' as const
   if (!stream.state.processingMessageId) {
+    await settleStream(ctx, stream._id, 'cancelled')
     await cancelScheduledExecution(ctx, stream)
     await ctx.db.delete(stream._id)
     await scheduleTitle(ctx, stream.sessionId)

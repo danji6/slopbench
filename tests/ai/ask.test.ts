@@ -434,6 +434,7 @@ describe('answerQuestions mutation', () => {
         query: (table: string) => {
           const chain = {
             withIndex: () => chain,
+            collect: async () => [],
             first: async () => (table === 'streams' ? stream : null),
             unique: async () => {
               if (table === 'userSessions') {

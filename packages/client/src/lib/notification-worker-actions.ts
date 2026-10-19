@@ -1,7 +1,6 @@
 import type { NotificationWorkerAction } from '@sb/core/notification-actions'
 
 const ACTION_CACHE = 'slopbench-notification-actions-v2'
-const LEGACY_CACHE = 'slopbench-notification-actions-v1'
 
 export type ApplyWorkerAction = (
   action: NotificationWorkerAction,
@@ -24,6 +23,7 @@ export function isWorkerAction(
 export async function drainPendingWorkerActions(apply: ApplyWorkerAction) {
   if (!('caches' in window)) return
   const cache = await caches.open(ACTION_CACHE)
+  const failures: unknown[] = []
   for (const request of await cache.keys()) {
     const response = await cache.match(request)
     const action: unknown = await response?.json().catch(() => null)
@@ -31,25 +31,19 @@ export async function drainPendingWorkerActions(apply: ApplyWorkerAction) {
       await cache.delete(request)
       continue
     }
-    await apply(action)
-    await cache.delete(request)
-  }
-  // Old workers stored only read markers; never interpret them as approvals.
-  const legacy = await caches.open(LEGACY_CACHE)
-  for (const request of await legacy.keys()) {
-    const marker = '/__notification_actions__/'
-    const index = request.url.indexOf(marker)
-    if (index !== -1) {
-      await apply({
-        type: 'slopbench:notification-action',
-        action: 'read',
-        notificationId: decodeURIComponent(
-          request.url.slice(index + marker.length),
-        ),
-      })
+    try {
+      await apply(action)
+      await cache.delete(request)
+    } catch (error) {
+      failures.push(error)
     }
-    await legacy.delete(request)
   }
+  if (failures.length === 1) throw failures[0]
+  if (failures.length)
+    throw new AggregateError(
+      failures,
+      'Some notification actions could not be applied',
+    )
 }
 
 /** Clears a delivered action only after the server has handled it. */

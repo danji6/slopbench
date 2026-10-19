@@ -29,6 +29,21 @@ export const notificationStatusValidator = v.union(
   v.literal('read'),
 )
 
+export const notificationRequestValidator = v.object({
+  streamId: v.id('streams'),
+  messageId: v.id('messages'),
+  contentId: v.id('messageContents'),
+  toolCallId: v.string(),
+})
+
+export const notificationRequestStateValidator = v.union(
+  v.literal('pending'),
+  v.literal('handled'),
+  v.literal('cancelled'),
+  v.literal('expired'),
+  v.literal('unavailable'),
+)
+
 /** A notification with denormalized display snapshots. */
 export const notificationSchema = v.object({
   recipientId: v.id('users'),
@@ -42,4 +57,7 @@ export const notificationSchema = v.object({
   preview: v.optional(v.string()),
   sourceMessageId: v.optional(v.id('messages')),
   approval: v.optional(notificationApprovalValidator),
+  request: v.optional(notificationRequestValidator),
+  requestState: v.optional(notificationRequestStateValidator),
+  attention: v.optional(v.boolean()),
 })

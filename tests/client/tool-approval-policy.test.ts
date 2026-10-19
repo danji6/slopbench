@@ -1,8 +1,5 @@
-import {
-  alwaysLabel,
-  approvalHold,
-  buildApprovalActions,
-} from '@/lib/chat/tool-approval-policy'
+import { buildApprovalActions } from '@/lib/chat/tool-approval-policy'
+import { alwaysLabel, approvalHold } from '@sb/convex/lib/tool/approvalPolicy'
 import { describe, expect, test } from 'bun:test'
 
 describe('approval choices', () => {

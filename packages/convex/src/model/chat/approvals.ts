@@ -6,6 +6,7 @@ import type { AuthMutationCtx } from '../../functions'
 import { requireRole } from '../../functions'
 import type { ApproveToolArgs } from '../../types'
 import { getProcessingSegmentRow, patchSegmentParts } from '../messageContents'
+import { settleRequest } from '../notificationRequests'
 import { applyModeTransition } from '../plans'
 import { getSessionWithWorkspace } from '../session/folderContext'
 import * as Memberships from '../session/memberships'
@@ -49,6 +50,12 @@ export async function approveTool(ctx: AuthMutationCtx, args: ApproveToolArgs) {
   )
 
   await patchSegmentParts(ctx, message._id, row, parts)
+  await settleRequest(ctx, {
+    streamId: stream._id,
+    messageId: stream.state.processingMessageId!,
+    contentId: row._id,
+    toolCallId: args.toolCallId,
+  })
 
   if (args.approved) {
     await applyPlanModeTransition(ctx, stream, matched.toolName)

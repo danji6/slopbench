@@ -12,6 +12,7 @@ type PresenceMessage = {
   tabId: string
   startedAt: number
   focused: boolean
+  focusedAt: number
   sessionId: string | null
   at: number
 }
@@ -22,9 +23,11 @@ type Peer = Omit<PresenceMessage, 'type'>
 export function useTabPresence(activeSessionId: string | null) {
   const [tabId] = useState(generateId)
   const [startedAt] = useState(Date.now)
+  const [revision, setRevision] = useState(0)
   const peers = useRef(new Map<string, Peer>())
   const channel = useRef<BroadcastChannel | null>(null)
   const sessionRef = useRef(activeSessionId)
+  const focusedAt = useRef(startedAt)
 
   useEffect(() => {
     sessionRef.current = activeSessionId
@@ -37,6 +40,7 @@ export function useTabPresence(activeSessionId: string | null) {
         tabId,
         startedAt,
         focused: pageIsFocused(),
+        focusedAt: focusedAt.current,
         sessionId: sessionRef.current,
         at: Date.now(),
       } satisfies PresenceMessage)
@@ -53,14 +57,36 @@ export function useTabPresence(activeSessionId: string | null) {
     next.onmessage = (event: MessageEvent<PresenceMessage>) => {
       const message = event.data
       if (!message || message.tabId === tabId) return
+      const previous = peers.current.get(message.tabId)
+
+      if (
+        !previous ||
+        previous.focused !== message.focused ||
+        previous.focusedAt !== message.focusedAt ||
+        previous.sessionId !== message.sessionId ||
+        message.type === 'leave'
+      ) {
+        setRevision((value) => value + 1)
+      }
+
       if (message.type === 'leave') peers.current.delete(message.tabId)
       else peers.current.set(message.tabId, message)
       if (message.type === 'probe') announce()
     }
 
     announce()
-    const interval = window.setInterval(announce, 4_000)
-    const onState = () => announce()
+
+    const interval = window.setInterval(() => {
+      announce()
+      setRevision((value) => value + 1)
+    }, 4_000)
+
+    const onState = () => {
+      if (pageIsFocused()) focusedAt.current = Date.now()
+      announce()
+      setRevision((value) => value + 1)
+    }
+
     const onUnload = () => announce('leave')
 
     window.addEventListener('focus', onState)
@@ -83,26 +109,33 @@ export function useTabPresence(activeSessionId: string | null) {
   useEffect(() => announce(), [activeSessionId, announce])
 
   const decide = useCallback(
-    async (sessionId: string): Promise<NotificationSurface> => {
+    async (
+      sessionId: string,
+      important = false,
+    ): Promise<NotificationSurface> => {
       announce('probe')
       // Give peer tabs a brief window to answer the probe
       await new Promise((resolve) => window.setTimeout(resolve, 75))
       const now = Date.now()
+
       const own: Peer = {
         tabId,
         startedAt,
         focused: pageIsFocused(),
+        focusedAt: focusedAt.current,
         sessionId: sessionRef.current,
         at: now,
       }
+
       const live: NotificationPeer[] = [
         own,
         ...[...peers.current.values()].filter((peer) => now - peer.at < 10_000),
       ]
-      return chooseNotificationSurface(live, own.tabId, sessionId)
+
+      return chooseNotificationSurface(live, own.tabId, sessionId, important)
     },
     [announce, startedAt, tabId],
   )
 
-  return useMemo(() => ({ decide }), [decide])
+  return useMemo(() => ({ decide, revision }), [decide, revision])
 }

@@ -80,6 +80,7 @@ export const DEFAULT_SETTINGS = {
   scrollMode: 'follow' as 'follow' | 'into-view',
   mathMode: 'single' as MathMode,
   autoTitle: true,
+  desktopNotifications: true,
   invertSend: false,
   groupBySender: true,
   followAgentThemeColor: true,

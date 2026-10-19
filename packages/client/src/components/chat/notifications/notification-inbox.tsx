@@ -1,24 +1,28 @@
 import { Popover, QuickTooltip, RippleButton, Tabs } from '@/components/ui'
 import {
   type NotificationItem,
+  isPendingNotification,
   notificationBody,
+  notificationRequestLabel,
 } from '@/lib/chat/notification-ui'
 import { cn, formatRelativeTime } from '@/lib/utils'
 import { BellIcon, BroomIcon, MailOpenIcon } from 'lucide-react'
-import { useState } from 'react'
 
 import { NotificationApprovalActions } from './notification-approval-actions'
 import { NotificationAvatar } from './notification-avatar'
 import { useNotifications } from './notification-provider'
+import { NotificationSettings } from './notification-settings'
 
 /** The sidebar trigger and durable Unread/Read inbox popover. */
 export function NotificationInboxButton({ className }: { className?: string }) {
   const notifications = useNotifications()
-  const [tab, setTab] = useState('unread')
-  const unreadCount = notifications.unread.length
+  const unreadCount = notifications.unreadCount
 
   return (
-    <Popover>
+    <Popover
+      open={notifications.inboxOpen}
+      onOpenChange={notifications.setInboxOpen}
+    >
       <QuickTooltip text="Notifications" side="left">
         <Popover.Trigger
           render={
@@ -45,8 +49,8 @@ export function NotificationInboxButton({ className }: { className?: string }) {
       >
         <Tabs
           variant="hug"
-          value={tab}
-          onValueChange={setTab}
+          value={notifications.inboxTab}
+          onValueChange={notifications.setInboxTab}
           className="min-h-0 flex-1 gap-0"
         >
           <Tabs.List className="h-11 shrink-0 overflow-hidden">
@@ -57,22 +61,35 @@ export function NotificationInboxButton({ className }: { className?: string }) {
             <Tabs.Content value="unread" className="h-full">
               <NotificationPanel
                 action={
-                  <RippleButton
-                    variant="input"
-                    size="sm"
-                    className={cn(notifications.unread.length > 0 && 'hidden')}
-                    onClick={notifications.markAllRead}
-                  >
-                    <MailOpenIcon /> Mark all as read
-                  </RippleButton>
+                  <div className="flex w-full items-center justify-between gap-2">
+                    <RippleButton
+                      variant="input"
+                      size="sm"
+                      disabled={
+                        !notifications.unread.some((item) => !item.attention)
+                      }
+                      onClick={notifications.markAllRead}
+                    >
+                      <MailOpenIcon /> Mark all as read
+                    </RippleButton>
+                    <NotificationSettings />
+                  </div>
                 }
-                footer={<DesktopPermission />}
               >
                 <NotificationList
                   items={notifications.unread}
                   empty="No unread notifications"
                   unread
                 />
+                {notifications.canLoadMore && (
+                  <RippleButton
+                    variant="stealth"
+                    size="sm"
+                    onClick={notifications.loadMore}
+                  >
+                    Load more
+                  </RippleButton>
+                )}
               </NotificationPanel>
             </Tabs.Content>
             <Tabs.Content value="read" className="h-full">
@@ -81,7 +98,7 @@ export function NotificationInboxButton({ className }: { className?: string }) {
                   <RippleButton
                     variant="input"
                     size="sm"
-                    className={cn(notifications.unread.length > 0 && 'hidden')} // prettier-ignore
+                    disabled={notifications.read.length === 0}
                     onClick={notifications.clearRead}
                   >
                     <BroomIcon /> Clear all read
@@ -118,29 +135,6 @@ function NotificationPanel({
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">{children}</div>
       {footer}
-    </div>
-  )
-}
-
-function DesktopPermission() {
-  const { desktopPermission, enableDesktop } = useNotifications()
-  if (desktopPermission === 'granted') return null
-
-  if (desktopPermission === 'default') {
-    return (
-      <div className="mx-auto shrink-0 p-2">
-        <RippleButton size="sm" onClick={() => void enableDesktop()}>
-          Enable desktop notifications
-        </RippleButton>
-      </div>
-    )
-  }
-
-  return (
-    <div className="border-input text-muted-foreground shrink-0 border-t p-3 text-xs">
-      {desktopPermission === 'denied'
-        ? 'Desktop notifications are blocked in browser settings.'
-        : 'Desktop notifications are not supported in this browser context.'}
     </div>
   )
 }
@@ -186,9 +180,11 @@ function NotificationRow({
 
   return (
     <div
+      data-notification-id={notification._id}
       className={cn(
         'hover:bg-m3-surface-container-high group flex flex-wrap items-center rounded-lg',
         !unread && 'text-muted-foreground',
+        notification.attention && 'bg-m3-primary/8 ring-m3-primary/15 ring-1',
       )}
     >
       <Popover.Close
@@ -213,6 +209,11 @@ function NotificationRow({
               )}
             </span>
           </span>
+          {notificationRequestLabel(notification) && (
+            <span className="text-m3-primary block text-xs font-medium">
+              {notificationRequestLabel(notification)}
+            </span>
+          )}
           <span className="line-clamp-2">{notificationBody(notification)}</span>
           <span className="text-muted-foreground block truncate text-xs">
             {notification.sessionTitle}
@@ -227,12 +228,16 @@ function NotificationRow({
           />
         </div>
       )}
-      {unread && (
+      {unread && !isPendingNotification(notification) && (
         <RippleButton
           variant="stealth"
           size="icon-sm"
           className="mr-1 shrink-0"
-          aria-label={`Mark notification from ${notification.actorName} as read`}
+          aria-label={
+            notification.requestState === 'expired'
+              ? 'Acknowledge expired request'
+              : `Mark notification from ${notification.actorName} as read`
+          }
           title="Mark as read"
           onClick={(event) => {
             event.stopPropagation()

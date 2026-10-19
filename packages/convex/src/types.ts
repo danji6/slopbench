@@ -214,3 +214,5 @@ export type PreviewModelDetailsArgs = Infer<typeof V.previewModelDetailsArgsVali
 export type RemovedConnectionArgs = Infer<typeof V.removedConnectionArgsValidator> // prettier-ignore
 export type DetailTargetsArgs = Infer<typeof V.detailTargetsArgsValidator>
 export type ProviderDiscovery = Infer<typeof V.providerDiscoveryValidator>
+export type NotificationRequest = Infer<typeof V.notificationRequestValidator>
+export type NotificationRequestState = Infer<typeof V.notificationRequestStateValidator> // prettier-ignore

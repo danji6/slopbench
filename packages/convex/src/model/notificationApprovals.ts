@@ -18,6 +18,7 @@ import { alwaysLabel, approvalHold } from '../lib/tool/approvalPolicy'
 import type { NotificationApprovalAction } from '../types'
 import { approveTool } from './chat/approvals'
 import { getProcessingSegmentRow } from './messageContents'
+import { settleRequest } from './notificationRequests'
 import { getSessionWithWorkspace } from './session/folderContext'
 import { getMembership } from './session/memberships'
 import { getApprovals } from './session/state'
@@ -139,6 +140,12 @@ export async function respondApproval(
   }
 
   if (action === 'deny' && plan?.denyAborts) {
+    await settleRequest(ctx, {
+      streamId: request.stream._id,
+      messageId: request.stream.state.processingMessageId!,
+      contentId: notification.approval!.contentId,
+      toolCallId: request.part.toolCallId,
+    })
     await requestImmediateStop(ctx, request.stream)
   } else {
     await approveTool(ctx, {

@@ -23,7 +23,7 @@ import {
   patchSegmentParts,
 } from '../messageContents'
 import { syncActivity } from '../messages'
-import { notifyAgentEvent, notifyToolApprovals } from '../notifications'
+import { notifyQuestions, notifyToolApprovals } from '../notifications'
 import { createPlanLinkPart, getBySession as getPlan } from '../plans'
 import { getSessionWithWorkspace } from '../session/folderContext'
 import { getActiveStream } from '../session/memberships'
@@ -128,14 +128,7 @@ async function park(
     return
   }
 
-  await notifyAgentEvent(ctx, {
-    sessionId,
-    agentId: stream.agentId,
-    kind: 'input_required',
-    sourceMessageId: session?.parent
-      ? undefined
-      : stream.state.processingMessageId,
-  })
+  await notifyQuestions(ctx, stream, sessionId)
 }
 
 type SpawnTaskArgs = {

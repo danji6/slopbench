@@ -1,8 +1,8 @@
 import { useToolApprovalPicker } from '@/hooks/chat/tool-approval'
-import { summarizeInput } from '@/lib/chat/tool-approval-policy'
-import { HOLD_HINTS } from '@/lib/chat/tool-approval-policy'
 import { cn } from '@/lib/utils'
 import { type api } from '@sb/convex/_generated/api'
+import { HOLD_HINTS } from '@sb/convex/lib/tool/approvalPolicy'
+import { summarizeInput } from '@sb/core/approval-presentation'
 import type { FunctionReturnType } from 'convex/server'
 import { type RefObject, Suspense, lazy } from 'react'
 

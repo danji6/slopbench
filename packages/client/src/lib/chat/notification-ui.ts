@@ -9,9 +9,9 @@ export type NotificationItem = FunctionReturnType<
 export function notificationBody(notification: NotificationItem): string {
   switch (notification.kind) {
     case 'approval_required':
-      return (notification.preview || `${notification.actorName} needs your attention`) // prettier-ignore
+      return notification.preview || 'Approval required'
     case 'input_required':
-      return `${notification.actorName} has questions for you`
+      return (notification.preview || `${notification.actorName} has questions for you`) // prettier-ignore
     case 'turn_error':
       return `${notification.actorName}'s turn ended with an error`
     case 'turn_completed':
@@ -29,4 +29,17 @@ export function notificationToastId(notificationId: string) {
 /** Returns the stable native notification tag for one notification. */
 export function notificationTag(notificationId: string) {
   return `slopbench:${notificationId}`
+}
+
+/** Identifies requests that must survive ordinary notification bookkeeping. */
+export function isPendingNotification(notification: NotificationItem) {
+  return notification.requestState === 'pending'
+}
+
+export function notificationRequestLabel(notification: NotificationItem) {
+  if (notification.requestState === 'expired') return 'Expired'
+  if (!isPendingNotification(notification)) return undefined
+  return notification.kind === 'approval_required'
+    ? 'Approval needed'
+    : 'Answer needed'
 }

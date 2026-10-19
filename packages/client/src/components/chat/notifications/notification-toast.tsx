@@ -1,7 +1,9 @@
 import { RippleButton } from '@/components/ui'
 import {
   type NotificationItem,
+  isPendingNotification,
   notificationBody,
+  notificationRequestLabel,
   notificationToastId,
 } from '@/lib/chat/notification-ui'
 import { toast } from '@/lib/notifications'
@@ -14,6 +16,7 @@ type NotificationToastProps = {
   notification: NotificationItem
   onShow: () => void
   onRead: () => void
+  controls?: { minimize: () => void; openInbox: () => void }
   onRespond: (action: NotificationApprovalAction) => Promise<void>
 }
 
@@ -22,12 +25,16 @@ function NotificationToast({
   onShow,
   onRead,
   onRespond,
+  controls,
 }: NotificationToastProps) {
   return (
     <div className="bg-popover text-popover-foreground ring-foreground/10 flex w-96 max-w-[calc(100vw-2rem)] gap-3 rounded-xl p-3 shadow-md ring-1">
       <NotificationAvatar notification={notification} className="size-9" />
       <div className="min-w-0 flex-1">
         <button className="w-full text-left" onClick={onShow}>
+          <div className="text-m3-primary text-xs font-medium">
+            {notificationRequestLabel(notification)}
+          </div>
           <div className="truncate font-medium">{notification.actorName}</div>
           <div className="text-sm wrap-break-word">
             {notificationBody(notification)}
@@ -43,11 +50,31 @@ function NotificationToast({
           />
         ) : (
           <div className="mt-2 flex justify-end gap-1">
-            <RippleButton variant="stealth" size="sm" onClick={onRead}>
-              Dismiss
-            </RippleButton>
+            {!isPendingNotification(notification) && (
+              <RippleButton variant="stealth" size="sm" onClick={onRead}>
+                Dismiss
+              </RippleButton>
+            )}
             <RippleButton variant="primary" size="sm" onClick={onShow}>
-              Show
+              {isPendingNotification(notification) ? 'Open chat' : 'Show'}
+            </RippleButton>
+          </div>
+        )}
+        {controls && (
+          <div className="mt-2 flex justify-end gap-1">
+            <RippleButton
+              variant="stealth"
+              size="sm"
+              onClick={controls.minimize}
+            >
+              Minimize
+            </RippleButton>
+            <RippleButton
+              variant="stealth"
+              size="sm"
+              onClick={controls.openInbox}
+            >
+              Open notifications
             </RippleButton>
           </div>
         )}
@@ -65,6 +92,7 @@ export function showNotificationToast(
     notification: NotificationItem,
     action: NotificationApprovalAction,
   ) => Promise<void>,
+  controls?: NotificationToastProps['controls'],
 ) {
   const id = notificationToastId(notification._id)
   toast.custom(
@@ -73,8 +101,9 @@ export function showNotificationToast(
         notification={notification}
         onShow={() => {
           show(notification)
-          toast.dismiss(id)
+          if (!isPendingNotification(notification)) toast.dismiss(id)
         }}
+        controls={controls}
         onRead={() => {
           markRead(notification)
           toast.dismiss(id)
@@ -82,6 +111,10 @@ export function showNotificationToast(
         onRespond={(action) => respond(notification, action)}
       />
     ),
-    { id },
+    {
+      id,
+      duration: isPendingNotification(notification) ? Infinity : undefined,
+      dismissible: !isPendingNotification(notification),
+    },
   )
 }

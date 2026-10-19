@@ -110,6 +110,7 @@ import type * as model_mcp from "../model/mcp.js";
 import type * as model_messageContents from "../model/messageContents.js";
 import type * as model_messages from "../model/messages.js";
 import type * as model_notificationApprovals from "../model/notificationApprovals.js";
+import type * as model_notificationRequests from "../model/notificationRequests.js";
 import type * as model_notifications from "../model/notifications.js";
 import type * as model_plans from "../model/plans.js";
 import type * as model_prompt_markers from "../model/prompt/markers.js";
@@ -444,6 +445,7 @@ declare const fullApi: ApiFromModules<{
   "model/messageContents": typeof model_messageContents;
   "model/messages": typeof model_messages;
   "model/notificationApprovals": typeof model_notificationApprovals;
+  "model/notificationRequests": typeof model_notificationRequests;
   "model/notifications": typeof model_notifications;
   "model/plans": typeof model_plans;
   "model/prompt/markers": typeof model_prompt_markers;

@@ -32,12 +32,12 @@ describe('notification presentation', () => {
         actorName: 'Ada',
         kind: 'approval_required',
       } as never),
-    ).toBe('Ada needs your attention')
+    ).toBe('Approval required')
     expect(notificationBody({ ...item, kind: 'turn_error' } as never)).toBe(
       "Ada's turn ended with an error",
     )
     expect(notificationBody({ ...item, kind: 'input_required' } as never)).toBe(
-      'Ada has questions for you',
+      'A concise answer',
     )
   })
 })

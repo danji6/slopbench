@@ -1,8 +1,6 @@
-import {
-  approvalHold,
-  buildApprovalActions,
-} from '@/lib/chat/tool-approval-policy'
+import { buildApprovalActions } from '@/lib/chat/tool-approval-policy'
 import { consumeProviderStep } from '@sb/convex/actions/stream/engineStep'
+import { approvalHold } from '@sb/convex/lib/tool/approvalPolicy'
 import type { PathApprovalStatus } from '@sb/core/workspace/path-policy'
 import { type UIMessage, tool } from 'ai'
 import { MockLanguageModelV4 } from 'ai/test'

@@ -19,6 +19,7 @@ import { error } from '../../errors'
 import type { AuthMutationCtx } from '../../functions'
 import type { AnswerQuestionsArgs } from '../../types'
 import { getProcessingSegmentRow, patchSegmentParts } from '../messageContents'
+import { settleRequest } from '../notificationRequests'
 import * as Memberships from '../session/memberships'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 import { resumeIfSettled } from '../stream/subagents'
@@ -60,6 +61,12 @@ export async function answerQuestions(
   )
 
   await patchSegmentParts(ctx, stream.state.processingMessageId, row, parts)
+  await settleRequest(ctx, {
+    streamId: stream._id,
+    messageId: stream.state.processingMessageId!,
+    contentId: row._id,
+    toolCallId: args.toolCallId,
+  })
   await resumeIfSettled(ctx, stream, parts)
 }
 

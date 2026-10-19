@@ -168,6 +168,8 @@ export default defineSchema({
     .searchIndex('search_title', { searchField: 'title', filterFields: ['userId', 'hidden'] }),
 
   notifications: defineTable(notificationSchema)
+    .index('by_recipientId_attention', ['recipientId', 'attention', 'requestState'])
+    .index('by_requestStreamId', ['request.streamId'])
     .index('by_recipientId_status_readAt', ['recipientId', 'status', 'readAt'])
     .index('by_recipientId_sessionId', ['recipientId', 'sessionId'])
     .index('by_sessionId', ['sessionId']),

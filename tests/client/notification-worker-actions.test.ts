@@ -26,8 +26,6 @@ test('queued session approval survives a failed attempt and retains its selected
     notificationId: 'notification',
     sessionId: 'session',
   })
-  const legacy = pendingCache('read')
-  legacy.entries.clear()
   const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window')
   const previousCaches = Object.getOwnPropertyDescriptor(globalThis, 'caches')
   Object.defineProperty(globalThis, 'window', {
@@ -37,7 +35,7 @@ test('queued session approval survives a failed attempt and retains its selected
   Object.defineProperty(globalThis, 'caches', {
     configurable: true,
     value: {
-      open: async (name: string) => (name.endsWith('v2') ? cache : legacy),
+      open: async () => cache,
     },
   })
   try {
@@ -46,6 +44,21 @@ test('queued session approval survives a failed attempt and retains its selected
         throw new Error('offline')
       }),
     ).rejects.toThrow('offline')
+    expect(cache.entries.size).toBe(1)
+    cache.entries.set('https://example.test/__notification_actions__/second', {
+      type: 'slopbench:notification-action',
+      action: 'allow-session',
+      notificationId: 'second',
+      sessionId: 'session',
+    })
+    const completed: string[] = []
+    await expect(
+      drainPendingWorkerActions(async (action) => {
+        if (action.notificationId === 'notification') throw new Error('offline')
+        completed.push(action.notificationId)
+      }),
+    ).rejects.toThrow('offline')
+    expect(completed).toEqual(['second'])
     expect(cache.entries.size).toBe(1)
     const apply = mock(async () => undefined)
     await drainPendingWorkerActions(apply)

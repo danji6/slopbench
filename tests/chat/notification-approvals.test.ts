@@ -1,10 +1,12 @@
 import type { Doc } from '@sb/convex/_generated/dataModel'
 import { withApprovalActions } from '@sb/convex/model/notificationApprovals'
+import { notifyQuestions } from '@sb/convex/model/notifications'
 import {
   notifyToolApprovals,
   respondApproval,
 } from '@sb/convex/model/notifications'
 import { approvalSummary } from '@sb/core/approval-presentation'
+import { ASK_TOOL_NAME } from '@sb/core/const'
 import { describe, expect, test } from 'bun:test'
 
 import { fakeCtx } from '../setup/subagents'
@@ -48,6 +50,14 @@ function setup(child = false) {
     kind: 'approval_required',
     status: 'unread',
     sessionTitle: 'Release',
+    requestState: 'pending',
+    attention: true,
+    request: {
+      streamId: 'stream',
+      messageId: 'message',
+      contentId: 'content',
+      toolCallId: 'first',
+    },
     approval: {
       streamId: 'stream',
       messageId: 'message',
@@ -108,7 +118,7 @@ describe('approval notification content and delivery', () => {
       const notifications = inserts.filter(
         (row) => row.table === 'notifications',
       )
-      expect(notifications).toHaveLength(4)
+      expect(notifications).toHaveLength(3)
       expect(notifications[0].fields).toMatchObject({
         sessionId: 'root',
         preview: 'Push changes to the main branch',
@@ -232,13 +242,9 @@ describe('approval notification responses', () => {
     },
   )
 
-  test('expired requests and legacy notifications have no approval buttons', async () => {
+  test('expired requests have no approval buttons', async () => {
     const { ctx, notification, stream } = setup()
     stream.leaseExpiresAt = Date.now() - 1
-    expect(
-      (await withApprovalActions(ctx, notification)).approvalActions,
-    ).toEqual([])
-    delete notification.approval
     expect(
       (await withApprovalActions(ctx, notification)).approvalActions,
     ).toEqual([])
@@ -294,5 +300,46 @@ describe('approval notification responses', () => {
       action: 'deny',
     })
     expect(stream.state.phase).toBe('stopping')
+  })
+})
+
+describe('request identity', () => {
+  test('repeated parking deduplicates per recipient and tool invocation', async () => {
+    const { ctx, stream, inserts } = setup()
+    await notifyToolApprovals(ctx, stream as never, 'root' as never)
+    const count = inserts.length
+    await notifyToolApprovals(ctx, stream as never, 'root' as never)
+    expect(inserts.length).toBe(count)
+  })
+
+  test('question notifications preserve one invocation containing multiple questions', async () => {
+    const { ctx, stream, content, inserts } = setup()
+    Object.assign(stream.state, { phase: 'awaiting_input' })
+    Object.assign(content, {
+      parts: [
+        {
+          type: `tool-${ASK_TOOL_NAME}`,
+          toolCallId: 'ask',
+          state: 'input-available',
+          input: {
+            questions: [
+              { question: 'Which branch?' },
+              { question: 'Which target?' },
+            ],
+          },
+        },
+      ],
+    })
+    await notifyQuestions(ctx, stream as never, 'root' as never)
+    await notifyQuestions(ctx, stream as never, 'root' as never)
+    const rows = inserts.filter((row) => row.table === 'notifications')
+    expect(rows).toHaveLength(2)
+    expect(rows[0].fields).toMatchObject({
+      kind: 'input_required',
+      preview: 'Which branch? (2 questions)',
+      requestState: 'pending',
+      attention: true,
+      request: { toolCallId: 'ask', contentId: 'content' },
+    })
   })
 })

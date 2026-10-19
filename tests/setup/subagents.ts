@@ -67,6 +67,22 @@ export function fakeCtx({
       first: async () => (await chain.collect())[0] ?? null,
       unique: async () => (await chain.collect())[0] ?? null,
       collect: async () => {
+        if (table === 'notifications') {
+          return [...byId.values()].filter(
+            (row) =>
+              row.recipientId &&
+              captured.every(([field, value]) => {
+                const actual = field
+                  .split('.')
+                  .reduce<unknown>(
+                    (object, key) =>
+                      (object as Record<string, unknown> | undefined)?.[key],
+                    row,
+                  )
+                return actual === value
+              }),
+          )
+        }
         if (table === 'agents') return agents
         if (table === 'modelProviders') {
           const owner = captured.find(([field]) => field === 'ownerId')
@@ -126,7 +142,9 @@ export function fakeCtx({
         byId.set(id, { _id: id, ...fields })
         return id
       },
-      delete: async () => {},
+      delete: async (id: string) => {
+        byId.delete(id)
+      },
       query: (table: string) => makeQuery(table),
     },
     scheduler: {

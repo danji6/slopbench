@@ -1,21 +1,9 @@
-import type { RememberScope } from '@/lib/chat'
-import type { ApprovalHold } from '@sb/convex/lib/tool/approvalPolicy'
-import type { PlanApprovalMeta } from '@sb/core/approval-presentation'
-import { approvalRememberOption } from '@sb/core/approval-presentation'
-
-export {
-  PLAN_APPROVALS,
-  getCommand,
-  getDescription,
-  summarizeInput,
-  type PlanApprovalMeta,
+import type {
+  ApprovalHold,
+  PlanApprovalMeta,
 } from '@sb/core/approval-presentation'
-export {
-  alwaysLabel,
-  approvalHold,
-  HOLD_HINTS,
-  type ApprovalHold,
-} from '@sb/convex/lib/tool/approvalPolicy'
+import { approvalRememberOption } from '@sb/core/approval-presentation'
+import type { RememberScope } from '@sb/core/types/tools'
 
 export type ApprovalAction = {
   id: string
@@ -85,5 +73,3 @@ export function buildApprovalActions(
 
   return items
 }
-
-export { isPendingToolApproval as isApprovalRequested } from '@sb/core/utils/tool-parts'

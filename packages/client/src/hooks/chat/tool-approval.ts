@@ -12,19 +12,19 @@ import { useApprovalKeybinds } from '@/hooks/chat/tool-approval-interaction'
 import type { RememberScope } from '@/lib/chat'
 import { optimisticallyRespondApproval } from '@/lib/chat/approval-optimistic'
 import { useComposerDraft } from '@/lib/chat/composer-draft-store'
-import { type ApprovalAction } from '@/lib/chat/tool-approval-policy'
-import { PLAN_APPROVALS } from '@/lib/chat/tool-approval-policy'
-import { buildApprovalActions } from '@/lib/chat/tool-approval-policy'
-import { isApprovalRequested } from '@/lib/chat/tool-approval-policy'
-import { getDescription } from '@/lib/chat/tool-approval-policy'
-import { alwaysLabel } from '@/lib/chat/tool-approval-policy'
-import { approvalHold } from '@/lib/chat/tool-approval-policy'
+import {
+  type ApprovalAction,
+  buildApprovalActions,
+} from '@/lib/chat/tool-approval-policy'
 import { toastError } from '@/lib/notifications'
 import {
   serializeBlocksToMarkdown,
   setEditorMarkdown,
 } from '@/lib/tiptap/serialize'
 import { api } from '@sb/convex/_generated/api'
+import { alwaysLabel, approvalHold } from '@sb/convex/lib/tool/approvalPolicy'
+import { PLAN_APPROVALS, getDescription } from '@sb/core/approval-presentation'
+import { isPendingToolApproval } from '@sb/core/utils/tool-parts'
 import type { PathApprovalStatus } from '@sb/core/workspace/path-policy'
 import type { Editor } from '@tiptap/react'
 import type { ToolUIPart } from 'ai'
@@ -53,7 +53,7 @@ export function useToolApprovalPicker({
   const [selectedAction, setSelectedAction] = useState('')
 
   const part = (childApproval?.parts ?? message?.parts)?.find(
-    isApprovalRequested,
+    isPendingToolApproval,
   ) as (ToolUIPart & { approvalPathStatus?: PathApprovalStatus }) | undefined
   const toolName = part?.type.replace('tool-', '') ?? ''
   const planApproval = PLAN_APPROVALS[toolName]

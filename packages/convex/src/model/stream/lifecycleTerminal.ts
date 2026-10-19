@@ -20,6 +20,7 @@ import {
   scheduleTitle,
   syncActivity,
 } from '../messages'
+import { settleStream } from '../notificationRequests'
 import {
   notificationPreviewFromParts,
   notifyAgentEvent,
@@ -298,6 +299,7 @@ export function preserveStoppedStreamError(
 
 /** Reclaims unused output before deleting its owning stream. */
 export async function discardStream(ctx: MutationCtx, streamId: Id<'streams'>) {
+  await settleStream(ctx, streamId, 'unavailable')
   await cleanUpOffloadedOutputs(ctx, streamId)
   await cleanUpGeneratedAttachments(ctx, streamId)
   await ctx.db.delete(streamId)
