@@ -9,6 +9,7 @@ import {
   closeInactiveDesktopNotifications,
   showDesktopNotificationOnce,
 } from '@/lib/notification-desktop'
+import { pageIsFocused } from '@/lib/notification-presence'
 import { toast, toastError } from '@/lib/notifications'
 import { APP_ID } from '@sb/core/const'
 import type { NotificationApprovalAction } from '@sb/core/notification-actions'
@@ -54,11 +55,12 @@ function readStackPreference(): StackPreference {
 /** Projects the queue into Sonner without treating dismissal as resolution. */
 export function useNotificationDelivery(options: DeliveryOptions) {
   const presence = useTabPresence(options.activeSessionId)
-  const { decide } = presence
+  const { probe, surfaceFor } = presence
   const [stack, setStack] = useState(readStackPreference)
   const known = useRef<Set<string> | null>(null)
   const startupBoundary = useRef(0)
   const surfaced = useRef(new Map<string, NotificationItem>())
+  const ordinaryToasts = useRef(new Map<string, NotificationItem>())
   const delivery = useRef(Promise.resolve())
 
   const latest = useRef(options)
@@ -97,10 +99,11 @@ export function useNotificationDelivery(options: DeliveryOptions) {
 
   useEffect(() => {
     if (options.activeIds)
-      void closeInactiveDesktopNotifications(options.activeIds).catch(
-        toastError,
-      )
-  }, [options.activeIds])
+      void closeInactiveDesktopNotifications(
+        options.activeIds,
+        pageIsFocused() ? options.activeSessionId : null,
+      ).catch(toastError)
+  }, [options.activeIds, options.activeSessionId, presence])
 
   useEffect(() => {
     if (options.desktopReady && !options.desktopEnabled)
@@ -146,12 +149,14 @@ export function useNotificationDelivery(options: DeliveryOptions) {
           if (!exists) return
 
           const important = isPendingNotification(item)
-          const surface = await decide(item.sessionId, important)
+          await probe()
+          const surface = surfaceFor(item.sessionId)
 
-          if (surface === 'discard') {
+          if (surface === 'discard' && !important) {
             current.discardSession(item.sessionId)
           }
           if (surface === 'toast' && !important) {
+            ordinaryToasts.current.set(item._id, item)
             showNotificationToast(
               item,
               current.show,
@@ -164,6 +169,7 @@ export function useNotificationDelivery(options: DeliveryOptions) {
               item,
               () =>
                 latest.current.desktopEnabled &&
+                surfaceFor(item.sessionId) === 'desktop' &&
                 [
                   ...(latest.current.unread ?? []),
                   ...(latest.current.recent ?? []),
@@ -173,19 +179,27 @@ export function useNotificationDelivery(options: DeliveryOptions) {
         })
         .catch(toastError)
     }
-  }, [options.unread, options.recent, decide])
+  }, [options.unread, options.recent, probe, surfaceFor])
 
   useEffect(() => {
     let cancelled = false
     const sync = async () => {
       const current = latest.current
-      const surface = await decide('', true)
+      await probe()
       if (cancelled) return
 
-      const candidates =
-        !minimized && surface === 'toast'
-          ? (current.recent ?? []).slice(0, 3)
-          : []
+      const candidates = !minimized
+        ? (current.recent ?? [])
+            .filter((item) => surfaceFor(item.sessionId) === 'toast')
+            .slice(0, 3)
+        : []
+
+      for (const [id, item] of ordinaryToasts.current) {
+        const active = current.unread?.some((unread) => unread._id === id)
+        if (active && surfaceFor(item.sessionId) === 'toast') continue
+        toast.dismiss(notificationToastId(id))
+        ordinaryToasts.current.delete(id)
+      }
 
       const ids = new Set<string>(candidates.map((item) => item._id))
       for (const id of surfaced.current.keys()) {
@@ -217,13 +231,26 @@ export function useNotificationDelivery(options: DeliveryOptions) {
     return () => {
       cancelled = true
     }
-  }, [options.recent, options.unread, presence, minimized, minimize, decide])
+  }, [
+    options.recent,
+    options.unread,
+    options.activeIds,
+    options.activeSessionId,
+    presence,
+    minimized,
+    minimize,
+    probe,
+    surfaceFor,
+  ])
 
   useEffect(
     () => () => {
       for (const id of surfaced.current.keys())
         toast.dismiss(notificationToastId(id))
       surfaced.current.clear()
+      for (const id of ordinaryToasts.current.keys())
+        toast.dismiss(notificationToastId(id))
+      ordinaryToasts.current.clear()
     },
     [],
   )

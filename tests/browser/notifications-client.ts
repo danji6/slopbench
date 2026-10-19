@@ -20,15 +20,18 @@ function update() {
   for (const listener of listeners) listener()
 }
 
-export function addApproval(file = false) {
+export function addApproval(file = false, sessionId = 'approval-chat') {
   items = [
     ...items,
     {
       _id: `notification_${items.length}`,
       _creationTime: Date.now(),
       recipientId: 'user',
-      sessionId: 'approval-chat',
-      sessionTitle: 'Lifecycle regression tests',
+      sessionId,
+      sessionTitle:
+        sessionId === 'approval-chat'
+          ? 'Lifecycle regression tests'
+          : 'Other session',
       actorName: 'Ada',
       kind: 'approval_required',
       status: 'unread',
@@ -178,9 +181,20 @@ const client = {
       name === 'notifications:markSessionRead'
     ) {
       items = items.map((item) =>
-        item.attention ? item : { ...item, status: 'read' },
+        item.attention ||
+        (name === 'notifications:markSessionRead' &&
+          item.sessionId !== args.sessionId)
+          ? item
+          : { ...item, status: 'read' },
       )
     }
+    if (name === 'notifications:discardSession')
+      items = items.filter(
+        (item) =>
+          item.attention ||
+          item.status !== 'unread' ||
+          item.sessionId !== args.sessionId,
+      )
     if (name === 'notifications:acknowledge') {
       items = items.map((item) =>
         item._id === args.notificationId && item.requestState === 'expired'
@@ -274,6 +288,26 @@ export function expireRequests() {
           requestState: 'expired',
           approvalPending: false,
           approvalActions: [],
+        }
+      : item,
+  )
+  update()
+}
+
+export function addActivity() {
+  addApproval()
+  items = items.map((item, index) =>
+    index === items.length - 1
+      ? {
+          ...item,
+          kind: 'turn_completed',
+          preview: 'Finished the regression tests',
+          approval: undefined,
+          approvalPending: false,
+          approvalActions: [],
+          request: undefined,
+          requestState: undefined,
+          attention: false,
         }
       : item,
   )

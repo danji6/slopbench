@@ -268,7 +268,7 @@ test('opening a question keeps it pending and expiry needs explicit acknowledgem
   const card = page.locator('[data-sonner-toast][data-front=true]')
   await card.getByRole('button', { name: 'Open chat', exact: true }).click()
   await expect(page).toHaveURL(/id=approval-chat/)
-  await expect(card).toBeVisible()
+  await expect(card).not.toBeVisible()
   await expect(
     page.getByRole('button', { name: 'Notifications, 1 unread', exact: true }),
   ).toBeVisible()

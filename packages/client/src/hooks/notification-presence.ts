@@ -49,12 +49,13 @@ export function useTabPresence(activeSessionId: string | null) {
   )
 
   useEffect(() => {
-    if (!('BroadcastChannel' in window)) return
-
-    const next = new BroadcastChannel('slopbench-notification-presence')
+    const next =
+      'BroadcastChannel' in window
+        ? new BroadcastChannel('slopbench-notification-presence')
+        : null
     channel.current = next
 
-    next.onmessage = (event: MessageEvent<PresenceMessage>) => {
+    const onMessage = (event: MessageEvent<PresenceMessage>) => {
       const message = event.data
       if (!message || message.tabId === tabId) return
       const previous = peers.current.get(message.tabId)
@@ -73,6 +74,7 @@ export function useTabPresence(activeSessionId: string | null) {
       else peers.current.set(message.tabId, message)
       if (message.type === 'probe') announce()
     }
+    if (next) next.onmessage = onMessage
 
     announce()
 
@@ -101,21 +103,15 @@ export function useTabPresence(activeSessionId: string | null) {
       window.removeEventListener('blur', onState)
       window.removeEventListener('pagehide', onUnload)
       document.removeEventListener('visibilitychange', onState)
-      next.close()
+      next?.close()
       channel.current = null
     }
   }, [announce, tabId])
 
   useEffect(() => announce(), [activeSessionId, announce])
 
-  const decide = useCallback(
-    async (
-      sessionId: string,
-      important = false,
-    ): Promise<NotificationSurface> => {
-      announce('probe')
-      // Give peer tabs a brief window to answer the probe
-      await new Promise((resolve) => window.setTimeout(resolve, 75))
+  const surfaceFor = useCallback(
+    (sessionId: string): NotificationSurface => {
       const now = Date.now()
 
       const own: Peer = {
@@ -132,10 +128,19 @@ export function useTabPresence(activeSessionId: string | null) {
         ...[...peers.current.values()].filter((peer) => now - peer.at < 10_000),
       ]
 
-      return chooseNotificationSurface(live, own.tabId, sessionId, important)
+      return chooseNotificationSurface(live, own.tabId, sessionId)
     },
-    [announce, startedAt, tabId],
+    [startedAt, tabId],
   )
 
-  return useMemo(() => ({ decide, revision }), [decide, revision])
+  const probe = useCallback(async () => {
+    announce('probe')
+    // Give peer tabs a brief window to answer the probe
+    await new Promise((resolve) => window.setTimeout(resolve, 75))
+  }, [announce])
+
+  return useMemo(
+    () => ({ probe, surfaceFor, revision }),
+    [probe, surfaceFor, revision],
+  )
 }

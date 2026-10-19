@@ -4,8 +4,10 @@ import { Toaster } from '@/components/ui/sonner'
 import '@/globals.css'
 import { ConvexProvider } from 'convex/react'
 import { useSyncExternalStore } from 'react'
+import { useLocation } from 'wouter'
 
 import {
+  addActivity,
   addApproval,
   addQuestion,
   expireRequests,
@@ -15,6 +17,7 @@ import {
 
 /** Exercises notification controls with observable pending and failure states. */
 export function NotificationsFixture() {
+  const [, navigate] = useLocation()
   const mutations = useSyncExternalStore(
     notificationControls.subscribe,
     notificationControls.snapshot,
@@ -22,9 +25,23 @@ export function NotificationsFixture() {
   return (
     <ConvexProvider client={notificationsClient}>
       <NotificationProvider>
-        <main className="flex h-screen items-end gap-4 p-8">
+        <main className="flex h-screen flex-wrap content-end items-end gap-4 p-8">
           <button onClick={() => addApproval()}>Notify shell</button>
           <button onClick={() => addApproval(true)}>Notify file</button>
+          <button onClick={() => addApproval(false, 'other-chat')}>
+            Notify other session
+          </button>
+          <button onClick={addActivity}>Notify activity</button>
+          <button
+            onClick={() => navigate('/?fixture=notifications&id=approval-chat')}
+          >
+            View approval session
+          </button>
+          <button
+            onClick={() => navigate('/?fixture=notifications&id=other-chat')}
+          >
+            View other session
+          </button>
           <button onClick={notificationControls.settle}>
             Resolve elsewhere
           </button>

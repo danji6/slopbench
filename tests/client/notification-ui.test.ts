@@ -99,6 +99,29 @@ describe('notification tab arbitration', () => {
     )
   })
 
+  test('the matching session is suppressed in both the viewing and background tabs', () => {
+    const peers = [
+      background,
+      {
+        tabId: 'focused',
+        startedAt: 2,
+        focused: true,
+        sessionId: 'session_1',
+      },
+    ]
+    for (const peer of peers) {
+      expect(chooseNotificationSurface(peers, peer.tabId, 'session_1')).toBe(
+        'discard',
+      )
+    }
+  })
+
+  test('a matching session in an unfocused tab still allows desktop delivery', () => {
+    expect(
+      chooseNotificationSurface([background], 'background', 'session_1'),
+    ).toBe('desktop')
+  })
+
   test('the oldest background tab owns the desktop alert', () => {
     const peers = [
       background,

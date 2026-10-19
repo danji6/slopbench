@@ -110,8 +110,11 @@ export async function showDesktopNotificationOnce(
   else await deliver()
 }
 
-/** Closes settled banners even when another tab originally delivered them. */
-export async function closeInactiveDesktopNotifications(activeIds: string[]) {
+/** Closes settled or currently viewed banners, including those delivered by other tabs. */
+export async function closeInactiveDesktopNotifications(
+  activeIds: string[],
+  viewedSessionId: string | null = null,
+) {
   if (!('serviceWorker' in navigator)) return
   const registration = await navigator.serviceWorker.getRegistration()
   const notifications = await registration?.getNotifications()
@@ -119,7 +122,11 @@ export async function closeInactiveDesktopNotifications(activeIds: string[]) {
   for (const notification of notifications ?? []) {
     if (!notification.tag.startsWith('slopbench:')) continue
     const id = notification.data?.notificationId
-    if (typeof id === 'string' && !active.has(id)) notification.close()
+    const viewed =
+      viewedSessionId !== null &&
+      notification.data?.sessionId === viewedSessionId
+    const settled = typeof id === 'string' && !active.has(id)
+    if (viewed || settled) notification.close()
   }
 }
 

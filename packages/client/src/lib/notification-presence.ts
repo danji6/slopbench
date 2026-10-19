@@ -13,13 +13,9 @@ export function chooseNotificationSurface(
   peers: NotificationPeer[],
   ownTabId: string,
   notificationSessionId: string,
-  important = false,
 ): NotificationSurface {
   const focused = peers.filter((peer) => peer.focused)
-  if (
-    !important &&
-    focused.some((peer) => peer.sessionId === notificationSessionId)
-  ) {
+  if (focused.some((peer) => peer.sessionId === notificationSessionId)) {
     return 'discard'
   }
   if (focused.length > 0) {
