@@ -24,6 +24,8 @@ import {
 export type ToolManifest = {
   /** Exact tool names, in the order they are sent. */
   names: string[]
+  /** Personal-folder guidance captured with file and shell descriptions. */
+  hasAgentHome?: boolean
   /** Agent roster baked into the task tool description. */
   taskRoster?: string
   /** Shell used to execute commands. Absent only on sidecar errors. */
@@ -140,8 +142,7 @@ export function resolveToolManifest(data: ManifestInput): ToolManifest {
   for (const name of workspaceTools) take(name)
   // Companions ride along with shell rather than being separately selectable
   if (names.includes('shell')) names.push('shell_output', 'kill_shell')
-  if (admin && names.includes('read_file') && data.session.workspace?.agentHome)
-    names.push('list_skills')
+  if (admin && names.includes('read_file')) names.push('list_skills')
 
   if (admin && selected.has(PLAN_TOOL_TOGGLE)) {
     names.push('write_plan', 'edit_plan')
@@ -161,6 +162,7 @@ export function resolveToolManifest(data: ManifestInput): ToolManifest {
 
   return {
     names,
+    ...(data.session.workspace?.agentHome && { hasAgentHome: true }),
     ...(roster && { taskRoster: roster }),
     ...(shell && { shell }),
     ...(mcp.length && { mcp }),

@@ -412,39 +412,26 @@ describe('buildProviderHistory', () => {
     ])
   })
 
-  test('lazily resolves snapshotless binary links from the workspace', async () => {
+  test('snapshotless links stay unavailable across workspace and file changes', async () => {
     const message = userMessage([
       { type: 'file-link', path: 'logo.png' },
       { type: 'text', text: 'describe @logo.png' },
     ])
     const ctx = { runQuery: async () => [message] } as never
-
-    const history = await withFetch(
-      () =>
-        jsonResponse({
-          kind: 'binary',
-          path: 'logo.png',
-          base64: 'AQID',
-          mediaType: 'image/png',
-          filename: 'logo.png',
-        }),
-      () => buildProviderHistory(ctx, providerDataWithWorkspace(), []),
-    )
-
-    expect(history).toEqual([
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'file',
-            mediaType: 'image/png',
-            filename: 'logo.png',
-            data: { type: 'url', url: new URL('data:image/png;base64,AQID') },
-          },
-          { type: 'text', text: 'describe @logo.png' },
-        ],
+    let reads = 0
+    const [first, second] = await withFetch(
+      () => {
+        reads++
+        throw new Error('History must not reread the workspace')
       },
-    ])
+      async () => [
+        await buildProviderHistory(ctx, providerData(), []),
+        await buildProviderHistory(ctx, providerDataWithWorkspace(), []),
+      ],
+    )
+    expect(second).toEqual(first)
+    expect(JSON.stringify(second)).toContain('unavailable')
+    expect(reads).toBe(0)
   })
 
   /**

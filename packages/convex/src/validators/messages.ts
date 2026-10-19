@@ -21,6 +21,7 @@ export const messageTypeValidator = v.union(
   v.literal('reminder'),
   v.literal('todo'),
   v.literal('workspace'),
+  v.literal('skills'),
   v.literal('command'),
   v.literal('mode'),
 )
@@ -57,6 +58,13 @@ export const reminderExtraValidator = v.object({
 
 export const workspaceExtraValidator = v.object({
   label: v.optional(v.string()), // absent when the workspace was unbound
+  fingerprint: v.optional(v.string()),
+  anchorMessageId: v.optional(v.id('messages')),
+})
+
+export const skillsExtraValidator = v.object({
+  fingerprint: v.string(),
+  anchorMessageId: v.optional(v.id('messages')),
 })
 
 export const modeExtraValidator = v.object({
@@ -71,6 +79,7 @@ export const shellReportExtraValidator = v.object({
 export const messageExtraValidator = v.union(
   reminderExtraValidator,
   workspaceExtraValidator,
+  skillsExtraValidator,
   modeExtraValidator,
   commandExtraValidator,
   shellReportExtraValidator,

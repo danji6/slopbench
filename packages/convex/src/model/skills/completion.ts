@@ -157,7 +157,10 @@ async function commitHome(
   await assertHomeDestination(ctx, agentId, path)
   const home = await ctx.db.get(homeId)
   if (!home) error('Personal folder no longer exists', 409)
-  await ctx.db.patch(home._id, { path })
+  await ctx.db.patch(home._id, {
+    path,
+    revision: home.revision + Number(home.path !== path),
+  })
   await bindHome(ctx, agentId, { ...home, path })
 }
 

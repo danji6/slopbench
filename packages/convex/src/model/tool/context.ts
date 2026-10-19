@@ -14,6 +14,8 @@ export type WorkspaceToolContext = {
   messageCreatedAt?: number
   workspaceId: string
   workspace?: FolderWorkspace
+  /** Frozen description guidance, separate from live personal folder access. */
+  hasAgentHome?: boolean
   /** Shell used to execute commands (system's default when absent). */
   shell?: string
   allowInteractiveShells?: boolean

@@ -1,17 +1,7 @@
 'use node'
 
-import {
-  SKILL_CATALOG_CHARACTERS,
-  catalogCursor,
-  catalogEntryText,
-  decodeCatalogCursor,
-} from '@sb/core/skills/catalog'
-import { SKILL_PAGE_SIZE } from '@sb/core/skills/types'
-import type {
-  AgentHome,
-  SkillCatalogEntry,
-  SkillCatalogPage,
-} from '@sb/core/skills/types'
+import { catalogEntryText } from '@sb/core/skills/catalog'
+import type { AgentHome, SkillCatalogPage } from '@sb/core/skills/types'
 import type { FolderWorkspace } from '@sb/core/types/workspace'
 import { withAgentHome } from '@sb/core/workspace/personal'
 
@@ -20,6 +10,7 @@ import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import type { AgentWithHome, Session } from '../../types'
 import { postSidecar } from '../sidecar'
+import { combinedSkillCatalog } from './catalog'
 
 /** Resolves only an explicitly assigned, available personal folder. */
 export async function resolvePersonalWorkspace(
@@ -54,67 +45,22 @@ export async function readSkillCatalog(
   cursor: string | null = null,
   search?: string,
 ): Promise<SkillCatalogPage> {
-  const decoded = decodeCatalogCursor(cursor)
-
-  const page = await ctx.runQuery(internal.skills._assignments, {
-    agentId: agent._id,
-    paginationOpts: { cursor: decoded.cursor, numItems: SKILL_PAGE_SIZE },
-    search,
-    enabledOnly: true,
-  })
-
-  const result = await postSidecar<{ entries: SkillCatalogEntry[] }>(
-    '/agent-files/metadata',
-    {
-      ownerId: agent.ownerId,
-      agentId: agent._id,
-      homeId: agent.homeId,
-      originAgentId: agent.home?.originAgentId,
-      path: agent.home?.path,
-      revision: workspace.agentHome?.revision ?? 0,
-      names: page.page.slice(decoded.offset).map((row) => row.name),
-    },
-  )
-
-  return {
-    entries: result.entries,
-    cursor: page.isDone ? null : page.continueCursor,
-    isDone: page.isDone,
-  }
+  return combinedSkillCatalog(ctx, agent, workspace, { cursor, search })
 }
 
-/** Fills a bounded prompt catalog while retaining a precise continuation position. */
+/** Fills a bounded catalog and fingerprints all available metadata. */
 export async function compactSkillCatalog(
   ctx: ActionCtx,
   agent: AgentWithHome,
-  workspace: FolderWorkspace,
+  workspace?: FolderWorkspace,
 ): Promise<SkillCatalogPage> {
-  const entries: SkillCatalogEntry[] = []
-  let cursor: string | null = null
-  while (true) {
-    const page = await readSkillCatalog(ctx, agent, workspace, cursor)
-    for (let i = 0; i < page.entries.length; i++) {
-      const entry = page.entries[i]!
-      const nextCursor =
-        i + 1 < page.entries.length ? catalogCursor(cursor, i + 1) : page.cursor
-      const candidate = {
-        entries: [...entries, entry],
-        cursor: nextCursor,
-        isDone: page.isDone && i + 1 === page.entries.length,
-      }
-      if (catalogNote(candidate).length > SKILL_CATALOG_CHARACTERS)
-        return { entries, cursor: catalogCursor(cursor, i), isDone: false }
-      entries.push(entry)
-    }
-    if (page.isDone) return { entries, cursor: null, isDone: true }
-    cursor = page.cursor
-  }
+  return combinedSkillCatalog(ctx, agent, workspace, { compact: true })
 }
 
 export function catalogNote(page: SkillCatalogPage) {
   if (!page.entries.length && page.isDone) return ''
   return [
-    'Assigned skills: read the relevant SKILL.md with read_file using its agent:// path before following its instructions.',
+    'Available skills: read the relevant SKILL.md with read_file at its listed path before following its instructions.',
     ...page.entries.map(catalogEntryText),
     ...(!page.isDone
       ? [
@@ -131,7 +77,7 @@ export async function catalogForTool(
   input: { cursor?: string; search?: string },
 ) {
   const agent = await ctx.runQuery(internal.skills._agent, { agentId })
-  if (!agent?.home?.path || agent.fileOperationId || agent.home.operationId)
+  if (!agent || agent.fileOperationId || agent.home?.operationId)
     throw new Error('Personal folder is being updated or no longer exists')
   return readSkillCatalog(
     ctx,

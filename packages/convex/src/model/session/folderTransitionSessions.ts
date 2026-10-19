@@ -3,7 +3,6 @@ import { transitionActive } from '@sb/core/workspace/transition'
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../../_generated/server'
 import { error } from '../../errors'
-import { removeForSession } from './cache'
 import { sessionGroup } from './folderContext'
 import { getState, patchState } from './state'
 
@@ -63,7 +62,6 @@ export async function invalidateWorkspaces(
         pathApprovalRevision: undefined,
       })
     }
-    await removeForSession(ctx, session._id)
   }
 }
 

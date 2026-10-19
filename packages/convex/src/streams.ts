@@ -2,10 +2,13 @@ import { v } from 'convex/values'
 
 import { internalMutation, internalQuery } from './_generated/server'
 import { authQuery } from './functions'
+import { prepareSkillContext } from './model/skills/context'
+import { prepareWorkspaceContext } from './model/stream/contextNotes'
 import * as StreamLifecycle from './model/stream/lifecycle'
 import * as StreamMeta from './model/stream/lifecycleMeta'
 import * as StreamReads from './model/stream/reads'
 import * as StreamSubagents from './model/stream/subagents'
+import { filesystemToolContext } from './model/tool/filesystemContext'
 import * as V from './validators/streams'
 import {
   saveStreamMetaArgsValidator,
@@ -140,4 +143,19 @@ export const _saveEnvironment = internalMutation({
 export const _saveLog = internalMutation({
   args: V.saveStreamLogArgsValidator.fields,
   handler: StreamMeta.saveLog,
+})
+
+export const _prepareSkillContext = internalMutation({
+  args: V.prepareContextNoteArgsValidator.fields,
+  handler: prepareSkillContext,
+})
+
+export const _prepareWorkspaceContext = internalMutation({
+  args: V.prepareContextNoteArgsValidator.fields,
+  handler: prepareWorkspaceContext,
+})
+
+export const _getFilesystemContext = internalQuery({
+  args: V.streamExecutionArgsValidator.fields,
+  handler: filesystemToolContext,
 })

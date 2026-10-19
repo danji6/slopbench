@@ -26,6 +26,7 @@ import { countParticipants, getMembership } from '../session/memberships'
 import { getApprovals, getState } from '../session/state'
 import { getByOwnerId as getSettings } from '../settings'
 import { agentWithHome } from '../skills/homes'
+import { orderContextNotes } from '../stream/contextNotes'
 import { ownsExecution } from './execution'
 
 /** Returns a list of session ids that have ongoing streams. */
@@ -169,6 +170,16 @@ export async function _getProviderHistory(
   const ordered = summaryApplies
     ? [summary, ...messages.filter((message) => message._id !== summary._id)]
     : messages
+
+  for (const id of [
+    stream.workspaceContextMessageId,
+    stream.skillContextMessageId,
+  ]) {
+    if (!id || ordered.some((message) => message._id === id)) continue
+    const note = await ctx.db.get(id)
+    if (note?.contextEligible) ordered.push(note)
+  }
+
   const history = await withPartsMany(ctx, ordered)
 
   // The in-flight turn joins the history with all its segments concatenated
@@ -186,7 +197,7 @@ export async function _getProviderHistory(
     }
   }
 
-  return history
+  return orderContextNotes(history)
 }
 
 export async function _isActive(

@@ -26,7 +26,7 @@ requires detaching first. Turns never create an unassigned home, and personal-sc
 guidance is emitted only when the assigned folder is available.
 
 An owner-scoped skill library stores complete pristine bundles. Assignments
-create independent editable copies under each agent's `.agents/skills`.
+create independent editable copies under each agent home's `skills/` directory, exposed as `agent://skills/...`.
 Delete/reassign restores a clean copy. No skill-count or bundle-size quotas
 apply; file installation and copying stream data, while UI lists, discovery,
 and model reads use bounded responses. UI lists accumulate pages with virtualized infinite scrolling. YAML frontmatter follows the Agent Skills
@@ -38,8 +38,8 @@ File tools reuse their existing names and accept an optional `scope` selecting
 project or agent roots. Omitted scope always means workspace; personal access,
 including absolute paths, requires `scope: "agent"`. Shell working directories
 and dynamic file helpers follow the same rule. `agentDir` exposes the home;
-`workDir` remains project-only. A compact catalog includes installed skills up
-to 12,000 characters with 160-character descriptions. `list_skills` provides
+`workDir` remains project-only. A compact catalog includes available skills up
+to 10,000 characters with descriptions capped at 1,000 characters. `list_skills` provides
 search and exact continuation when the catalog is truncated. Existing approvals, admin gating,
 plan-mode restrictions, and shell authority remain in effect.
 
@@ -51,6 +51,53 @@ releasing the agent. Filesystem journals reconcile interrupted publishes.
 Text reads now bound allocation before reading and expose byte continuation;
 edit snapshots and linked-file previews also enforce read-process budgets.
 Restart the sidecar after updating.
+
+## Project skill discovery and stable catalog context (2026-10-18)
+
+Filesystem sources have an inherited, per-source **Allow `.agents/skills`** option,
+enabled by default. Discovery reads only `<source>/.agents/skills/<name>/SKILL.md`;
+it does not walk ancestors, nested projects, other harness folders, or the sidecar
+user's home. Existing metadata validation and symlink restrictions apply. Project
+skills remain in place, independent of library installations and assigned copies.
+
+The runtime combines enabled assignments and enabled project sources into one
+bounded catalog with origins and distinct paths. Assigned skills appear first,
+followed by configured sources in order, with names sorted within each source.
+`list_skills` searches and pages all sources, including for agents without homes,
+and rechecks the live invoker and workspace. A changed catalog invalidates only
+its continuation cursor: callers restart listing without that cursor.
+
+Skill metadata is refreshed between invocations and announced through immutable,
+hidden transcript notes. Notes are logically anchored before the assistant output
+that first consumed them; retries and resumed tool steps reuse the same snapshot.
+Changes append another bounded catalog, while previous notes and file/tool results
+remain unchanged. Skill notes are literal and never run through prompt helpers.
+Compaction or an agent switch reintroduces catalog context when needed. Discovery
+disabling affects automatic exposure, not ordinary file access or prior history.
+
+Skill-only operations no longer advance the home revision. Source configuration
+revisions remain separate from filesystem access revisions, so discovery-only
+toggles also preserve path approvals. Catalog hashing uses Web Crypto, so tool
+modules remain compatible with the Convex default runtime.
+
+Workspace guidance is also persisted as literal, immutable transcript notes.
+Folder renames, source changes, and personal-folder availability changes append
+updated context without rebuilding the system prompt or earlier history. Retries
+reuse the notes prepared for that logical invocation. Workspace/home transitions
+revoke stale path grants while retaining prompt snapshots. File and shell tool
+descriptions capture personal-folder guidance in the manifest; unavailable tools
+remain in the frozen wire shape and reject execution. Filesystem operations still
+check the active execution, invoker privileges, and current access. Explicit
+`/eval`, privilege changes, and session removal retain their snapshot reset behavior.
+Sender-name sharing and other-agent masking are captured with the snapshot too,
+so changing presentation settings does not reformat earlier provider history.
+File mentions without a saved snapshot retain a fixed unavailable marker rather
+than rereading the workspace on subsequent requests.
+
+The temporary pre-release migrations successfully enabled discovery on existing
+test-data sources and cleared old session caches once. They have been removed,
+and the schema baseline is now 22 with an empty release migration list. Restart
+the sidecar after updating, because it has no hot reload.
 
 ## Session folders, nesting, and source directories (2026-10-05)
 
@@ -112,19 +159,19 @@ and shell commands still rely on approvals rather than an OS filesystem sandbox.
 Source changes use transactional transition leases plus sidecar activity checks.
 Active streams, processing turns, children, filesystem operations, and background
 shell jobs block source-affecting changes. Destination revision checks prevent a
-move from inheriting sources changed during preparation. Changes invalidate
-workspace-dependent prompt caches and path grants while retaining other approval
-rules. The next invocation announces the changed sources, and each request has a
-current-source reminder. Folder deletion keeps chats and pins and moves sessions
+move from inheriting sources changed during preparation. Changes revoke path
+grants while retaining frozen prompts, tool schemas, and other approval rules.
+The next invocation appends the changed filesystem context to the transcript.
+Folder deletion keeps chats and pins and moves sessions
 to the surviving parent or Ungrouped. Checkpoint restoration rechecks current access; legacy checkpoints
 are ignored.
 
 The approved pre-release data reset migrated existing memberships to Ungrouped
 or Shared, cleared legacy workspace bindings and path grants, and removed stale
 caches. A subsequent migration moved legacy Shared memberships to Ungrouped.
-These temporary migrations were applied to the local test data and removed; the
-clean pre-release schema baseline is version 15 and the public migration manifest
-is empty. Restart the sidecar after updating, because it has no hot reload.
+These temporary migrations were applied to the local test data and removed. The
+current pre-release schema baseline is version 22 and the public migration
+manifest is empty. Restart the sidecar after updating, because it has no hot reload.
 
 Stream token patches and heartbeats renew the five-minute lease at most once per
 minute, reducing contention with stop mutations. Ordinary engine stop checks use
@@ -1251,7 +1298,7 @@ Key backend domains:
 `migrations.ts` holds the `@convex-dev/migrations` runner, the append-only
 public release migration list, and stable internal endpoints for boot
 coordination. `packages/core/src/migration-version.ts` establishes pre-release
-schema version 15 as the pre-release baseline; later manifest entries advance the
+schema version 22 as the pre-release baseline; later manifest entries advance the
 version from that baseline. The public migration manifest is currently empty.
 A singleton
 `releaseState` document records the last strictly completed version and any
@@ -1394,7 +1441,7 @@ The provider request prefix is frozen per `(session, agent)` in `sessionCache`:
   `getVar()` inside a frozen prompt therefore reads the environment as of
   capture time.
 - `tools`: the tool **shape** only — names, the sub-agent roster string, and
-  external MCP entries. Behavior is rebuilt live every step from this manifest,
+  external MCP entries, including frozen personal-folder guidance. Behavior is rebuilt live every step from this manifest,
   so closures see current state while the wire format stays byte-identical.
 
 `planSnapshotEval` decides what still needs sidecar evaluation and how to
@@ -1403,7 +1450,10 @@ compose frozen and freshly evaluated items into the final request.
 MCP servers, agent tool selection, sub-agent status) exactly once, which means
 a mid-session workspace bind, MCP toggle, or agent rename is not reflected
 until the snapshot is reset. Absence of the row means "recompute"; the row is
-invalidated only by `/eval` or session removal.
+invalidated only by `/eval`, an invoker privilege change, or session removal.
+Workspace and personal-folder changes revoke grants and append literal context
+notes instead of discarding this snapshot. A cached filesystem tool remains on
+the wire when its workspace disappears, but executing it requires current access.
 
 On top of that, `applyPromptCaching` adds Anthropic `ephemeral` cache
 breakpoints: the system prompt is folded into the first message with a

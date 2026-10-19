@@ -59,11 +59,16 @@ export type SessionParticipant = CoreSessionParticipant<
   Id<'avatars'>
 >
 
+export type PrepareContextNoteArgs = Infer<
+  typeof V.prepareContextNoteArgsValidator
+  >
+
 /**
  * Payloads carried by the `messages.extra` field, keyed by the message `type`
  * that owns them.
  */
 export type MessageExtra = {
+  skills: Infer<typeof V.skillsExtraValidator>
   /** Snapshot of the reminder prompt that produced an injected message. */
   reminder: Infer<typeof V.reminderExtraValidator>
   /** Label of the workspace bound by the change, absent when unbound. */
@@ -206,5 +211,4 @@ export type StorePreviewArgs = Infer<typeof V.storePreviewArgsValidator>
 export type PreviewModelDetailsArgs = Infer<typeof V.previewModelDetailsArgsValidator> // prettier-ignore
 export type RemovedConnectionArgs = Infer<typeof V.removedConnectionArgsValidator> // prettier-ignore
 export type DetailTargetsArgs = Infer<typeof V.detailTargetsArgsValidator>
-
 export type ProviderDiscovery = Infer<typeof V.providerDiscoveryValidator>

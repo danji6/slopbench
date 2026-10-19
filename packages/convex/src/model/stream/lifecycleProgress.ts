@@ -75,6 +75,8 @@ export async function consumeInterjections(
         .gt('_creationTime', current._creationTime),
     )
     .filter(notACommandChip)
+    .filter((q) => q.neq(q.field('type'), 'skills'))
+    .filter((q) => q.neq(q.field('type'), 'workspace'))
     .filter(notAUserKilledReport)
     .order('desc')
     .first()

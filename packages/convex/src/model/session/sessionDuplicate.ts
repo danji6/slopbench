@@ -5,6 +5,7 @@ import * as Attachments from '../attachments'
 import { insertMessage, withParts } from '../messageContents'
 import { finalizeMessageParts, notACommandChip } from '../messages'
 import { getBySession as getPlan, upsert as upsertPlan } from '../plans'
+import { orderContextNotes, portableContextExtra } from '../stream/contextNotes'
 import { getActiveStream, requireOwner } from './memberships'
 import { getState, patchState } from './state'
 
@@ -98,7 +99,9 @@ export async function duplicate(
     .order('asc')
     .collect()
 
-  const copied = messages.filter((message) => message.status !== 'processing')
+  const copied = orderContextNotes(
+    messages.filter((message) => message.status !== 'processing'),
+  )
   const partsByMessage = new Map<Id<'messages'>, unknown[]>()
   const referencedAttachmentIds = new Set<string>()
   for (const message of copied) {
@@ -152,7 +155,7 @@ export async function duplicate(
         type: message.type,
         status: 'done',
         hidden: message.hidden,
-        extra: message.extra,
+        extra: portableContextExtra(message),
         metadata: message.metadata,
         senderName: message.senderName,
         senderAvatarId: message.senderAvatarId,

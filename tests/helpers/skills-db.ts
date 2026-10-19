@@ -104,7 +104,34 @@ export function skillsDatabase() {
               compare(a._id, b._id)
             return descending ? -order : order
           })
+      type FilterValue = { field: string } | unknown
+      const resolve = (row: Row, value: FilterValue) =>
+        value && typeof value === 'object' && 'field' in value
+          ? row[String(value.field)]
+          : value
+      const comparison =
+        (a: FilterValue, b: FilterValue, accept: (n: number) => boolean) =>
+        (row: Row) =>
+          accept(compare(resolve(row, a), resolve(row, b)))
+      const filter = {
+        field: (field: string) => ({ field }),
+        eq: (a: FilterValue, b: FilterValue) =>
+          comparison(a, b, (n) => n === 0),
+        neq: (a: FilterValue, b: FilterValue) =>
+          comparison(a, b, (n) => n !== 0),
+        gt: (a: FilterValue, b: FilterValue) => comparison(a, b, (n) => n > 0),
+        lte: (a: FilterValue, b: FilterValue) =>
+          comparison(a, b, (n) => n <= 0),
+        and:
+          (...conditions: ((row: Row) => boolean)[]) =>
+          (row: Row) =>
+            conditions.every((condition) => condition(row)),
+      }
       const query = {
+        filter: (select: (builder: typeof filter) => (row: Row) => boolean) => {
+          predicates.push(select(filter))
+          return query
+        },
         withIndex: (
           _name: string,
           select: (range: typeof index) => unknown,

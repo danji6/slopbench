@@ -32,14 +32,23 @@ export type SkillImportSummary = {
 }
 
 export type SkillCatalogEntry = SkillMetadata & {
+  origin?: string
   path: string
   error?: string
 }
 
 export type SkillCatalogPage = {
   entries: SkillCatalogEntry[]
+  fingerprint: string
   cursor: string | null
   isDone: boolean
+}
+
+/** A bounded source window with a digest of all of its metadata. */
+export type SkillCatalogSlice = {
+  entries: SkillCatalogEntry[]
+  total: number
+  fingerprint: string
 }
 
 /** Limits for pages and model reads. */

@@ -115,5 +115,6 @@ export const sessionFolderSchema = v.object({
   organizationRevision: v.optional(v.number()),
   sources: v.array(folderSourceValidator),
   revision: v.number(),
+  accessRevision: v.optional(v.number()),
   contextLock: v.optional(v.string()),
 })

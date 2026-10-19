@@ -24,6 +24,12 @@ const ScriptMenusFixture = lazy(() =>
   })),
 )
 
+const SkillSourceFixture = lazy(() =>
+  import('./skill-source-fixture').then((module) => ({
+    default: module.SkillSourceFixture,
+  })),
+)
+
 const SkillsFixture = lazy(() =>
   import('./skills-fixture').then((module) => ({
     default: module.SkillsFixture,
@@ -140,6 +146,10 @@ createRoot(document.getElementById('root')!).render(
   ) : new URLSearchParams(location.search).get('fixture') === 'skill-tools' ? (
     <Suspense fallback={<p>Loading tool fixture…</p>}>
       <SkillToolsFixture />
+    </Suspense>
+  ) : new URLSearchParams(location.search).get('fixture') === 'skill-source' ? (
+    <Suspense fallback={<p>Loading source picker…</p>}>
+      <SkillSourceFixture />
     </Suspense>
   ) : new URLSearchParams(location.search).get('fixture') === 'skills' ? (
     <Suspense fallback={<p>Loading skills fixture…</p>}>

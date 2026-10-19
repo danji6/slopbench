@@ -11,29 +11,8 @@ export function compactDescription(value: string) {
 }
 
 export function catalogEntryText(entry: SkillCatalogEntry) {
+  const name = entry.origin ? `${entry.name} [${entry.origin}]` : entry.name
   return entry.error
-    ? `- ${entry.name}: unavailable (${compactDescription(entry.error)}).`
-    : `- ${entry.name}: ${compactDescription(entry.description)}\n  ${entry.path}`
-}
-
-export function catalogCursor(cursor: string | null, offset = 0) {
-  const decoded = decodeCatalogCursor(cursor)
-  return `skill:${JSON.stringify({ cursor: decoded.cursor, offset: decoded.offset + offset })}`
-}
-
-export function decodeCatalogCursor(value: string | null) {
-  if (!value?.startsWith('skill:')) return { cursor: value, offset: 0 }
-  const parsed = JSON.parse(value.slice(6)) as {
-    cursor: unknown
-    offset: unknown
-  }
-  if (
-    (parsed.cursor !== null && typeof parsed.cursor !== 'string') ||
-    !Number.isInteger(parsed.offset) ||
-    Number(parsed.offset) < 0 ||
-    Number(parsed.offset) >= 20
-  ) {
-    throw new Error('Invalid skill catalog cursor')
-  }
-  return { cursor: parsed.cursor, offset: Number(parsed.offset) }
+    ? `- ${name}: unavailable (${compactDescription(entry.error)}).`
+    : `- ${name}: ${compactDescription(entry.description)}\n  ${entry.path}`
 }

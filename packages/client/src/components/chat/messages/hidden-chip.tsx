@@ -59,6 +59,8 @@ function chipPresentation(record: MessageRecord | undefined): ChipPresentation {
         label: 'Todo reminder',
         noun: 'reminder',
       }
+    case 'skills':
+      return { icon: ClipboardListIcon, label: 'Skills updated', noun: 'note' }
     case 'workspace': {
       const label = messageExtra(record, 'workspace')?.label
       return {

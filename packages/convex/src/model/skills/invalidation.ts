@@ -60,7 +60,6 @@ async function invalidatePage(
 
   for (const row of rows.page) {
     await revokeHomeApprovals(ctx, row.sessionId, operation.state.previousPath)
-    // Revision invalidates this cache immediately; retain it until pagination finishes
   }
   if (!rows.isDone) {
     await ctx.scheduler.runAfter(0, internal.skills._invalidateHomeCaches, {

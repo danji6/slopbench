@@ -2,6 +2,7 @@
 
 import type { ToolSet } from 'ai'
 
+import type { Doc } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import {
   buildExtraInstructions,
@@ -50,7 +51,10 @@ type OperationPlan = {
   ) => Promise<ProviderRequest>
 }
 
-type CachePatch = SnapshotPatch & { tools?: ToolManifest }
+type CachePatch = SnapshotPatch & {
+  tools?: ToolManifest
+  historyPresentation?: Doc<'sessionCache'>['historyPresentation']
+}
 
 /** The web and MCP resources the tool builders read. */
 export function toolResources(data: StreamContext): ToolResources {
@@ -96,6 +100,12 @@ function createInvokePlan(
 
   // Cached on first invoke, then reused for the rest of the session
   const frozenTools = data.sessionCache?.tools
+  const frozenPresentation = data.sessionCache?.historyPresentation
+  const historyPresentation = frozenPresentation ?? {
+    maskOtherAgents: !!data.agent.maskOtherAgents,
+    shareUserDisplayNames: !!data.agent.shareUserDisplayNames,
+    shareAgentDisplayNames: !!data.agent.shareAgentDisplayNames,
+  }
   const manifest =
     frozenTools ??
     resolveToolManifest({
@@ -109,8 +119,12 @@ function createInvokePlan(
     toolNames: manifest.names,
     snapshotPatch: (evalResult) => {
       const patch = plan.snapshotPatch(evalResult.items)
-      if (!patch && frozenTools) return null
-      return { ...patch, ...(frozenTools ? {} : { tools: manifest }) }
+      if (!patch && frozenTools && frozenPresentation) return null
+      return {
+        ...patch,
+        ...(frozenTools ? {} : { tools: manifest }),
+        ...(frozenPresentation ? {} : { historyPresentation }),
+      }
     },
     buildRequest: (ctx, data, evalResult) =>
       buildInvokeRequest(
@@ -172,6 +186,10 @@ async function buildInvokeRequest(
         messageCreatedAt: data.output._creationTime,
         agentId: data.agent._id,
         invokedBy: data.stream.invokedBy,
+        execution: {
+          streamId: data.stream._id,
+          generation: data.stream.generation,
+        },
       },
     ),
   }

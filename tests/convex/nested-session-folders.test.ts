@@ -241,7 +241,7 @@ describe('nested session folders', () => {
     ).toBe(originalKey)
   })
 
-  test('cross-workspace moves guard all descendants and invalidate their context', async () => {
+  test('cross-workspace moves revoke descendant grants and preserve frozen prompts', async () => {
     const { ctx, row, tables } = nested()
     tables.streams = [{ _id: 'busy', sessionId: 'child' }]
     const input = await moveArgs(ctx, {})
@@ -264,7 +264,7 @@ describe('nested session folders', () => {
     await commit(ctx, commitArgs(input, prepared))
     expect(row('n').parentId).toBe('b')
     expect(row('g').parentId).toBe('n')
-    expect(row('cache')).toBeUndefined()
+    expect(row('cache')).toBeDefined()
     expect(row('state').toolApprovals).toMatchObject({
       shell: ['git status'],
       paths: undefined,
@@ -478,6 +478,6 @@ describe('nested session folders', () => {
     expect(row('mem').folderId).toBe('c')
     expect(row('mem').groupKey).toBe('c')
     expect(row('msg')).toBeDefined()
-    expect(row('cache')).toBeUndefined()
+    expect(row('cache')).toBeDefined()
   })
 })

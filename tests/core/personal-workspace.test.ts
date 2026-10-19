@@ -47,6 +47,7 @@ test('home-only sessions require explicit personal scope', () => {
 
 test('catalog discovery exposes continuation and omits unavailable instructions', () => {
   const note = catalogNote({
+    fingerprint: 'fixture',
     entries: [
       {
         name: 'review',

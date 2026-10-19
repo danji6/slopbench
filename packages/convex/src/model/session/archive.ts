@@ -18,6 +18,7 @@ import {
   notACommandChip,
   textFromParts,
 } from '../messages'
+import { orderContextNotes, portableContextExtra } from '../stream/contextNotes'
 import { getMember } from './memberships'
 import { resolveTitle } from './title'
 
@@ -68,7 +69,7 @@ export async function exportOne(
       exportedAt: Date.now(),
       session: {
         title: resolveTitle(member.session.title, messagesWithParts),
-        messages: messagesWithParts.map(exportMessage),
+        messages: orderContextNotes(messagesWithParts).map(exportMessage),
       },
     },
     avatars,
@@ -160,7 +161,7 @@ function exportMessage(message: MessageWithParts): SessionArchiveMessage {
     role: message.role,
     type: message.type,
     hidden: message.hidden,
-    extra: message.extra,
+    extra: portableContextExtra(message),
     parts: sanitizeParts(finalizeMessageParts(message.parts)),
     senderSnapshot: exportSnapshot(message),
     metadata: message.metadata,

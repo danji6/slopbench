@@ -30,6 +30,10 @@ export async function buildProviderHistory(
   data: StreamContext,
   remainingPrompts: Parameters<typeof buildPrompts>[0],
 ) {
+  const historyAgent = {
+    ...data.agent,
+    ...data.sessionCache?.historyPresentation,
+  }
   const history = await ctx.runQuery(internal.streams._getProviderHistory, {
     streamId: data.stream._id,
     generation: data.stream.generation,
@@ -50,8 +54,8 @@ export async function buildProviderHistory(
   for (const message of history) {
     const { role, parts } = representMessage(
       message,
-      data.agent,
-      await resolveParts(ctx, message.parts, data.session, message.role, {
+      historyAgent,
+      await resolveParts(ctx, message.parts, message.role, {
         mediaActive: activeMediaMessages.has(message._id),
         readerEnabled,
         toolMediaActive:
@@ -71,7 +75,7 @@ export async function buildProviderHistory(
 
   const attributed = messages.map((message, index) => ({
     ...message,
-    parts: prefixSenderName(message, history[index], data.agent),
+    parts: prefixSenderName(message, history[index], historyAgent),
   }))
   const approvalNotes = collectApprovalNotes(attributed)
 

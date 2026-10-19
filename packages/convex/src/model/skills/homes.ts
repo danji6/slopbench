@@ -78,16 +78,17 @@ export async function getHome(
   }
 }
 
-/** Releases the lease and advances the revision observed by every member's cache. */
+/** Releases the lease and advances the access revision only for home changes. */
 export async function releaseHome(
   ctx: MutationCtx,
   homeId: Id<'agentHomes'>,
   operationId: Id<'agentFileOperations'>,
+  changesHome = true,
 ) {
   const home = await ctx.db.get(homeId)
   if (!home || home.operationId !== operationId) return
   await ctx.db.patch(homeId, {
     operationId: undefined,
-    revision: home.revision + 1,
+    revision: home.revision + Number(changesHome),
   })
 }

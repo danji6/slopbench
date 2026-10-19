@@ -143,7 +143,9 @@ function scopedTarget(input: HelperRoots, parsed: ScopedPath) {
   const root = resolveRoot(personal ? input.agentDir : input.workDir)
   if (!root) {
     if (!personal && resolveRoot(input.agentDir)) {
-      throw new Error('No project workspace')
+      throw new Error(
+        'No project workspace. Use an agent:// path for personal files.',
+      )
     }
     return null
   }

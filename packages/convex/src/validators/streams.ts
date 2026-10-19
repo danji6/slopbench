@@ -139,6 +139,10 @@ export const streamSchema = v.object({
   stopAt: v.optional(v.number()),
   /** Retry this logical turn without automatically materializing media. */
   omitActiveMedia: v.optional(v.boolean()),
+  skillContextPrepared: v.optional(v.boolean()),
+  skillContextMessageId: v.optional(v.id('messages')),
+  workspaceContextPrepared: v.optional(v.boolean()),
+  workspaceContextMessageId: v.optional(v.id('messages')),
   suppressFollowUp: v.optional(v.boolean()),
   /** True for child (sub-agent) streams stopped from above. */
   suppressReport: v.optional(v.boolean()),
@@ -157,4 +161,11 @@ export const saveStreamEnvironmentArgsValidator = v.object({
 export const saveStreamLogArgsValidator = v.object({
   ...streamExecutionArgsValidator.fields,
   storageId: v.id('_storage'),
+})
+
+export const prepareContextNoteArgsValidator = v.object({
+  ...streamExecutionArgsValidator.fields,
+  fingerprint: v.string(),
+  content: v.string(),
+  label: v.optional(v.string()),
 })

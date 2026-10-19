@@ -20,7 +20,10 @@ const agent = {
   homeId: 'home',
   home: { path: '/home' },
 } as AgentWithHome
-const workspace = { path: '/home' } as FolderWorkspace
+const workspace = {
+  path: '/home',
+  agentHome: { path: '/home' },
+} as FolderWorkspace
 
 async function catalogFixture(
   count: number,

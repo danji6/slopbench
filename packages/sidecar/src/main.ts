@@ -11,6 +11,10 @@ import { inspectHome } from './agent-files/home-state'
 import { importPage } from './agent-files/import-discovery'
 import { homeInfo, runFileOperation } from './agent-files/operations'
 import {
+  projectCatalogSchema,
+  projectSkillCatalog,
+} from './agent-files/project-catalog'
+import {
   agentLockSchema,
   catalogSchema,
   homeSchema,
@@ -179,6 +183,12 @@ export function createApp(authenticate: MiddlewareHandler) {
 
   app.post('/agent-files/metadata', async (c) =>
     c.json(await skillMetadata(catalogSchema.parse(await c.req.json()))),
+  )
+
+  app.post('/agent-files/project-catalog', async (c) =>
+    c.json(
+      await projectSkillCatalog(projectCatalogSchema.parse(await c.req.json())),
+    ),
   )
 
   app.post('/agent-files/verify-library', async (c) =>

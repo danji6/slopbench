@@ -64,5 +64,10 @@ export type FolderWorkspace = {
   revision?: number
   path: string
   label: string
-  sources?: { id: string; path: string; label: string }[]
+  sources?: {
+    id: string
+    path: string
+    label: string
+    discoverSkills?: boolean
+  }[]
 }

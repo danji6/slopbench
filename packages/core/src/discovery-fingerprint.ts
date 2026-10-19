@@ -1,8 +1,9 @@
 import type { DiscoveryConnection } from './model-discovery'
+import { sha256 } from './sha256'
 
 /** Binds a discovery preview to its connection configuration without storing secrets. */
 export async function discoveryFingerprint(connection: DiscoveryConnection) {
-  const encoded = new TextEncoder().encode(
+  return sha256(
     JSON.stringify([
       connection.id,
       connection.auth ?? 'apiKey',
@@ -11,8 +12,4 @@ export async function discoveryFingerprint(connection: DiscoveryConnection) {
       connection.apiKey || '',
     ]),
   )
-  const hash = await crypto.subtle.digest('SHA-256', encoded)
-  return Array.from(new Uint8Array(hash), (byte) =>
-    byte.toString(16).padStart(2, '0'),
-  ).join('')
 }

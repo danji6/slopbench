@@ -121,11 +121,15 @@ export async function claimOperation(
 /** Releases only claims still belonging to this operation. */
 export async function releaseOperation(ctx: MutationCtx, op: Operation) {
   const targets = operationTargets(op)
-  for (const homeId of targets.homes) await releaseHome(ctx, homeId, op._id)
+  const changesHome = !['assign', 'delete-assigned', 'delete-library'].includes(
+    op.kind,
+  )
+  for (const homeId of targets.homes)
+    await releaseHome(ctx, homeId, op._id, changesHome)
   for (const { agentId } of targets.agents) {
     const agent = await ctx.db.get(agentId)
     if (agent?.fileOperationId !== op._id) continue
-    if (agent.homeId) await releaseHome(ctx, agent.homeId, op._id)
+    if (agent.homeId) await releaseHome(ctx, agent.homeId, op._id, changesHome)
     await ctx.db.patch(agentId, { fileOperationId: undefined })
   }
   if (!targets.skillId) return

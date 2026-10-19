@@ -11,6 +11,7 @@ import { ArrowUpIcon, PlusIcon, XIcon } from 'lucide-react'
 import { useState } from 'react'
 
 import { FolderPicker } from './folder-picker'
+import { SkillDiscoveryToggle } from './skill-discovery-toggle'
 import { WorkspacePickerDialog } from './workspace-picker-dialog'
 
 type Source = Doc<'sessionFolders'>['sources'][number]
@@ -71,12 +72,13 @@ export function FolderDialog({
     }
   }
 
-  function addSource(path: string) {
+  function addSource(path: string, discoverSkills = true) {
     if (!sources.some((source) => source.path === path))
       setSources((current) => [
         ...current,
         {
           id: generateId(),
+          discoverSkills,
           path,
           label: path.split('/').filter(Boolean).at(-1) ?? path,
         },
@@ -156,6 +158,21 @@ export function FolderDialog({
                       >
                         {source.path}
                       </div>
+                      <div className="mt-2">
+                        <SkillDiscoveryToggle
+                          checked={source.discoverSkills !== false}
+                          disabled={!canEditSources || busy}
+                          onChange={(discoverSkills) =>
+                            setSources((current) =>
+                              current.map((item) =>
+                                item.id === source.id
+                                  ? { ...item, discoverSkills }
+                                  : item,
+                              ),
+                            )
+                          }
+                        />
+                      </div>
                     </div>
                     {canEditSources && index > 0 && (
                       <RippleButton
@@ -224,6 +241,7 @@ export function FolderDialog({
       </Dialog>
       <WorkspacePickerDialog
         open={browsing}
+        skillDiscovery
         onOpenChange={setBrowsing}
         initialPath={recent[0]}
         onSelect={addSource}

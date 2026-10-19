@@ -27,6 +27,13 @@ export const sessionSettingsValidator = v.object({
 /** Prompt interpreter variables for one session. */
 export const environmentValidator = v.record(v.string(), v.any())
 
+/** Presentation choices that affect the provider's existing history. */
+export const historyPresentationValidator = v.object({
+  maskOtherAgents: v.boolean(),
+  shareUserDisplayNames: v.boolean(),
+  shareAgentDisplayNames: v.boolean(),
+})
+
 /** Marks a session as a sub-agent child of another session's turn. */
 export const sessionParentValidator = v.object({
   sessionId: v.id('sessions'),
@@ -41,6 +48,7 @@ export const saveSessionCacheArgsValidator = v.object({
   agentId: v.id('agents'),
   items: v.optional(v.array(promptItemValidator)),
   tools: v.optional(toolManifestValidator),
+  historyPresentation: v.optional(historyPresentationValidator),
 })
 
 export const createSessionArgsValidator = v.object({
@@ -147,6 +155,7 @@ export const sessionAgentSchema = v.object({
 
 /** The captured prompt and tool configuration for a session and agent. */
 export const sessionCacheSchema = v.object({
+  historyPresentation: v.optional(historyPresentationValidator),
   homeId: v.optional(v.id('agentHomes')),
   filesystemAccess: v.optional(v.boolean()),
   homeRevision: v.optional(v.number()),

@@ -7,7 +7,7 @@ import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { TASK_TOOL_NAME, sharedSessionId } from '../../lib/subagent'
 import { mergeToolApprovals } from '../../lib/tool/approval'
-import type { Session } from '../../types'
+import type { Session, StreamExecutionArgs } from '../../types'
 import type { AgentAutoApprove, ToolApprovals } from '../../types'
 import { createAskTool } from './ask'
 import { createReadAttachmentTool } from './attachments'
@@ -17,6 +17,7 @@ import {
   createReadFileTool,
   createWriteFileTool,
 } from './files'
+import { guardFilesystemTool } from './filesystemGuard'
 import type { McpManifestEntry, ToolManifest } from './manifest'
 import { createExternalMcpTool } from './mcp'
 import {
@@ -54,6 +55,7 @@ export type ToolBuildOptions = {
   /** Agent and invoker a backgrounded shell job reports back as. */
   agentId?: Id<'agents'>
   invokedBy?: Id<'users'>
+  execution?: StreamExecutionArgs
 }
 
 /**
@@ -75,14 +77,15 @@ export async function getEnabledTools(
     : undefined
 
   const workspace: WorkspaceToolContext | undefined =
-    session?.workspace && sessionId
+    session && sessionId
       ? {
           sessionId,
           ownerId: session._id,
           messageId: options?.messageId,
           messageCreatedAt: options?.messageCreatedAt,
-          workspaceId: session.workspace.workspaceId,
+          workspaceId: session.workspace?.workspaceId ?? sessionId,
           workspace: session.workspace,
+          hasAgentHome: manifest.hasAgentHome ?? false,
           shell: manifest.shell,
           allowInteractiveShells:
             resources?.settings?.allowInteractiveShells ?? false,
@@ -106,8 +109,13 @@ export async function getEnabledTools(
       resources: resources ?? EMPTY_TOOL_RESOURCES,
       workspace,
       skillsContext:
-        ctx && options?.agentId && session?.workspace?.agentHome
-          ? { ctx, agentId: options.agentId, workspace: session.workspace }
+        ctx && options?.agentId && session
+          ? {
+              ctx,
+              agentId: options.agentId,
+              workspace: session.workspace,
+              execution: options.execution,
+            }
           : undefined,
       planContext,
       mcpExecution:
@@ -120,7 +128,8 @@ export async function getEnabledTools(
               })
           : undefined,
     })
-    if (built) tools[name] = built
+    if (built)
+      tools[name] = guardFilesystemTool(name, built, workspace, options)
   }
 
   return withPlanModeReminders(tools, planContext)

@@ -4,6 +4,7 @@ export const folderSourceValidator = v.object({
   id: v.string(),
   path: v.string(),
   label: v.string(),
+  discoverSkills: v.optional(v.boolean()),
 })
 
 export const workspaceRefValidator = v.object({

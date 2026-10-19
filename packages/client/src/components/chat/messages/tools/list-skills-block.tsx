@@ -68,6 +68,8 @@ function skillNames(output: unknown): string[] | undefined {
   return page.entries.flatMap((entry: unknown) => {
     if (!entry || typeof entry !== 'object') return []
     const name = 'name' in entry ? entry.name : undefined
-    return typeof name === 'string' && name.trim() ? [name] : []
+    const origin = 'origin' in entry ? entry.origin : undefined
+    if (typeof name !== 'string' || !name.trim()) return []
+    return [typeof origin === 'string' ? `${name} (${origin})` : name]
   })
 }

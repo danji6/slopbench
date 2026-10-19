@@ -1,5 +1,7 @@
 'use node'
 
+import { sha256 } from '@sb/core/sha256'
+
 import { internal } from '../../_generated/api'
 import type { ActionCtx } from '../../_generated/server'
 import { minRole } from '../../lib/roles'
@@ -31,9 +33,6 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
       data.agent,
       data.session.workspace,
     )
-    if (data.agent.home?.path && !data.session.workspace?.agentHome) {
-      data.sessionCache = null
-    }
   }
 
   // Only needed while resolving a manifest
@@ -98,6 +97,44 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
     })
   }
 
+  if (!data.stream.workspaceContextPrepared) {
+    const content = buildWorkspaceNoteContent(undefined, data.session.workspace)
+    const prepared = await ctx.runMutation(
+      internal.streams._prepareWorkspaceContext,
+      {
+        ...execution,
+        fingerprint: await sha256(content),
+        label: data.session.workspace?.label,
+        content:
+          content ||
+          'No project sources or personal folder are currently available. Earlier filesystem context no longer applies.',
+      },
+    )
+    if (!prepared) return null
+  }
+
+  if (
+    !data.stream.skillContextPrepared &&
+    operationPlan.toolNames.includes('read_file')
+  ) {
+    const page = await compactSkillCatalog(
+      ctx,
+      data.agent,
+      data.session.workspace,
+    )
+    const prepared = await ctx.runMutation(
+      internal.streams._prepareSkillContext,
+      {
+        ...execution,
+        fingerprint: page.fingerprint,
+        content:
+          catalogNote(page) ||
+          'No skills are currently available. Earlier skill catalogs no longer apply.',
+      },
+    )
+    if (!prepared) return null
+  }
+
   const { systemPrompt, messages, tools } = await operationPlan.buildRequest(
     ctx,
     data,
@@ -124,17 +161,9 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
     },
   )
 
-  const skills =
-    data.session.workspace?.agentHome &&
-    operationPlan.toolNames.includes('read_file')
-      ? catalogNote(
-          await compactSkillCatalog(ctx, data.agent, data.session.workspace),
-        )
-      : ''
-
   const request = applyPromptCaching(
     {
-      systemPrompt: `${systemPrompt ?? ''}\n\n${buildWorkspaceNoteContent(undefined, data.session.workspace)}\n\n${skills}`,
+      systemPrompt,
       messages,
     },
     credentials?.providerId,

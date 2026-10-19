@@ -28,7 +28,7 @@ export async function createShellTool(context: WorkspaceToolContext) {
   return tool<ShellJobInput, ShellToolOutput, never>({
     description: shellToolDescription(
       context.shell,
-      !!context.workspace?.agentHome,
+      context.hasAgentHome ?? !!context.workspace?.agentHome,
     ),
     inputSchema: z.strictObject({
       cwd: z

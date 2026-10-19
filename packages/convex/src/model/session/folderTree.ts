@@ -20,7 +20,7 @@ export function folderWorkspace(
     ? {
         workspaceId: folder._id,
         folderId: folder._id,
-        revision: folder.revision,
+        revision: folder.accessRevision ?? folder.revision,
         path: primary.path,
         label: folder.name,
         sources: folder.sources,

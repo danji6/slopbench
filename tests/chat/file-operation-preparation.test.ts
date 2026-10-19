@@ -233,7 +233,7 @@ test('import continuations allocate new attempts and reject every old page callb
   expect((await f.ctx.db.get(operationId))?.state.phase).toBe('executing')
 })
 
-test('release preserves newer reservations and advances each home revision once', async () => {
+test('release preserves newer reservations without advancing the home revision for skill assignments', async () => {
   const f = setup()
   const operationId = await start(f.ctx, { kind: 'assign', agentId, skillId })
   const op = (await f.ctx.db.get(operationId))!
@@ -243,7 +243,7 @@ test('release preserves newer reservations and advances each home revision once'
   await releaseOperation(f.ctx, op)
   expect((await f.ctx.db.get(agentId))?.fileOperationId).toBe(newerId)
   expect((await f.ctx.db.get(skillId))?.operationId).toBe(newerId)
-  expect((await f.ctx.db.get(homeId))?.revision).toBe(1)
+  expect((await f.ctx.db.get(homeId))?.revision).toBe(0)
 })
 
 test('already deleted targets finish on retry and activity blocks normal retries', async () => {

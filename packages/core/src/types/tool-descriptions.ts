@@ -107,9 +107,9 @@ const task = [
 ].join('\n')
 
 const skills = inline`
-  'List your skills. Use search to match a skill name or cursor to continue a
-  page. Read the chosen SKILL.md using read_file using its agent:// path before
-  following it.'`
+  List enabled agent and project skills. Use search to match a skill name or
+  cursor to continue a page. Read the chosen SKILL.md using read_file at its
+  listed path before following it.`
 
 export const TOOL_DESCRIPTIONS = {
   web_fetch,

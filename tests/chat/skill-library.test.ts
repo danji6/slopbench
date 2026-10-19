@@ -301,3 +301,38 @@ test('library keeps assigned skills and filters assignments across pages and sha
     ),
   ).rejects.toThrow('not found')
 })
+
+test('assigning and removing skills preserve the frozen prompt and tool cache', async () => {
+  const { ctx, rows } = setup()
+  rows('sessions').push({ _id: 'session', ownerId: 'owner' })
+  const frozen = {
+    _id: 'frozen',
+    sessionId: 'session',
+    agentId,
+    homeId: 'home',
+    homeRevision: 0,
+    filesystemAccess: true,
+    workspaceRevision: '[]',
+    items: [{ id: 'system', content: 'Captured instructions' }],
+    tools: { names: ['read_file', 'list_skills'] },
+  }
+  rows('sessionCache').push(frozen)
+  const before = structuredClone(
+    await getBySessionAgent(ctx, 'session' as never, agentId, true),
+  )
+  const operationId = await start(ctx, { kind: 'assign', agentId, skillId })
+  await complete(ctx, { operationId })
+  expect(
+    await getBySessionAgent(ctx, 'session' as never, agentId, true),
+  ).toEqual(before)
+  const assignmentId = rows('agentSkills')[0]!._id as Id<'agentSkills'>
+  const removal = await start(ctx, {
+    kind: 'delete-assigned',
+    agentId,
+    assignmentId,
+  })
+  await complete(ctx, { operationId: removal })
+  expect(
+    await getBySessionAgent(ctx, 'session' as never, agentId, true),
+  ).toEqual(before)
+})

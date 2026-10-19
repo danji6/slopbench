@@ -110,7 +110,7 @@ describe('tool manifest', () => {
       spawnableAgents: [],
     } as never)
 
-    expect(manifest.names).toEqual(['read_file'])
+    expect(manifest.names).toEqual(['read_file', 'list_skills'])
     expect(manifest.mcp).toBeUndefined()
   })
 

@@ -85,7 +85,10 @@ describe('workspace context when a sub-agent reports', () => {
     const noteIndex = inserts.findIndex(
       (row) => row.fields.type === 'workspace',
     )
-    expect(inserts[noteIndex].fields.extra).toEqual({ label: 'Project' })
+    expect(inserts[noteIndex].fields.extra).toMatchObject({
+      label: 'Project',
+      fingerprint: expect.any(String),
+    })
     expect(inserts[noteIndex + 1].fields.parts).toMatchObject([
       { type: 'text', text: expect.stringContaining('/new-repo') },
     ])
@@ -126,7 +129,7 @@ describe('workspace context when a sub-agent reports', () => {
     expect(parent.workspaceRevision).toBe(workspaceKey(workspace))
     expect(
       inserts.find((row) => row.fields.type === 'workspace')?.fields.extra,
-    ).toEqual({ label: 'Project' })
+    ).toMatchObject({ label: 'Project', fingerprint: expect.any(String) })
   })
 
   test('honors a folder transition lock before announcing or scheduling', async () => {

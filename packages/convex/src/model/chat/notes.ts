@@ -1,4 +1,5 @@
 import { PLAN_TOOL_TOGGLE } from '@sb/core/const'
+import { sha256 } from '@sb/core/sha256'
 import type { MessageRole } from '@sb/core/types'
 import { systemReminder } from '@sb/core/utils/blocks'
 import { inline } from '@sb/core/utils/strings'
@@ -269,7 +270,7 @@ function workspaceNoteBody(previous: Workspace, next: Workspace): string[] {
         'Your persistent personal folder is agent://.',
         'Use agent:// paths for personal files and cwd: "agent://" for shell commands.',
       ]
-    : []
+    : ['No personal folder is currently available.']
 
   if (next.agentOnly) return personal
 
@@ -307,10 +308,22 @@ export async function injectWorkspaceNote(
   const sender = await resolveNoteSender(ctx, session)
   if (!sender) return
 
-  return insertHiddenNote(ctx, session, session.ownerId, sender, {
-    type: 'workspace',
-    role: 'system',
-    content,
-    extra: { label: next?.label } satisfies MessageExtra['workspace'],
-  })
+  const { messageId } = await insertMessage(
+    ctx,
+    {
+      sessionId: session._id,
+      sender: { type: 'agent', id: sender.agent._id },
+      ...sender.identity,
+      type: 'workspace',
+      role: 'system',
+      status: 'done',
+      hidden: true,
+      extra: {
+        label: next?.label,
+        fingerprint: await sha256(buildWorkspaceNoteContent(undefined, next)),
+      } satisfies MessageExtra['workspace'],
+    },
+    [{ type: 'text', text: content }],
+  )
+  return messageId
 }

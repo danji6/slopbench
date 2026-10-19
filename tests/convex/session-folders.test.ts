@@ -248,7 +248,7 @@ describe('session folders', () => {
     expect(row(String(joined._id)).folderId).toBe('c')
   })
 
-  test('moving clears path grants and caches, preserves chats, pins and shell rules, and updates children live', async () => {
+  test('moving revokes path grants while preserving prompts, chats, pins, and shell rules', async () => {
     const { ctx, row } = setup()
     await pin(ctx, { sessionId: 's' as never, pinned: true })
     const input = args({ kind: 'move-session', sessionId: 's', folderId: 'b' })
@@ -268,7 +268,7 @@ describe('session folders', () => {
       shell: ['git status'],
       paths: undefined,
     })
-    expect(row('cache')).toBeUndefined()
+    expect(row('cache')).toBeDefined()
     expect(
       (await getSessionWithWorkspace(ctx, 'child' as never))?.workspace,
     ).toBeUndefined()
@@ -320,7 +320,7 @@ describe('session folders', () => {
     expect(row('s').contextLock).toBeUndefined()
   })
 
-  test('source revisions invalidate root and child approvals and partial cache writes', async () => {
+  test('source revisions revoke approvals without discarding frozen tools', async () => {
     const { ctx, row } = setup()
     expect((await getApprovals(ctx, 'child' as never)).paths).toEqual([
       '/extra',
@@ -329,13 +329,13 @@ describe('session folders', () => {
     expect((await getApprovals(ctx, 'child' as never)).paths).toBeUndefined()
     expect(
       await getBySessionAgent(ctx, 's' as never, 'agent' as never),
-    ).toBeNull()
+    ).not.toBeNull()
     await _save(ctx, {
       sessionId: 's' as never,
       agentId: 'agent' as never,
       items: [],
     })
-    expect(row('cache').tools).toBeUndefined()
+    expect(row('cache').tools).toBeDefined()
     expect(row('cache').workspaceRevision).toBe(
       workspaceKey(
         (await getSessionWithWorkspace(ctx, 's' as never))?.workspace,
@@ -389,3 +389,44 @@ test.each([undefined, 'b'])(
     expect(row('s').announcedWorkspace).toBeUndefined()
   },
 )
+
+test('discovery toggles preserve cache and path approvals while updating inherited sources', async () => {
+  const { ctx, row } = setup()
+  const cache = structuredClone(row('cache'))
+  const approvals = structuredClone(row('state'))
+  const input = args({
+    kind: 'update-sources',
+    folderId: 'a',
+    sources: [{ id: 'root', path: '/a', label: 'a', discoverSkills: false }],
+  })
+  expect((await begin(ctx, input)).kind).toBe('completed')
+  expect(row('cache')).toEqual(cache)
+  expect(row('state')).toEqual(approvals)
+  expect(
+    (await getSessionWithWorkspace(ctx, 'child' as never))?.workspace
+      ?.sources?.[0]?.discoverSkills,
+  ).toBe(false)
+  expect(
+    workspaceKey((await getSessionWithWorkspace(ctx, 's' as never))?.workspace),
+  ).toBe('["a",1,["/a"]]')
+  const next = args({
+    kind: 'update-sources',
+    folderId: 'a',
+    sources: [
+      {
+        id: 'root',
+        path: '/different',
+        label: 'different',
+        discoverSkills: false,
+      },
+    ],
+  })
+  const prepared = await begin(ctx, next)
+  expect(prepared.kind).toBe('prepared')
+  await commit(ctx, commitArgs(next, prepared))
+  expect(row('cache')).toBeDefined()
+  expect(row('state').toolApprovals).toEqual({
+    paths: undefined,
+    shell: ['git status'],
+  })
+})

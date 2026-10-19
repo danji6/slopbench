@@ -17,18 +17,12 @@ import type { UIMessage } from 'ai'
 import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { isShellReportPart, toShellReportBlock } from '../../lib/shellReport'
-import {
-  isSubagentReportPart,
-  sharedSessionId,
-  toSubagentReportBlock,
-} from '../../lib/subagent'
+import { isSubagentReportPart, toSubagentReportBlock } from '../../lib/subagent'
 import { isShellToolPart, toUserShellBlock } from '../../lib/userShell'
 import { encodeBase64 } from '../../model/io/base64'
 import type { PlanLinkPart } from '../../model/plans'
 import { hasOutputRef } from '../../model/stream/toolOutput'
-import type { Session } from '../../types'
 import type { MessageRole } from '../../types'
-import { readWorkspaceFileLink } from '../session/workspace'
 import {
   type AttachmentResolveOptions,
   resolveAttachmentPart,
@@ -37,7 +31,6 @@ import {
 export async function resolveParts(
   ctx: ActionCtx,
   parts: unknown[],
-  session: Session,
   role: MessageRole,
   attachmentOptions: AttachmentResolveOptions,
 ) {
@@ -46,13 +39,7 @@ export async function resolveParts(
     : (await import('../../model/tool/attachments')).expireAttachmentToolPart
   const resolved = await Promise.all(
     parts.map((part) =>
-      resolvePart(
-        ctx,
-        expire?.(part) ?? part,
-        session,
-        role,
-        attachmentOptions,
-      ),
+      resolvePart(ctx, expire?.(part) ?? part, role, attachmentOptions),
     ),
   )
   return resolved as UIMessage['parts']
@@ -61,7 +48,6 @@ export async function resolveParts(
 export async function resolvePart(
   ctx: ActionCtx,
   part: unknown,
-  session: Session,
   role: MessageRole,
   attachmentOptions: AttachmentResolveOptions,
 ) {
@@ -82,7 +68,7 @@ export async function resolvePart(
     return { type: 'text' as const, text: toShellReportBlock(part) }
   }
   if (isFileLinkPart(part)) {
-    return resolveFileLink(ctx, part, session)
+    return resolveFileLink(ctx, part)
   }
   return resolveAttachmentPart(ctx, part, attachmentOptions)
 }
@@ -104,27 +90,14 @@ export async function resolveOffloadedOutput(
 export async function resolveFileLink(
   ctx: ActionCtx,
   part: { type: 'file-link'; path: string; snapshot?: unknown },
-  session: Session,
 ) {
   // Links snapshotted at send time never touch disk again
   const snapshot = part.snapshot
   if (isSkippedLink(snapshot)) return skippedFileLink(snapshot.path, snapshot.reason) // prettier-ignore
   if (isBinaryRefLink(snapshot)) return resolveBinaryRef(ctx, snapshot)
   if (isWorkspaceFileLink(snapshot)) return fileLinkToPart(snapshot)
-  // Pre-snapshot parts and unresolvable sends fall back to a lazy read
-  if (!session.workspace) return unavailableFileLink(part.path)
-
-  try {
-    const file = await readWorkspaceFileLink({
-      sessionId: sharedSessionId(session),
-      workspaceId: session.workspace.workspaceId,
-      workspace: session.workspace,
-      path: part.path,
-    })
-    return fileLinkToPart(file)
-  } catch {
-    return unavailableFileLink(part.path)
-  }
+  // Missing snapshots stay unavailable; rereading would rewrite earlier input
+  return unavailableFileLink(part.path)
 }
 
 export function isSkippedLink(value: unknown): value is WorkspaceSkippedLink {

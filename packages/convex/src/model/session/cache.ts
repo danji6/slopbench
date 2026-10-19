@@ -8,7 +8,8 @@ import { getSessionWithWorkspace, workspaceKey } from './folderContext'
  * - Row absence means the entry needs to be (re)computed.
  * - `getVar()` inside a frozen prompt reads the environment as of capture time.
  * - `tools` is just the shape, their behavior is rebuilt live every step.
- * - Invalidated by `/eval`, folder source changes, or session removal.
+ * - Invalidated by `/eval`, a privilege change, or session removal.
+ * - Filesystem authority and grants are resolved independently of this snapshot.
  */
 export async function getBySessionAgent(
   ctx: QueryCtx,
@@ -17,16 +18,7 @@ export async function getBySessionAgent(
   filesystemAccess = false,
 ) {
   const row = await findCache(ctx, sessionId, agentId)
-  const session = await getSessionWithWorkspace(ctx, sessionId)
-  const agent = await ctx.db.get(agentId)
-
-  const home = agent?.homeId ? await ctx.db.get(agent.homeId) : null
-
-  return row &&
-    row.homeId === agent?.homeId &&
-    row.filesystemAccess === filesystemAccess &&
-    row.homeRevision === (home?.revision ?? 0) &&
-    row.workspaceRevision === workspaceKey(session?.workspace)
+  return row && (row.filesystemAccess ?? false) === filesystemAccess
     ? row
     : null
 }
@@ -56,12 +48,11 @@ export async function _save(ctx: MutationCtx, args: SaveSessionCacheArgs) {
 
   if (existing) {
     await ctx.db.patch(existing._id, {
-      ...(existing.workspaceRevision !== workspaceRevision && {
-        items: [],
-        tools: undefined,
-      }),
       ...(args.items && { items: args.items }),
       ...(args.tools && { tools: args.tools }),
+      ...(args.historyPresentation && {
+        historyPresentation: args.historyPresentation,
+      }),
       capturedAt,
       homeId,
       filesystemAccess: args.filesystemAccess ?? false,
@@ -76,6 +67,7 @@ export async function _save(ctx: MutationCtx, args: SaveSessionCacheArgs) {
     agentId: args.agentId,
     items: args.items ?? [],
     tools: args.tools,
+    historyPresentation: args.historyPresentation,
     capturedAt,
     homeId,
     filesystemAccess: args.filesystemAccess ?? false,

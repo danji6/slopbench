@@ -1,5 +1,5 @@
 /** Pre-release baseline. */
-export const SCHEMA_BASELINE_VERSION = 20
+export const SCHEMA_BASELINE_VERSION = 22
 
 /** The append-only order for migrations shipped after the public baseline. */
 export const SCHEMA_MIGRATIONS = [] as const

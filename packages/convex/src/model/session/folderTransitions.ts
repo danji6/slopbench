@@ -174,7 +174,7 @@ async function updateTarget(
     return folderWorkspace({
       ...folder,
       sources: command.sources,
-      revision: folder.revision + 1,
+      accessRevision: sourceAccessRevision(folder, command.sources),
     })
   }
   const parent = folder.parentId
@@ -212,7 +212,9 @@ async function beginFolderUpdate(
   const sessions = await branchSessions(ctx, branch)
 
   if (workspaceKey(folder.workspace) === workspaceKey(target)) {
-    assertSessionsUnlocked(await sessionFamilies(ctx, sessions))
+    const family = await sessionFamilies(ctx, sessions)
+    assertSessionsUnlocked(family)
+    if (command.kind === 'update-sources') await assertSessionsIdle(ctx, family)
     await applyFolderUpdate(ctx, command, folder, branch, false)
     return completed()
   }
@@ -336,6 +338,7 @@ async function applyFolderUpdate(
   await ctx.db.patch(folder._id, {
     contextLock: undefined,
     sources: command.sources,
+    accessRevision: sourceAccessRevision(folder, command.sources),
     revision: folder.revision + 1,
   })
   if (changesWorkspace) {
@@ -375,4 +378,17 @@ async function deleteBranch(
     await clearSharedFolder(ctx, entry._id, folder.parentId)
     await ctx.db.delete(entry._id)
   }
+}
+
+/** Keeps discovery settings separate from filesystem authority. */
+function sourceAccessRevision(
+  folder: Doc<'sessionFolders'>,
+  sources: Doc<'sessionFolders'>['sources'],
+) {
+  const accessConfiguration = (items: typeof sources) =>
+    items.map(({ id, path, label }) => ({ id, path, label }))
+  const changed =
+    JSON.stringify(accessConfiguration(folder.sources)) !==
+    JSON.stringify(accessConfiguration(sources))
+  return (folder.accessRevision ?? folder.revision) + Number(changed)
 }
