@@ -14,6 +14,8 @@ import {
   mcpTransportCandidates,
 } from '@sb/core/types'
 
+import { localTransport } from './stdio'
+
 const negotiated = new Map<string, McpDialedTransport>()
 
 export async function listExternalTools(
@@ -60,10 +62,12 @@ function authHeaders(apiKey?: string): Record<string, string> | undefined {
   return apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined
 }
 
-function createTransport(
-  { url, apiKey }: McpConnection,
+export function createTransport(
+  connection: McpConnection,
   transport: McpDialedTransport,
 ): Transport {
+  if (transport === 'stdio') return localTransport(connection)
+  const { url, apiKey } = connection
   const target = new URL(url)
   const headers = authHeaders(apiKey)
 
@@ -122,37 +126,42 @@ function errorMessage(error: unknown): string {
 
 type Negotiated<T> = { value: T; transport: McpDialedTransport }
 
-/** Connects over the first transport the server accepts and runs `fn` on it. */
-async function withClient<T>(
+export type ConnectedClient = {
+  client: Client
+  transport: McpDialedTransport
+}
+
+/** Connects once; its caller owns the complete client lifetime. */
+export async function connectExternalClient(
   connection: McpConnection,
-  fn: (client: Client) => Promise<T>,
-): Promise<Negotiated<T>> {
+  stderr?: (chunk: string) => void,
+  signal?: AbortSignal,
+): Promise<ConnectedClient> {
   const candidates = candidatesFor(connection)
   let firstError: unknown
-
   for (const transport of candidates) {
+    signal?.throwIfAborted()
     const client = new Client({ name: APP_ID, version: '1.0.0' })
-
-    const connecting = client.connect(createTransport(connection, transport))
-    connecting.catch(() => {})
-
+    const channel = createTransport(connection, transport)
+    if ('stderr' in channel) {
+      const stream = channel.stderr as NodeJS.ReadableStream | null
+      stream?.on('data', (chunk) => stderr?.(String(chunk)))
+    }
     try {
-      await withTimeout(connecting, dialTimeoutMs())
+      await withTimeout(
+        client.connect(channel),
+        connection.startupTimeoutMs ?? dialTimeoutMs(connection),
+        signal,
+      )
     } catch (err) {
       await client.close().catch(() => {})
       firstError ??= err
-      if (isAuthFailure(err)) break
+      if (signal?.aborted || isAuthFailure(err)) break
       continue
     }
-
     negotiated.set(connection.url, transport)
-    try {
-      return { value: await fn(client), transport }
-    } finally {
-      await client.close().catch(() => {})
-    }
+    return { client, transport }
   }
-
   negotiated.delete(connection.url)
   if (candidates.length === 1 || isAuthFailure(firstError)) throw firstError
   throw new Error(
@@ -160,23 +169,53 @@ async function withClient<T>(
   )
 }
 
-function dialTimeoutMs(): number {
-  return Number(process.env.MCP_DIAL_TIMEOUT_MS) || 10_000
+/** Runs a settings discovery in an isolated, explicitly requested probe. */
+async function withClient<T>(
+  connection: McpConnection,
+  fn: (client: Client) => Promise<T>,
+): Promise<Negotiated<T>> {
+  const connected = await connectExternalClient(connection)
+  try {
+    return { value: await fn(connected.client), transport: connected.transport }
+  } finally {
+    await connected.client.close()
+  }
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+function dialTimeoutMs(connection: McpConnection): number {
+  return (
+    Number(process.env.MCP_DIAL_TIMEOUT_MS) ||
+    (connection.transport === 'stdio' ? 30_000 : 10_000)
+  )
+}
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  signal?: AbortSignal,
+): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(
-      () => reject(new Error(`Timed out after ${ms}ms`)),
-      ms,
-    )
+    const aborted = () => {
+      cleanup()
+      reject(signal?.reason ?? new Error('MCP startup cancelled'))
+    }
+    const cleanup = () => {
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', aborted)
+    }
+    const timer = setTimeout(() => {
+      cleanup()
+      reject(new Error(`Timed out after ${ms}ms`))
+    }, ms)
+    signal?.addEventListener('abort', aborted, { once: true })
+    if (signal?.aborted) aborted()
     promise.then(
       (value) => {
-        clearTimeout(timer)
+        cleanup()
         resolve(value)
       },
       (error) => {
-        clearTimeout(timer)
+        cleanup()
         reject(error)
       },
     )

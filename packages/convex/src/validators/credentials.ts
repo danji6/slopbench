@@ -4,6 +4,7 @@ import { v } from 'convex/values'
 export const credentialScopeValidator = v.union(
   v.literal('provider'),
   v.literal('mcp'),
+  v.literal('mcp-env'),
 )
 
 /** An API key, never exposed to clients. */

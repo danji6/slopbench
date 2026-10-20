@@ -121,6 +121,7 @@ export function resolveToolManifest(data: ManifestInput): ToolManifest {
 
   const seenMcp = new Set<string>()
   for (const server of enabledMcpServers(data.resources.mcpServers)) {
+    if (server.transport === 'stdio' && !admin) continue
     for (const meta of server.tools ?? []) {
       const name = mcpToolName(server, meta)
       // Built-ins and earlier servers win the name

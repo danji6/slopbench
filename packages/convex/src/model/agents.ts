@@ -11,6 +11,7 @@ import {
   normalizeAgentPaths,
 } from './caps'
 import { DEFAULT_CONTEXT_OPTIONS, createDefaultAgent } from './defaults'
+import { revoke as revokeMcp } from './mcpRuntime'
 import * as Prompts from './prompts'
 import * as Reminders from './reminders'
 import { getByOwnerId } from './settings'
@@ -144,6 +145,8 @@ export async function update(
   const cleared = Object.fromEntries(
     (unset ?? []).map((key) => [key, undefined]),
   )
+  if (patch.tools || unset?.includes('tools'))
+    await revokeMcp(ctx, { agentId }, 'Agent tool selection changed')
   await ctx.db.patch(agentId, { ...patch, ...cleared })
 }
 
@@ -182,6 +185,7 @@ export async function remove(
   await Reminders.removeForAgent(ctx, agentId)
   await removeSessionCache(ctx, agentId)
 
+  await revokeMcp(ctx, { agentId }, 'Agent deleted')
   await ctx.db.delete(agentId)
   if (agent.avatarId) await Avatars.removeIfUnreferenced(ctx, agent.avatarId)
   return { cleanupOperationId }

@@ -1,35 +1,81 @@
 import { limitError } from '@sb/core/limit-errors'
 import { MAX_MCP_SERVERS } from '@sb/core/limits'
-import type { McpServer, McpToolMeta, McpTransport } from '@sb/core/types'
-import { clampMcpTools } from '@sb/core/types'
+import type { McpServer, McpToolMeta } from '@sb/core/types'
+import { clampMcpTools, mcpConnectionSchema, mcpToolName } from '@sb/core/types'
 
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 import { error } from '../errors'
 import type { AuthMutationCtx, AuthQueryCtx } from '../functions'
-import type { McpExecutionArgs } from '../types'
+import { minRole } from '../lib/roles'
+import { sharedSessionId } from '../lib/subagent'
+import type { McpExecutionArgs, McpServerInput } from '../types'
 import * as Credentials from './credentials'
+import { authorizeRuntime, revoke } from './mcpRuntime'
 import { getMode } from './session/sessions'
+import { ownsExecution } from './stream/execution'
 
 /** Resolves live server configuration and mode immediately before execution. */
 export async function _getExecution(
-  ctx: QueryCtx,
-  { agentId, sessionId, serverKey }: McpExecutionArgs,
+  ctx: MutationCtx,
+  {
+    agentId,
+    sessionId,
+    serverKey,
+    toolName,
+    streamId,
+    generation,
+  }: McpExecutionArgs,
 ) {
   const agent = await ctx.db.get(agentId)
   const session = await ctx.db.get(sessionId)
   if (!agent || !session) return null
+
   const servers = await resolve(ctx, agent.ownerId, { withCredentials: true })
   const server = servers.find(
     (candidate) => candidate.id === serverKey && candidate.enabled,
   )
-  return server
-    ? { server, readOnly: (await getMode(ctx, sessionId)) === 'plan' }
-    : null
+  if (!server) return null
+
+  const selectedTool = server.tools?.some(
+    (meta) =>
+      (!toolName || meta.name === toolName) &&
+      agent.tools?.includes(mcpToolName(server, meta)),
+  )
+  if (!selectedTool) return null
+
+  const stream = streamId ? await ctx.db.get(streamId) : null
+  if (!stream) return null
+  if (generation === undefined) return null
+  if (!ownsExecution(stream, { streamId: streamId!, generation })) return null
+  if (stream.sessionId !== sessionId || stream.agentId !== agentId) return null
+
+  const invoker = await ctx.db.get(stream.invokedBy)
+  if (!invoker) return null
+
+  const localExecutionForbidden =
+    server.transport === 'stdio' && !minRole(invoker.role, 'admin')
+  if (localExecutionForbidden) return null
+
+  const runtime = await authorizeRuntime(ctx, {
+    ownerId: agent.ownerId,
+    sessionId,
+    agentId,
+    invokedBy: invoker._id,
+    serverKey,
+    revision: server.revision ?? 0,
+  })
+
+  return {
+    server,
+    readOnly: (await getMode(ctx, sharedSessionId(session))) === 'plan',
+    runtime,
+  }
 }
 
 /** What the settings UI renders. */
-export type McpServerView = Omit<McpServer, 'apiKey'> & {
+export type McpServerView = Omit<McpServer, 'apiKey' | 'secretEnv'> & {
+  secretEnvNames: string[]
   _id: Id<'mcpServers'>
   hasKey: boolean
 }
@@ -37,17 +83,19 @@ export type McpServerView = Omit<McpServer, 'apiKey'> & {
 export async function list(ctx: AuthQueryCtx): Promise<McpServerView[]> {
   const servers = await listServers(ctx, ctx.userId)
   const keys = await Credentials.map(ctx, ctx.userId, 'mcp')
+  const secrets = await Credentials.map(ctx, ctx.userId, 'mcp-env')
 
   return Promise.all(
     servers.map(async (server) => ({
       _id: server._id,
       id: server.key,
       label: server.label,
-      url: server.url,
+      ...launchFields(server),
       transport: server.transport,
       enabled: server.enabled,
       tools: await listTools(ctx, server._id),
       hasKey: keys.has(server.key),
+      secretEnvNames: Object.keys(parseSecrets(secrets.get(server.key))),
     })),
   )
 }
@@ -62,33 +110,28 @@ export async function resolve(
   { withCredentials = false } = {},
 ): Promise<McpServer[]> {
   const servers = await listServers(ctx, ownerId)
+
   const keys = withCredentials
     ? await Credentials.map(ctx, ownerId, 'mcp')
+    : new Map<string, string>()
+
+  const secrets = withCredentials
+    ? await Credentials.map(ctx, ownerId, 'mcp-env')
     : new Map<string, string>()
 
   return Promise.all(
     servers.map(async (server) => ({
       id: server.key,
       label: server.label,
-      url: server.url,
+      ...launchFields(server),
       transport: server.transport,
       enabled: server.enabled,
       apiKey: keys.get(server.key),
+      secretEnv: parseSecrets(secrets.get(server.key)),
+      revision: server.revision,
       tools: await listTools(ctx, server._id),
     })),
   )
-}
-
-export type McpServerInput = {
-  key: string
-  label: string
-  url: string
-  transport: McpTransport
-  enabled: boolean
-  /** `undefined` leaves the stored credential alone; `''` clears it. */
-  apiKey?: string
-  /** `undefined` keeps the tools already discovered for this server. */
-  tools?: McpToolMeta[]
 }
 
 /**
@@ -108,36 +151,129 @@ export async function replaceAll(
   const seen = new Set<string>()
 
   for (const [order, input] of servers.entries()) {
-    const { apiKey, tools, ...fields } = input
-    if (seen.has(fields.key)) continue
-    seen.add(fields.key)
-
-    const server = byKey.get(fields.key)
-    let serverId: Id<'mcpServers'>
-    if (server) {
-      serverId = server._id
-      await ctx.db.patch(serverId, { ...fields, order })
-    } else {
-      serverId = await ctx.db.insert('mcpServers', {
-        ownerId: ctx.userId,
-        ...fields,
-        order,
-      })
-    }
-    if (apiKey !== undefined) {
-      await Credentials.set(ctx, ctx.userId, 'mcp', fields.key, apiKey)
-    }
-    if (tools) await writeTools(ctx, serverId, tools)
+    if (seen.has(input.key)) continue
+    seen.add(input.key)
+    await saveServer(ctx, input, byKey.get(input.key), order)
   }
 
   for (const server of existing) {
     if (seen.has(server.key)) continue
-    for (const tool of await toolRows(ctx, server._id)) {
-      await ctx.db.delete(tool._id)
-    }
-    await Credentials.remove(ctx, ctx.userId, 'mcp', server.key)
-    await ctx.db.delete(server._id)
+    await removeServer(ctx, server)
   }
+}
+
+async function saveServer(
+  ctx: AuthMutationCtx,
+  input: McpServerInput,
+  server: Doc<'mcpServers'> | undefined,
+  order: number,
+) {
+  const { apiKey, secretEnv, tools, ...fields } = input
+  const parsed = mcpConnectionSchema.safeParse({ ...fields, secretEnv })
+  if (!parsed.success) {
+    error(parsed.error.issues[0]?.message ?? 'Invalid MCP connection', 400)
+  }
+
+  const localChange = fields.transport === 'stdio' || server?.transport === 'stdio' // prettier-ignore
+  const changed = connectionChanged(server, input)
+  const toolsChanged =
+    tools !== undefined &&
+    server &&
+    !sameTools(await toolRows(ctx, server._id), clampMcpTools(tools))
+  const localConfigurationChanged = localChange && (changed || toolsChanged)
+  if (localConfigurationChanged && !minRole(ctx.role, 'admin')) {
+    error('Local MCP configuration requires admin access', 403)
+  }
+  if (server && changed) {
+    await revoke(
+      ctx,
+      { ownerId: ctx.userId, serverKey: server.key },
+      'MCP configuration changed',
+    )
+  }
+
+  const revision = (server?.revision ?? 0) + (changed ? 1 : 0)
+  let serverId: Id<'mcpServers'>
+  if (server) {
+    serverId = server._id
+    await ctx.db.patch(serverId, {
+      ...fields,
+      ...launchFields(fields),
+      revision,
+      order,
+    })
+  } else {
+    serverId = await ctx.db.insert('mcpServers', {
+      ownerId: ctx.userId,
+      ...fields,
+      revision,
+      order,
+    })
+  }
+
+  await saveCredentials(ctx, fields.key, apiKey, secretEnv)
+  if (tools) await writeTools(ctx, serverId, tools)
+}
+
+/** Compares connection authority separately from presentation-only tool metadata. */
+function connectionChanged(
+  server: Doc<'mcpServers'> | undefined,
+  input: McpServerInput,
+): boolean {
+  if (!server) return true
+  const previous = { transport: server.transport, ...launchFields(server) }
+  const next = { transport: input.transport, ...launchFields(input) }
+  return (
+    JSON.stringify(previous) !== JSON.stringify(next) ||
+    server.enabled !== input.enabled ||
+    server.label !== input.label ||
+    input.apiKey !== undefined ||
+    input.secretEnv !== undefined
+  )
+}
+
+async function saveCredentials(
+  ctx: AuthMutationCtx,
+  key: string,
+  apiKey: string | undefined,
+  secretEnv: Record<string, string> | undefined,
+) {
+  if (apiKey !== undefined) {
+    await Credentials.set(ctx, ctx.userId, 'mcp', key, apiKey)
+  }
+  if (secretEnv !== undefined) {
+    const previous = parseSecrets(
+      await Credentials.get(ctx, ctx.userId, 'mcp-env', key),
+    )
+    for (const [name, value] of Object.entries(secretEnv)) {
+      if (value) previous[name] = value
+      else delete previous[name]
+    }
+    await Credentials.set(
+      ctx,
+      ctx.userId,
+      'mcp-env',
+      key,
+      Object.keys(previous).length ? JSON.stringify(previous) : '',
+    )
+  }
+}
+
+async function removeServer(ctx: AuthMutationCtx, server: Doc<'mcpServers'>) {
+  if (server.transport === 'stdio' && !minRole(ctx.role, 'admin')) {
+    error('Local MCP configuration requires admin access', 403)
+  }
+  await revoke(
+    ctx,
+    { ownerId: ctx.userId, serverKey: server.key },
+    'MCP server removed',
+  )
+  await Credentials.remove(ctx, ctx.userId, 'mcp-env', server.key)
+  for (const tool of await toolRows(ctx, server._id)) {
+    await ctx.db.delete(tool._id)
+  }
+  await Credentials.remove(ctx, ctx.userId, 'mcp', server.key)
+  await ctx.db.delete(server._id)
 }
 
 /** Replaces a server's tool set. */
@@ -177,7 +313,8 @@ export async function get(
   { serverId }: { serverId: Id<'mcpServers'> },
 ) {
   const server = await ctx.db.get(serverId)
-  if (!server || server.ownerId !== ctx.userId) error('Not found', 404)
+  if (!server) error('Not found', 404)
+  if (server.ownerId !== ctx.userId) error('Not found', 404)
   return { _id: server._id, url: server.url, transport: server.transport }
 }
 
@@ -189,6 +326,22 @@ export async function _getApiKey(
   const server = await ctx.db.get(serverId)
   if (!server) return undefined
   return Credentials.get(ctx, server.ownerId, 'mcp', server.key)
+}
+
+/** Resolves private environment bindings after the caller has checked ownership. */
+export async function _getSecretEnv(
+  ctx: QueryCtx,
+  { serverId }: { serverId: Id<'mcpServers'> },
+) {
+  const server = await ctx.db.get(serverId)
+  if (!server) return {}
+  const secrets = await Credentials.get(
+    ctx,
+    server.ownerId,
+    'mcp-env',
+    server.key,
+  )
+  return parseSecrets(secrets)
 }
 
 function listServers(ctx: QueryCtx | MutationCtx, ownerId: Id<'users'>) {
@@ -229,4 +382,31 @@ async function listTools(
       inputSchema,
     }),
   )
+}
+
+/** Keeps credential values out of public configuration views. */
+export function launchFields(
+  server: Pick<
+    McpServer,
+    | 'url'
+    | 'transport'
+    | 'command'
+    | 'args'
+    | 'cwd'
+    | 'env'
+    | 'startupTimeoutMs'
+  >,
+) {
+  return {
+    url: server.url,
+    command: server.command,
+    args: server.args,
+    cwd: server.cwd,
+    env: server.env,
+    startupTimeoutMs: server.startupTimeoutMs,
+  }
+}
+
+export function parseSecrets(raw?: string): Record<string, string> {
+  return raw ? (JSON.parse(raw) as Record<string, string>) : {}
 }

@@ -10,6 +10,18 @@ import { afterAll, beforeAll } from 'bun:test'
  * touching Tiptap has to opt in here to be tested for real.
  */
 export function setupDom(): void {
-  beforeAll(() => GlobalRegistrator.register())
+  beforeAll(() => {
+    GlobalRegistrator.register()
+    // Wouter patches history once at import time; every fresh DOM needs the same events.
+    const patchKey = Symbol.for('wouter_v3')
+    for (const method of ['pushState', 'replaceState'] as const) {
+      const original = window.history[method]
+      window.history[method] = function (...args) {
+        original.apply(this, args)
+        window.dispatchEvent(new Event(method))
+      }
+    }
+    Object.defineProperty(window, patchKey, { value: true })
+  })
   afterAll(() => GlobalRegistrator.unregister())
 }

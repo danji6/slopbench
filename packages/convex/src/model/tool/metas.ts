@@ -84,6 +84,7 @@ export async function listTools(ctx: AuthQueryCtx): Promise<ToolMeta[]> {
   const servers = await resolveMcpServers(ctx, ctx.userId)
   const external: ToolMeta[] = []
   for (const server of enabledMcpServers(servers)) {
+    if (server.transport === 'stdio' && !minRole(ctx.role, 'admin')) continue
     for (const meta of server.tools ?? []) {
       external.push({
         name: mcpToolName(server, meta),

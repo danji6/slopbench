@@ -5,6 +5,7 @@ import path from 'node:path'
 import { z } from 'zod'
 
 import { withAgentFiles } from '../../agent-files/access'
+import { mcpRegistry } from '../external/registry'
 import { expandHome } from './paths'
 
 export const sourceSchema = z.object({
@@ -76,12 +77,14 @@ export async function lockWorkspaces(input: z.infer<typeof lockSchema>) {
     if (
       transitionActive(locks.get(id)) ||
       active.get(id) ||
+      mcpRegistry.hasActivity(id) ||
       listShellJobs(id).some((job) => job.status === 'running')
     ) {
       throw new Error('Wait for shell jobs and filesystem operations to finish')
     }
   }
   for (const id of input.sessionIds) locks.set(id, input.token)
+  await mcpRegistry.disconnectSessions(input.sessionIds)
   return { ok: true }
 }
 

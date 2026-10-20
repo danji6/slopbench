@@ -1,7 +1,5 @@
 import { serve } from '@hono/node-server'
-import { mcpTransportSchema } from '@sb/core/types'
 import { Hono, type MiddlewareHandler } from 'hono'
-import { z } from 'zod'
 
 import { lockAgent, unlockAgent } from './agent-files/access'
 import { skillMetadata } from './agent-files/catalog'
@@ -42,7 +40,8 @@ import {
   thumbnailImageSchema,
 } from './io/image'
 import { handleMcpRequest } from './mcp'
-import { callExternalTool, listExternalTools } from './mcp/external/client'
+import { externalMcpRoutes } from './mcp/external/handlers'
+import { mcpRegistry } from './mcp/external/registry'
 import {
   listDirectories,
   listDirectoriesSchema,
@@ -106,39 +105,7 @@ export function createApp(authenticate: MiddlewareHandler) {
 
   app.post('/mcp', handleMcpRequest)
 
-  const mcpConnectionSchema = z.object({
-    url: z.string().url(),
-    transport: mcpTransportSchema,
-    apiKey: z.string().optional(),
-  })
-
-  const mcpListSchema = mcpConnectionSchema
-  const mcpCallSchema = mcpConnectionSchema.extend({
-    name: z.string(),
-    args: z.record(z.string(), z.unknown()).optional(),
-  })
-
-  app.post('/mcp-ext/list', async (c) => {
-    try {
-      const input = mcpListSchema.parse(await c.req.json())
-      const { value: tools, transport } = await listExternalTools(input)
-      return c.json({ tools, transport })
-    } catch (err: unknown) {
-      return ioError(c, err)
-    }
-  })
-
-  app.post('/mcp-ext/call', async (c) => {
-    try {
-      const { name, args, ...connection } = mcpCallSchema.parse(
-        await c.req.json(),
-      )
-      const text = await callExternalTool(connection, name, args ?? {})
-      return c.json({ text })
-    } catch (err: unknown) {
-      return ioError(c, err)
-    }
-  })
+  app.route('/mcp-ext', externalMcpRoutes())
 
   app.get('/shell/info', shellInfo)
   app.post('/shell/start', startShell)
@@ -351,6 +318,20 @@ export function createApp(authenticate: MiddlewareHandler) {
 
 if (import.meta.main) {
   const app = createApp(sidecarAuthentication(process.env.SIDECAR_SECRET))
-  serve({ fetch: app.fetch, hostname: '127.0.0.1', port: PORT })
+  const server = serve({ fetch: app.fetch, hostname: '127.0.0.1', port: PORT })
+  let shuttingDown = false
+  for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+    process.on(signal, () => {
+      if (shuttingDown) return
+      shuttingDown = true
+      void mcpRegistry.close().then(
+        () => server.close(() => process.exit(0)),
+        () => {
+          console.error('MCP shutdown cleanup failed')
+          server.close(() => process.exit(1))
+        },
+      )
+    })
+  }
   console.log(`Local server running on http://localhost:${PORT}`)
 }

@@ -1,50 +1,36 @@
 'use node'
 
-import { api, internal } from '../_generated/api'
-import { action } from '../_generated/server'
-import { error } from '../errors'
-import { sidecarUrl } from '../model/sidecar'
-import { sidecarRequest } from '../model/sidecarTransport'
-import type { McpDialedTransport, McpToolMeta } from '../types'
+import { action, internalAction } from '../_generated/server'
 import * as V from '../validators/mcp'
 
-/** Performs a stateless tool discovery on the given server. */
 export const discoverMcpTools = action({
   args: V.discoverMcpToolsArgsValidator.fields,
-  handler: async (
-    ctx,
-    { url, transport, apiKey, serverId },
-  ): Promise<{ tools: McpToolMeta[]; transport?: McpDialedTransport }> => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) error('Unauthorized', 401)
+  handler: async (ctx, args) => {
+    const { discoverMcpTools } = await import('../model/mcpDiscoveryAction')
+    return discoverMcpTools(ctx, args)
+  },
+})
 
-    let key = apiKey
-    if (key === undefined && serverId) {
-      await ctx.runQuery(api.mcp.get, { serverId })
-      key = (await ctx.runQuery(internal.mcp._getApiKey, { serverId })) ?? undefined // prettier-ignore
-    }
+export const _cleanup = internalAction({
+  args: V.mcpCleanupArgsValidator.fields,
+  handler: async (ctx, args) => {
+    const { cleanup } = await import('../model/mcpRuntimeActions')
+    await cleanup(ctx, args)
+  },
+})
 
-    const base = sidecarUrl()
-    const response = await fetch(
-      new URL('/mcp-ext/list', base).toString(),
-      sidecarRequest({
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, transport, apiKey: key }),
-      }),
-    )
+export const _reconcile = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const { reconcile } = await import('../model/mcpRuntimeActions')
+    await reconcile(ctx)
+  },
+})
 
-    const data = (await response.json()) as {
-      tools?: McpToolMeta[]
-      transport?: McpDialedTransport
-      error?: string
-    }
-    if (!response.ok || data.error) {
-      error(data.error ?? `Discovery failed with HTTP ${response.status}`, 502)
-    }
-
-    const { clampMcpTools } = await import('@sb/core/types')
-
-    return { tools: clampMcpTools(data.tools ?? []), transport: data.transport }
+export const runtimeStatus = action({
+  args: V.mcpRuntimeArgsValidator.fields,
+  handler: async (ctx, args) => {
+    const { runtimeStatus } = await import('../model/mcpRuntimeActions')
+    return runtimeStatus(ctx, args)
   },
 })

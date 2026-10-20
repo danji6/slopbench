@@ -3,6 +3,7 @@ import { transitionActive } from '@sb/core/workspace/transition'
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../../_generated/server'
 import { error } from '../../errors'
+import { revoke as revokeMcp } from '../mcpRuntime'
 import { sessionGroup } from './folderContext'
 import { getState, patchState } from './state'
 
@@ -55,6 +56,11 @@ export async function invalidateWorkspaces(
   sessions: Doc<'sessions'>[],
 ) {
   for (const session of sessions) {
+    await revokeMcp(
+      ctx,
+      { sessionId: session._id },
+      'Workspace authority changed',
+    )
     const state = await getState(ctx, session._id)
     if (state?.toolApprovals?.paths || state?.pathApprovalRevision) {
       await patchState(ctx, session._id, {

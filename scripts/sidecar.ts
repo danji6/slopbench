@@ -17,6 +17,7 @@ export async function buildSidecar(): Promise<string> {
     entrypoints: [
       SIDECAR_ENTRY,
       resolve(projectRoot, 'packages/sidecar/src/eval/worker.ts'),
+      resolve(projectRoot, 'packages/sidecar/src/mcp/external/stdio-supervisor.ts'), // prettier-ignore
     ],
     naming: '[name].[ext]',
     external: [

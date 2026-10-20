@@ -34,4 +34,10 @@ crons.interval(
   internal.shellJobs.refresh,
 )
 
+crons.interval(
+  'reconcile MCP runtimes',
+  { minutes: 1 },
+  internal.actions.mcp._reconcile,
+)
+
 export default crons

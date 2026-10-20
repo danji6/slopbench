@@ -5,7 +5,10 @@ import { parseProviderExtraHeaders } from '@sb/core/provider-headers'
 import type { ModelReasoning } from '@sb/core/types'
 import { REASONING_TIERS } from '@sb/core/types'
 import { MCP_TRANSPORTS, SEARCH_ENGINE_IDS } from '@sb/core/types'
+import { isMcpUrl } from '@sb/core/types'
 import { z } from 'zod/v4'
+
+import { parseMcpLaunch } from './mcp-launch'
 
 const searchEngineSchema = z.enum(SEARCH_ENGINE_IDS)
 
@@ -26,20 +29,55 @@ export const mcpToolMetaSchema = z.object({
   inputSchema: z.string().optional(),
 })
 
-export const mcpServerSchema = z.object({
-  id: z.string(),
-  /** Set once the server exists in the database. */
-  serverId: z.string().optional(),
-  label: z.string(),
-  url: z.url(),
-  transport: mcpTransportSchema,
-  apiKey: z.string().optional(),
-  /** Whether a key is already set in the database. */
-  hasKey: z.boolean().default(false),
-  enabled: z.boolean(),
-  tools: z.array(mcpToolMetaSchema).optional(),
-  _clientId: z.string().optional(),
-})
+export const mcpServerSchema = z
+  .object({
+    id: z.string(),
+    /** Set once the server exists in the database. */
+    serverId: z.string().optional(),
+    label: z.string(),
+    url: z.string(),
+    command: z.string().optional(),
+    argsJson: z.string().optional(),
+    cwd: z.string().optional(),
+    envJson: z.string().optional(),
+    secretEnvJson: z.string().optional(),
+    secretEnvNames: z.array(z.string()).optional(),
+    startupTimeoutMs: z.number().int().min(100).max(300000).optional(),
+    transport: mcpTransportSchema,
+    apiKey: z.string().optional(),
+    /** Whether a key is already set in the database. */
+    hasKey: z.boolean().default(false),
+    enabled: z.boolean(),
+    tools: z.array(mcpToolMetaSchema).optional(),
+    _clientId: z.string().optional(),
+  })
+  .superRefine((server, ctx) => {
+    if (server.transport === 'stdio') {
+      if (!server.command?.trim())
+        ctx.addIssue({
+          code: 'custom',
+          path: ['command'],
+          message: 'A local command is required',
+        })
+      try {
+        parseMcpLaunch(server)
+      } catch (error) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['argsJson'],
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Invalid launch configuration',
+        })
+      }
+    } else if (!isMcpUrl(server.url, server.transport))
+      ctx.addIssue({
+        code: 'custom',
+        path: ['url'],
+        message: 'URL scheme does not match transport',
+      })
+  })
 
 export const modelEntrySchema = z
   .object({

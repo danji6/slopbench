@@ -1,6 +1,11 @@
+import { mcpConnectionSchema } from '@sb/core/types'
+import type { McpRuntimeScope, McpRuntimeStatus } from '@sb/core/types'
 import type { McpServer } from '@sb/core/types'
 
+import type { Id } from '../../_generated/dataModel'
 import { ToolError, extractErrorMessage, toolFailure } from '../../errors'
+import { isToolAutoApproved } from '../../lib/tool/approval'
+import type { ToolApprovals } from '../../types'
 import { sidecarUrl as defaultSidecarUrl } from '../sidecar'
 import { sidecarRequest } from '../sidecarTransport'
 import type { McpManifestEntry } from './manifest'
@@ -80,34 +85,112 @@ function parseInputSchema(raw: string | undefined): Record<string, unknown> {
   }
 }
 
+export type RuntimeAuthorization = {
+  runtimeId: Id<'mcpRuntimes'>
+  scope: McpRuntimeScope
+  bootId?: string
+  generation?: string
+  expiresAt: number
+}
+
+type Failed = (
+  runtimeId: Id<'mcpRuntimes'>,
+  key: string,
+  reason: string,
+) => Promise<void>
+
+type Connected = (
+  runtimeId: Id<'mcpRuntimes'>,
+  key: string,
+  bootId: string,
+  generation: string,
+) => Promise<boolean>
+
+async function externalRequest<T>(
+  path: string,
+  body: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
+  const response = await fetch(
+    getSidecarUrl(path),
+    sidecarRequest({
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal,
+    }),
+  )
+  const data = (await response.json()) as T & { error?: string }
+  if (!response.ok || data.error)
+    throw new ToolError(data.error ?? `HTTP ${response.status}`)
+  return data
+}
+
 async function callExternalMcpTool(
   server: McpServer,
   name: string,
   args: unknown,
   signal?: AbortSignal,
+  runtime?: RuntimeAuthorization,
+  connected?: Connected,
+  failed?: Failed,
 ): Promise<string> {
   try {
-    const response = await fetch(
-      getSidecarUrl('/mcp-ext/call'),
-      sidecarRequest({
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: server.url,
-          transport: server.transport,
-          apiKey: server.apiKey,
-          name,
-          args,
-        }),
+    if (!runtime) {
+      if (server.transport === 'stdio')
+        throw new ToolError(
+          'Local MCP requires an authorized session execution',
+        )
+      const data = await externalRequest<{ text: string }>(
+        '/mcp-ext/call',
+        { ...mcpConnectionSchema.parse(server), name, args },
         signal,
-      }),
-    )
-
-    const data = (await response.json()) as { text?: string; error?: string }
-    if (!response.ok || data.error) {
-      throw new ToolError(data.error ?? `HTTP ${response.status}`)
+      )
+      return data.text
     }
-    return data.text ?? ''
+
+    let status: McpRuntimeStatus
+    try {
+      status = await externalRequest<McpRuntimeStatus>(
+        '/mcp-ext/connect',
+        { ...runtime, connection: mcpConnectionSchema.parse(server) },
+        signal,
+      )
+    } catch (error) {
+      await failed?.(
+        runtime.runtimeId,
+        runtime.scope.key,
+        error instanceof Error ? error.message : 'MCP connection lost',
+      )
+      throw error
+    }
+
+    const accepted = await connected?.(
+      runtime.runtimeId,
+      runtime.scope.key,
+      status.bootId,
+      status.generation,
+    )
+    if (!accepted) {
+      await externalRequest('/mcp-ext/disconnect', {
+        scope: runtime.scope,
+      }).catch(() => {})
+      throw new ToolError('MCP execution was revoked during connection')
+    }
+
+    const data = await externalRequest<{ text: string }>(
+      '/mcp-ext/call',
+      {
+        scope: runtime.scope,
+        bootId: status.bootId,
+        generation: status.generation,
+        expiresAt: Date.now() + 30_000,
+        name,
+        args,
+      },
+      signal,
+    )
+    return data.text
   } catch (error) {
     toolFailure(error)
   }
@@ -116,15 +199,28 @@ async function callExternalMcpTool(
 export async function createExternalMcpTool(
   entry: McpManifestEntry,
   servers: McpServer[],
-  current?: () => Promise<{ server: McpServer; readOnly: boolean } | null>,
+  current?: () => Promise<{
+    server: McpServer
+    readOnly: boolean
+    runtime?: RuntimeAuthorization
+  } | null>,
+  connected?: Connected,
+  approvals?: () => Promise<ToolApprovals | undefined>,
+  failed?: Failed,
 ) {
   const { tool, jsonSchema } = await import('ai')
-  const schema = parseInputSchema(entry.inputSchema) as Parameters<
-    typeof jsonSchema
-  >[0]
+  const schema = parseInputSchema(entry.inputSchema) as Parameters<typeof jsonSchema>[0] // prettier-ignore
+
   return tool({
     description: entry.description,
     inputSchema: jsonSchema(schema),
+    needsApproval: async (input) => {
+      const live = current ? await current() : undefined
+      const server =
+        live?.server ?? servers.find((server) => server.id === entry.serverId)
+      if (server?.transport !== 'stdio') return false
+      return !isToolAutoApproved(entry.name, input, await approvals?.())
+    },
     execute: async (args, { abortSignal }) => {
       const live = current ? await current() : undefined
       const server = current
@@ -137,6 +233,7 @@ export async function createExternalMcpTool(
           `The MCP server providing "${entry.name}" is no longer configured.`,
         )
       }
+
       const configuredTool = server.tools?.find(
         (candidate) => candidate.name === entry.toolName,
       )
@@ -145,9 +242,19 @@ export async function createExternalMcpTool(
           'This external tool is not allowed in read-only mode.',
         )
       }
+
       if (current && !configuredTool)
         throw new ToolError('This external tool is no longer configured.')
-      return callExternalMcpTool(server, entry.toolName, args, abortSignal)
+
+      return callExternalMcpTool(
+        server,
+        entry.toolName,
+        args,
+        abortSignal,
+        live?.runtime,
+        connected,
+        failed,
+      )
     },
   })
 }

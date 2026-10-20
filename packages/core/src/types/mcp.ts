@@ -6,7 +6,7 @@ import {
   MAX_SERVER_MCP_TOOLS,
 } from '../limits'
 
-export const MCP_TRANSPORTS = ['auto', 'http', 'sse', 'ws'] as const
+export const MCP_TRANSPORTS = ['auto', 'http', 'sse', 'ws', 'stdio'] as const
 
 export type McpTransport = (typeof MCP_TRANSPORTS)[number]
 
@@ -16,6 +16,7 @@ export type McpDialedTransport = Exclude<McpTransport, 'auto'>
 export const mcpTransportSchema = z.enum(MCP_TRANSPORTS)
 
 export const SUPPORTED_MCP_TRANSPORTS = [
+  { id: 'stdio', label: 'Local process' },
   { id: 'auto', label: 'Auto' },
   { id: 'http', label: 'HTTP' },
   { id: 'sse', label: 'SSE' },
@@ -48,24 +49,84 @@ export const mcpToolMetaSchema = z.object({
   inputSchema: z.string().optional(), // kept raw to avoid Convex rejections
 })
 
-export const mcpServerSchema = z.object({
+/** Optional local launch settings; credentials are resolved only on the server. */
+export const mcpLaunchSchema = z.object({
+  command: z.string().optional(),
+  args: z.array(z.string()).optional(),
+  cwd: z.string().optional(),
+  env: z
+    .record(z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/), z.string().max(4096))
+    .optional(),
+  secretEnv: z
+    .record(z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/), z.string().max(4096))
+    .optional(),
+  startupTimeoutMs: z.number().int().min(100).max(300_000).optional(),
+})
+
+const connectionFields = mcpLaunchSchema.extend({
+  url: z.string().default(''),
+  apiKey: z.string().optional(),
+})
+
+export const mcpConnectionSchema = z.union([
+  connectionFields.extend({
+    transport: z.literal('stdio'),
+    command: z.string().trim().min(1),
+  }),
+  connectionFields
+    .extend({
+      transport: z.enum(['auto', 'http', 'sse', 'ws']),
+      url: z.string().url(),
+    })
+    .refine((connection) => isMcpUrl(connection.url, connection.transport), {
+      message: 'URL scheme does not match the MCP transport',
+      path: ['url'],
+    }),
+])
+
+export const mcpServerSchema = connectionFields.extend({
   id: z.string(),
   label: z.string().min(1),
-  url: z.string().url(),
   transport: mcpTransportSchema,
-  apiKey: z.string().optional(),
+  revision: z.number().optional(),
   enabled: z.boolean(),
   tools: z.array(mcpToolMetaSchema).optional(),
 })
 
 export type McpToolMeta = z.infer<typeof mcpToolMetaSchema>
 export type McpServer = z.infer<typeof mcpServerSchema>
+export type McpConnection = z.infer<typeof mcpConnectionSchema>
 
-/** Connection details needed to reach an external MCP server. */
-export type McpConnection = {
-  url: string
-  transport: McpTransport
-  apiKey?: string
+export type McpRuntimeScope = {
+  epoch?: number
+  key: string
+  ownerId: string
+  sessionId: string
+  agentId: string
+  serverId: string
+  revision: string
+}
+
+export type McpRuntimeStatus = {
+  scope: McpRuntimeScope
+  bootId: string
+  generation: string
+  state: 'connecting' | 'connected' | 'closing' | 'closed' | 'lost'
+  transport?: McpDialedTransport
+  reason?: string
+  stderr: string
+}
+
+/** Checks network schemes without excluding deliberately selected WebSockets. */
+export function isMcpUrl(url: string, transport: McpTransport): boolean {
+  try {
+    const protocol = new URL(url).protocol
+    return transport === 'ws'
+      ? protocol === 'ws:' || protocol === 'wss:'
+      : protocol === 'http:' || protocol === 'https:'
+  } catch {
+    return false
+  }
 }
 
 /** Trims discovered metadata to the storage caps. */

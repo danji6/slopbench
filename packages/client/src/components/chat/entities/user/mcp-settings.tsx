@@ -7,19 +7,17 @@ import {
   SearchableList,
   SettingsList,
   Switch,
-  Textarea,
   TooltipButton,
 } from '@/components/ui'
 import { useMcpToolDiscovery, useTools } from '@/hooks/chat'
 import { extractErrorMessage } from '@/lib/errors'
-import { cn, generateId } from '@/lib/utils'
+import { generateId } from '@/lib/utils'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import {
   type McpDialedTransport,
   type McpToolMeta,
   type McpTransport,
   SUPPORTED_MCP_TRANSPORTS,
-  mcpToolAlias,
   mcpToolName,
 } from '@sb/core/types'
 import {
@@ -27,13 +25,16 @@ import {
   ArrowUpIcon,
   PlusIcon,
   RefreshCwIcon,
-  RotateCcwIcon,
   Trash2Icon,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { Control } from 'react-hook-form'
 import { useFieldArray } from 'react-hook-form'
 
+import { parseMcpLaunch } from './mcp-launch'
+import { McpLocalSettings } from './mcp-local-settings'
+import { McpRuntimes } from './mcp-runtimes'
+import { McpToolRow } from './mcp-tool-row'
 import type {
   McpServerFormValues,
   McpToolMetaFormValues,
@@ -196,6 +197,12 @@ function McpServerCard({
     try {
       const { tools, transport } = await discover({
         url: item.url,
+        command: item.command,
+        cwd: item.cwd,
+        env: item.transport === 'stdio' ? parseMcpLaunch(item).env : undefined,
+        args:
+          item.transport === 'stdio' ? parseMcpLaunch(item).args : undefined,
+        startupTimeoutMs: item.startupTimeoutMs,
         transport: item.transport,
         apiKey: item.apiKey,
         serverId: item.serverId as Id<'mcpServers'> | undefined,
@@ -304,17 +311,21 @@ function McpServerCard({
         </TooltipButton>
       </div>
       <Collapsible.Content className="p-0 pt-1.5">
-        <div className="flex w-full items-center gap-2 px-1">
-          <Input
-            value={item.url}
-            placeholder="http://localhost:11235/mcp"
-            onValueChange={(url) => {
-              setDialed(null)
-              onChange({ url })
-            }}
-            className="h-9 flex-1"
-          />
-        </div>
+        {item.transport === 'stdio' ? (
+          <McpLocalSettings item={item} onChange={onChange} />
+        ) : (
+          <div className="flex w-full items-center gap-2 px-1">
+            <Input
+              value={item.url}
+              placeholder="http://localhost:11235/mcp"
+              onValueChange={(url) => {
+                setDialed(null)
+                onChange({ url })
+              }}
+              className="h-9 flex-1"
+            />
+          </div>
+        )}
         <div className="flex w-full items-center gap-2 px-1">
           <Input
             type="password"
@@ -328,7 +339,10 @@ function McpServerCard({
             type="button"
             size="sm"
             variant="input"
-            disabled={refreshing || !item.url}
+            disabled={
+              refreshing ||
+              (item.transport === 'stdio' ? !item.command : !item.url)
+            }
             className="shrink-0"
             onClick={handleRefresh}
           >
@@ -338,6 +352,7 @@ function McpServerCard({
             Discover
           </RippleButton>
         </div>
+        {item.serverId && <McpRuntimes serverKey={item.id} />}
         {error ? (
           <div className="text-destructive px-3 text-xs">{error}</div>
         ) : item.tools && item.tools.length > 0 ? (
@@ -387,95 +402,4 @@ function mergeOverrides(
     ...tool,
     ...overrides.get(tool.name),
   }))
-}
-
-type McpToolRowProps = {
-  value: string
-  tool: McpToolMetaFormValues
-  clashing: boolean
-  onChange: (patch: Partial<McpToolMetaFormValues>) => void
-}
-
-function McpToolRow({ value, tool, clashing, onChange }: McpToolRowProps) {
-  const nameOverridden = tool.nameOverride !== undefined
-  const overridden = tool.descriptionOverride !== undefined
-  const description = tool.descriptionOverride ?? tool.description ?? ''
-
-  return (
-    <Accordion.Item value={value}>
-      <Accordion.Trigger className="h-9 px-3 text-sm font-normal">
-        <span
-          className={cn('flex-1 text-left', clashing && 'text-destructive')}
-        >
-          {mcpToolAlias(tool)}
-        </span>
-      </Accordion.Trigger>
-      <Accordion.Content className="flex flex-col gap-1.5 px-3">
-        <label className="flex items-center justify-between gap-2 text-sm">
-          Allow in plan/read-only mode
-          <Switch
-            checked={tool.allowInReadOnly ?? true}
-            onCheckedChange={(allowInReadOnly) => onChange({ allowInReadOnly })}
-          />
-        </label>
-        <p className="text-muted-foreground text-xs">
-          For security reasons, disable when the tool can make changes to the
-          system.
-        </p>
-        {clashing && (
-          <span className="text-destructive text-sm">
-            Conflict: another enabled tool resolves to the same name. Only one
-            will be used.
-          </span>
-        )}
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground text-xs">Tool name:</span>
-          <RippleButton
-            type="button"
-            size="sm"
-            variant="stealth"
-            disabled={!nameOverridden}
-            className="text-muted-foreground hover:text-foreground h-6 px-2 text-xs"
-            onClick={() => onChange({ nameOverride: undefined })}
-          >
-            <RotateCcwIcon className="size-3.5" />
-            Reset
-          </RippleButton>
-        </div>
-        <Input
-          value={tool.nameOverride ?? tool.name}
-          placeholder={tool.name}
-          onValueChange={(nameOverride) => onChange({ nameOverride })}
-          className="h-9 text-sm"
-        />
-        {nameOverridden && (
-          <span className="text-muted-foreground text-xs">
-            Original name: {tool.name}
-          </span>
-        )}
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground text-xs">
-            Tool description:
-          </span>
-          <RippleButton
-            type="button"
-            size="sm"
-            variant="stealth"
-            disabled={!overridden}
-            className="text-muted-foreground hover:text-foreground h-6 px-2 text-xs"
-            onClick={() => onChange({ descriptionOverride: undefined })}
-          >
-            <RotateCcwIcon className="size-3.5" />
-            Reset
-          </RippleButton>
-        </div>
-        <Textarea
-          value={description}
-          placeholder="No description provided"
-          onChange={(e) => onChange({ descriptionOverride: e.target.value })}
-          className="max-h-48 min-h-20 text-sm"
-        />
-      </Accordion.Content>
-    </Accordion.Item>
-  )
 }

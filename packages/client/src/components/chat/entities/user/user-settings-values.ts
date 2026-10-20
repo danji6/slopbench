@@ -107,6 +107,12 @@ export function loadedSettingsValues({
       serverId: server._id,
       label: server.label,
       url: server.url,
+      command: server.command,
+      argsJson: JSON.stringify(server.args ?? []),
+      cwd: server.cwd,
+      envJson: JSON.stringify(server.env ?? {}),
+      secretEnvNames: server.secretEnvNames,
+      startupTimeoutMs: server.startupTimeoutMs,
       transport: server.transport,
       enabled: server.enabled,
       hasKey: server.hasKey,
@@ -150,7 +156,9 @@ export function withoutSecrets(values: SettingsFormValues): SettingsFormValues {
   return {
     ...values,
     providers: values.providers.map(({ apiKey: _, ...p }) => p),
-    mcpServers: values.mcpServers.map(({ apiKey: _, ...server }) => server),
+    mcpServers: values.mcpServers.map(
+      ({ apiKey: _, secretEnvJson: __, ...server }) => server,
+    ),
   }
 }
 

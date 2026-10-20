@@ -3,6 +3,7 @@ import { Suspense, lazy, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { CheckboxFixture } from './checkbox-fixture'
+import { McpSettingsFixture } from './mcp-settings-fixture'
 import { ProviderConnectionsFixture } from './provider-connections-fixture'
 import { ScrollFixture } from './scroll-fixture'
 
@@ -61,7 +62,9 @@ const SubagentApprovalsFixture = lazy(() =>
 )
 
 const NotificationsFixture = lazy(() =>
-  import('./notifications-fixture').then((module) => ({ default: module.NotificationsFixture })),
+  import('./notifications-fixture').then((module) => ({
+    default: module.NotificationsFixture,
+  })),
 )
 
 const AccountSecurityFixture = lazy(() =>
@@ -123,11 +126,14 @@ function PreviewFixture() {
 }
 
 createRoot(document.getElementById('root')!).render(
-  new URLSearchParams(location.search).get('fixture') === 'xml-tags' ? (
+  new URLSearchParams(location.search).get('fixture') === 'mcp-settings' ? (
+    <McpSettingsFixture />
+  ) : new URLSearchParams(location.search).get('fixture') === 'xml-tags' ? (
     <Suspense fallback={<p>Loading XML editors…</p>}>
       <XmlTagsFixture />
     </Suspense>
-  ) : new URLSearchParams(location.search).get('fixture') === 'notifications' ? (
+  ) : new URLSearchParams(location.search).get('fixture') ===
+    'notifications' ? (
     <Suspense fallback={<p>Loading notifications…</p>}>
       <NotificationsFixture />
     </Suspense>

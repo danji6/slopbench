@@ -1,3 +1,4 @@
+import { parseMcpLaunch } from '@/components/chat/entities/user/mcp-launch'
 import type { SettingsFormValues } from '@/components/chat/entities/user/settings-schema'
 import { normalizeWebSearchInstances } from '@/components/chat/entities/user/user-settings-values'
 import {
@@ -98,6 +99,10 @@ export function useUserSettingsPersistence({
         key: server.id,
         label: server.label,
         url: server.url,
+        ...(server.transport === 'stdio' ? parseMcpLaunch(server) : {}),
+        command: server.transport === 'stdio' ? server.command : undefined,
+        cwd: server.transport === 'stdio' ? server.cwd : undefined,
+        startupTimeoutMs: server.startupTimeoutMs,
         transport: server.transport,
         enabled: server.enabled,
         apiKey: server.apiKey,

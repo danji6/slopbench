@@ -19,7 +19,9 @@ import type * as V from './validators'
 export type { Role } from './lib/roles'
 export type * from '@sb/core/types'
 
-export type McpExecutionArgs = Infer<typeof V.mcpExecutionArgsValidator>
+export type McpServerInput = Infer<
+  typeof V.replaceMcpServersArgsValidator
+>['servers'][number]
 
 /** An agent with its authoritative shared personal folder state resolved. */
 export type AgentWithHome = Doc<'agents'> & { home: Doc<'agentHomes'> | null }
@@ -216,3 +218,13 @@ export type DetailTargetsArgs = Infer<typeof V.detailTargetsArgsValidator>
 export type ProviderDiscovery = Infer<typeof V.providerDiscoveryValidator>
 export type NotificationRequest = Infer<typeof V.notificationRequestValidator>
 export type NotificationRequestState = Infer<typeof V.notificationRequestStateValidator> // prettier-ignore
+export type McpExecutionArgs = Infer<typeof V.mcpExecutionArgsValidator>
+export type DiscoverMcpToolsArgs = Infer<typeof V.discoverMcpToolsArgsValidator>
+export type McpRuntimeArgs = Infer<typeof V.mcpRuntimeArgsValidator>
+export type McpCleanupArgs = Infer<typeof V.mcpCleanupArgsValidator>
+export type McpRuntimeControlArgs = Infer<typeof V.mcpRuntimeControlArgsValidator> // prettier-ignore
+export type McpRuntimeConnectedArgs = Infer<typeof V.mcpRuntimeConnectedArgsValidator> // prettier-ignore
+export type McpRuntimeStatusArgs = Infer<typeof V.mcpRuntimeStatusArgsValidator>
+export type McpRuntimeRetireArgs = Infer<typeof V.mcpRuntimeRetireArgsValidator>
+export type McpRuntimeListArgs = Infer<typeof V.mcpRuntimeListArgsValidator>
+export type McpRuntimePageArgs = Infer<typeof V.mcpRuntimePageArgsValidator>

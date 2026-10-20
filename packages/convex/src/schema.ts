@@ -43,6 +43,7 @@ import {
   catalogRowSchema,
   discoveryPreviewSchema,
 } from './validators/discovery'
+import { mcpCleanupSchema, mcpRuntimeSchema } from './validators/mcp'
 
 const schemaValidation = true
 
@@ -127,6 +128,16 @@ export default defineSchema({
 
   mcpServers: defineTable(mcpServerSchema)
     .index('by_ownerId_order', ['ownerId', 'order']),
+
+  mcpRuntimes: defineTable(mcpRuntimeSchema)
+    .index('by_state', ['state'])
+    .index('by_ownerId_serverKey', ['ownerId', 'serverKey'])
+    .index('by_ownerId', ['ownerId'])
+    .index('by_sessionId', ['sessionId'])
+    .index('by_agentId', ['agentId'])
+    .index('by_sessionId_agentId_serverKey', ['sessionId', 'agentId', 'serverKey']),
+
+  mcpCleanups: defineTable(mcpCleanupSchema),
 
   mcpTools: defineTable(mcpToolSchema)
     .index('by_serverId_order', ['serverId', 'order']),

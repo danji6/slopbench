@@ -3,6 +3,7 @@ import type { MutationCtx } from '../../_generated/server'
 import { type AuthMutationCtx } from '../../functions'
 import * as Attachments from '../attachments'
 import * as Avatars from '../avatars'
+import { revoke as revokeMcp } from '../mcpRuntime'
 import { deleteVersions } from '../messageContents'
 import { cancelForSession as cancelScheduledEvents } from '../scheduledEvents'
 import { remove as removeStream, stopForSession } from '../stream/lifecycle'
@@ -27,6 +28,7 @@ export async function remove(
   { sessionId }: { sessionId: Id<'sessions'> },
 ) {
   await requireOwner(ctx, sessionId, ctx.userId)
+  await revokeMcp(ctx, { sessionId }, 'Session deleted')
   await stopForSession(ctx, sessionId)
   await cancelScheduledEvents(ctx, sessionId)
 

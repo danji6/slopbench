@@ -118,13 +118,35 @@ export async function getEnabledTools(
             }
           : undefined,
       planContext,
+      mcpApprovals: approvals,
+      mcpFailed: ctx
+        ? async (runtimeId, key, reason) => {
+            await ctx.runMutation(internal.mcp._updateRuntimeStatus, {
+              runtimeId,
+              key,
+              state: 'lost',
+              reason,
+            })
+          }
+        : undefined,
+      mcpConnected: ctx
+        ? async (runtimeId, key, bootId, generation) =>
+            ctx.runMutation(internal.mcp._connected, {
+              runtimeId,
+              key,
+              bootId,
+              generation,
+            })
+        : undefined,
       mcpExecution:
         ctx && sessionId && options?.agentId
-          ? (serverKey) =>
-              ctx.runQuery(internal.mcp._getExecution, {
-                sessionId,
+          ? (serverKey, toolName) =>
+              ctx.runMutation(internal.mcp._getExecution, {
+                sessionId: session!._id,
                 agentId: options.agentId!,
                 serverKey,
+                toolName,
+                ...options?.execution,
               })
           : undefined,
     })
@@ -185,6 +207,7 @@ type AnyTool = ToolSet[string]
 
 type McpExecution = (
   serverKey: string,
+  toolName: string,
 ) => ReturnType<NonNullable<Parameters<typeof createExternalMcpTool>[2]>>
 
 type BuildContext = {
@@ -194,6 +217,18 @@ type BuildContext = {
   resources: ToolResources
   workspace?: WorkspaceToolContext
   planContext?: PlanToolContext
+  mcpFailed?: (
+    runtimeId: Id<'mcpRuntimes'>,
+    key: string,
+    reason: string,
+  ) => Promise<void>
+  mcpApprovals?: () => Promise<ToolApprovals | undefined>
+  mcpConnected?: (
+    runtimeId: Id<'mcpRuntimes'>,
+    key: string,
+    bootId: string,
+    generation: string,
+  ) => Promise<boolean>
   mcpExecution?: McpExecution
 }
 
@@ -250,6 +285,11 @@ async function createManifestTool(
   return createExternalMcpTool(
     entry,
     build.resources.mcpServers,
-    build.mcpExecution ? () => build.mcpExecution!(entry.serverId) : undefined,
+    build.mcpExecution
+      ? () => build.mcpExecution!(entry.serverId, entry.toolName)
+      : undefined,
+    build.mcpConnected,
+    build.mcpApprovals,
+    build.mcpFailed,
   )
 }

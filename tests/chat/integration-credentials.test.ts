@@ -21,6 +21,8 @@ type Row = Record<string, unknown> & { _id: string }
  */
 function makeCtx(seed: Record<string, Row[]> = {}) {
   const tables: Record<string, Row[]> = {
+    mcpRuntimes: [],
+    mcpCleanups: [],
     mcpServers: [],
     mcpTools: [],
     modelProviders: [],

@@ -6,6 +6,21 @@ The architectural overview below was originally audited at `0d6092b` on
 boundaries; it is not a fresh audit of every product feature or outstanding bug.
 See `REFACTOR_PLAN.md` for scope, verification, and remaining release checks.
 
+## Persistent MCP connections (stage 1, 2026-10-20)
+
+Standalone MCP servers now support supervised local stdio commands alongside
+HTTP, SSE and WebSocket. Connections persist per owner, actual session, agent,
+server and configuration revision. The backend journals revocation and reconciles
+live sidecar state; workspace transitions close idle clients and reject active
+operations. Session/agent deletion and server configuration changes schedule
+cleanup. Unexpected loss requires explicit reconnection, preserving uncertainty
+about interrupted calls. Local commands retain admin and tool-approval gates.
+Secret environment bindings are separate credential records; status exposes only
+bounded redacted stderr. See `MCP_INTEGRATIONS.md` for configuration, lifecycle
+semantics and the remaining staged work. Discovery limits and text-only result
+handling remain until stages 3 and 4; durable long calls arrive in stage 2.
+Restart the sidecar after updating.
+
 ## Personal agent folders and skills (2026-10-09)
 
 Agents can explicitly assign persistent writable homes on the sidecar, separate from session

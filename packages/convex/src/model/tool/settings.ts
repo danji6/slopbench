@@ -1,6 +1,7 @@
 import {
   type McpServer,
   type WebSearchInstance,
+  isMcpUrl,
   isSearchEngineId,
 } from '@sb/core/types'
 
@@ -46,9 +47,15 @@ export function normalizeWebSearchInstances(
   return normalized
 }
 
-/** Configured MCP servers that are enabled and reachable over http(s). */
+/** Configured servers with a local command or a compatible network URL. */
 export function enabledMcpServers(servers: McpServer[]): McpServer[] {
-  return servers.filter((server) => server.enabled && isHttpUrl(server.url))
+  return servers.filter(
+    (server) =>
+      server.enabled &&
+      (server.transport === 'stdio'
+        ? !!server.command?.trim()
+        : isMcpUrl(server.url, server.transport)),
+  )
 }
 
 export function isHttpUrl(value: string): boolean {
