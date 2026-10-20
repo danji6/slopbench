@@ -84,7 +84,7 @@ export function SkillLibrary({ agentId }: { agentId?: Id<'agents'> }) {
         )}
         <div className="flex items-center gap-2">
           <SearchInput
-            className="h-9 min-w-0 flex-1"
+            className="min-w-0 flex-1"
             aria-label="Search skill names"
             placeholder="Search skill names…"
             value={search}

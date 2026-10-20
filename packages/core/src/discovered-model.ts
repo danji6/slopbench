@@ -5,10 +5,13 @@ import type { ModelEntry } from './types/providers'
 export function modelMetadata(
   model: DiscoveredModel,
 ): ModelEntry['discovered'] {
+  // Match Convex's serialized shape so metadata sync keeps saved forms clean.
   return {
-    label: model.label,
-    contextWindow: model.contextWindow,
-    reasoning: model.reasoning,
+    ...(model.label !== undefined ? { label: model.label } : {}),
+    ...(model.contextWindow !== undefined
+      ? { contextWindow: model.contextWindow }
+      : {}),
+    ...(model.reasoning !== undefined ? { reasoning: model.reasoning } : {}),
   }
 }
 
