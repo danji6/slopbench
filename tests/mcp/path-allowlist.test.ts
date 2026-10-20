@@ -41,6 +41,38 @@ describe('sidecar path resolution', () => {
     await rm(base, { recursive: true, force: true })
   })
 
+  test('checks workspace roots without submitting empty Git pathspecs', async () => {
+    for (const input of ['.', root, './src/..', `${root}/src/..`]) {
+      const result = await checkPaths(root, { paths: [input, 'src/file.txt'] })
+      expect(result.complete).toBe(true)
+      expect(result.flagged).toEqual([])
+      expect(result.uncovered).toEqual([])
+    }
+    const result = await checkPaths(external, { paths: ['.', 'file.txt'] })
+    expect(result.complete).toBe(true)
+    expect(result.flagged).toEqual([])
+  })
+
+  test('keeps ignored paths flagged when the root is also checked', async () => {
+    const result = await checkPaths(root, {
+      paths: ['.', 'alias.txt', 'ignored/file.txt'],
+    })
+    expect(result.complete).toBe(true)
+    expect(result.uncovered).toEqual(['src/file.txt', 'ignored/file.txt'])
+  })
+
+  test('checks every source root alongside paths relative to a nested cwd', async () => {
+    const result = await checkPaths(
+      path.join(root, 'src'),
+      {
+        paths: [root, external, 'file.txt'],
+      },
+      [root, external],
+    )
+    expect(result.complete).toBe(true)
+    expect(result.uncovered).toEqual([])
+  })
+
   test('relative and absolute grants agree, including new files', async () => {
     for (const grant of ['src/', path.join(root, 'src')]) {
       const result = await checkPaths(root, {

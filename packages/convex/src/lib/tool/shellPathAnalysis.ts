@@ -1,4 +1,6 @@
 import { gitSubcommandIndex, hasGitRefOperands } from './gitReadOnly'
+import { grepPathValues } from './grepPathArgs'
+import { listingPathValues } from './listingPathArgs'
 import { isReadOnlySedScript } from './readOnlyArgs'
 import {
   DEFAULT_SAFE_SHELL_PATTERNS,
@@ -45,26 +47,6 @@ const NO_PATH_PROGRAMS = new Set([
 ])
 
 const GREP_PROGRAMS = new Set(['grep', 'egrep', 'fgrep', 'rg'])
-const GREP_PATTERN_FLAGS = new Set(['-e', '--regexp'])
-const GREP_PATTERN_FILE_FLAGS = new Set(['-f', '--file'])
-const GREP_FILTER_FLAGS = new Set([
-  '--exclude',
-  '--exclude-dir',
-  '--include',
-  '--include-dir',
-])
-// prettier-ignore
-const GREP_VALUE_FLAGS = new Set([
-  ...['-A', '-B', '-C', '-m'],
-  ...['--after-context', '--before-context', '--context', '--max-count'],
-  ...['--binary-files', '--devices', '--directories', '--label'],
-  ...['--encoding', '--engine', '--max-depth', '--max-filesize'],
-  ...['--path-separator', '--replace', '--sort', '--sortr', '--type'],
-  ...['--type-add', '--type-clear', '--type-not'],
-])
-const RG_PATTERN_FLAGS = new Set(['-g', '--glob', '--iglob'])
-const RG_FILES_MODES = new Set(['--files', '--files-with-matches'])
-
 interface SegmentPathAnalysis {
   values: string[]
   complete: boolean
@@ -119,7 +101,22 @@ function pathValuesFromSegment(text: string): SegmentPathAnalysis {
   }
   if (program === 'sed') return mergePathValues(values, sedPathValues(args))
   if (GREP_PROGRAMS.has(program)) {
-    return mergePathValues(values, grepPathValues(program, args))
+    return mergePathValues(
+      values,
+      grepPathValues(
+        program,
+        args.map((token) => token.value),
+      ),
+    )
+  }
+  if (program === 'head' || program === 'ls') {
+    return mergePathValues(
+      values,
+      listingPathValues(
+        program,
+        args.map((token) => token.value),
+      ),
+    )
   }
   if (program === 'find') return mergePathValues(values, findPathValues(args))
   if (NO_PATH_PROGRAMS.has(program)) return { values, complete: true }
@@ -288,67 +285,6 @@ function sedAttachedExpression(value: string): string | null {
   return null
 }
 
-function grepPathValues(
-  program: string,
-  args: ShellToken[],
-): SegmentPathAnalysis {
-  const values: string[] = []
-  let hasPattern =
-    program === 'rg' && args.some((token) => RG_FILES_MODES.has(token.value))
-  let complete = true
-
-  for (let i = 0; i < args.length; i++) {
-    const value = args[i]!.value
-    if (value === '--') {
-      const rest = args.slice(i + 1)
-      if (!hasPattern && rest.length > 0) {
-        values.push(...rest.slice(1).map((token) => token.value))
-      } else values.push(...rest.map((token) => token.value))
-      break
-    }
-
-    const equal = value.indexOf('=')
-    const flag = equal === -1 ? value : value.slice(0, equal)
-    const inlineValue = equal === -1 ? null : value.slice(equal + 1)
-    const patternFlag =
-      GREP_PATTERN_FLAGS.has(flag) ||
-      GREP_FILTER_FLAGS.has(flag) ||
-      (program === 'rg' && RG_PATTERN_FLAGS.has(flag))
-
-    if (patternFlag) {
-      hasPattern ||= GREP_PATTERN_FLAGS.has(flag)
-      if (inlineValue === null) {
-        if (i + 1 >= args.length) complete = false
-        else i++
-      }
-      continue
-    }
-    if (GREP_PATTERN_FILE_FLAGS.has(flag)) {
-      hasPattern = true
-      const file = inlineValue ?? args[++i]?.value
-      if (file === undefined) complete = false
-      else values.push(file)
-      continue
-    }
-    if (GREP_VALUE_FLAGS.has(flag)) {
-      if (inlineValue === null && !hasAttachedShortValue(value)) {
-        if (i + 1 >= args.length) complete = false
-        else i++
-      }
-      continue
-    }
-    if (value.startsWith('-')) continue
-    if (!hasPattern) hasPattern = true
-    else values.push(value)
-  }
-
-  return { values, complete }
-}
-
-function hasAttachedShortValue(value: string): boolean {
-  return /^-[ABCMm].+/.test(value)
-}
-
 function findPathValues(args: ShellToken[]): SegmentPathAnalysis {
   const values: string[] = []
   const complete = !args.some((token) =>
@@ -397,7 +333,7 @@ function genericPathValues(args: ShellToken[]): string[] {
 }
 
 function addPathCandidate(candidates: string[], value: string) {
-  if (!value || value.startsWith('-') || candidates.includes(value)) return
+  if (!value || value === '-' || candidates.includes(value)) return
   if (/^[<>]+$/.test(value)) return
   candidates.push(value)
 }

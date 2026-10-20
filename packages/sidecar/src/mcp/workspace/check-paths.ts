@@ -74,23 +74,21 @@ async function flagSensitivePaths(
         (item) => !isOutside(root, item.absolutePath),
       )
 
+      const pathsForCandidate = (item: PathCheckResult['resolved'][number]) => [
+        gitRelativePath(root, item.absolutePath),
+        gitRelativePath(root, path.resolve(roots[0]!, item.inputPath)),
+      ]
       const relativePaths = candidates
-        .flatMap((item) => [
-          path.relative(root, item.absolutePath),
-          path.relative(root, path.resolve(roots[0]!, item.inputPath)),
-        ])
+        .flatMap(pathsForCandidate)
         .filter((value) => value !== '..' && !value.startsWith(`..${path.sep}`))
 
-      const matches = await gitCheckIgnore(root, relativePaths)
+      const matches = await gitCheckIgnore(root, [...new Set(relativePaths)])
       if (matches === null) {
         result.complete = false
       } else {
         for (const candidate of candidates) {
           if (
-            matches.has(path.relative(root, candidate.absolutePath)) ||
-            matches.has(
-              path.relative(root, path.resolve(roots[0]!, candidate.inputPath)),
-            )
+            pathsForCandidate(candidate).some((value) => matches.has(value))
           ) {
             ignored.add(candidate.path)
           }
@@ -105,6 +103,11 @@ async function flagSensitivePaths(
       if (!item.allowed) result.uncovered.push(item.path)
     }
   }
+}
+
+/** Represent the root as a valid Git pathspec, including during result matching. */
+function gitRelativePath(root: string, target: string): string {
+  return path.relative(root, target) || '.'
 }
 
 async function expandCandidate(
