@@ -12,6 +12,7 @@ export type ModelPickerProps = ComboboxTriggerProps & {
   onValueChange: (value: string) => void
   selectedModel?: UIModel | null
   inheritLabel?: string
+  allowDeselect?: boolean
 }
 
 export function ModelPicker({
@@ -21,10 +22,12 @@ export function ModelPicker({
   onValueChange,
   selectedModel,
   inheritLabel,
+  allowDeselect = false,
   ...props
 }: ModelPickerProps) {
   const { models, isLoading } = useModels()
   const [open, setOpen] = useState(false)
+  const emptyLabel = inheritLabel ?? (allowDeselect ? 'None' : undefined)
   useProviderDiscoveryCoordinator(open)
 
   const groups = useMemo(() => {
@@ -44,11 +47,11 @@ export function ModelPicker({
   return (
     <Combobox
       onOpenChange={setOpen}
-      value={inheritLabel && !value ? '__inherit__' : value}
+      value={emptyLabel && !value ? '__empty__' : value}
       onValueChange={(v) =>
-        onValueChange(inheritLabel && v === '__inherit__' ? '' : v || '')
+        onValueChange(emptyLabel && v === '__empty__' ? '' : v || '')
       }
-      noDeselect
+      noDeselect={!allowDeselect}
     >
       <Combobox.Trigger
         variant="input"
@@ -57,13 +60,13 @@ export function ModelPicker({
           className,
         )}
         disabled={
-          disabled || (!inheritLabel && (isLoading || models.length === 0))
+          disabled || (!emptyLabel && (isLoading || models.length === 0))
         }
         {...props}
       >
         <Combobox.DisplayValue placeholder="Select model…">
           {(val) => {
-            if (inheritLabel && val === '__inherit__') return inheritLabel
+            if (emptyLabel && val === '__empty__') return emptyLabel
             const m =
               models.find((candidate) => candidate.id === val) ??
               (selectedModel?.id === val ? selectedModel : undefined)
@@ -86,8 +89,8 @@ export function ModelPicker({
         <Combobox.Search />
         <Combobox.List>
           <Combobox.Empty>No models found.</Combobox.Empty>
-          {inheritLabel && (
-            <Combobox.Item value="__inherit__">{inheritLabel}</Combobox.Item>
+          {emptyLabel && (
+            <Combobox.Item value="__empty__">{emptyLabel}</Combobox.Item>
           )}
           {groups.map(([name, entries]) => (
             <Combobox.Group

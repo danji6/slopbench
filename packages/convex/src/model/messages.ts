@@ -11,7 +11,7 @@ const PREVIEW_LENGTH = 140
 
 /**
  * Schedules title resolution for a session that has no title yet. The action
- * generates one with a model when `autoTitle` is on, or falls back to a
+ * generates one with the configured title model, or falls back to a
  * truncated first message otherwise.
  */
 export async function scheduleTitle(

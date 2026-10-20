@@ -2,9 +2,11 @@ import type { ProviderFormValues } from '@/components/chat/entities/user/setting
 import { modelReference } from '@sb/core/model-reference'
 import type { ConvexReactClient } from 'convex/react'
 import { type FunctionReference, getFunctionName } from 'convex/server'
+import { type Value, convexToJson, jsonToConvex } from 'convex/values'
 
 const listeners = new Set<() => void>()
 const cache = new Map<string, unknown>()
+const settings: Record<string, unknown> = {}
 type Row = ProviderFormValues & {
   _id: string
   ownerId: string
@@ -35,6 +37,7 @@ function update() {
   for (const listener of listeners) listener()
 }
 function query(name: string, args: Record<string, unknown>) {
+  if (name === 'settings:get') return { ...settings }
   if (name === 'providers:list') return rows
   if (name === 'providers:get')
     return rows.find((row) => row._id === args.providerId)
@@ -102,9 +105,26 @@ export const providerConnectionsClient = {
   },
   async mutation(
     reference: FunctionReference<'mutation'>,
-    args: Record<string, unknown>,
+    input: Record<string, Value>,
   ) {
+    const args = jsonToConvex(convexToJson(input)) as typeof input
     const name = getFunctionName(reference)
+    if (name === 'settings:update') {
+      Object.assign(settings, args.patch)
+      update()
+      return
+    }
+    if (name === 'settings:remove') {
+      delete settings[args.key as string]
+      update()
+      return
+    }
+    if (
+      name === 'prompts:replaceScope' ||
+      name === 'reminders:replaceScope' ||
+      name === 'mcp:replaceAll'
+    )
+      return
     if (name === 'providers:ensureConnection') {
       const existing = rows.find((row) => row.identityKey === args.clientId)
       const id =

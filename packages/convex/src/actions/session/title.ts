@@ -5,25 +5,13 @@ import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { fallbackTitle, sanitizeTitle } from '../../model/session/title'
 
-/** Regenerates title without persisting it. Forces the model regardless of
- * the `autoTitle` setting, since it is an explicit user request. */
+/** Regenerates a title without persisting it. */
 export async function regenerateTitle(
   ctx: ActionCtx,
   args: { sessionId: Id<'sessions'> },
 ): Promise<string | undefined> {
-  return composeTitle(ctx, { ...args, forceModel: true })
+  return composeTitle(ctx, args)
 }
-
-// TODO make this user-configurable
-const TITLE_SYSTEM_PROMPT = [
-  'Your task is to generate a concise title for a chat conversation.',
-  'Rules:',
-  '- 3 to 6 words, summarizing the topic as a plain noun phrase.',
-  '- No surrounding quotes, no trailing punctuation.',
-  '- Do not start with "Chat", "Conversation", "Title", or similar filler.',
-  '- Match the language of the conversation.',
-  'Return only the title.',
-].join('\n')
 
 /** Generates and persists a title for the given session. */
 export async function generateTitle(
@@ -42,10 +30,7 @@ export async function generateTitle(
 
 async function composeTitle(
   ctx: ActionCtx,
-  {
-    sessionId,
-    forceModel,
-  }: { sessionId: Id<'sessions'>; forceModel?: boolean },
+  { sessionId }: { sessionId: Id<'sessions'> },
 ): Promise<string | undefined> {
   const resolved = await ctx.runQuery(internal.sessions._getTitleContext, {
     sessionId,
@@ -59,13 +44,7 @@ async function composeTitle(
 
   const fallback = fallbackTitle(resolved.exchange)
 
-  // When autoTitle is off, skip the model call and use the fallback title
-  if (!resolved.autoTitle && !forceModel) return fallback
-
-  if (!resolved.modelId) {
-    console.warn('composeTitle: no titleModel configured, using fallback title')
-    return fallback
-  }
+  if (!resolved.modelId) return fallback
   if (!resolved.credentials?.providerId) {
     console.warn(
       `composeTitle: no provider configured for titleModel "${resolved.modelId}", using fallback title`,
@@ -87,7 +66,7 @@ async function composeTitle(
       resolved.credentials.auth === 'chatgpt' ? streamText : generateText
     const result = await generate({
       model: languageModel,
-      system: TITLE_SYSTEM_PROMPT,
+      system: resolved.systemPrompt,
       prompt: resolved.exchange,
       maxRetries: 1,
       maxOutputTokens: 512,

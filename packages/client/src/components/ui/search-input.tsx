@@ -23,7 +23,7 @@ export function SearchInput({
   clearLabel = 'Clear search',
   className,
   inputClassName,
-  variant = 'outline',
+  variant = 'default',
   disabled,
   ...props
 }: SearchInputProps) {

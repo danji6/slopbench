@@ -330,7 +330,7 @@ function ChatSettingsDialog() {
           showCloseButton={false}
           style={fontScope}
           className={cn(
-            'flex h-[min(95svh,800px)] flex-col p-0 sm:max-w-2xl',
+            'flex h-[min(95svh,900px)] max-w-3xl flex-col gap-0 p-0',
             themeScope,
           )}
         >

@@ -1,3 +1,5 @@
+import { DEFAULT_TITLE_SYSTEM_PROMPT } from '@sb/core/title-generation'
+
 import type { Id } from '../../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../../_generated/server'
 import { withParts } from '../messageContents'
@@ -22,8 +24,8 @@ export async function _getTitleContext(
 
   return {
     exchange: await firstExchange(ctx, sessionId),
-    autoTitle: settings?.autoTitle ?? true,
     modelId,
+    systemPrompt: settings?.titleSystemPrompt ?? DEFAULT_TITLE_SYSTEM_PROMPT,
     credentials: modelId
       ? findCredentialsForModel(
           await resolveProviders(ctx, session.ownerId),

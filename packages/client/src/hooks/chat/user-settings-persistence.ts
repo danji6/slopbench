@@ -39,6 +39,7 @@ export function useUserSettingsPersistence({
   draft,
 }: PersistenceInput) {
   const updateSettings = useSettingsUpdate()
+  const removeSetting = useMutation(api.settings.remove)
   const uploadAvatar = useUploadProfileAvatar()
   const clearAvatar = useClearProfileAvatar()
   const saveMcpServers = useMcpServersSave()
@@ -60,12 +61,12 @@ export function useUserSettingsPersistence({
         displayName: values.displayName,
         scrollMode: values.scrollMode,
         mathMode: values.mathMode,
-        autoTitle: values.autoTitle,
         invertSend: values.invertSend,
         groupBySender: values.groupBySender,
         followAgentThemeColor: values.followAgentThemeColor,
         avatarSize: values.avatarSize,
         titleModel: values.titleModel ?? undefined,
+        titleSystemPrompt: values.titleSystemPrompt,
         webSearchInstances: normalizeWebSearchInstances(
           values.webSearchInstances,
         ),
@@ -85,6 +86,7 @@ export function useUserSettingsPersistence({
         themeMode: values.themeMode,
       },
     })
+    if (!values.titleModel) await removeSetting({ key: 'titleModel' })
     await savePromptSets({
       libraryPrompts: values.libraryPrompts,
       libraryReminders: values.libraryReminders,

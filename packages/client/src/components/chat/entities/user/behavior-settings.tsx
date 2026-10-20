@@ -1,4 +1,3 @@
-import { ModelPicker } from '@/components/chat/models'
 import {
   OperationPromptList,
   ReminderPromptList,
@@ -90,38 +89,6 @@ export function BehaviorSettings({ control }: BehaviorSettingsProps) {
               Double ($$…$$)
             </SettingsList.Select.Item>
           </SettingsList.Select>
-        )}
-      />
-
-      <Controller
-        control={control}
-        name="autoTitle"
-        render={({ field }) => (
-          <SettingsList.Switch
-            label="Title generation"
-            description="Automatically generate a title for new sessions."
-            checked={field.value}
-            onCheckedChange={field.onChange}
-          />
-        )}
-      />
-
-      <Controller
-        control={control}
-        name="titleModel"
-        render={({ field }) => (
-          <SettingsList.Item
-            label="Title model"
-            description="Model used to generate session titles."
-            unclickable
-            unhoverable
-          >
-            <ModelPicker
-              variant="input"
-              value={field.value ?? ''}
-              onValueChange={(v) => field.onChange(v || null)}
-            />
-          </SettingsList.Item>
         )}
       />
 

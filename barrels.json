@@ -22,6 +22,7 @@
     "\\/code-block-shiki\\.ts$",
     "\\/composer-editor\\.tsx$",
     "\\/prompt-content-editor\\.tsx$",
+    "\\/title-prompt-editor\\.tsx$",
     "\\/session-completions\\.ts$",
     "\\/lib\\/tiptap\\.ts$",
     "\\/lib\\/tiptap\\/kit\\.ts$",

@@ -1,4 +1,215 @@
 import { expect, test } from '@playwright/test'
+import { DEFAULT_TITLE_SYSTEM_PROMPT } from '@sb/core/title-generation'
+
+test('unchanged title prompts keep the settings draft clean', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=provider-connections')
+  await page.getByRole('button', { name: 'Cancel settings' }).click()
+  const changePrompt = page.getByRole('button', { name: 'Change prompt' })
+  const dialog = page.getByRole('dialog', { name: 'Title prompt', exact: true })
+  const editor = dialog.getByRole('textbox')
+  const save = dialog.getByRole('button', { name: 'Save', exact: true })
+  const reset = dialog.getByRole('button', { name: 'Reset', exact: true })
+  const dirty = page.getByLabel('Settings draft dirty')
+
+  await expect(dirty).toHaveText('false')
+  await changePrompt.click()
+  await expect(reset).toBeDisabled()
+  await save.click()
+  await expect(dirty).toHaveText('false')
+
+  await changePrompt.click()
+  await editor.fill('Temporary change')
+  await expect(reset).toBeEnabled()
+  await reset.click()
+  await page
+    .getByRole('alertdialog', { name: 'Reset title prompt?' })
+    .getByRole('button', { name: 'Reset', exact: true })
+    .click()
+  await expect(reset).toBeDisabled()
+  await save.click()
+  await expect(dirty).toHaveText('false')
+
+  await changePrompt.click()
+  await editor.click()
+  await editor.press('ControlOrMeta+End')
+  await editor.press('!')
+  await expect(reset).toBeEnabled()
+  await editor.press('ControlOrMeta+z')
+  await expect(reset).toBeDisabled()
+  await save.click()
+  await expect(dirty).toHaveText('false')
+
+  await changePrompt.click()
+  await editor.fill('Staged prompt')
+  await save.click()
+  await expect(dirty).toHaveText('true')
+  await changePrompt.click()
+  await reset.click()
+  await page
+    .getByRole('alertdialog', { name: 'Reset title prompt?' })
+    .getByRole('button', { name: 'Reset', exact: true })
+    .click()
+  await save.click()
+  await expect(dirty).toHaveText('false')
+})
+
+test('saving an unchanged custom title prompt preserves its text and other settings edits', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=provider-connections')
+  const changePrompt = page.getByRole('button', { name: 'Change prompt' })
+  const dialog = page.getByRole('dialog', { name: 'Title prompt', exact: true })
+  const editor = dialog.getByRole('textbox')
+  const save = dialog.getByRole('button', { name: 'Save', exact: true })
+  const dirty = page.getByLabel('Settings draft dirty')
+  const prompt = 'Title rules:\n\n1. Summarize the topic\n   in three words'
+
+  await changePrompt.click()
+  await editor.fill(prompt)
+  await save.click()
+  await expect(dirty).toHaveText('true')
+  await page.getByRole('button', { name: 'Save global settings' }).click()
+  await expect(page.getByLabel('Saved title prompt')).toHaveText(prompt)
+  await page.getByRole('button', { name: 'Cancel settings' }).click()
+  await expect(dirty).toHaveText('false')
+
+  await changePrompt.click()
+  await expect(dialog.getByRole('button', { name: 'Reset' })).toBeEnabled()
+  await editor.click()
+  await editor.press('ControlOrMeta+End')
+  await editor.press('!')
+  await editor.press('ControlOrMeta+z')
+  await save.click()
+  await expect(dirty).toHaveText('false')
+
+  await page.getByRole('combobox', { name: 'Title model' }).click()
+  await page.getByRole('option', { name: 'Same model', exact: true }).click()
+  await expect(dirty).toHaveText('true')
+  await changePrompt.click()
+  await save.click()
+  await expect(dirty).toHaveText('true')
+  await page.getByRole('button', { name: 'Save global settings' }).click()
+  await expect(page.getByLabel('Saved title prompt')).toHaveText(prompt)
+})
+
+test('title prompts can be edited, cancelled, saved, and reset to the default', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=provider-connections')
+  const changePrompt = page.getByRole('button', {
+    name: 'Change prompt',
+    exact: true,
+  })
+  const dialog = page.getByRole('dialog', {
+    name: 'Title prompt',
+    exact: true,
+  })
+  const editor = dialog.getByRole('textbox')
+  const save = dialog.getByRole('button', { name: 'Save', exact: true })
+  const cancel = dialog.getByRole('button', { name: 'Cancel', exact: true })
+  const reset = dialog.getByRole('button', { name: 'Reset', exact: true })
+  const resetConfirmation = page.getByRole('alertdialog', {
+    name: 'Reset title prompt?',
+    exact: true,
+  })
+
+  await changePrompt.click()
+  await expect(editor).toContainText(
+    'Your task is to generate a concise title for a chat conversation.',
+  )
+  await expect(dialog.getByRole('textbox')).toHaveCount(1)
+  await editor.fill('Discard this prompt')
+  await cancel.click()
+  await changePrompt.click()
+  await expect(editor).toContainText('Return only the title.')
+
+  await editor.fill('Return a short title in Italian.')
+  await save.click()
+  await expect(dialog).toHaveCount(0)
+  await expect(page.getByLabel('Saved title prompt')).toHaveText('')
+  await changePrompt.click()
+  await expect(editor).toHaveText('Return a short title in Italian.')
+  await cancel.click()
+  await page.getByRole('button', { name: 'Save global settings' }).click()
+  await expect(page.getByLabel('Saved title prompt')).toHaveText(
+    'Return a short title in Italian.',
+  )
+  await page.getByRole('button', { name: 'Cancel settings' }).click()
+
+  await changePrompt.click()
+  await expect(editor).toHaveText('Return a short title in Italian.')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await reset.click()
+  await expect(resetConfirmation).toBeVisible()
+  await resetConfirmation
+    .getByRole('button', { name: 'Cancel', exact: true })
+    .click()
+  await expect(editor).toHaveText('Return a short title in Italian.')
+  await reset.click()
+  await resetConfirmation
+    .getByRole('button', { name: 'Reset', exact: true })
+    .click()
+  await expect(editor).toContainText('Return only the title.')
+  const resetBox = await reset.boundingBox()
+  const cancelBox = await cancel.boundingBox()
+  const saveBox = await save.boundingBox()
+  const footerBox = await dialog
+    .locator('[data-slot="dialog-footer"]')
+    .boundingBox()
+  expect(resetBox!.x + resetBox!.width).toBeLessThan(cancelBox!.x)
+  expect(cancelBox!.x).toBeLessThan(saveBox!.x)
+  expect(
+    Math.abs(saveBox!.x + saveBox!.width - footerBox!.x - footerBox!.width),
+  ).toBeLessThan(1)
+  await cancel.click()
+  await changePrompt.click()
+  await expect(editor).toHaveText('Return a short title in Italian.')
+  await reset.click()
+  await resetConfirmation
+    .getByRole('button', { name: 'Reset', exact: true })
+    .click()
+  await save.click()
+  await expect(page.getByLabel('Settings draft dirty')).toHaveText('true')
+  await page.getByRole('button', { name: 'Save global settings' }).click()
+  await expect(page.getByLabel('Saved title prompt')).toHaveText(
+    DEFAULT_TITLE_SYSTEM_PROMPT,
+  )
+})
+
+test('title models support selection, deselection, and an explicit None option', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=provider-connections')
+  const picker = page.getByRole('combobox', { name: 'Title model' })
+  await expect(picker).toHaveText('None')
+  await picker.click()
+  await page.getByRole('option', { name: 'Same model', exact: true }).click()
+  await expect(picker).toHaveText('Same model')
+  await page.getByRole('button', { name: 'Save global settings' }).click()
+  await expect(page.getByLabel('Saved title model')).toHaveText(
+    'sb-model:personal:same',
+  )
+
+  await picker.click()
+  await page.getByRole('option', { name: 'Same model', exact: true }).click()
+  await expect(picker).toHaveText('None')
+  await page.getByRole('button', { name: 'Save global settings' }).click()
+  await expect(page.getByLabel('Saved title model')).toHaveText('None')
+  await page.getByRole('button', { name: 'Cancel settings' }).click()
+  await expect(picker).toHaveText('None')
+
+  await picker.click()
+  await page.getByRole('option', { name: 'Same model', exact: true }).click()
+  await page.getByRole('button', { name: 'Save global settings' }).click()
+  await expect(page.getByLabel('Saved title model')).toHaveText(
+    'sb-model:personal:same',
+  )
+  await picker.click()
+  await page.getByRole('option', { name: 'None', exact: true }).click()
+  await expect(picker).toHaveText('None')
+})
 
 test('provider edits use global save and only manual refresh failures are displayed', async ({
   page,

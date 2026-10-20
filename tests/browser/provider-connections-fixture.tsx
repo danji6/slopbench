@@ -4,10 +4,11 @@ import { defaultSettingsValues } from '@/components/chat/entities/user/user-sett
 import { ModelPicker } from '@/components/chat/models/model-picker'
 import { Input, RippleButton } from '@/components/ui'
 import '@/globals.css'
-import { providerForm, providerSaveInput } from '@/lib/provider-settings'
+import { useUserSettingsPersistence } from '@/hooks/chat/user-settings-persistence'
+import { providerForm } from '@/lib/provider-settings'
 import { api } from '@sb/convex/_generated/api'
 import { ConvexQueryCacheProvider } from 'convex-helpers/react/cache'
-import { ConvexProvider, useMutation, useQuery } from 'convex/react'
+import { ConvexProvider, useQuery } from 'convex/react'
 import { useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 
@@ -29,42 +30,28 @@ function Settings() {
   const [saved, setSaved] = useState('')
   const [model, setModel] = useState('')
   const connections = useQuery(api.providers.list)
-  const save = useMutation(api.providers.save)
+  const settings = useQuery(api.settings.get)
   const form = useForm<SettingsFormValues>({
     defaultValues: {
       ...defaultSettingsValues(),
       displayName: 'Unrelated settings',
     },
   })
+  const persist = useUserSettingsPersistence({
+    pendingAvatar: null,
+    avatarCleared: false,
+    setPendingAvatar: () => {},
+    setAvatarCleared: () => {},
+    form,
+    draft: { clear() {} },
+  })
   const name = useWatch({ control: form.control, name: 'displayName' })
   return (
     <main className="bg-background text-foreground min-h-screen p-4">
       <form
         onSubmit={form.handleSubmit(async (values) => {
-          const result = await save({
-            connections: values.providers.map(providerSaveInput),
-            removed: (values.removedProviders ?? []).map((row) => ({
-              ...row,
-              providerId: row.providerId as never,
-            })),
-          })
+          await persist(values)
           setSaved(values.displayName)
-          form.reset({
-            ...values,
-            removedProviders: [],
-            providers: values.providers.map((row) => {
-              const saved = result.find(
-                (item) => item.clientId === (row._clientId ?? row.connectionId),
-              )!
-              return {
-                ...row,
-                connectionId: saved.providerId,
-                configRevision: saved.configRevision,
-                previewId: undefined,
-                apiKey: undefined,
-              }
-            }),
-          })
         })}
       >
         <Input
@@ -89,6 +76,10 @@ function Settings() {
           onClick={() =>
             form.reset({
               ...defaultSettingsValues(),
+              titleModel: settings?.titleModel ?? null,
+              titleSystemPrompt:
+                settings?.titleSystemPrompt ??
+                defaultSettingsValues().titleSystemPrompt,
               providers: (connections ?? []).map(providerForm),
             })
           }
@@ -97,6 +88,15 @@ function Settings() {
         </RippleButton>
       </form>
       <output aria-label="Global saved value">{saved}</output>
+      <output aria-label="Saved title model">
+        {settings?.titleModel ?? 'None'}
+      </output>
+      <output aria-label="Saved title prompt">
+        {settings?.titleSystemPrompt}
+      </output>
+      <output aria-label="Settings draft dirty">
+        {String(form.formState.isDirty)}
+      </output>
       <output aria-label="Saved connection count">{connections?.length}</output>
       <RippleButton onClick={failProviderDiscovery}>
         Simulate discovery failure

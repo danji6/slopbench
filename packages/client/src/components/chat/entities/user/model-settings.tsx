@@ -10,6 +10,7 @@ import { ProviderCard } from './provider-card'
 import { ProviderDiscovery } from './provider-discovery'
 import type { ProviderOption } from './provider-types'
 import type { ProviderFormValues, SettingsFormValues } from './settings-schema'
+import { TitleGenerationSettings } from './title-generation-settings'
 
 type Props = {
   providers?: ProviderOption[]
@@ -116,6 +117,7 @@ export function ModelSettings({ providers, form }: Props) {
           </RippleButton>
         </div>
       </SettingsList.Item>
+      <TitleGenerationSettings control={form.control} />
     </SettingsList>
   )
 }

@@ -1,3 +1,4 @@
+import { DEFAULT_TITLE_SYSTEM_PROMPT } from '@sb/core/title-generation'
 import { inline } from '@sb/core/utils/strings'
 
 import type { Doc } from '../_generated/dataModel'
@@ -77,9 +78,9 @@ export function createDefaultCompactionPrompts(): Prompt[] {
 }
 
 export const DEFAULT_SETTINGS = {
+  titleSystemPrompt: DEFAULT_TITLE_SYSTEM_PROMPT,
   scrollMode: 'follow' as 'follow' | 'into-view',
   mathMode: 'single' as MathMode,
-  autoTitle: true,
   desktopNotifications: true,
   invertSend: false,
   groupBySender: true,
