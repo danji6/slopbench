@@ -1,5 +1,4 @@
 import { PLAN_TOOL_TOGGLE } from '@sb/core/const'
-import { sha256 } from '@sb/core/sha256'
 import type { MessageRole } from '@sb/core/types'
 import { systemReminder } from '@sb/core/utils/blocks'
 import { inline } from '@sb/core/utils/strings'
@@ -238,16 +237,8 @@ async function trailingModeNote(ctx: MutationCtx, sessionId: Id<'sessions'>) {
 
 type Workspace = Session['workspace']
 
-/** Detects changes to project sources or personal-folder availability. */
-export function workspaceChanged(previous: Workspace, next: Workspace) {
-  return (
-    previous?.workspaceId !== next?.workspaceId ||
-    previous?.agentHome?.path !== next?.agentHome?.path ||
-    JSON.stringify(
-      previous?.sources?.map((s) => s.path) ?? [previous?.path],
-    ) !== JSON.stringify(next?.sources?.map((s) => s.path) ?? [next?.path])
-  )
-}
+export const WORKSPACE_CHANGE_GUIDANCE =
+  'The filesystem context changed. Re-read files you need; do not rely on earlier paths or file contents.'
 
 export function buildWorkspaceNoteContent(
   previous: Workspace,
@@ -286,44 +277,6 @@ function workspaceNoteBody(previous: Workspace, next: Workspace): string[] {
       (s, i) => `- ${s.path}${i === 0 ? ' (Primary)' : ''}`,
     ),
     'Use absolute paths for other source directories. Existing tool and path approval rules still apply.',
-    ...(previous
-      ? [
-          'The filesystem context changed. Re-read files you need; do not rely on earlier paths or file contents.',
-        ]
-      : []),
+    ...(previous ? [WORKSPACE_CHANGE_GUIDANCE] : []),
   ]
-}
-
-/** Tells the agent its workspace moved. */
-export async function injectWorkspaceNote(
-  ctx: MutationCtx,
-  session: Session,
-  next: Workspace,
-) {
-  const previous = session.workspace
-  if (!workspaceChanged(previous, next)) return
-  const content = buildWorkspaceNoteContent(previous, next)
-  if (!content) return
-
-  const sender = await resolveNoteSender(ctx, session)
-  if (!sender) return
-
-  const { messageId } = await insertMessage(
-    ctx,
-    {
-      sessionId: session._id,
-      sender: { type: 'agent', id: sender.agent._id },
-      ...sender.identity,
-      type: 'workspace',
-      role: 'system',
-      status: 'done',
-      hidden: true,
-      extra: {
-        label: next?.label,
-        fingerprint: await sha256(buildWorkspaceNoteContent(undefined, next)),
-      } satisfies MessageExtra['workspace'],
-    },
-    [{ type: 'text', text: content }],
-  )
-  return messageId
 }

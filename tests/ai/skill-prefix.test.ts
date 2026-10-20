@@ -5,6 +5,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
+import { captureRequest } from '../helpers/provider-request'
 import { skillRequests } from '../helpers/skill-requests'
 
 async function writeSkill(
@@ -239,6 +240,7 @@ test('folder renames, source changes, and personal-folder changes preserve the f
     expect(fixture.rows('sessionCache')).toEqual(initialCache)
     expect(fixture.rows('messageContents')[2]).toEqual(originalNote)
     expect(JSON.stringify(previous.messages)).toContain('Renamed repo')
+    expect(JSON.stringify(previous.messages)).toContain('Re-read files')
     expect(JSON.stringify(previous.messages.at(-1))).toContain(
       'No skills are currently available',
     )
@@ -313,46 +315,3 @@ test('agent presentation changes do not reformat previously introduced history',
     await rm(root, { recursive: true, force: true })
   }
 })
-
-async function captureRequest(
-  provider: string,
-  request: NonNullable<
-    Awaited<ReturnType<ReturnType<typeof skillRequests>['nextTurn']>>
-  >,
-) {
-  const { generateText } = await import('ai')
-  const { getProviderOptions } =
-    await import('@sb/convex/model/provider/options')
-  const { applyPromptCaching } = await import('@sb/convex/model/provider/cache')
-  let captured: Record<string, unknown> | undefined
-  const capture = (async (_url: RequestInfo | URL, init?: RequestInit) => {
-    captured = JSON.parse(String(init?.body), (key, value) =>
-      key === 'cache_control' ? undefined : value,
-    )
-    throw new Error('Captured provider request')
-  }) as unknown as typeof fetch
-  const options = await getProviderOptions(
-    'fixture-model',
-    'auto',
-    { providerId: provider, apiKey: 'fixture' },
-    undefined,
-    capture,
-  )
-  const prefix = applyPromptCaching(
-    { systemPrompt: request.systemPrompt, messages: request.messages },
-    provider,
-  )
-  await expect(
-    generateText({
-      ...options,
-      model: options.languageModel,
-      system: prefix.systemPrompt,
-      allowSystemInMessages: true,
-      messages: prefix.messages,
-      tools: request.tools,
-      maxRetries: 0,
-    }),
-  ).rejects.toThrow('Captured provider request')
-  expect(captured).toBeDefined()
-  return captured!
-}

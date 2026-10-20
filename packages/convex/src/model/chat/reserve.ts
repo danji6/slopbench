@@ -4,7 +4,6 @@ import { error } from '../../errors'
 import type { StreamCommand } from '../../types'
 import { addVersion, getActiveSegmentRow } from '../messageContents'
 import { scheduleTitle, stripMessageError } from '../messages'
-import { announceFolderContext } from '../session/folderAnnouncement'
 import { getSessionWithWorkspace } from '../session/folderContext'
 import * as Memberships from '../session/memberships'
 import { assertAgentAvailable } from '../skills/access'
@@ -39,8 +38,7 @@ export async function reserveStream(ctx: MutationCtx, args: ReserveStreamArgs) {
   const session = await getSessionWithWorkspace(ctx, args.sessionId)
   if (session?.contextLock) error('Folder sources are being updated', 409)
 
-  const announcement = session ? await announceFolderContext(ctx, session) : null // prettier-ignore
-  const boundary = announcement ?? (args.boundaryId ? await ctx.db.get(args.boundaryId) : null) // prettier-ignore
+  const boundary = args.boundaryId ? await ctx.db.get(args.boundaryId) : null
   const delayMs = args.delayMs ?? 0
 
   // Snapshot plan mode for regular invocations

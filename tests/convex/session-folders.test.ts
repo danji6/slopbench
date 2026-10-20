@@ -1,5 +1,4 @@
 import { _save, getBySessionAgent } from '@sb/convex/model/session/cache'
-import { announceFolderContext } from '@sb/convex/model/session/folderAnnouncement'
 import {
   getSessionWithWorkspace,
   workspaceKey,
@@ -363,32 +362,6 @@ describe('session folders', () => {
     expect(row('b').position).toBe(0)
   })
 })
-
-test('initial Ungrouped context does not replace an explicit history boundary', async () => {
-  const { ctx, row } = setup()
-  row('s').folderId = undefined
-  const session = await getSessionWithWorkspace(ctx, 's' as never)
-  expect(await announceFolderContext(ctx, session!)).toBeNull()
-  expect(row('s').workspaceRevision).toBe('[]')
-})
-
-test.each([undefined, 'b'])(
-  'chats without prior sources stay silent in folder %s',
-  async (folderId) => {
-    const { ctx, row, tables } = setup()
-    row('s').folderId = folderId
-    row('s').activeAgentId = 'agent'
-    const originalMessages = structuredClone(tables.messages)
-
-    for (let turn = 0; turn < 2; turn++) {
-      const session = await getSessionWithWorkspace(ctx, 's' as never)
-      expect(await announceFolderContext(ctx, session!)).toBeNull()
-    }
-
-    expect(tables.messages).toEqual(originalMessages)
-    expect(row('s').announcedWorkspace).toBeUndefined()
-  },
-)
 
 test('discovery toggles preserve cache and path approvals while updating inherited sources', async () => {
   const { ctx, row } = setup()

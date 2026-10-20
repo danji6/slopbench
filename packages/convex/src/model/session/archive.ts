@@ -1,3 +1,4 @@
+import { orderContextNotes } from '@sb/core/context-notes'
 import type { MessageRole } from '@sb/core/types/roles'
 import type { Infer } from 'convex/values'
 
@@ -18,7 +19,7 @@ import {
   notACommandChip,
   textFromParts,
 } from '../messages'
-import { orderContextNotes, portableContextExtra } from '../stream/contextNotes'
+import { portableContextExtra } from '../stream/contextNotes'
 import { getMember } from './memberships'
 import { resolveTitle } from './title'
 

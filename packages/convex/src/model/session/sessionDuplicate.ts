@@ -1,3 +1,5 @@
+import { orderContextNotes } from '@sb/core/context-notes'
+
 import type { Id } from '../../_generated/dataModel'
 import { error } from '../../errors'
 import { type AuthMutationCtx } from '../../functions'
@@ -5,7 +7,7 @@ import * as Attachments from '../attachments'
 import { insertMessage, withParts } from '../messageContents'
 import { finalizeMessageParts, notACommandChip } from '../messages'
 import { getBySession as getPlan, upsert as upsertPlan } from '../plans'
-import { orderContextNotes, portableContextExtra } from '../stream/contextNotes'
+import { portableContextExtra } from '../stream/contextNotes'
 import { getActiveStream, requireOwner } from './memberships'
 import { getState, patchState } from './state'
 

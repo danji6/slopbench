@@ -2,6 +2,7 @@ import {
   MESSAGE_WINDOW_BUDGET_BYTES,
   MESSAGE_WINDOW_MAX_ROWS,
 } from '@sb/core/const'
+import { orderContextNotes } from '@sb/core/context-notes'
 import type { UIMessage } from 'ai'
 import { dequal } from 'dequal'
 
@@ -81,6 +82,8 @@ export type MessageStore = ReturnType<typeof createMessageStore>
 
 export function createMessageStore() {
   let ids: string[] = []
+  // Retention follows database order even when notes display before their anchors
+  let retainedIds: string[] = []
   let messagesById = new Map<string, UIMessage>()
   let results: UIMessage[] = []
   let messageMetaByMessage = new Map<string, MessageRecord>()
@@ -122,6 +125,7 @@ export function createMessageStore() {
   const evict = (messageId: string) => {
     if (!messagesById.has(messageId)) return
     ids = ids.filter((id) => id !== messageId)
+    retainedIds = retainedIds.filter((id) => id !== messageId)
     messagesById = mapWithout(messagesById, messageId)
     results = results.filter((message) => message.id !== messageId)
     messageMetaByMessage = mapWithout(messageMetaByMessage, messageId)
@@ -144,7 +148,12 @@ export function createMessageStore() {
     const merged = merge
       ? limitRetained(
           mergeRetained(
-            { ids, messagesById, messageMetaByMessage, partMetaByMessage },
+            {
+              ids: retainedIds,
+              messagesById,
+              messageMetaByMessage,
+              partMetaByMessage,
+            },
             input,
           ),
           {
@@ -156,7 +165,6 @@ export function createMessageStore() {
 
     const nextMap = new Map<string, UIMessage>()
     const nextIds: string[] = []
-    const stabilized: UIMessage[] = []
 
     for (const message of merged.results) {
       const previous = messagesById.get(message.id)
@@ -165,15 +173,20 @@ export function createMessageStore() {
       if (kept !== previous) changed = true
       nextMap.set(message.id, kept)
       nextIds.push(message.id)
-      stabilized.push(kept)
     }
 
-    if (!arrayEqual(ids, nextIds)) {
-      ids = nextIds
+    retainedIds = nextIds
+
+    const displayIds = orderContextNotes(
+      nextIds.map((_id) => ({ ...merged.messageMetaByMessage.get(_id), _id })),
+    ).map((message) => message._id)
+    if (!arrayEqual(ids, displayIds)) {
+      ids = displayIds
       changed = true
     }
+
     messagesById = nextMap
-    results = stabilized
+    results = ids.map((id) => nextMap.get(id)!)
 
     const nextMessageMeta = stableMap(
       messageMetaByMessage,

@@ -1,5 +1,6 @@
 import type { ActionCtx } from '@sb/convex/_generated/server'
 import { prepare } from '@sb/convex/actions/stream/engineSetup'
+import { reserveStream } from '@sb/convex/model/chat/reserve'
 import { _save, getBySessionAgent } from '@sb/convex/model/session/cache'
 import { folderWorkspace } from '@sb/convex/model/session/folderTree'
 import { prepareSkillContext } from '@sb/convex/model/skills/context'
@@ -95,7 +96,7 @@ export function skillRequests(root: string) {
     ) => {
       switch (getFunctionName(reference)) {
         case 'streams:_getContext': {
-          const stream = await db.get('stream')
+          const stream = await db.get((args as StreamExecutionArgs).streamId)
           if (stream?.generation !== (args as StreamExecutionArgs).generation)
             return null
           const output = await db.get(
@@ -103,7 +104,7 @@ export function skillRequests(root: string) {
               .processingMessageId,
           )
           return {
-            stream: structuredClone(await db.get('stream')),
+            stream: structuredClone(stream),
             session: {
               ...session,
               workspace: folderWorkspace(folder as never),
@@ -165,7 +166,7 @@ export function skillRequests(root: string) {
   } as unknown as ActionCtx
 
   async function nextTurn(text = 'Continue') {
-    const previous = await db.get('stream')
+    const previous = await db.get(execution.streamId)
     if (previous) {
       const outputId = (previous.state as { processingMessageId: string })
         .processingMessageId
@@ -174,6 +175,7 @@ export function skillRequests(root: string) {
         (row) => row.messageId === outputId,
       )!
       content.parts = [{ type: 'text', text: 'Previous reply' }]
+      await db.delete(previous._id)
     }
     const messageId = await db.insert('messages', {
       sessionId: session._id,
@@ -190,6 +192,20 @@ export function skillRequests(root: string) {
       segmentIndex: 0,
       parts: [{ type: 'text', text }],
     })
+    rows('sessionAgents').splice(0, rows('sessionAgents').length, {
+      _id: 'link',
+      sessionId: session._id,
+      agentId: agent._id,
+    })
+    const streamId = await reserveStream(fixture.ctx, {
+      sessionId: session._id as never,
+      agentId: agent._id as never,
+      invokedBy: 'owner' as never,
+      boundaryId: messageId as never,
+      command: { kind: 'invoke' },
+    })
+    if (!streamId) throw new Error('Expected a reserved stream')
+    execution.streamId = streamId
     const outputId = await db.insert('messages', {
       sessionId: session._id,
       status: 'processing',
@@ -204,23 +220,13 @@ export function skillRequests(root: string) {
       segmentIndex: 0,
       parts: [],
     })
-    const stream = {
-      _id: 'stream',
-      generation: 1,
-      sessionId: 'session',
-      agentId: agent._id,
-      invokedBy: 'owner',
-      command: { kind: 'invoke' },
+    await db.patch(streamId, {
       state: {
         phase: 'streaming',
         processingMessageId: outputId,
         processingContentId: contentId,
       },
-      contextBoundaryCreationTime: (await db.get(messageId))!._creationTime,
-    }
-    const index = rows('streams').findIndex((row) => row._id === 'stream')
-    if (index >= 0) rows('streams')[index] = stream
-    else rows('streams').push(stream)
+    })
     return prepare(action, execution)
   }
 

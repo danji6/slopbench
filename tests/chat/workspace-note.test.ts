@@ -1,8 +1,5 @@
 /// <reference types="bun-types" />
-import {
-  buildWorkspaceNoteContent,
-  workspaceChanged,
-} from '@sb/convex/model/chat/notes'
+import { buildWorkspaceNoteContent } from '@sb/convex/model/chat/notes'
 import { describe, expect, test } from 'bun:test'
 
 const ws = (label: string) => ({
@@ -11,7 +8,7 @@ const ws = (label: string) => ({
   path: `/srv/${label}`,
 })
 
-describe('workspaceChanged', () => {
+describe('personal-folder guidance', () => {
   test('personal-folder guidance follows availability even when project sources stay unchanged', () => {
     const project = ws('same')
     const home = {
@@ -21,41 +18,10 @@ describe('workspaceChanged', () => {
       revision: 0,
     }
     const personal = { ...project, agentHome: home }
-    expect(workspaceChanged(project, personal)).toBe(true)
-    expect(workspaceChanged(personal, project)).toBe(true)
-    expect(
-      workspaceChanged(personal, {
-        ...project,
-        agentHome: { ...home, path: '/other' },
-      }),
-    ).toBe(true)
-    expect(
-      workspaceChanged(personal, {
-        ...project,
-        agentHome: { ...home, revision: 1 },
-      }),
-    ).toBe(false)
     expect(buildWorkspaceNoteContent(project, personal)).toContain('agent://')
     const detached = buildWorkspaceNoteContent(personal, project)
     expect(detached).toContain('personal folder is no longer available')
     expect(detached).not.toContain('agent://')
-  })
-
-  test('changing sources within the same folder counts as a change', () => {
-    const previous = { ...ws('old'), workspaceId: 'ws_shared' }
-    const next = { ...ws('new'), workspaceId: 'ws_shared' }
-
-    expect(workspaceChanged(previous, next)).toBe(true)
-  })
-
-  test('unchanged folder sources are not a change', () => {
-    expect(workspaceChanged(ws('same'), ws('same'))).toBe(false)
-  })
-
-  test('binding and unbinding are changes', () => {
-    expect(workspaceChanged(undefined, ws('new'))).toBe(true)
-    expect(workspaceChanged(ws('old'), undefined)).toBe(true)
-    expect(workspaceChanged(undefined, undefined)).toBe(false)
   })
 })
 
@@ -107,10 +73,4 @@ test('reminders enumerate all source roots and identify only the first as primar
   expect(note).toContain('- /srv/project (Primary)')
   expect(note).toContain('- /srv/library')
   expect(note).toContain('Use absolute paths for other source directories')
-  expect(
-    workspaceChanged(context, {
-      ...context,
-      sources: [...context.sources].reverse(),
-    }),
-  ).toBe(true)
 })

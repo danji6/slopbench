@@ -5,7 +5,6 @@ import { injectModeNote } from '../chat/notes'
 import { injectDueReminders } from '../chat/reminders'
 import { insertMessage } from '../messageContents'
 import { notACommandChip, notAUserKilledReport } from '../messages'
-import { announceFolderContext } from '../session/folderAnnouncement'
 import { getSessionWithWorkspace } from '../session/folderContext'
 import { scheduleStream } from './execution'
 import { STREAM_LEASE_MS } from './lifecycleClaims'
@@ -88,8 +87,6 @@ export async function reserveInvokeTurn(
   if (session.contextLock) return
   if (session.settings?.disabled) return
   if (!session.activeAgentId) return
-  const announcement = await announceFolderContext(ctx, session)
-  boundaryMessage = announcement ?? boundaryMessage
 
   const agent = await ctx.db.get(session.activeAgentId)
   if (!agent || agent.fileOperationId) return

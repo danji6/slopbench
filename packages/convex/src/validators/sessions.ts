@@ -8,7 +8,6 @@ import { modelSelectionValidator, tokenUsageValidator } from './providers'
 import { sessionArchiveValidator } from './sessionArchives'
 import { sessionModeValidator } from './sessionModes'
 import { toolManifestValidator } from './tools'
-import { workspaceRefValidator } from './workspaces'
 
 export const listSessionsArgsValidator = v.object({
   paginationOpts: paginationOptsValidator,
@@ -87,8 +86,6 @@ export const sessionSchema = v.object({
   reasoningEffort: v.optional(v.string()),
   folderId: v.optional(v.id('sessionFolders')),
   contextLock: v.optional(v.string()),
-  workspaceRevision: v.optional(v.string()),
-  announcedWorkspace: v.optional(workspaceRefValidator),
   parent: v.optional(sessionParentValidator),
   lastMessageAt: v.optional(v.number()),
   lastMessagePreview: v.optional(v.string()),

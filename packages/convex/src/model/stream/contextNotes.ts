@@ -1,7 +1,11 @@
+import { isContextNote } from '@sb/core/context-notes'
+import { systemReminder } from '@sb/core/utils/blocks'
+
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import type { PrepareContextNoteArgs, RunningStream } from '../../types'
 import { agentIdentity } from '../chat/identities'
+import { WORKSPACE_CHANGE_GUIDANCE } from '../chat/notes'
 import { insertMessage } from '../messageContents'
 import { ownsExecution } from '../stream/execution'
 
@@ -26,9 +30,10 @@ export async function prepareContextNote(
 
   const previous = await latestContext(ctx, stream, type)
   const unchanged = matchesContext(previous, stream.agentId, args.fingerprint)
+  const content = contextNoteContent(args.content, type, previous)
   const noteId = unchanged
     ? undefined
-    : await insertContextNote(ctx, stream, agent, args, type)
+    : await insertContextNote(ctx, stream, agent, { ...args, content }, type)
 
   await ctx.db.patch(
     stream._id,
@@ -41,6 +46,16 @@ export async function prepareContextNote(
   )
 
   return true
+}
+
+/** Preserves the source transition guidance when replacing an earlier context. */
+function contextNoteContent(
+  content: string,
+  type: 'skills' | 'workspace',
+  previous: Doc<'messages'> | null,
+) {
+  if (type !== 'workspace' || !previous) return content
+  return `${content}\n\n${systemReminder(WORKSPACE_CHANGE_GUIDANCE)}`
 }
 
 function matchesContext(
@@ -125,35 +140,6 @@ async function summaryFloor(
     .order('desc')
     .first()
   return summary?.summaryBoundaryCreationTime ?? summary?._creationTime ?? 0
-}
-
-/** Places each note before the assistant output whose request first consumed it. */
-export function orderContextNotes<
-  T extends Pick<Doc<'messages'>, '_id' | 'type' | 'extra'>,
->(messages: T[]): T[] {
-  const anchored = new Map<string, T[]>()
-  const ids = new Set(messages.map((message) => message._id))
-  const remaining = messages.filter((message) => {
-    const anchor = contextNoteAnchor(message)
-    if (!anchor || !ids.has(anchor)) return true
-    anchored.set(anchor, [...(anchored.get(anchor) ?? []), message])
-    return false
-  })
-  return remaining.flatMap((message) => [
-    ...(anchored.get(message._id) ?? []),
-    message,
-  ])
-}
-
-function contextNoteAnchor(message: Pick<Doc<'messages'>, 'type' | 'extra'>) {
-  if (!isContextNote(message.type) || !message.extra) return undefined
-  if (!('anchorMessageId' in message.extra)) return undefined
-  return message.extra.anchorMessageId
-}
-
-/** Identifies immutable context prepared before a provider invocation. */
-export function isContextNote(type: Doc<'messages'>['type']) {
-  return type === 'skills' || type === 'workspace'
 }
 
 /** Removes local ordering references when copying an already ordered transcript. */

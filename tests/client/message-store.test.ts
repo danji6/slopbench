@@ -80,6 +80,88 @@ function segmentedInput(indices: number[]): MessageStoreInput {
   }
 }
 
+function contextInput(ids: string[]): MessageStoreInput {
+  const value = input(ids)
+  for (const [id, type] of [
+    ['W', 'workspace'],
+    ['S', 'skills'],
+  ] as const) {
+    if (!ids.includes(id)) continue
+    value.messageMetaByMessage.set(id, {
+      ...record(id),
+      type,
+      hidden: true,
+      extra: { anchorMessageId: 'A' as never },
+    })
+    value.results = value.results.map((item) =>
+      item.id === id ? { ...item, role: 'system' } : item,
+    )
+  }
+  return value
+}
+
+describe('context note display order', () => {
+  test('places incoming notes before the streaming answer and keeps them there on completion', () => {
+    const store = createMessageStore()
+    const pending = contextInput(['U', 'A'])
+    pending.results[1] = { ...message('A'), parts: [] }
+    store.sync(pending)
+
+    const streaming = contextInput(['U', 'A', 'W', 'S'])
+    streaming.results[1].parts = [
+      { type: 'text', text: 'Reply', state: 'streaming' },
+    ]
+    store.sync(streaming)
+    expect(store.getIds()).toEqual(['U', 'W', 'S', 'A'])
+    expect(store.getResults().map((item) => item.id)).toEqual(store.getIds())
+    expect([...new Set(store.getRows().map((row) => row.messageId))]).toEqual(
+      store.getIds(),
+    )
+    expect(store.getIsLast('A')).toBe(true)
+
+    store.sync(contextInput(['U', 'A', 'W', 'S']))
+    expect(store.getIds()).toEqual(['U', 'W', 'S', 'A'])
+  })
+
+  test('retains the anchor when the live page starts at a newer note', () => {
+    const store = createMessageStore()
+    store.sync(contextInput(['U', 'A', 'W', 'S']))
+    store.sync(contextInput(['W', 'S', 'N']))
+    expect(store.getIds()).toEqual(['U', 'W', 'S', 'A', 'N'])
+    expect(store.getMessage('A')).not.toBeNull()
+  })
+
+  test('does not retain a deleted note that displayed before the live boundary', () => {
+    const store = createMessageStore()
+    store.sync(contextInput(['U', 'A', 'W', 'S']))
+    store.sync(contextInput(['A', 'S']))
+    expect(store.getIds()).toEqual(['U', 'S', 'A'])
+    expect(store.getMessage('W')).toBeNull()
+  })
+
+  test('keeps notes with unloaded anchors and reorders them when loading older history', () => {
+    const store = createMessageStore()
+    const tail = contextInput(['W', 'S', 'N'])
+    tail.meta.isAtLiveTail = false
+    store.sync(tail)
+    expect(store.getIds()).toEqual(['W', 'S', 'N'])
+
+    const history = contextInput(['U', 'A', 'W', 'S', 'N'])
+    history.meta.isAtLiveTail = false
+    store.sync(history)
+    expect(store.getIds()).toEqual(['U', 'W', 'S', 'A', 'N'])
+  })
+
+  test('eviction removes a note from retention as well as display order', () => {
+    const store = createMessageStore()
+    store.sync(contextInput(['U', 'A', 'W', 'S']))
+    store.sync(contextInput(['S', 'N']))
+    store.evict('W')
+    store.sync(contextInput(['S', 'N']))
+    expect(store.getIds()).toEqual(['U', 'S', 'A', 'N'])
+  })
+})
+
 describe('message store evict', () => {
   test('removes a message retained past the live window', () => {
     const store = createMessageStore()

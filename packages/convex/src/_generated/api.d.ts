@@ -167,7 +167,6 @@ import type * as model_scheduledEvents from "../model/scheduledEvents.js";
 import type * as model_session_agents from "../model/session/agents.js";
 import type * as model_session_archive from "../model/session/archive.js";
 import type * as model_session_cache from "../model/session/cache.js";
-import type * as model_session_folderAnnouncement from "../model/session/folderAnnouncement.js";
 import type * as model_session_folderContext from "../model/session/folderContext.js";
 import type * as model_session_folderMoves from "../model/session/folderMoves.js";
 import type * as model_session_folderTransitionLocks from "../model/session/folderTransitionLocks.js";
@@ -502,7 +501,6 @@ declare const fullApi: ApiFromModules<{
   "model/session/agents": typeof model_session_agents;
   "model/session/archive": typeof model_session_archive;
   "model/session/cache": typeof model_session_cache;
-  "model/session/folderAnnouncement": typeof model_session_folderAnnouncement;
   "model/session/folderContext": typeof model_session_folderContext;
   "model/session/folderMoves": typeof model_session_folderMoves;
   "model/session/folderTransitionLocks": typeof model_session_folderTransitionLocks;

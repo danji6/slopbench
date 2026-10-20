@@ -1,3 +1,4 @@
+import { orderContextNotes } from '@sb/core/context-notes'
 import { isKnownTextFile } from '@sb/core/workspace/files'
 
 import type { Doc, Id } from '../../_generated/dataModel'
@@ -26,7 +27,6 @@ import { countParticipants, getMembership } from '../session/memberships'
 import { getApprovals, getState } from '../session/state'
 import { getByOwnerId as getSettings } from '../settings'
 import { agentWithHome } from '../skills/homes'
-import { orderContextNotes } from '../stream/contextNotes'
 import { ownsExecution } from './execution'
 
 /** Returns a list of session ids that have ongoing streams. */
