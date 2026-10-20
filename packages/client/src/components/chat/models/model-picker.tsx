@@ -1,4 +1,8 @@
-import { Combobox, type ComboboxTriggerProps } from '@/components/ui'
+import {
+  Combobox,
+  type ComboboxContentProps,
+  type ComboboxTriggerProps,
+} from '@/components/ui'
 import { useModels } from '@/hooks/chat'
 import { useProviderDiscoveryCoordinator } from '@/hooks/chat/provider-discovery'
 import type { UIModel } from '@/lib/chat'
@@ -7,6 +11,7 @@ import { useMemo, useState } from 'react'
 
 export type ModelPickerProps = ComboboxTriggerProps & {
   className?: string
+  side?: ComboboxContentProps['side']
   disabled?: boolean
   value: string
   onValueChange: (value: string) => void
@@ -18,6 +23,7 @@ export type ModelPickerProps = ComboboxTriggerProps & {
 export function ModelPicker({
   disabled = false,
   className,
+  side,
   value,
   onValueChange,
   selectedModel,
@@ -79,6 +85,7 @@ export function ModelPicker({
         </Combobox.DisplayValue>
       </Combobox.Trigger>
       <Combobox.Content
+        side={side}
         align="start"
         className={
           inheritLabel
@@ -101,6 +108,7 @@ export function ModelPicker({
                 <Combobox.Item
                   key={model.id}
                   value={model.id}
+                  searchText={model.label ?? model.id}
                   disabled={model.available === false}
                 >
                   {model.label ?? model.id}

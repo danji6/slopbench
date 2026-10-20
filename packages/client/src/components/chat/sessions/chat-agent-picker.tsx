@@ -65,6 +65,7 @@ export function ChatAgentPicker({
           <PickerField label="Model">
             <ModelPicker
               className="w-full"
+              side="top"
               value={modelSettings.model?.id ?? ''}
               selectedModel={modelSettings.model}
               onValueChange={modelSettings.setModel}

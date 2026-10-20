@@ -1,6 +1,59 @@
 import { expect, test } from '@playwright/test'
 import { DEFAULT_TITLE_SYSTEM_PROMPT } from '@sb/core/title-generation'
 
+for (const titleModel of [false, true]) {
+  test(`model search matches display names and ignores opaque references (title=${titleModel})`, async ({
+    page,
+  }) => {
+    await page.goto('/?fixture=provider-connections')
+    await page.getByText('Personal API', { exact: true }).click()
+    await page
+      .getByRole('button', { name: 'Enable New discovered model' })
+      .click()
+    await page.getByRole('button', { name: 'Save global settings' }).click()
+
+    const picker = titleModel
+      ? page.getByRole('combobox', { name: 'Title model' })
+      : page.getByRole('combobox', { name: 'Composer model' })
+    await picker.click()
+    const search = page.getByPlaceholder('Search…', { exact: true })
+    const same = page.getByRole('option', { name: 'Same model', exact: true })
+    const discovered = page.getByRole('option', {
+      name: 'New discovered model',
+      exact: true,
+    })
+
+    await search.fill('DISCOVERED')
+    await expect(discovered).toBeVisible()
+    await expect(same).toHaveCount(0)
+    await search.fill('Same model')
+    await expect(same).toBeVisible()
+    await expect(discovered).toHaveCount(0)
+    await search.fill('personal')
+    await expect(
+      page.getByText('No models found.', { exact: true }),
+    ).toBeVisible()
+    await expect(page.getByRole('option')).toHaveCount(0)
+
+    await search.clear()
+    await expect(same).toBeVisible()
+    await expect(discovered).toBeVisible()
+    await search.fill('DISCOVERED')
+    await search.press('Enter')
+    await expect(picker).toHaveText('New discovered model')
+    await expect(search).toBeHidden()
+    if (!titleModel) {
+      await expect(page.getByLabel('Selected reference')).toHaveText(
+        'sb-model:personal:new',
+      )
+    }
+    await picker.click()
+    await expect(search).toHaveValue('')
+    await expect(same).toBeVisible()
+    await expect(discovered).toBeVisible()
+  })
+}
+
 test('unchanged title prompts keep the settings draft clean', async ({
   page,
 }) => {

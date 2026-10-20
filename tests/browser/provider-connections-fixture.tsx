@@ -101,7 +101,11 @@ function Settings() {
       <RippleButton onClick={failProviderDiscovery}>
         Simulate discovery failure
       </RippleButton>
-      <ModelPicker value={model} onValueChange={setModel} />
+      <ModelPicker
+        aria-label="Composer model"
+        value={model}
+        onValueChange={setModel}
+      />
       <output aria-label="Selected reference">{model}</output>
     </main>
   )
