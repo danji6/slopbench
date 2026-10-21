@@ -1,6 +1,8 @@
 import type { Id } from '@sb/convex/_generated/dataModel'
 import type { ActionCtx } from '@sb/convex/_generated/server'
 import { _getExecution, replaceAll } from '@sb/convex/model/mcp'
+import * as CatalogAccess from '@sb/convex/model/mcpCatalogAccess'
+import * as Catalogs from '@sb/convex/model/mcpCatalogs'
 import * as Operations from '@sb/convex/model/mcpOperations'
 import { connected } from '@sb/convex/model/mcpRuntime'
 import { _heartbeat, _patchMessage } from '@sb/convex/model/stream/lifecycle'
@@ -10,8 +12,8 @@ import { getFunctionName } from 'convex/server'
 import { operationFixture } from './mcp-operations'
 import { skillsDatabase } from './skills-db'
 
-export async function mcpBackendFixture() {
-  const sidecar = await operationFixture()
+export async function mcpBackendFixture(fixture?: URL) {
+  const sidecar = await operationFixture(fixture)
   await sidecar.registry.disconnect(sidecar.scope)
   const database = skillsDatabase()
   const { ctx, db } = database
@@ -19,10 +21,11 @@ export async function mcpBackendFixture() {
   db.insert = (table, fields) =>
     originalInsert(table, { _creationTime: Date.now(), ...fields })
   const blobs = new Map<string, Blob>()
+  let nextBlob = 0
   Object.assign(ctx, {
     storage: {
       store: async (blob: Blob) => {
-        const id = `blob-${blobs.size}`
+        const id = `blob-${nextBlob++}`
         blobs.set(id, blob)
         return id
       },
@@ -134,6 +137,19 @@ export async function mcpBackendFixture() {
   const action = {
     storage: ctx.storage,
     runQuery: async (ref: Reference, input: unknown) => {
+      const reference = getFunctionName(ref)
+      const catalogQueries = {
+        _launch: Catalogs.launch,
+        _references: Catalogs.references,
+        _target: CatalogAccess.target,
+        _search: CatalogAccess.search,
+        _available: CatalogAccess.available,
+        _definitionAccess: CatalogAccess.definitionAccess,
+      }
+      if (reference.startsWith('mcpCatalogs:'))
+        return catalogQueries[
+          reference.split(':')[1] as keyof typeof catalogQueries
+        ](ctx, input as never)
       if (getFunctionName(ref) === 'streams:_isActive') {
         const stream = await db.get(execution.streamId)
         return (
@@ -150,6 +166,18 @@ export async function mcpBackendFixture() {
       )
     },
     runMutation: async (ref: Reference, input: unknown) => {
+      const reference = getFunctionName(ref)
+      const catalogMutations = {
+        begin: Catalogs.begin,
+        _append: Catalogs.append,
+        _publish: Catalogs.publish,
+        _fail: Catalogs.fail,
+        _expire: Catalogs.expire,
+      }
+      if (reference.startsWith('mcpCatalogs:'))
+        return catalogMutations[
+          reference.split(':')[1] as keyof typeof catalogMutations
+        ](ctx, input as never)
       const name = getFunctionName(ref).split(':')[1]
       if (name === '_saveLog') return true
       if (name === '_heartbeat')

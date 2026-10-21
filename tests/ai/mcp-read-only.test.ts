@@ -3,7 +3,12 @@ import { createExternalMcpTool } from '@sb/convex/model/tool/mcp'
 import type { McpServer } from '@sb/core/types'
 import { afterEach, expect, spyOn, test } from 'bun:test'
 
-const entry = { name: 'fixture_echo', serverId: 'fixture', toolName: 'echo' }
+const entry = {
+  name: 'fixture_echo',
+  serverId: 'fixture',
+  toolName: 'echo',
+  inputSchema: '{"type":"object"}',
+}
 const server: McpServer = {
   id: 'fixture',
   label: 'Fixture',

@@ -27,6 +27,8 @@ export const mcpToolMetaSchema = z.object({
   description: z.string().optional(),
   descriptionOverride: z.string().optional(),
   inputSchema: z.string().optional(),
+  enabled: z.boolean().optional(),
+  diagnostic: z.string().optional(),
 })
 
 export const mcpServerSchema = z
@@ -34,6 +36,7 @@ export const mcpServerSchema = z
     id: z.string(),
     /** Set once the server exists in the database. */
     serverId: z.string().optional(),
+    catalogId: z.string().optional(),
     label: z.string(),
     url: z.string(),
     command: z.string().optional(),
@@ -50,6 +53,7 @@ export const mcpServerSchema = z
     /** Whether a key is already set in the database. */
     hasKey: z.boolean().default(false),
     enabled: z.boolean(),
+    brokerEnabled: z.boolean().optional(),
     tools: z.array(mcpToolMetaSchema).optional(),
     _clientId: z.string().optional(),
   })

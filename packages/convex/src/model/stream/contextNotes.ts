@@ -9,20 +9,18 @@ import { WORKSPACE_CHANGE_GUIDANCE } from '../chat/notes'
 import { insertMessage } from '../messageContents'
 import { ownsExecution } from '../stream/execution'
 
-/** Records immutable context once per logical invocation, including retries. */
+type ContextType = 'skills' | 'workspace' | 'mcp'
+
+/** Records immutable context while deduplicating retries and unchanged snapshots. */
 export async function prepareContextNote(
   ctx: MutationCtx,
   args: PrepareContextNoteArgs,
-  type: 'skills' | 'workspace',
+  type: ContextType,
 ) {
   const stream = await ctx.db.get(args.streamId)
   if (!ownsExecution(stream, args)) return false
 
-  const prepared =
-    type === 'skills'
-      ? stream.skillContextPrepared
-      : stream.workspaceContextPrepared
-  if (prepared) return true
+  if (contextPrepared(stream, args.fingerprint, type)) return true
 
   const user = await ctx.db.get(stream.invokedBy)
   const agent = await ctx.db.get(stream.agentId)
@@ -35,23 +33,44 @@ export async function prepareContextNote(
     ? undefined
     : await insertContextNote(ctx, stream, agent, { ...args, content }, type)
 
-  await ctx.db.patch(
-    stream._id,
-    type === 'skills'
-      ? {
-          skillContextPrepared: true,
-          skillContextMessageId: noteId,
-        }
-      : { workspaceContextPrepared: true, workspaceContextMessageId: noteId },
-  )
+  await ctx.db.patch(stream._id, contextPatch(type, args.fingerprint, noteId))
 
   return true
+}
+
+function contextPrepared(
+  stream: Doc<'streams'>,
+  fingerprint: string,
+  type: ContextType,
+) {
+  if (type === 'mcp') return stream.mcpContextFingerprint === fingerprint
+  return type === 'skills'
+    ? stream.skillContextPrepared
+    : stream.workspaceContextPrepared
+}
+
+function contextPatch(
+  type: ContextType,
+  fingerprint: string,
+  noteId?: Id<'messages'>,
+) {
+  switch (type) {
+    case 'mcp':
+      return { mcpContextFingerprint: fingerprint, mcpContextMessageId: noteId }
+    case 'skills':
+      return { skillContextPrepared: true, skillContextMessageId: noteId }
+    case 'workspace':
+      return {
+        workspaceContextPrepared: true,
+        workspaceContextMessageId: noteId,
+      }
+  }
 }
 
 /** Preserves the source transition guidance when replacing an earlier context. */
 function contextNoteContent(
   content: string,
-  type: 'skills' | 'workspace',
+  type: ContextType,
   previous: Doc<'messages'> | null,
 ) {
   if (type !== 'workspace' || !previous) return content
@@ -75,7 +94,7 @@ async function insertContextNote(
   stream: RunningStream,
   agent: Doc<'agents'>,
   args: PrepareContextNoteArgs,
-  type: 'skills' | 'workspace',
+  type: ContextType,
 ) {
   const { messageId } = await insertMessage(
     ctx,
@@ -101,7 +120,7 @@ async function insertContextNote(
 async function latestContext(
   ctx: MutationCtx,
   stream: Doc<'streams'>,
-  type: 'skills' | 'workspace',
+  type: ContextType,
 ) {
   const upper = stream.contextBoundaryCreationTime ?? Number.MAX_SAFE_INTEGER
   const floor = await summaryFloor(ctx, stream.sessionId, upper)
@@ -162,4 +181,11 @@ export async function prepareWorkspaceContext(
   args: PrepareContextNoteArgs,
 ) {
   return prepareContextNote(ctx, args, 'workspace')
+}
+
+export async function prepareMcpContext(
+  ctx: MutationCtx,
+  args: PrepareContextNoteArgs,
+) {
+  return prepareContextNote(ctx, args, 'mcp')
 }

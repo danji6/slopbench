@@ -108,7 +108,12 @@ test('accelerated engine window detaches and resumes one invocation across a rea
       toolName: 'work',
     })
   const tool = await createExternalMcpTool(
-    { name: 'local_work', serverId: 'local', toolName: 'work' },
+    {
+      name: 'local_work',
+      serverId: 'local',
+      toolName: 'work',
+      inputSchema: '{"type":"object"}',
+    },
     [],
     live,
     (runtimeId, key, bootId, generation) =>
@@ -286,7 +291,12 @@ test('the tool wrapper serves a completed retry after session loss without recon
   await f.sidecar.registry.disconnect(operation.scope)
   const requests = f.requestCount()
   const tool = await createExternalMcpTool(
-    { name: 'local_work', serverId: 'local', toolName: 'work' },
+    {
+      name: 'local_work',
+      serverId: 'local',
+      toolName: 'work',
+      inputSchema: '{"type":"object"}',
+    },
     [],
     async () => {
       throw new Error('Completed retry must not authorize a new connection')

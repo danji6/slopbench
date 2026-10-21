@@ -5,6 +5,7 @@ import {
   TODO_TOOL_TOGGLE,
 } from '@sb/core/const'
 import { mcpToolDescription, mcpToolName } from '@sb/core/types'
+import { mcpServerSelection } from '@sb/core/types/mcp-catalog'
 
 import type { AuthQueryCtx } from '../../functions'
 import { minRole } from '../../lib/roles'
@@ -85,7 +86,17 @@ export async function listTools(ctx: AuthQueryCtx): Promise<ToolMeta[]> {
   const external: ToolMeta[] = []
   for (const server of enabledMcpServers(servers)) {
     if (server.transport === 'stdio' && !minRole(ctx.role, 'admin')) continue
+    if (server.brokerEnabled) {
+      external.push({
+        name: mcpServerSelection(server),
+        label: `${server.label} (MCP broker)`,
+        description: `Search and call enabled tools from ${server.label}.`,
+        category: 'mcp',
+      })
+    }
     for (const meta of server.tools ?? []) {
+      if (meta.enabled === false || meta.diagnostic) continue
+      if (server.brokerEnabled) continue
       external.push({
         name: mcpToolName(server, meta),
         description: mcpToolDescription(meta),

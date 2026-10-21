@@ -10,7 +10,10 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-export async function operationFixture() {
+export async function operationFixture(
+  fixture?: URL,
+  fixtureArgs: string[] = [],
+) {
   const root = await mkdtemp(path.join(tmpdir(), 'sb-mcp-operation-'))
   const registry = new McpRegistry()
   const scope: McpRuntimeScope = {
@@ -27,8 +30,10 @@ export async function operationFixture() {
     args: [
       ...(process.versions.bun ? ['--no-env-file'] : []),
       fileURLToPath(
-        new URL('../mcp/fixtures/long-operation.mjs', import.meta.url),
+        fixture ??
+          new URL('../mcp/fixtures/long-operation.mjs', import.meta.url),
       ),
+      ...fixtureArgs,
     ],
   })
   const status = await registry.connect(scope, connection)

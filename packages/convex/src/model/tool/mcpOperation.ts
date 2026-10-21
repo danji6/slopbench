@@ -13,6 +13,11 @@ export type McpOperationContext = {
   ctx: ActionCtx
   execution: StreamExecutionArgs
   messageId: Id<'messages'>
+  broker?: {
+    serverId: Id<'mcpServers'>
+    toolId: Id<'mcpCatalogTools'>
+    arguments: unknown
+  }
 }
 
 type Invocation = {
@@ -45,6 +50,8 @@ export async function executeMcpOperation(
     name: input.name,
     toolCallId: input.toolCallId,
     args: JSON.stringify(input.args),
+    input: context.broker ? JSON.stringify(context.broker) : undefined,
+    catalogToolId: context.broker?.toolId,
   })
   return finishOperation(context, operation, input.signal)
 }
@@ -82,6 +89,8 @@ export function findMcpOperation(
     name: input.name,
     toolCallId: input.toolCallId,
     args: JSON.stringify(input.args),
+    input: context.broker ? JSON.stringify(context.broker) : undefined,
+    catalogToolId: context.broker?.toolId,
   })
 }
 

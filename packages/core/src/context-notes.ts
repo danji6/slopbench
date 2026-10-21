@@ -31,5 +31,5 @@ function contextNoteAnchor(message: ContextNoteMessage) {
 
 /** Identifies immutable context prepared before a provider invocation. */
 export function isContextNote(type: string | undefined) {
-  return type === 'skills' || type === 'workspace'
+  return type === 'skills' || type === 'workspace' || type === 'mcp'
 }

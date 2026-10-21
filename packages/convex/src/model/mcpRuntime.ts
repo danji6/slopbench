@@ -1,7 +1,6 @@
 import type { McpRuntimeScope } from '@sb/core/types'
 import type { McpServer } from '@sb/core/types'
 import { mcpConnectionSchema } from '@sb/core/types'
-import { mcpToolName } from '@sb/core/types'
 
 import { internal } from '../_generated/api'
 import type { Doc, Id } from '../_generated/dataModel'
@@ -20,6 +19,7 @@ import type {
 } from '../types'
 import { resolve } from './mcp'
 import { cancelForRuntime } from './mcpOperations'
+import { isMcpToolSelected } from './mcpToolPolicy'
 import { getSessionWithWorkspace, workspaceKey } from './session/folderContext'
 import { getMembership } from './session/memberships'
 
@@ -229,9 +229,7 @@ export async function isAuthorized(
   if (String(server.revision ?? 0) !== row.revision) return false
   if (server.transport === 'stdio' && !minRole(invoker.role, 'admin')) return false // prettier-ignore
 
-  return !!server.tools?.some((tool) =>
-    agent.tools?.includes(mcpToolName(server, tool)),
-  )
+  return !!server.tools?.some((tool) => isMcpToolSelected(agent, server, tool))
 }
 
 export async function inspect(ctx: QueryCtx, scope: McpRuntimeScope) {
@@ -252,6 +250,21 @@ export async function inspect(ctx: QueryCtx, scope: McpRuntimeScope) {
   if (!matchesCurrentRuntime(row, scope.key)) return null
   if (!(await isAuthorized(ctx, row))) return null
   return row
+}
+
+export async function catalogRuntime(
+  ctx: QueryCtx,
+  args: { runtimeId: Id<'mcpRuntimes'>; key: string },
+) {
+  const runtime = await ctx.db.get(args.runtimeId)
+  if (!runtime || runtime.key !== args.key || runtime.state !== 'connected')
+    return null
+  if (!(await isAuthorized(ctx, runtime))) return null
+  return {
+    scope: runtimeScope(runtime),
+    bootId: runtime.bootId,
+    generation: runtime.generation,
+  }
 }
 
 export async function owned(ctx: AuthQueryCtx, { runtimeId }: McpRuntimeArgs) {
@@ -368,7 +381,7 @@ function matchesCurrentRuntime(
 }
 
 /** Child sessions inherit membership checks, but never their parent's runtime identity. */
-async function hasInvocationAccess(
+export async function hasInvocationAccess(
   ctx: QueryCtx,
   sessionId: Id<'sessions'>,
   userId: Id<'users'>,

@@ -1,8 +1,9 @@
 import { limitError } from '@sb/core/limit-errors'
 import { MAX_MCP_SERVERS } from '@sb/core/limits'
 import type { McpServer, McpToolMeta } from '@sb/core/types'
-import { clampMcpTools, mcpConnectionSchema, mcpToolName } from '@sb/core/types'
+import { mcpConnectionSchema, validateMcpTools } from '@sb/core/types'
 
+import { internal } from '../_generated/api'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 import { error } from '../errors'
@@ -11,7 +12,10 @@ import { minRole } from '../lib/roles'
 import { sharedSessionId } from '../lib/subagent'
 import type { McpExecutionArgs, McpServerInput } from '../types'
 import * as Credentials from './credentials'
+import { catalogRows } from './mcpCatalogs'
+import { revokeRestrictedTargets } from './mcpPolicyRevocation'
 import { authorizeRuntime, revoke } from './mcpRuntime'
+import { isMcpToolSelected } from './mcpToolPolicy'
 import { getMode } from './session/sessions'
 import { ownsExecution } from './stream/execution'
 
@@ -40,7 +44,7 @@ export async function _getExecution(
   const selectedTool = server.tools?.some(
     (meta) =>
       (!toolName || meta.name === toolName) &&
-      agent.tools?.includes(mcpToolName(server, meta)),
+      isMcpToolSelected(agent, server, meta),
   )
   if (!selectedTool) return null
 
@@ -93,6 +97,10 @@ export async function list(ctx: AuthQueryCtx): Promise<McpServerView[]> {
       ...launchFields(server),
       transport: server.transport,
       enabled: server.enabled,
+      catalogId: server.catalogId,
+      catalogCount: server.catalogCount,
+      catalogError: server.catalogError,
+      brokerEnabled: server.brokerEnabled,
       tools: await listTools(ctx, server._id),
       hasKey: keys.has(server.key),
       secretEnvNames: Object.keys(parseSecrets(secrets.get(server.key))),
@@ -121,15 +129,20 @@ export async function resolve(
 
   return Promise.all(
     servers.map(async (server) => ({
+      recordId: server._id,
       id: server.key,
       label: server.label,
       ...launchFields(server),
       transport: server.transport,
       enabled: server.enabled,
+      catalogId: server.catalogId,
+      catalogCount: server.catalogCount,
+      catalogError: server.catalogError,
+      brokerEnabled: server.brokerEnabled,
       apiKey: keys.get(server.key),
       secretEnv: parseSecrets(secrets.get(server.key)),
       revision: server.revision,
-      tools: await listTools(ctx, server._id),
+      tools: await resolvedTools(ctx, server),
     })),
   )
 }
@@ -179,7 +192,7 @@ async function saveServer(
   const toolsChanged =
     tools !== undefined &&
     server &&
-    !sameTools(await toolRows(ctx, server._id), clampMcpTools(tools))
+    !sameTools(await toolRows(ctx, server._id), validateMcpTools(tools))
   const localConfigurationChanged = localChange && (changed || toolsChanged)
   if (localConfigurationChanged && !minRole(ctx.role, 'admin')) {
     error('Local MCP configuration requires admin access', 403)
@@ -213,6 +226,12 @@ async function saveServer(
 
   await saveCredentials(ctx, fields.key, apiKey, secretEnv)
   if (tools) await writeTools(ctx, serverId, tools)
+  if (
+    server &&
+    (toolsChanged || server.brokerEnabled !== fields.brokerEnabled)
+  ) {
+    await revokeRestrictedTargets(ctx, ctx.userId, server.key)
+  }
 }
 
 /** Compares connection authority separately from presentation-only tool metadata. */
@@ -273,6 +292,11 @@ async function removeServer(ctx: AuthMutationCtx, server: Doc<'mcpServers'>) {
     await ctx.db.delete(tool._id)
   }
   await Credentials.remove(ctx, ctx.userId, 'mcp', server.key)
+  if (server.catalogId) {
+    await ctx.scheduler.runAfter(0, internal.actions.mcpCatalogs._expire, {
+      catalogId: server.catalogId,
+    })
+  }
   await ctx.db.delete(server._id)
 }
 
@@ -282,7 +306,9 @@ async function writeTools(
   serverId: Id<'mcpServers'>,
   tools: McpToolMeta[],
 ) {
-  const next = clampMcpTools(tools)
+  const next = validateMcpTools(tools).map(
+    ({ definitionRef: _, ...tool }) => tool,
+  )
   const existing = await toolRows(ctx, serverId)
   if (sameTools(existing, next)) return
 
@@ -302,7 +328,10 @@ function sameTools(existing: Doc<'mcpTools'>[], next: McpToolMeta[]): boolean {
         row.nameOverride === next[index].nameOverride &&
         row.description === next[index].description &&
         row.descriptionOverride === next[index].descriptionOverride &&
-        row.inputSchema === next[index].inputSchema,
+        row.inputSchema === next[index].inputSchema &&
+        row.enabled === next[index].enabled &&
+        row.diagnostic === next[index].diagnostic &&
+        row.definitionRef === next[index].definitionRef,
     )
   )
 }
@@ -366,22 +395,34 @@ async function listTools(
 ): Promise<McpToolMeta[]> {
   const rows = await toolRows(ctx, serverId)
   return rows.map(
-    ({
-      name,
-      nameOverride,
-      allowInReadOnly,
-      description,
-      descriptionOverride,
-      inputSchema,
-    }) => ({
-      name,
-      nameOverride,
-      allowInReadOnly,
-      description,
-      descriptionOverride,
-      inputSchema,
-    }),
+    ({ _id: _, _creationTime: __, serverId: ___, order: ____, ...tool }) =>
+      tool,
   )
+}
+
+/** Keeps schemas out of reactive stream state while preserving exact definition references. */
+async function resolvedTools(
+  ctx: QueryCtx,
+  server: Doc<'mcpServers'>,
+): Promise<McpToolMeta[]> {
+  const overrides = await listTools(ctx, server._id)
+  if (!server.catalogId) return overrides
+
+  const catalog = await ctx.db.get(server.catalogId)
+  if (catalog?.configRevision !== (server.revision ?? 0)) return []
+
+  const byName = new Map(overrides.map((tool) => [tool.name, tool]))
+
+  return (await catalogRows(ctx, server)).map((row) => ({
+    name: row.name,
+    description: row.description,
+    definitionRef: row.definitionRef,
+    diagnostic: row.diagnostic,
+    nameOverride: byName.get(row.name)?.nameOverride,
+    descriptionOverride: byName.get(row.name)?.descriptionOverride,
+    allowInReadOnly: byName.get(row.name)?.allowInReadOnly,
+    enabled: byName.get(row.name)?.enabled,
+  }))
 }
 
 /** Keeps credential values out of public configuration views. */

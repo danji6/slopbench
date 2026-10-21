@@ -13,6 +13,9 @@ export const mcpToolMetaValidator = v.object({
   description: v.optional(v.string()),
   descriptionOverride: v.optional(v.string()),
   inputSchema: v.optional(v.string()),
+  definitionRef: v.optional(v.string()),
+  diagnostic: v.optional(v.string()),
+  enabled: v.optional(v.boolean()),
 })
 
 export const mcpLaunchFields = {
@@ -103,6 +106,7 @@ export const mcpRuntimePageArgsValidator = v.object({
 
 /** An MCP server joined with its tools and credential. */
 export const mcpServerValidator = v.object({
+  recordId: v.optional(v.string()),
   id: v.string(),
   label: v.string(),
   url: v.string(),
@@ -113,6 +117,10 @@ export const mcpServerValidator = v.object({
   revision: v.optional(v.number()),
   enabled: v.boolean(),
   tools: v.optional(v.array(mcpToolMetaValidator)),
+  catalogId: v.optional(v.string()),
+  catalogCount: v.optional(v.number()),
+  catalogError: v.optional(v.string()),
+  brokerEnabled: v.optional(v.boolean()),
 })
 
 /** Cached metadata for one external MCP tool. */
@@ -122,6 +130,8 @@ export const mcpManifestEntryValidator = v.object({
   toolName: v.string(),
   description: v.optional(v.string()),
   inputSchema: v.optional(v.string()),
+  definitionRef: v.optional(v.string()),
+  diagnostic: v.optional(v.string()),
 })
 
 export const replaceMcpServersArgsValidator = v.object({
@@ -134,6 +144,7 @@ export const replaceMcpServersArgsValidator = v.object({
       secretEnv: v.optional(v.record(v.string(), v.string())),
       transport: mcpTransportValidator,
       enabled: v.boolean(),
+      brokerEnabled: v.optional(v.boolean()),
       /** Absent leaves the stored credential alone; empty clears it. */
       apiKey: v.optional(v.string()),
       /** Absent keeps the tools already discovered for this server. */
@@ -170,18 +181,18 @@ export const mcpServerSchema = v.object({
   transport: mcpTransportValidator,
   enabled: v.boolean(),
   revision: v.optional(v.number()),
+  catalogId: v.optional(v.id('mcpCatalogs')),
+  pendingCatalogId: v.optional(v.id('mcpCatalogs')),
+  catalogRetryAt: v.optional(v.number()),
+  catalogCount: v.optional(v.number()),
+  catalogError: v.optional(v.string()),
+  brokerEnabled: v.optional(v.boolean()),
   order: v.number(),
 })
 
 /** One tool discovered from an external MCP server. */
 export const mcpToolSchema = v.object({
+  ...mcpToolMetaValidator.fields,
   serverId: v.id('mcpServers'),
-  name: v.string(),
-  allowInReadOnly: v.optional(v.boolean()),
-  nameOverride: v.optional(v.string()),
-  description: v.optional(v.string()),
-  descriptionOverride: v.optional(v.string()),
-  /** The tool's JSON schema, kept as a string to avoid Convex rejections. */
-  inputSchema: v.optional(v.string()),
   order: v.number(),
 })

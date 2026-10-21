@@ -51,6 +51,9 @@ test('MCP connection management is behind backend authentication', async () => {
     'call',
     'status',
     'disconnect',
+    ...['probe', 'active', 'acknowledge', 'page', 'release'].map(
+      (method) => `catalog/${method}`,
+    ),
     ...[
       'start',
       'status',

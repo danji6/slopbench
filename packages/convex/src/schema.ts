@@ -1,4 +1,5 @@
 import { defineSchema, defineTable } from 'convex/server'
+import { v } from 'convex/values'
 
 import {
   agentFileOperationSchema,
@@ -44,6 +45,10 @@ import {
   discoveryPreviewSchema,
 } from './validators/discovery'
 import { mcpCleanupSchema, mcpRuntimeSchema } from './validators/mcp'
+import {
+  mcpCatalogSchema,
+  mcpCatalogToolSchema,
+} from './validators/mcpCatalogs'
 import { mcpOperationSchema } from './validators/mcpOperations'
 
 const schemaValidation = true
@@ -149,6 +154,19 @@ export default defineSchema({
 
   mcpTools: defineTable(mcpToolSchema)
     .index('by_serverId_order', ['serverId', 'order']),
+
+  mcpCatalogs: defineTable(mcpCatalogSchema)
+    .index('by_serverId', ['serverId'])
+    .index('by_ownerId', ['ownerId']),
+
+  mcpCatalogTools: defineTable(mcpCatalogToolSchema)
+    .index('by_catalogId_order', ['catalogId', 'order'])
+    .index('by_catalogId_name', ['catalogId', 'name'])
+    .index('by_definitionRef', ['definitionRef']),
+
+  mcpCatalogPins: defineTable(v.object({ catalogId: v.id('mcpCatalogs'), cacheId: v.id('sessionCache') }))
+    .index('by_catalogId', ['catalogId'])
+    .index('by_cacheId', ['cacheId']),
 
   discoveryPreviews: defineTable(discoveryPreviewSchema),
 

@@ -5,6 +5,13 @@ import { internal } from './_generated/api'
 const crons = cronJobs()
 
 crons.daily(
+  'prune orphaned MCP definitions',
+  { hourUTC: 4, minuteUTC: 0 },
+  internal.mcpCatalogs._sweepOrphans,
+  {},
+)
+
+crons.daily(
   'prune orphaned attachments',
   { hourUTC: 3, minuteUTC: 0 },
   internal.attachments.pruneOrphans,

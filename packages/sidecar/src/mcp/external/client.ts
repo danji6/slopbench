@@ -14,23 +14,17 @@ import {
   mcpTransportCandidates,
 } from '@sb/core/types'
 
+import { discoverTools } from './discovery'
 import { localTransport } from './stdio'
 
 const negotiated = new Map<string, McpDialedTransport>()
+let probes = 0
 
 export async function listExternalTools(
   connection: McpConnection,
 ): Promise<Negotiated<McpToolMeta[]>> {
   return withClient(connection, async (client) => {
-    const { tools } = await client.listTools()
-    return tools.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      // Serialize: JSON Schema uses '$'-prefixed keys that Convex rejects.
-      inputSchema: tool.inputSchema
-        ? JSON.stringify(tool.inputSchema)
-        : undefined,
-    }))
+    return discoverTools(client)
   })
 }
 
@@ -170,15 +164,25 @@ export async function connectExternalClient(
 }
 
 /** Runs a settings discovery in an isolated, explicitly requested probe. */
-async function withClient<T>(
+export async function withClient<T>(
   connection: McpConnection,
   fn: (client: Client) => Promise<T>,
 ): Promise<Negotiated<T>> {
-  const connected = await connectExternalClient(connection)
+  if (probes >= 4)
+    throw new Error(
+      'MCP temporary connection capacity reached; retry after an active probe finishes',
+    )
+  probes++
+  let connected: ConnectedClient | undefined
   try {
+    connected = await connectExternalClient(connection)
     return { value: await fn(connected.client), transport: connected.transport }
   } finally {
-    await connected.client.close()
+    try {
+      await connected?.client.close()
+    } finally {
+      probes--
+    }
   }
 }
 

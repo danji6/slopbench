@@ -61,6 +61,12 @@ function chipPresentation(record: MessageRecord | undefined): ChipPresentation {
       }
     case 'skills':
       return { icon: ClipboardListIcon, label: 'Skills updated', noun: 'note' }
+    case 'mcp':
+      return {
+        icon: ClipboardListIcon,
+        label: 'MCP tools updated',
+        noun: 'note',
+      }
     case 'workspace': {
       const label = messageExtra(record, 'workspace')?.label
       return {

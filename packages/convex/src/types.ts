@@ -15,6 +15,7 @@ import type { Doc, Id } from './_generated/dataModel'
 import type { SpawnableAgent } from './model/agent/subagents'
 import type { PromptSets } from './model/prompts'
 import type * as V from './validators'
+import type * as McpCatalogsV from './validators/mcpCatalogs'
 import type * as McpOperationsV from './validators/mcpOperations'
 
 export type { Role } from './lib/roles'
@@ -71,6 +72,7 @@ export type PrepareContextNoteArgs = Infer<
  * that owns them.
  */
 export type MessageExtra = {
+  mcp: Infer<typeof V.skillsExtraValidator>
   skills: Infer<typeof V.skillsExtraValidator>
   /** Snapshot of the reminder prompt that produced an injected message. */
   reminder: Infer<typeof V.reminderExtraValidator>
@@ -234,3 +236,15 @@ export type McpObserveArgs = Infer<typeof McpOperationsV.mcpObserveArgsValidator
 export type McpOperationArgs = Infer<typeof McpOperationsV.mcpOperationArgsValidator> // prettier-ignore
 export type McpOperationExecutionArgs = Infer<typeof McpOperationsV.mcpOperationExecutionValidator> // prettier-ignore
 export type McpOperationFindArgs = Infer<typeof McpOperationsV.mcpOperationFindValidator> // prettier-ignore
+export type McpCatalogIdArgs = Infer<typeof McpCatalogsV.catalogIdValidator>
+export type McpCatalogActiveFailureArgs = Infer<typeof McpCatalogsV.catalogActiveFailureValidator> // prettier-ignore
+export type McpCatalogSweepArgs = Infer<typeof McpCatalogsV.catalogSweepValidator> // prettier-ignore
+export type McpCatalogBeginArgs = Infer<typeof McpCatalogsV.catalogBeginValidator> // prettier-ignore
+export type McpCatalogAppendArgs = Infer<typeof McpCatalogsV.catalogAppendValidator> // prettier-ignore
+export type McpCatalogPublishArgs = Infer<typeof McpCatalogsV.catalogPublishValidator> // prettier-ignore
+export type McpCatalogFailureArgs = Infer<typeof McpCatalogsV.catalogFailureValidator> // prettier-ignore
+export type McpCatalogPageArgs = Infer<typeof McpCatalogsV.catalogPageValidator> // prettier-ignore
+export type McpCatalogTargetArgs = Infer<typeof McpCatalogsV.catalogTargetValidator> // prettier-ignore
+export type McpCatalogSearchArgs = Infer<typeof McpCatalogsV.catalogSearchValidator> // prettier-ignore
+export type McpCatalogActiveArgs = Infer<typeof McpCatalogsV.catalogActiveValidator> // prettier-ignore
+export type McpCatalogDefinitionAccessArgs = Infer<typeof McpCatalogsV.catalogDefinitionAccessValidator> // prettier-ignore

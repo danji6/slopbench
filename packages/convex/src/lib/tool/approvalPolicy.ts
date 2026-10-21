@@ -15,6 +15,8 @@ export function alwaysLabel(
   input: unknown,
   approvals: ToolApprovals | undefined,
 ): string | null {
+  if (toolName === 'call_mcp_tool')
+    return 'Always allow this MCP target for this session'
   if (toolName !== 'shell') {
     return toolNamesForApproval(toolName).length > 1
       ? 'Allow edits for this session'

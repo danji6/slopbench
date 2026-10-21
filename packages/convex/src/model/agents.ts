@@ -14,6 +14,7 @@ import { DEFAULT_CONTEXT_OPTIONS, createDefaultAgent } from './defaults'
 import { revoke as revokeMcp } from './mcpRuntime'
 import * as Prompts from './prompts'
 import * as Reminders from './reminders'
+import { removeCacheRow } from './session/cache'
 import { getByOwnerId } from './settings'
 import { assertAgentIdle } from './skills/access'
 import { start as startFileOperation } from './skills/operations'
@@ -197,7 +198,7 @@ async function removeSessionCache(ctx: AuthMutationCtx, agentId: Id<'agents'>) {
     .withIndex('by_agentId', (q) => q.eq('agentId', agentId))
     .collect()
 
-  for (const row of rows) await ctx.db.delete(row._id)
+  for (const row of rows) await removeCacheRow(ctx, row)
 }
 
 export async function duplicate(

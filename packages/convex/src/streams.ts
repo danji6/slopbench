@@ -3,7 +3,10 @@ import { v } from 'convex/values'
 import { internalMutation, internalQuery } from './_generated/server'
 import { authQuery } from './functions'
 import { prepareSkillContext } from './model/skills/context'
-import { prepareWorkspaceContext } from './model/stream/contextNotes'
+import {
+  prepareMcpContext,
+  prepareWorkspaceContext,
+} from './model/stream/contextNotes'
 import * as StreamLifecycle from './model/stream/lifecycle'
 import * as StreamMeta from './model/stream/lifecycleMeta'
 import * as StreamReads from './model/stream/reads'
@@ -153,6 +156,11 @@ export const _prepareSkillContext = internalMutation({
 export const _prepareWorkspaceContext = internalMutation({
   args: V.prepareContextNoteArgsValidator.fields,
   handler: prepareWorkspaceContext,
+})
+
+export const _prepareMcpContext = internalMutation({
+  args: V.prepareContextNoteArgsValidator.fields,
+  handler: prepareMcpContext,
 })
 
 export const _getFilesystemContext = internalQuery({

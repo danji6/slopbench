@@ -1,5 +1,3 @@
-import { mcpToolName } from '@sb/core/types'
-
 import type { Doc } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'
 import { error } from '../errors'
@@ -11,6 +9,7 @@ import type {
 } from '../types'
 import { resolve } from './mcp'
 import { isAuthorized } from './mcpRuntime'
+import { isMcpToolSelected } from './mcpToolPolicy'
 import { getProcessingSegmentRow } from './messageContents'
 import { getMode } from './session/sessions'
 import { ownsExecution } from './stream/execution'
@@ -39,6 +38,13 @@ export async function get(ctx: QueryCtx, args: McpOperationExecutionArgs) {
 /** Checks the exact target policy as well as connection authority while waiting. */
 export async function allowed(ctx: QueryCtx, args: McpOperationExecutionArgs) {
   const operation = await get(ctx, args)
+  return allowedTarget(ctx, operation)
+}
+
+export async function allowedTarget(
+  ctx: QueryCtx,
+  operation: Doc<'mcpOperations'>,
+) {
   if (operation.state !== 'running') return 'allowed' as const
 
   const runtime = await ctx.db.get(operation.runtimeId)
@@ -54,8 +60,14 @@ export async function allowed(ctx: QueryCtx, args: McpOperationExecutionArgs) {
   if (!server || !tool) return 'revoked' as const
 
   const agent = await ctx.db.get(operation.agentId)
-  if (!agent?.tools?.includes(mcpToolName(server, tool)))
+  if (!agent || !isMcpToolSelected(agent, server, tool))
     return 'revoked' as const
+
+  if (operation.catalogToolId) {
+    const target = await ctx.db.get(operation.catalogToolId)
+    if (!target || target.catalogId !== server.catalogId)
+      return 'revoked' as const
+  }
 
   const session = await ctx.db.get(operation.sessionId)
   if (!session) return 'revoked' as const
@@ -94,6 +106,8 @@ export function assertSameInvocation(
   }
   const sameArguments =
     operation.args === args.args &&
+    operation.input === args.input &&
+    operation.catalogToolId === args.catalogToolId &&
     operation.toolName === args.toolName &&
     operation.name === args.name
   if (!sameArguments) {

@@ -1,6 +1,7 @@
-import type { Id } from '../../_generated/dataModel'
+import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../../_generated/server'
 import type { SaveSessionCacheArgs } from '../../types'
+import { pinManifest, releasePins } from '../mcpCatalogPins'
 import { getSessionWithWorkspace, workspaceKey } from './folderContext'
 
 /**
@@ -59,10 +60,16 @@ export async function _save(ctx: MutationCtx, args: SaveSessionCacheArgs) {
       homeRevision,
       workspaceRevision,
     })
+    const changedReferences =
+      args.tools &&
+      [...(args.tools.mcp ?? []), ...(existing.tools?.mcp ?? [])].some(
+        (entry) => entry.definitionRef,
+      )
+    if (changedReferences) await pinManifest(ctx, existing._id, args.tools!)
     return existing._id
   }
 
-  return ctx.db.insert('sessionCache', {
+  const id = await ctx.db.insert('sessionCache', {
     sessionId: args.sessionId,
     agentId: args.agentId,
     items: args.items ?? [],
@@ -74,6 +81,9 @@ export async function _save(ctx: MutationCtx, args: SaveSessionCacheArgs) {
     homeRevision,
     workspaceRevision,
   })
+  if (args.tools?.mcp?.some((entry) => entry.definitionRef))
+    await pinManifest(ctx, id, args.tools)
+  return id
 }
 
 /** Drops every cache row of the session, scheduling a full re-evaluation. */
@@ -85,5 +95,16 @@ export async function removeForSession(
     .query('sessionCache')
     .withIndex('by_sessionId', (q) => q.eq('sessionId', sessionId))
     .collect()
-  for (const row of rows) await ctx.db.delete(row._id)
+  for (const row of rows) {
+    await removeCacheRow(ctx, row)
+  }
+}
+
+export async function removeCacheRow(
+  ctx: MutationCtx,
+  row: Doc<'sessionCache'>,
+) {
+  if (row.tools?.mcp?.some((entry) => entry.definitionRef))
+    await releasePins(ctx, row._id)
+  await ctx.db.delete(row._id)
 }

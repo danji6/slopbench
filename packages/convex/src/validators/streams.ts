@@ -143,6 +143,8 @@ export const streamSchema = v.object({
   skillContextMessageId: v.optional(v.id('messages')),
   workspaceContextPrepared: v.optional(v.boolean()),
   workspaceContextMessageId: v.optional(v.id('messages')),
+  mcpContextFingerprint: v.optional(v.string()),
+  mcpContextMessageId: v.optional(v.id('messages')),
   suppressFollowUp: v.optional(v.boolean()),
   /** True for child (sub-agent) streams stopped from above. */
   suppressReport: v.optional(v.boolean()),

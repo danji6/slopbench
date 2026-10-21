@@ -1,4 +1,5 @@
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js'
 import type {
   McpConnection,
   McpRuntimeScope,
@@ -8,6 +9,7 @@ import type { McpProgress } from '@sb/core/types/mcp-operation'
 import { createHash, randomUUID } from 'node:crypto'
 
 import { connectExternalClient } from './client'
+import { discoverTools } from './discovery'
 
 type Entry = {
   status: McpRuntimeStatus
@@ -19,6 +21,7 @@ type Entry = {
   secrets: string[]
   startup: AbortController
   touchedAt: number
+  catalogChanges: number
 }
 
 type Expectation = { bootId?: string; generation?: string; expiresAt?: number }
@@ -151,6 +154,7 @@ export class McpRegistry {
       connecting: Promise.resolve(),
       queue: Promise.resolve(),
       touchedAt: Date.now(),
+      catalogChanges: 0,
       rawStderr: '',
       startup: new AbortController(),
       secrets: [
@@ -180,6 +184,11 @@ export class McpRegistry {
         entry.startup.signal,
       )
       entry.client = client
+      entry.status.catalogStale = true
+      client.setNotificationHandler(ToolListChangedNotificationSchema, () => {
+        entry.catalogChanges++
+        entry.status.catalogStale = true
+      })
       if (entry.status.state !== 'connecting') {
         await client.close()
         return
@@ -257,6 +266,51 @@ export class McpRegistry {
 
   list(): McpRuntimeStatus[] {
     return [...this.entries.values()].map((entry) => this.view(entry))
+  }
+
+  /** Inspects the existing analysis client without replacing its process. */
+  async catalog(scope: McpRuntimeScope, expected: Expectation) {
+    const entry = this.entries.get(scope.key)
+
+    this.assertExpected(entry, expected)
+    this.status(scope)
+    if (!entry) {
+      throw new Error('MCP connection missing; reconnect explicitly')
+    }
+
+    const operation = entry.queue
+      .catch(() => {})
+      .then(async () => {
+        if (entry.status.state !== 'connected' || !entry.client) {
+          throw new Error('MCP session unavailable; reconnect explicitly')
+        }
+        if (expected.expiresAt && expected.expiresAt < Date.now()) {
+          throw new Error('MCP catalog authorization expired while queued')
+        }
+        const changeToken = entry.catalogChanges
+        const tools = await discoverTools(entry.client)
+        if (entry.status.state !== 'connected')
+          throw new Error('MCP catalog connection revoked')
+        if (entry.catalogChanges !== changeToken)
+          throw new Error('MCP catalog changed during discovery; refresh again')
+        return { tools, changeToken }
+      })
+
+    entry.queue = operation
+
+    return operation
+  }
+
+  acknowledgeCatalog(
+    scope: McpRuntimeScope,
+    expected: Expectation,
+    changeToken: number,
+  ) {
+    const entry = this.entries.get(scope.key)
+    this.assertExpected(entry, expected)
+    this.status(scope)
+    if (!entry) return
+    if (entry.catalogChanges === changeToken) entry.status.catalogStale = false
   }
 
   /** Serializes dispatch and checks authorization scope again after queueing. */

@@ -79,6 +79,25 @@ async function authorize(
 
   const tool = live.server.tools?.find((tool) => tool.name === args.toolName)
 
+  if (args.catalogToolId) {
+    const target = await ctx.db.get(args.catalogToolId)
+    if (
+      !target ||
+      target.catalogId !== live.server.catalogId ||
+      target.name !== args.toolName
+    ) {
+      error('MCP catalog target is stale; search again', 409)
+    }
+
+    const input = JSON.parse(args.input ?? '{}')
+    const matchesTarget =
+      input.serverId === target.serverId &&
+      input.toolId === target._id &&
+      JSON.stringify(input.arguments) === args.args
+    if (!matchesTarget || args.name !== 'call_mcp_tool')
+      error('MCP broker invocation target changed', 409)
+  }
+
   if (live.readOnly && tool?.allowInReadOnly === false) {
     error('This external tool is not allowed in read-only mode.', 403)
   }
@@ -103,6 +122,8 @@ function fields(
     toolName: args.toolName,
     toolCallId: args.toolCallId,
     args: args.args,
+    input: args.input,
+    catalogToolId: args.catalogToolId,
     runtimeId: args.runtimeId,
     scope: live.runtime.scope,
     bootId: args.bootId,

@@ -6,9 +6,6 @@ export const MAX_PROMPT_CONTENT_CHARS = 200_000
 export const MAX_PROMPT_NAME_CHARS = 100
 
 export const MAX_MCP_SERVERS = 100
-export const MAX_SERVER_MCP_TOOLS = 100
-export const MAX_MCP_SCHEMA_CHARS = 20_000
-export const MAX_MCP_DESCRIPTION_CHARS = 4_000
 
 export const MAX_PROVIDERS = 100
 export const MAX_PROVIDER_MODELS = 100

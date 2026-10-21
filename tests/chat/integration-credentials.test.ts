@@ -7,7 +7,6 @@ import {
   setModelInference,
   update as updateProvider,
 } from '@sb/convex/model/providers'
-import { MAX_MCP_SCHEMA_CHARS } from '@sb/core/limits'
 import { describe, expect, test } from 'bun:test'
 
 const OWNER = 'user_1'
@@ -147,7 +146,7 @@ describe('MCP servers', () => {
     expect(tables.credentials).toEqual([])
   })
 
-  test('staged tools are written on save and clamped on the way in', async () => {
+  test('staged tools are written on save without slicing schemas', async () => {
     const { ctx, tables } = makeCtx()
 
     await replaceMcp(ctx, {
@@ -158,7 +157,7 @@ describe('MCP servers', () => {
             { name: 'search', description: 'Search the docs' },
             {
               name: 'fetch',
-              inputSchema: 'x'.repeat(MAX_MCP_SCHEMA_CHARS + 1),
+              inputSchema: 'x'.repeat(20_001),
             },
           ],
         },
@@ -167,7 +166,7 @@ describe('MCP servers', () => {
 
     expect(tables.mcpTools).toHaveLength(2)
     expect(tables.mcpTools[0]).toMatchObject({ name: 'search', order: 0 })
-    expect(tables.mcpTools[1].inputSchema).toHaveLength(MAX_MCP_SCHEMA_CHARS)
+    expect(tables.mcpTools[1].inputSchema).toHaveLength(20_001)
   })
 
   test('an absent tool set leaves the discovered one alone', async () => {

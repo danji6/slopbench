@@ -22,6 +22,7 @@ export const messageTypeValidator = v.union(
   v.literal('todo'),
   v.literal('workspace'),
   v.literal('skills'),
+  v.literal('mcp'),
   v.literal('command'),
   v.literal('mode'),
 )

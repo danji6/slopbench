@@ -31,6 +31,8 @@ import { useMemo, useState } from 'react'
 import type { Control } from 'react-hook-form'
 import { useFieldArray } from 'react-hook-form'
 
+import { McpBrokerSettings } from './mcp-broker-settings'
+import { McpCatalog } from './mcp-catalog'
 import { parseMcpLaunch } from './mcp-launch'
 import { McpLocalSettings } from './mcp-local-settings'
 import { McpRuntimes } from './mcp-runtimes'
@@ -199,7 +201,7 @@ function McpServerCard({
     setRefreshing(true)
     setError(null)
     try {
-      const { tools, transport } = await discover({
+      const { tools, transport, catalogId } = await discover({
         url: item.url,
         command: item.command,
         cwd: item.cwd,
@@ -212,7 +214,8 @@ function McpServerCard({
         serverId: item.serverId as Id<'mcpServers'> | undefined,
       })
       setDialed(transport ?? null)
-      onChange({ tools: mergeOverrides(item.tools, tools) })
+      if (!catalogId) onChange({ tools: mergeOverrides(item.tools, tools) })
+      else onChange({ catalogId })
     } catch (err) {
       setDialed(null)
       setError(extractErrorMessage(err, 'Failed to discover tools'))
@@ -331,6 +334,10 @@ function McpServerCard({
           </div>
         )}
         <McpTimeouts item={item} onChange={onChange} />
+        <McpBrokerSettings
+          enabled={item.brokerEnabled ?? false}
+          onChange={(brokerEnabled) => onChange({ brokerEnabled })}
+        />
         <div className="flex w-full items-center gap-2 px-1">
           <Input
             type="password"
@@ -340,27 +347,32 @@ function McpServerCard({
             onValueChange={(apiKey) => onChange({ apiKey })}
             className="h-9 flex-1"
           />
-          <RippleButton
-            type="button"
-            size="sm"
-            variant="input"
-            disabled={
-              refreshing ||
-              (item.transport === 'stdio' ? !item.command : !item.url)
-            }
-            className="shrink-0"
-            onClick={handleRefresh}
-          >
-            <RefreshCwIcon
-              className={refreshing ? 'animate-spin' : undefined}
-            />
-            Discover
-          </RippleButton>
         </div>
+        <RippleButton
+          type="button"
+          size="sm"
+          variant="input"
+          disabled={
+            refreshing ||
+            (item.transport === 'stdio' ? !item.command : !item.url)
+          }
+          className="mx-auto mt-1 w-64 max-w-full shrink-0"
+          onClick={handleRefresh}
+        >
+          <RefreshCwIcon className={refreshing ? 'animate-spin' : undefined} />
+          {item.serverId ? 'Refresh catalog' : 'Probe'}
+        </RippleButton>
         {item.serverId && <McpRuntimes serverKey={item.id} />}
+        {item.serverId && (
+          <McpCatalog
+            serverId={item.serverId as Id<'mcpServers'>}
+            overrides={item.tools}
+            onChange={(tools) => onChange({ tools })}
+          />
+        )}
         {error ? (
           <div className="text-destructive px-3 text-xs">{error}</div>
-        ) : item.tools && item.tools.length > 0 ? (
+        ) : !item.catalogId && item.tools && item.tools.length > 0 ? (
           <Accordion>
             {item.tools.map((tool, index) => (
               <McpToolRow
@@ -378,11 +390,11 @@ function McpServerCard({
               />
             ))}
           </Accordion>
-        ) : (
-          <div className="text-muted-foreground px-3 text-xs">
+        ) : !item.catalogId ? (
+          <div className="text-muted-foreground mx-auto px-3 py-2 text-xs">
             No tools discovered yet
           </div>
-        )}
+        ) : null}
       </Collapsible.Content>
     </Collapsible>
   )

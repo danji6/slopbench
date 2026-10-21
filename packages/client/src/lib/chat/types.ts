@@ -125,6 +125,7 @@ export type PendingMessage = {
 
 export type ToolMetadata = {
   name: string
+  label?: string
   description?: string
   category?: string
   requiresAdmin?: boolean

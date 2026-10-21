@@ -21,6 +21,7 @@ import {
 import {
   type ToolManifest,
   resolveToolManifest,
+  upgradeToolManifest,
 } from '../../model/tool/manifest'
 import type { ToolResources } from '../../model/tool/settings'
 import type { Prompt, StreamContext } from '../../types'
@@ -106,23 +107,24 @@ function createInvokePlan(
     shareUserDisplayNames: !!data.agent.shareUserDisplayNames,
     shareAgentDisplayNames: !!data.agent.shareAgentDisplayNames,
   }
-  const manifest =
-    frozenTools ??
-    resolveToolManifest({
-      ...data,
-      resources: toolResources(data),
-      defaultShell,
-    })
+  const manifest = frozenTools
+    ? upgradeToolManifest(frozenTools)
+    : resolveToolManifest({
+        ...data,
+        resources: toolResources(data),
+        defaultShell,
+      })
 
   return {
     evalItems: plan.evalItems,
     toolNames: manifest.names,
     snapshotPatch: (evalResult) => {
       const patch = plan.snapshotPatch(evalResult.items)
-      if (!patch && frozenTools && frozenPresentation) return null
+      const toolsUpgraded = manifest !== frozenTools
+      if (!patch && !toolsUpgraded && frozenPresentation) return null
       return {
         ...patch,
-        ...(frozenTools ? {} : { tools: manifest }),
+        ...(toolsUpgraded ? { tools: manifest } : {}),
         ...(frozenPresentation ? {} : { historyPresentation }),
       }
     },

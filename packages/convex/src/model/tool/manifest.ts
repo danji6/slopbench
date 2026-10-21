@@ -5,6 +5,10 @@ import {
   TODO_TOOL_TOGGLE,
 } from '@sb/core/const'
 import { mcpToolDescription, mcpToolName } from '@sb/core/types'
+import {
+  MCP_BROKER_TOOLS,
+  MCP_MANIFEST_VERSION,
+} from '@sb/core/types/mcp-catalog'
 
 import type { Doc } from '../../_generated/dataModel'
 import { type Role, minRole } from '../../lib/roles'
@@ -22,6 +26,7 @@ import {
  * Deliberately excludes anything behavioral.
  */
 export type ToolManifest = {
+  version?: number
   /** Exact tool names, in the order they are sent. */
   names: string[]
   /** Personal-folder guidance captured with file and shell descriptions. */
@@ -45,6 +50,8 @@ export type McpManifestEntry = {
   description?: string
   /** Serialized JSON Schema; Convex rejects `$`-prefixed object keys. */
   inputSchema?: string
+  definitionRef?: string
+  diagnostic?: string
 }
 
 type ManifestInput = {
@@ -102,6 +109,7 @@ export function resolveToolManifest(data: ManifestInput): ToolManifest {
     'shell_output',
     'kill_shell',
     'list_skills',
+    ...MCP_BROKER_TOOLS,
   ])
 
   const names: string[] = []
@@ -128,14 +136,19 @@ export function resolveToolManifest(data: ManifestInput): ToolManifest {
       if (reserved.has(name) || seenMcp.has(name)) continue
       seenMcp.add(name)
       if (!selected.has(name)) continue
+      if (meta.enabled === false || meta.diagnostic) continue
 
       names.push(name)
       mcp.push({
         name,
         serverId: server.id,
         toolName: meta.name,
-        description: mcpToolDescription(meta),
+        description: meta.definitionRef
+          ? meta.descriptionOverride
+          : mcpToolDescription(meta),
         inputSchema: meta.inputSchema,
+        definitionRef: meta.definitionRef,
+        diagnostic: meta.diagnostic,
       })
     }
   }
@@ -162,10 +175,32 @@ export function resolveToolManifest(data: ManifestInput): ToolManifest {
   const shell = names.includes('shell') ? resolveShell(data) : undefined
 
   return {
-    names,
+    version: MCP_MANIFEST_VERSION,
+    names: [...names, ...MCP_BROKER_TOOLS],
     ...(data.session.workspace?.agentHome && { hasAgentHome: true }),
     ...(roster && { taskRoster: roster }),
     ...(shell && { shell }),
     ...(mcp.length && { mcp }),
+  }
+}
+
+/** Adds only stable brokers at an invocation boundary, preserving all frozen descriptions. */
+export function upgradeToolManifest(manifest: ToolManifest): ToolManifest {
+  if ((manifest.version ?? 1) >= MCP_MANIFEST_VERSION) return manifest
+  const brokerCollision = manifest.mcp?.some((entry) =>
+    MCP_BROKER_TOOLS.some((name) => name === entry.name),
+  )
+  if (brokerCollision) {
+    throw new Error(
+      'A frozen MCP tool conflicts with the broker names. Rename its alias and reset this session’s tool cache before continuing.',
+    )
+  }
+  return {
+    ...manifest,
+    version: MCP_MANIFEST_VERSION,
+    names: [
+      ...manifest.names,
+      ...MCP_BROKER_TOOLS.filter((name) => !manifest.names.includes(name)),
+    ],
   }
 }

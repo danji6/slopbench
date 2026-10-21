@@ -1,10 +1,6 @@
 import { z } from 'zod'
 
-import {
-  MAX_MCP_DESCRIPTION_CHARS,
-  MAX_MCP_SCHEMA_CHARS,
-  MAX_SERVER_MCP_TOOLS,
-} from '../limits'
+import { MAX_MCP_CATALOG_TOOLS } from './mcp-catalog'
 
 export const MCP_TRANSPORTS = ['auto', 'http', 'sse', 'ws', 'stdio'] as const
 
@@ -47,6 +43,9 @@ export const mcpToolMetaSchema = z.object({
   description: z.string().optional(),
   descriptionOverride: z.string().optional(), // user's custom description
   inputSchema: z.string().optional(), // kept raw to avoid Convex rejections
+  definitionRef: z.string().optional(),
+  diagnostic: z.string().optional(),
+  enabled: z.boolean().optional(),
 })
 
 /** Optional local launch settings; credentials are resolved only on the server. */
@@ -87,12 +86,17 @@ export const mcpConnectionSchema = z.union([
 ])
 
 export const mcpServerSchema = connectionFields.extend({
+  recordId: z.string().optional(),
   id: z.string(),
   label: z.string().min(1),
   transport: mcpTransportSchema,
   revision: z.number().optional(),
   enabled: z.boolean(),
   tools: z.array(mcpToolMetaSchema).optional(),
+  catalogId: z.string().optional(),
+  catalogCount: z.number().optional(),
+  catalogError: z.string().optional(),
+  brokerEnabled: z.boolean().optional(),
 })
 
 export type McpToolMeta = z.infer<typeof mcpToolMetaSchema>
@@ -117,6 +121,7 @@ export type McpRuntimeStatus = {
   transport?: McpDialedTransport
   reason?: string
   stderr: string
+  catalogStale?: boolean
 }
 
 /** Checks network schemes without excluding deliberately selected WebSockets. */
@@ -131,19 +136,22 @@ export function isMcpUrl(url: string, transport: McpTransport): boolean {
   }
 }
 
-/** Trims discovered metadata to the storage caps. */
-export function clampMcpTools(tools: McpToolMeta[]): McpToolMeta[] {
-  return tools.slice(0, MAX_SERVER_MCP_TOOLS).map((tool) => ({
-    name: tool.name.slice(0, MAX_MCP_DESCRIPTION_CHARS),
-    allowInReadOnly: tool.allowInReadOnly,
-    nameOverride: clamp(tool.nameOverride, MAX_MCP_DESCRIPTION_CHARS),
-    description: clamp(tool.description, MAX_MCP_DESCRIPTION_CHARS),
-    descriptionOverride: clamp(
-      tool.descriptionOverride,
-      MAX_MCP_DESCRIPTION_CHARS,
-    ),
-    inputSchema: clamp(tool.inputSchema, MAX_MCP_SCHEMA_CHARS),
-  }))
+/** Rejects oversized legacy settings explicitly without altering their evidence. */
+export function validateMcpTools(tools: McpToolMeta[]): McpToolMeta[] {
+  if (tools.length > MAX_MCP_CATALOG_TOOLS) {
+    throw new Error('MCP catalog capacity exceeded; no tools were saved')
+  }
+  const bytes = (value: unknown) =>
+    new TextEncoder().encode(JSON.stringify(value)).byteLength
+  if (
+    bytes(tools) > 4 * 1024 * 1024 ||
+    tools.some((tool) => bytes(tool) > 768 * 1024)
+  ) {
+    throw new Error(
+      'MCP settings are too large; save the server and refresh its catalog',
+    )
+  }
+  return tools
 }
 
 export function isMcpTransport(value: unknown): value is McpTransport {
@@ -177,10 +185,6 @@ export function mcpToolDescription(tool: {
 }): string | undefined {
   const override = tool.descriptionOverride?.trim()
   return override || tool.description
-}
-
-function clamp(value: string | undefined, max: number) {
-  return value === undefined ? undefined : value.slice(0, max)
 }
 
 function slugify(value: string): string {

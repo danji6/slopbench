@@ -107,6 +107,7 @@ export function useUserSettingsPersistence({
         maxTotalTimeoutMs: server.maxTotalTimeoutMs,
         transport: server.transport,
         enabled: server.enabled,
+        brokerEnabled: server.brokerEnabled,
         apiKey: server.apiKey,
         tools: server.tools?.map((tool) => ({
           name: tool.name,
@@ -115,6 +116,8 @@ export function useUserSettingsPersistence({
           description: tool.description,
           descriptionOverride: tool.descriptionOverride,
           inputSchema: tool.inputSchema,
+          enabled: tool.enabled,
+          diagnostic: tool.diagnostic,
         })),
       })),
     })

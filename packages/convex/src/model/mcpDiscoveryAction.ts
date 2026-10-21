@@ -1,21 +1,28 @@
 'use node'
 
-import { clampMcpTools, mcpConnectionSchema } from '@sb/core/types'
+import { mcpConnectionSchema, validateMcpTools } from '@sb/core/types'
 import type {
   McpConnection,
   McpDialedTransport,
   McpToolMeta,
 } from '@sb/core/types'
 
-import { api, internal } from '../_generated/api'
+import { api } from '../_generated/api'
 import type { ActionCtx } from '../_generated/server'
 import { error } from '../errors'
 import { authorizeAdmin } from '../functions'
 import type { DiscoverMcpToolsArgs } from '../types'
+import { refreshSavedCatalog } from './mcpCatalogActions'
 import { sidecarUrl } from './sidecar'
 import { sidecarRequest } from './sidecarTransport'
 
-type DiscoveryResult = { tools: McpToolMeta[]; transport?: McpDialedTransport }
+type DiscoveryResult = {
+  tools: McpToolMeta[]
+  transport?: McpDialedTransport
+  catalogId?: string
+  count?: number
+}
+
 type DiscoveryResponse = Partial<DiscoveryResult> & { error?: string }
 
 /** Discovers tools through an explicitly requested, isolated connection probe. */
@@ -27,24 +34,23 @@ export async function discoverMcpTools(
   if (!identity) error('Unauthorized', 401)
   if (args.transport === 'stdio') await authorizeAdmin(ctx)
 
-  const connection = await discoveryConnection(ctx, args)
-  const data = await probeTools(connection)
-  return { tools: clampMcpTools(data.tools ?? []), transport: data.transport }
-}
-
-async function discoveryConnection(
-  ctx: ActionCtx,
-  { serverId, apiKey, ...input }: DiscoverMcpToolsArgs,
-): Promise<McpConnection> {
-  let key = apiKey
-  let secretEnv: Record<string, string> | undefined
-  if (serverId) {
-    await ctx.runQuery(api.mcp.get, { serverId })
-    secretEnv = await ctx.runQuery(internal.mcp._getSecretEnv, { serverId })
-    key ??=
-      (await ctx.runQuery(internal.mcp._getApiKey, { serverId })) ?? undefined
+  if (args.serverId) {
+    await ctx.runQuery(api.mcp.get, { serverId: args.serverId })
+    const result = await refreshSavedCatalog(ctx, args.serverId)
+    return {
+      tools: [],
+      ...result,
+      transport: result.transport as McpDialedTransport | undefined,
+    }
   }
-  return mcpConnectionSchema.parse({ ...input, apiKey: key, secretEnv })
+
+  const connection = mcpConnectionSchema.parse(args)
+  const data = await probeTools(connection)
+
+  return {
+    tools: validateMcpTools(data.tools ?? []),
+    transport: data.transport,
+  }
 }
 
 async function probeTools(
@@ -58,9 +64,12 @@ async function probeTools(
       body: JSON.stringify(connection),
     }),
   )
+
   const data = (await response.json()) as DiscoveryResponse
+
   if (!response.ok || data.error) {
     error(data.error ?? `Discovery failed with HTTP ${response.status}`, 502)
   }
+
   return data
 }

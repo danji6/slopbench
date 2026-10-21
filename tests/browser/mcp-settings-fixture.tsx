@@ -1,3 +1,4 @@
+import { McpBrokerSettings } from '@/components/chat/entities/user/mcp-broker-settings'
 import { parseMcpLaunch } from '@/components/chat/entities/user/mcp-launch'
 import { McpLocalSettings } from '@/components/chat/entities/user/mcp-local-settings'
 import { McpTimeouts } from '@/components/chat/entities/user/mcp-timeouts'
@@ -51,6 +52,12 @@ export function McpSettingsFixture() {
           item={item}
           onChange={(patch) =>
             setItem((previous) => ({ ...previous, ...patch }))
+          }
+        />
+        <McpBrokerSettings
+          enabled={item.brokerEnabled ?? false}
+          onChange={(brokerEnabled) =>
+            setItem((previous) => ({ ...previous, brokerEnabled }))
           }
         />
         <McpProgress

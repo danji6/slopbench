@@ -11,19 +11,27 @@ type HelpButtonProps = {
   children: React.ReactNode
   title?: React.ReactNode
   trigger?: React.ReactElement
+  triggerLabel?: string
   contentProps?: React.ComponentProps<typeof Popover.Content>
 }
 
 export function HelpButton({
   children,
   title,
-  trigger = <HelpTrigger />,
+  triggerLabel = 'More information',
+  trigger = <HelpTrigger aria-label={triggerLabel} />,
   contentProps,
 }: HelpButtonProps) {
   return (
     <Popover>
       <Popover.Trigger render={trigger} />
-      <Popover.Content {...contentProps}>
+      <Popover.Content
+        {...contentProps}
+        className={cn(
+          'w-[calc(100dvw-2rem)] max-w-sm',
+          contentProps?.className,
+        )}
+      >
         {title && (
           <Popover.Title className="font-semibold">{title}</Popover.Title>
         )}

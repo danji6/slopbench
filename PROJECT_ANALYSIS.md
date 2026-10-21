@@ -17,8 +17,8 @@ cleanup. Unexpected loss requires explicit reconnection, preserving uncertainty
 about interrupted calls. Local commands retain admin and tool-approval gates.
 Secret environment bindings are separate credential records; status exposes only
 bounded redacted stderr. See `MCP_INTEGRATIONS.md` for configuration, lifecycle
-semantics and the remaining staged work. Discovery limits and text-only result
-handling remain until stages 3 and 4; stage 2 now supplies durable long calls.
+semantics and the remaining staged work. Stage 2 supplies durable long calls and
+stage 3 supplies complete catalogs; text-only result handling remains until stage 4.
 Restart the sidecar after updating.
 
 ## Durable external MCP operations (stage 2, 2026-10-20)
@@ -42,6 +42,33 @@ journals after a stale-request grace period. Explicit storage/capacity failures
 preserve uncertainty rather than silently truncating canonical successful results.
 See `MCP_INTEGRATIONS.md` for defaults, limits and recovery behavior. Restart the
 sidecar after updating; existing remote records retain legacy absent-field defaults.
+
+## Complete MCP catalogs and stable brokers (stage 3, 2026-10-21)
+
+Discovery now follows all continuation cursors and publishes versioned catalogs
+atomically. Failed refreshes retain the prior usable revision; unchanged refreshes
+retain opaque tool identities. Full definitions, including large schemas, original
+descriptions, output schemas, annotations and metadata, use blob storage behind
+paginated summary rows. Invalid or unsupported schemas receive explicit diagnostics.
+The SDK Ajv provider validates schema constraints and arguments without permissive
+fallbacks; modern draft 2020-12 and explicitly declared draft-07 are supported.
+
+Standalone servers can opt into a per-server agent selection for broker access.
+`search_mcp_tools` provides bounded server/tool pages and complete definition ranges;
+`call_mcp_tool` uses opaque identities and the existing authorized durable operation
+path. Broker approvals are scoped to exact targets. Server/tool restrictions,
+configuration revisions and generation fences are rechecked, including immediate
+cancellation when availability narrows. Existing direct selections remain usable.
+
+Manifest version 2 adds only the stable brokers at an invocation boundary, retaining
+frozen prompts and direct definitions. Literal immutable MCP notes announce changing
+availability. Live `tools/list_changed` notifications schedule a safe refresh against
+the same process. Frozen definitions are pinned until their session cache is released;
+unreferenced revisions and abandoned uploads have bounded cleanup. Settings expose
+catalog refresh, paginated policies and complete-definition downloads. See
+`MCP_INTEGRATIONS.md` for limits and workflow. Restart the sidecar; no destructive
+migration is needed. Rich result fidelity, integrations and real REA conformance
+remain stages 4–7.
 
 ## Personal agent folders and skills (2026-10-09)
 
@@ -1795,11 +1822,13 @@ least one valid instance is configured.
 
 Users can configure external MCP servers in settings. A server is an
 `mcpServers` row (client-generated `key` stable across renames, label, URL,
-transport, enabled flag, order); its discovered tools are `mcpTools` rows; its
+transport, enabled flag, order); its legacy tools and per-tool policies are
+`mcpTools` rows, while complete revisions use `mcpCatalogs`/`mcpCatalogTools`; its
 bearer API key is a `credentials` row. Public queries return an
 `McpServerView`, which carries `hasApiKey` instead of the key itself. Saving
 happens with the settings form through one `mcp.replaceAll` mutation; drafts
-never hold the key, and staged tool metadata is clamped on the way in.
+never hold the key. Oversized legacy settings are rejected explicitly; catalog
+definitions use blob references and paginated summaries without schema slicing.
 
 The transport is `auto` | `http` | `sse` | `ws` | `stdio`. **`auto` is the default**:
 `mcpTransportCandidates` yields Streamable HTTP first (SSE is being deprecated;

@@ -20,6 +20,7 @@ import {
 import { guardFilesystemTool } from './filesystemGuard'
 import type { McpManifestEntry, ToolManifest } from './manifest'
 import { createExternalMcpTool } from './mcp'
+import { createMcpBrokerTools } from './mcpBroker'
 import type { McpOperationContext } from './mcpOperation'
 import {
   createEditPlanTool,
@@ -246,6 +247,18 @@ async function createManifestTool(
   const { workspace, planContext } = build
 
   switch (name) {
+    case 'search_mcp_tools':
+    case 'call_mcp_tool': {
+      if (!build.mcpOperation || !build.mcpExecution) return undefined
+      const broker = await createMcpBrokerTools({
+        operation: build.mcpOperation,
+        current: build.mcpExecution,
+        connected: build.mcpConnected,
+        approvals: build.mcpApprovals,
+        failed: build.mcpFailed,
+      })
+      return broker[name] as AnyTool
+    }
     case 'web_fetch':
       return createWebFetchTool()
     case 'web_search':

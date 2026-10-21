@@ -16,7 +16,11 @@ const mcpServer = {
   transport: 'http',
   enabled: true,
   tools: [
-    { name: 'search', description: 'Search the docs', inputSchema: '{}' },
+    {
+      name: 'search',
+      description: 'Search the docs',
+      inputSchema: '{"type":"object"}',
+    },
   ],
 }
 
@@ -56,7 +60,7 @@ describe('tool manifest', () => {
         serverId: 'srv_1',
         toolName: 'search',
         description: 'Search the docs',
-        inputSchema: '{}',
+        inputSchema: '{"type":"object"}',
       },
     ])
   })
@@ -110,7 +114,12 @@ describe('tool manifest', () => {
       spawnableAgents: [],
     } as never)
 
-    expect(manifest.names).toEqual(['read_file', 'list_skills'])
+    expect(manifest.names).toEqual([
+      'read_file',
+      'list_skills',
+      'search_mcp_tools',
+      'call_mcp_tool',
+    ])
     expect(manifest.mcp).toBeUndefined()
   })
 
@@ -125,7 +134,7 @@ describe('tool manifest', () => {
         resources: { settings: null, mcpServers: [] },
         spawnableAgents: [],
       } as never).names,
-    ).toEqual([])
+    ).toEqual(['search_mcp_tools', 'call_mcp_tool'])
 
     expect(
       resolveToolManifest({
@@ -135,7 +144,7 @@ describe('tool manifest', () => {
         resources: { settings: null, mcpServers: [] },
         spawnableAgents: [],
       } as never).names,
-    ).toEqual([])
+    ).toEqual(['search_mcp_tools', 'call_mcp_tool'])
   })
 
   test('the shell is resolved agent-over-user, and only for the shell tool', () => {

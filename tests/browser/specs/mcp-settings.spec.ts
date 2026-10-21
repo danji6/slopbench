@@ -134,3 +134,78 @@ test('progress without a total never invents a percentage', async ({
   await page.getByRole('button', { name: 'Toggle progress total' }).click()
   await expect(status).toHaveText('Analyzing · 3 / 10')
 })
+
+test('tool discovery help opens independently of the labeled switch', async ({
+  page,
+}) => {
+  const toggle = page.getByRole('switch', {
+    name: 'Exclude tools from context',
+  })
+  const help = page.getByRole('button', {
+    name: 'About Exclude tools from context',
+  })
+  await expect(toggle).not.toBeChecked()
+  await help.click()
+  await expect(page.getByText(/This keeps its starting context/)).toBeVisible()
+  await expect(page.getByText(/When off, you select individual/)).toBeVisible()
+  await expect(toggle).not.toBeChecked()
+  await page.keyboard.press('Escape')
+  await expect(page.getByText(/This keeps its starting context/)).toBeHidden()
+  await page.getByText('Exclude tools from context', { exact: true }).click()
+  await expect(toggle).toBeChecked()
+  await toggle.focus()
+  await page.keyboard.press('Space')
+  await expect(toggle).not.toBeChecked()
+})
+
+test('compact settings share label styling and align controls at both widths', async ({
+  page,
+}) => {
+  for (const width of [900, 390]) {
+    await page.setViewportSize({ width, height: 1000 })
+    const layout = await page.evaluate(() => {
+      const rows = [
+        ...document.querySelectorAll('[data-slot="settings-field"]'),
+      ]
+      const firstLabel = rows[0]!.querySelector('label')!
+      const switchLabel = rows[3]!.querySelector('label')!
+      const help = rows[3]!.querySelector('button')!
+      const input = rows[0]!.querySelector('input')!
+      const toggle = rows[3]!.querySelector('[role="switch"]')!
+      return {
+        labelStyles: [firstLabel, switchLabel].map((label) => {
+          const style = getComputedStyle(label)
+          return [style.fontSize, style.fontWeight, style.color]
+        }),
+        labelStarts: [firstLabel, switchLabel].map(
+          (label) => label.getBoundingClientRect().left,
+        ),
+        helpGap:
+          help.getBoundingClientRect().left -
+          switchLabel.getBoundingClientRect().right,
+        controlEnds: [input, toggle].map(
+          (control) => control.getBoundingClientRect().right,
+        ),
+        overflow: document.documentElement.scrollWidth - window.innerWidth,
+      }
+    })
+    expect(layout.labelStyles[0]).toEqual(layout.labelStyles[1])
+    expect(layout.labelStarts[0]).toBe(layout.labelStarts[1])
+    expect(layout.helpGap).toBeGreaterThanOrEqual(0)
+    expect(layout.helpGap).toBeLessThanOrEqual(8)
+    expect(layout.controlEnds[0]).toBe(layout.controlEnds[1])
+    expect(layout.overflow).toBeLessThanOrEqual(0)
+    await page.screenshot({ path: `/tmp/slopbench-mcp-settings-${width}.png` })
+    await page
+      .getByRole('button', { name: 'About Exclude tools from context' })
+      .click()
+    const popover = page.locator('[data-slot="popover-content"]')
+    await expect(popover).toBeVisible()
+    await expect(popover).toHaveCSS('opacity', '1')
+    const bounds = await popover.boundingBox()
+    expect(bounds!.width).toBeLessThanOrEqual(384)
+    expect(bounds!.width).toBeLessThanOrEqual(width - 32)
+    await page.screenshot({ path: `/tmp/slopbench-mcp-help-${width}.png` })
+    await page.keyboard.press('Escape')
+  }
+})

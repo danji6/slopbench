@@ -91,3 +91,8 @@ export const _retireRuntime = internalMutation({
   args: V.mcpRuntimeRetireArgsValidator.fields,
   handler: Runtime.retireCurrent,
 })
+
+export const _catalogRuntime = internalQuery({
+  args: { runtimeId: v.id('mcpRuntimes'), key: v.string() },
+  handler: Runtime.catalogRuntime,
+})

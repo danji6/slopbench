@@ -1,6 +1,7 @@
 import { mcpConnectionSchema } from '@sb/core/types'
 import type { McpRuntimeScope, McpRuntimeStatus } from '@sb/core/types'
 import type { McpServer } from '@sb/core/types'
+import { mcpApprovalKey, parseMcpInputSchema } from '@sb/core/types/mcp-catalog'
 
 import type { Id } from '../../_generated/dataModel'
 import { ToolError, extractErrorMessage, toolFailure } from '../../errors'
@@ -9,6 +10,7 @@ import type { ToolApprovals } from '../../types'
 import { sidecarUrl as defaultSidecarUrl } from '../sidecar'
 import { sidecarRequest } from '../sidecarTransport'
 import type { McpManifestEntry } from './manifest'
+import { loadMcpDefinition } from './mcpDefinition'
 import {
   type McpOperationContext,
   executeMcpOperation,
@@ -77,17 +79,6 @@ export async function callMcpTool(
     } catch {
       // Keep the stream alive, no-op
     }
-  }
-}
-
-const EMPTY_OBJECT_SCHEMA = { type: 'object' as const, properties: {} }
-
-function parseInputSchema(raw: string | undefined): Record<string, unknown> {
-  if (!raw) return EMPTY_OBJECT_SCHEMA
-  try {
-    return JSON.parse(raw) as Record<string, unknown>
-  } catch {
-    return EMPTY_OBJECT_SCHEMA
   }
 }
 
@@ -235,11 +226,43 @@ export async function createExternalMcpTool(
   operationContext?: McpOperationContext,
 ) {
   const { tool, jsonSchema } = await import('ai')
-  const schema = parseInputSchema(entry.inputSchema) as Parameters<typeof jsonSchema>[0] // prettier-ignore
+
+  const definition =
+    entry.definitionRef && operationContext
+      ? await loadMcpDefinition(
+          operationContext.ctx,
+          entry.definitionRef,
+          operationContext.execution,
+        )
+      : undefined
+
+  const diagnostic = entry.diagnostic ?? definition?.diagnostic
+  if (diagnostic) throw new ToolError(diagnostic)
+
+  const schema = parseMcpInputSchema(
+    definition?.inputSchema ?? entry.inputSchema,
+  ) as Parameters<typeof jsonSchema>[0]
+
+  const { mcpInputValidator } = await import('@sb/core/mcp-schema-validation')
+  const validate = mcpInputValidator(
+    definition?.inputSchema ?? entry.inputSchema!,
+  )
 
   return tool({
-    description: entry.description,
-    inputSchema: jsonSchema(schema),
+    description: entry.description ?? definition?.description,
+    inputSchema: jsonSchema(schema, {
+      validate: (input) => {
+        const result = validate(input)
+        return result.valid
+          ? { success: true, value: result.data }
+          : {
+              success: false,
+              error: new ToolError(
+                `MCP arguments rejected: ${result.errorMessage}`,
+              ),
+            }
+      },
+    }),
     needsApproval: async (input, { toolCallId }) => {
       if (operationContext) {
         const existing = await findMcpOperation(operationContext, {
@@ -255,7 +278,10 @@ export async function createExternalMcpTool(
       const server =
         live?.server ?? servers.find((server) => server.id === entry.serverId)
       if (server?.transport !== 'stdio') return false
-      return !isToolAutoApproved(entry.name, input, await approvals?.())
+      const approvalName = operationContext?.broker
+        ? mcpApprovalKey(operationContext.broker)!
+        : entry.name
+      return !isToolAutoApproved(approvalName, input, await approvals?.())
     },
     execute: async (args, { abortSignal, toolCallId }) => {
       if (operationContext) {

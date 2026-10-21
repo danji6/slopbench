@@ -4,6 +4,7 @@ import { mcpManifestEntryValidator } from './mcp'
 
 /** Cached shape of a session's tool set. */
 export const toolManifestValidator = v.object({
+  version: v.optional(v.number()),
   names: v.array(v.string()),
   hasAgentHome: v.optional(v.boolean()),
   taskRoster: v.optional(v.string()),

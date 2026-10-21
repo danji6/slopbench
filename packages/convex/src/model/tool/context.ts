@@ -42,6 +42,7 @@ export type PlanToolContext = {
 
 export type ToolMeta = {
   name: string
+  label?: string
   description?: string
   category?: string
   requiresAdmin?: boolean

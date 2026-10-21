@@ -1,3 +1,5 @@
+import { mcpApprovalKey } from '@sb/core/types/mcp-catalog'
+
 import { internal } from '../../_generated/api'
 import type { AuthMutationCtx } from '../../functions'
 import {
@@ -41,9 +43,14 @@ export async function rememberApproval(
   }
 
   const tools = approvals.tools ?? []
-  const additions = toolNamesForApproval(matched.toolName).filter(
-    (toolName) => !tools.includes(toolName),
-  )
+  const targetKey =
+    matched.toolName === 'call_mcp_tool'
+      ? mcpApprovalKey(matched.input)
+      : undefined
+  if (matched.toolName === 'call_mcp_tool' && !targetKey) return
+
+  const names = targetKey ? [targetKey] : toolNamesForApproval(matched.toolName)
+  const additions = names.filter((toolName) => !tools.includes(toolName))
   if (additions.length === 0) return
 
   await appendApprovals(ctx, session._id, 'tools', additions)

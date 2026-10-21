@@ -61,7 +61,9 @@ export function ToolSelectionList({
             <SettingsList.Checkbox
               key={meta.name}
               className="pl-8"
-              label={<span className="break-all">{meta.name}</span>}
+              label={
+                <span className="break-all">{meta.label ?? meta.name}</span>
+              }
               description={
                 meta.description && (
                   <span className="line-clamp-1" title={meta.description}>

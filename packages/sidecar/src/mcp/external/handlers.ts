@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { ioError } from '../../http-errors'
 import { withWorkspaceOperation } from '../workspace/context'
+import { mcpCatalogRoutes } from './catalog-routes'
 import { callExternalTool, listExternalTools } from './client'
 import { mcpOperationRoutes } from './operation-routes'
 import { mcpRegistry } from './registry'
@@ -21,6 +22,8 @@ export function externalMcpRoutes() {
   const app = new Hono()
 
   app.route('/operations', mcpOperationRoutes())
+
+  app.route('/catalog', mcpCatalogRoutes())
 
   app.post('/list', async (c) => {
     try {

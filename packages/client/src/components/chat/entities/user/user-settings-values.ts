@@ -105,6 +105,7 @@ export function loadedSettingsValues({
     mcpServers: (mcpServers ?? []).map((server) => ({
       id: server.id,
       serverId: server._id,
+      catalogId: server.catalogId,
       label: server.label,
       url: server.url,
       command: server.command,
@@ -117,6 +118,7 @@ export function loadedSettingsValues({
       maxTotalTimeoutMs: server.maxTotalTimeoutMs,
       transport: server.transport,
       enabled: server.enabled,
+      brokerEnabled: server.brokerEnabled,
       hasKey: server.hasKey,
       tools: server.tools,
       _clientId: generateId(),

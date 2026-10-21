@@ -7,6 +7,7 @@ import type { ActionCtx } from '../../_generated/server'
 import { minRole } from '../../lib/roles'
 import { sharedSessionId } from '../../lib/subagent'
 import { buildWorkspaceNoteContent } from '../../model/chat/notes'
+import { prepareMcpCatalogContext } from '../../model/mcpCatalogContext'
 import { applyPromptCaching } from '../../model/provider/cache'
 import { getProviderOptions } from '../../model/provider/options'
 import { findCredentialsForModel } from '../../model/provider/providers'
@@ -27,6 +28,16 @@ import type { PromptEvalResult } from './operations'
 export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
   const data = await ctx.runQuery(internal.streams._getContext, execution)
   if (!data) return null
+
+  const hasMcpContext =
+    data.mcpServers.length || data.stream.mcpContextFingerprint
+  const invokesTools =
+    data.stream.command.kind === 'invoke' ||
+    data.stream.command.kind === 'retry'
+  if (invokesTools && hasMcpContext) {
+    const prepared = await prepareMcpCatalogContext(ctx, execution, data)
+    if (!prepared) return null
+  }
 
   if (minRole(data.invoker.role, 'admin')) {
     data.session.workspace = await resolvePersonalWorkspace(

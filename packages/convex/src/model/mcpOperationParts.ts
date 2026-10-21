@@ -10,7 +10,7 @@ export function operationPart(operation: Operation, existing?: unknown) {
     ...previous,
     type: `tool-${operation.name}`,
     toolCallId: operation.toolCallId,
-    input: JSON.parse(operation.args),
+    input: JSON.parse(operation.input ?? operation.args),
     mcpOperationId: operation._id,
     mcpProgress: operation.progress,
     preliminary: undefined,
