@@ -8,6 +8,7 @@ import type { FailStreamArgs, StreamExecutionArgs } from '../../types'
 import { cleanUpGeneratedAttachments } from '../attachments'
 import { clearAnnouncedMode } from '../chat/notes'
 import { handleStreamEnd } from '../chat/scheduling'
+import { cancelForStream } from '../mcpOperations'
 import {
   finalizeTurn,
   getProcessingSegmentRow,
@@ -299,6 +300,7 @@ export function preserveStoppedStreamError(
 
 /** Reclaims unused output before deleting its owning stream. */
 export async function discardStream(ctx: MutationCtx, streamId: Id<'streams'>) {
+  await cancelForStream(ctx, streamId, 'Owning turn ended.')
   await settleStream(ctx, streamId, 'unavailable')
   await cleanUpOffloadedOutputs(ctx, streamId)
   await cleanUpGeneratedAttachments(ctx, streamId)

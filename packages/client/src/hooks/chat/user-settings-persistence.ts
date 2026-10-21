@@ -103,6 +103,8 @@ export function useUserSettingsPersistence({
         command: server.transport === 'stdio' ? server.command : undefined,
         cwd: server.transport === 'stdio' ? server.cwd : undefined,
         startupTimeoutMs: server.startupTimeoutMs,
+        requestTimeoutMs: server.requestTimeoutMs,
+        maxTotalTimeoutMs: server.maxTotalTimeoutMs,
         transport: server.transport,
         enabled: server.enabled,
         apiKey: server.apiKey,

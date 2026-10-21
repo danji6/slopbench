@@ -11,6 +11,7 @@ import type {
 import { senderIdentity } from '../chat/identities'
 import { injectModeNote } from '../chat/notes'
 import { injectDueReminders } from '../chat/reminders'
+import { mergeOperationParts } from '../mcpOperationParts'
 import {
   appendSegment,
   finalizeTurn,
@@ -38,7 +39,12 @@ export async function _patchMessage(
   const row = await getProcessingSegmentRow(ctx, stream)
   if (!row) return false
 
-  await patchSegmentParts(ctx, stream.state.processingMessageId, row, parts)
+  await patchSegmentParts(
+    ctx,
+    stream.state.processingMessageId,
+    row,
+    await mergeOperationParts(ctx, row._id, parts),
+  )
 
   await renewStreamLease(ctx, stream)
 
@@ -66,6 +72,13 @@ export async function consumeInterjections(
   // here would finalize it as unanswered before the resumed SDK stream gets a
   // chance to run the tool.
   if (row?.parts.some(isApprovedToolAwaitingExecution)) return false
+  const pendingMcp = await ctx.db
+    .query('mcpOperations')
+    .withIndex('by_streamId_delivered', (q) =>
+      q.eq('streamId', stream._id).eq('delivered', false),
+    )
+    .first()
+  if (pendingMcp) return false
 
   const newer = await ctx.db
     .query('messages')

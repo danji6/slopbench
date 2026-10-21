@@ -20,6 +20,7 @@ import {
 import { guardFilesystemTool } from './filesystemGuard'
 import type { McpManifestEntry, ToolManifest } from './manifest'
 import { createExternalMcpTool } from './mcp'
+import type { McpOperationContext } from './mcpOperation'
 import {
   createEditPlanTool,
   createEnterPlanModeTool,
@@ -119,6 +120,10 @@ export async function getEnabledTools(
           : undefined,
       planContext,
       mcpApprovals: approvals,
+      mcpOperation:
+        ctx && options?.execution && options.messageId
+          ? { ctx, execution: options.execution, messageId: options.messageId }
+          : undefined,
       mcpFailed: ctx
         ? async (runtimeId, key, reason) => {
             await ctx.runMutation(internal.mcp._updateRuntimeStatus, {
@@ -223,6 +228,7 @@ type BuildContext = {
     reason: string,
   ) => Promise<void>
   mcpApprovals?: () => Promise<ToolApprovals | undefined>
+  mcpOperation?: McpOperationContext
   mcpConnected?: (
     runtimeId: Id<'mcpRuntimes'>,
     key: string,
@@ -291,5 +297,6 @@ async function createManifestTool(
     build.mcpConnected,
     build.mcpApprovals,
     build.mcpFailed,
+    build.mcpOperation,
   )
 }

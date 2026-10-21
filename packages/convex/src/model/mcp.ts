@@ -395,6 +395,8 @@ export function launchFields(
     | 'cwd'
     | 'env'
     | 'startupTimeoutMs'
+    | 'requestTimeoutMs'
+    | 'maxTotalTimeoutMs'
   >,
 ) {
   return {
@@ -404,6 +406,8 @@ export function launchFields(
     cwd: server.cwd,
     env: server.env,
     startupTimeoutMs: server.startupTimeoutMs,
+    requestTimeoutMs: server.requestTimeoutMs,
+    maxTotalTimeoutMs: server.maxTotalTimeoutMs,
   }
 }
 

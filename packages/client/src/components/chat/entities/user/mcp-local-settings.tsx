@@ -51,17 +51,6 @@ export function McpLocalSettings({ item, onChange }: Props) {
         Set a secret value to an empty string to remove it. Save changes before
         checking stored credentials.
       </p>
-      <Input
-        type="number"
-        aria-label="MCP startup timeout"
-        min={100}
-        max={300000}
-        value={item.startupTimeoutMs ?? ''}
-        placeholder="Startup timeout in ms (default 30000)"
-        onValueChange={(value) =>
-          onChange({ startupTimeoutMs: value ? Number(value) : undefined })
-        }
-      />
     </div>
   )
 }

@@ -21,6 +21,8 @@ export const mcpLaunchFields = {
   cwd: v.optional(v.string()),
   env: v.optional(v.record(v.string(), v.string())),
   startupTimeoutMs: v.optional(v.number()),
+  requestTimeoutMs: v.optional(v.number()),
+  maxTotalTimeoutMs: v.optional(v.number()),
 }
 
 export const mcpScopeValidator = v.object({

@@ -1,6 +1,7 @@
 import { internal } from '../../_generated/api'
 import type { Doc } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
+import { cancelForStream } from '../mcpOperations'
 import { scheduleTitle } from '../messages'
 import { settleStream } from '../notificationRequests'
 import { cancelScheduledExecution } from './execution'
@@ -20,6 +21,7 @@ export async function stopExecution(
     return
   }
 
+  await cancelForStream(ctx, stream._id, 'Turn stopped by user.')
   await settleStream(ctx, stream._id, 'cancelled')
   await cancelScheduledExecution(ctx, stream)
 

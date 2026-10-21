@@ -19,6 +19,7 @@ import type {
   McpRuntimeStatusArgs,
 } from '../types'
 import { resolve } from './mcp'
+import { cancelForRuntime } from './mcpOperations'
 import { getSessionWithWorkspace, workspaceKey } from './session/folderContext'
 import { getMembership } from './session/memberships'
 
@@ -45,6 +46,7 @@ export function runtimeScope(row: Runtime): McpRuntimeScope {
 
 /** Journals teardown in the same transaction that revokes configuration. */
 export async function retire(ctx: MutationCtx, row: Runtime, reason: string) {
+  await cancelForRuntime(ctx, row._id, reason)
   await ctx.db.patch(row._id, {
     state: 'disconnected',
     reason,

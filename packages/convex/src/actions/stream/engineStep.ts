@@ -199,6 +199,9 @@ export async function consumeProviderStep(
 
     const duration = Date.now() - startedAt
 
+    if (abortController.signal.reason === STEP_DEADLINE_REASON) {
+      throw new Error('Backend execution window elapsed')
+    }
     if (streamError !== undefined) throw streamError
 
     latestParts = await prepareParts(latestParts)

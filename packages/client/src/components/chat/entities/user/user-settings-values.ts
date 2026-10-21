@@ -113,6 +113,8 @@ export function loadedSettingsValues({
       envJson: JSON.stringify(server.env ?? {}),
       secretEnvNames: server.secretEnvNames,
       startupTimeoutMs: server.startupTimeoutMs,
+      requestTimeoutMs: server.requestTimeoutMs,
+      maxTotalTimeoutMs: server.maxTotalTimeoutMs,
       transport: server.transport,
       enabled: server.enabled,
       hasKey: server.hasKey,

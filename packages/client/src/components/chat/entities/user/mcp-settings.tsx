@@ -34,6 +34,7 @@ import { useFieldArray } from 'react-hook-form'
 import { parseMcpLaunch } from './mcp-launch'
 import { McpLocalSettings } from './mcp-local-settings'
 import { McpRuntimes } from './mcp-runtimes'
+import { McpTimeouts } from './mcp-timeouts'
 import { McpToolRow } from './mcp-tool-row'
 import type {
   McpServerFormValues,
@@ -61,6 +62,9 @@ export function McpSettings({
       label: '',
       url: '',
       transport: 'auto',
+      startupTimeoutMs: 30_000,
+      requestTimeoutMs: 300_000,
+      maxTotalTimeoutMs: 1_800_000,
       enabled: true,
       hasKey: false,
       _clientId: generateId(),
@@ -326,6 +330,7 @@ function McpServerCard({
             />
           </div>
         )}
+        <McpTimeouts item={item} onChange={onChange} />
         <div className="flex w-full items-center gap-2 px-1">
           <Input
             type="password"

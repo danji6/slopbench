@@ -3,6 +3,7 @@
 import { internal } from '../../_generated/api'
 import type { ActionCtx } from '../../_generated/server'
 import { sanitizeChatError } from '../../errors'
+import { resumeOperations } from '../../model/mcpOperationActions'
 import {
   getAutoCompactRetryDelay,
   getProviderRetryDelay,
@@ -42,6 +43,12 @@ export async function _stream(ctx: ActionCtx, execution: StreamExecutionArgs) {
         return
       }
 
+      const settled = await resumeOperations(ctx, execution, windowDeadline)
+      if (!settled) {
+        await ctx.runMutation(internal.streams._handoff, { ...execution })
+        return
+      }
+
       const setup = await prepare(ctx, execution)
       if (!setup) return
       lastSetup = setup
@@ -72,6 +79,15 @@ export async function _stream(ctx: ActionCtx, execution: StreamExecutionArgs) {
         warnings: hasOutput.warnings,
         usage,
       })
+
+      const pendingMcp = await ctx.runQuery(
+        internal.mcpOperations._pending,
+        execution,
+      )
+      if (pendingMcp.length) {
+        await ctx.runMutation(internal.streams._handoff, execution)
+        return
+      }
 
       // A final provider step is still a normal completion. Otherwise stop at
       // this safe seam before suspending, retrying, or starting another step.

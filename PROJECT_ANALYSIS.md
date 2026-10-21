@@ -18,8 +18,30 @@ about interrupted calls. Local commands retain admin and tool-approval gates.
 Secret environment bindings are separate credential records; status exposes only
 bounded redacted stderr. See `MCP_INTEGRATIONS.md` for configuration, lifecycle
 semantics and the remaining staged work. Discovery limits and text-only result
-handling remain until stages 3 and 4; durable long calls arrive in stage 2.
+handling remain until stages 3 and 4; stage 2 now supplies durable long calls.
 Restart the sidecar after updating.
+
+## Durable external MCP operations (stage 2, 2026-10-20)
+
+Agent-stream MCP calls now reserve durable operation identities before dispatch.
+The sidecar journals dispatch and retains canonical successful text output until
+Convex stores and acknowledges it. Repeated starts attach to that identity;
+changed arguments are rejected. Backend handoffs checkpoint pending tool calls,
+retain execution-generation fencing, and resume waiting before the next provider
+step. SDK transcript patches cannot replace authoritative pending/result state.
+Completed backend records serve retries without another toolkit invocation.
+
+Settings expose independent startup, inactivity and absolute deadlines; progress
+resets inactivity only and appears in reactive tool cards without invented totals.
+Stop/revocation journals cancellation independently of a watcher. Pre-dispatch
+cancellation blocks delayed starts; dispatched cancellation sends protocol
+cancellation and closes the fenced connection after bounded cleanup. Late results
+cannot overwrite cancellation. Process/sidecar loss is terminal and never silently
+replayed. Minute maintenance retries acknowledgement and reclaims deleted-owner
+journals after a stale-request grace period. Explicit storage/capacity failures
+preserve uncertainty rather than silently truncating canonical successful results.
+See `MCP_INTEGRATIONS.md` for defaults, limits and recovery behavior. Restart the
+sidecar after updating; existing remote records retain legacy absent-field defaults.
 
 ## Personal agent folders and skills (2026-10-09)
 
@@ -1779,7 +1801,7 @@ bearer API key is a `credentials` row. Public queries return an
 happens with the settings form through one `mcp.replaceAll` mutation; drafts
 never hold the key, and staged tool metadata is clamped on the way in.
 
-The transport is `auto` | `http` | `sse` | `ws`. **`auto` is the default**:
+The transport is `auto` | `http` | `sse` | `ws` | `stdio`. **`auto` is the default**:
 `mcpTransportCandidates` yields Streamable HTTP first (SSE is being deprecated;
 WebSocket stays a deliberate user choice), the sidecar dials them in order, and
 caches the winner per URL so later calls do not re-probe. Fallback happens only
@@ -1805,9 +1827,11 @@ External calls flow:
 ```text
 AI SDK tool call
   -> Convex tool wrapper
-    -> sidecar /mcp-ext/call
-      -> MCP client transport
-        -> external MCP server
+    -> durable Convex operation + transcript checkpoint
+      -> sidecar /mcp-ext/operations/start (idempotent)
+        -> persistent MCP client transport
+          -> external MCP server
+      -> status/result polling, durable result storage, acknowledgement
 ```
 
 Only text content is returned to the model. MCP error results are converted

@@ -15,6 +15,7 @@ import type { Doc, Id } from './_generated/dataModel'
 import type { SpawnableAgent } from './model/agent/subagents'
 import type { PromptSets } from './model/prompts'
 import type * as V from './validators'
+import type * as McpOperationsV from './validators/mcpOperations'
 
 export type { Role } from './lib/roles'
 export type * from '@sb/core/types'
@@ -228,3 +229,8 @@ export type McpRuntimeStatusArgs = Infer<typeof V.mcpRuntimeStatusArgsValidator>
 export type McpRuntimeRetireArgs = Infer<typeof V.mcpRuntimeRetireArgsValidator>
 export type McpRuntimeListArgs = Infer<typeof V.mcpRuntimeListArgsValidator>
 export type McpRuntimePageArgs = Infer<typeof V.mcpRuntimePageArgsValidator>
+export type McpReserveArgs = Infer<typeof McpOperationsV.mcpReserveArgsValidator> // prettier-ignore
+export type McpObserveArgs = Infer<typeof McpOperationsV.mcpObserveArgsValidator> // prettier-ignore
+export type McpOperationArgs = Infer<typeof McpOperationsV.mcpOperationArgsValidator> // prettier-ignore
+export type McpOperationExecutionArgs = Infer<typeof McpOperationsV.mcpOperationExecutionValidator> // prettier-ignore
+export type McpOperationFindArgs = Infer<typeof McpOperationsV.mcpOperationFindValidator> // prettier-ignore

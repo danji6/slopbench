@@ -5,33 +5,22 @@ import { z } from 'zod'
 import { ioError } from '../../http-errors'
 import { withWorkspaceOperation } from '../workspace/context'
 import { callExternalTool, listExternalTools } from './client'
+import { mcpOperationRoutes } from './operation-routes'
 import { mcpRegistry } from './registry'
-
-const scopeSchema = z.object({
-  epoch: z.number().int().nonnegative().optional(),
-  key: z.string(),
-  ownerId: z.string(),
-  sessionId: z.string(),
-  agentId: z.string(),
-  serverId: z.string(),
-  revision: z.string(),
-})
+import { assertMcpLease, mcpScopeSchema } from './scope'
 
 const scopedSchema = z.object({
-  scope: scopeSchema,
+  scope: mcpScopeSchema,
   bootId: z.string().optional(),
   generation: z.string().optional(),
   expiresAt: z.number(),
 })
 
-function assertLease(expiresAt: number) {
-  if (expiresAt < Date.now() || expiresAt > Date.now() + 60_000)
-    throw new Error('MCP authorization expired')
-}
-
 /** These routes are mounted behind the sidecar's backend authentication. */
 export function externalMcpRoutes() {
   const app = new Hono()
+
+  app.route('/operations', mcpOperationRoutes())
 
   app.post('/list', async (c) => {
     try {
@@ -50,7 +39,7 @@ export function externalMcpRoutes() {
       const input = scopedSchema
         .extend({ connection: mcpConnectionSchema })
         .parse(await c.req.json())
-      assertLease(input.expiresAt)
+      assertMcpLease(input.expiresAt)
       const status = await withWorkspaceOperation(input.scope.sessionId, () =>
         mcpRegistry.connect(input.scope, input.connection, input),
       )
@@ -90,7 +79,7 @@ export function externalMcpRoutes() {
           args: z.record(z.string(), z.unknown()).default({}),
         })
         .parse(body)
-      assertLease(input.expiresAt)
+      assertMcpLease(input.expiresAt)
       const text = await withWorkspaceOperation(input.scope.sessionId, () =>
         mcpRegistry.call(
           input.scope,
@@ -109,7 +98,7 @@ export function externalMcpRoutes() {
   app.post('/status', async (c) => {
     try {
       const { scope } = z
-        .object({ scope: scopeSchema })
+        .object({ scope: mcpScopeSchema })
         .parse(await c.req.json())
       return c.json(mcpRegistry.status(scope))
     } catch (error) {
@@ -120,7 +109,7 @@ export function externalMcpRoutes() {
   app.post('/disconnect', async (c) => {
     try {
       const { scope } = z
-        .object({ scope: scopeSchema })
+        .object({ scope: mcpScopeSchema })
         .parse(await c.req.json())
       await mcpRegistry.disconnect(scope)
       return c.json({ ok: true })

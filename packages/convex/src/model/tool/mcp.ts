@@ -9,6 +9,12 @@ import type { ToolApprovals } from '../../types'
 import { sidecarUrl as defaultSidecarUrl } from '../sidecar'
 import { sidecarRequest } from '../sidecarTransport'
 import type { McpManifestEntry } from './manifest'
+import {
+  type McpOperationContext,
+  executeMcpOperation,
+  existingMcpOperation,
+  findMcpOperation,
+} from './mcpOperation'
 import { enabledMcpServers } from './settings'
 
 export function getMcpUrl(sidecarUrl = defaultSidecarUrl()): string {
@@ -134,6 +140,11 @@ async function callExternalMcpTool(
   runtime?: RuntimeAuthorization,
   connected?: Connected,
   failed?: Failed,
+  operation?: {
+    context: McpOperationContext
+    toolCallId: string
+    name: string
+  },
 ): Promise<string> {
   try {
     if (!runtime) {
@@ -178,6 +189,20 @@ async function callExternalMcpTool(
       throw new ToolError('MCP execution was revoked during connection')
     }
 
+    if (operation) {
+      return await executeMcpOperation(operation.context, {
+        runtime,
+        bootId: status.bootId,
+        generation: status.generation,
+        serverKey: server.id,
+        toolName: name,
+        name: operation.name,
+        args,
+        toolCallId: operation.toolCallId,
+        signal,
+      })
+    }
+
     const data = await externalRequest<{ text: string }>(
       '/mcp-ext/call',
       {
@@ -207,6 +232,7 @@ export async function createExternalMcpTool(
   connected?: Connected,
   approvals?: () => Promise<ToolApprovals | undefined>,
   failed?: Failed,
+  operationContext?: McpOperationContext,
 ) {
   const { tool, jsonSchema } = await import('ai')
   const schema = parseInputSchema(entry.inputSchema) as Parameters<typeof jsonSchema>[0] // prettier-ignore
@@ -214,14 +240,35 @@ export async function createExternalMcpTool(
   return tool({
     description: entry.description,
     inputSchema: jsonSchema(schema),
-    needsApproval: async (input) => {
+    needsApproval: async (input, { toolCallId }) => {
+      if (operationContext) {
+        const existing = await findMcpOperation(operationContext, {
+          serverKey: entry.serverId,
+          toolName: entry.toolName,
+          name: entry.name,
+          args: input,
+          toolCallId,
+        })
+        if (existing) return false
+      }
       const live = current ? await current() : undefined
       const server =
         live?.server ?? servers.find((server) => server.id === entry.serverId)
       if (server?.transport !== 'stdio') return false
       return !isToolAutoApproved(entry.name, input, await approvals?.())
     },
-    execute: async (args, { abortSignal }) => {
+    execute: async (args, { abortSignal, toolCallId }) => {
+      if (operationContext) {
+        const existing = await existingMcpOperation(operationContext, {
+          serverKey: entry.serverId,
+          toolName: entry.toolName,
+          name: entry.name,
+          args,
+          toolCallId,
+          signal: abortSignal,
+        })
+        if (existing) return existing.output
+      }
       const live = current ? await current() : undefined
       const server = current
         ? live?.server
@@ -254,6 +301,9 @@ export async function createExternalMcpTool(
         live?.runtime,
         connected,
         failed,
+        operationContext
+          ? { context: operationContext, toolCallId, name: entry.name }
+          : undefined,
       )
     },
   })

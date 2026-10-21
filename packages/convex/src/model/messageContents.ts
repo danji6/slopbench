@@ -8,6 +8,7 @@ import type { TokenUsage } from '../types'
 import { assertPartsCap, assertSegmentFits } from './caps'
 import type { SenderIdentity } from './chat/identities'
 import { senderIdentity } from './chat/identities'
+import { removeForMessage as removeMcpOperations } from './mcpOperations'
 import { isContextEligible, searchTextFromParts } from './messages'
 import { collectToolOutputStorageIds } from './stream/toolOutput'
 
@@ -404,6 +405,7 @@ export async function deleteVersions(
   ctx: MutationCtx,
   messageId: Id<'messages'>,
 ) {
+  await removeMcpOperations(ctx, messageId)
   const rows = await listAllRows(ctx, messageId)
   for (const row of rows) {
     for (const storageId of collectToolOutputStorageIds(row.parts)) {

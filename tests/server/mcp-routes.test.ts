@@ -46,7 +46,21 @@ afterEach(async () => {
 })
 
 test('MCP connection management is behind backend authentication', async () => {
-  for (const path of ['connect', 'call', 'status', 'disconnect']) {
+  for (const path of [
+    'connect',
+    'call',
+    'status',
+    'disconnect',
+    ...[
+      'start',
+      'status',
+      'cancel',
+      'result',
+      'acknowledge',
+      'forget',
+      'list',
+    ].map((method) => `operations/${method}`),
+  ]) {
     expect(
       (await app.request(`/mcp-ext/${path}`, { method: 'POST', body: '{}' }))
         .status,

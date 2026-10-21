@@ -44,6 +44,7 @@ import {
   discoveryPreviewSchema,
 } from './validators/discovery'
 import { mcpCleanupSchema, mcpRuntimeSchema } from './validators/mcp'
+import { mcpOperationSchema } from './validators/mcpOperations'
 
 const schemaValidation = true
 
@@ -138,6 +139,13 @@ export default defineSchema({
     .index('by_sessionId_agentId_serverKey', ['sessionId', 'agentId', 'serverKey']),
 
   mcpCleanups: defineTable(mcpCleanupSchema),
+
+  mcpOperations: defineTable(mcpOperationSchema)
+    .index('by_contentId_toolCallId', ['contentId', 'toolCallId'])
+    .index('by_streamId_delivered', ['streamId', 'delivered'])
+    .index('by_runtimeId_state', ['runtimeId', 'state'])
+    .index('by_messageId', ['messageId'])
+    .index('by_state_acknowledged', ['state', 'acknowledged']),
 
   mcpTools: defineTable(mcpToolSchema)
     .index('by_serverId_order', ['serverId', 'order']),

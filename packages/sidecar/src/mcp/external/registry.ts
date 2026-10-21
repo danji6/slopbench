@@ -4,6 +4,7 @@ import type {
   McpRuntimeScope,
   McpRuntimeStatus,
 } from '@sb/core/types'
+import type { McpProgress } from '@sb/core/types/mcp-operation'
 import { createHash, randomUUID } from 'node:crypto'
 
 import { connectExternalClient } from './client'
@@ -265,6 +266,12 @@ export class McpRegistry {
     args: Record<string, unknown>,
     expected: Expectation,
     signal?: AbortSignal,
+    options?: {
+      timeout: number
+      maxTotalTimeout: number
+      onprogress?: (progress: McpProgress) => void
+      ondispatch?: () => void
+    },
   ) {
     const entry = this.entries.get(scope.key)
     this.assertExpected(entry, expected)
@@ -280,10 +287,17 @@ export class McpRegistry {
         if (expected.expiresAt && expected.expiresAt < Date.now())
           throw new Error('MCP authorization expired while queued')
 
+        options?.ondispatch?.()
         const result = await entry.client.callTool(
           { name, arguments: args },
           undefined,
-          { signal },
+          {
+            signal,
+            timeout: options?.timeout,
+            maxTotalTimeout: options?.maxTotalTimeout,
+            resetTimeoutOnProgress: !!options,
+            onprogress: options?.onprogress,
+          },
         )
 
         if (entry.status.state !== 'connected') {
@@ -306,6 +320,15 @@ export class McpRegistry {
       })
     entry.queue = operation
     return operation
+  }
+
+  /** Rejects queued work while protocol cancellation has a bounded cleanup grace. */
+  quiesce(scope: McpRuntimeScope, reason: string) {
+    const entry = this.entries.get(scope.key)
+    if (!entry) return
+    this.status(scope)
+    entry.status.state = 'closing'
+    entry.status.reason = reason
   }
 
   async disconnect(

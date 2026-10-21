@@ -41,6 +41,7 @@ import {
 } from './io/image'
 import { handleMcpRequest } from './mcp'
 import { externalMcpRoutes } from './mcp/external/handlers'
+import { drainMcpOperations } from './mcp/external/operation-routes'
 import { mcpRegistry } from './mcp/external/registry'
 import {
   listDirectories,
@@ -324,13 +325,16 @@ if (import.meta.main) {
     process.on(signal, () => {
       if (shuttingDown) return
       shuttingDown = true
-      void mcpRegistry.close().then(
-        () => server.close(() => process.exit(0)),
-        () => {
-          console.error('MCP shutdown cleanup failed')
-          server.close(() => process.exit(1))
-        },
-      )
+      void mcpRegistry
+        .close()
+        .then(drainMcpOperations)
+        .then(
+          () => server.close(() => process.exit(0)),
+          () => {
+            console.error('MCP shutdown cleanup failed')
+            server.close(() => process.exit(1))
+          },
+        )
     })
   }
   console.log(`Local server running on http://localhost:${PORT}`)

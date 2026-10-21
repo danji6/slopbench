@@ -40,4 +40,10 @@ crons.interval(
   internal.actions.mcp._reconcile,
 )
 
+crons.interval(
+  'reconcile MCP operations',
+  { minutes: 1 },
+  internal.actions.mcpOperations._reconcile,
+)
+
 export default crons

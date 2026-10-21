@@ -66,6 +66,7 @@ function fakeCtx({
         return chain
       },
       first: async () => {
+        if (table === 'mcpOperations') return null
         if (table === 'messageContents') return rows[rows.length - 1] ?? null
         if (
           firstMessage &&

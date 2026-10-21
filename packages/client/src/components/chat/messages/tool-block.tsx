@@ -1,9 +1,11 @@
 import { useToolOutput } from '@/hooks/chat/tool-output'
 import { getToolErrorText } from '@/lib/chat'
+import type { McpProgress as Progress } from '@sb/core/types/mcp-operation'
 import type { ToolUIPart } from 'ai'
 import { memo } from 'react'
 
 import { LoadFullOutput } from './tools/load-full-output'
+import { McpProgress } from './tools/mcp-progress'
 import { ToolShell } from './tools/tool-shell'
 
 /** Generic fallback renderer for tools without a dedicated component. */
@@ -38,6 +40,11 @@ export const ToolBlock = memo(
         part={part}
         messageId={messageId}
         forceError={forceError}
+        footer={
+          <McpProgress
+            progress={(part as { mcpProgress?: Progress }).mcpProgress}
+          />
+        }
         label={
           <span className="text-foreground font-medium">
             {part.title || toolName}

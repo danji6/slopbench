@@ -43,6 +43,8 @@ export const mcpServerSchema = z
     secretEnvJson: z.string().optional(),
     secretEnvNames: z.array(z.string()).optional(),
     startupTimeoutMs: z.number().int().min(100).max(300000).optional(),
+    requestTimeoutMs: z.number().int().min(100).max(86_400_000).optional(),
+    maxTotalTimeoutMs: z.number().int().min(100).max(86_400_000).optional(),
     transport: mcpTransportSchema,
     apiKey: z.string().optional(),
     /** Whether a key is already set in the database. */

@@ -61,6 +61,8 @@ export const mcpLaunchSchema = z.object({
     .record(z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/), z.string().max(4096))
     .optional(),
   startupTimeoutMs: z.number().int().min(100).max(300_000).optional(),
+  requestTimeoutMs: z.number().int().min(100).max(86_400_000).optional(),
+  maxTotalTimeoutMs: z.number().int().min(100).max(86_400_000).optional(),
 })
 
 const connectionFields = mcpLaunchSchema.extend({
