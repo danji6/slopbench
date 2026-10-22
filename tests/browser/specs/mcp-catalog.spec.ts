@@ -85,7 +85,7 @@ test('editing and resetting restores the complete original, without saving loade
   const editor = page.getByRole('textbox', { name: 'Tool description:' })
   await expect(editor).toHaveValue(longDescription)
   await expect(page.getByLabel('Catalog policy')).not.toContainText(
-    'Final evidence retrieval',
+    'Full description retrieval',
   )
   await editor.fill('My custom description')
   await page.getByRole('button', { name: /^tool_120 / }).click()
@@ -101,7 +101,7 @@ test('editing and resetting restores the complete original, without saving loade
     'descriptionOverride',
   )
   await expect(page.getByLabel('Catalog policy')).not.toContainText(
-    'Final evidence retrieval',
+    'Full description retrieval',
   )
 })
 

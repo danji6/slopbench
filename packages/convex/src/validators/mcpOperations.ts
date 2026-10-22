@@ -1,4 +1,5 @@
 import { MCP_OPERATION_STATES } from '@sb/core/types/mcp-operation'
+import { MCP_PROTOCOL_METHODS } from '@sb/core/types/mcp-protocol'
 import { v } from 'convex/values'
 
 import { mcpScopeValidator } from './mcp'
@@ -14,6 +15,10 @@ export const mcpOperationStateValidator = v.union(
   ...MCP_OPERATION_STATES.map((state) => v.literal(state)),
 )
 
+const protocolMethodValidator = v.union(
+  ...MCP_PROTOCOL_METHODS.map((method) => v.literal(method)),
+)
+
 export const mcpOperationSchema = v.object({
   deleted: v.optional(v.boolean()),
   ownerId: v.id('users'),
@@ -24,6 +29,7 @@ export const mcpOperationSchema = v.object({
   contentId: v.id('messageContents'),
   toolCallId: v.string(),
   toolName: v.string(),
+  protocolMethod: v.optional(protocolMethodValidator),
   name: v.string(),
   args: v.string(),
   input: v.optional(v.string()),
@@ -53,6 +59,7 @@ export const mcpOperationFindValidator = v.object({
   messageId: v.id('messages'),
   serverKey: v.string(),
   toolName: v.string(),
+  protocolMethod: v.optional(protocolMethodValidator),
   name: v.string(),
   toolCallId: v.string(),
   args: v.string(),

@@ -11,6 +11,8 @@ import { Hono } from 'hono'
 import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 
+import { mcpText } from '../helpers/mcp-result'
+
 const app = new Hono()
 app.use('*', sidecarAuthentication('route-test-secret'))
 app.route('/mcp-ext', externalMcpRoutes())
@@ -89,15 +91,20 @@ test('authenticated routes reuse one process and reject expired or revoked ident
     name: 'counter',
     args: {},
   }
-  const first = await request('call', payload),
-    second = await request('call', payload)
-  expect(JSON.parse((await first.json()).text).count).toBe(1)
-  expect(JSON.parse((await second.json()).text).count).toBe(2)
-  expect((await request('call', { ...payload, expiresAt: 0 })).status).not.toBe(
-    200,
-  )
+  const first = await mcpRegistry.call(identity, 'counter', {}, payload)
+  const second = await mcpRegistry.call(identity, 'counter', {}, payload)
+  expect(JSON.parse(mcpText(first)).count).toBe(1)
+  expect(JSON.parse(mcpText(second)).count).toBe(2)
+  await expect(
+    mcpRegistry.call(identity, 'counter', {}, { ...payload, expiresAt: 0 }),
+  ).rejects.toThrow('expired')
   await request('disconnect', { scope: identity })
-  expect((await request('call', payload)).status).not.toBe(200)
+  await expect(
+    mcpRegistry.call(identity, 'counter', {}, payload),
+  ).rejects.toThrow()
+  expect(
+    (await request('call', { ...connection, name: 'counter' })).status,
+  ).toBe(404)
 })
 
 test('workspace transition closes idle connections and prevents late dispatch', async () => {

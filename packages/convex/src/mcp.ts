@@ -17,11 +17,6 @@ export const get = authQuery({
   handler: Mcp.get,
 })
 
-export const _getApiKey = internalQuery({
-  args: { serverId: v.id('mcpServers') },
-  handler: Mcp._getApiKey,
-})
-
 export const _getExecution = internalMutation({
   args: V.mcpExecutionArgsValidator.fields,
   handler: Mcp._getExecution,
@@ -75,11 +70,6 @@ export const _cleanupDone = internalMutation({
 export const _pendingCleanups = internalQuery({
   args: {},
   handler: Cleanup.pending,
-})
-
-export const _getSecretEnv = internalQuery({
-  args: { serverId: v.id('mcpServers') },
-  handler: Mcp._getSecretEnv,
 })
 
 export const _runtimePage = internalQuery({

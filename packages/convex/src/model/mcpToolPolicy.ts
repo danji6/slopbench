@@ -23,3 +23,14 @@ export function canReadMcpTool(
 ) {
   return isMcpToolSelected(agent, server, { ...tool, diagnostic: undefined })
 }
+
+/** Allows protocol access only through an explicitly selected server or tool. */
+export function isMcpServerSelected(
+  agent: { tools?: string[] },
+  server: McpServer,
+) {
+  if (!server.enabled) return false
+  if (server.brokerEnabled && agent.tools?.includes(mcpServerSelection(server)))
+    return true
+  return !!server.tools?.some((tool) => isMcpToolSelected(agent, server, tool))
+}

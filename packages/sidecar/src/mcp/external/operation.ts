@@ -1,5 +1,7 @@
 import type { McpRuntimeScope } from '@sb/core/types'
 import type { McpProgress } from '@sb/core/types/mcp-operation'
+import type { McpProtocolRequest } from '@sb/core/types/mcp-protocol'
+import type { McpResult } from '@sb/core/types/mcp-result'
 
 import { withWorkspaceOperation } from '../workspace/context'
 import {
@@ -12,6 +14,7 @@ import type { McpOperationStore, OperationRecord } from './operation-store'
 import type { McpRegistry } from './registry'
 
 export type OperationStart = {
+  protocol?: McpProtocolRequest
   id: string
   scope: McpRuntimeScope
   bootId: string
@@ -216,6 +219,7 @@ export class McpOperations {
           },
           active.abort.signal,
           {
+            protocol: input.protocol,
             timeout: input.requestTimeoutMs + 1000,
             maxTotalTimeout: Math.max(1, input.deadlineAt - Date.now()) + 1000,
             ondispatch: () => {
@@ -238,14 +242,14 @@ export class McpOperations {
     }
   }
 
-  private complete(record: OperationRecord, text: string) {
+  private complete(record: OperationRecord, text: McpResult) {
     return this.transaction(async () => {
       if (record.state !== 'running') return
       const bytes = Buffer.byteLength(JSON.stringify(text))
       const tooLarge = bytes > (this.limits.maxResultBytes ?? 32 * 1024 * 1024)
       if (tooLarge || this.resultBytes + bytes > this.limits.resultBytes) {
         throw new Error(
-          'MCP result exceeds retained-result capacity; the tool finished but its canonical output could not be stored. Outcome may be unknown.',
+          'MCP result exceeds retained-result capacity; the tool finished but its full output could not be stored. Outcome may be unknown.',
         )
       }
       record.resultBytes = await this.store.saveResult(record.id, text)
@@ -355,7 +359,7 @@ export class McpOperations {
     return this.transaction(async () => {
       const record = this.lookup(input)
       if (!record || record.state !== 'completed' || record.acknowledged) {
-        throw new Error('MCP canonical result is unavailable')
+        throw new Error('Full MCP result is unavailable')
       }
       return this.store.result(input.id)
     })

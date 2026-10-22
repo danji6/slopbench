@@ -50,11 +50,13 @@ import {
   mcpCatalogToolSchema,
 } from './validators/mcpCatalogs'
 import { mcpOperationSchema } from './validators/mcpOperations'
+import { protocolCheckSchema } from './validators/mcpProtocol'
 
 const schemaValidation = true
 
 // prettier-ignore
 export default defineSchema({
+  mcpProtocolChecks: defineTable(protocolCheckSchema).index('by_resultRef', ['resultRef']).index('by_ownerId', ['ownerId']),
   sessionFolders: defineTable(sessionFolderSchema)
     .index('by_ownerId_position', ['ownerId', 'position'])
     .index('by_ownerId_parentId_position', ['ownerId', 'parentId', 'position']),

@@ -1,3 +1,5 @@
+import type { McpProtocolMethod } from '@sb/core/types/mcp-protocol'
+
 import { internal } from '../../_generated/api'
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
@@ -10,6 +12,7 @@ import {
 import type { RuntimeAuthorization } from './mcp'
 
 export type McpOperationContext = {
+  omitMedia?: boolean
   ctx: ActionCtx
   execution: StreamExecutionArgs
   messageId: Id<'messages'>
@@ -24,6 +27,7 @@ type Invocation = {
   runtime: RuntimeAuthorization
   bootId: string
   generation: string
+  protocolMethod?: McpProtocolMethod
   serverKey: string
   toolName: string
   name: string
@@ -47,6 +51,7 @@ export async function executeMcpOperation(
     connectionGeneration: input.generation,
     serverKey: input.serverKey,
     toolName: input.toolName,
+    protocolMethod: input.protocolMethod,
     name: input.name,
     toolCallId: input.toolCallId,
     args: JSON.stringify(input.args),
@@ -57,6 +62,7 @@ export async function executeMcpOperation(
 }
 
 type ExistingInvocation = {
+  protocolMethod?: McpProtocolMethod
   serverKey: string
   toolName: string
   name: string
@@ -65,7 +71,7 @@ type ExistingInvocation = {
   signal?: AbortSignal
 }
 
-/** Attaches to pending calls or serves completed evidence without reconnecting. */
+/** Attaches to pending calls or serves completed results without reconnecting. */
 export async function existingMcpOperation(
   context: McpOperationContext,
   input: ExistingInvocation,
@@ -86,6 +92,7 @@ export function findMcpOperation(
     messageId: context.messageId,
     serverKey: input.serverKey,
     toolName: input.toolName,
+    protocolMethod: input.protocolMethod,
     name: input.name,
     toolCallId: input.toolCallId,
     args: JSON.stringify(input.args),

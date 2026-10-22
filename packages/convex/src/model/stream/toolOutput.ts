@@ -1,3 +1,5 @@
+import { isMcpResult, mcpResultPreview } from '@sb/core/types/mcp-result'
+
 import type { Id } from '../../_generated/dataModel'
 
 /** Size threshold for tool outputs to be offloaded as blobs to the storage. */
@@ -53,6 +55,7 @@ export function serializeToolOutput(output: unknown): string {
 
 /** Compact replacement output for fallback render. */
 export function makeOutputPreview(output: unknown): unknown {
+  if (isMcpResult(output)) return mcpResultPreview(output)
   if (typeof output === 'string') return truncateString(output)
   if (!output || typeof output !== 'object') return output
 

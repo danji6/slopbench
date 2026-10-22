@@ -22,6 +22,7 @@ import type { McpManifestEntry, ToolManifest } from './manifest'
 import { createExternalMcpTool } from './mcp'
 import { createMcpBrokerTools } from './mcpBroker'
 import type { McpOperationContext } from './mcpOperation'
+import { createMcpProtocolTools } from './mcpProtocol'
 import {
   createEditPlanTool,
   createEnterPlanModeTool,
@@ -48,6 +49,7 @@ export type ToolSession = Pick<Session, '_id' | 'workspace' | 'parent'> & {
 }
 
 export type ToolBuildOptions = {
+  omitMcpMedia?: boolean
   ctx?: ActionCtx
   /** The agent's own approvals, merged into the session's. */
   autoApprove?: AgentAutoApprove
@@ -123,7 +125,12 @@ export async function getEnabledTools(
       mcpApprovals: approvals,
       mcpOperation:
         ctx && options?.execution && options.messageId
-          ? { ctx, execution: options.execution, messageId: options.messageId }
+          ? {
+              ctx,
+              execution: options.execution,
+              messageId: options.messageId,
+              omitMedia: options.omitMcpMedia,
+            }
           : undefined,
       mcpFailed: ctx
         ? async (runtimeId, key, reason) => {
@@ -136,12 +143,13 @@ export async function getEnabledTools(
           }
         : undefined,
       mcpConnected: ctx
-        ? async (runtimeId, key, bootId, generation) =>
+        ? async (runtimeId, key, bootId, generation, initialization) =>
             ctx.runMutation(internal.mcp._connected, {
               runtimeId,
               key,
               bootId,
               generation,
+              initialization,
             })
         : undefined,
       mcpExecution:
@@ -213,7 +221,7 @@ type AnyTool = ToolSet[string]
 
 type McpExecution = (
   serverKey: string,
-  toolName: string,
+  toolName?: string,
 ) => ReturnType<NonNullable<Parameters<typeof createExternalMcpTool>[2]>>
 
 type BuildContext = {
@@ -235,6 +243,7 @@ type BuildContext = {
     key: string,
     bootId: string,
     generation: string,
+    initialization?: string,
   ) => Promise<boolean>
   mcpExecution?: McpExecution
 }
@@ -247,17 +256,23 @@ async function createManifestTool(
   const { workspace, planContext } = build
 
   switch (name) {
+    case 'mcp_protocol':
+    case 'read_mcp_output':
     case 'search_mcp_tools':
     case 'call_mcp_tool': {
       if (!build.mcpOperation || !build.mcpExecution) return undefined
-      const broker = await createMcpBrokerTools({
+      const create =
+        name === 'mcp_protocol' || name === 'read_mcp_output'
+          ? createMcpProtocolTools
+          : createMcpBrokerTools
+      const broker = await create({
         operation: build.mcpOperation,
         current: build.mcpExecution,
         connected: build.mcpConnected,
         approvals: build.mcpApprovals,
         failed: build.mcpFailed,
       })
-      return broker[name] as AnyTool
+      return (broker as Record<string, AnyTool>)[name]
     }
     case 'web_fetch':
       return createWebFetchTool()

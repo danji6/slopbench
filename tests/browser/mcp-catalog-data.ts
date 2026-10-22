@@ -1,7 +1,7 @@
 export const longDescription = `Catalog tool 120: full original description.
 
 ${'Detailed analysis instructions with preserved Unicode: café 漢字.\n'.repeat(8)}
-Final evidence retrieval instructions beyond the summary.`
+Full description retrieval instructions beyond the summary.`
 
 export const catalogDefinitions = Array.from({ length: 250 }, (_, index) => ({
   name: `tool_${String(index).padStart(3, '0')}`,

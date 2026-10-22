@@ -23,6 +23,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import { mcpBackendFixture } from '../helpers/mcp-backend'
+import { mcpText } from '../helpers/mcp-result'
 
 const originalFetch = globalThis.fetch
 const fixtures: Awaited<ReturnType<typeof mcpBackendFixture>>[] = []
@@ -162,14 +163,24 @@ test('accelerated engine window detaches and resumes one invocation across a rea
       (part) => part.type.startsWith('tool-'),
     ),
   ).toMatchObject([
-    { state: 'output-available', output: expect.stringContaining('"count":1') },
+    {
+      state: 'output-available',
+      output: {
+        kind: 'mcp-result',
+        result: {
+          content: [
+            { type: 'text', text: expect.stringContaining('"count":1') },
+          ],
+        },
+      },
+    },
   ])
   expect(await pending(f.ctx, next)).toEqual([])
 }, 10_000)
 
-test('lost result response preserves canonical output and serves completed backend retries', async () => {
+test('lost result response preserves full output and serves completed backend retries', async () => {
   const f = await fixture('result')
-  const text = 'retained evidence '.repeat(1000)
+  const text = 'retained output '.repeat(1000)
   const operation = await reserve(f.ctx, {
     ...f.args,
     args: JSON.stringify({ output: text }),
@@ -180,10 +191,10 @@ test('lost result response preserves canonical output and serves completed backe
   })
   expect(result?.state).toBe('completed')
   expect(result?.outputRef).toBeDefined()
-  expect(await operationOutput(f.action, result!)).toBe(text)
+  expect(mcpText(await operationOutput(f.action, result!))).toBe(text)
   const requests = f.requestCount()
   const replay = await waitForOperation(f.action, f.execution, operation._id)
-  expect(await operationOutput(f.action, replay!)).toBe(text)
+  expect(mcpText(await operationOutput(f.action, replay!))).toBe(text)
   expect(f.requestCount()).toBe(requests)
   expect(
     (
@@ -247,7 +258,9 @@ test('a lost acknowledgement response is retried from durable completion without
   ).toBe(true)
   await settle(f.action, { operationId: operation._id })
   expect((await f.ctx.db.get(operation._id))?.acknowledged).toBe(true)
-  expect(JSON.parse(await operationOutput(f.action, result!)).count).toBe(1)
+  expect(
+    JSON.parse(mcpText(await operationOutput(f.action, result!))).count,
+  ).toBe(1)
 }, 10_000)
 
 test('Stop reaches an already dispatched tool without retaining its original watcher', async () => {
@@ -324,7 +337,7 @@ test('the tool wrapper serves a completed retry after session loss without recon
     {},
     { toolCallId: 'call-one', messages: [], context: {} },
   )
-  expect(JSON.parse(output as string).count).toBe(1)
+  expect(JSON.parse(mcpText(output)).count).toBe(1)
   expect(f.requestCount()).toBe(requests)
 }, 10_000)
 
@@ -332,7 +345,7 @@ test('deleting an owning message reclaims its blobs and sidecar journal through 
   const f = await fixture()
   const operation = await reserve(f.ctx, {
     ...f.args,
-    args: JSON.stringify({ output: 'large evidence '.repeat(1000) }),
+    args: JSON.stringify({ output: 'large output '.repeat(1000) }),
   })
   expect(
     (

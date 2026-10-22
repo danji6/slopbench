@@ -122,6 +122,7 @@ export type McpRuntimeStatus = {
   reason?: string
   stderr: string
   catalogStale?: boolean
+  initialization?: string
 }
 
 /** Checks network schemes without excluding deliberately selected WebSockets. */
@@ -136,7 +137,7 @@ export function isMcpUrl(url: string, transport: McpTransport): boolean {
   }
 }
 
-/** Rejects oversized legacy settings explicitly without altering their evidence. */
+/** Rejects oversized legacy settings explicitly without altering their content. */
 export function validateMcpTools(tools: McpToolMeta[]): McpToolMeta[] {
   if (tools.length > MAX_MCP_CATALOG_TOOLS) {
     throw new Error('MCP catalog capacity exceeded; no tools were saved')

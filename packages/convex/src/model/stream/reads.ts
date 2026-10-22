@@ -174,13 +174,17 @@ export async function _getProviderHistory(
   for (const id of [
     stream.workspaceContextMessageId,
     stream.skillContextMessageId,
+    stream.mcpContextMessageId,
   ]) {
     if (!id || ordered.some((message) => message._id === id)) continue
     const note = await ctx.db.get(id)
     if (note?.contextEligible) ordered.push(note)
   }
 
-  const history = await withPartsMany(ctx, ordered)
+  const visible = ordered.filter(
+    (message) => message.type !== 'mcp' || message.sender.id === stream.agentId,
+  )
+  const history = await withPartsMany(ctx, visible)
 
   // The in-flight turn joins the history with all its segments concatenated
   // (sealed split segments are only reachable through the processing doc)

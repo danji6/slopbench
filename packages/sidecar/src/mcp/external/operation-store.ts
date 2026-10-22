@@ -1,5 +1,6 @@
 import type { McpRuntimeScope } from '@sb/core/types'
 import type { McpOperationStatus } from '@sb/core/types/mcp-operation'
+import type { McpResult } from '@sb/core/types/mcp-result'
 import { createHash, randomUUID } from 'node:crypto'
 import {
   mkdir,
@@ -20,7 +21,7 @@ export type OperationRecord = McpOperationStatus & {
   updatedAt: number
 }
 
-/** Journals dispatch before execution and retains canonical results until acknowledgement. */
+/** Journals dispatch before execution and retains full results until acknowledgement. */
 export class McpOperationStore {
   constructor(private readonly root: string) {}
 
@@ -60,7 +61,7 @@ export class McpOperationStore {
     return readFile(filename)
   }
 
-  async saveResult(id: string, text: string) {
+  async saveResult(id: string, text: McpResult) {
     const data = JSON.stringify(text)
     await this.atomic(this.filename(id, 'result'), data)
     return Buffer.byteLength(data)

@@ -10,6 +10,7 @@ export function operationFingerprint(input: OperationStart) {
     .update(
       JSON.stringify({
         scope: input.scope,
+        protocol: input.protocol,
         bootId: input.bootId,
         generation: input.generation,
         name: input.name,
@@ -41,7 +42,7 @@ export function operationView(record: OperationRecord): McpOperationStatus {
   return structuredClone(status)
 }
 
-/** Bounds transport diagnostics and marks shortened evidence explicitly. */
+/** Bounds transport diagnostics and marks shortened output explicitly. */
 export function operationDiagnostic(error: unknown) {
   const text = error instanceof Error ? error.message : 'MCP operation failed'
   return text.length <= 8192

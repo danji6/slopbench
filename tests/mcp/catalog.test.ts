@@ -4,6 +4,7 @@ import { discoverTools } from '@sb/sidecar/mcp/external/discovery'
 import { expect, test } from 'bun:test'
 
 import { operationFixture, untilOperation } from '../helpers/mcp-operations'
+import { mcpText } from '../helpers/mcp-result'
 
 const fixture = new URL('./fixtures/catalog.mjs', import.meta.url)
 
@@ -48,12 +49,12 @@ test('a temporary probe never replaces the existing analysis process', async () 
   try {
     const args = { value: 'retained' }
     const before = JSON.parse(
-      await f.registry.call(f.scope, 'tool_249', args, f.status),
+      mcpText(await f.registry.call(f.scope, 'tool_249', args, f.status)),
     )
     const probe = await listExternalTools(f.connection)
     expect(probe.value).toHaveLength(250)
     const after = JSON.parse(
-      await f.registry.call(f.scope, 'tool_249', {}, f.status),
+      mcpText(await f.registry.call(f.scope, 'tool_249', {}, f.status)),
     )
     expect(after.value).toBe('retained')
     expect(after.pid).toBe(before.pid)

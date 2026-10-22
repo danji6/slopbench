@@ -83,28 +83,36 @@ export async function buildProviderHistory(
     { convertToModelMessages },
     { shellHistoryTools },
     { attachmentHistoryTools },
+    { mcpHistoryTools },
   ] = await Promise.all([
     import('ai'),
     import('../../model/tool/shell'),
     import('../../model/tool/attachments'),
+    import('../../model/tool/mcpOutput'),
   ])
 
   let modelMessages = await convertToModelMessages(attributed, {
     ignoreIncompleteToolCalls: true,
     // Maps shell outputs so replayed history never contains terminal scrollback
-    tools: { ...shellHistoryTools(), ...attachmentHistoryTools() },
+    tools: {
+      ...shellHistoryTools(),
+      ...attachmentHistoryTools(),
+      ...mcpHistoryTools(attributed, data.stream.omitActiveMedia),
+    },
   })
   modelMessages = removeOrphanToolCalls(modelMessages)
   modelMessages = insertApprovalNoteMessages(modelMessages, approvalNotes)
+
   if (data.stream.omitActiveMedia) {
     modelMessages.push({
       role: 'system',
       content: block(
         'attachment-error',
-        'The provider rejected the active media payload as too large. Continue without it; its attachment link remains available.',
+        'The provider rejected the media payload as too large. Continue without media; stored attachment links and MCP results remain available. Use read_mcp_output to retrieve full MCP output.',
       ),
     })
   }
+
   modelMessages = buildPrompts(
     remainingPrompts,
     modelMessages,

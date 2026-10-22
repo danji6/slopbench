@@ -12,6 +12,7 @@ export async function discoverTools(
   client: Client,
   signal = AbortSignal.timeout(60_000),
 ): Promise<McpDefinition[]> {
+  if (!client.getServerCapabilities()?.tools) return []
   const tools: McpDefinition[] = []
   const cursors = new Set<string>()
   const names = new Set<string>()

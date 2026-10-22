@@ -7,6 +7,7 @@ import { readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
 
 import { operationFixture, untilOperation } from '../helpers/mcp-operations'
+import { mcpText } from '../helpers/mcp-result'
 
 const fixtures: Awaited<ReturnType<typeof operationFixture>>[] = []
 async function fixture() {
@@ -18,7 +19,7 @@ afterEach(async () => {
   for (const item of fixtures.splice(0)) await item.close()
 })
 
-test('repeated and concurrent starts attach to one invocation; canonical result survives until ack', async () => {
+test('repeated and concurrent starts attach to one invocation; full result survives until ack', async () => {
   const { operations, input, store } = await fixture()
   input.args.delay = 60
   const statuses = await Promise.all(
@@ -29,7 +30,7 @@ test('repeated and concurrent starts attach to one invocation; canonical result 
     async () => (await operations.status(input))?.state === 'completed',
   )
   const output = JSON.parse(
-    JSON.parse((await operations.result(input)).toString()),
+    mcpText(JSON.parse((await operations.result(input)).toString())),
   )
   expect(output.count).toBe(1)
   expect(await store.result(input.id)).toEqual(await operations.result(input))
@@ -55,7 +56,7 @@ test('progress includes a protocol token and resets inactivity without extending
     async () => (await operations.status(input))?.state === 'completed',
   )
   const output = JSON.parse(
-    JSON.parse((await operations.result(input)).toString()),
+    mcpText(JSON.parse((await operations.result(input)).toString())),
   )
   expect(output.token).toBeDefined()
   const second = {
@@ -124,8 +125,10 @@ test('cancellation before start creates a durable tombstone and prevents delayed
   )
   expect(
     JSON.parse(
-      JSON.parse(
-        (await operations.result({ ...input, id: 'next' })).toString(),
+      mcpText(
+        JSON.parse(
+          (await operations.result({ ...input, id: 'next' })).toString(),
+        ),
       ),
     ).count,
   ).toBe(1)
@@ -194,7 +197,7 @@ test('scope isolation, capacity errors and journal removal are explicit', async 
   expect(await readdir(path.join(root, 'bounded'))).toEqual([])
 })
 
-test('oversize canonical output fails explicitly without returning a clipped result', async () => {
+test('oversize full output fails explicitly without returning a clipped result', async () => {
   const { registry, store, input, limits } = await fixture()
   const operations = new McpOperations(registry, store, {
     ...limits,
@@ -205,7 +208,7 @@ test('oversize canonical output fails explicitly without returning a clipped res
     async () => (await operations.status(input))?.state === 'failed',
   )
   expect((await operations.status(input))?.error).toContain(
-    'canonical output could not be stored',
+    'full output could not be stored',
   )
 })
 
@@ -220,7 +223,7 @@ test('remote absent settings retain legacy deadlines; local defaults allow long 
   })
 })
 
-test('completed canonical evidence survives a sidecar boot change before acknowledgement', async () => {
+test('completed full output survives a sidecar boot change before acknowledgement', async () => {
   const { operations, input, store, registry, limits } = await fixture()
   await operations.start(input)
   await untilOperation(
@@ -232,7 +235,8 @@ test('completed canonical evidence survives a sidecar boot change before acknowl
   const recovered = new McpOperations(newRegistry, store, limits)
   expect((await recovered.start(input)).state).toBe('completed')
   expect(
-    JSON.parse(JSON.parse((await recovered.result(input)).toString())).count,
+    JSON.parse(mcpText(JSON.parse((await recovered.result(input)).toString())))
+      .count,
   ).toBe(1)
   expect(newRegistry.list()).toEqual([])
   await recovered.acknowledge(input)

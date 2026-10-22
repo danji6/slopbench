@@ -17,6 +17,7 @@ import type { PromptSets } from './model/prompts'
 import type * as V from './validators'
 import type * as McpCatalogsV from './validators/mcpCatalogs'
 import type * as McpOperationsV from './validators/mcpOperations'
+import type * as McpProtocolV from './validators/mcpProtocol'
 
 export type { Role } from './lib/roles'
 export type * from '@sb/core/types'
@@ -248,3 +249,5 @@ export type McpCatalogTargetArgs = Infer<typeof McpCatalogsV.catalogTargetValida
 export type McpCatalogSearchArgs = Infer<typeof McpCatalogsV.catalogSearchValidator> // prettier-ignore
 export type McpCatalogActiveArgs = Infer<typeof McpCatalogsV.catalogActiveValidator> // prettier-ignore
 export type McpCatalogDefinitionAccessArgs = Infer<typeof McpCatalogsV.catalogDefinitionAccessValidator> // prettier-ignore
+export type McpProtocolRequestArgs = Infer<typeof McpProtocolV.protocolRequestValidator> // prettier-ignore
+export type McpProtocolPublishArgs = Infer<typeof McpProtocolV.protocolPublishValidator> // prettier-ignore

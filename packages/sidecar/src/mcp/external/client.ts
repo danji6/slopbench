@@ -28,30 +28,6 @@ export async function listExternalTools(
   })
 }
 
-export async function callExternalTool(
-  connection: McpConnection,
-  name: string,
-  args: Record<string, unknown>,
-  signal?: AbortSignal,
-): Promise<string> {
-  const { value } = await withClient(connection, async (client) => {
-    const result = await client.callTool({ name, arguments: args }, undefined, {
-      signal,
-    })
-    const content = (result.content ?? []) as Array<{
-      type: string
-      text?: string
-    }>
-    const text = content
-      .filter((part) => part.type === 'text')
-      .map((part) => part.text ?? '')
-      .join('\n')
-    if (result.isError) throw new Error(text || 'Tool failed')
-    return text
-  })
-  return value
-}
-
 function authHeaders(apiKey?: string): Record<string, string> | undefined {
   return apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined
 }

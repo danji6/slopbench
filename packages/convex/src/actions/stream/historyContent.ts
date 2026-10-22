@@ -5,6 +5,7 @@ import {
   toFileBlock,
   toPlanBlock,
 } from '@sb/convex/lib/workspace'
+import { decodeMcpOutput } from '@sb/core/types/mcp-result'
 import type {
   WorkspaceBinaryRefLink,
   WorkspaceFileLink,
@@ -80,7 +81,8 @@ export async function resolveOffloadedOutput(
   const blob = await ctx.storage.get(part.outputRef)
   if (!blob) return part
   try {
-    const output: unknown = JSON.parse(await blob.text())
+    const stored: unknown = JSON.parse(await blob.text())
+    const output = typeof stored === 'string' ? decodeMcpOutput(stored) : stored
     return { ...part, output, outputRef: undefined }
   } catch {
     return part

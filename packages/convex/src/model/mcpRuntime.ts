@@ -19,7 +19,7 @@ import type {
 } from '../types'
 import { resolve } from './mcp'
 import { cancelForRuntime } from './mcpOperations'
-import { isMcpToolSelected } from './mcpToolPolicy'
+import { isMcpServerSelected } from './mcpToolPolicy'
 import { getSessionWithWorkspace, workspaceKey } from './session/folderContext'
 import { getMembership } from './session/memberships'
 
@@ -189,16 +189,19 @@ export async function connected(
   const row = await ctx.db.get(args.runtimeId)
   if (!matchesCurrentRuntime(row, args.key)) return false
   if (!(await isAuthorized(ctx, row))) return false
+  const initialization = args.initialization ?? row.initialization
   const connectionRecorded =
     row.state === 'connected' &&
     row.bootId === args.bootId &&
-    row.generation === args.generation
+    row.generation === args.generation &&
+    row.initialization === initialization
   if (connectionRecorded) return true
 
   await ctx.db.patch(row._id, {
     state: 'connected',
     bootId: args.bootId,
     generation: args.generation,
+    initialization,
     updatedAt: Date.now(),
   })
 
@@ -229,7 +232,7 @@ export async function isAuthorized(
   if (String(server.revision ?? 0) !== row.revision) return false
   if (server.transport === 'stdio' && !minRole(invoker.role, 'admin')) return false // prettier-ignore
 
-  return !!server.tools?.some((tool) => isMcpToolSelected(agent, server, tool))
+  return isMcpServerSelected(agent, server)
 }
 
 export async function inspect(ctx: QueryCtx, scope: McpRuntimeScope) {
@@ -331,6 +334,7 @@ async function reconnectRuntime(
     reason: undefined,
     bootId: undefined,
     generation: undefined,
+    initialization: undefined,
     revision: String(server.revision ?? 0),
     workspaceKey: workspaceKey(session.workspace),
     updatedAt: Date.now(),

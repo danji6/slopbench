@@ -6,10 +6,13 @@ import type {
   McpRuntimeStatus,
 } from '@sb/core/types'
 import type { McpProgress } from '@sb/core/types/mcp-operation'
+import type { McpProtocolRequest } from '@sb/core/types/mcp-protocol'
+import { mcpResult } from '@sb/core/types/mcp-result'
 import { createHash, randomUUID } from 'node:crypto'
 
 import { connectExternalClient } from './client'
 import { discoverTools } from './discovery'
+import { initializationContext, requestProtocol } from './protocol'
 
 type Entry = {
   status: McpRuntimeStatus
@@ -184,6 +187,7 @@ export class McpRegistry {
         entry.startup.signal,
       )
       entry.client = client
+      entry.status.initialization = initializationContext(client)
       entry.status.catalogStale = true
       client.setNotificationHandler(ToolListChangedNotificationSchema, () => {
         entry.catalogChanges++
@@ -215,6 +219,7 @@ export class McpRegistry {
       entry.status.transport = transport
       entry.status.state = 'connected'
     } catch (error) {
+      await entry.client?.close().catch(() => {})
       entry.status.state = 'lost'
       entry.status.reason = this.redact(
         entry,
@@ -284,7 +289,9 @@ export class McpRegistry {
         if (entry.status.state !== 'connected' || !entry.client) {
           throw new Error('MCP session unavailable; reconnect explicitly')
         }
-        if (expected.expiresAt && expected.expiresAt < Date.now()) {
+        const authorizationExpired =
+          expected.expiresAt !== undefined && expected.expiresAt < Date.now()
+        if (authorizationExpired) {
           throw new Error('MCP catalog authorization expired while queued')
         }
         const changeToken = entry.catalogChanges
@@ -325,6 +332,7 @@ export class McpRegistry {
       maxTotalTimeout: number
       onprogress?: (progress: McpProgress) => void
       ondispatch?: () => void
+      protocol?: McpProtocolRequest
     },
   ) {
     const entry = this.entries.get(scope.key)
@@ -338,21 +346,30 @@ export class McpRegistry {
         if (entry.status.state !== 'connected' || !entry.client)
           throw new Error('MCP session unavailable; reconnect explicitly')
         signal?.throwIfAborted()
-        if (expected.expiresAt && expected.expiresAt < Date.now())
+        const authorizationExpired =
+          expected.expiresAt !== undefined && expected.expiresAt < Date.now()
+        if (authorizationExpired)
           throw new Error('MCP authorization expired while queued')
 
         options?.ondispatch?.()
-        const result = await entry.client.callTool(
-          { name, arguments: args },
-          undefined,
-          {
-            signal,
-            timeout: options?.timeout,
-            maxTotalTimeout: options?.maxTotalTimeout,
-            resetTimeoutOnProgress: !!options,
-            onprogress: options?.onprogress,
-          },
-        )
+        const result = options?.protocol
+          ? {
+              ...(await requestProtocol(entry.client, options.protocol, {
+                signal,
+                timeout: options.timeout,
+                maxTotalTimeout: options.maxTotalTimeout,
+                resetTimeoutOnProgress: true,
+                onprogress: options.onprogress,
+              })),
+              content: [],
+            }
+          : await entry.client.callTool({ name, arguments: args }, undefined, {
+              signal,
+              timeout: options?.timeout,
+              maxTotalTimeout: options?.maxTotalTimeout,
+              resetTimeoutOnProgress: !!options,
+              onprogress: options?.onprogress,
+            })
 
         if (entry.status.state !== 'connected') {
           throw new Error(
@@ -360,17 +377,11 @@ export class McpRegistry {
           )
         }
 
-        const content = (result.content ?? []) as Array<{
-          type: string
-          text?: string
-        }>
-        const text = content
-          .filter((part) => part.type === 'text')
-          .map((part) => part.text ?? '')
-          .join('\n')
-
-        if (result.isError) throw new Error(text || 'MCP tool failed')
-        return text
+        return mcpResult(result, {
+          serverId: scope.serverId,
+          name,
+          generation: entry.status.generation,
+        })
       })
     entry.queue = operation
     return operation

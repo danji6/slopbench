@@ -3,6 +3,7 @@ import type { ActionCtx } from '@sb/convex/_generated/server'
 import { _getExecution, replaceAll } from '@sb/convex/model/mcp'
 import * as CatalogAccess from '@sb/convex/model/mcpCatalogAccess'
 import * as Catalogs from '@sb/convex/model/mcpCatalogs'
+import { outputAccess } from '@sb/convex/model/mcpOperationAccess'
 import * as Operations from '@sb/convex/model/mcpOperations'
 import { connected } from '@sb/convex/model/mcpRuntime'
 import { _heartbeat, _patchMessage } from '@sb/convex/model/stream/lifecycle'
@@ -121,6 +122,7 @@ export async function mcpBackendFixture(fixture?: URL) {
   type Reference = Parameters<typeof getFunctionName>[0]
   const queryHandlers = {
     _get: Operations.get,
+    _outputAccess: outputAccess,
     _find: Operations.find,
     _pending: Operations.pending,
     _allowed: Operations.lease,

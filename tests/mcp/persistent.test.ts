@@ -10,6 +10,8 @@ import { afterEach, expect, test } from 'bun:test'
 import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 
+import { mcpText } from '../helpers/mcp-result'
+
 const registries: McpRegistry[] = []
 const fixture = fileURLToPath(
   new URL('./fixtures/stateful.mjs', import.meta.url),
@@ -38,7 +40,7 @@ function scope(sessionId = 'chat'): McpRuntimeScope {
 }
 async function call(value: McpRegistry, status: McpRuntimeStatus, args = {}) {
   return JSON.parse(
-    await value.call(status.scope, 'counter', args, status),
+    mcpText(await value.call(status.scope, 'counter', args, status)),
   ) as {
     count: number
     pid: number

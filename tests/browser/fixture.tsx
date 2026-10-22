@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 
 import { CheckboxFixture } from './checkbox-fixture'
 import { McpCatalogFixture } from './mcp-catalog-fixture'
+import { McpProtocolFixture } from './mcp-protocol-fixture'
 import { McpSettingsFixture } from './mcp-settings-fixture'
 import { ProviderConnectionsFixture } from './provider-connections-fixture'
 import { ScrollFixture } from './scroll-fixture'
@@ -127,7 +128,9 @@ function PreviewFixture() {
 }
 
 createRoot(document.getElementById('root')!).render(
-  new URLSearchParams(location.search).get('fixture') === 'mcp-settings' ? (
+  new URLSearchParams(location.search).get('fixture') === 'mcp-protocol' ? (
+    <McpProtocolFixture />
+  ) : new URLSearchParams(location.search).get('fixture') === 'mcp-settings' ? (
     <McpSettingsFixture />
   ) : new URLSearchParams(location.search).get('fixture') === 'mcp-catalog' ? (
     <McpCatalogFixture />

@@ -5,8 +5,9 @@ import { z } from 'zod'
 import { ioError } from '../../http-errors'
 import { withWorkspaceOperation } from '../workspace/context'
 import { mcpCatalogRoutes } from './catalog-routes'
-import { callExternalTool, listExternalTools } from './client'
+import { listExternalTools } from './client'
 import { mcpOperationRoutes } from './operation-routes'
+import { mcpProtocolRoutes } from './protocol-routes'
 import { mcpRegistry } from './registry'
 import { assertMcpLease, mcpScopeSchema } from './scope'
 
@@ -20,6 +21,8 @@ const scopedSchema = z.object({
 /** These routes are mounted behind the sidecar's backend authentication. */
 export function externalMcpRoutes() {
   const app = new Hono()
+
+  app.route('/protocol', mcpProtocolRoutes())
 
   app.route('/operations', mcpOperationRoutes())
 
@@ -47,52 +50,6 @@ export function externalMcpRoutes() {
         mcpRegistry.connect(input.scope, input.connection, input),
       )
       return c.json(status)
-    } catch (error) {
-      return ioError(c, error)
-    }
-  })
-
-  app.post('/call', async (c) => {
-    try {
-      const body = await c.req.json()
-      if (!('scope' in body)) {
-        const legacy = mcpConnectionSchema.parse(body)
-        if (legacy.transport === 'stdio')
-          throw new Error('Local MCP requires an authorized runtime scope')
-        const request = z
-          .object({
-            name: z.string(),
-            args: z.record(z.string(), z.unknown()).default({}),
-          })
-          .parse(body)
-        return c.json({
-          text: await callExternalTool(
-            legacy,
-            request.name,
-            request.args,
-            c.req.raw.signal,
-          ),
-        })
-      }
-      const input = scopedSchema
-        .extend({
-          bootId: z.string(),
-          generation: z.string(),
-          name: z.string(),
-          args: z.record(z.string(), z.unknown()).default({}),
-        })
-        .parse(body)
-      assertMcpLease(input.expiresAt)
-      const text = await withWorkspaceOperation(input.scope.sessionId, () =>
-        mcpRegistry.call(
-          input.scope,
-          input.name,
-          input.args,
-          input,
-          c.req.raw.signal,
-        ),
-      )
-      return c.json({ text })
     } catch (error) {
       return ioError(c, error)
     }

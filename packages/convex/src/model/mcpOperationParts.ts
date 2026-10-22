@@ -1,3 +1,5 @@
+import { decodeMcpOutput } from '@sb/core/types/mcp-result'
+
 import type { Doc, Id } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'
 
@@ -27,7 +29,10 @@ export function operationPart(operation: Operation, existing?: unknown) {
     return {
       ...base,
       state: 'output-available',
-      output: operation.output,
+      output:
+        operation.output === undefined
+          ? undefined
+          : decodeMcpOutput(operation.output),
       outputRef: operation.outputRef,
       errorText: undefined,
     }

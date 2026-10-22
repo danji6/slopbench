@@ -184,6 +184,7 @@ async function buildInvokeRequest(
       {
         ctx,
         autoApprove: data.agent.autoApprove,
+        omitMcpMedia: data.stream.omitActiveMedia,
         messageId: data.output._id,
         messageCreatedAt: data.output._creationTime,
         agentId: data.agent._id,

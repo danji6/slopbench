@@ -8,7 +8,7 @@ import type {
   StreamExecutionArgs,
 } from '../types'
 import { resolve } from './mcp'
-import { isAuthorized } from './mcpRuntime'
+import { hasInvocationAccess, isAuthorized } from './mcpRuntime'
 import { isMcpToolSelected } from './mcpToolPolicy'
 import { getProcessingSegmentRow } from './messageContents'
 import { getMode } from './session/sessions'
@@ -56,6 +56,8 @@ export async function allowedTarget(
   const server = (await resolve(ctx, operation.ownerId)).find(
     (server) => server.id === operation.scope.serverId,
   )
+  if (operation.protocolMethod)
+    return server ? ('allowed' as const) : ('revoked' as const)
   const tool = server?.tools?.find((tool) => tool.name === operation.toolName)
   if (!server || !tool) return 'revoked' as const
 
@@ -109,6 +111,7 @@ export function assertSameInvocation(
     operation.input === args.input &&
     operation.catalogToolId === args.catalogToolId &&
     operation.toolName === args.toolName &&
+    operation.protocolMethod === args.protocolMethod &&
     operation.name === args.name
   if (!sameArguments) {
     error('MCP operation identity reused with changed arguments', 409)
@@ -116,4 +119,35 @@ export function assertSameInvocation(
   if (operation.scope.serverId !== args.serverKey) {
     error('MCP operation target changed', 409)
   }
+}
+
+/** Stored output is readable only by the same live session/agent execution. */
+export async function outputAccess(
+  ctx: QueryCtx,
+  args: McpOperationExecutionArgs,
+): Promise<Doc<'mcpOperations'>> {
+  const stream = await requireExecution(ctx, args)
+  const operation = await ctx.db.get(args.operationId)
+  if (!operation || operation.deleted) error('MCP output unavailable', 404)
+
+  const differentExecutionOwner =
+    operation.sessionId !== stream.sessionId ||
+    operation.agentId !== stream.agentId
+  if (differentExecutionOwner)
+    error('MCP output belongs to another session or agent', 403)
+
+  const agent = await ctx.db.get(stream.agentId)
+  if (!agent || operation.ownerId !== agent.ownerId)
+    error('MCP output unavailable', 404)
+
+  const session = await ctx.db.get(stream.sessionId)
+  if (!session) error('MCP output access revoked', 403)
+
+  const sessionUnavailable = session.settings?.disabled || session.contextLock
+  if (sessionUnavailable) error('MCP output access revoked', 403)
+
+  if (!(await hasInvocationAccess(ctx, stream.sessionId, stream.invokedBy)))
+    error('MCP output access revoked', 403)
+
+  return operation
 }

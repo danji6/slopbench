@@ -15,7 +15,11 @@ import {
 } from '@sb/convex/model/tool/manifest'
 import { createExternalMcpTool } from '@sb/convex/model/tool/mcp'
 import { createMcpBrokerTools } from '@sb/convex/model/tool/mcpBroker'
-import { mcpApprovalKey } from '@sb/core/types/mcp-catalog'
+import {
+  MCP_BROKER_TOOLS,
+  MCP_MANIFEST_VERSION,
+  mcpApprovalKey,
+} from '@sb/core/types/mcp-catalog'
 import { mcpCatalogRoutes } from '@sb/sidecar/mcp/external/catalog-routes'
 import { CatalogSnapshots } from '@sb/sidecar/mcp/external/catalog-snapshots'
 import { mcpOperationRoutes } from '@sb/sidecar/mcp/external/operation-routes'
@@ -23,6 +27,7 @@ import { expect, mock, test } from 'bun:test'
 import { Hono } from 'hono'
 
 import { mcpBackendFixture } from '../helpers/mcp-backend'
+import { mcpText } from '../helpers/mcp-result'
 
 async function fixture() {
   const f = await mcpBackendFixture(
@@ -117,7 +122,7 @@ test('250 tools publish atomically; a tool beyond 100 executes through the durab
       arguments: { value: 'retained through broker' },
     }
     const result = await f.broker.call_mcp_tool.execute!(input, f.options())
-    expect(JSON.parse(String(result))).toMatchObject({
+    expect(JSON.parse(mcpText(result))).toMatchObject({
       name: 'tool_249',
       value: 'retained through broker',
       calls: 1,
@@ -131,7 +136,7 @@ test('250 tools publish atomically; a tool beyond 100 executes through the durab
       await f.target('tool_001'),
       f.options('later-turn'),
     )
-    expect(JSON.parse(String(next))).toMatchObject({
+    expect(JSON.parse(mcpText(next))).toMatchObject({
       value: 'retained through broker',
       calls: 2,
     })
@@ -363,12 +368,8 @@ test('manifest upgrades add stable broker definitions without rewriting frozen d
     ],
   }
   const upgraded = upgradeToolManifest(frozen)
-  expect(upgraded.version).toBe(2)
-  expect(upgraded.names).toEqual([
-    'local_original',
-    'search_mcp_tools',
-    'call_mcp_tool',
-  ])
+  expect(upgraded.version).toBe(MCP_MANIFEST_VERSION)
+  expect(upgraded.names).toEqual(['local_original', ...MCP_BROKER_TOOLS])
   expect(upgraded.mcp).toBe(frozen.mcp)
   expect(frozen.names).toEqual(['local_original'])
   expect(upgradeToolManifest(upgraded)).toBe(upgraded)
@@ -379,7 +380,7 @@ test('manifest upgrades add stable broker definitions without rewriting frozen d
     resources: { settings: null, mcpServers: [] },
     spawnableAgents: [],
   } as never)
-  expect(fresh.names).toEqual(['search_mcp_tools', 'call_mcp_tool'])
+  expect(fresh.names).toEqual([...MCP_BROKER_TOOLS])
 })
 
 test('every catalog page is searchable and unchanged refreshes keep opaque identities', async () => {
@@ -594,10 +595,10 @@ test('same-named tools on two authorized servers retain distinct handles, approv
     if (typeof needs !== 'function') throw new Error('Missing policy')
     expect(await needs(second, f.options())).toBe(true)
     const one = JSON.parse(
-      String(await f.broker.call_mcp_tool.execute!(first, f.options('one'))),
+      mcpText(await f.broker.call_mcp_tool.execute!(first, f.options('one'))),
     )
     const two = JSON.parse(
-      String(await f.broker.call_mcp_tool.execute!(second, f.options('two'))),
+      mcpText(await f.broker.call_mcp_tool.execute!(second, f.options('two'))),
     )
     expect(one.name).toBe('tool_001')
     expect(two.name).toBe('tool_001')

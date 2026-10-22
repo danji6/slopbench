@@ -1,6 +1,5 @@
 import { sha256 } from '@sb/core/sha256'
 import { type McpServer, mcpToolName } from '@sb/core/types'
-import { mcpServerSelection } from '@sb/core/types/mcp-catalog'
 
 import type { Doc } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'
@@ -15,7 +14,11 @@ import type { McpCatalogDefinitionAccessArgs } from '../types'
 import { resolve } from './mcp'
 import { requireExecution } from './mcpOperationAccess'
 import { hasInvocationAccess } from './mcpRuntime'
-import { canReadMcpTool, isMcpToolSelected } from './mcpToolPolicy'
+import {
+  canReadMcpTool,
+  isMcpServerSelected,
+  isMcpToolSelected,
+} from './mcpToolPolicy'
 import { getSessionWithWorkspace } from './session/folderContext'
 
 /** Catalog visibility follows the same live agent and local-process authority as execution. */
@@ -45,11 +48,7 @@ export async function available(ctx: QueryCtx, execution: StreamExecutionArgs) {
     if (!server.enabled) return false
     if (server.transport === 'stdio' && !minRole(invoker.role, 'admin'))
       return false
-    return (
-      server.tools?.some((tool) => isMcpToolSelected(agent, server, tool)) ||
-      (server.brokerEnabled &&
-        agent.tools?.includes(mcpServerSelection(server)))
-    )
+    return isMcpServerSelected(agent, server)
   })
 
   return { stream, agent, servers }

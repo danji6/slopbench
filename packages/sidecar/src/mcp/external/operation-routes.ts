@@ -1,3 +1,4 @@
+import { mcpProtocolRequestSchema } from '@sb/core/types/mcp-protocol'
 import { Hono } from 'hono'
 import path from 'node:path'
 import { z } from 'zod'
@@ -28,6 +29,7 @@ const accessSchema = z.object({
 })
 
 const startSchema = accessSchema.extend({
+  protocol: mcpProtocolRequestSchema.optional(),
   bootId: z.string(),
   generation: z.string(),
   expiresAt: z.number(),

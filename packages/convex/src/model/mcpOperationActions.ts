@@ -1,6 +1,11 @@
 'use node'
 
 import type { McpOperationStatus } from '@sb/core/types/mcp-operation'
+import {
+  decodeMcpOutput,
+  mcpResultPreview,
+  mcpResultSchema,
+} from '@sb/core/types/mcp-result'
 
 import { internal } from '../_generated/api'
 import type { Doc, Id } from '../_generated/dataModel'
@@ -11,7 +16,7 @@ import type {
   StreamExecutionArgs,
 } from '../types'
 import { sidecarRequest } from './sidecarTransport'
-import { OFFLOAD_THRESHOLD, makeOutputPreview } from './stream/toolOutput'
+import { OFFLOAD_THRESHOLD } from './stream/toolOutput'
 import { getSidecarUrl } from './tool/mcp'
 
 type Operation = Doc<'mcpOperations'>
@@ -111,6 +116,9 @@ async function refreshOperation(
         generation: operation.generation,
         expiresAt,
         name: operation.toolName,
+        protocol: operation.protocolMethod
+          ? { ...JSON.parse(operation.args), method: operation.protocolMethod }
+          : undefined,
         args: JSON.parse(operation.args),
         requestTimeoutMs: operation.requestTimeoutMs,
         maxTotalTimeoutMs: operation.maxTotalTimeoutMs,
@@ -169,18 +177,18 @@ async function readUpdate(
       signal: AbortSignal.timeout(30_000),
     }),
   )
-  if (!response.ok) throw new Error('MCP canonical result unavailable')
+  if (!response.ok) throw new Error('Full MCP result unavailable')
 
   const blob = await response.blob()
-  const text: unknown = JSON.parse(await blob.text())
-  if (typeof text !== 'string') {
-    throw new Error('Invalid MCP result')
-  }
-  if (blob.size <= OFFLOAD_THRESHOLD) {
+  const fullResult = mcpResultSchema.parse(JSON.parse(await blob.text()))
+  fullResult.origin.operationId = operation._id
+  const text = JSON.stringify(fullResult)
+  const stored = new Blob([text], { type: 'application/json' })
+  if (stored.size <= OFFLOAD_THRESHOLD) {
     return { state: 'completed' as const, output: text }
   }
 
-  const outputRef = await ctx.storage.store(blob)
+  const outputRef = await ctx.storage.store(stored)
   const tracked = await ctx.runMutation(
     internal.streams._trackOffloadedOutput,
     {
@@ -193,7 +201,7 @@ async function readUpdate(
 
   return {
     state: 'completed' as const,
-    output: makeOutputPreview(text) as string,
+    output: JSON.stringify(mcpResultPreview(fullResult)),
     outputRef,
   }
 }
@@ -224,7 +232,7 @@ export async function settle(
   await ctx.runMutation(internal.mcpOperations._acknowledged, { operationId })
 }
 
-/** Settles pending MCP evidence before the next model step or stream handoff. */
+/** Settles pending MCP results before the next model step or stream handoff. */
 export async function resumeOperations(
   ctx: ActionCtx,
   execution: StreamExecutionArgs,
@@ -248,19 +256,19 @@ export async function resumeOperations(
   return true
 }
 
-export async function operationOutput(
-  ctx: ActionCtx,
-  operation: Operation,
-): Promise<string> {
+export async function operationOutput(ctx: ActionCtx, operation: Operation) {
   if (operation.state !== 'completed') {
     throw new Error(operation.error ?? `MCP operation ${operation.state}`)
   }
-  if (!operation.outputRef) return operation.output ?? ''
+  if (!operation.outputRef) return decodeMcpOutput(operation.output ?? '')
 
   const blob = await ctx.storage.get(operation.outputRef)
   if (!blob) throw new Error('Stored MCP result unavailable')
 
-  return JSON.parse(await blob.text()) as string
+  const stored: unknown = JSON.parse(await blob.text())
+  return typeof stored === 'string'
+    ? decodeMcpOutput(stored)
+    : mcpResultSchema.parse(stored)
 }
 
 function pause(ms: number, signal?: AbortSignal) {

@@ -4,6 +4,8 @@ import { McpRegistry } from '@sb/sidecar/mcp/external/registry'
 import { expect, test } from 'bun:test'
 import { randomUUID } from 'node:crypto'
 
+import { mcpText } from '../helpers/mcp-result'
+
 test('remote clients preserve independent state and HTTP session identifiers', async () => {
   const transports = new Map<string, WebStandardStreamableHTTPServerTransport>()
   let starts = 0
@@ -46,11 +48,17 @@ test('remote clients preserve independent state and HTTP session identifiers', a
   })
   try {
     const first = await registry.connect(scope('one'), connection)
-    expect(await registry.call(first.scope, 'counter', {}, first)).toBe('1')
+    expect(
+      mcpText(await registry.call(first.scope, 'counter', {}, first)),
+    ).toBe('1')
     await registry.connect(first.scope, connection, first)
-    expect(await registry.call(first.scope, 'counter', {}, first)).toBe('2')
+    expect(
+      mcpText(await registry.call(first.scope, 'counter', {}, first)),
+    ).toBe('2')
     const second = await registry.connect(scope('two'), connection)
-    expect(await registry.call(second.scope, 'counter', {}, second)).toBe('1')
+    expect(
+      mcpText(await registry.call(second.scope, 'counter', {}, second)),
+    ).toBe('1')
     expect(starts).toBe(2)
   } finally {
     await registry.close()

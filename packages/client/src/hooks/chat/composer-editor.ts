@@ -1,5 +1,6 @@
 import type { PendingMessage } from '@/lib/chat'
 import { useComposerDraft } from '@/lib/chat/composer-draft-store'
+import { listenForComposerInsertion } from '@/lib/chat/composer-insert'
 import { registerFocusReturn } from '@/lib/focus-return'
 import {
   serializeBlocksToMarkdown,
@@ -47,6 +48,25 @@ export function useComposerEditor({
 }: UseComposerEditorOptions) {
   useComposerCloseGuard(editorRef)
   const draft = useComposerDraft(draftKey)
+
+  useEffect(
+    () =>
+      listenForComposerInsertion((text) => {
+        const editor = editorRef.current
+        if (!editor?.isEditable) return false
+        editor
+          .chain()
+          .focus()
+          .insertContent({
+            type: 'paragraph',
+            content: [{ type: 'text', text }],
+          })
+          .run()
+        return true
+      }),
+    [editorRef],
+  )
+
   const [message, setMessage] = useState('')
   const [caret, setCaret] = useState(0)
   const [shellCommand, setShellCommand] = useState<string | null>(null)

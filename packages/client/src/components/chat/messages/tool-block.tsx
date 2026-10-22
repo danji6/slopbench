@@ -1,11 +1,13 @@
 import { useToolOutput } from '@/hooks/chat/tool-output'
 import { getToolErrorText } from '@/lib/chat'
 import type { McpProgress as Progress } from '@sb/core/types/mcp-operation'
+import { isMcpResult } from '@sb/core/types/mcp-result'
 import type { ToolUIPart } from 'ai'
 import { memo } from 'react'
 
 import { LoadFullOutput } from './tools/load-full-output'
 import { McpProgress } from './tools/mcp-progress'
+import { McpResultContent, mcpReportedError } from './tools/mcp-result-content'
 import { ToolShell } from './tools/tool-shell'
 
 /** Generic fallback renderer for tools without a dedicated component. */
@@ -21,10 +23,8 @@ export const ToolBlock = memo(
   }) => {
     const toolName = part.type.replace('tool-', '')
 
-    const { output, truncated, loadFull, loadingFull } = useToolOutput(
-      part,
-      messageId,
-    )
+    const { output, truncated, loadFull, loadingFull, loadError } =
+      useToolOutput(part, messageId)
 
     const hasInput = Boolean(
       part.input && Object.keys(part.input as object).length > 0,
@@ -39,7 +39,7 @@ export const ToolBlock = memo(
       <ToolShell
         part={part}
         messageId={messageId}
-        forceError={forceError}
+        forceError={forceError || mcpReportedError(output)}
         footer={
           <McpProgress
             progress={(part as { mcpProgress?: Progress }).mcpProgress}
@@ -62,11 +62,20 @@ export const ToolBlock = memo(
         {hasOutput && (
           <div className="w-full">
             <div className="text-muted-foreground mb-1 text-xs">Output</div>
-            <pre className="bg-background overflow-x-auto rounded px-2 py-1 text-xs">
-              {typeof output === 'string'
-                ? output
-                : JSON.stringify(output as object, null, 2)}
-            </pre>
+            {isMcpResult(output) ? (
+              <McpResultContent output={output} />
+            ) : (
+              <pre className="bg-background overflow-x-auto rounded px-2 py-1 text-xs">
+                {typeof output === 'string'
+                  ? output
+                  : JSON.stringify(output as object, null, 2)}
+              </pre>
+            )}
+            {loadError && (
+              <p className="text-destructive text-xs" role="alert">
+                {loadError}
+              </p>
+            )}
             {truncated && (
               <LoadFullOutput onLoad={loadFull} loading={loadingFull} />
             )}

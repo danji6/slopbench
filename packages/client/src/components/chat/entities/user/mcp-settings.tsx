@@ -35,6 +35,7 @@ import { McpBrokerSettings } from './mcp-broker-settings'
 import { McpCatalog } from './mcp-catalog'
 import { parseMcpLaunch } from './mcp-launch'
 import { McpLocalSettings } from './mcp-local-settings'
+import { McpProtocol } from './mcp-protocol'
 import { McpRuntimes } from './mcp-runtimes'
 import { McpTimeouts } from './mcp-timeouts'
 import { McpToolRow } from './mcp-tool-row'
@@ -362,6 +363,12 @@ function McpServerCard({
           <RefreshCwIcon className={refreshing ? 'animate-spin' : undefined} />
           {item.serverId ? 'Refresh catalog' : 'Probe'}
         </RippleButton>
+        {item.serverId && (
+          <McpProtocol
+            key={item.serverId}
+            serverId={item.serverId as Id<'mcpServers'>}
+          />
+        )}
         {item.serverId && <McpRuntimes serverKey={item.id} />}
         {item.serverId && (
           <McpCatalog

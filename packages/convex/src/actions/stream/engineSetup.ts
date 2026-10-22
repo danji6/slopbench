@@ -17,6 +17,7 @@ import {
   compactSkillCatalog,
   resolvePersonalWorkspace,
 } from '../../model/skills/runtime'
+import { hasToolResultMedia } from '../../model/tool/mcpOutput'
 import type { StreamExecutionArgs } from '../../types'
 import type { ReasoningEffort } from '../../types'
 import { buildSessionLogBody } from './engineLog'
@@ -193,6 +194,6 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
     resolved,
     requestLog,
     tools,
-    hasActiveMedia: data.hasActiveMedia,
+    hasActiveMedia: data.hasActiveMedia || hasToolResultMedia(messages),
   }
 }

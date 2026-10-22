@@ -59,6 +59,7 @@ async function authorize(
     ...args,
     agentId: stream.agentId,
     sessionId: stream.sessionId,
+    toolName: args.protocolMethod ? undefined : args.toolName,
   })
 
   if (!live) {
@@ -75,6 +76,11 @@ async function authorize(
   }
   if (live.runtime.generation !== args.connectionGeneration) {
     error('MCP connection generation changed', 409)
+  }
+
+  if (args.protocolMethod) {
+    assertProtocolIdentity(args)
+    return live
   }
 
   const tool = live.server.tools?.find((tool) => tool.name === args.toolName)
@@ -120,6 +126,7 @@ function fields(
     contentId,
     name: args.name,
     toolName: args.toolName,
+    protocolMethod: args.protocolMethod,
     toolCallId: args.toolCallId,
     args: args.args,
     input: args.input,
@@ -149,4 +156,17 @@ async function checkpoint(
   if (index < 0) parts.push(operationPart(operation))
   else parts[index] = operationPart(operation, parts[index])
   await patchSegmentParts(ctx, row.messageId, row, parts)
+}
+
+function assertProtocolIdentity(args: McpReserveArgs) {
+  const methodIdentityChanged =
+    args.name !== 'mcp_protocol' || args.toolName !== args.protocolMethod
+  if (methodIdentityChanged)
+    error('MCP protocol operation identity changed', 409)
+  const request = JSON.parse(args.args)
+  if (request.method !== args.protocolMethod)
+    error('MCP protocol operation arguments changed', 409)
+  const mixedBrokerIdentity = args.catalogToolId || args.input
+  if (mixedBrokerIdentity)
+    error('MCP protocol operation arguments changed', 409)
 }

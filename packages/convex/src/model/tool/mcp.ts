@@ -1,15 +1,18 @@
-import { mcpConnectionSchema } from '@sb/core/types'
-import type { McpRuntimeScope, McpRuntimeStatus } from '@sb/core/types'
 import type { McpServer } from '@sb/core/types'
 import { mcpApprovalKey, parseMcpInputSchema } from '@sb/core/types/mcp-catalog'
 
-import type { Id } from '../../_generated/dataModel'
 import { ToolError, extractErrorMessage, toolFailure } from '../../errors'
 import { isToolAutoApproved } from '../../lib/tool/approval'
 import type { ToolApprovals } from '../../types'
 import { sidecarUrl as defaultSidecarUrl } from '../sidecar'
 import { sidecarRequest } from '../sidecarTransport'
 import type { McpManifestEntry } from './manifest'
+import { connectMcpRuntime } from './mcpConnection'
+import type {
+  McpConnected as Connected,
+  McpFailed as Failed,
+  RuntimeAuthorization,
+} from './mcpConnection'
 import { loadMcpDefinition } from './mcpDefinition'
 import {
   type McpOperationContext,
@@ -17,21 +20,16 @@ import {
   existingMcpOperation,
   findMcpOperation,
 } from './mcpOperation'
-import { enabledMcpServers } from './settings'
+import { mcpToModelOutput } from './mcpOutput'
+
+export { getSidecarUrl, externalRequest } from './mcpConnection'
+export type { RuntimeAuthorization } from './mcpConnection'
 
 export function getMcpUrl(sidecarUrl = defaultSidecarUrl()): string {
   const url = new URL(sidecarUrl)
   const pathname = url.pathname.replace(/\/$/, '')
   url.pathname = pathname.endsWith('/mcp') ? pathname : `${pathname}/mcp`
   return url.toString()
-}
-
-/** Absolute URL for a sidecar route. */
-export function getSidecarUrl(
-  path: string,
-  sidecarUrl = defaultSidecarUrl(),
-): string {
-  return new URL(path, sidecarUrl).toString()
 }
 
 export async function callMcpTool(
@@ -82,47 +80,6 @@ export async function callMcpTool(
   }
 }
 
-export type RuntimeAuthorization = {
-  runtimeId: Id<'mcpRuntimes'>
-  scope: McpRuntimeScope
-  bootId?: string
-  generation?: string
-  expiresAt: number
-}
-
-type Failed = (
-  runtimeId: Id<'mcpRuntimes'>,
-  key: string,
-  reason: string,
-) => Promise<void>
-
-type Connected = (
-  runtimeId: Id<'mcpRuntimes'>,
-  key: string,
-  bootId: string,
-  generation: string,
-) => Promise<boolean>
-
-async function externalRequest<T>(
-  path: string,
-  body: unknown,
-  signal?: AbortSignal,
-): Promise<T> {
-  const response = await fetch(
-    getSidecarUrl(path),
-    sidecarRequest({
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal,
-    }),
-  )
-  const data = (await response.json()) as T & { error?: string }
-  if (!response.ok || data.error)
-    throw new ToolError(data.error ?? `HTTP ${response.status}`)
-  return data
-}
-
 async function callExternalMcpTool(
   server: McpServer,
   name: string,
@@ -136,77 +93,31 @@ async function callExternalMcpTool(
     toolCallId: string
     name: string
   },
-): Promise<string> {
+) {
   try {
-    if (!runtime) {
-      if (server.transport === 'stdio')
-        throw new ToolError(
-          'Local MCP requires an authorized session execution',
-        )
-      const data = await externalRequest<{ text: string }>(
-        '/mcp-ext/call',
-        { ...mcpConnectionSchema.parse(server), name, args },
-        signal,
+    if (!runtime || !operation)
+      throw new ToolError(
+        'MCP requires an authorized durable session execution',
       )
-      return data.text
-    }
 
-    let status: McpRuntimeStatus
-    try {
-      status = await externalRequest<McpRuntimeStatus>(
-        '/mcp-ext/connect',
-        { ...runtime, connection: mcpConnectionSchema.parse(server) },
-        signal,
-      )
-    } catch (error) {
-      await failed?.(
-        runtime.runtimeId,
-        runtime.scope.key,
-        error instanceof Error ? error.message : 'MCP connection lost',
-      )
-      throw error
-    }
-
-    const accepted = await connected?.(
-      runtime.runtimeId,
-      runtime.scope.key,
-      status.bootId,
-      status.generation,
-    )
-    if (!accepted) {
-      await externalRequest('/mcp-ext/disconnect', {
-        scope: runtime.scope,
-      }).catch(() => {})
-      throw new ToolError('MCP execution was revoked during connection')
-    }
-
-    if (operation) {
-      return await executeMcpOperation(operation.context, {
-        runtime,
-        bootId: status.bootId,
-        generation: status.generation,
-        serverKey: server.id,
-        toolName: name,
-        name: operation.name,
-        args,
-        toolCallId: operation.toolCallId,
-        signal,
-      })
-    }
-
-    const data = await externalRequest<{ text: string }>(
-      '/mcp-ext/call',
-      {
-        scope: runtime.scope,
-        bootId: status.bootId,
-        generation: status.generation,
-        expiresAt: Date.now() + 30_000,
-        name,
-        args,
-      },
+    const status = await connectMcpRuntime(
+      server,
+      runtime,
+      { connected, failed },
       signal,
     )
-    return data.text
+
+    return executeMcpOperation(operation.context, {
+      runtime,
+      bootId: status.bootId,
+      generation: status.generation,
+      serverKey: server.id,
+      toolName: name,
+      name: operation.name,
+      args,
+      toolCallId: operation.toolCallId,
+      signal,
+    })
   } catch (error) {
     toolFailure(error)
   }
@@ -250,6 +161,8 @@ export async function createExternalMcpTool(
 
   return tool({
     description: entry.description ?? definition?.description,
+    toModelOutput: (options) =>
+      mcpToModelOutput(options, operationContext?.omitMedia),
     inputSchema: jsonSchema(schema, {
       validate: (input) => {
         const result = validate(input)
@@ -296,11 +209,7 @@ export async function createExternalMcpTool(
         if (existing) return existing.output
       }
       const live = current ? await current() : undefined
-      const server = current
-        ? live?.server
-        : enabledMcpServers(servers).find(
-            (candidate) => candidate.id === entry.serverId,
-          )
+      const server = live?.server
       if (!server) {
         throw new ToolError(
           `The MCP server providing "${entry.name}" is no longer configured.`,

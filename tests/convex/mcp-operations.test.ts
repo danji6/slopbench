@@ -69,7 +69,7 @@ test('SDK error or stale patch cannot replace durable pending input and progress
     ...execution,
     operationId: operation._id,
     state: 'running',
-    progress: { progress: 4, message: 'Reading evidence' },
+    progress: { progress: 4, message: 'Reading output' },
   })
   await _patchMessage(ctx, {
     ...execution,
@@ -85,7 +85,7 @@ test('SDK error or stale patch cannot replace durable pending input and progress
   expect((await db.get(contentId))?.parts).toMatchObject([
     {
       state: 'input-available',
-      mcpProgress: { progress: 4, message: 'Reading evidence' },
+      mcpProgress: { progress: 4, message: 'Reading output' },
     },
   ])
 })
@@ -118,13 +118,13 @@ test('completed backend results survive retries and are projected before provide
     ...execution,
     operationId: operation._id,
     state: 'completed',
-    output: 'canonical evidence',
+    output: 'full output',
   })
   await deliver(ctx, { ...execution, operationId: operation._id })
   expect(await pending(ctx, execution)).toEqual([])
   await _patchMessage(ctx, { ...execution, parts: [] })
   expect((await db.get(contentId))?.parts).toMatchObject([
-    { state: 'output-available', output: 'canonical evidence' },
+    { state: 'output-available', output: 'full output' },
   ])
 })
 
@@ -166,7 +166,7 @@ test('a late acknowledgement cannot hide deleted-owner cleanup', async () => {
     ...execution,
     operationId: operation._id,
     state: 'completed',
-    output: 'evidence',
+    output: 'output',
   })
   await removeForMessage(ctx, operation.messageId)
   await acknowledged(ctx, { operationId: operation._id })

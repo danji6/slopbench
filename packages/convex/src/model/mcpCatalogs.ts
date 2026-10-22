@@ -19,10 +19,9 @@ import type {
 } from '../types'
 import type { McpCatalogActiveArgs, StreamExecutionArgs } from '../types'
 import type { McpCatalogActiveFailureArgs } from '../types'
-import * as Credentials from './credentials'
-import { launchFields } from './mcp'
 import { available } from './mcpCatalogAccess'
 import { hasPins } from './mcpCatalogPins'
+import { launchConnection } from './mcpLaunch'
 import { revokeRestrictedTargets } from './mcpPolicyRevocation'
 import { isAuthorized, runtimeScope } from './mcpRuntime'
 
@@ -113,21 +112,7 @@ async function beginRefresh(ctx: MutationCtx, server: Doc<'mcpServers'>) {
 export async function launch(ctx: QueryCtx, args: McpCatalogIdArgs) {
   const catalog = await staging(ctx, args.catalogId)
   const server = (await ctx.db.get(catalog.serverId))!
-  const secret = await Credentials.get(
-    ctx,
-    catalog.ownerId,
-    'mcp-env',
-    server.key,
-  )
-
-  return {
-    ...launchFields(server),
-    transport: server.transport,
-    apiKey: await Credentials.get(ctx, catalog.ownerId, 'mcp', server.key),
-    secretEnv: secret
-      ? (JSON.parse(secret) as Record<string, string>)
-      : undefined,
-  }
+  return launchConnection(ctx, server)
 }
 
 async function staging(ctx: QueryCtx, id: Id<'mcpCatalogs'>) {
@@ -395,6 +380,7 @@ export async function activeRuntimes(ctx: QueryCtx, args: StreamExecutionArgs) {
     )
     .map((row) => ({
       scope: runtimeScope(row),
+      initialization: row.initialization,
       bootId: row.bootId,
       generation: row.generation,
       serverId: servers.find((server) => server.id === row.serverKey)!.recordId,

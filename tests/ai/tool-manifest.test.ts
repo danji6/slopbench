@@ -1,6 +1,7 @@
 /// <reference types="bun-types" />
 import { getEnabledTools } from '@sb/convex/model/tool/build'
 import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
+import { MCP_BROKER_TOOLS } from '@sb/core/types/mcp-catalog'
 import { describe, expect, test } from 'bun:test'
 
 const session = {
@@ -117,8 +118,7 @@ describe('tool manifest', () => {
     expect(manifest.names).toEqual([
       'read_file',
       'list_skills',
-      'search_mcp_tools',
-      'call_mcp_tool',
+      ...MCP_BROKER_TOOLS,
     ])
     expect(manifest.mcp).toBeUndefined()
   })
@@ -134,7 +134,7 @@ describe('tool manifest', () => {
         resources: { settings: null, mcpServers: [] },
         spawnableAgents: [],
       } as never).names,
-    ).toEqual(['search_mcp_tools', 'call_mcp_tool'])
+    ).toEqual([...MCP_BROKER_TOOLS])
 
     expect(
       resolveToolManifest({
@@ -144,7 +144,7 @@ describe('tool manifest', () => {
         resources: { settings: null, mcpServers: [] },
         spawnableAgents: [],
       } as never).names,
-    ).toEqual(['search_mcp_tools', 'call_mcp_tool'])
+    ).toEqual([...MCP_BROKER_TOOLS])
   })
 
   test('the shell is resolved agent-over-user, and only for the shell tool', () => {

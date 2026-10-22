@@ -51,6 +51,7 @@ export const mcpRuntimeSchema = v.object({
   state: v.string(),
   bootId: v.optional(v.string()),
   generation: v.optional(v.string()),
+  initialization: v.optional(v.string()),
   reason: v.optional(v.string()),
   updatedAt: v.number(),
 })
@@ -75,6 +76,7 @@ export const mcpRuntimeConnectedArgsValidator = v.object({
   key: v.string(),
   bootId: v.string(),
   generation: v.string(),
+  initialization: v.optional(v.string()),
 })
 
 export const mcpRuntimeStatusArgsValidator = v.object({

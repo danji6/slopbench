@@ -15,7 +15,7 @@ import * as Credentials from './credentials'
 import { catalogRows } from './mcpCatalogs'
 import { revokeRestrictedTargets } from './mcpPolicyRevocation'
 import { authorizeRuntime, revoke } from './mcpRuntime'
-import { isMcpToolSelected } from './mcpToolPolicy'
+import { isMcpServerSelected, isMcpToolSelected } from './mcpToolPolicy'
 import { getMode } from './session/sessions'
 import { ownsExecution } from './stream/execution'
 
@@ -46,7 +46,8 @@ export async function _getExecution(
       (!toolName || meta.name === toolName) &&
       isMcpToolSelected(agent, server, meta),
   )
-  if (!selectedTool) return null
+  if (toolName ? !selectedTool : !isMcpServerSelected(agent, server))
+    return null
 
   const stream = streamId ? await ctx.db.get(streamId) : null
   if (!stream) return null
@@ -345,32 +346,6 @@ export async function get(
   if (!server) error('Not found', 404)
   if (server.ownerId !== ctx.userId) error('Not found', 404)
   return { _id: server._id, url: server.url, transport: server.transport }
-}
-
-/** Internal only. Callers must have already proven the requester owns it. */
-export async function _getApiKey(
-  ctx: QueryCtx,
-  { serverId }: { serverId: Id<'mcpServers'> },
-) {
-  const server = await ctx.db.get(serverId)
-  if (!server) return undefined
-  return Credentials.get(ctx, server.ownerId, 'mcp', server.key)
-}
-
-/** Resolves private environment bindings after the caller has checked ownership. */
-export async function _getSecretEnv(
-  ctx: QueryCtx,
-  { serverId }: { serverId: Id<'mcpServers'> },
-) {
-  const server = await ctx.db.get(serverId)
-  if (!server) return {}
-  const secrets = await Credentials.get(
-    ctx,
-    server.ownerId,
-    'mcp-env',
-    server.key,
-  )
-  return parseSecrets(secrets)
 }
 
 function listServers(ctx: QueryCtx | MutationCtx, ownerId: Id<'users'>) {
