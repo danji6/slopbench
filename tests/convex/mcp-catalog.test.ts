@@ -18,6 +18,7 @@ import { createMcpBrokerTools } from '@sb/convex/model/tool/mcpBroker'
 import {
   MCP_BROKER_TOOLS,
   MCP_MANIFEST_VERSION,
+  SKILL_BROKER_TOOLS,
   mcpApprovalKey,
 } from '@sb/core/types/mcp-catalog'
 import { mcpCatalogRoutes } from '@sb/sidecar/mcp/external/catalog-routes'
@@ -369,7 +370,11 @@ test('manifest upgrades add stable broker definitions without rewriting frozen d
   }
   const upgraded = upgradeToolManifest(frozen)
   expect(upgraded.version).toBe(MCP_MANIFEST_VERSION)
-  expect(upgraded.names).toEqual(['local_original', ...MCP_BROKER_TOOLS])
+  expect(upgraded.names).toEqual([
+    'local_original',
+    ...MCP_BROKER_TOOLS,
+    ...SKILL_BROKER_TOOLS,
+  ])
   expect(upgraded.mcp).toBe(frozen.mcp)
   expect(frozen.names).toEqual(['local_original'])
   expect(upgradeToolManifest(upgraded)).toBe(upgraded)
@@ -380,7 +385,7 @@ test('manifest upgrades add stable broker definitions without rewriting frozen d
     resources: { settings: null, mcpServers: [] },
     spawnableAgents: [],
   } as never)
-  expect(fresh.names).toEqual([...MCP_BROKER_TOOLS])
+  expect(fresh.names).toEqual([...MCP_BROKER_TOOLS, ...SKILL_BROKER_TOOLS])
 })
 
 test('every catalog page is searchable and unchanged refreshes keep opaque identities', async () => {

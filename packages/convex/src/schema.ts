@@ -1,5 +1,4 @@
 import { defineSchema, defineTable } from 'convex/server'
-import { v } from 'convex/values'
 
 import {
   agentFileOperationSchema,
@@ -44,8 +43,10 @@ import {
   catalogRowSchema,
   discoveryPreviewSchema,
 } from './validators/discovery'
+import { integrationSchema } from './validators/integrations'
 import { mcpCleanupSchema, mcpRuntimeSchema } from './validators/mcp'
 import {
+  mcpCatalogPinSchema,
   mcpCatalogSchema,
   mcpCatalogToolSchema,
 } from './validators/mcpCatalogs'
@@ -56,7 +57,14 @@ const schemaValidation = true
 
 // prettier-ignore
 export default defineSchema({
-  mcpProtocolChecks: defineTable(protocolCheckSchema).index('by_resultRef', ['resultRef']).index('by_ownerId', ['ownerId']),
+  integrations: defineTable(integrationSchema)
+    .index('by_ownerId', ['ownerId'])
+    .index('by_ownerId_root', ['ownerId', 'root']),
+
+  mcpProtocolChecks: defineTable(protocolCheckSchema)
+    .index('by_resultRef', ['resultRef'])
+    .index('by_ownerId', ['ownerId']),
+
   sessionFolders: defineTable(sessionFolderSchema)
     .index('by_ownerId_position', ['ownerId', 'position'])
     .index('by_ownerId_parentId_position', ['ownerId', 'parentId', 'position']),
@@ -135,6 +143,7 @@ export default defineSchema({
     .index('by_agentId_scope_order', ['agentId', 'scope', 'order']),
 
   mcpServers: defineTable(mcpServerSchema)
+    .index('by_integrationId', ['integrationId'])
     .index('by_ownerId_order', ['ownerId', 'order']),
 
   mcpRuntimes: defineTable(mcpRuntimeSchema)
@@ -145,7 +154,8 @@ export default defineSchema({
     .index('by_agentId', ['agentId'])
     .index('by_sessionId_agentId_serverKey', ['sessionId', 'agentId', 'serverKey']),
 
-  mcpCleanups: defineTable(mcpCleanupSchema),
+  mcpCleanups: defineTable(mcpCleanupSchema)
+    .index('by_ownerId_serverKey', ['scope.ownerId', 'scope.serverId']),
 
   mcpOperations: defineTable(mcpOperationSchema)
     .index('by_contentId_toolCallId', ['contentId', 'toolCallId'])
@@ -166,7 +176,7 @@ export default defineSchema({
     .index('by_catalogId_name', ['catalogId', 'name'])
     .index('by_definitionRef', ['definitionRef']),
 
-  mcpCatalogPins: defineTable(v.object({ catalogId: v.id('mcpCatalogs'), cacheId: v.id('sessionCache') }))
+  mcpCatalogPins: defineTable(mcpCatalogPinSchema)
     .index('by_catalogId', ['catalogId'])
     .index('by_cacheId', ['cacheId']),
 

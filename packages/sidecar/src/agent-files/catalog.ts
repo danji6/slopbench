@@ -1,3 +1,4 @@
+import { realpath } from 'node:fs/promises'
 import type { z } from 'zod'
 
 import { withAgentFiles } from './access'
@@ -24,6 +25,7 @@ export async function skillMetadata(input: z.infer<typeof catalogSchema>) {
         }
         entries.push({
           ...metadata,
+          canonicalDirectory: await realpath(absolutePath),
           path: relativePath,
         })
       } catch (error) {

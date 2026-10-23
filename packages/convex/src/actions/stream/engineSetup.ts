@@ -35,6 +35,19 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
   const invokesTools =
     data.stream.command.kind === 'invoke' ||
     data.stream.command.kind === 'retry'
+  const observesIntegrations =
+    invokesTools &&
+    !!data.integrationCount &&
+    minRole(data.invoker.role, 'admin')
+  if (observesIntegrations) {
+    const { observeLinkedIntegrations } = await import('../../model/integrations/actions') // prettier-ignore
+    const invalidated = new Set(await observeLinkedIntegrations(ctx, execution))
+    data.mcpServers = data.mcpServers.map((server) =>
+      server.integrationId && invalidated.has(server.integrationId)
+        ? { ...server, enabled: false }
+        : server,
+    )
+  }
   if (invokesTools && hasMcpContext) {
     const prepared = await prepareMcpCatalogContext(ctx, execution, data)
     if (!prepared) return null
@@ -125,20 +138,24 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
     if (!prepared) return null
   }
 
-  if (
-    !data.stream.skillContextPrepared &&
-    operationPlan.toolNames.includes('read_file')
-  ) {
+  const hasSkillAccess =
+    minRole(data.invoker.role, 'admin') &&
+    operationPlan.toolNames.includes('read_skill')
+  const preparesSkillCatalog =
+    !data.stream.skillContextPrepared && hasSkillAccess
+  if (preparesSkillCatalog) {
     const page = await compactSkillCatalog(
       ctx,
       data.agent,
       data.session.workspace,
+      data.session._id,
     )
     const prepared = await ctx.runMutation(
       internal.streams._prepareSkillContext,
       {
         ...execution,
         fingerprint: page.fingerprint,
+        integrationFingerprint: page.integrationFingerprint,
         content:
           catalogNote(page) ||
           'No skills are currently available. Earlier skill catalogs no longer apply.',

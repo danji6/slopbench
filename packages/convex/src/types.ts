@@ -15,6 +15,7 @@ import type { Doc, Id } from './_generated/dataModel'
 import type { SpawnableAgent } from './model/agent/subagents'
 import type { PromptSets } from './model/prompts'
 import type * as V from './validators'
+import type * as IntegrationsV from './validators/integrations'
 import type * as McpCatalogsV from './validators/mcpCatalogs'
 import type * as McpOperationsV from './validators/mcpOperations'
 import type * as McpProtocolV from './validators/mcpProtocol'
@@ -251,3 +252,12 @@ export type McpCatalogActiveArgs = Infer<typeof McpCatalogsV.catalogActiveValida
 export type McpCatalogDefinitionAccessArgs = Infer<typeof McpCatalogsV.catalogDefinitionAccessValidator> // prettier-ignore
 export type McpProtocolRequestArgs = Infer<typeof McpProtocolV.protocolRequestValidator> // prettier-ignore
 export type McpProtocolPublishArgs = Infer<typeof McpProtocolV.protocolPublishValidator> // prettier-ignore
+export type IntegrationPublishArgs = Infer<typeof IntegrationsV.integrationPublishValidator> // prettier-ignore
+export type IntegrationSettingsArgs = Infer<typeof IntegrationsV.integrationSettingsValidator> // prettier-ignore
+export type IntegrationSelectionArgs = Infer<typeof IntegrationsV.integrationSelectionValidator> // prettier-ignore
+export type IntegrationListArgs = Infer<typeof IntegrationsV.integrationListValidator> // prettier-ignore
+export type IntegrationComponentArgs = Infer<typeof IntegrationsV.integrationComponentValidator> // prettier-ignore
+export type IntegrationMissingArgs = Infer<typeof IntegrationsV.integrationMissingValidator> // prettier-ignore
+export type IntegrationSkillReadArgs = Infer<typeof IntegrationsV.integrationSkillReadValidator> // prettier-ignore
+export type IntegrationObservationArgs = Infer<typeof IntegrationsV.integrationObservationValidator> // prettier-ignore
+export type IntegrationSkillsArgs = Infer<typeof IntegrationsV.integrationSkillsValidator> // prettier-ignore

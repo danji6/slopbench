@@ -1,15 +1,7 @@
 import { sha256 } from '@sb/core/sha256'
-import {
-  SKILL_CATALOG_CHARACTERS,
-  catalogEntryText,
-} from '@sb/core/skills/catalog'
-import { selectCatalog } from '@sb/core/skills/selection'
+import { SKILL_CATALOG_CHARACTERS } from '@sb/core/skills/catalog'
 import { SKILL_PAGE_SIZE } from '@sb/core/skills/types'
-import type {
-  SkillCatalogEntry,
-  SkillCatalogPage,
-  SkillCatalogSlice,
-} from '@sb/core/skills/types'
+import type { SkillCatalogPage, SkillCatalogSlice } from '@sb/core/skills/types'
 
 export type CatalogRequest = {
   cursor?: string | null
@@ -17,89 +9,42 @@ export type CatalogRequest = {
   compact?: boolean
 }
 
-const EMPTY_CATALOG_FINGERPRINT =
-  'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
-
-/** Accumulates a bounded window and hashes every source, including omitted entries. */
+/** Validates continuation against the complete merged metadata, including entries outside the page. */
 export class CatalogWindow {
   private readonly cursor: ReturnType<typeof parseCursor>
-  private readonly limit: number
-  private readonly budget?: number
-  private readonly selection: ReturnType<typeof selectCatalog>
-  private fingerprint: string
-  private projectTotal = 0
-  private projectCharacters = 0
-
   constructor(
-    agentId: string,
+    private readonly agentId: string,
     private readonly input: CatalogRequest,
   ) {
     this.cursor = parseCursor(input.cursor, input.search)
-    this.limit = input.compact ? SKILL_CATALOG_CHARACTERS : SKILL_PAGE_SIZE
-    this.budget = input.compact ? SKILL_CATALOG_CHARACTERS - 1000 : undefined
-    this.selection = selectCatalog({
-      offset: this.cursor.offset,
-      search: input.search,
-      limit: this.limit,
-      characterBudget: this.budget,
-    })
-    this.fingerprint = agentId
-  }
-
-  private total() {
-    return this.selection.total() + this.projectTotal
-  }
-
-  async addAssigned(entry: SkillCatalogEntry) {
-    this.fingerprint = await sha256(JSON.stringify([this.fingerprint, entry]))
-    this.selection.add(entry)
   }
 
   sourceOptions() {
-    const blocked =
-      this.cursor.offset + this.selection.entries.length < this.total()
     return {
-      offset: Math.max(0, this.cursor.offset - this.total()),
+      offset: this.cursor.offset,
       search: this.input.search,
-      limit: blocked
-        ? 0
-        : Math.max(0, this.limit - this.selection.entries.length),
-      characterBudget: this.remainingBudget(),
+      limit: this.input.compact ? SKILL_CATALOG_CHARACTERS : SKILL_PAGE_SIZE,
+      characterBudget: this.input.compact
+        ? SKILL_CATALOG_CHARACTERS - 1000
+        : undefined,
     }
   }
 
-  private remainingBudget() {
-    if (this.budget === undefined) return undefined
-    return Math.max(
-      0,
-      this.budget - this.selection.characters() - this.projectCharacters,
+  async finish(page?: SkillCatalogSlice): Promise<SkillCatalogPage> {
+    const fingerprint = await sha256(
+      JSON.stringify([this.agentId, page?.fingerprint ?? '']),
     )
-  }
-
-  async addProject(page: SkillCatalogSlice) {
-    if (page.fingerprint !== EMPTY_CATALOG_FINGERPRINT)
-      this.fingerprint = await sha256(
-        JSON.stringify([this.fingerprint, page.fingerprint]),
-      )
-    this.selection.entries.push(...page.entries)
-    this.projectCharacters += page.entries.reduce(
-      (size, entry) => size + catalogEntryText(entry).length + 1,
-      0,
-    )
-    this.projectTotal += page.total
-  }
-
-  async finish(): Promise<SkillCatalogPage> {
-    const fingerprint = await sha256(this.fingerprint)
-    if (this.cursor.fingerprint && this.cursor.fingerprint !== fingerprint) {
+    const catalogChanged =
+      this.cursor.fingerprint && this.cursor.fingerprint !== fingerprint
+    if (catalogChanged)
       throw new Error(
         'Skill catalog changed. Restart list_skills without a cursor.',
       )
-    }
-    const offset = this.cursor.offset + this.selection.entries.length
-    const isDone = offset >= this.total()
+    const entries = page?.entries ?? []
+    const offset = this.cursor.offset + entries.length
+    const isDone = offset >= (page?.total ?? 0)
     return {
-      entries: this.selection.entries,
+      entries,
       fingerprint,
       isDone,
       cursor: isDone

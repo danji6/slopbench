@@ -8,6 +8,7 @@ import { mcpToolDescription, mcpToolName } from '@sb/core/types'
 import {
   MCP_BROKER_TOOLS,
   MCP_MANIFEST_VERSION,
+  SKILL_BROKER_TOOLS,
 } from '@sb/core/types/mcp-catalog'
 
 import type { Doc } from '../../_generated/dataModel'
@@ -108,7 +109,7 @@ export function resolveToolManifest(data: ManifestInput): ToolManifest {
     ...builtins,
     'shell_output',
     'kill_shell',
-    'list_skills',
+    ...SKILL_BROKER_TOOLS,
     ...MCP_BROKER_TOOLS,
   ])
 
@@ -129,6 +130,7 @@ export function resolveToolManifest(data: ManifestInput): ToolManifest {
 
   const seenMcp = new Set<string>()
   for (const server of enabledMcpServers(data.resources.mcpServers)) {
+    if (server.integrationId) continue
     if (server.transport === 'stdio' && !admin) continue
     for (const meta of server.tools ?? []) {
       const name = mcpToolName(server, meta)
@@ -176,7 +178,7 @@ export function resolveToolManifest(data: ManifestInput): ToolManifest {
 
   return {
     version: MCP_MANIFEST_VERSION,
-    names: [...names, ...MCP_BROKER_TOOLS],
+    names: [...new Set([...names, ...MCP_BROKER_TOOLS, ...SKILL_BROKER_TOOLS])],
     ...(data.session.workspace?.agentHome && { hasAgentHome: true }),
     ...(roster && { taskRoster: roster }),
     ...(shell && { shell }),
@@ -188,7 +190,9 @@ export function resolveToolManifest(data: ManifestInput): ToolManifest {
 export function upgradeToolManifest(manifest: ToolManifest): ToolManifest {
   if ((manifest.version ?? 1) >= MCP_MANIFEST_VERSION) return manifest
   const brokerCollision = manifest.mcp?.some((entry) =>
-    MCP_BROKER_TOOLS.some((name) => name === entry.name),
+    [...MCP_BROKER_TOOLS, ...SKILL_BROKER_TOOLS].some(
+      (name) => name === entry.name,
+    ),
   )
   if (brokerCollision) {
     throw new Error(
@@ -200,7 +204,9 @@ export function upgradeToolManifest(manifest: ToolManifest): ToolManifest {
     version: MCP_MANIFEST_VERSION,
     names: [
       ...manifest.names,
-      ...MCP_BROKER_TOOLS.filter((name) => !manifest.names.includes(name)),
+      ...[...MCP_BROKER_TOOLS, ...SKILL_BROKER_TOOLS].filter(
+        (name) => !manifest.names.includes(name),
+      ),
     ],
   }
 }

@@ -117,7 +117,7 @@ export function McpProtocolBrowser({
           <summary>
             Initialization instructions and capabilities (server data)
           </summary>
-          <pre className="max-h-64 overflow-auto break-words whitespace-pre-wrap">
+          <pre className="max-h-64 overflow-auto wrap-break-word whitespace-pre-wrap">
             {initialization}
           </pre>
         </details>

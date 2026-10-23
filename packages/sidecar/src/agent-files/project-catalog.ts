@@ -60,6 +60,8 @@ async function skillDirectories(root: string) {
   const names: string[] = []
   for await (const entry of await opendir(root)) {
     if (entry.isDirectory() || entry.isSymbolicLink()) names.push(entry.name)
+    if (names.length > 5000)
+      throw new Error('Project skill directory capacity exceeds 5,000 entries')
   }
   return names.sort()
 }

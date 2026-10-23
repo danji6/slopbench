@@ -30,6 +30,11 @@ export const mcpCatalogToolSchema = v.object({
   bytes: v.number(),
 })
 
+export const mcpCatalogPinSchema = v.object({
+  catalogId: v.id('mcpCatalogs'),
+  cacheId: v.id('sessionCache'),
+})
+
 export const catalogIdValidator = v.object({
   catalogId: v.id('mcpCatalogs'),
 })
@@ -45,6 +50,7 @@ export const catalogBeginValidator = v.object({
 })
 
 export const catalogActiveValidator = v.object({
+  immediate: v.optional(v.boolean()),
   ...streamExecutionArgsValidator.fields,
   ...catalogBeginValidator.fields,
 })

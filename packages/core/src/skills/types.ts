@@ -32,6 +32,8 @@ export type SkillImportSummary = {
 }
 
 export type SkillCatalogEntry = SkillMetadata & {
+  origins?: string[]
+  canonicalDirectory?: string
   origin?: string
   path: string
   error?: string

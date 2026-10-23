@@ -44,13 +44,15 @@ export function HelpButton({
 export function HelpDialogButton({
   children,
   title,
+  triggerLabel = 'More information',
 }: {
   children: React.ReactNode
   title?: React.ReactNode
+  triggerLabel?: string
 }) {
   return (
     <Dialog>
-      <Dialog.Trigger render={<HelpTrigger />} />
+      <Dialog.Trigger render={<HelpTrigger aria-label={triggerLabel} />} />
       <Dialog.Content className="flex max-h-[calc(100svh-4rem)] flex-col sm:max-w-2xl">
         {title && (
           <Dialog.Header>

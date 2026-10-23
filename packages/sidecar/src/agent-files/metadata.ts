@@ -1,3 +1,4 @@
+import { isSkillName } from '@sb/core/skills/names'
 import { SKILL_HEADER_READ_BYTES } from '@sb/core/skills/types'
 import type { SkillMetadata } from '@sb/core/skills/types'
 import { open } from 'node:fs/promises'
@@ -38,11 +39,7 @@ export function parseSkillMetadata(text: string): SkillMetadata {
   const metadata = document.toJS({ maxAliasCount: 0 }) as Record<string, unknown> | null // prettier-ignore
   const name = metadata?.name
   const description = metadata?.description
-  if (
-    typeof name !== 'string' ||
-    name.length > 64 ||
-    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name)
-  ) {
+  if (!isSkillName(name)) {
     throw new Error(
       'Skill name must use lowercase letters, numbers and single hyphens (maximum 64 characters)',
     )

@@ -20,7 +20,7 @@ export async function prepareContextNote(
   const stream = await ctx.db.get(args.streamId)
   if (!ownsExecution(stream, args)) return false
 
-  if (contextPrepared(stream, args.fingerprint, type)) return true
+  if (contextPrepared(stream, args, type)) return true
 
   const user = await ctx.db.get(stream.invokedBy)
   const agent = await ctx.db.get(stream.agentId)
@@ -33,19 +33,25 @@ export async function prepareContextNote(
     ? undefined
     : await insertContextNote(ctx, stream, agent, { ...args, content }, type)
 
-  await ctx.db.patch(stream._id, contextPatch(type, args.fingerprint, noteId))
+  await ctx.db.patch(stream._id, {
+    ...contextPatch(type, args.fingerprint, noteId),
+    ...(type === 'skills' && {
+      skillIntegrationFingerprint: args.integrationFingerprint,
+    }),
+  })
 
   return true
 }
 
 function contextPrepared(
   stream: Doc<'streams'>,
-  fingerprint: string,
+  args: PrepareContextNoteArgs,
   type: ContextType,
 ) {
-  if (type === 'mcp') return stream.mcpContextFingerprint === fingerprint
+  if (type === 'mcp') return stream.mcpContextFingerprint === args.fingerprint
   return type === 'skills'
-    ? stream.skillContextPrepared
+    ? stream.skillContextPrepared &&
+        stream.skillIntegrationFingerprint === args.integrationFingerprint
     : stream.workspaceContextPrepared
 }
 

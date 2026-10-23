@@ -1,3 +1,4 @@
+import { IntegrationSettings } from '@/components/chat/integrations/integration-settings'
 import { SkillLibrary } from '@/components/chat/skills/skill-library'
 import {
   AlertMessage,
@@ -39,6 +40,7 @@ import { useQuery } from 'convex/react'
 import {
   ActivityIcon,
   BlocksIcon,
+  BookOpenIcon,
   BotIcon,
   PaletteIcon,
   SettingsIcon,
@@ -74,7 +76,8 @@ const USER_SETTINGS_TABS = [
   { value: 'user', label: 'Account', icon: UserIcon },
   { value: 'behavior', label: 'Behavior', icon: ActivityIcon },
   { value: 'models', label: 'Models', icon: BotIcon },
-  { value: 'skills', label: 'Skills', icon: BlocksIcon },
+  { value: 'skills', label: 'Skills', icon: BookOpenIcon },
+  { value: 'integrations', label: 'Integrations', icon: BlocksIcon },
   { value: 'tools', label: 'Tools', icon: WrenchIcon },
   { value: 'appearance', label: 'Appearance', icon: PaletteIcon },
 ]
@@ -390,6 +393,9 @@ function ChatSettingsDialog() {
                 <BehaviorSettings control={form.control} />
               </SettingsTabs.Content>
 
+              <SettingsTabs.Content value="integrations">
+                <IntegrationSettings />
+              </SettingsTabs.Content>
               <SettingsTabs.Content value="appearance">
                 <AppearanceSettings
                   control={form.control}

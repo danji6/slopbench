@@ -169,6 +169,8 @@ function sessionPage(args: Record<string, unknown>) {
 function query(name: string, args: Record<string, unknown>) {
   if (name === 'users:getProfile')
     return { _id: 'fixture-owner', role: 'admin' }
+  if (name === 'notifications:pendingPage')
+    return { page: [], isDone: true, continueCursor: '' }
   if (name === 'sessionFolders:list') return folderViews()
   if (name === 'notifications:list' || name === 'streams:activeSessionIds')
     return []

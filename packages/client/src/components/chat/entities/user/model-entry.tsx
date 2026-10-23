@@ -9,6 +9,7 @@ import {
   SettingsCollapsible,
   Switch,
   Tabs,
+  TrashButton,
 } from '@/components/ui'
 import { expandNumber } from '@/lib/utils'
 import { effectiveModel } from '@sb/core/discovered-model'
@@ -23,7 +24,6 @@ import {
   REASONING_TIERS,
   type ReasoningTier,
 } from '@sb/core/types'
-import { Trash2Icon } from 'lucide-react'
 import { useState } from 'react'
 
 import { InferenceSettings } from '../../models'
@@ -82,15 +82,11 @@ export function ModelRow({
         </span>
       }
       actions={
-        <RippleButton
+        <TrashButton
           variant="surface"
-          size="icon"
-          className="text-muted-foreground hover:text-destructive size-9 shrink-0"
           onClick={onRemove}
           aria-label="Remove model"
-        >
-          <Trash2Icon />
-        </RippleButton>
+        />
       }
       contentClassName="gap-4 pb-4"
       unmountOnClose

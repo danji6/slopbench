@@ -11,6 +11,7 @@ import type { FolderWorkspace } from '@sb/core/types/workspace'
 import { internal } from '../../_generated/api'
 import type { ActionCtx } from '../../_generated/server'
 import type { AgentWithHome } from '../../types'
+import { integrationRequest } from '../integrations/transport'
 import { postSidecar } from '../sidecar'
 import { CatalogWindow } from './catalogWindow'
 import type { CatalogRequest } from './catalogWindow'
@@ -21,37 +22,57 @@ type AssignmentPage = {
   isDone: boolean
 }
 
-/** Combines assigned and project skills without retaining an unbounded catalog in memory. */
+type CatalogIntegration = {
+  _id: string
+  root: string
+  name: string
+  revision: string
+  skillsEnabled: boolean
+  disabledSkills: string[]
+}
+
+/** Merges all skill origins before applying a bounded catalog window. */
 export async function combinedSkillCatalog(
   ctx: ActionCtx,
   agent: AgentWithHome,
   workspace?: FolderWorkspace,
   input: CatalogRequest = {},
+  integrations: CatalogIntegration[] = [],
 ): Promise<SkillCatalogPage> {
   const window = new CatalogWindow(String(agent._id), input)
 
+  const assigned = []
   if (workspace?.agentHome) {
-    for await (const entry of assignedEntries(ctx, agent, workspace))
-      await window.addAssigned(entry)
+    for await (const entry of assignedEntries(ctx, agent, workspace)) {
+      assigned.push(entry)
+      if (assigned.length > 5000)
+        throw new Error('Assigned skill catalog exceeds 5,000 entries')
+    }
   }
-
-  const seen = new Set<string>()
-  for (const source of workspace?.agentOnly ? [] : (workspace?.sources ?? [])) {
-    if (source.discoverSkills === false || seen.has(source.path)) continue
-    seen.add(source.path)
-    const page = await postSidecar<SkillCatalogSlice>(
-      '/agent-files/project-catalog',
-      {
+  const sources = [
+    ...(workspace?.agentOnly ? [] : (workspace?.sources ?? []))
+      .filter((source) => source.discoverSkills !== false)
+      .map((source) => ({
         root: source.path,
-        label: source.label,
-        agentDir: workspace?.agentHome?.path,
-        ...window.sourceOptions(),
-      },
-    )
-    await window.addProject(page)
-  }
-
-  return window.finish()
+        origin: `Project: ${source.label}`,
+      })),
+    ...integrations
+      .filter((row) => row.skillsEnabled)
+      .map((row) => ({
+        root: row.root,
+        origin: `Integration: ${row.name}`,
+        integrationId: row._id,
+        revision: row.revision,
+        disabledSkills: row.disabledSkills,
+      })),
+  ]
+  if (!sources.length && !assigned.length) return window.finish()
+  const page = await integrationRequest<SkillCatalogSlice>('catalog', {
+    sources,
+    assigned,
+    ...window.sourceOptions(),
+  })
+  return window.finish(page)
 }
 
 async function* assignedEntries(

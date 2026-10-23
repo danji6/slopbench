@@ -1,3 +1,4 @@
+import { IntegrationSelection } from '@/components/chat/integrations/integration-selection'
 import { AgentFiles } from '@/components/chat/skills/agent-files'
 import { AgentSkills } from '@/components/chat/skills/agent-skills'
 import {
@@ -49,6 +50,7 @@ import { ThemeScope } from '@/providers/theme-scope'
 import {
   ActivityIcon,
   BlocksIcon,
+  BookOpenIcon,
   BotIcon,
   NetworkIcon,
   PaletteIcon,
@@ -76,7 +78,8 @@ import { ToolSettings } from './tool-settings'
 const AGENT_SETTINGS_TABS = [
   { value: 'profile', label: 'Profile', icon: UserIcon },
   { value: 'behavior', label: 'Behavior', icon: ActivityIcon },
-  { value: 'skills', label: 'Skills', icon: BlocksIcon },
+  { value: 'skills', label: 'Skills', icon: BookOpenIcon },
+  { value: 'integrations', label: 'Integrations', icon: BlocksIcon },
   { value: 'tools', label: 'Tools', icon: WrenchIcon },
   { value: 'subagents', label: 'Sub-agents', icon: NetworkIcon },
   { value: 'appearance', label: 'Appearance', icon: PaletteIcon },
@@ -385,6 +388,14 @@ function AgentSettingsDialog() {
                   className="flex min-h-0 min-w-0 flex-col overflow-hidden"
                 >
                   <AgentSkills
+                    agentId={newAgent ? undefined : (agentId ?? undefined)}
+                  />
+                </SettingsTabs.Content>
+                <SettingsTabs.Content
+                  value="integrations"
+                  className="flex min-h-0 min-w-0 flex-col overflow-hidden"
+                >
+                  <IntegrationSelection
                     agentId={newAgent ? undefined : (agentId ?? undefined)}
                   />
                 </SettingsTabs.Content>

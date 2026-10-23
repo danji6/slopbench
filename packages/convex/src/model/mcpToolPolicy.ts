@@ -7,7 +7,9 @@ export function isMcpToolSelected(
   server: McpServer,
   tool: McpToolMeta,
 ) {
+  if (!server.enabled) return false
   if (tool.enabled === false || tool.diagnostic) return false
+  if (server.integrationId) return server.brokerEnabled === true
   if (agent.tools?.includes(mcpToolName(server, tool))) return true
   return (
     server.brokerEnabled === true &&
@@ -30,6 +32,7 @@ export function isMcpServerSelected(
   server: McpServer,
 ) {
   if (!server.enabled) return false
+  if (server.integrationId) return server.brokerEnabled === true
   if (server.brokerEnabled && agent.tools?.includes(mcpServerSelection(server)))
     return true
   return !!server.tools?.some((tool) => isMcpToolSelected(agent, server, tool))

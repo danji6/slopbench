@@ -9,11 +9,16 @@ export function sidecarUrl(): string {
   return process.env.SIDECAR_URL || DEFAULT_SIDECAR_URL
 }
 
-export async function postSidecar<T>(path: string, body: unknown): Promise<T> {
+export async function postSidecar<T>(
+  path: string,
+  body: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
   const response = await fetch(
     `${sidecarUrl()}${path}`,
     sidecarRequest({
       method: 'POST',
+      signal,
       body: JSON.stringify(body),
       headers: { 'Content-Type': 'application/json' },
     }),

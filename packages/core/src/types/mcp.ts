@@ -50,6 +50,9 @@ export const mcpToolMetaSchema = z.object({
 
 /** Optional local launch settings; credentials are resolved only on the server. */
 export const mcpLaunchSchema = z.object({
+  integrationBinding: z
+    .object({ root: z.string(), revision: z.string() })
+    .optional(),
   command: z.string().optional(),
   args: z.array(z.string()).optional(),
   cwd: z.string().optional(),
@@ -86,6 +89,7 @@ export const mcpConnectionSchema = z.union([
 ])
 
 export const mcpServerSchema = connectionFields.extend({
+  integrationId: z.string().optional(),
   recordId: z.string().optional(),
   id: z.string(),
   label: z.string().min(1),

@@ -1,7 +1,10 @@
 /// <reference types="bun-types" />
 import { getEnabledTools } from '@sb/convex/model/tool/build'
 import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
-import { MCP_BROKER_TOOLS } from '@sb/core/types/mcp-catalog'
+import {
+  MCP_BROKER_TOOLS,
+  SKILL_BROKER_TOOLS,
+} from '@sb/core/types/mcp-catalog'
 import { describe, expect, test } from 'bun:test'
 
 const session = {
@@ -119,6 +122,7 @@ describe('tool manifest', () => {
       'read_file',
       'list_skills',
       ...MCP_BROKER_TOOLS,
+      'read_skill',
     ])
     expect(manifest.mcp).toBeUndefined()
   })
@@ -134,7 +138,7 @@ describe('tool manifest', () => {
         resources: { settings: null, mcpServers: [] },
         spawnableAgents: [],
       } as never).names,
-    ).toEqual([...MCP_BROKER_TOOLS])
+    ).toEqual([...MCP_BROKER_TOOLS, ...SKILL_BROKER_TOOLS])
 
     expect(
       resolveToolManifest({
@@ -144,7 +148,7 @@ describe('tool manifest', () => {
         resources: { settings: null, mcpServers: [] },
         spawnableAgents: [],
       } as never).names,
-    ).toEqual([...MCP_BROKER_TOOLS])
+    ).toEqual([...MCP_BROKER_TOOLS, ...SKILL_BROKER_TOOLS])
   })
 
   test('the shell is resolved agent-over-user, and only for the shell tool', () => {
@@ -211,4 +215,21 @@ describe('tool manifest', () => {
       tools.docs_search.execute?.({ query: 'x' }, {} as never),
     ).rejects.toThrow('no longer configured')
   })
+})
+
+test('integration tools stay behind the broker when an unrelated direct alias has the same name', () => {
+  const manifest = resolveToolManifest({
+    agent: { tools: ['docs_search'] },
+    invoker: { role: 'admin' },
+    session: {},
+    resources: {
+      settings: null,
+      mcpServers: [
+        { ...mcpServer, integrationId: 'linked', brokerEnabled: true },
+      ],
+    },
+    spawnableAgents: [],
+  } as never)
+  expect(manifest.mcp).toBeUndefined()
+  expect(manifest.names).toEqual([...MCP_BROKER_TOOLS, ...SKILL_BROKER_TOOLS])
 })

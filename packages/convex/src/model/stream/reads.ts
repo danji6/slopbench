@@ -12,6 +12,8 @@ import {
   activeAttachmentMessages,
   hasLoadedAttachmentMedia,
 } from '../attachmentMedia'
+import { availableIntegrations } from '../integrations/access'
+import { withCurrentSkillContext } from '../integrations/skillContext'
 import { resolve as resolveMcpServers } from '../mcp'
 import {
   getProcessingSegmentRow,
@@ -82,7 +84,11 @@ export async function _getContext(
     // Sub-agents can see and edit the parent's plan
     getPlan(ctx, sharedSessionId(session)),
     resolvePromptSets(ctx, agent),
-    resolveMcpServers(ctx, agent.ownerId, { withCredentials: true }),
+    resolveMcpServers(ctx, agent.ownerId, {
+      withCredentials: true,
+      agentId: agent._id,
+      sessionId: stream.sessionId,
+    }),
     resolveProviders(ctx, agent.ownerId),
     getActiveMediaState(ctx, stream),
   ])
@@ -105,6 +111,11 @@ export async function _getContext(
     : null
 
   const state = await getState(ctx, stream.sessionId)
+  const integrations = await availableIntegrations(
+    ctx,
+    agent._id,
+    stream.sessionId,
+  )
 
   return {
     sessionCache,
@@ -112,7 +123,7 @@ export async function _getContext(
     environment: state?.environment ?? {},
     toolApprovals: await getApprovals(ctx, stream.sessionId),
     spawnableAgents,
-    stream,
+    stream: await withCurrentSkillContext(stream, integrations),
     session,
     agent,
     invoker,
@@ -122,6 +133,7 @@ export async function _getContext(
     output: { ...output, parts: outputRow?.parts ?? [] },
     settings,
     prompts,
+    integrationCount: integrations.length,
     mcpServers,
     modelProviders,
     plan,

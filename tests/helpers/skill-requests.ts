@@ -1,6 +1,10 @@
+import type { Id } from '@sb/convex/_generated/dataModel'
 import type { ActionCtx } from '@sb/convex/_generated/server'
 import { prepare } from '@sb/convex/actions/stream/engineSetup'
 import { reserveStream } from '@sb/convex/model/chat/reserve'
+import { availableIntegrations } from '@sb/convex/model/integrations/access'
+import { withCurrentSkillContext } from '@sb/convex/model/integrations/skillContext'
+import { skillContext } from '@sb/convex/model/integrations/skills'
 import { _save, getBySessionAgent } from '@sb/convex/model/session/cache'
 import { folderWorkspace } from '@sb/convex/model/session/folderTree'
 import { prepareSkillContext } from '@sb/convex/model/skills/context'
@@ -12,7 +16,10 @@ import type {
   PrepareContextNoteArgs,
   StreamExecutionArgs,
 } from '@sb/convex/types'
-import { projectSkillCatalog } from '@sb/sidecar/agent-files/project-catalog'
+import {
+  integrationCatalogSchema,
+  integrationSkillCatalog,
+} from '@sb/sidecar/integrations/catalog'
 import { getFunctionName } from 'convex/server'
 
 import { skillsDatabase } from './skills-db'
@@ -51,6 +58,12 @@ export function skillRequests(root: string) {
   }
   rows('agents').push(agent)
   rows('sessions').push(session)
+  rows('userSessions').push({
+    _id: 'membership',
+    sessionId: session._id,
+    userId: 'owner',
+    role: 'owner',
+  })
   rows('users').push({ _id: 'owner', role: 'admin' })
   rows('sessionFolders').push(folder)
   let clock = 0
@@ -104,7 +117,14 @@ export function skillRequests(root: string) {
               .processingMessageId,
           )
           return {
-            stream: structuredClone(stream),
+            stream: await withCurrentSkillContext(
+              structuredClone(stream) as never,
+              await availableIntegrations(
+                fixture.ctx,
+                agent._id as Id<'agents'>,
+                session._id as Id<'sessions'>,
+              ),
+            ),
             session: {
               ...session,
               workspace: folderWorkspace(folder as never),
@@ -140,6 +160,14 @@ export function skillRequests(root: string) {
           return _getProviderHistory(fixture.ctx, args as StreamExecutionArgs)
         case 'streams:_getFilesystemContext':
           return filesystemToolContext(fixture.ctx, args as StreamExecutionArgs)
+        case 'integrations:_available':
+          return availableIntegrations(
+            fixture.ctx,
+            (args as { agentId: Id<'agents'> }).agentId,
+            (args as { sessionId?: Id<'sessions'> }).sessionId,
+          )
+        case 'integrations:_skillContext':
+          return skillContext(fixture.ctx, args as StreamExecutionArgs)
         case 'skills:_agent':
           return agent
         case 'skills:_assignments':
@@ -234,9 +262,11 @@ export function skillRequests(root: string) {
   const secret = process.env.SIDECAR_SECRET
   process.env.SIDECAR_SECRET = 'fixture-secret'
   globalThis.fetch = (async (url, init) => {
-    if (String(url).endsWith('/agent-files/project-catalog')) {
+    if (String(url).endsWith('/integrations/catalog')) {
       return Response.json(
-        await projectSkillCatalog(JSON.parse(String(init?.body))),
+        await integrationSkillCatalog(
+          integrationCatalogSchema.parse(JSON.parse(String(init?.body))),
+        ),
       )
     }
     if (String(url).endsWith('/agent-files/status'))

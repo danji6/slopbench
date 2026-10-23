@@ -44,7 +44,12 @@ async function catalogActor(ctx: QueryCtx, execution: StreamExecutionArgs) {
 export async function available(ctx: QueryCtx, execution: StreamExecutionArgs) {
   const { stream, agent, invoker } = await catalogActor(ctx, execution)
 
-  const servers = (await resolve(ctx, agent.ownerId)).filter((server) => {
+  const servers = (
+    await resolve(ctx, agent.ownerId, {
+      agentId: agent._id,
+      sessionId: stream.sessionId,
+    })
+  ).filter((server) => {
     if (!server.enabled) return false
     if (server.transport === 'stdio' && !minRole(invoker.role, 'admin'))
       return false

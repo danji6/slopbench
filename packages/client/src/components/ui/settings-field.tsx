@@ -13,6 +13,8 @@ type SettingsFieldProps = {
   htmlFor?: string
   children: ReactNode
   action?: ReactNode
+  /** Keeps controls aligned with rows that have reset buttons. */
+  reserveActionSpace?: boolean
   className?: string
 }
 
@@ -23,15 +25,17 @@ export function SettingsField({
   htmlFor,
   children,
   action,
+  reserveActionSpace = true,
   className,
 }: SettingsFieldProps) {
+  const showAction = reserveActionSpace || Boolean(action)
   return (
     <div
       data-slot="settings-field"
       className={cn('flex min-h-8 items-center gap-2 px-1', className)}
     >
       <div className="text-muted-foreground flex min-w-0 flex-1 items-center gap-1.5">
-        <Label htmlFor={htmlFor} className="text-xs leading-normal font-normal">
+        <Label htmlFor={htmlFor} className="text-sm leading-normal font-normal">
           {label}
         </Label>
         {help && (
@@ -42,16 +46,18 @@ export function SettingsField({
       </div>
       <div className="flex shrink-0 items-center justify-end gap-1">
         {children}
-        <div className="flex size-8 shrink-0 items-center justify-center">
-          {action}
-        </div>
+        {showAction && (
+          <div className="flex size-8 shrink-0 items-center justify-center">
+            {action}
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
 type SettingsInputProps = Omit<InputProps, 'children'> &
-  Pick<SettingsFieldProps, 'label' | 'help'> & {
+  Pick<SettingsFieldProps, 'label' | 'help' | 'reserveActionSpace'> & {
     onReset?: () => void
     resetDisabled?: boolean
     resetTitle?: string
@@ -61,6 +67,7 @@ type SettingsInputProps = Omit<InputProps, 'children'> &
 export function SettingsInput({
   label,
   help,
+  reserveActionSpace,
   id: providedId,
   className,
   disabled,
@@ -77,6 +84,7 @@ export function SettingsInput({
       label={label}
       help={help}
       htmlFor={id}
+      reserveActionSpace={reserveActionSpace}
       action={
         onReset && (
           <button
@@ -103,12 +111,13 @@ export function SettingsInput({
 }
 
 type SettingsSwitchProps = Omit<SwitchProps, 'children'> &
-  Pick<SettingsFieldProps, 'label' | 'help'>
+  Pick<SettingsFieldProps, 'label' | 'help' | 'reserveActionSpace'>
 
 /** Aligns a settings switch with inputs while keeping help beside its label. */
 export function SettingsSwitch({
   label,
   help,
+  reserveActionSpace,
   id: providedId,
   ...props
 }: SettingsSwitchProps) {
@@ -116,7 +125,12 @@ export function SettingsSwitch({
   const id = providedId ?? generatedId
 
   return (
-    <SettingsField label={label} help={help} htmlFor={id}>
+    <SettingsField
+      label={label}
+      help={help}
+      htmlFor={id}
+      reserveActionSpace={reserveActionSpace}
+    >
       <Switch size="sm" {...props} id={id} />
     </SettingsField>
   )

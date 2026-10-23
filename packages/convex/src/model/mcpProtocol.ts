@@ -26,11 +26,20 @@ async function settingsServer(ctx: QueryCtx, serverId: Id<'mcpServers'>) {
   const identity = await authorize(ctx)
   const user = await findUserBySubject(ctx, identity.subject)
   const stored = await ctx.db.get(serverId)
-  if (!user || stored?.ownerId !== user._id)
+
+  if (!user || stored?.ownerId !== user._id) {
     error('MCP server unavailable', 404)
-  if (!stored.enabled) error('Enable and save the MCP server first', 409)
-  if (stored.transport === 'stdio' && !minRole(user.role, 'admin'))
+  }
+  if (stored.integrationId) {
+    error('Integration servers are accessed by agents', 403)
+  }
+  if (!stored.enabled) {
+    error('Enable and save the MCP server first', 409)
+  }
+  if (stored.transport === 'stdio' && !minRole(user.role, 'admin')) {
     error('Forbidden', 403)
+  }
+
   return stored
 }
 

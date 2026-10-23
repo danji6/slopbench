@@ -12,6 +12,7 @@ export const sourceSchema = z.object({
   id: z.string().min(1).max(100),
   path: z.string().min(1),
   label: z.string(),
+  discoverIntegrations: z.boolean().optional(),
   discoverSkills: z.boolean().optional(),
 })
 
@@ -55,6 +56,9 @@ export async function validateSources(
       throw new Error('Source ids must be unique')
     sources.push({
       id: source.id,
+      ...(source.discoverIntegrations !== undefined && {
+        discoverIntegrations: source.discoverIntegrations,
+      }),
       discoverSkills: source.discoverSkills ?? true,
       path: root,
       label: path.basename(root) || root,

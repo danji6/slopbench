@@ -171,6 +171,7 @@ export async function mcpBackendFixture(fixture?: URL) {
       const reference = getFunctionName(ref)
       const catalogMutations = {
         begin: Catalogs.begin,
+        _beginActive: Catalogs.beginActive,
         _append: Catalogs.append,
         _publish: Catalogs.publish,
         _fail: Catalogs.fail,

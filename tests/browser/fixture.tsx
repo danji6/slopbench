@@ -3,6 +3,7 @@ import { Suspense, lazy, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { CheckboxFixture } from './checkbox-fixture'
+import { IntegrationsFixture } from './integrations-fixture'
 import { McpCatalogFixture } from './mcp-catalog-fixture'
 import { McpProtocolFixture } from './mcp-protocol-fixture'
 import { McpSettingsFixture } from './mcp-settings-fixture'
@@ -128,7 +129,9 @@ function PreviewFixture() {
 }
 
 createRoot(document.getElementById('root')!).render(
-  new URLSearchParams(location.search).get('fixture') === 'mcp-protocol' ? (
+  new URLSearchParams(location.search).get('fixture') === 'integrations' ? (
+    <IntegrationsFixture />
+  ) : new URLSearchParams(location.search).get('fixture') === 'mcp-protocol' ? (
     <McpProtocolFixture />
   ) : new URLSearchParams(location.search).get('fixture') === 'mcp-settings' ? (
     <McpSettingsFixture />

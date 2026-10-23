@@ -1,3 +1,4 @@
+import { SKILL_NAME_PATTERN } from '@sb/core/skills/names'
 import type { AgentHome } from '@sb/core/skills/types'
 import { createWriteStream } from 'node:fs'
 import {
@@ -151,7 +152,7 @@ async function execute(input: FileOperation) {
 }
 
 export function skillCopy(home: string, name: string) {
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name))
+  if (!SKILL_NAME_PATTERN.test(name))
     throw new Error('Invalid skill directory name')
   return path.join(home, 'skills', name)
 }

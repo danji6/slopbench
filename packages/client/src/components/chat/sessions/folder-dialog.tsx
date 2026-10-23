@@ -1,5 +1,6 @@
 import { type IconName, IconPicker } from '@/components/icon-picker/icon-picker'
 import { Dialog, Input, RippleButton } from '@/components/ui'
+import { LabeledCheckbox } from '@/components/ui/labeled-checkbox'
 import { useIsAdmin, useRecentWorkspaces } from '@/hooks/chat'
 import { toastError } from '@/lib/notifications'
 import { generateId } from '@/lib/utils'
@@ -11,7 +12,6 @@ import { ArrowUpIcon, PlusIcon, XIcon } from 'lucide-react'
 import { useState } from 'react'
 
 import { FolderPicker } from './folder-picker'
-import { SkillDiscoveryToggle } from './skill-discovery-toggle'
 import { WorkspacePickerDialog } from './workspace-picker-dialog'
 
 type Source = Doc<'sessionFolders'>['sources'][number]
@@ -141,7 +141,7 @@ export function FolderDialog({
                 {displayedSources.map((source, index) => (
                   <div
                     key={source.id}
-                    className="flex items-center gap-2 text-sm"
+                    className="flex items-center gap-4 text-sm"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
@@ -159,10 +159,31 @@ export function FolderDialog({
                         {source.path}
                       </div>
                     </div>
-                    <SkillDiscoveryToggle
-                      checked={source.discoverSkills !== false}
+                    <LabeledCheckbox
+                      checked={source.discoverIntegrations === true}
                       disabled={!canEditSources || busy}
-                      onChange={(discoverSkills) =>
+                      size="xs"
+                      className="shrink-0 gap-1.5 text-[0.625rem]"
+                      labelClassName="min-w-max whitespace-nowrap"
+                      onCheckedChange={(discoverIntegrations) =>
+                        setSources((current) =>
+                          current.map((item) =>
+                            item.id === source.id
+                              ? { ...item, discoverIntegrations }
+                              : item,
+                          ),
+                        )
+                      }
+                    >
+                      Discover tools
+                    </LabeledCheckbox>
+                    <LabeledCheckbox
+                      size="xs"
+                      className="ml-auto shrink-0 gap-1.5 text-[0.625rem]"
+                      labelClassName="min-w-max whitespace-nowrap"
+                      disabled={!canEditSources || busy}
+                      checked={source.discoverSkills !== false}
+                      onCheckedChange={(discoverSkills) =>
                         setSources((current) =>
                           current.map((item) =>
                             item.id === source.id
@@ -171,7 +192,9 @@ export function FolderDialog({
                           ),
                         )
                       }
-                    />
+                    >
+                      Allow <code>.agents/skills</code>
+                    </LabeledCheckbox>
                     {canEditSources && index > 0 && (
                       <RippleButton
                         size="icon"

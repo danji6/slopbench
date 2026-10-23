@@ -58,6 +58,32 @@ test('does not split multibyte characters between pages', async () => {
   expect(first.content).not.toContain('�')
 })
 
+test('small UTF-8 budgets either advance or fail explicitly at each character', async () => {
+  const filename = path.join(root, 'small-unicode.txt')
+  await writeFile(filename, 'λ😀end')
+  for (const maxBytes of [1, 2, 3]) {
+    if (maxBytes < 2) {
+      await expect(readTextPage(filename, { maxBytes })).rejects.toThrow(
+        'Byte budget is too small',
+      )
+    } else {
+      expect(await readTextPage(filename, { maxBytes })).toMatchObject({
+        content: 'λ',
+        nextByteOffset: 2,
+      })
+    }
+    await expect(
+      readTextPage(filename, { byteOffset: 2, maxBytes }),
+    ).rejects.toThrow('Byte budget is too small')
+  }
+  expect(
+    await readTextPage(filename, { byteOffset: 2, maxBytes: 4 }),
+  ).toMatchObject({ content: '😀', nextByteOffset: 6 })
+  expect(
+    await readTextPage(filename, { byteOffset: 6, maxBytes: 1 }),
+  ).toMatchObject({ content: 'e', nextByteOffset: 7 })
+})
+
 test('rejects binary inspection and limits line-offset scans', async () => {
   const filename = path.join(root, 'binary.bin')
   await writeFile(filename, Buffer.from([0, 1, 2]))

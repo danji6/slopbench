@@ -8,6 +8,7 @@ const CHUNK_BYTES = 16 * 1024
 export type TextReadOptions = {
   offset?: number
   limit?: number
+  maxBytes?: number
   byteOffset?: number
 }
 
@@ -24,7 +25,8 @@ export async function readTextPage(
     let position = Math.max(0, options.byteOffset ?? 0)
     let line = options.byteOffset === undefined ? 1 : (options.offset ?? 1)
     const offset = Math.max(1, options.offset ?? 1)
-    const output = Buffer.alloc(TEXT_READ_BYTES + 4)
+    const budget = Math.min(TEXT_READ_BYTES, Math.max(1, options.maxBytes ?? TEXT_READ_BYTES)) // prettier-ignore
+    const output = Buffer.alloc(budget + 4)
     const chunk = Buffer.alloc(CHUNK_BYTES)
     let size = 0
     let selectedLines = 1
@@ -47,7 +49,7 @@ export async function readTextPage(
           }
           continue
         }
-        if (size >= TEXT_READ_BYTES) {
+        if (size >= budget) {
           stopped = true
           break
         }
@@ -67,6 +69,10 @@ export async function readTextPage(
 
     // Do not split a UTF-8 code point at the output boundary
     const safeSize = utf8PrefixLength(output.subarray(0, size))
+    if (size && !safeSize)
+      throw new Error(
+        'Byte budget is too small for the next UTF-8 character; retry with a byte budget of at least 4',
+      )
     position -= size - safeSize
     const truncated = position < info.size
     const content = new TextDecoder('utf8', { fatal: true })

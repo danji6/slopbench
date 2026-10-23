@@ -9,10 +9,6 @@ import { inspectHome } from './agent-files/home-state'
 import { importPage } from './agent-files/import-discovery'
 import { homeInfo, runFileOperation } from './agent-files/operations'
 import {
-  projectCatalogSchema,
-  projectSkillCatalog,
-} from './agent-files/project-catalog'
-import {
   agentLockSchema,
   catalogSchema,
   homeSchema,
@@ -27,6 +23,7 @@ import { sidecarAuthentication } from './auth'
 import { messageSchema, promptsSchema } from './eval/schemas'
 import { evaluateMessage, evaluatePrompts } from './eval/service'
 import { ioError, sidecarError } from './http-errors'
+import { integrationRoutes } from './integrations/routes'
 import {
   exportAgent,
   exportAgentSchema,
@@ -94,6 +91,7 @@ export function createApp(authenticate: MiddlewareHandler) {
   const app = new Hono()
   app.get('/health', (c) => c.json({ ready: true }))
   app.use('*', authenticate)
+  app.route('/integrations', integrationRoutes())
 
   app.post('/providers/chatgpt/prepare-transfer', prepareChatGPTTransfer)
   app.post('/providers/chatgpt/start', startChatGPTSignIn)
@@ -151,12 +149,6 @@ export function createApp(authenticate: MiddlewareHandler) {
 
   app.post('/agent-files/metadata', async (c) =>
     c.json(await skillMetadata(catalogSchema.parse(await c.req.json()))),
-  )
-
-  app.post('/agent-files/project-catalog', async (c) =>
-    c.json(
-      await projectSkillCatalog(projectCatalogSchema.parse(await c.req.json())),
-    ),
   )
 
   app.post('/agent-files/verify-library', async (c) =>

@@ -101,6 +101,8 @@ async function searchTools(context: McpBrokerContext, input: McpBrokerSearch) {
   const { ctx, execution } = context.operation
 
   if (!input.toolId) {
+    const { ensureIntegrationCatalog } = await import('./integrationCatalog')
+    await ensureIntegrationCatalog(context, input.serverId)
     return ctx.runQuery(internal.mcpCatalogs._search, {
       ...execution,
       query: input.query,

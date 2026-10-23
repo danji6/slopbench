@@ -226,7 +226,10 @@ export async function isAuthorized(
   if (workspaceKey(session.workspace) !== row.workspaceKey) return false
   if (!(await hasInvocationAccess(ctx, row.sessionId, row.invokedBy))) return false // prettier-ignore
 
-  const servers = await resolve(ctx, row.ownerId)
+  const servers = await resolve(ctx, row.ownerId, {
+    agentId: row.agentId,
+    sessionId: row.sessionId,
+  })
   const server = servers.find((server) => server.id === row.serverKey && server.enabled) // prettier-ignore
   if (!server) return false
   if (String(server.revision ?? 0) !== row.revision) return false
@@ -296,7 +299,10 @@ export async function control(
 ) {
   const row = await owned(ctx, args)
 
-  const servers = await resolve(ctx, row.ownerId)
+  const servers = await resolve(ctx, row.ownerId, {
+    agentId: row.agentId,
+    sessionId: row.sessionId,
+  })
   const server = servers.find((server) => server.id === row.serverKey)
   if (server?.transport === 'stdio' && !minRole(ctx.role, 'admin')) {
     error('Forbidden', 403)

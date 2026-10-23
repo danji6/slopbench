@@ -69,5 +69,6 @@ export type FolderWorkspace = {
     path: string
     label: string
     discoverSkills?: boolean
+    discoverIntegrations?: boolean
   }[]
 }

@@ -70,6 +70,7 @@ createInterface({ input: process.stdin }).on('line', (line) => {
       send({ method: 'notifications/tools/list_changed' })
     }
     answer(request.id, {
+      structuredContent: { value },
       content: [
         {
           type: 'text',

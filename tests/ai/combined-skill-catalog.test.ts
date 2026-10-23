@@ -6,7 +6,10 @@ import type { AgentWithHome } from '@sb/convex/types'
 import { SKILL_CATALOG_CHARACTERS } from '@sb/core/skills/catalog'
 import type { FolderWorkspace } from '@sb/core/types/workspace'
 import { readSkillMetadata } from '@sb/sidecar/agent-files/metadata'
-import { projectSkillCatalog } from '@sb/sidecar/agent-files/project-catalog'
+import {
+  integrationCatalogSchema,
+  integrationSkillCatalog,
+} from '@sb/sidecar/integrations/catalog'
 import { expect, test } from 'bun:test'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -59,8 +62,10 @@ test('combined catalogs preserve origins, page across sources, and reject stale 
   process.env.SIDECAR_SECRET = 'fixture-secret'
   globalThis.fetch = (async (url, init) => {
     const input = JSON.parse(String(init?.body))
-    if (String(url).endsWith('/project-catalog'))
-      return Response.json(await projectSkillCatalog(input))
+    if (String(url).endsWith('/integrations/catalog'))
+      return Response.json(
+        await integrationSkillCatalog(integrationCatalogSchema.parse(input)),
+      )
     return Response.json({
       entries: await Promise.all(
         input.names.map(async (name: string) => ({
@@ -111,7 +116,7 @@ test('combined catalogs preserve origins, page across sources, and reject stale 
       all
         .filter((entry) => entry.name === 'review')
         .map((entry) => entry.origin),
-    ).toEqual(['Agent', 'Project: Repo', 'Project: Second'])
+    ).toEqual(['Agent', 'Project: Duplicate; Project: Repo', 'Project: Second'])
     const unchanged = await combinedSkillCatalog(ctx, agent, {
       ...workspace,
       sources: [

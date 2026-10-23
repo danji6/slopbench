@@ -107,9 +107,10 @@ const task = [
 ].join('\n')
 
 const skills = inline`
-  List enabled agent and project skills. Use search to match a skill name or
-  cursor to continue a page. Read the chosen SKILL.md using read_file at its
-  listed path before following it.`
+  List enabled agent, project and integration skills. Use search to match a
+  skill name or cursor to continue a page. Read the chosen SKILL.md before
+  following it: use read_skill for integration:// URIs and read_file for other
+  listed paths.`
 
 const search_mcp_tools = inline`
   Discover authorized MCP tools without loading the whole catalog. Omit serverId

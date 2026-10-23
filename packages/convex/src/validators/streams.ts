@@ -140,6 +140,7 @@ export const streamSchema = v.object({
   /** Retry this logical turn without automatically materializing media. */
   omitActiveMedia: v.optional(v.boolean()),
   skillContextPrepared: v.optional(v.boolean()),
+  skillIntegrationFingerprint: v.optional(v.string()),
   skillContextMessageId: v.optional(v.id('messages')),
   workspaceContextPrepared: v.optional(v.boolean()),
   workspaceContextMessageId: v.optional(v.id('messages')),
@@ -170,4 +171,5 @@ export const prepareContextNoteArgsValidator = v.object({
   fingerprint: v.string(),
   content: v.string(),
   label: v.optional(v.string()),
+  integrationFingerprint: v.optional(v.string()),
 })

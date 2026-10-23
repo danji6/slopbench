@@ -58,6 +58,8 @@ export async function ownedServer(
 /** Reserves a refresh without changing the usable catalog. */
 export async function begin(ctx: AuthMutationCtx, args: McpCatalogBeginArgs) {
   const server = await ownedServer(ctx, args.serverId)
+  if (server.integrationId)
+    error('Integration servers are discovered by agents', 403)
   return beginRefresh(ctx, server)
 }
 
@@ -112,7 +114,9 @@ async function beginRefresh(ctx: MutationCtx, server: Doc<'mcpServers'>) {
 export async function launch(ctx: QueryCtx, args: McpCatalogIdArgs) {
   const catalog = await staging(ctx, args.catalogId)
   const server = (await ctx.db.get(catalog.serverId))!
-  return launchConnection(ctx, server)
+  return launchConnection(ctx, server, {
+    allowWorkspaceTemplate: !!catalog.runtimeId,
+  })
 }
 
 async function staging(ctx: QueryCtx, id: Id<'mcpCatalogs'>) {
@@ -422,6 +426,8 @@ export async function beginActive(
     runtimeId: runtime._id,
     runtimeKey: runtime.key,
   })
+  if (args.immediate)
+    return { catalogId, runtimeId: runtime._id, key: runtime.key }
   await ctx.scheduler.runAfter(0, internal.actions.mcpCatalogs._refreshActive, {
     catalogId,
     runtimeId: runtime._id,

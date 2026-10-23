@@ -2,9 +2,9 @@ import {
   ConfirmDialog,
   Input,
   Label,
-  RippleButton,
   SettingsCollapsible,
   Switch,
+  TrashButton,
 } from '@/components/ui'
 import { generateId } from '@/lib/utils'
 import {
@@ -13,7 +13,6 @@ import {
   providerFeatures,
 } from '@sb/core/provider-registry'
 import type { ReasoningTier } from '@sb/core/types'
-import { Trash2Icon } from 'lucide-react'
 import { useState } from 'react'
 
 import { ProviderExtraHeaders } from './provider-extra-headers'
@@ -267,14 +266,7 @@ function ProviderCardActions({
         cancelText="Cancel"
         onConfirm={onRemove}
       >
-        <RippleButton
-          variant="stealth"
-          size="icon"
-          aria-label="Remove provider"
-          className="text-muted-foreground hover:text-destructive"
-        >
-          <Trash2Icon />
-        </RippleButton>
+        <TrashButton aria-label="Remove provider" />
       </ConfirmDialog>
     </>
   )

@@ -33,14 +33,32 @@ export async function createListSkillsTool(skillsCtx: SkillsContext) {
       }
 
       const live = await ctx.runQuery(
-        internal.streams._getFilesystemContext,
+        internal.integrations._skillContext,
         skillsCtx.execution,
       )
 
       const current = await resolvePersonalWorkspace(live.agent, live.workspace)
-      if (!current) return { entries: [], cursor: null, isDone: true }
 
-      return catalogForTool(ctx, live.agent._id, current, input)
+      return catalogForTool(ctx, live.agent._id, current, input, live.sessionId)
+    },
+  })
+}
+
+/** Reads integration instructions without granting ordinary filesystem access. */
+export async function createReadSkillTool(context: SkillsContext) {
+  const [{ tool }, { z }] = await Promise.all([import('ai'), import('zod')])
+  return tool({
+    description:
+      'Read an enabled integration:// skill or its contained text resources in bounded byte ranges. Read SKILL.md before following instructions.',
+    inputSchema: z.object({
+      uri: z.string().max(8192),
+      offset: z.number().int().nonnegative().default(0),
+      length: z.number().int().min(1).max(50_000).default(50_000),
+    }),
+    execute: async (input) => {
+      if (!context.execution) throw new Error('No authorized execution')
+      const { readSkill } = await import('../integrations/skillActions')
+      return readSkill(context.ctx, { ...context.execution, ...input })
     },
   })
 }

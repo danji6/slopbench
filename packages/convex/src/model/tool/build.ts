@@ -37,7 +37,7 @@ import {
   createShellOutputTool,
   createShellTool,
 } from './shellTools'
-import { createListSkillsTool } from './skills'
+import { createListSkillsTool, createReadSkillTool } from './skills'
 import type { SkillsContext } from './skills'
 import { createTaskTool } from './task'
 import { createEditTodoTool, createWriteTodoTool } from './todo'
@@ -280,6 +280,8 @@ async function createManifestTool(
       return createWebSearchTool(build.resources.settings)
     case READ_ATTACHMENT_TOOL_NAME:
       return (planContext && (createReadAttachmentTool(planContext.ctx) as Promise<AnyTool>)) // prettier-ignore
+    case 'read_skill':
+      return build.skillsContext && createReadSkillTool(build.skillsContext)
     case 'list_skills':
       return build.skillsContext && createListSkillsTool(build.skillsContext)
     case 'read_file':

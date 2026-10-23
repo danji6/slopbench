@@ -33,9 +33,9 @@ export function McpToolRow({
           {mcpToolAlias(tool)}
         </span>
       </Accordion.Trigger>
-      <Accordion.Content className="px-3">
+      <Accordion.Content className="p-3">
         <div className="flex flex-col gap-1.5">
-          <label className="flex items-center justify-between gap-2 text-sm">
+          <label className="mb-2 flex items-center justify-between gap-2 text-sm">
             Enabled
             <Switch
               checked={tool.enabled ?? true}
@@ -48,6 +48,7 @@ export function McpToolRow({
           <label className="flex items-center justify-between gap-2 text-sm">
             Allow in plan/read-only mode
             <Switch
+              size="sm"
               checked={tool.allowInReadOnly ?? true}
               onCheckedChange={(allowInReadOnly) =>
                 onChange({ allowInReadOnly })

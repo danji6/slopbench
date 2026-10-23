@@ -53,11 +53,16 @@ export async function allowedTarget(
   if (!(await isAuthorized(ctx, runtime))) return 'revoked' as const
   if (runtime.state === 'lost') return 'lost' as const
 
-  const server = (await resolve(ctx, operation.ownerId)).find(
-    (server) => server.id === operation.scope.serverId,
-  )
+  const server = (
+    await resolve(ctx, operation.ownerId, {
+      agentId: operation.agentId,
+      sessionId: operation.sessionId,
+    })
+  ).find((server) => server.id === operation.scope.serverId)
+
   if (operation.protocolMethod)
     return server ? ('allowed' as const) : ('revoked' as const)
+
   const tool = server?.tools?.find((tool) => tool.name === operation.toolName)
   if (!server || !tool) return 'revoked' as const
 
