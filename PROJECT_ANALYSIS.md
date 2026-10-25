@@ -1,6 +1,7 @@
 # Project Analysis
 
-Updated on 2026-09-18 for the uncommitted maintainability and security work.
+MCP and integration coverage updated on 2026-10-25. The earlier maintainability
+and security update was on 2026-09-18.
 The architectural overview below was originally audited at `0d6092b` on
 2026-08-05. This update covers the refactored modules and changed security
 boundaries; it is not a fresh audit of every product feature or outstanding bug.
@@ -69,6 +70,41 @@ catalog refresh, paginated policies and complete-definition downloads. See
 `MCP_INTEGRATIONS.md` for limits and workflow. Restart the sidecar; no destructive
 migration is needed. Rich result fidelity, integrations and real REA conformance
 remain stages 4–7.
+
+## MCP results and linked integrations (stages 4–7, 2026-10-25)
+
+External MCP results preserve versioned content blocks, structured data, tool
+errors, metadata, and initialization guidance. Prompts and resources use scoped
+broker operations with pagination, explicit insertion/reads, and the existing
+approval and durable-operation path. Large canonical results use blob storage;
+provider previews expose their limits rather than clipping canonical evidence.
+Sampling and elicitation remain unsupported. See `docs/mcp-protocol.md`.
+
+Integrations link existing toolkit roots through `.agents/integration.json` and
+automatically discover sibling skills. Agent selections and component settings
+control access; there is no integration master switch or per-session override.
+The accepted manifest snapshot is durable, and Refresh applies valid changes
+without a separate approval step. Changes invalidate affected live sessions.
+Canonical skill directories merge origins across integration and workspace
+discovery without granting ordinary filesystem permissions. Relative launch paths
+resolve from the toolkit root; `${workspace}` selects the primary session source
+in arguments, working directories, and configured nonsecret environment values.
+
+Managed toolkit installation, configuration import, prerequisite-check UI, and
+their temporary migrations have been removed. Users update linked toolkits with
+their own tools. The pre-release database baseline is 31 with no pending
+migrations. See `docs/integrations.md` for authoring, toggles, credentials and
+recovery.
+
+Stage 7 adds opt-in real REA conformance through production backend model/action
+code and sidecar catalog/operation handlers with an in-memory Convex adapter.
+REA 6.7.0 exposes 207 usable tool definitions and five skills. Static JavaScript
+analysis, later-turn evidence retrieval, independent chats/children, lifecycle
+revocation, handoff, cancellation and failure recovery are covered. Real native
+providers are unavailable in the isolated test environment; fixture results do
+not establish native coverage. The separate live Slopbench agent investigation
+is deferred to a possible stage 8. See `docs/rea-conformance.md` for exact scope
+and reproduction steps.
 
 ## Personal agent folders and skills (2026-10-09)
 

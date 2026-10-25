@@ -3,6 +3,7 @@ import type { ActionCtx } from '@sb/convex/_generated/server'
 import { _getExecution, replaceAll } from '@sb/convex/model/mcp'
 import * as CatalogAccess from '@sb/convex/model/mcpCatalogAccess'
 import * as Catalogs from '@sb/convex/model/mcpCatalogs'
+import * as Cleanup from '@sb/convex/model/mcpCleanup'
 import { outputAccess } from '@sb/convex/model/mcpOperationAccess'
 import * as Operations from '@sb/convex/model/mcpOperations'
 import { connected } from '@sb/convex/model/mcpRuntime'
@@ -121,6 +122,7 @@ export async function mcpBackendFixture(fixture?: URL) {
   }
   type Reference = Parameters<typeof getFunctionName>[0]
   const queryHandlers = {
+    _cleanup: Cleanup.get,
     _get: Operations.get,
     _outputAccess: outputAccess,
     _find: Operations.find,
@@ -130,6 +132,7 @@ export async function mcpBackendFixture(fixture?: URL) {
     _unsettled: Operations.unsettled,
   }
   const mutationHandlers = {
+    _cleanupDone: Cleanup.done,
     _reserve: Operations.reserve,
     _observe: Operations.observe,
     _deliver: Operations.deliver,
@@ -153,9 +156,10 @@ export async function mcpBackendFixture(fixture?: URL) {
           reference.split(':')[1] as keyof typeof catalogQueries
         ](ctx, input as never)
       if (getFunctionName(ref) === 'streams:_isActive') {
-        const stream = await db.get(execution.streamId)
+        const requested = input as typeof execution
+        const stream = await db.get(requested.streamId)
         return (
-          stream?.generation === execution.generation &&
+          stream?.generation === requested.generation &&
           (stream.state as { phase: string }).phase === 'streaming'
         )
       }
