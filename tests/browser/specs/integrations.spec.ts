@@ -64,7 +64,11 @@ test('linked toolkit activation and searchable agent selection', async ({
   page,
 }) => {
   await page.goto('/?fixture=integrations')
-  await page.getByRole('button', { name: 'Browse', exact: true }).click()
+  await page
+    .getByLabel('Toolkit directory', { exact: true })
+    .locator('..')
+    .getByRole('button', { name: 'Browse', exact: true })
+    .click()
   const picker = page.getByRole('dialog', {
     name: 'Select a toolkit directory',
   })
@@ -75,7 +79,11 @@ test('linked toolkit activation and searchable agent selection', async ({
     page.getByLabel('Toolkit directory', { exact: true }),
   ).toHaveValue('/fixture/toolkit')
   await expect(page.getByRole('article')).toHaveCount(0)
-  await page.getByRole('button', { name: 'Browse', exact: true }).click()
+  await page
+    .getByLabel('Toolkit directory', { exact: true })
+    .locator('..')
+    .getByRole('button', { name: 'Browse', exact: true })
+    .click()
   await expect(picker.getByLabel('Folder path')).toHaveValue('/fixture/toolkit')
   await picker.getByRole('button', { name: 'Up', exact: true }).click()
   await expect(picker.getByLabel('Folder path')).toHaveValue('/fixture')
@@ -283,4 +291,43 @@ test('feedback stays beside its control and inside the affected integration', as
   await expect(first).toHaveCount(0)
   await expect(other).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
+})
+
+test('integration credential settings save hidden values without launching tools', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=integrations')
+  await page
+    .getByLabel('Toolkit directory', { exact: true })
+    .fill('/fixture/toolkit')
+  await page.getByRole('button', { name: 'Link', exact: true }).click()
+  const card = page.getByRole('article', {
+    name: 'Fixture Toolkit integration',
+  })
+  await card
+    .getByRole('button', { name: 'Expand Fixture Toolkit', exact: true })
+    .click()
+  await card.getByRole('button', { name: 'Expand Server settings' }).click()
+  await card
+    .getByLabel('engine environment variable', { exact: true })
+    .fill('TOKEN')
+  await card
+    .getByLabel('engine credential value', { exact: true })
+    .fill('private-credential')
+  await card
+    .getByRole('button', { name: 'Save credential', exact: true })
+    .click()
+  await expect(
+    card.getByText('TOKEN (value hidden)', { exact: true }),
+  ).toBeVisible()
+  await expect(
+    card.getByLabel('engine credential value', { exact: true }),
+  ).toHaveValue('')
+  await expect(card).not.toContainText('private-credential')
+  await card
+    .getByRole('button', { name: 'Remove TOKEN binding', exact: true })
+    .click()
+  await expect(
+    card.getByText('TOKEN (value hidden)', { exact: true }),
+  ).toHaveCount(0)
 })

@@ -39,13 +39,20 @@ function assertPublicationTarget(
 ) {
   if (args.integrationId && !row)
     error('Integration was removed during refresh', 409)
+
   const refreshSuperseded =
     args.previousRevision !== undefined &&
     row?.revision !== args.previousRevision
-  if (refreshSuperseded)
+  if (refreshSuperseded) {
     error('Integration revision changed during refresh', 409)
-  if (row && row.ownerId !== ownerId) error('Integration not found', 404)
-  if (row && row.root !== args.root) error('Linked root changed', 409)
+  }
+
+  if (row && row.ownerId !== ownerId) {
+    error('Integration not found', 404)
+  }
+  if (row && row.root !== args.root) {
+    error('Linked root changed', 409)
+  }
 }
 
 async function saveIntegration(
@@ -56,6 +63,7 @@ async function saveIntegration(
   manifest: IntegrationManifest,
 ) {
   const fields = {
+    root: args.root,
     name: manifest.name ?? row?.name ?? args.root.split('/').at(-1)!,
     version: manifest.version,
     revision: args.revision,

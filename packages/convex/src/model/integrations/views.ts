@@ -5,6 +5,7 @@ import { error } from '../../errors'
 import type { AuthQueryCtx } from '../../functions'
 import { requireRole } from '../../functions'
 import type { IntegrationListArgs } from '../../types'
+import * as Credentials from '../credentials'
 import { getSessionWithWorkspace } from '../session/folderContext'
 import {
   availableIntegrations,
@@ -71,4 +72,24 @@ export async function sources(
       (source) => source.discoverIntegrations === true,
     ) ?? []
   )
+}
+
+/** Lists credential names and component controls without exposing secret values or catalogs. */
+export async function bindings(
+  ctx: AuthQueryCtx,
+  args: { integrationId: Id<'integrations'> },
+) {
+  const integration = await ownedIntegration(ctx, args.integrationId)
+  const keys = await Credentials.map(ctx, integration.ownerId, 'mcp')
+  const secrets = await Credentials.map(ctx, integration.ownerId, 'mcp-env')
+  const servers = await componentRows(ctx, integration._id)
+
+  return servers.map((server) => ({
+    _id: server._id,
+    name: server.componentName!,
+    transport: server.transport,
+    enabled: server.enabled,
+    hasKey: keys.has(server.key),
+    secretEnvNames: Object.keys(JSON.parse(secrets.get(server.key) ?? '{}')),
+  }))
 }

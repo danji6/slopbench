@@ -1,7 +1,7 @@
 import { APP_NAME } from '../const'
 
 export const INTEGRATION_GUIDE = `
-An integration brings a toolkit’s MCP tools and skills into ${APP_NAME}.
+An integration is a way to bring a toolkit’s MCP tools and skills into ${APP_NAME}.
 Link its directory, then select it in your agent’s Integration settings.
 
 ### How to integrate a toolkit
@@ -13,7 +13,6 @@ This example shows all supported configuration fields and optional server metada
 
 \`\`\`json
 {
-  "schemaVersion": 1,
   "name": "WebTools",
   "version": "1.0.0",
   "mcpServers": {
@@ -21,7 +20,7 @@ This example shows all supported configuration fields and optional server metada
       "transport": "stdio",
       "command": "node",
       "args": ["scripts/fetch.mjs", "mcp"],
-      "cwd": "..",
+      "cwd": ".",
       "startupTimeoutMs": 30000,
       "requestTimeoutMs": 300000,
       "maxTotalTimeoutMs": 1800000,
@@ -39,38 +38,42 @@ This example shows all supported configuration fields and optional server metada
 }
 \`\`\`
 
-\`schemaVersion\` defaults to 1, the only supported version. \`name\` defaults
-to the toolkit directory’s name, and \`version\` is optional. The \`mcpServers\`
-section is optional. Skills are automatically read from \`.agents/skills\`;
-a \`skills\` entry is not used.
+\`name\` defaults to the toolkit directory’s name, and \`version\` is optional.
+The \`mcpServers\` section is also optional, while skills are automatically
+read from the \`.agents/skills\` directory.
 
-### Server connections
+### Connections
 
 Each server needs either \`command\` for a local process or \`url\` for a remote
-server. Specify exactly one. Without \`transport\`, a command selects \`stdio\`
-and a URL selects \`auto\`. Remote transports are \`auto\` (tries HTTP, then SSE),
-\`http\`, \`sse\`, or \`ws\`. Use HTTP(S) URLs for the first three, and WS(S) URLs
-for WebSocket.
+server. Without \`transport\`, a command selects \`stdio\` and a URL selects
+\`auto\`. Remote transports are \`auto\` (tries HTTP, then SSE), \`http\`,
+\`sse\`, or \`ws\`. Use HTTP(S) URLs for the first three, and WS(S) URLs for
+WebSocket.
 
 \`args\` and \`cwd\` are optional and only apply to local processes. Relative
 executable paths containing a slash and relative \`cwd\` values resolve from
-\`.agents\`. Without \`cwd\`, the process starts in the toolkit root; the example’s
-\`..\` selects that same root. Bare commands such as \`node\` use the sidecar host’s
-PATH. Arguments are passed literally without a shell. Use \`\${workspaceRoot}\`
-in arguments or \`cwd\` to refer to the chat’s workspace; that integration then
-requires a workspace.
+the toolkit root containing \`.agents\`. Without \`cwd\`, the process starts in that
+same root. Plain commands such as \`node\` use the host’s PATH.
 
-### Timeouts and metadata
+Use \`\${workspace}\` in \`args\` or \`cwd\` to refer to the session’s primary
+workspace directory. For example, \`"cwd": "\${workspace}"\` starts the server
+in that directory, while \`"args": ["--target", "\${workspace}"]\` passes its
+path to the server. Such integrations require a session with a workspace.
 
-Timeouts are optional integer values in milliseconds. The local server example
-shows the defaults: \`startupTimeoutMs\` limits connection startup,
-\`requestTimeoutMs\` limits inactivity between updates, and \`maxTotalTimeoutMs\`
-limits the total operation duration. The minimum is 100; startup allows up to
-300000, and the other two allow up to 86400000.
+### Timeouts
+
+Timeouts are optional integer values in milliseconds (the example shows the
+defaults when omitted):
+- \`startupTimeoutMs\` limits connection startup
+- \`requestTimeoutMs\` limits inactivity between updates
+- \`maxTotalTimeoutMs\` limits the total operation duration
+
+The minimum value is 100ms. Startup allows up to 300000ms, and the other two
+allow up to 86400000ms.
+
+### Metadata
 
 \`title\`, \`description\`, \`documentationUrl\`, \`_meta\`, and fields starting with
 \`x-\` are optional descriptive metadata. Additional descriptive fields are also
-allowed at the manifest’s top level. Metadata does not change how a server starts.
-Environment overrides, credentials, and installation hooks are not supported
-manifest settings.
+allowed at the manifest’s top level.
 `.trim()

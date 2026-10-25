@@ -8,6 +8,8 @@ import { integrationReadSchema, readIntegrationSkill } from './read'
 export function integrationRoutes() {
   const routes = new Hono()
 
+  routes.onError((cause, c) => c.json({ error: cause.message }, 400))
+
   routes.post('/inspect', async (c) => {
     const { root } = z
       .object({ root: z.string().min(1).max(4096) })

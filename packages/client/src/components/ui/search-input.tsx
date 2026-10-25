@@ -6,7 +6,7 @@ import { InputGroup, type InputGroupProps } from './input-group'
 
 export type SearchInputProps = Omit<
   React.ComponentProps<'input'>,
-  'className' | 'onChange' | 'type' | 'value' | 'variant'
+  'className' | 'onChange' | 'type' | 'value' | 'variant' | 'size'
 > & {
   value: string
   onValueChange: (value: string) => void

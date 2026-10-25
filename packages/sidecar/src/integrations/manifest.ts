@@ -54,20 +54,24 @@ export async function inspectIntegration(
     root,
     manifest,
     diagnostics: [],
-    revision: createHash('sha256').update(raw).digest('hex'),
+    // Include path semantics so snapshots cannot retain differently resolved launches
+    revision: createHash('sha256')
+      .update('toolkit-root\0')
+      .update(raw)
+      .digest('hex'),
   }
 }
 
-/** Resolves explicit relative paths against .agents and defaults cwd to the toolkit. */
+/** Resolves explicit relative paths and the default cwd from the toolkit root. */
 export function integrationConnections(snapshot: IntegrationSnapshot) {
-  const directory = path.join(snapshot.root, '.agents')
+  const root = snapshot.root
   return Object.entries(snapshot.manifest.mcpServers ?? {}).map(
     ([name, server]) => {
       const command =
         server.command?.includes('/') && !path.isAbsolute(server.command)
-          ? path.resolve(directory, server.command)
+          ? path.resolve(root, server.command)
           : server.command
-      const cwd = resolveIntegrationCwd(snapshot.root, directory, server.cwd)
+      const cwd = resolveIntegrationCwd(root, server.cwd)
       return {
         name,
         command,
@@ -97,10 +101,10 @@ export async function assertIntegrationRevision(binding?: {
     )
 }
 
-/** Keeps relative templates anchored to .agents until workspace substitution. */
-function resolveIntegrationCwd(root: string, directory: string, cwd?: string) {
+/** Keeps relative templates anchored to the toolkit root until workspace substitution. */
+function resolveIntegrationCwd(root: string, cwd?: string) {
   if (!cwd) return root
-  if (!cwd.includes('${workspaceRoot}')) return path.resolve(directory, cwd)
-  if (path.isAbsolute(cwd) || cwd.startsWith('${workspaceRoot}')) return cwd
-  return `${directory}${path.sep}${cwd}`
+  if (!cwd.includes('${workspace}')) return path.resolve(root, cwd)
+  if (path.isAbsolute(cwd) || cwd.startsWith('${workspace}')) return cwd
+  return `${root}${path.sep}${cwd}`
 }

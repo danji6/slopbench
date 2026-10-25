@@ -1,15 +1,67 @@
 import { McpBrokerSettings } from '@/components/chat/entities/user/mcp-broker-settings'
 import { parseMcpLaunch } from '@/components/chat/entities/user/mcp-launch'
 import { McpLocalSettings } from '@/components/chat/entities/user/mcp-local-settings'
+import {
+  McpServerCard,
+  type McpServerItem,
+} from '@/components/chat/entities/user/mcp-server-card'
 import { McpTimeouts } from '@/components/chat/entities/user/mcp-timeouts'
 import { mcpServerSchema } from '@/components/chat/entities/user/settings-schema'
 import type { McpServerFormValues } from '@/components/chat/entities/user/settings-schema'
 import { McpProgress } from '@/components/chat/messages/tools/mcp-progress'
 import { RippleButton } from '@/components/ui'
 import '@/globals.css'
+import type { ConvexReactClient } from 'convex/react'
+import { ConvexProvider } from 'convex/react'
 import { useState } from 'react'
 
 export function McpSettingsFixture() {
+  const card = new URLSearchParams(location.search).get('view') === 'card'
+  return card ? <ServerCardFixture /> : <LocalSettingsFixture />
+}
+
+const cardClient = {
+  action: async () => ({ tools: [], transport: 'sse' }),
+} as unknown as ConvexReactClient
+
+function ServerCardFixture() {
+  const [item, setItem] = useState<McpServerItem>({
+    id: 'web',
+    rhfKey: 'web',
+    index: 0,
+    label: 'web',
+    url: 'http://127.0.0.1:11235/mcp/sse',
+    transport: 'auto',
+    enabled: true,
+    hasKey: true,
+    startupTimeoutMs: 30_000,
+    requestTimeoutMs: 300_000,
+    maxTotalTimeoutMs: 1_800_000,
+  })
+  const [action, setAction] = useState('')
+
+  return (
+    <ConvexProvider client={cardClient}>
+      <main className="bg-background text-foreground min-h-screen p-4">
+        <div className="max-w-xl">
+          <McpServerCard
+            item={item}
+            count={2}
+            conflicts={new Set()}
+            onChange={(patch) =>
+              setItem((previous) => ({ ...previous, ...patch }))
+            }
+            onMove={(direction) => setAction(`Move ${direction}`)}
+            onRemove={() => setAction('Remove')}
+          />
+          <output aria-label="Card action">{action}</output>
+        </div>
+      </main>
+    </ConvexProvider>
+  )
+}
+
+function LocalSettingsFixture() {
   const [item, setItem] = useState<McpServerFormValues>({
     id: 'local',
     label: 'Local',

@@ -1,4 +1,4 @@
-import { errorMessage } from '@sb/core/utils/errors'
+import { userErrorMessage } from '@sb/core/utils/user-error'
 
 export class ServerError extends Error {
   public message: string
@@ -38,10 +38,5 @@ export function serverError(
 }
 
 export function extractErrorMessage(error: unknown, fallback?: string): string {
-  return errorMessage(error) ?? fallback ?? extractionError(error)
-}
-
-function extractionError(error: unknown) {
-  console.error(error)
-  return 'Error message could not be extracted, please report this to the developer'
+  return userErrorMessage(error, fallback)
 }

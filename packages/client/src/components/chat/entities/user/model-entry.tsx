@@ -162,7 +162,8 @@ function ModelIdentity({
       <div className="flex flex-col gap-1.5">
         <Label className="text-muted-foreground text-sm">Model ID</Label>
         <Input
-          className="h-9 font-mono text-sm"
+          size="sm"
+          className="font-mono"
           placeholder="e.g. model-id"
           disabled={catalogOnly}
           value={model.id}
@@ -174,7 +175,8 @@ function ModelIdentity({
           Display name <span className="opacity-60">(optional)</span>
         </Label>
         <Input
-          className="h-9 w-full text-sm"
+          size="sm"
+          className="w-full"
           placeholder={model.discovered?.label ?? 'e.g. Model Name'}
           value={resolved.label ?? ''}
           onChange={(event) => onChange({ label: event.target.value })}
@@ -231,7 +233,8 @@ function ContextWindowField({
         Context window <span className="opacity-60">(optional)</span>
       </HelpPopoverLabel>
       <Input
-        className="h-9 max-w-32 font-mono text-sm"
+        size="sm"
+        className="max-w-32 font-mono"
         placeholder="e.g. 128k"
         value={text}
         onChange={(event) => commit(event.target.value)}
@@ -292,7 +295,8 @@ function ReasoningConfiguration({
             Boolean request parameter
           </Label>
           <Input
-            className="h-9 font-mono text-sm"
+            size="sm"
+            className="font-mono"
             value={value.parameter}
             placeholder={binaryParameter}
             onChange={(event) =>

@@ -7,6 +7,7 @@ import { type FunctionReference, getFunctionName } from 'convex/server'
 const listeners = new Set<() => void>()
 const cache = new Map<string, unknown>()
 const linkedRoots = new Map<string, string>()
+const bindingNames = new Set<string>()
 const watched = new Map<
   string,
   { reference: FunctionReference<'query'>; args: Record<string, unknown> }
@@ -66,7 +67,18 @@ function checkFailure(name: string) {
   nextFailure = ''
   throw new Error(message)
 }
-function query(name: string) {
+function query(name: string, args: Record<string, unknown>) {
+  if (name === 'integrations:bindings')
+    return [
+      {
+        _id: `${args.integrationId}:engine`,
+        name: 'engine',
+        transport: 'stdio',
+        enabled: true,
+        hasKey: false,
+        secretEnvNames: [...bindingNames],
+      },
+    ]
   if (name === 'users:getProfile') return { _id: 'owner', role: 'admin' }
   if (name === 'integrations:list')
     return [...linkedRoots].map(([integrationId, root]) => ({
@@ -94,6 +106,12 @@ function query(name: string) {
 function mutate(name: string, args: Record<string, unknown>) {
   events.push(name)
   checkFailure(name)
+  if (name === 'integrations:component') {
+    for (const [name, value] of Object.entries(args.secretEnv ?? {})) {
+      if (value) bindingNames.add(name)
+      else bindingNames.delete(name)
+    }
+  }
   if (name === 'integrations:select') {
     selected = Boolean(args.enabled)
   }
@@ -110,8 +128,9 @@ function mutate(name: string, args: Record<string, unknown>) {
       )
     }
   }
-  if (name === 'integrations:remove')
+  if (name === 'integrations:remove') {
     linkedRoots.delete(String(args.integrationId))
+  }
   update()
 }
 
@@ -121,7 +140,7 @@ function cachedQuery(
 ) {
   const name = getFunctionName(reference)
   const key = `${name}:${JSON.stringify(args)}`
-  if (!cache.has(key)) cache.set(key, query(name))
+  if (!cache.has(key)) cache.set(key, query(name, args))
   return cache.get(key)
 }
 
@@ -196,7 +215,7 @@ const client = {
     if (name === 'integrations:settings') {
       return saveSettings(args as IntegrationSettingsArgs, options)
     }
-    mutate(name, args)
+    return mutate(name, args)
   },
   async action(
     reference: FunctionReference<'action'>,

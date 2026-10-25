@@ -45,7 +45,8 @@ export function ApprovalList({
           aria-label={label}
           aria-invalid={Boolean(error)}
           variant="outline"
-          className="h-9 max-w-70 font-mono text-sm"
+          size="sm"
+          className="max-w-70 font-mono"
         />
         <RippleButton
           type="button"

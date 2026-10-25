@@ -66,12 +66,12 @@ export function WorkspacePathInput({
       openOnInputClick
     >
       <Autocomplete.Input
-        render={<Input />}
+        render={<Input size="sm" />}
         aria-label="Folder path"
         aria-invalid={!!errorId}
         aria-describedby={errorId}
         placeholder="/path/to/project"
-        className="h-9 min-w-0 flex-1 font-mono text-xs"
+        className="min-w-0 flex-1 font-mono text-xs"
         onKeyDown={(event) => {
           if (event.key !== 'Enter' || event.nativeEvent.isComposing) return
           if (open && highlighted.current !== undefined) return

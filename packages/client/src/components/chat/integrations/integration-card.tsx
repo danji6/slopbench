@@ -10,6 +10,7 @@ import type {
   IntegrationView,
 } from '@/lib/chat/integrations'
 
+import { IntegrationBindings } from './integration-bindings'
 import { IntegrationFeedback } from './integration-feedback'
 import { IntegrationSkills } from './integration-skills'
 
@@ -67,6 +68,7 @@ export function IntegrationCard({
             }
           />
         </div>
+        <IntegrationBindings integrationId={row._id} />
         <SettingsSwitch
           label="Include skills"
           reserveActionSpace={false}

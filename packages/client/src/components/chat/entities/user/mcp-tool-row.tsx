@@ -83,7 +83,7 @@ export function McpToolRow({
             value={tool.nameOverride ?? tool.name}
             placeholder={tool.name}
             onValueChange={(nameOverride) => onChange({ nameOverride })}
-            className="h-9 text-sm"
+            size="sm"
           />
           {nameOverridden && (
             <span className="text-muted-foreground text-xs">

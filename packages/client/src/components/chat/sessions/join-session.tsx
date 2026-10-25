@@ -101,7 +101,8 @@ export function JoinSession({ open, onOpenChange }: JoinSessionProps) {
             }}
             placeholder="Invite token"
             disabled={isJoining}
-            className="h-9 font-mono text-xs"
+            size="sm"
+            className="font-mono text-xs"
           />
         </div>
         <Dialog.Footer>

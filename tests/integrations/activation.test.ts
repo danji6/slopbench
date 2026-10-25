@@ -434,6 +434,9 @@ test('stale refreshes cannot replace newer snapshots or resurrect a removed inst
       previousRevision: 'outdated',
     }),
   ).rejects.toThrow('changed during refresh')
+  await expect(
+    publish(f.ctx, { ...replacement, root: '/other-toolkit' }),
+  ).rejects.toThrow('Linked root changed')
   await remove(f.ctx, f.integrationId)
   await expect(publish(f.ctx, replacement)).rejects.toThrow(
     'removed during refresh',
@@ -446,7 +449,7 @@ test('workspace-dependent launches stay unavailable without a workspace and pres
   await configureComponent(f.ctx, {
     serverId: f.server._id as Id<'mcpServers'>,
     enabled: true,
-    env: { INPUT: '${workspaceRoot}', LITERAL: '$HOME' },
+    env: { INPUT: '${workspace}', LITERAL: '$HOME' },
     secretEnv: { TOKEN: 'private' },
   })
   await select(f.ctx, {
@@ -465,9 +468,16 @@ test('workspace-dependent launches stay unavailable without a workspace and pres
     ...f.input,
     integrationId: f.integrationId,
     revision: 'b',
+    connections: [
+      {
+        ...f.input.connections[0],
+        cwd: '${workspace}',
+        args: ['--target', '${workspace}/input', '${workspace}'],
+      },
+    ],
   })
   expect(f.rows('mcpServers')[0].env).toEqual({
-    INPUT: '${workspaceRoot}',
+    INPUT: '${workspace}',
     LITERAL: '$HOME',
   })
   expect(
@@ -477,7 +487,10 @@ test('workspace-dependent launches stay unavailable without a workspace and pres
     ownerId: 'owner',
     name: 'Target',
     revision: 1,
-    sources: [{ path: '/target', id: 'root', label: 'Root' }],
+    sources: [
+      { path: '/target', id: 'root', label: 'Root' },
+      { path: '/secondary', id: 'secondary', label: 'Secondary' },
+    ],
   })
   await f.db.patch(f.sessionId, { folderId: folder })
   const withWorkspace = (
@@ -487,6 +500,8 @@ test('workspace-dependent launches stay unavailable without a workspace and pres
     })
   )[0]
   expect(withWorkspace.enabled).toBe(true)
+  expect(withWorkspace.cwd).toBe('/target')
+  expect(withWorkspace.args).toEqual(['--target', '/target/input', '/target'])
   expect(withWorkspace.env).toEqual({ INPUT: '/target', LITERAL: '$HOME' })
 })
 

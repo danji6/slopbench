@@ -1,4 +1,5 @@
 import type { IntegrationFeedback as Feedback } from '@/lib/chat/integrations'
+import { extractErrorMessage } from '@/lib/errors'
 import { cn } from '@/lib/utils'
 
 type Props = { feedback?: Feedback }
@@ -14,7 +15,9 @@ export function IntegrationFeedback({ feedback }: Props) {
         feedback.error ? 'text-destructive' : 'text-muted-foreground',
       )}
     >
-      {feedback.message}
+      {feedback.error
+        ? extractErrorMessage(feedback.message)
+        : feedback.message}
     </p>
   )
 }

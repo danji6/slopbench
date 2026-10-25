@@ -14,7 +14,7 @@ export type NumberInputProps = {
   stepDelay?: number
   stepStrength?: number
   onChange?: (value: number) => void
-} & Omit<React.ComponentProps<'input'>, 'value' | 'onChange'>
+} & Omit<React.ComponentProps<'input'>, 'value' | 'onChange' | 'size'>
 
 export function NumberInput({
   value,

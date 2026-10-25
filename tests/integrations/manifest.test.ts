@@ -68,30 +68,30 @@ test('minimal and skills-only manifests default name/version without launching c
   ).toMatchObject({ total: 0, entries: [] })
 })
 
-test('connection inference resolves paths against .agents and leaves arguments literal', async () => {
+test('connection inference resolves paths against the toolkit root and leaves arguments literal', async () => {
   const root = await toolkit({
     mcpServers: {
       local: {
         command: './bin/server',
-        args: ['$(touch bad)', '${workspaceRoot}', '$HOME'],
-        cwd: '../work',
+        args: ['$(touch bad)', '${workspace}', '$HOME'],
+        cwd: 'work',
       },
       remote: { url: 'https://example.test/mcp' },
     },
   })
   const connections = integrationConnections(await inspectIntegration(root))
   expect(connections[0]).toMatchObject({
-    command: path.join(root, '.agents/bin/server'),
+    command: path.join(root, 'bin/server'),
     cwd: path.join(root, 'work'),
     transport: 'stdio',
-    args: ['$(touch bad)', '${workspaceRoot}', '$HOME'],
+    args: ['$(touch bad)', '${workspace}', '$HOME'],
   })
   const templated = integrationConnections({
     ...(await inspectIntegration(root)),
     manifest: {
       schemaVersion: 1,
       mcpServers: {
-        relative: { command: 'node', cwd: 'inputs/${workspaceRoot}/../cache' },
+        relative: { command: 'node', cwd: 'inputs/${workspace}/../cache' },
       },
     },
   })[0]
@@ -99,7 +99,7 @@ test('connection inference resolves paths against .agents and leaves arguments l
     path.normalize(
       integrationWorkspaceSettings(templated, '/targets/current').cwd!,
     ),
-  ).toBe(path.join(root, '.agents/inputs/targets/cache'))
+  ).toBe(path.join(root, 'inputs/targets/cache'))
   expect(connections[1].transport).toBe('auto')
   expect(integrationWorkspaceSettings(connections[0], '/target').args).toEqual([
     '$(touch bad)',
@@ -111,10 +111,46 @@ test('connection inference resolves paths against .agents and leaves arguments l
   )
   expect(
     integrationWorkspaceSettings(
-      { env: { TARGET: '${workspaceRoot}', LITERAL: '$HOME' } },
+      { env: { TARGET: '${workspace}', LITERAL: '$HOME' } },
       '/target',
     ).env,
   ).toEqual({ TARGET: '/target', LITERAL: '$HOME' })
+})
+
+test('root-based paths preserve defaults, parent traversal, absolute paths and workspace templates', async () => {
+  const root = await toolkit()
+  const snapshot = await inspectIntegration(root)
+  for (const [cwd, expected] of [
+    [undefined, root],
+    ['.', root],
+    ['.agents', path.join(root, '.agents')],
+    ['../work', path.resolve(root, '../work')],
+    ['/absolute/work', '/absolute/work'],
+    ['${workspace}/work', '/targets/current/work'],
+  ] as const) {
+    const [connection] = integrationConnections({
+      ...snapshot,
+      manifest: {
+        schemaVersion: 1,
+        mcpServers: { local: { command: 'node', cwd } },
+      },
+    })
+    expect(connection.command).toBe('node')
+    expect(
+      integrationWorkspaceSettings(connection, '/targets/current').cwd,
+    ).toBe(expected)
+  }
+  for (const command of ['./bin/server', '../server', '/absolute/server']) {
+    const [connection] = integrationConnections({
+      ...snapshot,
+      manifest: {
+        schemaVersion: 1,
+        mcpServers: { local: { command, cwd: 'work' } },
+      },
+    })
+    expect(connection.command).toBe(path.resolve(root, command))
+    expect(connection.cwd).toBe(path.join(root, 'work'))
+  }
 })
 
 test('unsupported versions, ambiguous transports and executable settings fail explicitly', () => {
@@ -125,6 +161,7 @@ test('unsupported versions, ambiguous transports and executable settings fail ex
     { mcpServers: { one: { url: 'https://example.test', args: ['x'] } } },
     { mcpServers: { one: { command: 'npx', env: { SECRET: 'no' } } } },
     { mcpServers: { one: { command: 'npx', install: 'curl | bash' } } },
+    { mcpServers: { one: { command: '${workspace}/server' } } },
   ])
     expect(() => validateIntegrationManifest(manifest)).toThrow()
   expect(

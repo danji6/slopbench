@@ -94,3 +94,8 @@ export const _execution = internalQuery({
   args: streamExecutionArgsValidator,
   handler: executionIntegrations,
 })
+
+export const bindings = authQuery({
+  args: integrationIdValidator,
+  handler: Views.bindings,
+})

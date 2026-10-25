@@ -82,8 +82,8 @@ export function validateIntegrationManifest(
       throw new Error(`${name}: specify exactly one of command or url`)
     if (!server.command && (server.args || server.cwd))
       throw new Error(`${name}: args and cwd require stdio`)
-    if (server.command?.includes('${workspaceRoot}'))
-      throw new Error(`${name}: workspaceRoot is not supported in command`)
+    if (server.command?.includes('${workspace}'))
+      throw new Error(`${name}: workspace is not supported in command`)
     const transport = server.transport ?? (server.command ? 'stdio' : 'auto')
     if ((transport === 'stdio') !== !!server.command)
       throw new Error(`${name}: transport does not match command or URL`)
@@ -97,12 +97,12 @@ export function validateIntegrationManifest(
 /** Substitutes only the explicit workspace token; never interprets shell syntax. */
 export function integrationWorkspaceSettings<T extends WorkspaceSettings>(
   settings: T,
-  workspaceRoot?: string,
+  workspace?: string,
 ): T {
   const replace = (value: string) => {
-    if (!value.includes('${workspaceRoot}')) return value
-    if (!workspaceRoot) throw new Error('This integration requires a workspace')
-    return value.replaceAll('${workspaceRoot}', workspaceRoot)
+    if (!value.includes('${workspace}')) return value
+    if (!workspace) throw new Error('This integration requires a workspace')
+    return value.replaceAll('${workspace}', workspace)
   }
   return {
     ...settings,

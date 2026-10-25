@@ -63,7 +63,7 @@ test('linked integration discovers 250 tools on its persistent workspace session
           main: {
             command: process.execPath,
             args: ['--no-env-file', fixture],
-            cwd: '${workspaceRoot}',
+            cwd: '${workspace}',
           },
         },
       }),
@@ -77,11 +77,13 @@ test('linked integration discovers 250 tools on its persistent workspace session
       connections: integrationConnections(snapshot),
     })
     await select(f.ctx, { integrationId, agentId: f.agentId, enabled: true })
+    const targetRoot = path.join(root, 'target')
+    await mkdir(targetRoot)
     const folder = await f.db.insert('sessionFolders', {
       ownerId: 'owner',
       name: 'Target',
       revision: 1,
-      sources: [{ id: 'target', path: root, label: 'Target' }],
+      sources: [{ id: 'target', path: targetRoot, label: 'Target' }],
     })
     await f.db.patch(f.sessionId, { folderId: folder })
     const serverId = f

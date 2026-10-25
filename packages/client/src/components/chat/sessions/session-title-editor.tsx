@@ -59,7 +59,7 @@ export function SessionTitleEditor({
               if (e.key === 'Escape') onClose()
             }}
             disabled={isRegenerating}
-            className="h-9 text-sm"
+            size="sm"
             data-vaul-no-drag
           />
         </div>
