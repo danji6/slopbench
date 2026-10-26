@@ -27,6 +27,7 @@ const serverSchema = z.looseObject({
 export const integrationManifestSchema = z.looseObject({
   schemaVersion: z.literal(1).default(1),
   name: z.string().trim().min(1).max(120).optional(),
+  description: z.string().trim().optional(),
   version: z.string().max(120).optional(),
   mcpServers: z
     .record(z.string().regex(/^[A-Za-z0-9_-]{1,80}$/), serverSchema)

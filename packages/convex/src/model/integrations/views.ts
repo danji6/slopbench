@@ -1,4 +1,7 @@
-import { MAX_INTEGRATIONS } from '@sb/core/types/integration'
+import {
+  MAX_INTEGRATIONS,
+  integrationManifestSchema,
+} from '@sb/core/types/integration'
 
 import type { Id } from '../../_generated/dataModel'
 import { error } from '../../errors'
@@ -31,6 +34,9 @@ export async function list(ctx: AuthQueryCtx, args: IntegrationListArgs) {
   return Promise.all(
     rows.map(async (row) => ({
       ...row,
+      description: integrationManifestSchema.shape.description.parse(
+        JSON.parse(row.manifest).description,
+      ),
       selected: !!agent?.integrationIds?.includes(row._id),
       effective: active.some((item) => item._id === row._id),
       cleanupPending: await pendingCleanupCount(ctx, row._id),

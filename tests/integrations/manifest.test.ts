@@ -49,6 +49,7 @@ test('minimal and skills-only manifests default name/version without launching c
   const snapshot = await inspectIntegration(root)
   expect(snapshot.manifest.name).toBe(path.basename(root))
   expect(snapshot.manifest.schemaVersion).toBe(1)
+  expect(snapshot.manifest.description).toBe('Only instructions')
   expect(integrationConnections(snapshot)).toEqual([])
   expect(
     await integrationSkillCatalog({

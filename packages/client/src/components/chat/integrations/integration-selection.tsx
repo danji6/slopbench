@@ -1,4 +1,4 @@
-import { SearchInput, SettingsSwitch } from '@/components/ui'
+import { RippleButton, SearchInput, SelectionListItem } from '@/components/ui'
 import { useIntegrationSelection } from '@/hooks/chat/integration-selection'
 import type { IntegrationSelectionContext } from '@/hooks/chat/integration-selection'
 import { useState } from 'react'
@@ -26,39 +26,49 @@ export function IntegrationSelection({ agentId }: IntegrationSelectionContext) {
   }
   return (
     <section
-      className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4"
+      className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden p-4"
       aria-label="Integration selection"
     >
-      <p className="text-muted-foreground text-xs">
-        Select the integrations this agent can use. Subagents can only use
-        integrations available to their parent.
-      </p>
       <SearchInput
-        aria-label="Search integration names"
-        placeholder="Search integration names…"
+        aria-label="Search integrations"
+        placeholder="Search integrations…"
         value={search}
         onValueChange={setSearch}
       />
       <div
         role="list"
         aria-label="Agent integrations"
-        className="min-h-0 flex-1 overflow-y-auto"
+        className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto"
       >
         {matches?.map((row) => (
-          <div
+          <SelectionListItem
             key={row._id}
-            role="listitem"
-            className="border-border border-b py-3"
-          >
-            <SettingsSwitch
-              reserveActionSpace={false}
-              label={row.name}
-              checked={row.selected}
-              disabled={saving}
-              onCheckedChange={(on) => void change(row._id, on)}
-              help="Allow this agent to use the integration’s tools and skills."
-            />
-          </div>
+            label={row.name}
+            added={row.selected}
+            description={row.description}
+            actions={
+              <>
+                <RippleButton
+                  size="sm"
+                  variant="input"
+                  disabled={saving || row.selected}
+                  onClick={() => void change(row._id, true)}
+                >
+                  Add
+                </RippleButton>
+                {row.selected && (
+                  <RippleButton
+                    size="sm"
+                    variant="input"
+                    disabled={saving}
+                    onClick={() => void change(row._id, false)}
+                  >
+                    Remove
+                  </RippleButton>
+                )}
+              </>
+            }
+          />
         ))}
         {!rows && (
           <p role="status" className="text-muted-foreground text-sm">

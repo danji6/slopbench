@@ -85,8 +85,8 @@ export function SkillLibrary({ agentId }: { agentId?: Id<'agents'> }) {
         <div className="flex items-center gap-2">
           <SearchInput
             className="min-w-0 flex-1"
-            aria-label="Search skill names"
-            placeholder="Search skill names…"
+            aria-label="Search skills"
+            placeholder="Search skills…"
             value={search}
             onValueChange={setSearch}
           />

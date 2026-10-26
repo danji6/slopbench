@@ -6,7 +6,10 @@ import { publish } from '@sb/convex/model/integrations/publication'
 import { select } from '@sb/convex/model/integrations/selection'
 import { remove, settings } from '@sb/convex/model/integrations/settings'
 import { skillAccess } from '@sb/convex/model/integrations/skills'
-import { sources } from '@sb/convex/model/integrations/views'
+import {
+  list as listIntegrations,
+  sources,
+} from '@sb/convex/model/integrations/views'
 import { _getExecution, list, replaceAll, resolve } from '@sb/convex/model/mcp'
 import { begin as beginCatalog } from '@sb/convex/model/mcpCatalogs'
 import { settingsLaunch } from '@sb/convex/model/mcpProtocol'
@@ -63,6 +66,29 @@ async function fixture() {
   const execution = { streamId, generation: 1 }
   return { ...f, integrationId, server, input, agentId, sessionId, execution }
 }
+
+test('integration descriptions come from the saved snapshot and follow refresh and removal', async () => {
+  const f = await fixture()
+  const description = async () =>
+    (await listIntegrations(f.ctx, { agentId: f.agentId }))[0].description
+  expect(await description()).toBeUndefined()
+  const update = (revision: string, description?: string) =>
+    publish(f.ctx, {
+      ...f.input,
+      integrationId: f.integrationId,
+      revision,
+      manifest: JSON.stringify({
+        ...JSON.parse(f.input.manifest),
+        description,
+      }),
+    })
+  await update('b', '  Review local artifacts.  ')
+  expect(await description()).toBe('Review local artifacts.')
+  await update('c', 'Inspect retained evidence.')
+  expect(await description()).toBe('Inspect retained evidence.')
+  await update('d')
+  expect(await description()).toBeUndefined()
+})
 
 test('individual skill updates merge without replacing other settings', async () => {
   const f = await fixture()

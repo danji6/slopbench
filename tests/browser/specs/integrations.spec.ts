@@ -1,5 +1,60 @@
 import { expect, test } from '@playwright/test'
 
+test('agent integration actions handle failed saves and long names without horizontal overflow', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 900 })
+  await page.goto('/?fixture=integrations')
+  await page
+    .getByLabel('Toolkit directory', { exact: true })
+    .fill('/fixture/long-toolkit')
+  await page.getByRole('button', { name: 'Link', exact: true }).click()
+  const selection = page.getByRole('region', { name: 'Integration selection' })
+  const row = selection.getByRole('listitem')
+  const add = row.getByRole('button', { name: 'Add', exact: true })
+  const showMore = row.getByRole('button', { name: 'Show more', exact: true })
+  await expect(showMore).toBeVisible()
+  await showMore.click()
+  const showLess = row.getByRole('button', { name: 'Show less', exact: true })
+  await expect(showLess).toHaveAttribute('aria-expanded', 'true')
+  await page
+    .getByRole('button', { name: 'Fail next integration operation' })
+    .click()
+  await add.click()
+  await expect(selection.getByRole('alert')).toHaveText(
+    'Fixture operation failed.',
+  )
+  await expect(add).toBeEnabled()
+  await expect(row.getByText('(Added)', { exact: true })).toHaveCount(0)
+  await add.click()
+  await expect(add).toBeDisabled()
+  await expect(selection.getByRole('alert')).toHaveCount(0)
+  const remove = row.getByRole('button', { name: 'Remove', exact: true })
+  await expect(remove).toBeVisible()
+  for (const width of [320, 240, 768]) {
+    await page.setViewportSize({ width, height: 900 })
+    for (const element of [
+      selection,
+      row,
+      row.locator('p').first(),
+      row.locator('p').last(),
+    ]) {
+      await expect
+        .poll(() =>
+          element.evaluate((node) => node.scrollWidth <= node.clientWidth),
+        )
+        .toBe(true)
+    }
+    const bounds = await selection.boundingBox()
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width)
+  }
+  await showLess.click()
+  await expect(showMore).toHaveAttribute('aria-expanded', 'false')
+  await remove.click()
+  await expect(add).toBeEnabled()
+  await expect(remove).toHaveCount(0)
+})
+
 test('skill switches update immediately without disabling cards and roll back failed saves', async ({
   page,
 }) => {
@@ -125,9 +180,13 @@ test('linked toolkit activation and searchable agent selection', async ({
   const defaults = page
     .getByRole('region', { name: 'Integration selection' })
     .first()
-  await defaults
-    .getByRole('switch', { name: 'Fixture Toolkit', exact: true })
-    .click()
+  const toolkit = defaults
+    .getByRole('listitem')
+    .filter({ hasText: 'Fixture Toolkit' })
+  await expect(toolkit).toContainText(
+    'Tools and skills for reviewing local evidence.',
+  )
+  await defaults.getByRole('button', { name: 'Add', exact: true }).click()
   await expect(
     page.getByRole('region', { name: 'Integration selection' }),
   ).toHaveCount(1)
@@ -136,18 +195,21 @@ test('linked toolkit activation and searchable agent selection', async ({
   })
   await search.fill('missing')
   await expect(defaults.getByText('No integrations found.')).toBeVisible()
-  await expect(defaults.getByRole('switch')).toHaveCount(0)
+  await expect(defaults.getByRole('listitem')).toHaveCount(0)
   await search.fill('FIXTURE')
   await expect(
-    defaults.getByRole('switch', { name: 'Fixture Toolkit', exact: true }),
-  ).toBeChecked()
+    toolkit.getByRole('button', { name: 'Add', exact: true }),
+  ).toBeDisabled()
+  await expect(toolkit.getByText('(Added)', { exact: true })).toBeVisible()
   await search.clear()
-  await defaults
-    .getByRole('switch', { name: 'Fixture Toolkit', exact: true })
-    .click()
+  await defaults.getByRole('button', { name: 'Remove', exact: true }).click()
   await expect(
-    defaults.getByRole('switch', { name: 'Fixture Toolkit', exact: true }),
-  ).not.toBeChecked()
+    toolkit.getByRole('button', { name: 'Add', exact: true }),
+  ).toBeEnabled()
+  await expect(
+    toolkit.getByRole('button', { name: 'Remove', exact: true }),
+  ).toHaveCount(0)
+  await expect(defaults.getByRole('switch')).toHaveCount(0)
   await expect(
     page.getByText('Accepted manifest', { exact: true }),
   ).toHaveCount(0)

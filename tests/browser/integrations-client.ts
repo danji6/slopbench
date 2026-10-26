@@ -33,6 +33,7 @@ let disabledSkills: string[] = []
 const manifest = JSON.stringify({
   schemaVersion: 1,
   name: 'Fixture Toolkit',
+  description: 'Tools and skills for reviewing local evidence.',
   mcpServers: { analysis: { command: 'fixture', args: ['--stdio'] } },
 })
 const events: string[] = []
@@ -86,9 +87,18 @@ function query(name: string, args: Record<string, unknown>) {
       _creationTime: 0,
       ownerId: 'owner',
       root,
-      name:
-        integrationId === 'integration' ? 'Fixture Toolkit' : 'Other Toolkit',
+      name: root.endsWith('/long-toolkit')
+        ? `Toolkit_${'long'.repeat(60)}`
+        : integrationId === 'integration'
+          ? 'Fixture Toolkit'
+          : 'Other Toolkit',
       revision,
+      description: root.endsWith('/long-toolkit')
+        ? 'A toolkit for inspecting local evidence. '.repeat(20) +
+          'unbroken'.repeat(30)
+        : integrationId === 'integration'
+          ? JSON.parse(manifest).description
+          : undefined,
       manifest,
       skillsEnabled: skillEnabled,
       disabledSkills,

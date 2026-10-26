@@ -14,6 +14,7 @@ This example shows all supported configuration fields and optional server metada
 \`\`\`json
 {
   "name": "WebTools",
+  "description": "Fetch and analyze web pages with local and remote tools.",
   "version": "1.0.0",
   "mcpServers": {
     "fetch-page": {
@@ -38,7 +39,9 @@ This example shows all supported configuration fields and optional server metada
 }
 \`\`\`
 
-\`name\` defaults to the toolkit directory’s name, and \`version\` is optional.
+\`name\` defaults to the toolkit directory’s name. \`description\` and \`version\`
+are optional. The description appears in the agent's integration list; refresh
+the manifest in settings to apply edits.
 The \`mcpServers\` section is also optional, while skills are automatically
 read from the \`.agents/skills\` directory.
 

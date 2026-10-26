@@ -22,7 +22,7 @@ test('skill toggles persist per agent while sharing assignments and leaving the 
   await toggle.click()
   await expect(toggle).not.toBeChecked()
   await expect(
-    page.getByText('Toggles apply only to this agent.', { exact: false }),
+    page.getByText('Changes affect every agent using it.', { exact: false }),
   ).toBeVisible()
   await page.getByRole('searchbox').fill('skill-00')
   await expect(toggle).not.toBeChecked()
