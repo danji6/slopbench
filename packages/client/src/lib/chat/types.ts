@@ -1,5 +1,5 @@
 import type { Doc, Id } from '@sb/convex/_generated/dataModel'
-import type { SessionSummary } from '@sb/convex/types'
+import type { SessionSummary, TokenUsage } from '@sb/convex/types'
 import type {
   ApproveToolArgs as CoreApproveToolArgs,
   CreateAgentArgs as CoreCreateAgentArgs,
@@ -43,11 +43,7 @@ export type UIAvatar = {
   original: string | null
 }
 
-export type UsageTotals = {
-  inputTokens?: number
-  outputTokens?: number
-  totalTokens?: number
-}
+export type UsageTotals = Partial<TokenUsage>
 
 export type UIMetadata = {
   usage: UsageTotals

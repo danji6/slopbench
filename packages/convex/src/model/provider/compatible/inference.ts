@@ -1,6 +1,7 @@
 import { error } from '@sb/convex/errors'
 
 import type { InferenceAdapter } from '../inferenceTypes'
+import { withOpenAICacheUsage } from '../openai/cacheUsage'
 
 export const create: InferenceAdapter = async ({
   providerId,
@@ -18,5 +19,7 @@ export const create: InferenceAdapter = async ({
     apiKey,
     fetch: requestFetch,
   })
-  return responses ? client.responses(modelId) : client.chat(modelId)
+  return withOpenAICacheUsage(
+    responses ? client.responses(modelId) : client.chat(modelId),
+  )
 }

@@ -1,3 +1,4 @@
+import { resolveCacheUsage } from '@sb/core/cache-usage'
 import type { LanguageModelUsage } from 'ai'
 
 import type { TokenUsage } from '../../types'
@@ -20,5 +21,6 @@ export async function resolveUsage(args: {
     inputTokens,
     outputTokens,
     totalTokens,
+    cache: resolveCacheUsage(args.usage),
   }
 }

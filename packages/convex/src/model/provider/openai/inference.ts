@@ -1,4 +1,5 @@
 import type { InferenceAdapter } from '../inferenceTypes'
+import { withOpenAICacheUsage } from './cacheUsage'
 
 export const create: InferenceAdapter = async ({
   modelId,
@@ -7,5 +8,7 @@ export const create: InferenceAdapter = async ({
   requestFetch,
 }) => {
   const { createOpenAI } = await import('@ai-sdk/openai')
-  return createOpenAI({ baseURL, apiKey, fetch: requestFetch })(modelId)
+  return withOpenAICacheUsage(
+    createOpenAI({ baseURL, apiKey, fetch: requestFetch })(modelId),
+  )
 }

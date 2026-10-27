@@ -193,6 +193,7 @@ import type * as model_provider_inferenceFactory from "../model/provider/inferen
 import type * as model_provider_inferenceOptions from "../model/provider/inferenceOptions.js";
 import type * as model_provider_inferenceTypes from "../model/provider/inferenceTypes.js";
 import type * as model_provider_known from "../model/provider/known.js";
+import type * as model_provider_mistral_cacheUsage from "../model/provider/mistral/cacheUsage.js";
 import type * as model_provider_mistral_inference from "../model/provider/mistral/inference.js";
 import type * as model_provider_modelDetails from "../model/provider/modelDetails.js";
 import type * as model_provider_modelFactory from "../model/provider/modelFactory.js";
@@ -200,6 +201,7 @@ import type * as model_provider_modelMiddleware from "../model/provider/modelMid
 import type * as model_provider_moonshotai_inference from "../model/provider/moonshotai/inference.js";
 import type * as model_provider_ollama_inference from "../model/provider/ollama/inference.js";
 import type * as model_provider_openai_account from "../model/provider/openai/account.js";
+import type * as model_provider_openai_cacheUsage from "../model/provider/openai/cacheUsage.js";
 import type * as model_provider_openai_chatgpt from "../model/provider/openai/chatgpt.js";
 import type * as model_provider_openai_inference from "../model/provider/openai/inference.js";
 import type * as model_provider_openrouter_inference from "../model/provider/openrouter/inference.js";
@@ -213,6 +215,7 @@ import type * as model_provider_request from "../model/provider/request.js";
 import type * as model_provider_response from "../model/provider/response.js";
 import type * as model_provider_save from "../model/provider/save.js";
 import type * as model_provider_transports from "../model/provider/transports.js";
+import type * as model_provider_usageMiddleware from "../model/provider/usageMiddleware.js";
 import type * as model_providers from "../model/providers.js";
 import type * as model_rateLimits from "../model/rateLimits.js";
 import type * as model_reminders from "../model/reminders.js";
@@ -597,6 +600,7 @@ declare const fullApi: ApiFromModules<{
   "model/provider/inferenceOptions": typeof model_provider_inferenceOptions;
   "model/provider/inferenceTypes": typeof model_provider_inferenceTypes;
   "model/provider/known": typeof model_provider_known;
+  "model/provider/mistral/cacheUsage": typeof model_provider_mistral_cacheUsage;
   "model/provider/mistral/inference": typeof model_provider_mistral_inference;
   "model/provider/modelDetails": typeof model_provider_modelDetails;
   "model/provider/modelFactory": typeof model_provider_modelFactory;
@@ -604,6 +608,7 @@ declare const fullApi: ApiFromModules<{
   "model/provider/moonshotai/inference": typeof model_provider_moonshotai_inference;
   "model/provider/ollama/inference": typeof model_provider_ollama_inference;
   "model/provider/openai/account": typeof model_provider_openai_account;
+  "model/provider/openai/cacheUsage": typeof model_provider_openai_cacheUsage;
   "model/provider/openai/chatgpt": typeof model_provider_openai_chatgpt;
   "model/provider/openai/inference": typeof model_provider_openai_inference;
   "model/provider/openrouter/inference": typeof model_provider_openrouter_inference;
@@ -617,6 +622,7 @@ declare const fullApi: ApiFromModules<{
   "model/provider/response": typeof model_provider_response;
   "model/provider/save": typeof model_provider_save;
   "model/provider/transports": typeof model_provider_transports;
+  "model/provider/usageMiddleware": typeof model_provider_usageMiddleware;
   "model/providers": typeof model_providers;
   "model/rateLimits": typeof model_rateLimits;
   "model/reminders": typeof model_reminders;

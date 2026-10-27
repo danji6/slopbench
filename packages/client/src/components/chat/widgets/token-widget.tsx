@@ -8,6 +8,7 @@ import {
 } from '@/hooks/chat'
 import type { UsageTotals } from '@/lib/chat/types'
 import { abbreviateNumber, cn } from '@/lib/utils'
+import { cacheHitRate } from '@sb/core/cache-usage'
 import { useMemo } from 'react'
 
 export function TokenWidget({ className }: { className?: string }) {
@@ -90,9 +91,25 @@ function UsageSection({
     <div className="border-foreground/10 flex flex-col gap-1 border-t pt-2">
       <div className="text-muted-foreground text-xs font-medium">{title}</div>
       <Row label="Input">{abbreviateNumber(input)}</Row>
+      <CacheUsageRow usage={usage.cache} />
       <Row label="Output">{abbreviateNumber(output)}</Row>
       <Row label="Total">{abbreviateNumber(total)}</Row>
     </div>
+  )
+}
+
+function CacheUsageRow({ usage }: { usage: UsageTotals['cache'] }) {
+  const rate = cacheHitRate(usage)
+  const tooltip = usage
+    ? `${usage.readTokens.toLocaleString()} / ${usage.inputTokens.toLocaleString()}`
+    : 'Cache usage was not reported for these requests.'
+
+  return (
+    <Row label="Cache hit rate">
+      <QuickTooltip text={tooltip}>
+        <span>{rate == null ? '—' : `${Math.round(rate * 10) / 10}%`}</span>
+      </QuickTooltip>
+    </Row>
   )
 }
 

@@ -1,4 +1,5 @@
 import type { InferenceAdapter } from '../inferenceTypes'
+import { withMistralCacheUsage } from './cacheUsage'
 
 export const create: InferenceAdapter = async ({
   modelId,
@@ -7,5 +8,7 @@ export const create: InferenceAdapter = async ({
   requestFetch,
 }) => {
   const { createMistral } = await import('@ai-sdk/mistral')
-  return createMistral({ baseURL, apiKey, fetch: requestFetch })(modelId)
+  return withMistralCacheUsage(
+    createMistral({ baseURL, apiKey, fetch: requestFetch })(modelId),
+  )
 }

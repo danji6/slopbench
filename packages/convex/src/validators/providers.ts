@@ -94,6 +94,12 @@ export const tokenUsageValidator = v.object({
   inputTokens: v.number(),
   outputTokens: v.number(),
   totalTokens: v.number(),
+  cache: v.optional(
+    v.object({
+      readTokens: v.number(),
+      inputTokens: v.number(),
+    }),
+  ),
 })
 
 export const reasoningEffortValidator = v.union(

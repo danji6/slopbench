@@ -1,3 +1,5 @@
+import { addCacheUsage } from '@sb/core/cache-usage'
+
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import type {
@@ -81,6 +83,7 @@ export async function accumulateSessionUsage(
       inputTokens: prev.inputTokens + delta.inputTokens,
       outputTokens: prev.outputTokens + delta.outputTokens,
       totalTokens: prev.totalTokens + delta.totalTokens,
+      cache: addCacheUsage(prev.cache, delta.cache),
     },
   })
 }
