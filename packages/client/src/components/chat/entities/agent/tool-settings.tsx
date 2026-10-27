@@ -1,13 +1,17 @@
 import { SearchInput, Tabs } from '@/components/ui'
 import { useTools } from '@/hooks/chat'
 import type { ToolMetadata } from '@/lib/chat'
+import {
+  TOOL_CAPABILITIES,
+  normalizeToolSelection,
+  toggleToolSelection,
+} from '@sb/core/tool-capabilities'
 import { type RefObject, useLayoutEffect, useState } from 'react'
 import type { Control } from 'react-hook-form'
 import { useController } from 'react-hook-form'
 
 import { ShellSettings } from '../shell-settings'
 import type { AgentFormValues } from './agent-form'
-import { getEnabledToolNames, toToolSelection } from './agent-form'
 import { AutoApproveSettings } from './auto-approve-settings'
 import { ToolSelectionList } from './tool-selection-list'
 
@@ -28,18 +32,18 @@ export function ToolSettings({
   const { tools: availableTools, isLoading } = useTools()
   const { field: toolsField } = useController({ control, name: 'tools' })
   const { field: shellField } = useController({ control, name: 'shell' })
-  const enabled = new Set(getEnabledToolNames(toolsField.value, availableTools))
+  const enabled = new Set(normalizeToolSelection(toolsField.value))
   const builtinTools = availableTools.filter((tool) => tool.category !== 'mcp')
   const mcpTools = availableTools.filter((tool) => tool.category === 'mcp')
 
   function toggleTools(tools: readonly ToolMetadata[]) {
-    const allOn = tools.every((tool) => enabled.has(tool.name))
-    const next = new Set(enabled)
-    for (const { name } of tools) {
-      if (allOn) next.delete(name)
-      else next.add(name)
-    }
-    toolsField.onChange(toToolSelection(next, availableTools))
+    toolsField.onChange(
+      toggleToolSelection(
+        toolsField.value,
+        tools.map((tool) => tool.name),
+        availableTools,
+      ),
+    )
   }
 
   return (
@@ -56,6 +60,7 @@ export function ToolSettings({
         <Tabs.Content value="tools">
           <ToolSelectionList
             tools={builtinTools}
+            allTools={TOOL_CAPABILITIES}
             enabled={enabled}
             onToggle={toggleTools}
             label="All built-in tools"

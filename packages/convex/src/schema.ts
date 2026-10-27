@@ -159,6 +159,7 @@ export default defineSchema({
     .index('by_ownerId_serverKey', ['scope.ownerId', 'scope.serverId']),
 
   mcpOperations: defineTable(mcpOperationSchema)
+    .index('by_sessionId_agentId', ['sessionId', 'agentId'])
     .index('by_contentId_toolCallId', ['contentId', 'toolCallId'])
     .index('by_streamId_delivered', ['streamId', 'delivered'])
     .index('by_runtimeId_state', ['runtimeId', 'state'])

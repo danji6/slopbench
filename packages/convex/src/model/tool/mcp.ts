@@ -162,7 +162,11 @@ export async function createExternalMcpTool(
   return tool({
     description: entry.description ?? definition?.description,
     toModelOutput: (options) =>
-      mcpToModelOutput(options, operationContext?.omitMedia),
+      mcpToModelOutput(
+        options,
+        operationContext?.omitMedia,
+        operationContext?.canReadOutput,
+      ),
     inputSchema: jsonSchema(schema, {
       validate: (input) => {
         const result = validate(input)

@@ -1,9 +1,7 @@
 import {
-  ASK_TOOL_NAME,
-  PLAN_TOOL_TOGGLE,
-  READ_ATTACHMENT_TOOL_NAME,
-  TODO_TOOL_TOGGLE,
-} from '@sb/core/const'
+  TOOL_CAPABILITIES,
+  isReservedToolName,
+} from '@sb/core/tool-capabilities'
 import { mcpToolDescription, mcpToolName } from '@sb/core/types'
 import { mcpServerSelection } from '@sb/core/types/mcp-catalog'
 
@@ -14,66 +12,7 @@ import type { ToolMeta } from './context'
 import { enabledMcpServers } from './settings'
 
 /** These are what the user sees in the UI */
-export const TOOL_METAS = [
-  {
-    name: 'web_fetch',
-    description:
-      'Fetch a web page and return its main content as clean markdown.',
-    category: 'web',
-  },
-  {
-    name: 'web_search',
-    description: 'Search the web through configured search engine instances.',
-    category: 'web',
-  },
-  {
-    name: READ_ATTACHMENT_TOOL_NAME,
-    description: 'Read text attachments in bounded byte ranges.',
-    category: 'general',
-  },
-  {
-    name: 'read_file',
-    description: 'Read files.',
-    category: 'workspace',
-    requiresAdmin: true,
-    requiresWorkspace: true,
-  },
-  {
-    name: 'write_file',
-    description: 'Create or overwrite files.',
-    category: 'workspace',
-    requiresAdmin: true,
-    requiresWorkspace: true,
-  },
-  {
-    name: 'edit_file',
-    description: 'Edit files.',
-    category: 'workspace',
-    requiresAdmin: true,
-    requiresWorkspace: true,
-  },
-  {
-    name: 'shell',
-    description: 'Run shell commands.',
-    category: 'workspace',
-    requiresAdmin: true,
-    requiresWorkspace: true,
-  },
-  {
-    name: TODO_TOOL_TOGGLE,
-    description: 'Track multi-step work with a todo list.',
-  },
-  {
-    name: PLAN_TOOL_TOGGLE,
-    description: 'Research and author implementation plans before editing.',
-    requiresAdmin: true,
-  },
-  {
-    name: ASK_TOOL_NAME,
-    description: 'Ask you questions when the agent needs a decision.',
-    category: 'general',
-  },
-] as const
+export const TOOL_METAS = TOOL_CAPABILITIES
 
 export type ToolName = (typeof TOOL_METAS)[number]['name']
 
@@ -96,6 +35,7 @@ export async function listTools(ctx: AuthQueryCtx): Promise<ToolMeta[]> {
     }
     for (const meta of server.tools ?? []) {
       if (meta.enabled === false || meta.diagnostic) continue
+      if (isReservedToolName(mcpToolName(server, meta))) continue
       if (server.brokerEnabled) continue
       external.push({
         name: mcpToolName(server, meta),

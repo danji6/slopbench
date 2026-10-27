@@ -25,7 +25,7 @@ describe('.git access requires approval without explicit path grants', () => {
     toolApprovals: { tools: ['write_file', 'edit_file'], shell: ['cat'] },
   } as never
 
-  const agentTools = ['read_file', 'write_file', 'edit_file', 'shell']
+  const agentTools = ['read_file', 'edit_files', 'shell']
 
   const getTools = () =>
     getEnabledTools(

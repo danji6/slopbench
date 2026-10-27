@@ -51,7 +51,11 @@ export async function createMcpBrokerTools(context: McpBrokerContext) {
     }),
     call_mcp_tool: tool({
       toModelOutput: (options) =>
-        mcpToModelOutput(options, context.operation.omitMedia),
+        mcpToModelOutput(
+          options,
+          context.operation.omitMedia,
+          context.operation.canReadOutput,
+        ),
       description: TOOL_DESCRIPTIONS.call_mcp_tool,
       inputSchema: mcpBrokerCallSchema,
       needsApproval: async (input, options) => {

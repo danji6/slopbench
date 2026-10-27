@@ -28,7 +28,11 @@ export async function createMcpProtocolTools(context: McpBrokerContext) {
       description: TOOL_DESCRIPTIONS.mcp_protocol,
       inputSchema: mcpProtocolBrokerSchema,
       toModelOutput: (options) =>
-        mcpToModelOutput(options, context.operation.omitMedia),
+        mcpToModelOutput(
+          options,
+          context.operation.omitMedia,
+          context.operation.canReadOutput,
+        ),
       needsApproval: async (input, { toolCallId }) => {
         const server = await protocolServer(context, input)
         const previous = await findMcpOperation(

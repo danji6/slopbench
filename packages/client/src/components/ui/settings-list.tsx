@@ -157,10 +157,12 @@ const SettingsListCheckbox = ({
   actions?: React.ReactNode
   onCheckedChange?: (checked: boolean) => void
 }) => {
+  const labelId = React.useId()
+  const descriptionId = React.useId()
   return (
     <SettingsListItem
-      label={label}
-      description={description}
+      label={<span id={labelId}>{label}</span>}
+      description={description && <span id={descriptionId}>{description}</span>}
       className={className}
       onClick={() => !disabled && onCheckedChange?.(!checked)}
       disabled={disabled}
@@ -176,7 +178,10 @@ const SettingsListCheckbox = ({
           checked={checked}
           indeterminate={indeterminate}
           disabled={disabled}
-          readOnly
+          aria-labelledby={labelId}
+          aria-describedby={description ? descriptionId : undefined}
+          onClick={(event) => event.stopPropagation()}
+          onCheckedChange={onCheckedChange}
         />
       </div>
     </SettingsListItem>

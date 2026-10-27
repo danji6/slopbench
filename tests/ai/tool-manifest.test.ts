@@ -1,10 +1,6 @@
 /// <reference types="bun-types" />
 import { getEnabledTools } from '@sb/convex/model/tool/build'
 import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
-import {
-  MCP_BROKER_TOOLS,
-  SKILL_BROKER_TOOLS,
-} from '@sb/core/types/mcp-catalog'
 import { describe, expect, test } from 'bun:test'
 
 const session = {
@@ -118,12 +114,7 @@ describe('tool manifest', () => {
       spawnableAgents: [],
     } as never)
 
-    expect(manifest.names).toEqual([
-      'read_file',
-      'list_skills',
-      ...MCP_BROKER_TOOLS,
-      'read_skill',
-    ])
+    expect(manifest.names).toEqual(['read_file'])
     expect(manifest.mcp).toBeUndefined()
   })
 
@@ -138,7 +129,7 @@ describe('tool manifest', () => {
         resources: { settings: null, mcpServers: [] },
         spawnableAgents: [],
       } as never).names,
-    ).toEqual([...MCP_BROKER_TOOLS, ...SKILL_BROKER_TOOLS])
+    ).toEqual([])
 
     expect(
       resolveToolManifest({
@@ -148,7 +139,7 @@ describe('tool manifest', () => {
         resources: { settings: null, mcpServers: [] },
         spawnableAgents: [],
       } as never).names,
-    ).toEqual([...MCP_BROKER_TOOLS, ...SKILL_BROKER_TOOLS])
+    ).toEqual([])
   })
 
   test('the shell is resolved agent-over-user, and only for the shell tool', () => {
@@ -231,5 +222,5 @@ test('integration tools stay behind the broker when an unrelated direct alias ha
     spawnableAgents: [],
   } as never)
   expect(manifest.mcp).toBeUndefined()
-  expect(manifest.names).toEqual([...MCP_BROKER_TOOLS, ...SKILL_BROKER_TOOLS])
+  expect(manifest.names).toEqual([])
 })

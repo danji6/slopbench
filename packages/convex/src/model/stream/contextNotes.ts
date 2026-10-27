@@ -114,6 +114,7 @@ async function insertContextNote(
       type,
       extra: {
         fingerprint: args.fingerprint,
+        ...(args.capabilities && { capabilities: args.capabilities }),
         anchorMessageId: stream.state.processingMessageId,
         ...(type === 'workspace' && { label: args.label }),
       },

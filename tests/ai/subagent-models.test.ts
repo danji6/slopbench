@@ -32,6 +32,7 @@ function setup(
     _id: 'parent',
     ownerId: owner,
     name: 'Parent',
+    tools: ['task'],
     subAgents: { mode: 'deny', agentIds: [], overrides },
   }
   const provider = {

@@ -21,6 +21,7 @@ const parentAgent = {
   _id: 'agent_coder',
   ownerId: owner,
   name: 'Coder',
+  tools: ['task'],
   subAgents: { mode: 'allow', agentIds: ['agent_explorer'] },
 }
 const explorer = { _id: 'agent_explorer', ownerId: owner, name: 'Explore' }
@@ -149,6 +150,23 @@ describe('_suspendStep', () => {
 
     // The parent stream never parks
     expect(patches.find(({ id }) => id === 'stream_1')).toBeUndefined()
+  })
+
+  test('a configured roster cannot spawn a task when delegation is disabled', async () => {
+    const disabled = { ...parentAgent, tools: [] }
+    const { ctx, inserts, patches } = fakeCtx({
+      docs: parentDocs([taskPart()]).map((row) =>
+        row._id === parentAgent._id ? disabled : row,
+      ),
+      agents: [disabled, explorer],
+    })
+    expect(
+      await _suspendStep(ctx, { generation: 0, streamId: 'stream_1' as never }),
+    ).toBe('continue')
+    expect(inserts.filter((row) => row.table === 'sessions')).toHaveLength(0)
+    expect(
+      patches.find((row) => row.id === 'content_1')?.patch.parts,
+    ).toMatchObject([{ state: 'output-error' }])
   })
 
   test('a plan-mode parent spawns plan-mode children', async () => {

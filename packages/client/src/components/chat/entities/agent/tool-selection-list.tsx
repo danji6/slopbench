@@ -5,6 +5,8 @@ import { Fragment } from 'react'
 const CATEGORY_LABELS: Record<string, string> = {
   web: 'Web',
   workspace: 'Workspace',
+  planning: 'Planning',
+  'mcp-skills': 'MCP & Skills',
 }
 
 function categoryLabel(key: string): string {
@@ -28,13 +30,20 @@ type ToolSelectionProps = {
   onToggle: (tools: readonly ToolMetadata[]) => void
 }
 
+type ToolSelectionListProps = ToolSelectionProps & {
+  label: string
+  grouped?: boolean
+  allTools?: readonly ToolMetadata[]
+}
+
 export function ToolSelectionList({
   tools,
   enabled,
   onToggle,
   label,
   grouped = false,
-}: ToolSelectionProps & { label: string; grouped?: boolean }) {
+  allTools = tools,
+}: ToolSelectionListProps) {
   const groups: [string, readonly ToolMetadata[]][] = grouped
     ? groupByCategory(tools)
     : [['mcp', tools]]
@@ -43,7 +52,7 @@ export function ToolSelectionList({
     <SettingsList>
       <ToolGroupCheckbox
         label={label}
-        tools={tools}
+        tools={allTools}
         enabled={enabled}
         onToggle={onToggle}
       />

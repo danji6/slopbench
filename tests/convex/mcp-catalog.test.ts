@@ -8,15 +8,10 @@ import { pinManifest, releasePins } from '@sb/convex/model/mcpCatalogPins'
 import * as Catalogs from '@sb/convex/model/mcpCatalogs'
 import { reserve } from '@sb/convex/model/mcpOperations'
 import { prepareMcpContext } from '@sb/convex/model/stream/contextNotes'
-import {
-  resolveToolManifest,
-  upgradeToolManifest,
-} from '@sb/convex/model/tool/manifest'
+import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
 import { createExternalMcpTool } from '@sb/convex/model/tool/mcp'
 import {
-  MCP_BROKER_TOOLS,
   MCP_MANIFEST_VERSION,
-  SKILL_BROKER_TOOLS,
   mcpApprovalKey,
 } from '@sb/core/types/mcp-catalog'
 import { expect, test } from 'bun:test'
@@ -233,29 +228,7 @@ test('invalid schema diagnostics, disabled targets, stale cursors and live role 
   }
 }, 20_000)
 
-test('manifest upgrades add stable broker definitions without rewriting frozen direct tools', () => {
-  const frozen = {
-    names: ['local_original'],
-    mcp: [
-      {
-        name: 'local_original',
-        serverId: 'local',
-        toolName: 'original',
-        description: 'frozen',
-        inputSchema: '{"type":"object"}',
-      },
-    ],
-  }
-  const upgraded = upgradeToolManifest(frozen)
-  expect(upgraded.version).toBe(MCP_MANIFEST_VERSION)
-  expect(upgraded.names).toEqual([
-    'local_original',
-    ...MCP_BROKER_TOOLS,
-    ...SKILL_BROKER_TOOLS,
-  ])
-  expect(upgraded.mcp).toBe(frozen.mcp)
-  expect(frozen.names).toEqual(['local_original'])
-  expect(upgradeToolManifest(upgraded)).toBe(upgraded)
+test('fresh manifests do not insert unselected brokers', () => {
   const fresh = resolveToolManifest({
     agent: { tools: ['mcp_server:local'] },
     invoker: { role: 'admin' },
@@ -263,7 +236,8 @@ test('manifest upgrades add stable broker definitions without rewriting frozen d
     resources: { settings: null, mcpServers: [] },
     spawnableAgents: [],
   } as never)
-  expect(fresh.names).toEqual([...MCP_BROKER_TOOLS, ...SKILL_BROKER_TOOLS])
+  expect(fresh.names).toEqual([])
+  expect(fresh.version).toBe(MCP_MANIFEST_VERSION)
 })
 
 test('every catalog page is searchable and unchanged refreshes keep opaque identities', async () => {

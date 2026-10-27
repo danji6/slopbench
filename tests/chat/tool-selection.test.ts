@@ -1,10 +1,15 @@
 /// <reference types="bun-types" />
 import {
-  getEnabledToolNames,
-  toToolSelection,
+  EMPTY_AGENT_FORM,
+  formValuesToPatch,
 } from '@/components/chat/entities/agent/agent-form'
 import type { ToolMetadata } from '@/lib/chat'
-import { describe, expect, test } from 'bun:test'
+import {
+  TOOL_CAPABILITIES,
+  normalizeToolSelection,
+  toggleToolSelection,
+} from '@sb/core/tool-capabilities'
+import { expect, test } from 'bun:test'
 
 const TOOLS: ToolMetadata[] = [
   { name: 'web_fetch', category: 'general' },
@@ -12,42 +17,55 @@ const TOOLS: ToolMetadata[] = [
   { name: 'shell', category: 'coding' },
 ]
 
-describe('getEnabledToolNames', () => {
-  test('empty array selects no tools', () => {
-    expect(getEnabledToolNames([], TOOLS)).toEqual([])
-  })
-
-  // Legacy non-array selections are normalized away by the `typedFields`
-  // migration, so only the unset case reaches here now
-  test('an unset selection selects no tools', () => {
-    expect(getEnabledToolNames(undefined, TOOLS)).toEqual([])
-  })
-
-  test('selects exactly the available tools, in available order', () => {
-    expect(
-      getEnabledToolNames(['shell', 'web_fetch', 'unknown'], TOOLS),
-    ).toEqual(['web_fetch', 'shell'])
-  })
+test('normalization keeps unset selections off and preserves explicit choices', () => {
+  expect(normalizeToolSelection()).toEqual([])
+  expect(normalizeToolSelection([])).toEqual([])
+  expect(
+    normalizeToolSelection(['shell', 'shell', 'web_fetch', 'external_lookup']),
+  ).toEqual(['shell', 'web_fetch', 'external_lookup'])
 })
 
-describe('toToolSelection', () => {
-  test('no tools normalizes to an empty array (never undefined)', () => {
-    expect(toToolSelection([], TOOLS)).toEqual([])
-  })
+test('selection toggles affect only their targets and order available choices predictably', () => {
+  expect(toggleToolSelection([], ['shell', 'web_fetch'], TOOLS)).toEqual([
+    'web_fetch',
+    'shell',
+  ])
+  expect(toggleToolSelection(['shell'], ['web_fetch'], TOOLS)).toEqual([
+    'web_fetch',
+    'shell',
+  ])
+  expect(toggleToolSelection(['web_fetch', 'shell'], ['shell'], TOOLS)).toEqual(
+    ['web_fetch'],
+  )
+})
 
-  test('orders the selection by the available list', () => {
-    expect(toToolSelection(['shell', 'web_fetch'], TOOLS)).toEqual([
-      'web_fetch',
+test('saving settings drops retired member keys without expanding permissions', async () => {
+  const patch = await formValuesToPatch('agent' as never, {
+    ...EMPTY_AGENT_FORM,
+    tools: [
+      'write_file',
+      'edit_file',
+      'read_skill',
+      'shell_output',
+      'plan',
+      'todo',
       'shell',
-    ])
+      'external_work',
+    ],
   })
+  expect(patch.tools).toEqual(['plan', 'todo', 'shell', 'external_work'])
+})
 
-  test('round-trips through getEnabledToolNames', () => {
-    for (const selection of [[], ['shell'], ['web_fetch', 'read_file']]) {
-      const names = getEnabledToolNames(selection, TOOLS)
-      expect(getEnabledToolNames(toToolSelection(names, TOOLS), TOOLS)).toEqual(
-        names,
-      )
-    }
-  })
+test('built-in changes preserve unavailable external selections and clear hidden built-in flags', () => {
+  const builtins = TOOL_CAPABILITIES.map((row) => row.name)
+  const external = ['mcp_server:offline', 'offline_lookup']
+  const off = toggleToolSelection([...builtins, ...external], builtins, TOOLS)
+  expect(off).toEqual(external)
+  expect(toggleToolSelection(off, ['skills'], TOOLS)).toEqual([
+    ...external,
+    'skills',
+  ])
+  expect(
+    toggleToolSelection([...external, 'skills'], ['skills'], TOOLS),
+  ).toEqual(external)
 })

@@ -20,6 +20,7 @@ type ModelContent =
 export function mcpToModelOutput(
   { output }: { output: unknown },
   omitMedia = false,
+  canReadOutput = true,
 ) {
   if (!isMcpResult(output)) {
     return {
@@ -77,7 +78,11 @@ export function mcpToModelOutput(
   if (state.text <= 0 || state.media < 0 || state.omitted) {
     value.push({
       type: 'text',
-      text: `Model preview is incomplete. Full output is stored; use read_mcp_output with output ${output.origin.display?.output ?? '(unavailable)'} and character ranges.`,
+      text:
+        'Model preview is incomplete. Full output is stored.' +
+        (canReadOutput
+          ? ` Use read_mcp_output with output ${output.origin.display?.output ?? '(unavailable)'} and character ranges.`
+          : ''),
     })
   }
 
@@ -188,10 +193,11 @@ function appendContent(
 export function mcpHistoryTools(
   messages: UIMessage[],
   omitMedia = false,
+  canReadOutput = true,
 ): ToolSet {
   const converter = {
     toModelOutput: (options: { output: unknown }) =>
-      mcpToModelOutput(options, omitMedia),
+      mcpToModelOutput(options, omitMedia, canReadOutput),
   } as unknown as Tool
   const tools: ToolSet = { search_mcp_tools: converter }
   for (const message of messages) {

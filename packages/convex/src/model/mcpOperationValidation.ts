@@ -34,9 +34,7 @@ export async function outputValidationError(
     result?.errorMessage ??
     'The tool did not return required structured content'
   const name = output.origin.display?.output
-  const retrieval = name
-    ? ` Full result retained; use read_mcp_output with output "${name}".`
-    : ''
+  const retrieval = name ? ` Full result retained as output "${name}".` : ''
 
   return `MCP output rejected: ${reason.slice(0, 2000)}.${retrieval}`
 }

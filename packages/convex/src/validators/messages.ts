@@ -58,12 +58,14 @@ export const reminderExtraValidator = v.object({
 })
 
 export const workspaceExtraValidator = v.object({
+  capabilities: v.optional(v.array(v.string())),
   label: v.optional(v.string()), // absent when the workspace was unbound
   fingerprint: v.optional(v.string()),
   anchorMessageId: v.optional(v.id('messages')),
 })
 
 export const skillsExtraValidator = v.object({
+  capabilities: v.optional(v.array(v.string())),
   fingerprint: v.string(),
   anchorMessageId: v.optional(v.id('messages')),
 })

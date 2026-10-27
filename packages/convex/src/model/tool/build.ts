@@ -120,6 +120,7 @@ export async function getEnabledTools(
               agentId: options.agentId,
               workspace: session.workspace,
               execution: options.execution,
+              toolNames: manifest.names,
             }
           : undefined,
       planContext,
@@ -131,6 +132,7 @@ export async function getEnabledTools(
               execution: options.execution,
               messageId: options.messageId,
               omitMedia: options.omitMcpMedia,
+              canReadOutput: manifest.names.includes('read_mcp_output'),
             }
           : undefined,
       mcpFailed: ctx

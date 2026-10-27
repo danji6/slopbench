@@ -1,4 +1,4 @@
-import { TODO_NUDGE_INTERVAL_STEPS, TODO_TOOL_TOGGLE } from '@sb/core/const'
+import { TODO_NUDGE_INTERVAL_STEPS } from '@sb/core/const'
 import type { ReminderPrompt } from '@sb/core/types'
 import { systemReminder } from '@sb/core/utils/blocks'
 
@@ -12,6 +12,7 @@ import {
   getBySession as getTodosBySession,
   hasUnresolvedTodos,
 } from '../todos'
+import { sessionToolNames } from '../tool/selection'
 import { agentIdentity } from './identities'
 import { insertHiddenNote } from './notes'
 import type { NoteSender } from './notes'
@@ -161,8 +162,13 @@ async function injectTodoNudge(
   stepCount: number,
 ) {
   // The nudge asks for write_todo/edit_todo calls, so it needs the toggle on
-  const tools = sender.agent.tools
-  if (!Array.isArray(tools) || !tools.includes(TODO_TOOL_TOGGLE)) return
+  const tools = await sessionToolNames(
+    ctx,
+    session._id,
+    sender.agent,
+    invokerId,
+  )
+  if (!tools.includes('write_todo') || !tools.includes('edit_todo')) return
 
   const todo = await getTodosBySession(ctx, session._id)
   if (!todo || !isTodoNudgeDue(todo, stepCount)) return

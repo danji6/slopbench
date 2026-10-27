@@ -182,6 +182,7 @@ export async function refreshSavedCatalog(
 export async function refreshStaleCatalogs(
   ctx: ActionCtx,
   execution: StreamExecutionArgs,
+  serverIds?: string[],
 ) {
   const runtimes = await ctx.runQuery(
     internal.mcpCatalogs._activeRuntimes,
@@ -189,6 +190,7 @@ export async function refreshStaleCatalogs(
   )
   for (const runtime of runtimes) {
     if (!runtime.serverId) continue
+    if (serverIds && !serverIds.includes(runtime.serverId)) continue
     try {
       const response = await fetch(
         new URL('/mcp-ext/status', sidecarUrl()),

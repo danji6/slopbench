@@ -43,7 +43,7 @@ describe('workspace note', () => {
     const content = buildWorkspaceNoteContent(undefined, ws('new'))
 
     expect(content).toContain(
-      'Relative file paths and the shell working directory',
+      'Relative file paths resolve from the primary source',
     )
     expect(content).toContain('/srv/new (Primary)')
     // Nothing was resolved earlier, so it must not read like a re-bind.

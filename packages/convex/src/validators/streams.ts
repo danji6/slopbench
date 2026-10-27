@@ -167,6 +167,7 @@ export const saveStreamLogArgsValidator = v.object({
 })
 
 export const prepareContextNoteArgsValidator = v.object({
+  capabilities: v.optional(v.array(v.string())),
   ...streamExecutionArgsValidator.fields,
   fingerprint: v.string(),
   content: v.string(),

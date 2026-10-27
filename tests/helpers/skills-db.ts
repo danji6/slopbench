@@ -122,6 +122,10 @@ export function skillsDatabase() {
         gt: (a: FilterValue, b: FilterValue) => comparison(a, b, (n) => n > 0),
         lte: (a: FilterValue, b: FilterValue) =>
           comparison(a, b, (n) => n <= 0),
+        or:
+          (...conditions: ((row: Row) => boolean)[]) =>
+          (row: Row) =>
+            conditions.some((condition) => condition(row)),
         and:
           (...conditions: ((row: Row) => boolean)[]) =>
           (row: Row) =>

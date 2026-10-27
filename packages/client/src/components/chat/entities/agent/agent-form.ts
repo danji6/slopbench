@@ -7,7 +7,6 @@ import type {
   PromptMarkerType,
   ReminderPrompt,
   ScrollMode,
-  ToolMetadata,
   UpdateAgentArgs,
 } from '@/lib/chat'
 import { snapshotTheme } from '@/lib/theme-worker'
@@ -15,6 +14,7 @@ import type { Doc, Id } from '@sb/convex/_generated/dataModel'
 import { createDefaultAgent } from '@sb/convex/model/defaults'
 import { ensurePromptMarkers } from '@sb/convex/model/prompt/markers'
 import { normalizeSubagentOverrides } from '@sb/core/subagent-settings'
+import { normalizeToolSelection } from '@sb/core/tool-capabilities'
 import type { AgentSubAgentsMode, AgentSubagentOverride } from '@sb/core/types'
 
 /** The agent's prompt rows, grouped by scope. */
@@ -114,30 +114,6 @@ export function newAgentFormValues(): AgentFormValues {
   return { ...EMPTY_AGENT_FORM, ...defaults, name: 'New agent' }
 }
 
-/** Orders a set of tool names by their position in the available list. */
-function orderToolNames(
-  names: Set<string>,
-  available: readonly ToolMetadata[],
-): AgentToolSelection {
-  return available.filter((t) => names.has(t.name)).map((t) => t.name)
-}
-
-/** Resolves the enabled tool names from a stored selection. */
-export function getEnabledToolNames(
-  tools: string[] | undefined,
-  available: readonly ToolMetadata[],
-): AgentToolSelection {
-  return orderToolNames(new Set(tools), available)
-}
-
-/** Normalizes an explicit set of enabled names into a stored selection. */
-export function toToolSelection(
-  enabled: Iterable<string>,
-  available: readonly ToolMetadata[],
-): AgentToolSelection {
-  return orderToolNames(new Set(enabled), available)
-}
-
 /** Maps a persisted agent document into editable form values.
  * Note: don't use undefined for controlled fields or they will
  * leak the previous agent's values. Use null to clear values,
@@ -156,7 +132,7 @@ export function agentToFormValues(
     promptOrder: (agent.promptOrder as OrderedItem[] | undefined) ?? null,
     reminderPrompts: sets.reminderPrompts,
     libraryReminderIds: agent.libraryReminderIds ?? [],
-    tools: agent.tools ?? [],
+    tools: normalizeToolSelection(agent.tools),
     shell: agent.shell ?? '',
     autoApproveTools: agent.autoApprove?.tools ?? [],
     autoApproveShell: agent.autoApprove?.shell ?? [],
@@ -264,6 +240,7 @@ async function formValuesToFields(
   const overrides = normalizeSubagentOverrides(subAgentOverrides)
   const fields: PatchFields = {
     ...rest,
+    tools: normalizeToolSelection(rest.tools),
     description: description.trim() || null,
     customCss: customCss || null,
     shell: shell.trim() || null,

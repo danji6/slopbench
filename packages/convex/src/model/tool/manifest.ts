@@ -1,21 +1,15 @@
 import {
-  ASK_TOOL_NAME,
-  PLAN_TOOL_TOGGLE,
-  READ_ATTACHMENT_TOOL_NAME,
-  TODO_TOOL_TOGGLE,
-} from '@sb/core/const'
+  TOOL_CAPABILITIES,
+  isReservedToolName,
+} from '@sb/core/tool-capabilities'
 import { mcpToolDescription, mcpToolName } from '@sb/core/types'
-import {
-  MCP_BROKER_TOOLS,
-  MCP_MANIFEST_VERSION,
-  SKILL_BROKER_TOOLS,
-} from '@sb/core/types/mcp-catalog'
+import { MCP_MANIFEST_VERSION } from '@sb/core/types/mcp-catalog'
 
 import type { Doc } from '../../_generated/dataModel'
 import { type Role, minRole } from '../../lib/roles'
-import { TASK_TOOL_NAME } from '../../lib/subagent'
 import type { Session } from '../../types'
 import type { SpawnableAgent } from '../agent/subagents'
+import { isMcpServerSelected, isMcpToolSelected } from '../mcpToolPolicy'
 import {
   type ToolResources,
   enabledMcpServers,
@@ -56,7 +50,13 @@ export type McpManifestEntry = {
   diagnostic?: string
 }
 
-type ManifestInput = {
+export type ToolAvailability = {
+  skills?: boolean
+  integrationSkills?: boolean
+  storedMcpOutput?: boolean
+}
+
+export type ManifestInput = {
   agent: Pick<Doc<'agents'>, 'tools' | 'shell'>
   invoker: Pick<Doc<'users'>, 'role'>
   session: Pick<Session, 'workspace' | 'parent'>
@@ -66,6 +66,7 @@ type ManifestInput = {
   settings?: Pick<Doc<'settings'>, 'shell'> | null
   /** What an unconfigured shell resolves to on the sidecar's host. */
   defaultShell?: string
+  availability?: ToolAvailability
 }
 
 function resolveShell(data: ManifestInput): string | undefined {
@@ -90,59 +91,101 @@ export function buildTaskRoster(spawnable: SpawnableAgent[]): string {
  */
 export function resolveToolManifest(data: ManifestInput): ToolManifest {
   const admin = minRole(data.invoker.role as Role | undefined, 'admin')
-  const subagent = !!data.session.parent
   const selected = new Set(data.agent.tools ?? [])
 
-  const workspaceTools =
-    admin && data.session.workspace
-      ? ['read_file', 'write_file', 'edit_file', 'shell']
-      : []
+  const servers = enabledMcpServers(data.resources.mcpServers).filter(
+    (server) => server.transport !== 'stdio' || admin,
+  )
+  const authorized = servers.filter((server) =>
+    isMcpServerSelected(data.agent, server),
+  )
+  const canCall = authorized.some(
+    (server) =>
+      !server.catalogId ||
+      server.tools?.some((tool) => isMcpToolSelected(data.agent, server, tool)),
+  )
 
-  // Reserved up front so an external MCP tool can never shadow a built-in
-  const builtins = [
-    'web_fetch',
-    'web_search',
-    READ_ATTACHMENT_TOOL_NAME,
-    ASK_TOOL_NAME,
-    ...workspaceTools,
-  ]
-  const reserved = new Set([
-    ...builtins,
-    'shell_output',
-    'kill_shell',
-    ...SKILL_BROKER_TOOLS,
-    ...MCP_BROKER_TOOLS,
-  ])
+  const eligible = (name: string) =>
+    builtinEligible(name, data, authorized.length > 0, canCall)
 
   const names: string[] = []
-  const mcp: McpManifestEntry[] = []
-  const take = (name: string) => {
-    if (selected.has(name)) names.push(name)
+  for (const capability of TOOL_CAPABILITIES) {
+    if (!selected.has(capability.name)) continue
+    if ('requiresAdmin' in capability && !admin) continue
+    if ('requiresWorkspace' in capability && !data.session.workspace) continue
+    names.push(...capability.tools.filter(eligible))
   }
 
-  if (!subagent) take(ASK_TOOL_NAME)
+  const mcp = directMcpEntries(data, servers)
+  names.push(...mcp.map((entry) => entry.name))
+  const roster = names.includes('task')
+    ? buildTaskRoster(data.spawnableAgents)
+    : undefined
+  const shell = names.includes('shell') ? resolveShell(data) : undefined
 
-  take('web_fetch')
-  take(READ_ATTACHMENT_TOOL_NAME)
-  const instances = data.resources.settings?.webSearchInstances
-  if (normalizeWebSearchInstances(instances).length) {
-    take('web_search')
+  return {
+    version: MCP_MANIFEST_VERSION,
+    names,
+    ...(data.session.workspace?.agentHome && { hasAgentHome: true }),
+    ...(roster && { taskRoster: roster }),
+    ...(shell && { shell }),
+    ...(mcp.length && { mcp }),
   }
+}
 
-  const seenMcp = new Set<string>()
-  for (const server of enabledMcpServers(data.resources.mcpServers)) {
+/** Applies resource requirements after expanding an explicitly selected capability. */
+function builtinEligible(
+  name: string,
+  data: ManifestInput,
+  hasServer: boolean,
+  canCall: boolean,
+) {
+  const subagent = !!data.session.parent
+  switch (name) {
+    case 'ask':
+    case 'enter_plan_mode':
+    case 'exit_plan_mode':
+      return !subagent
+    case 'task':
+      return !subagent && data.spawnableAgents.length > 0
+    case 'web_search':
+      return (
+        normalizeWebSearchInstances(data.resources.settings?.webSearchInstances)
+          .length > 0
+      )
+    case 'search_mcp_tools':
+    case 'mcp_protocol':
+      return hasServer
+    case 'call_mcp_tool':
+      return canCall
+    case 'read_mcp_output':
+      return hasServer || !!data.availability?.storedMcpOutput
+    case 'list_skills':
+      return !!data.availability?.skills
+    case 'read_skill':
+      return !!data.availability?.integrationSkills
+    default:
+      return true
+  }
+}
+
+/** Captures only individually selected standalone tools without shadowing built-ins. */
+function directMcpEntries(
+  data: ManifestInput,
+  servers: ReturnType<typeof enabledMcpServers>,
+) {
+  const selected = new Set(data.agent.tools ?? [])
+  const seen = new Set<string>()
+  const entries: McpManifestEntry[] = []
+  for (const server of servers) {
     if (server.integrationId) continue
-    if (server.transport === 'stdio' && !admin) continue
     for (const meta of server.tools ?? []) {
       const name = mcpToolName(server, meta)
-      // Built-ins and earlier servers win the name
-      if (reserved.has(name) || seenMcp.has(name)) continue
-      seenMcp.add(name)
+      if (isReservedToolName(name) || seen.has(name)) continue
+      seen.add(name)
       if (!selected.has(name)) continue
       if (meta.enabled === false || meta.diagnostic) continue
-
-      names.push(name)
-      mcp.push({
+      entries.push({
         name,
         serverId: server.id,
         toolName: meta.name,
@@ -155,59 +198,5 @@ export function resolveToolManifest(data: ManifestInput): ToolManifest {
       })
     }
   }
-
-  for (const name of workspaceTools) take(name)
-  // Companions ride along with shell rather than being separately selectable
-  if (names.includes('shell')) names.push('shell_output', 'kill_shell')
-  if (admin && names.includes('read_file')) names.push('list_skills')
-
-  if (admin && selected.has(PLAN_TOOL_TOGGLE)) {
-    names.push('write_plan', 'edit_plan')
-    if (!subagent) names.push('enter_plan_mode', 'exit_plan_mode')
-  }
-
-  if (selected.has(TODO_TOOL_TOGGLE)) {
-    names.push('write_todo', 'edit_todo')
-  }
-
-  const roster = data.spawnableAgents.length
-    ? buildTaskRoster(data.spawnableAgents)
-    : undefined
-  if (roster) names.push(TASK_TOOL_NAME)
-
-  const shell = names.includes('shell') ? resolveShell(data) : undefined
-
-  return {
-    version: MCP_MANIFEST_VERSION,
-    names: [...new Set([...names, ...MCP_BROKER_TOOLS, ...SKILL_BROKER_TOOLS])],
-    ...(data.session.workspace?.agentHome && { hasAgentHome: true }),
-    ...(roster && { taskRoster: roster }),
-    ...(shell && { shell }),
-    ...(mcp.length && { mcp }),
-  }
-}
-
-/** Adds only stable brokers at an invocation boundary, preserving all frozen descriptions. */
-export function upgradeToolManifest(manifest: ToolManifest): ToolManifest {
-  if ((manifest.version ?? 1) >= MCP_MANIFEST_VERSION) return manifest
-  const brokerCollision = manifest.mcp?.some((entry) =>
-    [...MCP_BROKER_TOOLS, ...SKILL_BROKER_TOOLS].some(
-      (name) => name === entry.name,
-    ),
-  )
-  if (brokerCollision) {
-    throw new Error(
-      'A frozen MCP tool conflicts with the broker names. Rename its alias and reset this session’s tool cache before continuing.',
-    )
-  }
-  return {
-    ...manifest,
-    version: MCP_MANIFEST_VERSION,
-    names: [
-      ...manifest.names,
-      ...[...MCP_BROKER_TOOLS, ...SKILL_BROKER_TOOLS].filter(
-        (name) => !manifest.names.includes(name),
-      ),
-    ],
-  }
+  return entries
 }

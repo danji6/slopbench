@@ -9,6 +9,7 @@ import { McpProtocolFixture } from './mcp-protocol-fixture'
 import { McpSettingsFixture } from './mcp-settings-fixture'
 import { ProviderConnectionsFixture } from './provider-connections-fixture'
 import { ScrollFixture } from './scroll-fixture'
+import { ToolSettingsFixture } from './tool-settings-fixture'
 
 const XmlTagsFixture = lazy(() =>
   import('./xml-tags-fixture').then((module) => ({
@@ -129,7 +130,9 @@ function PreviewFixture() {
 }
 
 createRoot(document.getElementById('root')!).render(
-  new URLSearchParams(location.search).get('fixture') === 'integrations' ? (
+  new URLSearchParams(location.search).get('fixture') === 'tool-settings' ? (
+    <ToolSettingsFixture />
+  ) : new URLSearchParams(location.search).get('fixture') === 'integrations' ? (
     <IntegrationsFixture />
   ) : new URLSearchParams(location.search).get('fixture') === 'mcp-protocol' ? (
     <McpProtocolFixture />

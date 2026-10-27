@@ -1,4 +1,3 @@
-import { PLAN_TOOL_TOGGLE } from '@sb/core/const'
 import type { MessageRole } from '@sb/core/types'
 import { systemReminder } from '@sb/core/utils/blocks'
 import { inline } from '@sb/core/utils/strings'
@@ -9,6 +8,7 @@ import type { Session } from '../../types'
 import type { MessageExtra, SessionMode } from '../../types'
 import { deleteVersions, insertMessage } from '../messageContents'
 import { scheduleMessageEval } from '../messages'
+import { sessionToolNames } from '../tool/selection'
 import type { SenderIdentity } from './identities'
 import { agentIdentity } from './identities'
 
@@ -201,12 +201,17 @@ export async function injectModeNote(
   }
 
   if (insert && sender) {
-    const tools = sender.agent.tools
+    const tools = await sessionToolNames(
+      ctx,
+      session._id,
+      sender.agent,
+      invokerId,
+    )
     await insertHiddenNote(ctx, session, invokerId, sender, {
       type: 'mode',
       role: 'system',
       content: buildModeNoteContent(next, {
-        planTools: Array.isArray(tools) && tools.includes(PLAN_TOOL_TOGGLE),
+        planTools: Array.isArray(tools) && tools.includes('write_plan'),
         subagent: !!session.parent,
       }),
       extra: insert satisfies MessageExtra['mode'],
@@ -243,12 +248,25 @@ export const WORKSPACE_CHANGE_GUIDANCE =
 export function buildWorkspaceNoteContent(
   previous: Workspace,
   next: Workspace,
+  names?: readonly string[],
 ) {
   if (!previous && !next) return ''
-  return systemReminder(...workspaceNoteBody(previous, next))
+  return systemReminder(...workspaceNoteBody(previous, next, names))
 }
 
-function workspaceNoteBody(previous: Workspace, next: Workspace): string[] {
+function workspaceNoteBody(
+  previous: Workspace,
+  next: Workspace,
+  names?: readonly string[],
+): string[] {
+  const shell = !names || names.includes('shell')
+
+  const files =
+    !names ||
+    names.some((name) =>
+      ['read_file', 'write_file', 'edit_file'].includes(name),
+    )
+
   if (!next) {
     return [
       'This session has no folder source directories.',
@@ -259,7 +277,8 @@ function workspaceNoteBody(previous: Workspace, next: Workspace): string[] {
   const personal = next.agentHome
     ? [
         'Your persistent personal folder is agent://.',
-        'Use agent:// paths for personal files and cwd: "agent://" for shell commands.',
+        ...(files ? ['Use agent:// paths for personal files.'] : []),
+        ...(shell ? ['Use cwd: "agent://" for shell commands.'] : []),
       ]
     : ['No personal folder is currently available.']
 
@@ -271,7 +290,14 @@ function workspaceNoteBody(previous: Workspace, next: Workspace): string[] {
       ? ['Your personal folder is no longer available.']
       : []),
     `Folder: "${next.label}". Primary source: ${next.path}.`,
-    `Relative file paths and the shell working directory resolve from the primary source (${next.path}).`,
+    ...(files
+      ? [`Relative file paths resolve from the primary source (${next.path}).`]
+      : []),
+    ...(shell
+      ? [
+          `The shell working directory defaults to the primary source (${next.path}).`,
+        ]
+      : []),
     'Accessible source directories:',
     ...(next.sources ?? [{ path: next.path, label: next.label }]).map(
       (s, i) => `- ${s.path}${i === 0 ? ' (Primary)' : ''}`,

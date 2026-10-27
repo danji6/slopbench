@@ -1,22 +1,21 @@
 'use node'
 
-import { sha256 } from '@sb/core/sha256'
+import {
+  hasFilesystemTools,
+  selectedBuiltinTools,
+} from '@sb/core/tool-capabilities'
+import { contextEnabled } from '@sb/core/tool-context'
 
 import { internal } from '../../_generated/api'
 import type { ActionCtx } from '../../_generated/server'
 import { minRole } from '../../lib/roles'
 import { sharedSessionId } from '../../lib/subagent'
-import { buildWorkspaceNoteContent } from '../../model/chat/notes'
-import { prepareMcpCatalogContext } from '../../model/mcpCatalogContext'
 import { applyPromptCaching } from '../../model/provider/cache'
 import { getProviderOptions } from '../../model/provider/options'
 import { findCredentialsForModel } from '../../model/provider/providers'
 import { postSidecar, sidecarDefaultShell } from '../../model/sidecar'
-import {
-  catalogNote,
-  compactSkillCatalog,
-  resolvePersonalWorkspace,
-} from '../../model/skills/runtime'
+import { resolvePersonalWorkspace } from '../../model/skills/runtime'
+import { prepareToolAvailability } from '../../model/tool/availability'
 import { hasToolResultMedia } from '../../model/tool/mcpOutput'
 import type { StreamExecutionArgs } from '../../types'
 import type { ReasoningEffort } from '../../types'
@@ -25,19 +24,21 @@ import { patchSessionLogBody } from './engineLog'
 import { buildEvalContext } from './evalContext'
 import { createOperationPlan } from './operations'
 import type { PromptEvalResult } from './operations'
+import { prepareToolContext } from './toolContext'
 
 export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
   const data = await ctx.runQuery(internal.streams._getContext, execution)
   if (!data) return null
 
-  const hasMcpContext =
-    data.mcpServers.length || data.stream.mcpContextFingerprint
   const invokesTools =
     data.stream.command.kind === 'invoke' ||
     data.stream.command.kind === 'retry'
+  const chosen =
+    data.sessionCache?.tools?.names ?? selectedBuiltinTools(data.agent.tools)
   const observesIntegrations =
     invokesTools &&
     !!data.integrationCount &&
+    (contextEnabled('mcp', chosen) || chosen.includes('list_skills')) &&
     minRole(data.invoker.role, 'admin')
   if (observesIntegrations) {
     const { observeLinkedIntegrations } = await import('../../model/integrations/actions') // prettier-ignore
@@ -48,12 +49,9 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
         : server,
     )
   }
-  if (invokesTools && hasMcpContext) {
-    const prepared = await prepareMcpCatalogContext(ctx, execution, data)
-    if (!prepared) return null
-  }
-
-  if (minRole(data.invoker.role, 'admin')) {
+  const needsPersonalWorkspace =
+    hasFilesystemTools(chosen) || chosen.includes('list_skills')
+  if (needsPersonalWorkspace && minRole(data.invoker.role, 'admin')) {
     data.session.workspace = await resolvePersonalWorkspace(
       data.agent,
       data.session.workspace,
@@ -61,11 +59,16 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
   }
 
   // Only needed while resolving a manifest
-  const defaultShell = data.sessionCache?.tools
-    ? undefined
-    : await sidecarDefaultShell()
+  const needsShell =
+    invokesTools &&
+    !data.sessionCache?.tools &&
+    data.agent.tools?.includes('shell') &&
+    !!data.session.workspace &&
+    minRole(data.invoker.role, 'admin')
+  const defaultShell = needsShell ? await sidecarDefaultShell() : undefined
 
-  const operationPlan = createOperationPlan(data, defaultShell)
+  const availability = await prepareToolAvailability(ctx, data)
+  const operationPlan = createOperationPlan(data, defaultShell, availability)
 
   // Frozen prompts skip evaluation (see snapshots.ts)
   let evalResult: PromptEvalResult = {
@@ -122,47 +125,13 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
     })
   }
 
-  if (!data.stream.workspaceContextPrepared) {
-    const content = buildWorkspaceNoteContent(undefined, data.session.workspace)
-    const prepared = await ctx.runMutation(
-      internal.streams._prepareWorkspaceContext,
-      {
-        ...execution,
-        fingerprint: await sha256(content),
-        label: data.session.workspace?.label,
-        content:
-          content ||
-          'No project sources or personal folder are currently available. Earlier filesystem context no longer applies.',
-      },
-    )
-    if (!prepared) return null
-  }
-
-  const hasSkillAccess =
-    minRole(data.invoker.role, 'admin') &&
-    operationPlan.toolNames.includes('read_skill')
-  const preparesSkillCatalog =
-    !data.stream.skillContextPrepared && hasSkillAccess
-  if (preparesSkillCatalog) {
-    const page = await compactSkillCatalog(
-      ctx,
-      data.agent,
-      data.session.workspace,
-      data.session._id,
-    )
-    const prepared = await ctx.runMutation(
-      internal.streams._prepareSkillContext,
-      {
-        ...execution,
-        fingerprint: page.fingerprint,
-        integrationFingerprint: page.integrationFingerprint,
-        content:
-          catalogNote(page) ||
-          'No skills are currently available. Earlier skill catalogs no longer apply.',
-      },
-    )
-    if (!prepared) return null
-  }
+  const contextPrepared = await prepareToolContext(
+    ctx,
+    execution,
+    data,
+    operationPlan.toolNames,
+  )
+  if (!contextPrepared) return null
 
   const { systemPrompt, messages, tools } = await operationPlan.buildRequest(
     ctx,

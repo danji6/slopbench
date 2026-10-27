@@ -1,6 +1,6 @@
 # Project Analysis
 
-MCP and integration coverage updated on 2026-10-25. The earlier maintainability
+MCP, integration, and tool capability coverage updated on 2026-10-27. The earlier maintainability
 and security update was on 2026-09-18.
 The architectural overview below was originally audited at `0d6092b` on
 2026-08-05. This update covers the refactored modules and changed security
@@ -1758,40 +1758,61 @@ conversion to model messages:
   (`message-history`, `system-boundary`)
 - optional context trimming applies when the agent has a context window
 
-Workspace `AGENTS.md` instructions are read through the sidecar when an admin
-invoker and workspace are present, then injected as file-block context.
+The editable default prompt reads workspace `AGENTS.md` through the sidecar
+when an admin invoker, workspace, and exposed `read_file` tool authorize it.
 
 ## Tools
 
 Tool selection is centralized in `packages/convex/src/model/tool/manifest.ts`,
 and construction in `model/tool/build.ts`.
 
-Builtin user-visible tools (what the settings UI lists):
+Built-in capability metadata lives in `packages/core/src/tool-capabilities.ts`.
+Every model-callable built-in belongs to one explicitly selected capability:
 
-- `web_fetch`
-- `web_search`
-- `read_attachment`
-- `read_file`
-- `write_file`
-- `edit_file`
-- `shell`
-- `todo` (one toggle covering `write_todo` and `edit_todo`)
-- `plan` (one toggle covering every plan tool; admin only)
+| Section      | Labels shown in settings                        |
+| ------------ | ----------------------------------------------- |
+| General      | Ask questions, Read attachments, Delegate tasks |
+| Web          | Web fetch, Web search                           |
+| Workspace    | Read files, Edit files, Shell                   |
+| Planning     | Planning, Todo list                             |
+| MCP & Skills | MCP access, Skills                              |
 
-Tools that ride along rather than being separately selectable:
+Edit files bundles write/edit; Shell bundles command execution, output reading,
+and job cancellation; Planning and Todo list retain their existing bundles.
+MCP access bundles discovery, calls, protocol operations and retained-output
+retrieval. Skills bundles listing and integration instruction reading. The
+All built-in tools checkbox controls every capability independently of external
+MCP selections. New groups are off until selected; older individual write/edit
+selections do not implicitly grant the new editing group.
 
-- `shell_output` and `kill_shell` (included automatically with `shell`)
-- `write_plan`, `edit_plan`, `enter_plan_mode`, `exit_plan_mode`
-- `write_todo`, `edit_todo`
-- `task`, present only when the agent has a non-empty spawnable roster
-- `check_paths` on the sidecar
+Tool availability intersects explicit selections with role, workspace, subagent,
+configured search, selected-server, valid skill metadata and retained-output
+requirements. An undiscovered selected MCP catalog still permits discovery;
+a known-empty catalog can expose protocol access without a call broker. Stored
+MCP output remains retrievable without starting a process. Integration skills
+can be read without granting normal filesystem access. All callable names and
+capability keys are reserved before external names are considered.
 
-Tool availability depends on user role, session workspace state, sub-agent
-status, configured web search instances, configured MCP servers, and the
-agent's selected tool names. Workspace tools require an admin invoker and a
-bound workspace. Builtin names are reserved before external MCP tools are
-folded in, so an MCP server can never shadow a builtin; among servers, the
-first one to claim a name wins.
+Chat tool manifests remain frozen until cache reset; there is no automatic
+helper insertion during upgrades. Live role, source, integration, target and
+operation authorization still applies. Generated workspace, skill and MCP notes
+record their tool dependencies. Reset chats exclude incompatible or unstamped
+automatic notes from provider history without deleting stored messages or past
+tool results. History converters do not themselves expose callable tools.
+
+Other automatic context audited during this change:
+
+- Source-level project skill discovery still defaults on, but cannot expose tools
+  or listings unless Skills is explicitly selected.
+- The editable default system prompt loads AGENTS.md only through the existing
+  admin/workspace/read_file authorization gate.
+- User attachments, file references, selected prompts/reminders, past tool
+  results, and explicit plan/read-only mode notices remain conversation content.
+- Todo nudges follow the frozen Todo list selection. Tool guidance and recovery
+  notices mention only exposed helpers.
+- Compaction and impersonation retain their editable fallback prompts.
+- Sidecar-only helpers such as check_paths are host implementation details;
+  they are not independently advertised model tools.
 
 Workspace tool outputs are structured JSON through the builtin MCP bridge:
 `read_file` returns path, content, total line count, 1-indexed offset, and

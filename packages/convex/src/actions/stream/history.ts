@@ -1,6 +1,11 @@
 'use node'
 
 import { READ_ATTACHMENT_TOOL_NAME } from '@sb/core/const'
+import { selectedBuiltinTools } from '@sb/core/tool-capabilities'
+import {
+  TOOL_CONTEXT_POLICY_VERSION,
+  canReplayToolContext,
+} from '@sb/core/tool-context'
 import { block } from '@sb/core/utils/blocks'
 import { settleUnansweredToolParts } from '@sb/core/utils/tool-parts'
 import type { UIMessage } from 'ai'
@@ -29,26 +34,35 @@ export async function buildProviderHistory(
   ctx: ActionCtx,
   data: StreamContext,
   remainingPrompts: Parameters<typeof buildPrompts>[0],
+  toolNames?: string[],
+  manifestVersion?: number,
 ) {
   const historyAgent = {
     ...data.agent,
     ...data.sessionCache?.historyPresentation,
   }
-  const history = await ctx.runQuery(internal.streams._getProviderHistory, {
+  const rows = await ctx.runQuery(internal.streams._getProviderHistory, {
     streamId: data.stream._id,
     generation: data.stream.generation,
   })
+  const names =
+    toolNames ??
+    data.sessionCache?.tools?.names ??
+    selectedBuiltinTools(data.agent.tools)
+  const version =
+    manifestVersion ??
+    data.sessionCache?.tools?.version ??
+    TOOL_CONTEXT_POLICY_VERSION
+  const history = rows.filter((message) =>
+    canReplayToolContext(message, names, data.agent._id, version),
+  )
   const activeMediaMessages = activeAttachmentMessages(
     history,
     data.stream.omitActiveMedia
       ? undefined
       : data.stream.contextBoundaryMessageId,
   )
-  const readerEnabled = (
-    data.sessionCache?.tools?.names ??
-    data.agent.tools ??
-    []
-  ).includes(READ_ATTACHMENT_TOOL_NAME)
+  const readerEnabled = names.includes(READ_ATTACHMENT_TOOL_NAME)
 
   const messages: UIMessage[] = []
   for (const message of history) {
@@ -97,7 +111,11 @@ export async function buildProviderHistory(
     tools: {
       ...shellHistoryTools(),
       ...attachmentHistoryTools(),
-      ...mcpHistoryTools(attributed, data.stream.omitActiveMedia),
+      ...mcpHistoryTools(
+        attributed,
+        data.stream.omitActiveMedia,
+        names.includes('read_mcp_output'),
+      ),
     },
   })
   modelMessages = removeOrphanToolCalls(modelMessages)
@@ -108,7 +126,10 @@ export async function buildProviderHistory(
       role: 'system',
       content: block(
         'attachment-error',
-        'The provider rejected the media payload as too large. Continue without media; stored attachment links and MCP results remain available. Use read_mcp_output to retrieve full MCP output.',
+        'The provider rejected the media payload as too large. Continue without media; stored attachment links and MCP results remain available.' +
+          (names.includes('read_mcp_output')
+            ? ' Use read_mcp_output to retrieve full MCP output.'
+            : ''),
       ),
     })
   }

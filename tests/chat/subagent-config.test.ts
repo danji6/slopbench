@@ -134,7 +134,7 @@ describe('sanitizeSubAgents', () => {
 describe('task tool', () => {
   const manifestFor = (spawnableAgents: unknown[]) =>
     resolveToolManifest({
-      agent: { tools: [] } as never,
+      agent: { tools: ['task'] } as never,
       invoker: {} as never,
       session: {} as never,
       resources: { settings: null, mcpServers: [] },

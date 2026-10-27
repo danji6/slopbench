@@ -241,8 +241,8 @@ describe('frozen tool manifest', () => {
 
   const agentTools = [
     'read_file',
-    'write_file',
-    'edit_file',
+    'edit_files',
+    'task',
     'shell',
     'web_fetch',
     PLAN_TOOL_TOGGLE,

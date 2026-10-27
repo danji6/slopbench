@@ -14,6 +14,7 @@ import type { RuntimeAuthorization } from './mcp'
 
 export type McpOperationContext = {
   omitMedia?: boolean
+  canReadOutput?: boolean
   ctx: ActionCtx
   execution: StreamExecutionArgs
   messageId: Id<'messages'>

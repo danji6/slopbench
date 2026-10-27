@@ -8,7 +8,7 @@ export const MCP_BROKER_TOOLS = [
 ] as const
 
 export const SKILL_BROKER_TOOLS = ['list_skills', 'read_skill'] as const
-export const MCP_MANIFEST_VERSION = 6
+export const MCP_MANIFEST_VERSION = 7
 export const MAX_MCP_CATALOG_TOOLS = 5_000
 export const MAX_MCP_CATALOG_BYTES = 64 * 1024 * 1024
 export const MAX_MCP_DEFINITION_BYTES = 8 * 1024 * 1024

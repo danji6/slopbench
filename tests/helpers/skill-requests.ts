@@ -37,7 +37,7 @@ export function skillRequests(root: string) {
       revision: number
       originAgentId?: string
     } | null,
-    tools: ['read_file', 'write_file', 'edit_file', 'shell'],
+    tools: ['read_file', 'edit_files', 'shell', 'skills'],
     maskOtherAgents: false,
     shareUserDisplayNames: false,
     shareAgentDisplayNames: false,

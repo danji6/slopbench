@@ -32,6 +32,7 @@ import {
   type SubagentModelSettings,
   resolveSubagentModel,
 } from '../subagent/models'
+import { sessionToolNames } from '../tool/selection'
 import { ownsExecution } from './execution'
 import { scheduleStream } from './execution'
 import {
@@ -74,7 +75,13 @@ export async function _suspendStep(
   const pending = pendingTaskParts(parts)
   if (!session.parent && pending.length > 0) {
     const agent = await ctx.db.get(stream.agentId)
-    const spawnable = agent ? await resolveSpawnableAgents(ctx, agent) : []
+    const tools = agent
+      ? await sessionToolNames(ctx, session._id, agent, stream.invokedBy)
+      : []
+    const spawnable =
+      agent && tools.includes('task')
+        ? await resolveSpawnableAgents(ctx, agent)
+        : []
     for (const part of pending) {
       parts = await spawnChildForTask(ctx, {
         stream,

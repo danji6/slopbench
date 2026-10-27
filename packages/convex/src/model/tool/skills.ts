@@ -10,6 +10,7 @@ export type SkillsContext = {
   ctx: ActionCtx
   execution?: StreamExecutionArgs
   agentId: Id<'agents'>
+  toolNames?: string[]
   workspace?: Session['workspace']
 }
 
@@ -18,7 +19,14 @@ export async function createListSkillsTool(skillsCtx: SkillsContext) {
   const { ctx, agentId, workspace } = skillsCtx
 
   return tool({
-    description: TOOL_DESCRIPTIONS.skills,
+    description:
+      TOOL_DESCRIPTIONS.skills +
+      (skillsCtx.toolNames?.includes('read_skill')
+        ? ' Use read_skill for integration:// URIs.'
+        : '') +
+      (skillsCtx.toolNames?.includes('read_file')
+        ? ' Use read_file for project and personal paths.'
+        : ''),
     inputSchema: z.object({
       search: z.string().max(64).optional(),
       cursor: z.string().max(8192).optional(),

@@ -29,6 +29,7 @@ import { countParticipants, getMembership } from '../session/memberships'
 import { getApprovals, getState } from '../session/state'
 import { getByOwnerId as getSettings } from '../settings'
 import { agentWithHome } from '../skills/homes'
+import { hasStoredMcpOutput } from '../tool/availabilityRead'
 import { ownsExecution } from './execution'
 
 /** Returns a list of session ids that have ongoing streams. */
@@ -134,6 +135,11 @@ export async function _getContext(
     settings,
     prompts,
     integrationCount: integrations.length,
+    hasIntegrationSkills: integrations.some((row) => row.skillsEnabled),
+    hasStoredMcpOutput:
+      invocation && !sessionCache?.tools && agent.tools?.includes('mcp_access')
+        ? await hasStoredMcpOutput(ctx, session._id, agent)
+        : false,
     mcpServers,
     modelProviders,
     plan,

@@ -21,8 +21,8 @@ import {
 import {
   type ToolManifest,
   resolveToolManifest,
-  upgradeToolManifest,
 } from '../../model/tool/manifest'
+import type { ToolAvailability } from '../../model/tool/manifest'
 import type { ToolResources } from '../../model/tool/settings'
 import type { Prompt, StreamContext } from '../../types'
 import { buildProviderHistory } from './history'
@@ -65,6 +65,7 @@ export function toolResources(data: StreamContext): ToolResources {
 export function createOperationPlan(
   data: StreamContext,
   defaultShell?: string,
+  availability?: ToolAvailability,
 ): OperationPlan {
   const prompts = removeStarterPrompts(
     mergePrompts(
@@ -89,13 +90,14 @@ export function createOperationPlan(
     )
   }
 
-  return createInvokePlan(data, prompts, defaultShell)
+  return createInvokePlan(data, prompts, defaultShell, availability)
 }
 
 function createInvokePlan(
   data: StreamContext,
   prompts: PromptItem[],
   defaultShell?: string,
+  availability?: ToolAvailability,
 ): OperationPlan {
   const plan = planSnapshotEval({ cache: data.sessionCache, prompts })
 
@@ -107,24 +109,25 @@ function createInvokePlan(
     shareUserDisplayNames: !!data.agent.shareUserDisplayNames,
     shareAgentDisplayNames: !!data.agent.shareAgentDisplayNames,
   }
-  const manifest = frozenTools
-    ? upgradeToolManifest(frozenTools)
-    : resolveToolManifest({
-        ...data,
-        resources: toolResources(data),
-        defaultShell,
-      })
+  const manifest =
+    frozenTools ??
+    resolveToolManifest({
+      ...data,
+      resources: toolResources(data),
+      defaultShell,
+      availability,
+    })
 
   return {
     evalItems: plan.evalItems,
     toolNames: manifest.names,
     snapshotPatch: (evalResult) => {
       const patch = plan.snapshotPatch(evalResult.items)
-      const toolsUpgraded = manifest !== frozenTools
-      if (!patch && !toolsUpgraded && frozenPresentation) return null
+      const capturesTools = manifest !== frozenTools
+      if (!patch && !capturesTools && frozenPresentation) return null
       return {
         ...patch,
-        ...(toolsUpgraded ? { tools: manifest } : {}),
+        ...(capturesTools ? { tools: manifest } : {}),
         ...(frozenPresentation ? {} : { historyPresentation }),
       }
     },
@@ -171,7 +174,13 @@ async function buildInvokeRequest(
   )
   const [{ getEnabledTools }, messages] = await Promise.all([
     import('../../model/tool/build'),
-    buildProviderHistory(ctx, data, remainingPrompts),
+    buildProviderHistory(
+      ctx,
+      data,
+      remainingPrompts,
+      manifest.names,
+      manifest.version ?? 1,
+    ),
   ])
 
   return {

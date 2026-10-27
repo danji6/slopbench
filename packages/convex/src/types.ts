@@ -36,7 +36,9 @@ export type StreamContext = {
   session: Session
   environment: Record<string, unknown>
   toolApprovals?: ToolApprovals
-  agent: Doc<'agents'>
+  agent: AgentWithHome
+  hasStoredMcpOutput?: boolean
+  hasIntegrationSkills?: boolean
   invoker: Doc<'users'>
   invokerSettings: Doc<'settings'> | null
   owner: Doc<'users'>
