@@ -133,4 +133,5 @@ export async function reserveInvokeTurn(
   })
 
   await scheduleStream(ctx, nextStreamId)
+  return nextStreamId
 }

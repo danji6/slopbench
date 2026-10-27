@@ -54,10 +54,7 @@ export async function sendMessage(ctx: AuthMutationCtx, args: SendMessageArgs) {
     }
   }
 
-  const activeStream = await Memberships.requireNonBlockingStream(
-    ctx,
-    args.sessionId,
-  )
+  const activeStream = await Memberships.getActiveStream(ctx, args.sessionId)
   const attachments = await loadAttachments(ctx, args)
 
   if (!args.content.trim() && attachments.length === 0) {

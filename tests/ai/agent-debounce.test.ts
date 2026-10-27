@@ -136,7 +136,7 @@ describe('reserveOrDebounceTurn (pending window)', () => {
     expect(typeof patch?.state.fireAt).toBe('number')
   })
 
-  test('leaves running and non-invoke streams alone', async () => {
+  test('leaves running invocations and impersonation streams alone', async () => {
     const { ctx, patches, scheduled, cancelled } = rescheduleCtx(null)
 
     for (const activeStream of [
@@ -147,7 +147,7 @@ describe('reserveOrDebounceTurn (pending window)', () => {
       },
       {
         _id: 'stream_1',
-        command: { kind: 'compact' },
+        command: { kind: 'impersonate' },
         state: { phase: 'pending' },
       },
       {

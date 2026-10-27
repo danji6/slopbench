@@ -102,6 +102,17 @@ export async function reserveOrDebounceTurn(
       command: { kind: 'invoke' },
       delayMs: debounceMs,
     })
+  } else if (activeStream?.command.kind === 'compact') {
+    const command = activeStream.command
+    const followUpAfterCompact = command.followUpAfterCompact || !silent
+    // Keep arrivals out of the summary and wake the agent after compaction
+    await ctx.db.patch(activeStream._id, {
+      command: {
+        ...command,
+        preserveContextBoundary: true,
+        followUpAfterCompact,
+      },
+    })
   } else if (canDebounceInvoke(activeStream)) {
     // New messages reschedule the pending turn so the claim reads up to them
     await rescheduleStream(ctx, activeStream, {

@@ -61,6 +61,7 @@ export async function consumeInterjections(
   ctx: MutationCtx,
   stream: Doc<'streams'>,
 ) {
+  if (stream.command.kind === 'compact') return false
   if (!stream.state.processingMessageId) return false
 
   const current = await ctx.db.get(stream.state.processingMessageId)

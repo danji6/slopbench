@@ -66,7 +66,7 @@ export function SessionTree({
   return (
     <>
       <SessionGroupQuery
-        key={search.trim() ? 'search' : 'ungrouped'}
+        key={search.trim() ? 'query:search' : 'query:ungrouped'}
         groupKey={search.trim() ? 'search' : 'ungrouped'}
         search={search}
       />
@@ -74,7 +74,7 @@ export function SessionTree({
         .filter((node) => node.row.kind === 'header')
         .map((node) => renderBranch(node))}
       <SessionPage
-        key={search.trim() ? `search:${search}` : 'ungrouped'}
+        key={search.trim() ? `page:search:${search}` : 'page:ungrouped'}
         groupKey={search.trim() ? 'search' : 'ungrouped'}
         rows={nodes
           .filter((node) => node.row.kind !== 'header')
