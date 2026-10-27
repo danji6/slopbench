@@ -1,5 +1,5 @@
 import { mcpConnectionSchema } from '@sb/core/types'
-import type { McpRuntimeScope } from '@sb/core/types'
+import type { McpRuntimeScope, McpRuntimeStatus } from '@sb/core/types'
 import { McpOperations } from '@sb/sidecar/mcp/external/operation'
 import type { OperationStart } from '@sb/sidecar/mcp/external/operation'
 import { McpOperationStore } from '@sb/sidecar/mcp/external/operation-store'
@@ -10,7 +10,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-export async function operationFixture(
+/** Creates operation services without launching a throwaway MCP connection. */
+export async function operationServices(
   fixture?: URL,
   fixtureArgs: string[] = [],
 ) {
@@ -31,12 +32,11 @@ export async function operationFixture(
       ...(process.versions.bun ? ['--no-env-file'] : []),
       fileURLToPath(
         fixture ??
-          new URL('../mcp/fixtures/long-operation.mjs', import.meta.url),
+          new URL('../fixtures/mcp/long-operation.mjs', import.meta.url),
       ),
       ...fixtureArgs,
     ],
   })
-  const status = await registry.connect(scope, connection)
   const store = new McpOperationStore(path.join(root, 'journal'))
   const limits = {
     operations: 64,
@@ -45,9 +45,21 @@ export async function operationFixture(
     forgetGraceMs: 0,
   }
   const operations = new McpOperations(registry, store, limits)
-  const input: OperationStart = {
+  async function close() {
+    await registry.close()
+    await operations.drain()
+    // Let the fixture's bounded cancellation grace finish before removing its journal.
+    await Bun.sleep(65)
+    await rm(root, { recursive: true, force: true })
+  }
+  return { root, registry, scope, connection, store, limits, operations, close }
+}
+
+/** Builds a request for the connection the test actually uses. */
+export function operationInput(status: McpRuntimeStatus): OperationStart {
+  return {
     id: randomUUID(),
-    scope,
+    scope: status.scope,
     bootId: status.bootId,
     generation: status.generation,
     expiresAt: Date.now() + 30_000,
@@ -57,24 +69,18 @@ export async function operationFixture(
     requestTimeoutMs: 2000,
     maxTotalTimeoutMs: 5000,
   }
-  async function close() {
-    await registry.close()
-    await operations.drain()
-    await Bun.sleep(65)
-    await rm(root, { recursive: true, force: true })
-  }
-  return {
-    root,
-    registry,
-    scope,
-    connection,
-    status,
-    store,
-    limits,
-    operations,
-    input,
-    close,
-  }
+}
+
+export async function operationFixture(
+  fixture?: URL,
+  fixtureArgs: string[] = [],
+) {
+  const services = await operationServices(fixture, fixtureArgs)
+  const status = await services.registry.connect(
+    services.scope,
+    services.connection,
+  )
+  return { ...services, status, input: operationInput(status) }
 }
 
 export async function untilOperation(

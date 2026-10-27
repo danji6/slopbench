@@ -112,7 +112,7 @@ async function registerToolkit(
       HOME: root,
       XDG_CONFIG_HOME: root,
       XDG_CACHE_HOME: root,
-      NODE_OPTIONS: `--import=${new URL('../mcp/fixtures/process-identity.mjs', import.meta.url).href}`,
+      NODE_OPTIONS: `--import=${new URL('../fixtures/mcp/process-identity.mjs', import.meta.url).href}`,
       SLOPBENCH_TEST_PID_DIR: path.join(root, 'pids'),
     },
   })

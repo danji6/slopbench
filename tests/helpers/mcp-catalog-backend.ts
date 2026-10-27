@@ -16,7 +16,7 @@ import { mcpBackendFixture } from './mcp-backend'
 
 export async function mcpCatalogBackend() {
   const f = await mcpBackendFixture(
-    new URL('../mcp/fixtures/catalog.mjs', import.meta.url),
+    new URL('../fixtures/mcp/catalog.mjs', import.meta.url),
   )
   const serverId = f.rows('mcpServers')[0]._id as Id<'mcpServers'>
   await f.db.patch(serverId, { brokerEnabled: true })

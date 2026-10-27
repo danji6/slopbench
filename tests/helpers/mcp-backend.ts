@@ -15,12 +15,11 @@ import { mcpConnectionSchema } from '@sb/core/types'
 import { validate } from 'convex-helpers/validators'
 import { getFunctionName } from 'convex/server'
 
-import { operationFixture } from './mcp-operations'
+import { operationInput, operationServices } from './mcp-operations'
 import { skillsDatabase } from './skills-db'
 
 export async function mcpBackendFixture(fixture?: URL) {
-  const sidecar = await operationFixture(fixture)
-  await sidecar.registry.disconnect(sidecar.scope)
+  const sidecar = await operationServices(fixture)
   const database = skillsDatabase()
   const { ctx, db } = database
   const originalInsert = db.insert
@@ -237,7 +236,7 @@ export async function mcpBackendFixture(fixture?: URL) {
   } as unknown as ActionCtx
   return {
     ...database,
-    sidecar,
+    sidecar: { ...sidecar, status, input: operationInput(status) },
     blobs,
     action,
     agentId,

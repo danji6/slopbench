@@ -1,0 +1,336 @@
+import type { Id } from '@sb/convex/_generated/dataModel'
+import { rememberApproval } from '@sb/convex/model/chat/approvalMemory'
+import { replaceAll } from '@sb/convex/model/mcp'
+import * as Named from '@sb/convex/model/mcpBrokerAccess'
+import * as Access from '@sb/convex/model/mcpCatalogAccess'
+import { refreshCatalog } from '@sb/convex/model/mcpCatalogActions'
+import * as Catalogs from '@sb/convex/model/mcpCatalogs'
+import { reserve } from '@sb/convex/model/mcpOperations'
+import { prepareMcpContext } from '@sb/convex/model/stream/contextNotes'
+import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
+import {
+  MCP_MANIFEST_VERSION,
+  mcpApprovalKey,
+} from '@sb/core/types/mcp-catalog'
+import { expect, test } from 'bun:test'
+import { mcpCatalogBackend as fixture } from '~/tests/helpers/mcp-catalog-backend'
+import { mcpText } from '~/tests/helpers/mcp-result'
+
+test('250 tools publish atomically; a tool beyond 100 executes through the durable broker', async () => {
+  const f = await fixture()
+  try {
+    expect((await f.db.get(f.serverId))?.catalogId).toBeUndefined()
+    await f.publish()
+    expect((await f.db.get(f.serverId))?.catalogCount).toBe(250)
+    const input = {
+      ...(await f.target()),
+      arguments: { value: 'retained through broker' },
+    }
+    const result = await f.broker.call_mcp_tool.execute!(input, f.options())
+    expect(JSON.parse(mcpText(result))).toMatchObject({
+      name: 'tool_249',
+      value: 'retained through broker',
+      calls: 1,
+    })
+    expect(f.rows('mcpOperations')).toHaveLength(1)
+    expect(f.rows('mcpOperations')[0].name).toBe('call_mcp_tool')
+    expect(JSON.parse(String(f.rows('mcpOperations')[0].input))).toEqual(input)
+    const duplicate = await f.broker.call_mcp_tool.execute!(input, f.options())
+    expect(duplicate).toEqual(result)
+    const next = await f.broker.call_mcp_tool.execute!(
+      await f.target('tool_001'),
+      f.options('later-turn'),
+    )
+    expect(JSON.parse(mcpText(next))).toMatchObject({
+      value: 'retained through broker',
+      calls: 2,
+    })
+  } finally {
+    await f.close()
+  }
+}, 20_000)
+
+test('broker approvals are target-specific and never accept the generic broker grant', async () => {
+  const f = await fixture()
+  try {
+    await f.publish()
+    const first = await f.target('tool_001')
+    const second = await f.target('tool_002')
+    const needs = f.broker.call_mcp_tool.needsApproval
+    if (typeof needs !== 'function') throw new Error('Missing approval policy')
+    expect(await needs(first, f.options())).toBe(true)
+    f.approvals.tools = ['call_mcp_tool']
+    expect(await needs(second, f.options())).toBe(true)
+    f.approvals.tools = [mcpApprovalKey(await f.identity(first))!]
+    expect(await needs(first, f.options())).toBe(false)
+    expect(await needs(second, f.options())).toBe(true)
+    await rememberApproval(
+      f.ctx,
+      { _id: f.sessionId } as never,
+      { toolName: 'call_mcp_tool', input: first },
+      'patterns',
+    )
+    const stored = f.rows('sessionState')[0].toolApprovals as {
+      tools: string[]
+    }
+    expect(stored.tools).toContain(mcpApprovalKey(await f.identity(first))!)
+    expect(stored.tools).not.toContain('call_mcp_tool')
+  } finally {
+    await f.close()
+  }
+}, 20_000)
+
+test('aliases and duplicate names on different servers cannot redirect broker handles', async () => {
+  const f = await fixture()
+  try {
+    await f.publish()
+    await f.db.insert('mcpTools', {
+      serverId: f.serverId,
+      name: 'tool_249',
+      nameOverride: 'same-alias',
+      order: 0,
+    })
+    const result = await Access.search(f.ctx, {
+      ...f.execution,
+      serverId: f.serverId,
+      query: 'same-alias',
+      limit: 10,
+    })
+    expect('tools' in result && result.tools?.[0].name).toBe('tool_249')
+    const input = await f.target()
+    const foreign = await f.db.insert('mcpServers', {
+      key: 'foreign',
+      ownerId: 'other-owner',
+      label: 'Foreign',
+      url: '',
+      transport: 'stdio',
+      command: 'unavailable',
+      enabled: true,
+      order: 1,
+    })
+    await expect(
+      Access.target(f.ctx, {
+        ...f.execution,
+        serverId: foreign as Id<'mcpServers'>,
+        toolId: (await f.identity(input)).toolId,
+      }),
+    ).rejects.toThrow('unavailable')
+    const restricted = await f.target('tool_001')
+    await f.db.patch(f.agentId, { tools: ['local_same-alias'] })
+    await expect(
+      Access.target(f.ctx, {
+        ...f.execution,
+        ...(await f.identity(restricted)),
+      }),
+    ).rejects.toThrow('restricted')
+  } finally {
+    await f.close()
+  }
+}, 20_000)
+
+test('invalid schema diagnostics, disabled targets, stale cursors and live role changes are explicit', async () => {
+  const f = await fixture()
+  try {
+    await f.publish()
+    const invalid = await Access.search(f.ctx, {
+      ...f.execution,
+      serverId: f.serverId,
+      query: 'tool_017',
+      limit: 10,
+    })
+    expect('tools' in invalid && invalid.tools?.[0].diagnostic).toContain(
+      'Unsupported',
+    )
+    const input = await f.target('tool_001')
+    await f.db.insert('mcpTools', {
+      serverId: f.serverId,
+      name: 'tool_001',
+      enabled: false,
+      order: 0,
+    })
+    await expect(
+      Access.target(f.ctx, { ...f.execution, ...(await f.identity(input)) }),
+    ).rejects.toThrow('restricted')
+    const page = await Access.search(f.ctx, {
+      ...f.execution,
+      serverId: f.serverId,
+      query: '',
+      limit: 2,
+    })
+    await f.db.patch(f.agentId, { tools: ['local_tool_002'] })
+    await expect(
+      Access.search(f.ctx, {
+        ...f.execution,
+        serverId: f.serverId,
+        query: '',
+        limit: 2,
+        cursor: page.nextCursor!,
+      }),
+    ).rejects.toThrow('cursor')
+    await f.db.patch('owner', { role: 'user' })
+    await expect(
+      Access.target(f.ctx, { ...f.execution, ...(await f.identity(input)) }),
+    ).rejects.toThrow('unavailable')
+  } finally {
+    await f.close()
+  }
+}, 20_000)
+
+test('fresh manifests do not insert unselected brokers', () => {
+  const fresh = resolveToolManifest({
+    agent: { tools: ['mcp_server:local'] },
+    invoker: { role: 'admin' },
+    session: {},
+    resources: { settings: null, mcpServers: [] },
+    spawnableAgents: [],
+  } as never)
+  expect(fresh.names).toEqual([])
+  expect(fresh.version).toBe(MCP_MANIFEST_VERSION)
+})
+
+test('disabling broker access cancels a reserved operation before another dispatch', async () => {
+  const f = await fixture()
+  try {
+    await f.publish()
+    const input = await f.target('tool_001')
+    const operation = await reserve(f.ctx, {
+      ...f.args,
+      toolName: 'tool_001',
+      name: 'call_mcp_tool',
+      input: JSON.stringify(input),
+      catalogToolId: (await f.identity(input)).toolId,
+    })
+    await replaceAll(f.ctx, {
+      servers: [
+        {
+          key: 'local',
+          label: 'Local',
+          url: '',
+          enabled: true,
+          transport: 'stdio',
+          command: f.sidecar.connection.command,
+          args: f.sidecar.connection.args,
+          brokerEnabled: false,
+        },
+      ],
+    })
+    expect((await f.db.get(operation._id))?.state).toBe('cancelled')
+    await expect(
+      f.broker.call_mcp_tool.execute!(input, f.options('another-target-call')),
+    ).rejects.toThrow('unavailable')
+    expect(f.rows('mcpOperations')).toHaveLength(1)
+  } finally {
+    await f.close()
+  }
+}, 20_000)
+
+test('same-named tools on two authorized servers retain distinct handles, approvals and processes', async () => {
+  const f = await fixture()
+  try {
+    await f.publish()
+    const base = {
+      label: 'Local',
+      url: '',
+      transport: 'stdio' as const,
+      command: f.sidecar.connection.command,
+      args: f.sidecar.connection.args,
+      enabled: true,
+      brokerEnabled: true,
+    }
+    await replaceAll(f.ctx, {
+      servers: [
+        { ...base, key: 'local' },
+        { ...base, key: 'second' },
+      ],
+    })
+    await f.db.patch(f.agentId, {
+      tools: ['mcp_server:local', 'mcp_server:second'],
+    })
+    const serverId = f.rows('mcpServers').find((row) => row.key === 'second')!
+      ._id as Id<'mcpServers'>
+    const secondCatalog = await Catalogs.begin(f.ctx, { serverId })
+    await refreshCatalog(f.action, secondCatalog)
+    const page = await Access.search(f.ctx, {
+      ...f.execution,
+      serverId,
+      query: 'tool_001',
+      limit: 10,
+    })
+    if (!('tools' in page) || !page.tools?.[0])
+      throw new Error('Missing second target')
+    const first = {
+      ...(await f.target('tool_001')),
+      arguments: { value: 'first only' },
+    }
+    await Named.servers(f.ctx, f.execution)
+    const namedPage = await Named.search(f.ctx, {
+      ...f.execution,
+      server: 'Local_1',
+      query: 'tool_001',
+      limit: 10,
+    })
+    if (!('tools' in namedPage) || !namedPage.tools[0])
+      throw new Error('Missing named tool')
+    const second = { tool: namedPage.tools[0].name, arguments: {} }
+    expect(first.tool).toBe('tool_001')
+    expect(second.tool).toBe('tool_001_1')
+    f.approvals.tools = [mcpApprovalKey(await f.identity(first))!]
+    const needs = f.broker.call_mcp_tool.needsApproval
+    if (typeof needs !== 'function') throw new Error('Missing policy')
+    expect(await needs(second, f.options())).toBe(true)
+    const one = JSON.parse(
+      mcpText(await f.broker.call_mcp_tool.execute!(first, f.options('one'))),
+    )
+    const two = JSON.parse(
+      mcpText(await f.broker.call_mcp_tool.execute!(second, f.options('two'))),
+    )
+    expect(one.name).toBe('tool_001')
+    expect(two.name).toBe('tool_001')
+    expect(two.value).toBeNull()
+    expect(one.pid).not.toBe(two.pid)
+    await expect(
+      Access.target(f.ctx, {
+        ...f.execution,
+        serverId,
+        toolId: (await f.identity(first)).toolId,
+      }),
+    ).rejects.toThrow('unavailable')
+  } finally {
+    await f.close()
+  }
+}, 30_000)
+
+test('MCP context changes append immutable literal notes and stale generations cannot replace them', async () => {
+  const f = await fixture()
+  try {
+    const first = {
+      ...f.execution,
+      fingerprint: 'catalog-one',
+      content: 'Literal server label: {{ do_not_evaluate() }}',
+    }
+    expect(await prepareMcpContext(f.ctx, first)).toBe(true)
+    expect(await prepareMcpContext(f.ctx, first)).toBe(true)
+    expect(f.rows('messages').filter((row) => row.type === 'mcp')).toHaveLength(
+      1,
+    )
+    await prepareMcpContext(f.ctx, {
+      ...first,
+      fingerprint: 'catalog-two',
+      content: 'Server disabled',
+    })
+    const notes = f.rows('messages').filter((row) => row.type === 'mcp')
+    expect(notes).toHaveLength(2)
+    const oldParts = f
+      .rows('messageContents')
+      .find((row) => row.messageId === notes[0]._id)!.parts
+    expect(JSON.stringify(oldParts)).toContain('{{ do_not_evaluate() }}')
+    expect(await prepareMcpContext(f.ctx, { ...first, generation: 0 })).toBe(
+      false,
+    )
+    expect(f.rows('messages').filter((row) => row.type === 'mcp')).toHaveLength(
+      2,
+    )
+  } finally {
+    await f.close()
+  }
+}, 20_000)

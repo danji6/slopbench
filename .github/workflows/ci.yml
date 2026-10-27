@@ -3,6 +3,31 @@ name: CI
 on:
   pull_request:
   workflow_dispatch:
+    inputs:
+      suite:
+        description: Bun test suite
+        type: choice
+        default: smoke
+        options:
+          - smoke
+          - all
+          - runtime
+          - integrations
+          - mcp
+          - skills
+          - shell
+          - providers
+          - sessions
+          - editor
+          - notifications
+          - auth
+          - updates
+          - ui
+          - core
+      browsers:
+        description: Also run all Chromium and WebKit tests
+        type: boolean
+        default: false
 
 jobs:
   checks:
@@ -23,13 +48,19 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: bun run typecheck
-      - run: bun test
+      - name: Run selected Bun tests
+        env:
+          TEST_SUITE: ${{ inputs.suite || 'smoke' }}
+        run: bun run tests "$TEST_SUITE"
       - run: bun run build
       - name: Install browser dependencies
+        if: github.event_name == 'workflow_dispatch' && inputs.browsers
         run: bun x playwright install --with-deps chromium webkit
-      - run: bun run test:browser
+      - name: Run browser tests
+        if: github.event_name == 'workflow_dispatch' && inputs.browsers
+        run: bun run test:browser
       - name: Upload browser failure artifacts
-        if: failure()
+        if: failure() && github.event_name == 'workflow_dispatch' && inputs.browsers
         uses: actions/upload-artifact@v4
         with:
           name: browser-test-results

@@ -17,14 +17,16 @@
     "runner:start": "bun scripts/runner.ts start",
     "prune": "bun scripts/prune.ts",
     "convex": "bun x convex dev",
-    "test": "bun test",
+    "test": "bun --no-env-file test",
     "typecheck": "tsc --noEmit",
     "lint": "eslint",
     "format": "prettier --write",
     "barrels": "barrelsby -c ./barrels.json",
     "gen:icons": "node scripts/misc/generate-icons-data.mjs",
     "server": "bun scripts/sidecar.ts",
-    "test:browser": "playwright test --config tests/browser/playwright.config.ts"
+    "tests": "bun --no-env-file scripts/test.ts",
+    "test:all": "bun --no-env-file scripts/test.ts all",
+    "test:browser": "bun --no-env-file scripts/test.ts browser"
   },
   "dependencies": {
     "@ai-sdk/alibaba": "^2.0.68",

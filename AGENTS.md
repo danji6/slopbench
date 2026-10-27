@@ -22,7 +22,10 @@ The `package.json` contains most scripts you will need, including running tests.
 - `bun typecheck` - TypeScript type checking
 - `bun format <paths>` - Prettier formatting (requires args)
 - `bun barrels` - Generate index files for new components
-- `bun test` - Verify your changes
+- `bun test` - Run the small smoke suite
+- `bun run tests <feature>` - Run a feature's Bun tests (see `tests/README.md`)
+- `bun run test:all` - Run all Bun tests; browser tests remain separate
+- `bun run test:browser <feature>` - Explicitly run a feature's browser tests
 - `bun codegen` - Skip this; the server runs on hot reload
 
 ## Coding Principles
@@ -144,3 +147,35 @@ The `package.json` contains most scripts you will need, including running tests.
 7. **Sidecar Server**
    - The sidecar currently doesn't support hot-reloading. If you make changes to
      it, remind the user to restart it.
+
+## Testing
+
+- Choose tests by risk, not by the size or existence of a code change. Do not
+  automatically add tests for every feature or edit. Cosmetic changes,
+  straightforward wiring, and behavior already adequately covered usually need
+  no new test.
+- Add or extend focused tests for meaningful business logic, regressions,
+  authorization, data integrity, lifecycle transitions, and concurrency. Prefer
+  the lowest practical layer; add higher-level coverage only when it verifies
+  additional behavior or wiring.
+- Check the owning suite and existing fixtures before adding a test. Extend an
+  existing case when it protects the same behavior. Avoid exhaustive permutations,
+  implementation snapshots, CSS/string assertions, and large harnesses for small
+  changes. Keep distinct safety and regression cases.
+- Put new tests in `tests/features/<feature>/`, using the primary behavior under
+  test to choose ownership. A dependency on another feature does not make its
+  entire suite relevant. Keep shared fixtures in `tests/helpers/` or `tests/setup/`.
+- During development, run the relevant file or feature suite. Run smoke tests for
+  shared changes, and broaden verification when affected behavior or unresolved
+  failures warrant it. Full Bun and browser runs are explicitly invoked; do not
+  routinely run them for unrelated changes.
+- Keep `tests/smoke/` small. Adding a feature does not automatically expand it.
+  Reuse existing smoke cases in feature runs instead of duplicating them.
+- Prefer readiness signals over fixed sleeps. Keep real process/browser tests
+  when that behavior matters, scoped to their opt-in suite. Do not shorten
+  production timeouts or add retries to make tests pass faster.
+- Restore mocks, timers, and environment/global changes in teardown. Prefer
+  focused spies over replacing shared module barrels; tests must not depend on
+  file order.
+- Report what was tested and any relevant verification gaps. See
+  [tests/README.md](tests/README.md) for ownership and focused commands.

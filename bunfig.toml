@@ -4,6 +4,6 @@ minimumReleaseAge = 259200
 
 [test]
 root = "tests"
-# Browser tests run separately through Playwright.
-pathIgnorePatterns = ["**/browser/**"]
+# Default discovery is smoke only. The feature dispatcher overrides this list.
+pathIgnorePatterns = ["**/features/**", "**/browser/**"]
 preload = ["./tests/setup/services.ts"]

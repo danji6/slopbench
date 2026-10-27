@@ -11,7 +11,7 @@ export default defineConfig({
   webServer: {
     cwd: new URL('../..', import.meta.url).pathname,
     command:
-      'bun x vite build --config tests/browser/vite.config.ts && bun x vite preview --config tests/browser/vite.config.ts --host 127.0.0.1 --port 4178 --strictPort',
+      'bun --no-env-file x vite build --config tests/browser/vite.config.ts && bun --no-env-file x vite preview --config tests/browser/vite.config.ts --host 127.0.0.1 --port 4178 --strictPort',
     url: 'http://127.0.0.1:4178',
     timeout: 120_000,
   },
