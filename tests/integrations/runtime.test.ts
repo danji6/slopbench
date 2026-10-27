@@ -4,6 +4,8 @@ import { select } from '@sb/convex/model/integrations/selection'
 import { _getExecution } from '@sb/convex/model/mcp'
 import { connected } from '@sb/convex/model/mcpRuntime'
 import { createMcpBrokerTools } from '@sb/convex/model/tool/mcpBroker'
+import type { McpBrokerContext } from '@sb/convex/model/tool/mcpBroker'
+import { createMcpProtocolTools } from '@sb/convex/model/tool/mcpProtocol'
 import {
   inspectIntegration,
   integrationConnections,
@@ -21,7 +23,7 @@ import { fileURLToPath } from 'node:url'
 import { mcpBackendFixture } from '../helpers/mcp-backend'
 import { mcpText } from '../helpers/mcp-result'
 
-test('linked integration discovers 250 tools on its persistent workspace session and revokes dispatch on replacement', async () => {
+test('linked integration uses 250 tools without per-call approval and rechecks live access', async () => {
   const f = await mcpBackendFixture(
     new URL('../mcp/fixtures/catalog.mjs', import.meta.url),
   )
@@ -90,7 +92,7 @@ test('linked integration discovers 250 tools on its persistent workspace session
       .rows('mcpServers')
       .find((row) => row.integrationId === integrationId)!
       ._id as Id<'mcpServers'>
-    const broker = await createMcpBrokerTools({
+    const context: McpBrokerContext = {
       operation: {
         ctx: f.action,
         execution: f.execution,
@@ -106,15 +108,52 @@ test('linked integration discovers 250 tools on its persistent workspace session
         }),
       connected: (runtimeId, key, bootId, generation) =>
         connected(f.ctx, { runtimeId, key, bootId, generation }),
-    })
+    }
+    const broker = await createMcpBrokerTools(context)
+    const protocol = await createMcpProtocolTools(context)
+    const needsToolApproval = broker.call_mcp_tool.needsApproval
+    const needsProtocolApproval = protocol.mcp_protocol.needsApproval
+    if (typeof needsToolApproval !== 'function')
+      throw new Error('Missing tool approval policy')
+    if (typeof needsProtocolApproval !== 'function')
+      throw new Error('Missing protocol approval policy')
     const options = { toolCallId: 'search', messages: [], context: {} }
-    const search = (await broker.search_mcp_tools.execute!(
-      { serverId, query: 'tool_249', limit: 10, offset: 0, length: 1000 },
+    const servers = (await broker.search_mcp_tools.execute!(
+      { query: '', view: 'input', limit: 25, offset: 0, length: 1000 },
       options,
-    )) as { tools: { toolId: string }[] }
+    )) as { servers: { name: string }[] }
+    const server = servers.servers.find((row) => row.name !== 'Local')!.name
+    const search = (await broker.search_mcp_tools.execute!(
+      {
+        server,
+        query: 'tool_249',
+        view: 'input',
+        limit: 10,
+        offset: 0,
+        length: 1000,
+      },
+      options,
+    )) as { tools: { name: string }[] }
     expect(search.tools).toHaveLength(1)
     expect((await f.db.get(serverId))?.catalogCount).toBe(250)
-    const target = { serverId, toolId: search.tools[0].toolId }
+    const target = { tool: search.tools[0].name }
+    expect(await needsToolApproval({ ...target, arguments: {} }, options)).toBe(
+      false,
+    )
+    expect(
+      await needsToolApproval(
+        { ...target, arguments: { value: 'retained evidence' } },
+        options,
+      ),
+    ).toBe(false)
+    const prompt = { server, method: 'get_prompt' as const, name: 'analyze' }
+    expect(await needsProtocolApproval(prompt, options)).toBe(false)
+    expect(
+      await needsProtocolApproval(
+        { server, method: 'read_resource', uri: 'fixture://evidence' },
+        options,
+      ),
+    ).toBe(false)
     const first = JSON.parse(
       mcpText(
         await broker.call_mcp_tool.execute!(
@@ -137,6 +176,48 @@ test('linked integration discovers 250 tools on its persistent workspace session
       pid: first.pid,
       calls: 2,
     })
+    const restriction = await f.db.insert('mcpTools', {
+      serverId,
+      name: 'tool_249',
+      order: 0,
+      enabled: false,
+      allowInReadOnly: false,
+    })
+    const input = { ...target, arguments: {} }
+    const nextCall = { ...options, toolCallId: 'restricted-call' }
+    await expect(needsToolApproval(input, nextCall)).rejects.toThrow(
+      'restricted',
+    )
+    await f.db.patch(restriction, { enabled: true })
+    await f.db.patch(f.sessionId, { mode: 'plan' })
+    await expect(
+      broker.call_mcp_tool.execute!(input, nextCall),
+    ).rejects.toThrow('not allowed in read-only mode')
+    await f.db.patch(f.sessionId, { mode: 'normal' })
+    await f.db.patch('owner', { role: 'user' })
+    await expect(needsToolApproval(input, nextCall)).rejects.toThrow(
+      'unavailable',
+    )
+    await expect(needsProtocolApproval(prompt, nextCall)).rejects.toThrow(
+      'unavailable',
+    )
+    expect(f.rows('mcpOperations')).toHaveLength(2)
+    await f.db.patch('owner', { role: 'admin' })
+    await f.db.patch(f.agentId, { integrationIds: [] })
+    await expect(needsToolApproval(input, nextCall)).rejects.toThrow(
+      'unavailable',
+    )
+    await expect(needsProtocolApproval(prompt, nextCall)).rejects.toThrow(
+      'unavailable',
+    )
+    await expect(
+      broker.call_mcp_tool.execute!(input, nextCall),
+    ).rejects.toThrow('unavailable')
+    await expect(
+      protocol.mcp_protocol.execute!(prompt, nextCall),
+    ).rejects.toThrow('unavailable')
+    expect(f.rows('mcpOperations')).toHaveLength(2)
+    await f.db.patch(f.agentId, { integrationIds: [integrationId] })
     await writeFile(file, JSON.stringify({ name: 'Replaced' }))
     await expect(
       broker.call_mcp_tool.execute!(

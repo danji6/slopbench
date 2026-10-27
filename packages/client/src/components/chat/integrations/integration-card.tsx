@@ -36,21 +36,23 @@ export function IntegrationCard({
         label={row.name}
         contentClassName="gap-3 pb-3"
         actions={
-          <div className="flex max-w-48 flex-col items-end gap-1">
-            <TrashButton
-              aria-label={`Remove ${row.name} link`}
-              title="Remove link"
-              disabled={busy}
-              onClick={() => onCommand('remove')}
-            />
-            <IntegrationFeedback feedback={feedback?.remove} />
-          </div>
+          <>
+            <span className="text-muted-foreground rounded-full bg-black/10 px-4 py-2 text-xs whitespace-nowrap">
+              {row.status === 'ready' ? 'Ready' : 'Unavailable'}
+            </span>
+            <div className="flex max-w-48 flex-col items-end gap-1">
+              <TrashButton
+                aria-label={`Remove ${row.name} link`}
+                title="Remove link"
+                disabled={busy}
+                onClick={() => onCommand('remove')}
+              />
+              <IntegrationFeedback feedback={feedback?.remove} />
+            </div>
+          </>
         }
       >
         <p className="text-muted-foreground text-xs break-all">{row.root}</p>
-        <p className="text-muted-foreground text-xs">
-          {row.status === 'ready' ? 'Ready' : 'Toolkit unavailable'}
-        </p>
         <div className="flex flex-col items-start gap-1">
           <RippleButton
             variant="input"

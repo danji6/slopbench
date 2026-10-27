@@ -2,6 +2,7 @@
 
 import type { McpOperationStatus } from '@sb/core/types/mcp-operation'
 import {
+  type McpResult,
   decodeMcpOutput,
   mcpResultPreview,
   mcpResultSchema,
@@ -15,6 +16,7 @@ import type {
   McpOperationExecutionArgs,
   StreamExecutionArgs,
 } from '../types'
+import { outputValidationError } from './mcpOperationValidation'
 import { sidecarRequest } from './sidecarTransport'
 import { OFFLOAD_THRESHOLD } from './stream/toolOutput'
 import { getSidecarUrl } from './tool/mcp'
@@ -106,31 +108,10 @@ async function refreshOperation(
   operation: Operation,
   expiresAt: number,
 ) {
+  let update: Awaited<ReturnType<typeof readUpdate>>
   try {
-    const status = await operationRequest<McpOperationStatus>(
-      `${ROUTE}/start`,
-      {
-        id: operation._id,
-        scope: operation.scope,
-        bootId: operation.bootId,
-        generation: operation.generation,
-        expiresAt,
-        name: operation.toolName,
-        protocol: operation.protocolMethod
-          ? { ...JSON.parse(operation.args), method: operation.protocolMethod }
-          : undefined,
-        args: JSON.parse(operation.args),
-        requestTimeoutMs: operation.requestTimeoutMs,
-        maxTotalTimeoutMs: operation.maxTotalTimeoutMs,
-        deadlineAt: operation._creationTime + operation.maxTotalTimeoutMs,
-      },
-    )
-
-    const update = await readUpdate(ctx, args, operation, status)
-    return await ctx.runMutation(internal.mcpOperations._observe, {
-      ...args,
-      ...update,
-    })
+    const status = await startOperation(operation, expiresAt)
+    update = await readUpdate(operation, status)
   } catch (error) {
     if (error instanceof OperationRejected) {
       return ctx.runMutation(internal.mcpOperations._observe, {
@@ -142,18 +123,41 @@ async function refreshOperation(
     // Start retries attach to the same journal; a new sidecar returns lost
     return null
   }
+
+  // Backend persistence errors must surface instead of becoming transport retries
+  const stored =
+    update.state === 'completed'
+      ? await storeResult(ctx, args, operation, update.result)
+      : update
+  return ctx.runMutation(internal.mcpOperations._observe, {
+    ...args,
+    ...stored,
+  })
 }
 
-async function readUpdate(
-  ctx: ActionCtx,
-  execution: StreamExecutionArgs,
-  operation: Operation,
-  status: McpOperationStatus,
-) {
-  if (
+function startOperation(operation: Operation, expiresAt: number) {
+  return operationRequest<McpOperationStatus>(`${ROUTE}/start`, {
+    id: operation._id,
+    scope: operation.scope,
+    bootId: operation.bootId,
+    generation: operation.generation,
+    expiresAt,
+    name: operation.toolName,
+    protocol: operation.protocolMethod
+      ? { ...JSON.parse(operation.args), method: operation.protocolMethod }
+      : undefined,
+    args: JSON.parse(operation.args),
+    requestTimeoutMs: operation.requestTimeoutMs,
+    maxTotalTimeoutMs: operation.maxTotalTimeoutMs,
+    deadlineAt: operation._creationTime + operation.maxTotalTimeoutMs,
+  })
+}
+
+async function readUpdate(operation: Operation, status: McpOperationStatus) {
+  const sessionChanged =
     status.bootId !== operation.bootId ||
     status.generation !== operation.generation
-  ) {
+  if (sessionChanged) {
     return {
       state: 'lost' as const,
       error:
@@ -179,30 +183,66 @@ async function readUpdate(
   )
   if (!response.ok) throw new Error('Full MCP result unavailable')
 
-  const blob = await response.blob()
-  const fullResult = mcpResultSchema.parse(JSON.parse(await blob.text()))
+  return {
+    state: 'completed' as const,
+    result: mcpResultSchema.parse(await response.json()),
+  }
+}
+
+async function storeResult(
+  ctx: ActionCtx,
+  execution: StreamExecutionArgs,
+  operation: Operation,
+  fullResult: McpResult,
+) {
   fullResult.origin.operationId = operation._id
+  fullResult.origin.display = operation.display
+  const error = await outputValidationError(
+    ctx,
+    {
+      streamId: execution.streamId,
+      generation: execution.generation,
+      operationId: operation._id,
+    },
+    fullResult,
+  )
   const text = JSON.stringify(fullResult)
   const stored = new Blob([text], { type: 'application/json' })
   if (stored.size <= OFFLOAD_THRESHOLD) {
-    return { state: 'completed' as const, output: text }
+    return { state: 'completed' as const, output: text, error }
   }
 
-  const outputRef = await ctx.storage.store(stored)
-  const tracked = await ctx.runMutation(
-    internal.streams._trackOffloadedOutput,
-    {
-      ...execution,
-      messageId: operation.messageId,
-      storageId: outputRef,
-    },
-  )
-  if (!tracked) throw new Error('MCP result watcher lost turn ownership')
-
+  const outputRef = await trackResult(ctx, execution, operation, stored)
   return {
     state: 'completed' as const,
+    error,
     output: JSON.stringify(mcpResultPreview(fullResult)),
     outputRef,
+  }
+}
+
+async function trackResult(
+  ctx: ActionCtx,
+  execution: StreamExecutionArgs,
+  operation: Operation,
+  blob: Blob,
+) {
+  const storageId = await ctx.storage.store(blob)
+  try {
+    const tracked = await ctx.runMutation(
+      internal.streams._trackOffloadedOutput,
+      {
+        streamId: execution.streamId,
+        generation: execution.generation,
+        messageId: operation.messageId,
+        storageId,
+      },
+    )
+    if (!tracked) throw new Error('MCP result watcher lost turn ownership')
+    return storageId
+  } catch (error) {
+    await ctx.storage.delete(storageId).catch(() => {})
+    throw error
   }
 }
 

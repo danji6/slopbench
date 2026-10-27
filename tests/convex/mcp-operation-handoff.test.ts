@@ -13,11 +13,13 @@ import {
 import { pending, reserve } from '@sb/convex/model/mcpOperations'
 import { connected } from '@sb/convex/model/mcpRuntime'
 import { _claim, _handoff } from '@sb/convex/model/stream/lifecycle'
+import { cleanUpOffloadedOutputs } from '@sb/convex/model/stream/lifecycleCleanup'
 import { createExternalMcpTool } from '@sb/convex/model/tool/mcp'
 import { sidecarAuthentication } from '@sb/sidecar/auth'
 import { mcpOperationRoutes } from '@sb/sidecar/mcp/external/operation-routes'
 import { MockLanguageModelV4 } from 'ai/test'
-import { afterEach, expect, test } from 'bun:test'
+import { afterEach, expect, spyOn, test } from 'bun:test'
+import { getFunctionName } from 'convex/server'
 import { Hono } from 'hono'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -191,6 +193,9 @@ test('lost result response preserves full output and serves completed backend re
   })
   expect(result?.state).toBe('completed')
   expect(result?.outputRef).toBeDefined()
+  expect(f.rows('offloadedOutputs')).toMatchObject([
+    { storageId: result!.outputRef, messageId: f.messageId },
+  ])
   expect(mcpText(await operationOutput(f.action, result!))).toBe(text)
   const requests = f.requestCount()
   const replay = await waitForOperation(f.action, f.execution, operation._id)
@@ -205,6 +210,61 @@ test('lost result response preserves full output and serves completed backend re
     )?.acknowledged,
   ).toBe(true)
 }, 10_000)
+
+test.each(['store', 'track', 'observe'] as const)(
+  'completed result %s errors surface and recover without redispatching',
+  async (stage) => {
+    const f = await fixture()
+    const dispatchFile = path.join(f.sidecar.root, 'dispatches')
+    const text = 'retained result '.repeat(1000)
+    const operation = await reserve(f.ctx, {
+      ...f.args,
+      args: JSON.stringify({ output: text, dispatchFile }),
+    })
+    const failure = new Error('Completed result persistence failed')
+    const runMutation = f.action.runMutation
+    const mutate = spyOn(f.action, 'runMutation').mockImplementation(
+      async (ref, args) => {
+        const target = getFunctionName(ref)
+        const update = args as { state?: string } | undefined
+        const savingCompletedResult =
+          target === 'mcpOperations:_observe' && update?.state === 'completed'
+        if (stage === 'track' && target === 'streams:_trackOffloadedOutput')
+          throw failure
+        if (stage === 'observe' && savingCompletedResult) throw failure
+        return runMutation(ref, args)
+      },
+    )
+    const store = spyOn(f.action.storage, 'store')
+    if (stage === 'store') store.mockRejectedValue(failure)
+    try {
+      await expect(
+        waitForOperation(f.action, f.execution, operation._id, {
+          pollMs: 10,
+          deadlineAt: Date.now() + 2000,
+        }),
+      ).rejects.toBe(failure)
+    } finally {
+      mutate.mockRestore()
+      store.mockRestore()
+    }
+    expect(f.blobs.size).toBe(stage === 'observe' ? 1 : 0)
+    const access = { id: operation._id, scope: operation.scope }
+    expect(await f.sidecar.operations.status(access)).toMatchObject({
+      state: 'completed',
+    })
+    expect((await f.sidecar.operations.status(access))?.acknowledged).not.toBe(
+      true,
+    )
+    const result = await waitForOperation(f.action, f.execution, operation._id)
+    expect(mcpText(await operationOutput(f.action, result!))).toBe(text)
+    expect(await readFile(dispatchFile, 'utf8')).toBe('1\n')
+    await cleanUpOffloadedOutputs(f.ctx, f.execution.streamId)
+    expect(f.blobs.size).toBe(1)
+    expect(f.rows('offloadedOutputs')).toHaveLength(0)
+  },
+  10_000,
+)
 
 test('Stop persists cancellation even with no watcher, including before dispatch', async () => {
   const f = await fixture()

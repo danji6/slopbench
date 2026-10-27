@@ -1,7 +1,8 @@
 import { useToolOutput } from '@/hooks/chat/tool-output'
 import { getToolErrorText } from '@/lib/chat'
+import { toolDisplayName } from '@sb/core/approval-presentation'
 import type { McpProgress as Progress } from '@sb/core/types/mcp-operation'
-import { isMcpResult } from '@sb/core/types/mcp-result'
+import { isMcpResult, isMcpResultPreview } from '@sb/core/types/mcp-result'
 import type { ToolUIPart } from 'ai'
 import { memo } from 'react'
 
@@ -25,6 +26,7 @@ export const ToolBlock = memo(
 
     const { output, truncated, loadFull, loadingFull, loadError } =
       useToolOutput(part, messageId)
+    const progress = (part as { mcpProgress?: Progress }).mcpProgress
 
     const hasInput = Boolean(
       part.input && Object.keys(part.input as object).length > 0,
@@ -40,17 +42,17 @@ export const ToolBlock = memo(
         part={part}
         messageId={messageId}
         forceError={forceError || mcpReportedError(output)}
-        footer={
-          <McpProgress
-            progress={(part as { mcpProgress?: Progress }).mcpProgress}
-          />
-        }
         label={
           <span className="text-foreground font-medium">
-            {part.title || toolName}
+            {toolDisplayName(toolName, part.input, part.title)}
           </span>
         }
       >
+        {progress && (
+          <div>
+            <McpProgress progress={progress} />
+          </div>
+        )}
         {hasInput && (
           <div>
             <div className="text-muted-foreground mb-1 text-xs">Input</div>
@@ -60,17 +62,11 @@ export const ToolBlock = memo(
           </div>
         )}
         {hasOutput && (
-          <div className="w-full">
-            <div className="text-muted-foreground mb-1 text-xs">Output</div>
-            {isMcpResult(output) ? (
-              <McpResultContent output={output} />
-            ) : (
-              <pre className="bg-background overflow-x-auto rounded px-2 py-1 text-xs">
-                {typeof output === 'string'
-                  ? output
-                  : JSON.stringify(output as object, null, 2)}
-              </pre>
-            )}
+          <div className="w-full space-y-2">
+            <div>
+              <div className="text-muted-foreground mb-1 text-xs">Output</div>
+              <ToolOutputContent output={output} />
+            </div>
             {loadError && (
               <p className="text-destructive text-xs" role="alert">
                 {loadError}
@@ -85,3 +81,15 @@ export const ToolBlock = memo(
     )
   },
 )
+
+function ToolOutputContent({ output }: { output: unknown }) {
+  if (isMcpResult(output)) return <McpResultContent output={output} />
+  if (isMcpResultPreview(output))
+    return <p className="text-muted-foreground text-xs">{output.text}</p>
+
+  return (
+    <pre className="bg-background overflow-x-auto rounded px-2 py-1 text-xs">
+      {typeof output === 'string' ? output : JSON.stringify(output, null, 2)}
+    </pre>
+  )
+}

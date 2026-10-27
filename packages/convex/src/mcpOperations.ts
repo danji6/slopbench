@@ -1,5 +1,4 @@
 import { internalMutation, internalQuery } from './_generated/server'
-import * as Access from './model/mcpOperationAccess'
 import * as Operations from './model/mcpOperations'
 import * as V from './validators/mcpOperations'
 import { streamExecutionArgsValidator } from './validators/streams'
@@ -12,6 +11,11 @@ export const _reserve = internalMutation({
 export const _get = internalQuery({
   args: V.mcpOperationExecutionValidator.fields,
   handler: Operations.get,
+})
+
+export const _outputDefinition = internalQuery({
+  args: V.mcpOperationExecutionValidator.fields,
+  handler: Operations.outputDefinition,
 })
 
 export const _pending = internalQuery({
@@ -56,9 +60,4 @@ export const _forgetDeleted = internalMutation({
 export const _find = internalQuery({
   args: V.mcpOperationFindValidator.fields,
   handler: Operations.find,
-})
-
-export const _outputAccess = internalQuery({
-  args: V.mcpOperationExecutionValidator.fields,
-  handler: Access.outputAccess,
 })

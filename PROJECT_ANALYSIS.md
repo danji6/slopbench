@@ -22,6 +22,12 @@ semantics and the remaining staged work. Stage 2 supplies durable long calls and
 stage 3 supplies complete catalogs; text-only result handling remains until stage 4.
 Restart the sidecar after updating.
 
+Nonfatal MCP SDK diagnostics, including late progress notifications, are bounded
+and redacted without closing healthy connections. Actual transport closure and
+operation timeout cleanup still report session loss. Failed MCP approval checks
+are delivered as individual tool errors before dispatch, preserving unrelated
+calls and the conversation; lost-runtime errors include the recorded reason.
+
 ## Durable external MCP operations (stage 2, 2026-10-20)
 
 Agent-stream MCP calls now reserve durable operation identities before dispatch.
@@ -55,9 +61,26 @@ The SDK Ajv provider validates schema constraints and arguments without permissi
 fallbacks; modern draft 2020-12 and explicitly declared draft-07 are supported.
 
 Standalone servers can opt into a per-server agent selection for broker access.
-`search_mcp_tools` provides bounded server/tool pages and complete definition ranges;
-`call_mcp_tool` uses opaque identities and the existing authorized durable operation
-path. Broker approvals are scoped to exact targets. Server/tool restrictions,
+`search_mcp_tools` provides bounded server/tool pages and call-ready input contracts
+as JSON objects, including intact local schema definitions and safety annotations.
+Output schemas, extra metadata and full definitions are opt-in views; common fields
+are not repeated inside metadata. Oversized views use explicit character ranges:
+`hasMore` marks continuation, while `inputSchemaComplete` identifies a response
+containing the whole input contract. All fragments must be joined before use.
+Catalog revisions identify reusable contracts across turns. Immutable stored blobs
+provide the durable definition cache; each execution also memoizes authorized reads
+within a bounded cache keyed by catalog revision and blob. Every read rechecks access,
+and replaced catalogs invalidate old callable targets. Input and backend output validation
+use full schemas independently of the selected presentation view. Output validation is
+committed with the canonical result, so errors survive retries and backend handoffs;
+rejected output remains available for inspection.
+`call_mcp_tool` takes a readable tool name and uses the existing authorized durable
+operation path. Session-scoped names retain native names where possible and add
+numeric suffixes for collisions. Names never retarget: replaced catalogs require
+a new search. Database identities remain internal to authorization and approval
+checks. Server discovery, protocol calls, provenance, and full-output retrieval
+also use readable names; pending and completed tool cards show the actual target.
+Broker approvals are scoped to exact targets. Server/tool restrictions,
 configuration revisions and generation fences are rechecked, including immediate
 cancellation when availability narrows. Existing direct selections remain usable.
 
@@ -83,6 +106,10 @@ Sampling and elicitation remain unsupported. See `docs/mcp-protocol.md`.
 Integrations link existing toolkit roots through `.agents/integration.json` and
 automatically discover sibling skills. Agent selections and component settings
 control access; there is no integration master switch or per-session override.
+Linking a toolkit and selecting it for an agent authorize its MCP tool, prompt,
+and resource calls without further per-call approval. Standalone local MCP
+servers retain target-specific approvals; live role, selection, component, and
+read-only restrictions still apply to integration calls.
 The accepted manifest snapshot is durable, and Refresh applies valid changes
 without a separate approval step. Changes invalidate affected live sessions.
 Canonical skill directories merge origins across integration and workspace

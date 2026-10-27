@@ -1,14 +1,18 @@
 import type { Id } from '@sb/convex/_generated/dataModel'
 import type { ActionCtx } from '@sb/convex/_generated/server'
 import { _getExecution, replaceAll } from '@sb/convex/model/mcp'
+import * as BrokerAccess from '@sb/convex/model/mcpBrokerAccess'
 import * as CatalogAccess from '@sb/convex/model/mcpCatalogAccess'
 import * as Catalogs from '@sb/convex/model/mcpCatalogs'
 import * as Cleanup from '@sb/convex/model/mcpCleanup'
-import { outputAccess } from '@sb/convex/model/mcpOperationAccess'
 import * as Operations from '@sb/convex/model/mcpOperations'
-import { connected } from '@sb/convex/model/mcpRuntime'
+import { connected, updateStatus } from '@sb/convex/model/mcpRuntime'
+import { getApprovals } from '@sb/convex/model/session/state'
 import { _heartbeat, _patchMessage } from '@sb/convex/model/stream/lifecycle'
+import { _trackOffloadedOutput } from '@sb/convex/model/stream/lifecycleCleanup'
+import { trackStreamOutputArgsValidator } from '@sb/convex/validators/streams'
 import { mcpConnectionSchema } from '@sb/core/types'
+import { validate } from 'convex-helpers/validators'
 import { getFunctionName } from 'convex/server'
 
 import { operationFixture } from './mcp-operations'
@@ -124,7 +128,7 @@ export async function mcpBackendFixture(fixture?: URL) {
   const queryHandlers = {
     _cleanup: Cleanup.get,
     _get: Operations.get,
-    _outputAccess: outputAccess,
+    _outputDefinition: Operations.outputDefinition,
     _find: Operations.find,
     _pending: Operations.pending,
     _allowed: Operations.lease,
@@ -132,6 +136,9 @@ export async function mcpBackendFixture(fixture?: URL) {
     _unsettled: Operations.unsettled,
   }
   const mutationHandlers = {
+    _getExecution,
+    _connected: connected,
+    _updateRuntimeStatus: updateStatus,
     _cleanupDone: Cleanup.done,
     _reserve: Operations.reserve,
     _observe: Operations.observe,
@@ -143,11 +150,26 @@ export async function mcpBackendFixture(fixture?: URL) {
     storage: ctx.storage,
     runQuery: async (ref: Reference, input: unknown) => {
       const reference = getFunctionName(ref)
+      if (reference === 'sessions:_getApprovals') {
+        return getApprovals(
+          ctx,
+          (input as { sessionId: Id<'sessions'> }).sessionId,
+        )
+      }
+      if (reference.startsWith('mcpBroker:')) {
+        const handlers = {
+          _target: BrokerAccess.target,
+          _server: BrokerAccess.server,
+          _output: BrokerAccess.output,
+        }
+        return handlers[reference.split(':')[1] as keyof typeof handlers](
+          ctx,
+          input as never,
+        )
+      }
       const catalogQueries = {
         _launch: Catalogs.launch,
         _references: Catalogs.references,
-        _target: CatalogAccess.target,
-        _search: CatalogAccess.search,
         _available: CatalogAccess.available,
         _definitionAccess: CatalogAccess.definitionAccess,
       }
@@ -173,6 +195,16 @@ export async function mcpBackendFixture(fixture?: URL) {
     },
     runMutation: async (ref: Reference, input: unknown) => {
       const reference = getFunctionName(ref)
+      if (reference.startsWith('mcpBroker:')) {
+        const handlers = {
+          _search: BrokerAccess.search,
+          _servers: BrokerAccess.servers,
+        }
+        return handlers[reference.split(':')[1] as keyof typeof handlers](
+          ctx,
+          input as never,
+        )
+      }
       const catalogMutations = {
         begin: Catalogs.begin,
         _beginActive: Catalogs.beginActive,
@@ -190,7 +222,11 @@ export async function mcpBackendFixture(fixture?: URL) {
       if (name === '_heartbeat')
         return _heartbeat(ctx, input as typeof execution)
       if (name === '_patchMessage') return _patchMessage(ctx, input as never)
-      if (name === '_trackOffloadedOutput') return true
+      if (name === '_trackOffloadedOutput') {
+        if (!validate(trackStreamOutputArgsValidator, input))
+          throw new Error('Invalid offloaded output arguments')
+        return _trackOffloadedOutput(ctx, input)
+      }
       return (
         mutationHandlers[name as keyof typeof mutationHandlers] as (
           ctx: unknown,

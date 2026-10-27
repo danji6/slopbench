@@ -9,6 +9,8 @@ import type { McpProtocolRequest } from '@sb/core/types/mcp-protocol'
 import { type McpResult, mcpResult } from '@sb/core/types/mcp-result'
 import { useEffect, useState } from 'react'
 
+import { McpToolFixture } from './mcp-tool-fixture'
+
 const image =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='
 const mixed = mcpResult(
@@ -42,6 +44,14 @@ const mixed = mcpResult(
 )
 
 export function McpProtocolFixture() {
+  return new URLSearchParams(location.search).get('view') === 'tool' ? (
+    <McpToolFixture />
+  ) : (
+    <ProtocolBrowserFixture />
+  )
+}
+
+function ProtocolBrowserFixture() {
   const [output, setOutput] = useState<McpResult>()
   const [requests, setRequests] = useState<McpProtocolRequest[]>([])
   const [message, setMessage] = useState('')

@@ -3,6 +3,7 @@ import type { McpProtocolMethod } from '@sb/core/types/mcp-protocol'
 import { internal } from '../../_generated/api'
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
+import { ToolError } from '../../errors'
 import type { StreamExecutionArgs } from '../../types'
 import {
   operationOutput,
@@ -16,9 +17,9 @@ export type McpOperationContext = {
   ctx: ActionCtx
   execution: StreamExecutionArgs
   messageId: Id<'messages'>
+  catalogToolId?: Id<'mcpCatalogTools'>
   broker?: {
-    serverId: Id<'mcpServers'>
-    toolId: Id<'mcpCatalogTools'>
+    tool: string
     arguments: unknown
   }
 }
@@ -56,7 +57,7 @@ export async function executeMcpOperation(
     toolCallId: input.toolCallId,
     args: JSON.stringify(input.args),
     input: context.broker ? JSON.stringify(context.broker) : undefined,
-    catalogToolId: context.broker?.toolId,
+    catalogToolId: context.catalogToolId,
   })
   return finishOperation(context, operation, input.signal)
 }
@@ -97,7 +98,7 @@ export function findMcpOperation(
     toolCallId: input.toolCallId,
     args: JSON.stringify(input.args),
     input: context.broker ? JSON.stringify(context.broker) : undefined,
-    catalogToolId: context.broker?.toolId,
+    catalogToolId: context.catalogToolId,
   })
 }
 
@@ -118,5 +119,6 @@ async function finishOperation(
     operationId: result._id,
   })
   await settle(ctx, { operationId: result._id }).catch(() => {})
+  if (result.error) throw new ToolError(result.error)
   return operationOutput(ctx, result)
 }

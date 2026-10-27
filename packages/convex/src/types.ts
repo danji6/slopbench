@@ -16,6 +16,7 @@ import type { SpawnableAgent } from './model/agent/subagents'
 import type { PromptSets } from './model/prompts'
 import type * as V from './validators'
 import type * as IntegrationsV from './validators/integrations'
+import type * as McpBrokerV from './validators/mcpBroker'
 import type * as McpCatalogsV from './validators/mcpCatalogs'
 import type * as McpOperationsV from './validators/mcpOperations'
 import type * as McpProtocolV from './validators/mcpProtocol'
@@ -238,6 +239,10 @@ export type McpObserveArgs = Infer<typeof McpOperationsV.mcpObserveArgsValidator
 export type McpOperationArgs = Infer<typeof McpOperationsV.mcpOperationArgsValidator> // prettier-ignore
 export type McpOperationExecutionArgs = Infer<typeof McpOperationsV.mcpOperationExecutionValidator> // prettier-ignore
 export type McpOperationFindArgs = Infer<typeof McpOperationsV.mcpOperationFindValidator> // prettier-ignore
+export type McpBrokerServerArgs = Infer<typeof McpBrokerV.brokerServerValidator>
+export type McpBrokerTargetArgs = Infer<typeof McpBrokerV.brokerTargetValidator>
+export type McpBrokerSearchArgs = Infer<typeof McpBrokerV.brokerSearchValidator>
+export type McpBrokerOutputArgs = Infer<typeof McpBrokerV.brokerOutputValidator>
 export type McpCatalogIdArgs = Infer<typeof McpCatalogsV.catalogIdValidator>
 export type McpCatalogActiveFailureArgs = Infer<typeof McpCatalogsV.catalogActiveFailureValidator> // prettier-ignore
 export type McpCatalogSweepArgs = Infer<typeof McpCatalogsV.catalogSweepValidator> // prettier-ignore

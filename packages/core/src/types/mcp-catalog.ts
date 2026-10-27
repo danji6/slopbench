@@ -8,26 +8,87 @@ export const MCP_BROKER_TOOLS = [
 ] as const
 
 export const SKILL_BROKER_TOOLS = ['list_skills', 'read_skill'] as const
-export const MCP_MANIFEST_VERSION = 4
+export const MCP_MANIFEST_VERSION = 6
 export const MAX_MCP_CATALOG_TOOLS = 5_000
 export const MAX_MCP_CATALOG_BYTES = 64 * 1024 * 1024
 export const MAX_MCP_DEFINITION_BYTES = 8 * 1024 * 1024
 export const MCP_DEFINITION_CONTENT_TYPE = 'application/vnd.slopbench.mcp-definition+json' // prettier-ignore
 
 export const mcpBrokerCallSchema = z.object({
-  serverId: z.string().min(1).max(200),
-  toolId: z.string().min(1).max(200),
-  arguments: z.record(z.string(), z.unknown()),
+  tool: z
+    .string()
+    .min(1)
+    .max(1024)
+    .describe(
+      'Callable name returned by search_mcp_tools. Copy any numeric suffix exactly.',
+    ),
+  arguments: z.object({}).catchall(z.unknown()),
 })
 
+export const mcpDefinitionViewSchema = z.enum([
+  'input',
+  'output',
+  'metadata',
+  'full',
+])
+export type McpDefinitionView = z.infer<typeof mcpDefinitionViewSchema>
+
 export const mcpBrokerSearchSchema = z.object({
-  query: z.string().max(200).default(''),
-  serverId: z.string().min(1).max(200).optional(),
-  toolId: z.string().min(1).max(200).optional(),
-  cursor: z.string().max(4096).optional(),
-  limit: z.number().int().min(1).max(25).default(10),
-  offset: z.number().int().nonnegative().default(0),
-  length: z.number().int().min(1).max(32_768).default(16_384),
+  query: z
+    .string()
+    .max(200)
+    .default('')
+    .describe('Search text for server labels or tool names and descriptions.'),
+  server: z
+    .string()
+    .min(1)
+    .max(1024)
+    .optional()
+    .describe(
+      'Server name returned by this tool. Provide to search its tools; omit to list servers.',
+    ),
+  tool: z
+    .string()
+    .min(1)
+    .max(1024)
+    .optional()
+    .describe(
+      'Callable tool name returned by this tool. Provide to read its definition instead of searching; copy any numeric suffix exactly.',
+    ),
+  view: mcpDefinitionViewSchema
+    .default('input')
+    .describe(
+      'Definition view when tool is provided. Defaults to the complete input contract; output schemas and extra metadata are opt-in.',
+    ),
+  cursor: z
+    .string()
+    .max(4096)
+    .optional()
+    .describe(
+      'nextCursor from a search result; keep server and query unchanged.',
+    ),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(25)
+    .default(10)
+    .describe('Maximum servers or tools returned per search page.'),
+  offset: z
+    .number()
+    .int()
+    .nonnegative()
+    .default(0)
+    .describe(
+      'Character offset in the selected definition; use nextOffset to continue.',
+    ),
+  length: z
+    .number()
+    .int()
+    .min(1)
+    .max(32_768)
+    .default(16_384)
+    .describe('Maximum characters returned per definition read.'),
 })
 
 export type McpBrokerCall = z.infer<typeof mcpBrokerCallSchema>

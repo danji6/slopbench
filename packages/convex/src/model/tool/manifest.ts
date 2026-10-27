@@ -51,6 +51,7 @@ export type McpManifestEntry = {
   description?: string
   /** Serialized JSON Schema; Convex rejects `$`-prefixed object keys. */
   inputSchema?: string
+  /** Full output schema used internally for validation, never sent to the provider. */
   definitionRef?: string
   diagnostic?: string
 }

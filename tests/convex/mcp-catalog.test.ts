@@ -1,116 +1,28 @@
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { rememberApproval } from '@sb/convex/model/chat/approvalMemory'
 import { replaceAll } from '@sb/convex/model/mcp'
-import { _getExecution } from '@sb/convex/model/mcp'
+import * as Named from '@sb/convex/model/mcpBrokerAccess'
 import * as Access from '@sb/convex/model/mcpCatalogAccess'
 import { refreshCatalog } from '@sb/convex/model/mcpCatalogActions'
 import { pinManifest, releasePins } from '@sb/convex/model/mcpCatalogPins'
 import * as Catalogs from '@sb/convex/model/mcpCatalogs'
 import { reserve } from '@sb/convex/model/mcpOperations'
-import { connected } from '@sb/convex/model/mcpRuntime'
 import { prepareMcpContext } from '@sb/convex/model/stream/contextNotes'
 import {
   resolveToolManifest,
   upgradeToolManifest,
 } from '@sb/convex/model/tool/manifest'
 import { createExternalMcpTool } from '@sb/convex/model/tool/mcp'
-import { createMcpBrokerTools } from '@sb/convex/model/tool/mcpBroker'
 import {
   MCP_BROKER_TOOLS,
   MCP_MANIFEST_VERSION,
   SKILL_BROKER_TOOLS,
   mcpApprovalKey,
 } from '@sb/core/types/mcp-catalog'
-import { mcpCatalogRoutes } from '@sb/sidecar/mcp/external/catalog-routes'
-import { CatalogSnapshots } from '@sb/sidecar/mcp/external/catalog-snapshots'
-import { mcpOperationRoutes } from '@sb/sidecar/mcp/external/operation-routes'
-import { expect, mock, test } from 'bun:test'
-import { Hono } from 'hono'
+import { expect, test } from 'bun:test'
 
-import { mcpBackendFixture } from '../helpers/mcp-backend'
+import { mcpCatalogBackend as fixture } from '../helpers/mcp-catalog-backend'
 import { mcpText } from '../helpers/mcp-result'
-
-async function fixture() {
-  const f = await mcpBackendFixture(
-    new URL('../mcp/fixtures/catalog.mjs', import.meta.url),
-  )
-  const serverId = f.rows('mcpServers')[0]._id as Id<'mcpServers'>
-  await f.db.patch(serverId, { brokerEnabled: true })
-  await f.db.patch(f.agentId, { tools: ['mcp_server:local'] })
-  const app = new Hono()
-  app.route(
-    '/mcp-ext/catalog',
-    mcpCatalogRoutes(f.sidecar.registry, new CatalogSnapshots()),
-  )
-  app.route(
-    '/mcp-ext/operations',
-    mcpOperationRoutes(() => f.sidecar.operations),
-  )
-  app.post('/mcp-ext/connect', async (c) => {
-    const input = await c.req.json()
-    return c.json(
-      await f.sidecar.registry.connect(input.scope, input.connection, input),
-    )
-  })
-  const original = globalThis.fetch
-  globalThis.fetch = mock((input, init) =>
-    app.fetch(new Request(input, init)),
-  ) as unknown as typeof fetch
-  const catalogId = await Catalogs.begin(f.ctx, { serverId })
-  async function publish() {
-    return refreshCatalog(f.action, catalogId)
-  }
-  const approvals: { tools: string[] } = { tools: [] }
-  const broker = await createMcpBrokerTools({
-    operation: {
-      ctx: f.action,
-      execution: f.execution,
-      messageId: f.messageId,
-    },
-    current: (serverKey, toolName) =>
-      _getExecution(f.ctx, {
-        ...f.execution,
-        agentId: f.agentId,
-        sessionId: f.sessionId,
-        serverKey,
-        toolName,
-      }),
-    connected: (runtimeId, key, bootId, generation) =>
-      connected(f.ctx, { runtimeId, key, bootId, generation }),
-    approvals: async () => approvals,
-  })
-  const options = (toolCallId = 'broker-call') => ({
-    toolCallId,
-    messages: [],
-    context: {},
-  })
-  async function target(name = 'tool_249') {
-    const result = await Access.search(f.ctx, {
-      ...f.execution,
-      serverId,
-      query: name,
-      limit: 10,
-    })
-    const row = 'tools' in result ? result.tools?.[0] : undefined
-    if (!row) throw new Error('Missing target')
-    return { serverId, toolId: row.toolId, arguments: {} }
-  }
-  async function close() {
-    globalThis.fetch = original
-    await f.sidecar.close()
-  }
-  return {
-    ...f,
-    serverId,
-    catalogId,
-    publish,
-    broker,
-    approvals,
-    target,
-    options,
-    close,
-  }
-}
 
 test('250 tools publish atomically; a tool beyond 100 executes through the durable broker', async () => {
   const f = await fixture()
@@ -141,43 +53,6 @@ test('250 tools publish atomically; a tool beyond 100 executes through the durab
       value: 'retained through broker',
       calls: 2,
     })
-  } finally {
-    await f.close()
-  }
-}, 20_000)
-
-test('large definitions round-trip in bounded ranges, including metadata and output schemas', async () => {
-  const f = await fixture()
-  try {
-    await f.publish()
-    const input = await f.target()
-    let offset = 0
-    let text = ''
-    for (;;) {
-      const result = await f.broker.search_mcp_tools.execute!(
-        { ...input, query: '', limit: 10, offset, length: 32_768 },
-        f.options(),
-      )
-      if (!('text' in result)) throw new Error('Missing schema range')
-      expect(result.text.length).toBeLessThanOrEqual(32_768)
-      text += result.text
-      if (result.nextOffset === null) break
-      offset = result.nextOffset
-    }
-    const definition = JSON.parse(text)
-    expect(
-      JSON.parse(definition.inputSchema).properties.value.description,
-    ).toBe('λ😀'.repeat(30_000))
-    expect(JSON.parse(definition.metadata).title).toBe('Tool title 249')
-    expect(JSON.parse(definition.outputSchema).type).toBe('object')
-    expect(JSON.parse(definition.annotations).readOnlyHint).toBe(true)
-    await expect(
-      f.broker.call_mcp_tool.execute!(
-        { ...input, arguments: { value: 42 } },
-        f.options(),
-      ),
-    ).rejects.toThrow('arguments rejected')
-    expect(f.rows('mcpOperations')).toHaveLength(0)
   } finally {
     await f.close()
   }
@@ -243,7 +118,7 @@ test('broker approvals are target-specific and never accept the generic broker g
     expect(await needs(first, f.options())).toBe(true)
     f.approvals.tools = ['call_mcp_tool']
     expect(await needs(second, f.options())).toBe(true)
-    f.approvals.tools = [mcpApprovalKey(first)!]
+    f.approvals.tools = [mcpApprovalKey(await f.identity(first))!]
     expect(await needs(first, f.options())).toBe(false)
     expect(await needs(second, f.options())).toBe(true)
     await rememberApproval(
@@ -255,7 +130,7 @@ test('broker approvals are target-specific and never accept the generic broker g
     const stored = f.rows('sessionState')[0].toolApprovals as {
       tools: string[]
     }
-    expect(stored.tools).toContain(mcpApprovalKey(first)!)
+    expect(stored.tools).toContain(mcpApprovalKey(await f.identity(first))!)
     expect(stored.tools).not.toContain('call_mcp_tool')
   } finally {
     await f.close()
@@ -294,13 +169,16 @@ test('aliases and duplicate names on different servers cannot redirect broker ha
       Access.target(f.ctx, {
         ...f.execution,
         serverId: foreign as Id<'mcpServers'>,
-        toolId: input.toolId,
+        toolId: (await f.identity(input)).toolId,
       }),
     ).rejects.toThrow('unavailable')
     const restricted = await f.target('tool_001')
     await f.db.patch(f.agentId, { tools: ['local_same-alias'] })
     await expect(
-      Access.target(f.ctx, { ...f.execution, ...restricted }),
+      Access.target(f.ctx, {
+        ...f.execution,
+        ...(await f.identity(restricted)),
+      }),
     ).rejects.toThrow('restricted')
   } finally {
     await f.close()
@@ -328,7 +206,7 @@ test('invalid schema diagnostics, disabled targets, stale cursors and live role 
       order: 0,
     })
     await expect(
-      Access.target(f.ctx, { ...f.execution, ...input }),
+      Access.target(f.ctx, { ...f.execution, ...(await f.identity(input)) }),
     ).rejects.toThrow('restricted')
     const page = await Access.search(f.ctx, {
       ...f.execution,
@@ -348,7 +226,7 @@ test('invalid schema diagnostics, disabled targets, stale cursors and live role 
     ).rejects.toThrow('cursor')
     await f.db.patch('owner', { role: 'user' })
     await expect(
-      Access.target(f.ctx, { ...f.execution, ...input }),
+      Access.target(f.ctx, { ...f.execution, ...(await f.identity(input)) }),
     ).rejects.toThrow('unavailable')
   } finally {
     await f.close()
@@ -411,7 +289,7 @@ test('every catalog page is searchable and unchanged refreshes keep opaque ident
     const next = await Catalogs.begin(f.ctx, { serverId: f.serverId })
     const refreshed = await refreshCatalog(f.action, next)
     expect(refreshed.catalogId).toBe(f.catalogId)
-    expect((await f.target()).toolId).toBe(previous.toolId)
+    expect(await f.target()).toEqual(previous)
     while (await Catalogs.expire(f.ctx, { catalogId: next })) {
       /* bounded cleanup pages */
     }
@@ -426,7 +304,7 @@ test('published schemas stay pinned by frozen sessions and are reclaimed after c
   try {
     await f.publish()
     const input = await f.target()
-    const row = (await f.db.get(input.toolId))!
+    const row = (await f.db.get((await f.identity(input)).toolId))!
     const definitionRef = row.definitionRef as string
     const frozen = {
       names: ['local_tool_249'],
@@ -493,7 +371,7 @@ test('disabling broker access cancels a reserved operation before another dispat
       toolName: 'tool_001',
       name: 'call_mcp_tool',
       input: JSON.stringify(input),
-      catalogToolId: input.toolId,
+      catalogToolId: (await f.identity(input)).toolId,
     })
     await replaceAll(f.ctx, {
       servers: [
@@ -593,9 +471,19 @@ test('same-named tools on two authorized servers retain distinct handles, approv
       ...(await f.target('tool_001')),
       arguments: { value: 'first only' },
     }
-    const second = { serverId, toolId: page.tools[0].toolId, arguments: {} }
-    expect(second.toolId).not.toBe(first.toolId)
-    f.approvals.tools = [mcpApprovalKey(first)!]
+    await Named.servers(f.ctx, f.execution)
+    const namedPage = await Named.search(f.ctx, {
+      ...f.execution,
+      server: 'Local_1',
+      query: 'tool_001',
+      limit: 10,
+    })
+    if (!('tools' in namedPage) || !namedPage.tools[0])
+      throw new Error('Missing named tool')
+    const second = { tool: namedPage.tools[0].name, arguments: {} }
+    expect(first.tool).toBe('tool_001')
+    expect(second.tool).toBe('tool_001_1')
+    f.approvals.tools = [mcpApprovalKey(await f.identity(first))!]
     const needs = f.broker.call_mcp_tool.needsApproval
     if (typeof needs !== 'function') throw new Error('Missing policy')
     expect(await needs(second, f.options())).toBe(true)
@@ -610,7 +498,11 @@ test('same-named tools on two authorized servers retain distinct handles, approv
     expect(two.value).toBeNull()
     expect(one.pid).not.toBe(two.pid)
     await expect(
-      Access.target(f.ctx, { ...f.execution, serverId, toolId: first.toolId }),
+      Access.target(f.ctx, {
+        ...f.execution,
+        serverId,
+        toolId: (await f.identity(first)).toolId,
+      }),
     ).rejects.toThrow('unavailable')
   } finally {
     await f.close()

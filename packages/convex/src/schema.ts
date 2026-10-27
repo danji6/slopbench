@@ -45,6 +45,7 @@ import {
 } from './validators/discovery'
 import { integrationSchema } from './validators/integrations'
 import { mcpCleanupSchema, mcpRuntimeSchema } from './validators/mcp'
+import { mcpBrokerNameSchema } from './validators/mcpBroker'
 import {
   mcpCatalogPinSchema,
   mcpCatalogSchema,
@@ -179,6 +180,11 @@ export default defineSchema({
   mcpCatalogPins: defineTable(mcpCatalogPinSchema)
     .index('by_catalogId', ['catalogId'])
     .index('by_cacheId', ['cacheId']),
+
+  mcpBrokerNames: defineTable(mcpBrokerNameSchema)
+    .index('by_sessionId', ['sessionId'])
+    .index('by_target', ['sessionId', 'kind', 'target'])
+    .index('by_name', ['sessionId', 'kind', 'name']),
 
   discoveryPreviews: defineTable(discoveryPreviewSchema),
 

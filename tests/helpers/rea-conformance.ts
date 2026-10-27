@@ -3,6 +3,7 @@ import { configureComponent } from '@sb/convex/model/integrations/components'
 import { publish } from '@sb/convex/model/integrations/publication'
 import { select } from '@sb/convex/model/integrations/selection'
 import { _getExecution } from '@sb/convex/model/mcp'
+import { servers as namedServers } from '@sb/convex/model/mcpBrokerAccess'
 import { connected } from '@sb/convex/model/mcpRuntime'
 import { cleanup } from '@sb/convex/model/mcpRuntimeActions'
 import { createMcpBrokerTools } from '@sb/convex/model/tool/mcpBroker'
@@ -28,7 +29,7 @@ import { untilOperation } from './mcp-operations'
 type Backend = Awaited<ReturnType<typeof mcpBackendFixture>>
 type Actor = { sessionId: Id<'sessions'>; agentId: Id<'agents'> }
 type SearchPage = {
-  tools: { name: string; toolId: string; diagnostic?: string }[]
+  tools: { name: string; originalName: string; diagnostic?: string }[]
   nextCursor: string | null
 }
 
@@ -167,7 +168,12 @@ async function createTurn(
     messageId,
     contentId,
     broker,
-    ...brokerCalls(broker, serverId),
+    ...brokerCalls(
+      broker,
+      (await namedServers(f.ctx, execution)).find(
+        (row) => row.recordId === serverId,
+      )!.name,
+    ),
   }
 }
 
@@ -205,12 +211,20 @@ async function insertTurn(f: Backend, actor: Actor) {
 
 function brokerCalls(
   broker: Awaited<ReturnType<typeof createMcpBrokerTools>>,
-  serverId: string,
+  server: string,
 ) {
   const options = { toolCallId: 'search', messages: [], context: {} }
   async function search(query = '', cursor?: string) {
     return (await broker.search_mcp_tools.execute!(
-      { serverId, query, cursor, limit: 25, offset: 0, length: 32_768 },
+      {
+        server,
+        query,
+        cursor,
+        view: 'input',
+        limit: 25,
+        offset: 0,
+        length: 32_768,
+      },
       options,
     )) as SearchPage
   }
@@ -220,11 +234,13 @@ function brokerCalls(
     callId: string = crypto.randomUUID(),
     abortSignal?: AbortSignal,
   ) {
-    const target = (await search(name)).tools.find((tool) => tool.name === name)
+    const target = (await search(name)).tools.find(
+      (tool) => tool.originalName === name,
+    )
     if (!target) throw new Error(`REA tool is missing: ${name}`)
     return mcpResultSchema.parse(
       await broker.call_mcp_tool.execute!(
-        { serverId, toolId: target.toolId, arguments: args },
+        { tool: target.name, arguments: args },
         { ...options, toolCallId: callId, abortSignal },
       ),
     )

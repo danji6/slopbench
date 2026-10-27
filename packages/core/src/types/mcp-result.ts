@@ -2,6 +2,12 @@ import { z } from 'zod'
 
 export const MAX_MCP_RESULT_BYTES = 32 * 1024 * 1024
 
+export const mcpResultDisplaySchema = z.object({
+  server: z.string(),
+  name: z.string(),
+  output: z.string(),
+})
+
 /** Retains protocol extension fields without interpreting server supplied data. */
 export const mcpContentSchema = z.looseObject({ type: z.string() })
 
@@ -19,6 +25,7 @@ export const mcpResultSchema = z.object({
     name: z.string(),
     generation: z.string().optional(),
     operationId: z.string().optional(),
+    display: mcpResultDisplaySchema.optional(),
     untrusted: z.literal(true),
   }),
 })
@@ -26,6 +33,19 @@ export const mcpResultSchema = z.object({
 export type McpResult = z.infer<typeof mcpResultSchema>
 
 export type McpContent = z.infer<typeof mcpContentSchema>
+
+/** Projects host provenance without exposing database or runtime identities. */
+export function publicMcpOutput(
+  output: McpResult | ReturnType<typeof mcpResultPreview>,
+) {
+  return {
+    ...output,
+    origin: {
+      ...(output.origin.display ?? { name: output.origin.name }),
+      untrusted: true,
+    },
+  }
+}
 
 /** Wraps full SDK output, including tool errors and future content blocks. */
 export function mcpResult(

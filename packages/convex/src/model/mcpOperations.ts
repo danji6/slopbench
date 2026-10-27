@@ -11,7 +11,7 @@ import { allowed, get, requireExecution } from './mcpOperationAccess'
 import { operationPart } from './mcpOperationParts'
 import { patchSegmentParts } from './messageContents'
 
-export { allowed, get, find } from './mcpOperationAccess'
+export { allowed, get, find, outputDefinition } from './mcpOperationAccess'
 export { reserve } from './mcpOperationReservations'
 
 type Operation = Doc<'mcpOperations'>

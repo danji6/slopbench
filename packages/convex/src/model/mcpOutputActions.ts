@@ -1,13 +1,14 @@
 'use node'
 
+import { isMcpResult, publicMcpOutput } from '@sb/core/types/mcp-result'
+
 import { internal } from '../_generated/api'
-import type { Id } from '../_generated/dataModel'
 import type { ActionCtx } from '../_generated/server'
 import { ToolError } from '../errors'
 import type { StreamExecutionArgs } from '../types'
 import { operationOutput } from './mcpOperationActions'
 
-type ReadInput = { operationId: string; offset: number; length: number }
+type ReadInput = { output: string; offset: number; length: number }
 
 /** Reads full output without reconnecting or dispatching toolkit work. */
 export async function readMcpOutput(
@@ -15,12 +16,13 @@ export async function readMcpOutput(
   execution: StreamExecutionArgs,
   input: ReadInput,
 ) {
-  const operation = await ctx.runQuery(internal.mcpOperations._outputAccess, {
+  const operation = await ctx.runQuery(internal.mcpBroker._output, {
     ...execution,
-    operationId: input.operationId as Id<'mcpOperations'>,
+    output: input.output,
   })
   const output = await operationOutput(ctx, operation)
-  const text = typeof output === 'string' ? output : JSON.stringify(output)
+  const exposed = isMcpResult(output) ? publicMcpOutput(output) : output
+  const text = typeof exposed === 'string' ? exposed : JSON.stringify(exposed)
   if (input.offset > text.length)
     throw new ToolError('MCP output offset is out of range')
   const end = Math.min(

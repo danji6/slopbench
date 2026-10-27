@@ -1,5 +1,6 @@
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { _getExecution } from '@sb/convex/model/mcp'
+import { servers as namedServers } from '@sb/convex/model/mcpBrokerAccess'
 import { outputAccess } from '@sb/convex/model/mcpOperationAccess'
 import { operationOutput } from '@sb/convex/model/mcpOperationActions'
 import { pending, reserve } from '@sb/convex/model/mcpOperations'
@@ -56,8 +57,9 @@ async function fixture() {
     approvals: async () => approvals,
   })
   const serverId = f.rows('mcpServers')[0]._id as Id<'mcpServers'>
+  await namedServers(f.ctx, f.execution)
   const input = {
-    serverId,
+    server: 'Local',
     method: 'get_prompt' as const,
     name: 'prompt-0',
     arguments: { target: 'one' },
@@ -83,12 +85,23 @@ test('protocol broker preserves literal prompt output and supports bounded retri
   )
   const operationId = f.rows('mcpOperations')[0]._id as Id<'mcpOperations'>
   const read = await readMcpOutput(f.action, f.execution, {
-    operationId,
+    output: output.origin.display!.output,
     offset: 0,
     length: 40,
   })
   expect(read.complete).toBe(false)
   expect(read.nextOffset).toBe(40)
+  const full = await readMcpOutput(f.action, f.execution, {
+    output: output.origin.display!.output,
+    offset: 0,
+    length: 32_768,
+  })
+  expect(JSON.parse(full.text).origin).toEqual({
+    server: 'Local',
+    name: 'get_prompt',
+    output: 'output',
+    untrusted: true,
+  })
   expect(
     JSON.stringify(
       await operationOutput(
@@ -106,19 +119,19 @@ test('protocol approvals bind exact server, method, prompt arguments and resourc
   const policy = f.tools.mcp_protocol.needsApproval
   if (typeof policy !== 'function') throw new Error('Expected approval policy')
   expect(await policy(f.input, f.options)).toBe(true)
-  f.approvals.tools.push(mcpProtocolApprovalKey(f.input)!)
+  f.approvals.tools.push(mcpProtocolApprovalKey(f.input, f.serverId)!)
   expect(await policy(f.input, f.options)).toBe(false)
   expect(
     await policy({ ...f.input, arguments: { target: 'two' } }, f.options),
   ).toBe(true)
   expect(
     await policy(
-      { serverId: f.serverId, method: 'read_resource', uri: 'fixture://one' },
+      { server: 'Local', method: 'read_resource', uri: 'fixture://one' },
       f.options,
     ),
   ).toBe(true)
   await expect(
-    policy({ ...f.input, serverId: 'foreign' }, f.options),
+    policy({ ...f.input, server: 'foreign' }, f.options),
   ).rejects.toThrow('unavailable')
 })
 
@@ -129,7 +142,7 @@ test('protocol-only selected servers work without granting unselected tools, and
   const result = mcpResultSchema.parse(
     await f.tools.mcp_protocol.execute!(
       {
-        serverId: f.serverId,
+        server: 'Local',
         method: 'read_resource',
         uri: 'fixture://target/42',
       },

@@ -35,6 +35,35 @@ export async function get(ctx: QueryCtx, args: McpOperationExecutionArgs) {
   return operation
 }
 
+/** Resolves the authorized invocation's full contract without exposing it to the model. */
+export async function outputDefinition(
+  ctx: QueryCtx,
+  args: McpOperationExecutionArgs,
+) {
+  const operation = await get(ctx, args)
+  if (operation.protocolMethod) return null
+  if (operation.catalogToolId) {
+    const tool = await ctx.db.get(operation.catalogToolId)
+    if (!tool) error('MCP output contract unavailable', 409)
+    return tool.definitionRef
+  }
+
+  const server = await ctx.db
+    .query('mcpServers')
+    .withIndex('by_ownerId_order', (q) => q.eq('ownerId', operation.ownerId))
+    .filter((q) => q.eq(q.field('key'), operation.scope.serverId))
+    .unique()
+  if (!server?.catalogId) return null
+
+  const tool = await ctx.db
+    .query('mcpCatalogTools')
+    .withIndex('by_catalogId_name', (q) =>
+      q.eq('catalogId', server.catalogId!).eq('name', operation.toolName),
+    )
+    .unique()
+  return tool?.definitionRef ?? null
+}
+
 /** Checks the exact target policy as well as connection authority while waiting. */
 export async function allowed(ctx: QueryCtx, args: McpOperationExecutionArgs) {
   const operation = await get(ctx, args)

@@ -34,6 +34,9 @@ export const mcpOperationSchema = v.object({
   args: v.string(),
   input: v.optional(v.string()),
   catalogToolId: v.optional(v.id('mcpCatalogTools')),
+  display: v.optional(
+    v.object({ server: v.string(), name: v.string(), output: v.string() }),
+  ),
   runtimeId: v.id('mcpRuntimes'),
   scope: mcpScopeValidator,
   bootId: v.string(),

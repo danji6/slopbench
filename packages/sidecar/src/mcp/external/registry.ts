@@ -27,10 +27,12 @@ type Entry = {
   startup: AbortController
   touchedAt: number
   catalogChanges: number
+  diagnostic?: string
 }
 
 type Expectation = { bootId?: string; generation?: string; expiresAt?: number }
 const STDERR_CHARS = 8192
+const DIAGNOSTIC_CHARS = 1024
 
 /** Owns persistent clients; a lost connection requires an explicit new scope key. */
 export class McpRegistry {
@@ -204,20 +206,23 @@ export class McpRegistry {
 
       client.onclose = () => {
         if (entry.status.state === 'connected') {
+          const detail = entry.diagnostic
+            ? ` Last MCP diagnostic: ${entry.diagnostic}`
+            : ''
           entry.touchedAt = Date.now()
           entry.status.state = 'lost'
           entry.status.reason =
-            'MCP process or connection exited; analysis state was lost. Reconnect explicitly.'
+            'MCP process or connection exited; analysis state was lost. ' +
+            `Reconnect explicitly.${detail}`
         }
       }
 
-      client.onerror = () => {
+      client.onerror = (error) => {
         if (entry.status.state !== 'connected') return
-        entry.status.state = 'lost'
-        entry.touchedAt = Date.now()
-        entry.status.reason =
-          'MCP transport failed; session state may be lost. Reconnect explicitly.'
-        void client.close().catch(() => {})
+        // SDK errors include nonfatal late responses and notification failures.
+        // Transport closure and operation timeouts own session teardown.
+        entry.diagnostic = this.redact(entry, error.message).slice(0, DIAGNOSTIC_CHARS) // prettier-ignore
+        entry.status.reason = `Last MCP diagnostic: ${entry.diagnostic}`
       }
 
       entry.status.transport = transport

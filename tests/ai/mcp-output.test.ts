@@ -43,7 +43,13 @@ function result() {
       isError: true,
       _meta: { trace: 'preserved' },
     },
-    { serverId: 'one', name: 'mixed', operationId: 'operation' },
+    {
+      serverId: 'private-server-id',
+      name: 'mixed',
+      operationId: 'private-operation-id',
+      generation: 'private-generation',
+      display: { server: 'REA', name: 'mixed_1', output: 'output_2' },
+    },
   )
 }
 
@@ -62,6 +68,10 @@ test('model conversion preserves errors and supported media without duplicating 
   expect(text).toContain('future-format')
   expect(text).toContain('"isError":true')
   expect(text).not.toContain('For the user only')
+  expect(text).toContain('"server":"REA"')
+  expect(text).toContain('"name":"mixed_1"')
+  expect(text).toContain('"output":"output_2"')
+  expect(text).not.toContain('private-')
   expect(output.value.filter((part) => part.type === 'file')).toHaveLength(2)
   expect(text).not.toContain('"blob":"AAEC"')
 })
@@ -77,6 +87,11 @@ test('bounded previews explicitly refer back to full output', () => {
   const model = mcpToModelOutput({ output })
   expect(JSON.stringify(model).length).toBeLessThan(40_000)
   expect(JSON.stringify(model)).toContain('read_mcp_output')
+  expect(JSON.stringify(model)).toContain('output_2')
+  expect(JSON.stringify(model)).not.toContain('private-')
+  expect(
+    JSON.stringify(mcpToModelOutput({ output: mcpResultPreview(output) })),
+  ).not.toContain('private-')
   expect(makeOutputPreview(output)).toEqual(mcpResultPreview(output))
   expect(JSON.stringify(makeOutputPreview(output))).not.toContain('AAAA')
   expect(output.result.content.at(-1)?.data).toHaveLength(300_000)
@@ -107,6 +122,45 @@ test('offloading, reconstruction and removed-server history use identical result
   expect(toolMessage?.content[0]).toMatchObject({
     type: 'tool-result',
     output: mcpToModelOutput({ output }),
+  })
+})
+
+test('stored broker definitions replay as JSON documents without escaping their schemas', async () => {
+  const output = JSON.stringify({
+    view: 'input',
+    inputSchemaComplete: true,
+    hasMore: false,
+    definition: {
+      name: 'status',
+      inputSchema: {
+        type: 'object',
+        properties: { value: { $ref: '#/$defs/value' } },
+        $defs: { value: { type: 'string' } },
+      },
+    },
+  })
+  const ctx = {
+    storage: { get: async () => new Blob([JSON.stringify(output)]) },
+  } as unknown as ActionCtx
+  const original = {
+    type: 'tool-search_mcp_tools',
+    toolCallId: 'definition',
+    state: 'output-available',
+    input: { tool: 'status' },
+    output: 'preview',
+    outputRef: 'blob' as Id<'_storage'>,
+  }
+  const resolved = await resolveOffloadedOutput(ctx, original)
+  const messages = [
+    { id: 'message', role: 'assistant', parts: [resolved] },
+  ] as unknown as UIMessage[]
+  const replay = await convertToModelMessages(messages, {
+    tools: mcpHistoryTools(messages),
+  })
+  expect(
+    replay.find((message) => message.role === 'tool')?.content[0],
+  ).toMatchObject({
+    output: { type: 'text', value: output },
   })
 })
 

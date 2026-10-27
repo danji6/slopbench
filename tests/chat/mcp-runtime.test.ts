@@ -186,6 +186,30 @@ test('revocation journals cleanup, fences late connection results, and requires 
   expect(await connected(ctx, ack)).toBe(false)
 })
 
+test.each(['lost', 'disconnected'])(
+  '%s runtime errors retain a bounded diagnostic without pointing at unavailable settings',
+  async (state) => {
+    const { ctx, db, input } = await fixture()
+    const runtime = await authorizeRuntime(ctx, input)
+    await db.patch(runtime.runtimeId, {
+      state,
+      reason: `Sidecar restarted. ${'detail'.repeat(1000)}`,
+    })
+    let message = ''
+    try {
+      await authorizeRuntime(ctx, input)
+    } catch (cause) {
+      const { extractErrorMessage } = await import('@sb/convex/errors')
+      message = extractErrorMessage(cause)
+    }
+    expect(message).toContain(`MCP session is ${state}`)
+    expect(message).toContain('Sidecar restarted.')
+    expect(message).toContain('reconnect explicitly')
+    expect(message).not.toContain('in MCP settings')
+    expect(message.length).toBeLessThan(650)
+  },
+)
+
 test('disable and transport changes invalidate all active connection identities', async () => {
   const { ctx, rows, input } = await fixture()
   const first = await authorizeRuntime(ctx, input)

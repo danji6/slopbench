@@ -112,8 +112,9 @@ export async function authorizeRuntime(ctx: MutationCtx, input: RuntimeInput) {
 
   const row = await ensureRuntime(ctx, input, workspaceKey(session.workspace))
   if (row.state === 'disconnected' || row.state === 'lost') {
+    const reason = row.reason ? ` Reason: ${row.reason.slice(0, 512)}` : ''
     error(
-      'MCP session is disconnected or lost; reconnect it in MCP settings',
+      `MCP session is ${row.state}; reconnect explicitly before retrying.${reason}`,
       409,
     )
   }

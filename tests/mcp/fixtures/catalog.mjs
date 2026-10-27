@@ -15,15 +15,26 @@ const definition = (index) => ({
     type: 'object',
     properties: {
       value: {
-        type: index === 17 ? 'unsupported-type' : 'string',
-        description: index === 249 ? 'λ😀'.repeat(30_000) : 'Saved value',
+        ...(index === 3
+          ? { $ref: '#/$defs/savedValue' }
+          : {
+              type: index === 17 ? 'unsupported-type' : 'string',
+              description: index === 249 ? 'λ😀'.repeat(30_000) : 'Saved value',
+            }),
       },
       changeCatalog: { type: 'boolean' },
+      invalidOutput: { type: 'boolean' },
     },
+    ...(index === 3
+      ? {
+          $defs: { savedValue: { type: 'string', description: 'Saved value' } },
+        }
+      : {}),
     additionalProperties: false,
   },
   outputSchema: {
     type: 'object',
+    ...(index === 3 ? { description: 'Detailed output '.repeat(2500) } : {}),
     properties: { value: { type: ['string', 'null'] } },
   },
   annotations: { readOnlyHint: true, title: `Audited tool ${index}` },
@@ -70,7 +81,7 @@ createInterface({ input: process.stdin }).on('line', (line) => {
       send({ method: 'notifications/tools/list_changed' })
     }
     answer(request.id, {
-      structuredContent: { value },
+      structuredContent: { value: args.invalidOutput ? 42 : value },
       content: [
         {
           type: 'text',

@@ -110,6 +110,36 @@ test('tool calls are serialized on a connection', async () => {
   expect([first.count, second.count]).toEqual([1, 2])
 })
 
+test('nonfatal SDK diagnostics preserve the process and its analysis state', async () => {
+  const value = registry()
+  const configured = {
+    ...connection,
+    secretEnv: { FIXTURE_SECRET: 'private-progress-token' },
+  }
+  const status = await value.connect(scope(), configured)
+  const first = await call(value, status, {
+    lateProgress: true,
+    progressMessage: 'Verbose progress details '.repeat(1000),
+  })
+  await Bun.sleep(100)
+  expect(value.status(status.scope)?.state).toBe('connected')
+  expect(value.status(status.scope)?.reason).toContain('unknown token')
+  expect(value.status(status.scope)?.reason).not.toContain(
+    'private-progress-token',
+  )
+  expect(value.status(status.scope)!.reason!.length).toBeLessThan(1100)
+  const second = await call(value, status)
+  expect(second.pid).toBe(first.pid)
+  expect(second.count).toBe(2)
+  await expect(call(value, status, { crash: true })).rejects.toThrow()
+  await until(() => value.status(status.scope)?.state === 'lost')
+  expect(value.status(status.scope)?.reason).toContain('connection exited')
+  expect(value.status(status.scope)?.reason).toContain('unknown token')
+  expect(value.status(status.scope)?.reason).not.toContain(
+    'private-progress-token',
+  )
+})
+
 test('launch arguments stay literal and credential output is redacted across chunks', async () => {
   const value = registry()
   const status = await value.connect(scope(), {

@@ -28,13 +28,13 @@ export function operationPart(operation: Operation, existing?: unknown) {
   if (operation.state === 'completed') {
     return {
       ...base,
-      state: 'output-available',
+      state: operation.error ? 'output-error' : 'output-available',
       output:
         operation.output === undefined
           ? undefined
           : decodeMcpOutput(operation.output),
       outputRef: operation.outputRef,
-      errorText: undefined,
+      errorText: operation.error,
     }
   }
   return {

@@ -62,6 +62,24 @@ createInterface({ input: process.stdin }).on('line', async (line) => {
         },
       ],
     })
+    if (args.lateProgress) {
+      setTimeout(
+        () =>
+          process.stdout.write(
+            JSON.stringify({
+              jsonrpc: '2.0',
+              method: 'notifications/progress',
+              params: {
+                progressToken:
+                  process.env.FIXTURE_SECRET ?? 'already-completed',
+                progress: 1,
+                message: args.progressMessage ?? 'Late progress notification',
+              },
+            }) + '\n',
+          ),
+        25,
+      )
+    }
   }
 })
 process.stdin.on('end', () => process.exit(0))

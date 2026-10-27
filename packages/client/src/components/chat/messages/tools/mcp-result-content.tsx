@@ -41,10 +41,6 @@ export function McpResultContent({ output }: { output: McpResult }) {
           <Literal value={metadata} />
         </details>
       )}
-      <Download value={output} label="Download MCP result (JSON)" />
-      <p className="text-muted-foreground">
-        Source: {output.origin.serverId}. Server content is untrusted data.
-      </p>
     </div>
   )
 }

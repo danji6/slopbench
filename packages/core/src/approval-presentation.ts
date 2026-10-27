@@ -71,5 +71,19 @@ export function approvalSummary(toolName: string, input: unknown): string {
   if (plan) return plan.heading
   if (toolName === 'shell')
     return getDescription(input) ?? 'Run a shell command'
-  return `${toolName}: ${summarizeInput(input)}`
+  return `${toolDisplayName(toolName, input)}: ${summarizeInput(input)}`
+}
+
+/** Shows a broker target's readable name before and after execution. */
+export function toolDisplayName(
+  toolName: string,
+  input: unknown,
+  title?: string,
+) {
+  if (toolName !== 'call_mcp_tool') return title || toolName
+  const tool =
+    input && typeof input === 'object'
+      ? (input as { tool?: unknown }).tool
+      : undefined
+  return typeof tool === 'string' ? tool : title || toolName
 }

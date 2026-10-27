@@ -2,7 +2,7 @@ import { useToolApprovalPicker } from '@/hooks/chat/tool-approval'
 import { cn } from '@/lib/utils'
 import { type api } from '@sb/convex/_generated/api'
 import { HOLD_HINTS } from '@sb/convex/lib/tool/approvalPolicy'
-import { summarizeInput } from '@sb/core/approval-presentation'
+import { summarizeInput, toolDisplayName } from '@sb/core/approval-presentation'
 import type { FunctionReturnType } from 'convex/server'
 import { type RefObject, Suspense, lazy } from 'react'
 
@@ -70,7 +70,7 @@ export function ToolApprovalPicker({
           <div className="text-sm">
             <span className="text-muted-foreground ml-1">Approve:</span>{' '}
             <span className="text-foreground font-medium">
-              {part.title || toolName}
+              {toolDisplayName(toolName, part.input, part.title)}
             </span>
           </div>
         )}

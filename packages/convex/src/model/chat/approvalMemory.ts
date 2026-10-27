@@ -8,6 +8,7 @@ import {
   toolNamesForApproval,
 } from '../../lib/tool/approval'
 import type { RememberScope, Session } from '../../types'
+import { approvalTarget, findName } from '../mcpBrokerNames'
 import { _allowToolPaths as allowToolPaths } from '../session/sessions'
 import { appendApprovals, getApprovals } from '../session/state'
 
@@ -46,9 +47,9 @@ export async function rememberApproval(
   const tools = approvals.tools ?? []
   const targetKey =
     matched.toolName === 'call_mcp_tool'
-      ? mcpApprovalKey(matched.input)
+      ? mcpApprovalKey(await approvalTarget(ctx, session._id, matched.input))
       : matched.toolName === 'mcp_protocol'
-        ? mcpProtocolApprovalKey(matched.input)
+        ? await protocolApproval(ctx, session, matched.input)
         : undefined
   if (matched.toolName === 'call_mcp_tool' && !targetKey) return
 
@@ -59,6 +60,17 @@ export async function rememberApproval(
   if (additions.length === 0) return
 
   await appendApprovals(ctx, session._id, 'tools', additions)
+}
+
+async function protocolApproval(
+  ctx: AuthMutationCtx,
+  session: Session,
+  input: unknown,
+) {
+  const server = (input as { server?: string } | null)?.server
+  if (typeof server !== 'string') return
+  const binding = await findName(ctx, session._id, 'server', server)
+  return binding ? mcpProtocolApprovalKey(input, binding.target) : undefined
 }
 
 /** Saves resolved paths or schedules discovery against the current workspace. */

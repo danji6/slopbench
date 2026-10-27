@@ -5,6 +5,7 @@ import type { MutationCtx } from '../_generated/server'
 import { error } from '../errors'
 import type { McpReserveArgs, RunningStream } from '../types'
 import { _getExecution } from './mcp'
+import { assignName, findName } from './mcpBrokerNames'
 import { assertSameInvocation, requireExecution } from './mcpOperationAccess'
 import { operationPart } from './mcpOperationParts'
 import { getProcessingSegmentRow, patchSegmentParts } from './messageContents'
@@ -34,6 +35,19 @@ export async function reserve(ctx: MutationCtx, args: McpReserveArgs) {
 
   const live = await authorize(ctx, stream, args)
   const id = await ctx.db.insert('mcpOperations', fields(stream, row._id, args, live)) // prettier-ignore
+  await ctx.db.patch(id, {
+    display: {
+      server: await assignName(
+        ctx,
+        stream.sessionId,
+        'server',
+        live.server.recordId!,
+        live.server.label || 'MCP server',
+      ),
+      name: args.input ? JSON.parse(args.input).tool : args.toolName,
+      output: await assignName(ctx, stream.sessionId, 'output', id, 'output'),
+    },
+  })
   const operation = (await ctx.db.get(id))!
   await checkpoint(ctx, row, operation)
 
@@ -96,9 +110,9 @@ async function authorize(
     }
 
     const input = JSON.parse(args.input ?? '{}')
+    const binding = await findName(ctx, stream.sessionId, 'tool', input.tool)
     const matchesTarget =
-      input.serverId === target.serverId &&
-      input.toolId === target._id &&
+      binding?.target === target._id &&
       JSON.stringify(input.arguments) === args.args
     if (!matchesTarget || args.name !== 'call_mcp_tool')
       error('MCP broker invocation target changed', 409)

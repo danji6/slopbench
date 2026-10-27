@@ -58,16 +58,6 @@ export const _references = internalQuery({
   handler: Catalogs.references,
 })
 
-export const _target = internalQuery({
-  args: V.catalogTargetValidator.fields,
-  handler: Access.target,
-})
-
-export const _search = internalQuery({
-  args: V.catalogSearchValidator.fields,
-  handler: Access.search,
-})
-
 export const _available = internalQuery({
   args: streamExecutionArgsValidator.fields,
   handler: Access.available,

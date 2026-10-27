@@ -51,6 +51,7 @@ export async function remove(
     'plans',
     'todos',
     'sessionCache',
+    'mcpBrokerNames',
     'sessionState',
     'typing',
     'shellJobs',

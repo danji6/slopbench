@@ -18,7 +18,7 @@ import {
 } from './mcpOperation'
 import { mcpToModelOutput } from './mcpOutput'
 
-type Input = McpProtocolRequest & { serverId: string }
+type Input = McpProtocolRequest & { server: string }
 
 /** Uses session runtimes and durable operation identity for every protocol request. */
 export async function createMcpProtocolTools(context: McpBrokerContext) {
@@ -37,8 +37,10 @@ export async function createMcpProtocolTools(context: McpBrokerContext) {
         )
         if (previous) return false
         if (server.transport !== 'stdio') return false
+        // The available set already enforces live integration selection.
+        if (server.integrationId) return false
         return !isToolAutoApproved(
-          mcpProtocolApprovalKey(input)!,
+          mcpProtocolApprovalKey(input, server.recordId!)!,
           input,
           await context.approvals?.(),
         )
@@ -85,7 +87,7 @@ export async function createMcpProtocolTools(context: McpBrokerContext) {
 }
 
 function invocation(serverKey: string, input: Input, toolCallId: string) {
-  const { serverId: _server, ...args } = input
+  const { server: _server, ...args } = input
   return {
     serverKey,
     name: 'mcp_protocol',
@@ -97,13 +99,8 @@ function invocation(serverKey: string, input: Input, toolCallId: string) {
 }
 
 async function protocolServer(context: McpBrokerContext, input: Input) {
-  const { servers } = await context.operation.ctx.runQuery(
-    internal.mcpCatalogs._available,
-    context.operation.execution,
-  )
-  const server = servers.find(
-    (candidate) => candidate.recordId === input.serverId,
-  )
-  if (!server) throw new ToolError('MCP protocol server unavailable')
-  return server
+  return context.operation.ctx.runQuery(internal.mcpBroker._server, {
+    ...context.operation.execution,
+    server: input.server,
+  })
 }

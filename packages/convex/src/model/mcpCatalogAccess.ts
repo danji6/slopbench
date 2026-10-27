@@ -95,8 +95,11 @@ export async function target(ctx: QueryCtx, args: McpCatalogTargetArgs) {
   if (catalog?.configRevision !== (stored?.revision ?? 0)) {
     error('MCP configuration changed; refresh the catalog', 409)
   }
+  if (!catalog?.fingerprint) {
+    error('MCP catalog revision unavailable; refresh the catalog', 409)
+  }
 
-  return { server, tool, selected }
+  return { server, tool, selected, catalogRevision: catalog.fingerprint }
 }
 
 /** Lists servers first, then searches a selected server's bounded catalog page. */
@@ -163,6 +166,7 @@ export async function search(ctx: QueryCtx, args: McpCatalogSearchArgs) {
 
   return {
     catalogId: server.catalogId,
+    catalogRevision: catalog?.fingerprint,
     total: matches.length,
     tools: matches.slice(offset, offset + limit).map((row) => ({
       toolId: row._id,
@@ -205,6 +209,7 @@ async function listServers(
       label: server.label,
       count: server.catalogCount,
       catalogId: server.catalogId,
+      catalogRevision: catalog?.fingerprint,
       diagnostic:
         server.catalogError ??
         (!catalog

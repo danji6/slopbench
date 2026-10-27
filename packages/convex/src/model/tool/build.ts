@@ -20,6 +20,7 @@ import {
 import { guardFilesystemTool } from './filesystemGuard'
 import type { McpManifestEntry, ToolManifest } from './manifest'
 import { createExternalMcpTool } from './mcp'
+import { guardMcpApproval } from './mcpApproval'
 import { createMcpBrokerTools } from './mcpBroker'
 import type { McpOperationContext } from './mcpOperation'
 import { createMcpProtocolTools } from './mcpProtocol'
@@ -272,7 +273,7 @@ async function createManifestTool(
         approvals: build.mcpApprovals,
         failed: build.mcpFailed,
       })
-      return (broker as Record<string, AnyTool>)[name]
+      return guardMcpApproval((broker as Record<string, AnyTool>)[name])
     }
     case 'web_fetch':
       return createWebFetchTool()
@@ -318,7 +319,7 @@ async function createManifestTool(
   const entry = build.mcpByName.get(name)
   if (!entry) return undefined
 
-  return createExternalMcpTool(
+  const external = await createExternalMcpTool(
     entry,
     build.resources.mcpServers,
     build.mcpExecution
@@ -329,4 +330,5 @@ async function createManifestTool(
     build.mcpFailed,
     build.mcpOperation,
   )
+  return guardMcpApproval(external)
 }
