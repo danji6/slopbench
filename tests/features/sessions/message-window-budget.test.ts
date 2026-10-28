@@ -1,5 +1,6 @@
 /// <reference types="bun-types" />
 import {
+  anchorForOlderPage,
   anchorFromEnd,
   anchorFromStart,
   sliceTailByBudget,
@@ -125,6 +126,24 @@ describe('anchorFromStart', () => {
     expect(anchorFromStart(messages, 100)).toEqual({
       index: 0,
       segmentIndex: 1,
+    })
+  })
+})
+
+describe('anchorForOlderPage', () => {
+  test('keeps the newest segment when a restored window has room to grow', () => {
+    expect(
+      anchorForOlderPage([msg([70, 70, 18]), msg([4]), msg([4])], 128, 512),
+    ).toEqual({ index: 2, segmentIndex: 0 })
+  })
+
+  test('only evicts the capacity needed for the next older page', () => {
+    expect(
+      anchorForOlderPage(sized([100, 100, 100, 100, 10, 10]), 128, 512),
+    ).toEqual({ index: 3, segmentIndex: 0 })
+    expect(anchorForOlderPage(sized([128, 128, 128, 128]), 128, 512)).toEqual({
+      index: 3,
+      segmentIndex: 0,
     })
   })
 })

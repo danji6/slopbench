@@ -98,3 +98,14 @@ export function anchorFromStart(
   }
   return { index: Math.max(0, messages.length - 1) }
 }
+
+/** Uses spare capacity before evicting newer content to make room for an older page. */
+export function anchorForOlderPage(
+  messages: SegmentedMessage[],
+  pageBudget: number,
+  windowBudget: number,
+): SegmentAnchor {
+  const loadedBytes = messages.reduce((total, message) => total + message.sizeBytes, 0) // prettier-ignore
+  const evictionBytes = Math.max(0, loadedBytes + pageBudget - windowBudget)
+  return anchorFromEnd(messages, evictionBytes)
+}

@@ -1,141 +1,80 @@
 import type { ScrollDeps } from '@/components/chat/messages/message-list/deps'
-import { getNavPaddingPx } from '@/hooks/nav-padding'
-import { trackUntilSettled } from '@/lib/scroll-settle'
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
+import { useCallback, useLayoutEffect, useRef } from 'react'
+
+import { type OlderPagesOptions, useOlderMessagePages } from './older-pages'
+import { useWindowPosition } from './window-position'
 
 type WindowSlideOptions = {
-  extendOlder: () => boolean
+  extendOlder: OlderPagesOptions['extendOlder']
   extendNewer: () => boolean
   isSliding: boolean
+  older: Omit<OlderPagesOptions, 'extendOlder' | 'coordinator' | 'onCancel'>
 }
 
-/**
- * Preserves the visible scroll position across a window slide (loading an older
- * or newer page). Captures the first still visible message, then converges back
- * onto it once the slide settles.
- */
+/** Loads bounded pages while preserving visible content throughout the operation. */
 export function useWindowSlide(
   deps: ScrollDeps,
-  { extendOlder, extendNewer, isSliding }: WindowSlideOptions,
+  {
+    extendOlder,
+    extendNewer,
+    isSliding,
+    older: olderOptions,
+  }: WindowSlideOptions,
 ) {
-  const { scroller, virtuaRef, rowsRef, metaRef, docScrollRef, topPadding } =
-    deps
-  const { setShiftInProgress, coordinator } = scroller
-  const layoutCurrent = useRef<() => boolean>(() => true)
-
-  // Tracks the position of a message across a window slide so it can be restored
-  const slideAnchorRef = useRef<{ id: string; top: number } | null>(null)
-  const slidePendingRef = useRef(false)
-  // A pending Page Up/Down continuation that slid the window
-  const pendingPageRef = useRef<1 | -1 | null>(null)
-  const slideRestoreRef = useRef<(() => void) | null>(null)
-
-  // Capture the first message still visible below the nav padding
-  const captureSlideAnchor = useCallback(() => {
-    const container = docScrollRef.current
-    if (!container) return null
-    const topPaddingPx = getNavPaddingPx(topPadding)
-    const els = container.querySelectorAll<HTMLElement>('[data-message-id]')
-    for (const el of els) {
-      const rect = el.getBoundingClientRect()
-      if (rect.bottom > topPaddingPx) {
-        const id = el.dataset.messageId
-        if (id) return { id, top: rect.top }
-      }
-    }
-    return null
-  }, [docScrollRef, topPadding])
+  const {
+    metaRef,
+    scroller: { coordinator },
+  } = deps
+  const position = useWindowPosition(deps)
+  const { start, finish, cancel: cancelPosition, slidePendingRef } = position
+  const {
+    loadOlder: requestOlder,
+    cancel: cancelOlder,
+    isLoadingOlder: olderLoading,
+    isSliding: olderSliding,
+  } = useOlderMessagePages({
+    ...olderOptions,
+    extendOlder,
+    coordinator,
+    onCancel: cancelPosition,
+  })
 
   const loadOlder = useCallback(() => {
-    const m = metaRef.current
-    if (!m.canLoadOlder || m.isLoadingOlder) return
-    layoutCurrent.current = coordinator.checkpoint()
-    const anchor = captureSlideAnchor()
-    setShiftInProgress(true)
-    if (extendOlder() && anchor) {
-      slideAnchorRef.current = anchor
-      slidePendingRef.current = true
-    }
-  }, [
-    extendOlder,
-    setShiftInProgress,
-    captureSlideAnchor,
-    metaRef,
-    coordinator,
-  ])
+    const meta = metaRef.current
+    if (!meta.canLoadOlder || meta.isLoadingOlder || meta.isLoadingNewer) return
+    if (requestOlder()) start('older')
+  }, [metaRef, requestOlder, start])
 
   const loadNewer = useCallback(() => {
-    const m = metaRef.current
-    if (!m.canLoadNewer || m.isLoadingNewer) return
-    layoutCurrent.current = coordinator.checkpoint()
-    const anchor = captureSlideAnchor()
-    setShiftInProgress(true)
-    if (extendNewer() && anchor) {
-      slideAnchorRef.current = anchor
-      slidePendingRef.current = true
-    }
-  }, [
-    extendNewer,
-    setShiftInProgress,
-    captureSlideAnchor,
-    metaRef,
-    coordinator,
-  ])
-
-  // Restore the anchor to preserve the scroll position
-  const restoreSlideAnchor = useCallback(() => {
-    const anchor = slideAnchorRef.current
-    slideAnchorRef.current = null
-    if (!anchor || !layoutCurrent.current()) {
-      pendingPageRef.current = null
-      return
-    }
-
-    const topPaddingPx = getNavPaddingPx(topPadding)
-    const page = pendingPageRef.current
-    pendingPageRef.current = null
-    const pageShift = page ? window.innerHeight * 0.9 * page : 0
-    const targetTop = Math.max(topPaddingPx, anchor.top) - pageShift
-
-    slideRestoreRef.current?.()
-    // Converge on the anchor's real position
-    slideRestoreRef.current = trackUntilSettled(() => {
-      if (!layoutCurrent.current()) return 0
-      const index = rowsRef.current.findIndex(
-        (row) => row.messageId === anchor.id,
-      )
-      if (index < 0) return null
-
-      const el = document.querySelector<HTMLElement>(
-        `[data-message-id="${CSS.escape(anchor.id)}"]`,
-      )
-      // Bring it closer if it's not mounted yet
-      if (!el) {
-        virtuaRef.current?.scrollToIndex(index, {
-          align: 'start',
-          offset: -targetTop,
-        })
-        return null
-      }
-
-      const delta = el.getBoundingClientRect().top - targetTop
-      if (Math.abs(delta) > 1) window.scrollBy({ top: delta })
-      return delta
-    })
-  }, [topPadding, rowsRef, virtuaRef])
-  useEffect(() => () => slideRestoreRef.current?.(), [])
+    const meta = metaRef.current
+    if (!meta.canLoadNewer || meta.isLoadingNewer) return
+    cancelOlder()
+    if (extendNewer()) start('newer')
+  }, [metaRef, cancelOlder, extendNewer, start])
 
   const prevSlidingRef = useRef(isSliding)
+  const prevOlderRef = useRef(olderLoading)
   useLayoutEffect(() => {
     const wasSliding = prevSlidingRef.current
+    const wasOlder = prevOlderRef.current
     prevSlidingRef.current = isSliding
-    if (wasSliding && !isSliding && slidePendingRef.current) {
-      slidePendingRef.current = false
-      restoreSlideAnchor()
-    }
-  }, [isSliding, restoreSlideAnchor])
+    prevOlderRef.current = olderLoading
+    const completed = (wasOlder && !olderLoading) || (wasSliding && !isSliding)
+    if (completed && !olderLoading && slidePendingRef.current) finish()
+  }, [isSliding, olderLoading, slidePendingRef, finish])
 
-  return { loadOlder, loadNewer, slidePendingRef, pendingPageRef }
+  return {
+    loadOlder,
+    loadNewer,
+    slidePendingRef,
+    pendingPageRef: position.pendingPageRef,
+    isPositioning: position.isPositioning,
+    isLoadingOlder:
+      olderLoading ||
+      olderOptions.meta.isLoadingOlder ||
+      position.isPositioningOlder,
+    isSliding: olderSliding || isSliding,
+  }
 }
 
 export type WindowSlide = ReturnType<typeof useWindowSlide>

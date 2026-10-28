@@ -2,10 +2,12 @@ import { RippleButton, WavyProgressCircle } from '@/components/ui'
 import { noteExpansion } from '@/lib/chat/note-state'
 import type { RowTransition } from '@/lib/chat/row-expansion-state'
 import type { MessageRow } from '@/lib/chat/rows'
+import { shiftsOnlyAtStart } from '@/lib/chat/window-row-shift'
 import { workExpansion } from '@/lib/chat/work-state'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   type CSSProperties,
+  Fragment,
   type ReactElement,
   type ReactNode,
   type RefObject,
@@ -162,6 +164,7 @@ type MessageRowsProps = {
   topPaddingStyle: CSSProperties
   header?: ReactNode
   hasMore: boolean
+  isLoadingOlder?: boolean
   hasNewer: boolean
   /** Whether virtua should shift to preserve position. */
   shiftItems: boolean
@@ -179,6 +182,7 @@ function MessageRows({
   topPaddingStyle,
   header,
   hasMore,
+  isLoadingOlder,
   hasNewer,
   shiftItems,
   onLoadMore,
@@ -186,6 +190,10 @@ function MessageRows({
   renderRow,
   virtuaRef,
 }: MessageRowsProps) {
+  const [layout, setLayout] = useState({ rows, shift: false })
+  if (layout.rows !== rows) {
+    setLayout({ rows, shift: shiftsOnlyAtStart(layout.rows, rows) })
+  }
   const workTransitions = useRowTransitions(workExpansion)
   const noteTransitions = useRowTransitions(noteExpansion)
   const transitions = new Map([...workTransitions, ...noteTransitions])
@@ -206,6 +214,7 @@ function MessageRows({
             <LoadWindowButton
               onClick={onLoadMore}
               label="Load older messages"
+              loading={isLoadingOlder}
             />
           )}
         </div>
@@ -224,9 +233,9 @@ function MessageRows({
               ref={virtuaRef}
               data={rows}
               item={VirtualizedItem}
-              shift={shiftItems}
+              shift={shiftItems || layout.shift}
             >
-              {renderRow}
+              {(row) => <Fragment key={row.key}>{renderRow(row)}</Fragment>}
             </WindowVirtualizer>
           </RowTransitionsContext>
         </VirtualizedRowsContext>
@@ -243,13 +252,22 @@ function MessageRows({
 function LoadWindowButton({
   onClick,
   label,
+  loading = false,
 }: {
   onClick: () => void
   label: string
+  loading?: boolean
 }) {
   return (
     <div className="flex justify-center">
-      <RippleButton variant="input" onClick={onClick}>
+      <RippleButton
+        variant="input"
+        onClick={onClick}
+        disabled={loading}
+        aria-busy={loading}
+        data-load-older={label === 'Load older messages' ? '' : undefined}
+      >
+        {loading && <WavyProgressCircle size={16} />}
         {label}
       </RippleButton>
     </div>

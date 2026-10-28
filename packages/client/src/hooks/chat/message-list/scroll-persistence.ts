@@ -2,18 +2,20 @@ import type { ScrollDeps } from '@/components/chat/messages/message-list/deps'
 import type { useMessageStore } from '@/hooks/chat'
 import type { SeekTargetOptions } from '@/hooks/chat/message-list/seek'
 import { getNavPaddingPx } from '@/hooks/nav-padding'
+import { scrollRowAddress } from '@/lib/chat/scroll-address'
 import {
   getSavedScroll,
   setSavedScroll,
 } from '@/lib/chat/scroll-position-store'
+import { captureWindowScrollAnchor } from '@/lib/chat/window-scroll-anchor'
+import { scrollDebug } from '@/lib/scroll-debug'
 import { useCallback, useEffect, useRef } from 'react'
 
 /** Debounce for capturing the scroll position while the user scrolls. */
 const CAPTURE_DEBOUNCE_MS = 300
-/** Delay before capture arms, letting the initial/restored scroll settle first. */
-const ARM_DELAY_MS = 500
 
 type PersistenceOptions = {
+  isPositioning?: boolean
   sessionId: string | undefined
   messageStore: ReturnType<typeof useMessageStore>
   /** Whether the viewport is currently pinned to the bottom of the list. */
@@ -39,9 +41,15 @@ export function useScrollPersistence(
     requestScrollToMessage,
     followToBottom,
     onRestoreSettled,
+    isPositioning = false,
   }: PersistenceOptions,
 ) {
-  const { metaRef, topPadding } = deps
+  const {
+    metaRef,
+    topPadding,
+    rowsRef,
+    scroller: { coordinator },
+  } = deps
 
   const isAtBottomRef = useRef(isAtBottom)
   const onRestoreSettledRef = useRef(onRestoreSettled)
@@ -54,22 +62,21 @@ export function useScrollPersistence(
 
   const capture = useCallback(() => {
     if (!armedRef.current || !sessionId) return
+    if (isPositioning) return
+    const windowMeta = metaRef.current
+    if (windowMeta.isLoadingOlder || windowMeta.isLoadingNewer) return
+    if (coordinator.kind === 'restore' || coordinator.kind === 'navigate')
+      return
 
     const topPaddingPx = getNavPaddingPx(topPadding)
-    const items = document.querySelectorAll<HTMLElement>(
-      '[data-slot="virtualized-item"][data-message-id]',
+    const [anchor] = captureWindowScrollAnchor(
+      document.documentElement,
+      rowsRef.current,
+      topPaddingPx,
+      window.innerHeight,
     )
-
-    // Topmost row still intersecting the viewport below the nav padding
-    let anchor: HTMLElement | undefined
-    for (const item of items) {
-      if (item.getBoundingClientRect().bottom > topPaddingPx + 1) {
-        anchor = item
-        break
-      }
-    }
-    const anchorId = anchor?.dataset.messageId
-    if (!anchor || !anchorId) return
+    if (!anchor) return
+    const anchorId = anchor.row.messageId
 
     const meta = messageStore.getMessageMetadata(anchorId)
     // Whether the auto scroller is currently active
@@ -80,19 +87,27 @@ export function useScrollPersistence(
     if (!following && meta?._creationTime === undefined) return
 
     // Anchor to the row within the message
-    const segmentIndex = anchor.dataset.segmentIndex
-    const offset = anchor.getBoundingClientRect().top - topPaddingPx
-
+    const rowAddress = scrollRowAddress(anchor.row, messageStore)
+    const offset = anchor.top - topPaddingPx
     setSavedScroll(sessionId, {
       anchorId,
       creationTime: meta?._creationTime ?? 0,
-      segmentIndex:
-        segmentIndex !== undefined ? Number(segmentIndex) : undefined,
-      rowKey: anchor.dataset.rowKey,
+      segmentIndex: rowAddress?.segmentIndex,
+      rowKey: anchor.row.key,
+      rowAddress,
+      contentOffset: true,
       offset,
       following,
     })
-  }, [sessionId, topPadding, messageStore, metaRef])
+  }, [
+    sessionId,
+    topPadding,
+    messageStore,
+    metaRef,
+    rowsRef,
+    coordinator,
+    isPositioning,
+  ])
 
   const captureRef = useRef(capture)
   useEffect(() => {
@@ -113,28 +128,31 @@ export function useScrollPersistence(
     }
   }, [])
 
-  // Capture the final position when leaving the session
-  useEffect(() => () => captureRef.current(), [])
+  // Full page reloads do not unmount React before leaving.
+  useEffect(() => {
+    const captureLeaving = () => captureRef.current()
+    window.addEventListener('pagehide', captureLeaving)
+    return () => {
+      window.removeEventListener('pagehide', captureLeaving)
+      captureLeaving()
+    }
+  }, [])
 
-  const armTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(
-    () => () => {
-      if (armTimerRef.current) clearTimeout(armTimerRef.current)
-    },
-    [],
-  )
-  const arm = useCallback(() => {
-    if (armTimerRef.current) clearTimeout(armTimerRef.current)
-    armTimerRef.current = setTimeout(() => {
-      armedRef.current = true
-    }, ARM_DELAY_MS)
+  const restored = useCallback(() => {
+    scrollDebug('persistence.restored')
+    armedRef.current = true
+    onRestoreSettledRef.current()
   }, [])
 
   // Restores a saved position. Returns true if it took over scrolling.
   const restore = useCallback((): boolean => {
-    arm()
     const saved = sessionId ? getSavedScroll(sessionId) : undefined
-    if (!saved || saved.following) return false
+    scrollDebug('persistence.restore', () => ({ saved }))
+    if (!saved || saved.following) {
+      armedRef.current = true
+      return false
+    }
+    armedRef.current = false
 
     requestScrollToMessage(
       saved.anchorId,
@@ -142,18 +160,20 @@ export function useScrollPersistence(
       saved.segmentIndex,
       {
         kind: 'restore',
-        onCancelled: () => onRestoreSettledRef.current(),
+        onCancelled: restored,
         offset: saved.offset,
         rowKey: saved.rowKey,
-        onSettled: () => onRestoreSettledRef.current(),
+        rowAddress: saved.rowAddress,
+        contentOffset: saved.contentOffset,
+        onSettled: restored,
         onNotFound: () => {
           followToBottom() // fall back to the bottom
-          onRestoreSettledRef.current()
+          restored()
         },
       },
     )
     return true
-  }, [arm, sessionId, requestScrollToMessage, followToBottom])
+  }, [sessionId, requestScrollToMessage, followToBottom, restored])
 
   return { restore }
 }

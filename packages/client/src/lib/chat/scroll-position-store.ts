@@ -1,6 +1,7 @@
 import { APP_ID } from '@sb/core/const'
 
 import { createLocalStorageStore } from '../local-storage-store'
+import type { ScrollRowAddress } from './scroll-address'
 
 const STORAGE_KEY = `${APP_ID}-scroll-positions`
 
@@ -13,6 +14,9 @@ export type SavedScroll = {
   segmentIndex?: number
   /** Stable key of the exact row, for sub-message alignment. */
   rowKey?: string
+  rowAddress?: ScrollRowAddress
+  /** Measures the body node rather than the virtualized row's spacing. */
+  contentOffset?: boolean
   /** Offset (px) of the anchor's top from the nav-padding line. */
   offset: number
   /** Whether the user was pinned to the bottom when they left. */

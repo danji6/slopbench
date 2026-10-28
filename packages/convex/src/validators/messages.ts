@@ -157,6 +157,8 @@ export const messagesWindowArgsValidator = v.object({
    * When null, it anchors at the newest message (see `WindowAnchor` for the type).
    */
   anchor: v.union(v.array(v.union(v.string(), v.number())), v.null()),
+  /** Includes the anchor message by default; false starts strictly beyond it. */
+  anchorInclusive: v.optional(v.boolean()),
   direction: v.union(v.literal('older'), v.literal('newer')),
   limit: v.number(),
   /** Content budget for the page. A message count fallback is used when absent. */

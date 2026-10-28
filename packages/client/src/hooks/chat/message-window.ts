@@ -2,13 +2,15 @@ import { hydrateLiveSegments } from '@/lib/chat/live-segments'
 import type {
   MessageWindowMetadata,
   WindowAnchor,
+  WindowBoundary,
   WindowControls,
 } from '@/lib/chat/message-store'
 import {
-  anchorFromEnd,
+  anchorForOlderPage,
   anchorFromStart,
   sliceTailByBudget,
 } from '@/lib/chat/window-math'
+import { scrollDebug } from '@/lib/scroll-debug'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import {
@@ -18,17 +20,35 @@ import {
 } from '@sb/core/const'
 import { useQuery } from 'convex/react'
 import type { FunctionReturnType } from 'convex/server'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 type WindowResult = FunctionReturnType<typeof api.chat.messagesWindow>
 type AnchorKey = (string | number)[]
 
-// prettier-ignore
 type WindowState =
-  | { kind: 'live'; capBytes: number; session: Id<'sessions'> | null }
-  | { kind: 'head'; session: Id<'sessions'> | null }
-  | { kind: 'older'; anchor: AnchorKey; anchorSegment?: number; session: Id<'sessions'> | null }
-  | { kind: 'newer'; anchor: AnchorKey; anchorSegment?: number; session: Id<'sessions'> | null; viaSeek: boolean }
+  | {
+      kind: 'live'
+      capBytes: number
+      session: Id<'sessions'> | null
+    }
+  | {
+      kind: 'head'
+      session: Id<'sessions'> | null
+    }
+  | {
+      kind: 'older'
+      anchor: AnchorKey
+      anchorSegment?: number
+      anchorInclusive?: boolean
+      session: Id<'sessions'> | null
+    }
+  | {
+      kind: 'newer'
+      anchor: AnchorKey
+      anchorSegment?: number
+      session: Id<'sessions'> | null
+      viaSeek: boolean
+    }
 
 export type MessageWindow = {
   messages: WindowResult['page']
@@ -54,7 +74,13 @@ export function useMessageWindow(
   const [loading, setLoading] = useState<{
     dir: 'older' | 'newer'
     slide: boolean
+    revision: number
   } | null>(null)
+  const requestRevision = useRef(0)
+  const [pageRevision, setPageRevision] = useState(0)
+  const startLoading = useCallback((dir: 'older' | 'newer', slide: boolean) => {
+    setLoading({ dir, slide, revision: ++requestRevision.current })
+  }, [])
   // Incremented on deliberate jumps so the store discards retained messages
   const [resetKey, setResetKey] = useState(0)
 
@@ -92,6 +118,8 @@ export function useMessageWindow(
       sessionId,
       anchor: state.anchor,
       anchorSegment: state.anchorSegment,
+      anchorInclusive:
+        state.kind === 'older' ? state.anchorInclusive : undefined,
       direction:
         state.kind === 'older' ? ('older' as const) : ('newer' as const),
       limit: MESSAGE_WINDOW_MAX_ROWS,
@@ -119,7 +147,10 @@ export function useMessageWindow(
   // Clear the loading flag one frame after fresh data lands
   useEffect(() => {
     if (result === undefined || !loading) return
-    const id = requestAnimationFrame(() => setLoading(null))
+    const id = requestAnimationFrame(() => {
+      setPageRevision(loading.revision)
+      setLoading(null)
+    })
     return () => cancelAnimationFrame(id)
   }, [result, loading])
 
@@ -145,6 +176,22 @@ export function useMessageWindow(
     return hydrateLiveSegments(sliced, liveSegments ?? [])
   }, [data, state, liveSegments])
 
+  useEffect(() => {
+    if (result === undefined || loading) return
+    scrollDebug('window.result', () => ({
+      kind: state.kind,
+      args,
+      pageRevision,
+      count: messages.length,
+      bytes: messages.reduce((total, message) => total + message.sizeBytes, 0),
+      hasOlder: data?.hasOlder,
+      hasNewer: data?.hasNewer,
+      atTail: data?.atTail,
+      first: debugBoundary(messages[0]),
+      last: debugBoundary(messages.at(-1)),
+    }))
+  }, [state.kind, args, result, loading, pageRevision, messages, data])
+
   const keyOf = useCallback(
     (msg: WindowAnchor): AnchorKey | null =>
       sessionId ? [sessionId, msg._creationTime, msg._id] : null,
@@ -153,34 +200,46 @@ export function useMessageWindow(
 
   // Load older messages while dropping the newest page.
   // Returns true if the window swapped its content.
-  const extendOlder = useCallback((): boolean => {
-    if (!sessionId) return false
-    if (state.kind === 'live') {
-      const capBytes = state.capBytes + MESSAGE_PAGE_BUDGET_BYTES
-      // Grow the live window until it hits the full budget, then fall
-      // through to anchored mode to start trimming
-      if (capBytes <= MESSAGE_WINDOW_BUDGET_BYTES) {
-        setLoading({ dir: 'older', slide: false })
-        setState({ kind: 'live', capBytes, session: sessionId })
-        return false
+  const extendOlder = useCallback(
+    (before?: WindowBoundary): boolean => {
+      if (!sessionId || loading) return false
+      if (!before && state.kind === 'live') {
+        const capBytes = state.capBytes + MESSAGE_PAGE_BUDGET_BYTES
+        // Grow the live window until it hits the full budget, then fall
+        // through to anchored mode to start trimming
+        if (capBytes <= MESSAGE_WINDOW_BUDGET_BYTES) {
+          startLoading('older', false)
+          setState({ kind: 'live', capBytes, session: sessionId })
+          return false
+        }
       }
-    }
 
-    if (messages.length === 0) return false
+      if (messages.length === 0) return false
 
-    const target = anchorFromEnd(messages, MESSAGE_PAGE_BUDGET_BYTES)
-    const anchor = keyOf(messages[target.index])
-    if (!anchor) return false
+      const target = anchorForOlderPage(
+        messages,
+        MESSAGE_PAGE_BUDGET_BYTES,
+        MESSAGE_WINDOW_BUDGET_BYTES,
+      )
+      const anchor = keyOf(before ?? messages[target.index])
+      if (!anchor) return false
 
-    setLoading({ dir: 'older', slide: true })
-    setState({
-      kind: 'older',
-      anchor,
-      anchorSegment: target.segmentIndex,
-      session: sessionId,
-    })
-    return true
-  }, [sessionId, state, messages, keyOf])
+      startLoading('older', true)
+      setState({
+        kind: 'older',
+        anchor,
+        anchorSegment: before
+          ? before.hasOlderSegments
+            ? before.segmentIndex - 1
+            : undefined
+          : target.segmentIndex,
+        anchorInclusive: before ? before.hasOlderSegments : true,
+        session: sessionId,
+      })
+      return true
+    },
+    [sessionId, state, messages, keyOf, loading, startLoading],
+  )
 
   // Load newer messages while dropping the oldest page
   const extendNewer = useCallback((): boolean => {
@@ -190,7 +249,7 @@ export function useMessageWindow(
     const anchor = keyOf(messages[target.index])
     if (!anchor) return false
 
-    setLoading({ dir: 'newer', slide: true })
+    startLoading('newer', true)
     setState({
       kind: 'newer',
       anchor,
@@ -199,7 +258,7 @@ export function useMessageWindow(
       viaSeek: false,
     })
     return true
-  }, [sessionId, messages, keyOf])
+  }, [sessionId, messages, keyOf, startLoading])
 
   const returnToLatest = useCallback(() => {
     if (!sessionId) return
@@ -251,6 +310,8 @@ export function useMessageWindow(
 
   const meta = useMemo<MessageWindowMetadata>(
     () => ({
+      pageRevision,
+      navigationRevision: resetKey,
       isLoadingFirstPage: data === null,
       canLoadOlder: data?.hasOlder ?? false,
       canLoadNewer: data?.hasNewer ?? false,
@@ -259,8 +320,21 @@ export function useMessageWindow(
       isLoadingNewer: loading?.dir === 'newer',
       isSliding: loading?.slide ?? false,
     }),
-    [data, state.kind, loading],
+    [data, state.kind, loading, pageRevision, resetKey],
   )
 
   return { messages, meta, controls, resetKey }
+}
+
+function debugBoundary(message: WindowResult['page'][number] | undefined) {
+  if (!message) return
+  return {
+    id: message._id,
+    version: message.selectedVersion,
+    bytes: message.sizeBytes,
+    firstSegment: message.segments[0]?.segmentIndex,
+    lastSegment: message.segments.at(-1)?.segmentIndex,
+    hasOlderSegments: message.hasOlderSegments,
+    hasNewerSegments: message.hasNewerSegments,
+  }
 }

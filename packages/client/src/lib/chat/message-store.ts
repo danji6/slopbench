@@ -20,6 +20,10 @@ export type PaginationMetadata = {
 }
 
 export type MessageWindowMetadata = {
+  /** Last completed explicit window request; live updates leave it unchanged. */
+  pageRevision: number
+  /** Changes on deliberate jumps so pending pagination can be cancelled. */
+  navigationRevision: number
   isLoadingFirstPage: boolean
   canLoadOlder: boolean
   canLoadNewer: boolean
@@ -39,12 +43,19 @@ export type WindowAnchor = {
 
 export type WindowControls = {
   /** @returns true if the content was swapped. */
-  extendOlder: () => boolean
+  extendOlder: (before?: WindowBoundary) => boolean
   /** @returns true if the content was swapped. */
   extendNewer: () => boolean
   returnToLatest: () => void
   returnToOldest: () => void
   anchorAround: (anchor: WindowAnchor) => void
+}
+
+/** The oldest loaded segment, in database order rather than display order. */
+export type WindowBoundary = WindowAnchor & {
+  segmentIndex: number
+  selectedVersion: number
+  hasOlderSegments: boolean
 }
 
 const NOOP_CONTROLS: WindowControls = {
@@ -56,6 +67,8 @@ const NOOP_CONTROLS: WindowControls = {
 }
 
 const INITIAL_WINDOW_META: MessageWindowMetadata = {
+  pageRevision: 0,
+  navigationRevision: 0,
   isLoadingFirstPage: true,
   canLoadOlder: false,
   canLoadNewer: false,

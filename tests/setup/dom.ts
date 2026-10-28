@@ -25,3 +25,21 @@ export function setupDom(): void {
   })
   afterAll(() => GlobalRegistrator.unregister())
 }
+
+/** Installs a DOM and restores React's act flag after the calling test file. */
+export function setupReactDom(): void {
+  setupDom()
+  let previous: PropertyDescriptor | undefined
+  beforeAll(() => {
+    previous = Object.getOwnPropertyDescriptor(
+      globalThis,
+      'IS_REACT_ACT_ENVIRONMENT',
+    )
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+  })
+  afterAll(() => {
+    if (previous)
+      Object.defineProperty(globalThis, 'IS_REACT_ACT_ENVIRONMENT', previous)
+    else Reflect.deleteProperty(globalThis, 'IS_REACT_ACT_ENVIRONMENT')
+  })
+}

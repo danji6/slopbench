@@ -174,6 +174,7 @@ export class Scroller {
   private _resumeAtBottom() {
     const target = this.target
     if (!target || !this._enabled) return
+    if (this._shiftInProgress) return
     if (this.isFollowing || this._stopCondition !== null) return
 
     const distanceFromBottom =
@@ -301,6 +302,7 @@ export class Scroller {
 
   lockScroll = () => {
     if (this.scrollLock || !this._enabled) return
+    if (this._shiftInProgress) return
     if (this.isFollowing || this._manualScrollActive) return
     if (this._userScrollIntent === 'up') return
 
@@ -415,6 +417,7 @@ export class Scroller {
           this.hasScrolled = true
           if (
             this._enabled &&
+            !this._shiftInProgress &&
             !this._manualScrollActive &&
             this._userScrollIntent !== 'up'
           ) {

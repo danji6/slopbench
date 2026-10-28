@@ -137,6 +137,30 @@ describe('streaming scroll holds', () => {
   })
 })
 
+describe('pagination scroll holds', () => {
+  test.each(['sentinel', 'movement', 'queued-follow'] as const)(
+    'does not replace pagination ownership when triggered by %s',
+    async (trigger) => {
+      if (trigger === 'queued-follow') scroller.unlockScroll(true)
+      scroller.shiftInProgress = true
+      const current = scroller.coordinator.checkpoint()
+
+      if (trigger === 'sentinel') intersect()
+      if (trigger === 'movement') {
+        content.scrollTop = 1100
+        content.dispatchEvent(new Event('scroll'))
+        content.scrollTop = 1200
+        content.dispatchEvent(new Event('scroll'))
+      }
+      await Promise.resolve()
+
+      expect(scroller.autoScrolling).toBe(false)
+      expect(current()).toBe(true)
+      expect(content.scrollTop).toBe(1200)
+    },
+  )
+})
+
 describe('keyboard bottom compensation', () => {
   test.each([true, false])(
     'keeps the tail visible when follow is %s',

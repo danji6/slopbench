@@ -1,3 +1,5 @@
+import { scrollDebug, scrollDebugSource } from './scroll-debug'
+
 /**
  * Used to keep track of {@link WindowScrollTarget}'s scrolling operations and
  * allow us to distinguish them from programmatic scrolling from other libraries
@@ -125,25 +127,6 @@ export class WindowScrollTarget implements ScrollTarget {
   }
 }
 
-// Debugging helpers
-export const SCROLL_DEBUG = false
-const dbgSource = () => {
-  const stack = new Error().stack?.split('\n').slice(2) ?? []
-  for (const line of stack) {
-    if (/scroller\.ts|scroll-target\.ts/.test(line)) continue
-    return line.trim().replace(/^at\s+/, '')
-  }
-  return stack[0]?.trim() ?? '?'
-}
-const dbgArg = (args: unknown[]) => {
-  const a = args[0]
-  if (typeof a === 'number')
-    return `(${Math.round(a)}, ${Math.round(Number(args[1]))})`
-  if (a && typeof a === 'object')
-    return `{top:${Math.round((a as ScrollToOptions).top ?? NaN)}}`
-  return String(a)
-}
-
 let windowScrollPatched = false
 
 /**
@@ -160,22 +143,30 @@ export function patchWindowScroll(suppressors: Iterable<() => boolean>) {
     ;(window as unknown as Record<string, unknown>)[name] = (
       ...args: unknown[]
     ) => {
-      if (internalScrollWrites === 0) {
+      const before = window.scrollY
+      const internal = internalScrollWrites > 0
+      if (!internal) {
         for (const suppress of suppressors) {
           if (suppress()) {
-            if (SCROLL_DEBUG)
-              console.log(
-                `[scroll] SUPPRESSED ${name}${dbgArg(args)} <- ${dbgSource()}`,
-              )
+            scrollDebug('write.suppressed', () => ({
+              name,
+              args,
+              source: scrollDebugSource(),
+            }))
             return
           }
         }
-        if (SCROLL_DEBUG)
-          console.log(
-            `[scroll] ${name}${dbgArg(args)} y=${Math.round(window.scrollY)} <- ${dbgSource()}`,
-          )
       }
-      return original(...args)
+      const result = original(...args)
+      scrollDebug('write.applied', () => ({
+        name,
+        args,
+        internal,
+        before,
+        after: window.scrollY,
+        source: scrollDebugSource(),
+      }))
+      return result
     }
   }
 }

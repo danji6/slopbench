@@ -108,15 +108,15 @@ export function MessageList({
   const invokedBy = useStreamInvokedBy()
   const processingMessageId = useStreamProcessingMessageId()
 
+  const windowMeta = useWindowMetadata()
   const {
     isLoadingFirstPage,
     canLoadOlder,
     canLoadNewer,
     isAtLiveTail,
-    isLoadingOlder,
     isLoadingNewer,
-    isSliding,
-  } = useWindowMetadata() // prettier-ignore
+    isSliding: slidingPage,
+  } = windowMeta // prettier-ignore
 
   const {
     extendOlder,
@@ -229,22 +229,7 @@ export function MessageList({
     rowsRef.current = rows
   }, [rows])
 
-  const metaRef = useRef<WindowMeta>({
-    canLoadOlder,
-    canLoadNewer,
-    isAtLiveTail,
-    isLoadingOlder,
-    isLoadingNewer,
-  })
-  useEffect(() => {
-    metaRef.current = {
-      canLoadOlder,
-      canLoadNewer,
-      isAtLiveTail,
-      isLoadingOlder,
-      isLoadingNewer,
-    }
-  })
+  const metaRef = useRef<WindowMeta>(windowMeta)
 
   const topPad = topPadding ?? 1
   const deps: ScrollDeps = {
@@ -256,8 +241,16 @@ export function MessageList({
     topPadding: topPad,
   }
 
-  const slide = useWindowSlide(deps, { extendOlder, extendNewer, isSliding })
-  const { loadOlder, loadNewer } = slide
+  const slide = useWindowSlide(deps, {
+    extendOlder,
+    extendNewer,
+    isSliding: slidingPage,
+    older: { sessionId, rows, store: messageStore, meta: windowMeta },
+  })
+  const { loadOlder, loadNewer, isLoadingOlder } = slide
+  useLayoutEffect(() => {
+    metaRef.current = { ...windowMeta, isLoadingOlder }
+  })
 
   const { followToBottom, followToTop } = useFollowEdges(deps, {
     returnToLatest,
@@ -294,6 +287,7 @@ export function MessageList({
     requestScrollToMessage,
     followToBottom,
     onRestoreSettled: markRevealed,
+    isPositioning: slide.isPositioning,
   })
 
   // Keep track of the previous stream status to reset the scroll override
@@ -382,9 +376,16 @@ export function MessageList({
 
   const shiftHoldRef = useRef(false)
   useLayoutEffect(() => {
-    shiftHoldRef.current = isLoadingOlder || isLoadingNewer || !!editingId
+    shiftHoldRef.current =
+      isLoadingOlder || isLoadingNewer || slide.isPositioning || !!editingId
     setShiftInProgress(shiftHoldRef.current)
-  }, [isLoadingOlder, isLoadingNewer, editingId, setShiftInProgress])
+  }, [
+    isLoadingOlder,
+    isLoadingNewer,
+    slide.isPositioning,
+    editingId,
+    setShiftInProgress,
+  ])
 
   const hasHeaderContainer = !!(header || canLoadOlder)
 
@@ -497,7 +498,8 @@ export function MessageList({
               header,
               hasMore: canLoadOlder,
               hasNewer: canLoadNewer,
-              shiftItems: isLoadingOlder && !isSliding,
+              isLoadingOlder,
+              shiftItems: false,
               onLoadMore: loadOlder,
               onLoadNewer: loadNewer,
               renderRow,

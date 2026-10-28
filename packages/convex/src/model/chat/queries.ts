@@ -110,6 +110,7 @@ export async function messagesWindow(
     limit,
     budgetBytes,
     anchorSegment,
+    anchorInclusive = true,
   }: MessageWindowArgs,
 ): Promise<MessagesWindowResult> {
   const member = await Memberships.getMember(ctx, sessionId, ctx.userId)
@@ -131,7 +132,7 @@ export async function messagesWindow(
       schema,
       order: 'desc',
       startIndexKey: anchor ?? sessionPrefix,
-      startInclusive: true,
+      startInclusive: anchorInclusive,
       endIndexKey: sessionPrefix,
       endInclusive: true,
       absoluteMaxRows: rowCap,
@@ -142,12 +143,21 @@ export async function messagesWindow(
       ctx,
       result.page,
       budget,
-      { direction: 'older', anchorSegment },
+      {
+        direction: 'older',
+        anchorSegment: anchorInclusive ? anchorSegment : undefined,
+      },
     )
     const page = messages.reverse()
     const hasNewer =
       (anchor
-        ? await messagesExistBeyond(ctx, sessionPrefix, anchor, 'newer')
+        ? await messagesExistBeyond(
+            ctx,
+            sessionPrefix,
+            anchor,
+            'newer',
+            !anchorInclusive,
+          )
         : false) ||
       (page.at(-1)?.hasNewerSegments ?? false)
 
@@ -166,7 +176,7 @@ export async function messagesWindow(
     schema,
     order: 'asc',
     startIndexKey: anchor ?? sessionPrefix,
-    startInclusive: true,
+    startInclusive: anchorInclusive,
     endIndexKey: sessionPrefix,
     endInclusive: true,
     absoluteMaxRows: rowCap,
@@ -175,11 +185,20 @@ export async function messagesWindow(
     ctx,
     result.page,
     budget,
-    { direction: 'newer', anchorSegment },
+    {
+      direction: 'newer',
+      anchorSegment: anchorInclusive ? anchorSegment : undefined,
+    },
   )
   const hasOlder =
     (anchor
-      ? await messagesExistBeyond(ctx, sessionPrefix, anchor, 'older')
+      ? await messagesExistBeyond(
+          ctx,
+          sessionPrefix,
+          anchor,
+          'older',
+          !anchorInclusive,
+        )
       : false) ||
     (messages[0]?.hasOlderSegments ?? false)
   const hasNewer =
@@ -356,6 +375,7 @@ async function messagesExistBeyond(
   sessionPrefix: IndexKey,
   key: IndexKey,
   direction: 'older' | 'newer',
+  inclusive = false,
 ): Promise<boolean> {
   const result = await getPage(ctx, {
     table: 'messages',
@@ -363,7 +383,7 @@ async function messagesExistBeyond(
     schema,
     order: direction === 'older' ? 'desc' : 'asc',
     startIndexKey: key,
-    startInclusive: false,
+    startInclusive: inclusive,
     endIndexKey: sessionPrefix,
     endInclusive: true,
     absoluteMaxRows: 1,

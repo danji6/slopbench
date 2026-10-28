@@ -23,6 +23,12 @@ const NotesFixture = lazy(() =>
   })),
 )
 
+const MessagePaginationFixture = lazy(() =>
+  import('./message-pagination-fixture').then((module) => ({
+    default: module.MessagePaginationFixture,
+  })),
+)
+
 const InlineSourceFixture = lazy(() =>
   import('./inline-source-fixture').then((module) => ({
     default: module.InlineSourceFixture,
@@ -136,7 +142,13 @@ function PreviewFixture() {
 }
 
 createRoot(document.getElementById('root')!).render(
-  new URLSearchParams(location.search).get('fixture') === 'tool-settings' ? (
+  new URLSearchParams(location.search).get('fixture') ===
+    'message-pagination' ? (
+    <Suspense fallback={<p>Loading pagination…</p>}>
+      <MessagePaginationFixture />
+    </Suspense>
+  ) : new URLSearchParams(location.search).get('fixture') ===
+    'tool-settings' ? (
     <ToolSettingsFixture />
   ) : new URLSearchParams(location.search).get('fixture') === 'integrations' ? (
     <IntegrationsFixture />

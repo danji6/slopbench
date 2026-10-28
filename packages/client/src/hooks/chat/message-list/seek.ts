@@ -4,6 +4,11 @@ import type { useMessageStore } from '@/hooks/chat'
 import { getNavPaddingPx } from '@/hooks/nav-padding'
 import { revealNote } from '@/lib/chat/note-state'
 import { type MessageRow, findToolRow } from '@/lib/chat/rows'
+import {
+  type ScrollRowAddress,
+  findScrollContentRow,
+} from '@/lib/chat/scroll-address'
+import { scrollAnchorElement } from '@/lib/chat/window-scroll-anchor'
 import { workExpansion } from '@/lib/chat/work-state'
 import type { ScrollOperation } from '@/lib/scroll-coordinator'
 import { trackUntilSettled } from '@/lib/scroll-settle'
@@ -28,6 +33,8 @@ export type SeekTargetOptions = {
   offset?: number
   /** Stable key of the exact row to align to, for sub-message precision. */
   rowKey?: string
+  rowAddress?: ScrollRowAddress
+  contentOffset?: boolean
   /**
    * Aligns to the exact message block rendering this tool call. Resolved once
    * the window has the message.
@@ -49,7 +56,16 @@ function resolveAlignTarget(
   rows: MessageRow[],
   id: string,
   rowKey: string | undefined,
+  rowAddress: ScrollRowAddress | undefined,
 ): AlignTarget | null {
+  const content = rowAddress
+    ? findScrollContentRow(rows, id, rowAddress)
+    : undefined
+  if (content)
+    return {
+      index: rows.indexOf(content),
+      selector: `[data-row-key="${CSS.escape(content.key)}"]`,
+    }
   if (rowKey !== undefined) {
     const keyIndex = rows.findIndex((row) => row.key === rowKey)
     if (keyIndex >= 0) {
@@ -197,6 +213,8 @@ export function useSeek(
       id: string
       offset: number
       rowKey?: string
+      rowAddress?: ScrollRowAddress
+      contentOffset?: boolean
       toolCallId?: string
       onSettled?: () => void
     }) => {
@@ -210,6 +228,7 @@ export function useSeek(
             rowsRef.current,
             target.id,
             target.rowKey,
+            target.rowAddress,
           )
           if (!resolved) return null
 
@@ -223,8 +242,9 @@ export function useSeek(
             return null
           }
 
+          const node = target.contentOffset ? scrollAnchorElement(el) : el
           const delta =
-            el.getBoundingClientRect().top - topPaddingPx - target.offset
+            node.getBoundingClientRect().top - topPaddingPx - target.offset
           if (Math.abs(delta) > 1) window.scrollBy({ top: delta })
           return delta
         },
@@ -284,9 +304,11 @@ export function useSeek(
     if (loaded) {
       clearNotFoundTimer()
       const storedRows = messageStore.getRows()
-      const savedRow = target.rowKey
-        ? storedRows.find((row) => row.key === target.rowKey)
-        : undefined
+      const savedRow = target.rowAddress
+        ? findScrollContentRow(storedRows, target.id, target.rowAddress)
+        : target.rowKey
+          ? storedRows.find((row) => row.key === target.rowKey)
+          : undefined
       const noteRow = messageStore
         .getRows()
         .find((row) => row.kind === 'hidden' && row.messageId === target.id)

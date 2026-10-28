@@ -36,6 +36,8 @@ function input(ids: string[]): MessageStoreInput {
       anchorAround: () => {},
     },
     meta: {
+      pageRevision: 0,
+      navigationRevision: 0,
       isLoadingFirstPage: false,
       canLoadOlder: false,
       canLoadNewer: false,
