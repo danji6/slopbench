@@ -152,9 +152,8 @@ export function ReminderEditor({
             <div className="flex h-10 items-center gap-4">
               <HelpPopoverLabel
                 help={md`
-                  Inject the first reminder as soon as the session (or the
-                  reminder) is new, instead of waiting for a full interval
-                  to elapse first.
+                  Inject the first reminder as soon as possible instead of
+                  waiting for a full interval to elapse first.
                 `}
               >
                 Eager

@@ -1,7 +1,8 @@
 import { RippleButton, WavyProgressCircle } from '@/components/ui'
+import { noteExpansion } from '@/lib/chat/note-state'
+import type { RowTransition } from '@/lib/chat/row-expansion-state'
 import type { MessageRow } from '@/lib/chat/rows'
-import { type WorkTransition, workExpansion } from '@/lib/chat/work-state'
-import { cn } from '@/lib/utils'
+import { workExpansion } from '@/lib/chat/work-state'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   type CSSProperties,
@@ -11,9 +12,7 @@ import {
   createContext,
   useContext,
   useEffect,
-  useLayoutEffect,
   useState,
-  useSyncExternalStore,
 } from 'react'
 import {
   type CustomItemComponentProps,
@@ -22,13 +21,17 @@ import {
 } from 'virtua'
 
 import { EmptyMessage } from '../../empty-message'
+import {
+  VirtualizedRowTransition,
+  useRowTransitions,
+} from '../virtualized-row-transition'
 
 const CONTENT_FADE_TRANSITION = { duration: 0.18, ease: 'easeOut' } as const
 
 const VirtualizedRowsContext = createContext<readonly MessageRow[]>([])
-const WorkTransitionsContext = createContext<
-  ReadonlyMap<string, WorkTransition>
->(new Map())
+const RowTransitionsContext = createContext<ReadonlyMap<string, RowTransition>>(
+  new Map(),
+)
 
 export type OverlayInset = { top: number; bottom: number }
 
@@ -183,7 +186,9 @@ function MessageRows({
   renderRow,
   virtuaRef,
 }: MessageRowsProps) {
-  const transitions = useWorkTransitions()
+  const workTransitions = useRowTransitions(workExpansion)
+  const noteTransitions = useRowTransitions(noteExpansion)
+  const transitions = new Map([...workTransitions, ...noteTransitions])
   return (
     <>
       {hasHeaderContainer && (
@@ -214,7 +219,7 @@ function MessageRows({
         }
       >
         <VirtualizedRowsContext value={rows}>
-          <WorkTransitionsContext value={transitions}>
+          <RowTransitionsContext value={transitions}>
             <WindowVirtualizer
               ref={virtuaRef}
               data={rows}
@@ -223,7 +228,7 @@ function MessageRows({
             >
               {renderRow}
             </WindowVirtualizer>
-          </WorkTransitionsContext>
+          </RowTransitionsContext>
         </VirtualizedRowsContext>
       </div>
       {hasNewer && (
@@ -258,7 +263,7 @@ function VirtualizedItem({
   ref,
 }: CustomItemComponentProps) {
   const rows = useContext(VirtualizedRowsContext)
-  const transitions = useContext(WorkTransitionsContext)
+  const transitions = useContext(RowTransitionsContext)
   const row = rows[index]
   const previousRow = rows[index - 1]
 
@@ -267,6 +272,7 @@ function VirtualizedItem({
     row !== undefined &&
     index > 0 &&
     row.kind !== 'footer' &&
+    !(row.kind === 'hidden' && row.noteGroupId) &&
     previousRow?.messageId !== row.messageId
 
   // The gutter avatar overhangs its header row into the band of the row below.
@@ -281,13 +287,14 @@ function VirtualizedItem({
       data-row-kind={row?.kind}
       data-message-id={row?.messageId}
       data-row-key={row?.key}
+      data-note-group-id={row?.kind === 'hidden' ? row.noteGroupId : undefined}
       data-work-id={row?.kind === 'group' ? row.workId : undefined}
       data-segment-index={row?.kind === 'group' ? row.segmentIndex : undefined}
       style={overhang}
     >
       {spacing && <div aria-hidden className={row.grouped ? 'h-3' : 'h-10'} />}
       {row?.kind === 'group' && row.workId ? (
-        <WorkRowTransition
+        <VirtualizedRowTransition
           state={
             row.promotedToolCallIds
               ? undefined
@@ -295,61 +302,16 @@ function VirtualizedItem({
           }
         >
           {children}
-        </WorkRowTransition>
+        </VirtualizedRowTransition>
+      ) : row?.kind === 'hidden' && row.noteGroupId ? (
+        <VirtualizedRowTransition
+          state={transitions.get(row.noteGroupId)?.phase}
+        >
+          <div className="border-border/60 border-l py-1 pl-3">{children}</div>
+        </VirtualizedRowTransition>
       ) : (
         children
       )}
     </div>
   )
-}
-
-/** Animates each measured row so work keeps using the shared virtualizer. */
-function WorkRowTransition({
-  state,
-  children,
-}: {
-  state?: WorkTransition['phase']
-  children: ReactNode
-}) {
-  return (
-    <div
-      data-slot="work-row-transition"
-      inert={state === 'closing' || state === 'preparing'}
-      className={cn(
-        'grid',
-        (state === 'opening' || state === 'closing') &&
-          'transition-[grid-template-rows,opacity,translate] duration-200 ease-in-out motion-reduce:transition-none',
-        state === 'closing'
-          ? 'grid-rows-[0fr] opacity-0'
-          : 'grid-rows-[1fr] opacity-100',
-        state === 'preparing' && '-translate-y-2 opacity-0',
-      )}
-    >
-      <div className={cn('min-h-0', state && 'overflow-hidden')}>
-        {children}
-      </div>
-    </div>
-  )
-}
-
-/** Lets initial tool rendering and Virtua's first measurements finish before revealing. */
-function useWorkTransitions() {
-  const transitions = useSyncExternalStore(
-    workExpansion.subscribe,
-    workExpansion.getTransitions,
-  )
-  useLayoutEffect(() => {
-    const preparing = [...transitions].filter(
-      ([, transition]) => transition.phase === 'preparing',
-    )
-    if (!preparing.length) return
-    let frame = requestAnimationFrame(() => {
-      frame = requestAnimationFrame(() => {
-        for (const [id, transition] of preparing)
-          workExpansion.startOpening(id, transition)
-      })
-    })
-    return () => cancelAnimationFrame(frame)
-  }, [transitions])
-  return transitions
 }

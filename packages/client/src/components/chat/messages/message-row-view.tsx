@@ -30,6 +30,7 @@ import { MessageContextMenu } from './message-context-menu'
 import { MessageHeader } from './message-header'
 import { useMessageHighlight } from './message-highlight-context'
 import { MessageVersionSwitcher } from './message-version-switcher'
+import { NoteGroupBlock } from './note-group-block'
 import { ReasoningHeader } from './reasoning-header'
 import { RenderGroup } from './render-group'
 import { WaitingIndicator } from './waiting-indicator'
@@ -49,6 +50,8 @@ export const MessageRowView = memo(function MessageRowView({
   )
 
   if (!message) return null
+
+  if (row.kind === 'note-group') return <NoteGroupBlock row={row} />
 
   if (row.kind === 'hidden') {
     return <HiddenChip message={message} record={messageMeta} />

@@ -2,6 +2,7 @@ import type { ScrollDeps } from '@/components/chat/messages/message-list/deps'
 import { openToolBlock } from '@/components/chat/messages/tools/tool-shell'
 import type { useMessageStore } from '@/hooks/chat'
 import { getNavPaddingPx } from '@/hooks/nav-padding'
+import { revealNote } from '@/lib/chat/note-state'
 import { type MessageRow, findToolRow } from '@/lib/chat/rows'
 import { workExpansion } from '@/lib/chat/work-state'
 import type { ScrollOperation } from '@/lib/scroll-coordinator'
@@ -58,11 +59,13 @@ function resolveAlignTarget(
       }
     }
   }
-  const messageIndex = rows.findIndex((row) => row.messageId === id)
+  const messageIndex = rows.findIndex(
+    (row) => row.messageId === id && row.kind !== 'note-group',
+  )
   if (messageIndex < 0) return null
   return {
     index: messageIndex,
-    selector: `[data-message-id="${CSS.escape(id)}"]`,
+    selector: `[data-row-key="${CSS.escape(rows[messageIndex].key)}"]`,
   }
 }
 
@@ -91,25 +94,6 @@ export function useSeek(
   const { holdPosition, coordinator } = scroller
   const operationRef = useRef<ScrollOperation | null>(null)
   const seekSettleRef = useRef<(() => void) | null>(null)
-
-  const scrollToMessage = useCallback(
-    (id: string) => {
-      const operation = coordinator.begin('navigate')
-      if (!operation) return
-      holdPosition()
-      const index = rows.findIndex((row) => row.messageId === id)
-      if (index < 0) {
-        operation.finish()
-        return
-      }
-      virtuaRef.current?.scrollToIndex(index, {
-        align: 'nearest',
-        offset: -getNavPaddingPx(topPadding),
-      })
-      operation.finish()
-    },
-    [rows, topPadding, virtuaRef, coordinator, holdPosition],
-  )
 
   const pendingTargetRef = useRef<
     | ({
@@ -171,6 +155,40 @@ export function useSeek(
       setSeekTick((tick) => tick + 1)
     },
     [holdPosition, clearNotFoundTimer, coordinator],
+  )
+
+  const scrollToMessage = useCallback(
+    (id: string) => {
+      const isNote = messageStore
+        .getRows()
+        .some((row) => row.kind === 'hidden' && row.messageId === id)
+      if (isNote) {
+        requestScrollToMessage(id)
+        return
+      }
+      const operation = coordinator.begin('navigate')
+      if (!operation) return
+      holdPosition()
+      const index = rows.findIndex((row) => row.messageId === id)
+      if (index < 0) {
+        operation.finish()
+        return
+      }
+      virtuaRef.current?.scrollToIndex(index, {
+        align: 'nearest',
+        offset: -getNavPaddingPx(topPadding),
+      })
+      operation.finish()
+    },
+    [
+      rows,
+      topPadding,
+      virtuaRef,
+      coordinator,
+      holdPosition,
+      messageStore,
+      requestScrollToMessage,
+    ],
   )
 
   // Scroll to a target until its top settles at the offset below the nav padding
@@ -251,41 +269,55 @@ export function useSeek(
 
     const loaded =
       target.segmentIndex === undefined
-        ? rows.some((row) => row.messageId === target.id)
+        ? rows.some((row) => row.messageId === target.id) ||
+          messageStore.getRows().some((row) => row.messageId === target.id)
         : messageStore
             .getRows()
             .some(
               (row) =>
                 row.messageId === target.id &&
-                row.kind === 'group' &&
-                row.segmentIndex === target.segmentIndex,
+                (row.kind === 'hidden' ||
+                  (row.kind === 'group' &&
+                    row.segmentIndex === target.segmentIndex)),
             )
 
     if (loaded) {
       clearNotFoundTimer()
+      const storedRows = messageStore.getRows()
+      const savedRow = target.rowKey
+        ? storedRows.find((row) => row.key === target.rowKey)
+        : undefined
+      const noteRow = messageStore
+        .getRows()
+        .find((row) => row.kind === 'hidden' && row.messageId === target.id)
+      const restoringGroupHeader =
+        target.kind === 'restore' && savedRow?.kind === 'note-group'
+      if (noteRow?.kind === 'hidden' && !restoringGroupHeader) {
+        if (revealNote(noteRow)) return
+      }
       // Now that the message is in the window, narrow the target to the block
       const toolRow = target.toolCallId
         ? resolveToolRow(target.id, target.toolCallId)
         : undefined
-      const savedRow = target.rowKey
-        ? messageStore.getRows().find((row) => row.key === target.rowKey)
-        : undefined
       const hiddenRow = toolRow ?? savedRow
       const hiddenWorkId =
         hiddenRow?.kind === 'group' ? hiddenRow.workId : undefined
-      const workCollapsed = hiddenWorkId && !workExpansion.getSnapshot().has(hiddenWorkId) // prettier-ignore
+      const workCollapsed =
+        hiddenWorkId && !workExpansion.getSnapshot().has(hiddenWorkId)
       if (workCollapsed) {
         workExpansion.setOpen(hiddenWorkId, true)
         return
       }
+
       if (target.toolCallId) openToolBlock(target.id, target.toolCallId)
       pendingTargetRef.current = null
-      target.onLocated?.(toolRow ?? null)
+      target.onLocated?.(toolRow ?? noteRow ?? null)
 
       scrollToTargetSettled({
         ...target,
-        rowKey: toolRow?.key ?? target.rowKey,
+        rowKey: toolRow?.key ?? target.rowKey ?? noteRow?.key,
       })
+
       return
     }
 

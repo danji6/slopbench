@@ -9,6 +9,7 @@ import type { UIMessage } from 'ai'
 import { useMemo, useSyncExternalStore } from 'react'
 
 import { useMessageList } from './message-list/message-list-context'
+import { getMountedTransitionRows } from './virtualized-row-transition'
 
 type WorkBlockProps = {
   row: Extract<MessageRow, { kind: 'work' }>
@@ -37,18 +38,7 @@ export function WorkBlock({ row, message, record, partMeta }: WorkBlockProps) {
 
   const toggle = () => {
     list?.onLayoutChange()
-    const animate = !window.matchMedia('(prefers-reduced-motion: reduce)')
-      .matches
-    const mountedRows = animate
-      ? new Set(
-          Array.from(
-            document.querySelectorAll<HTMLElement>(
-              `[data-work-id="${CSS.escape(row.work.id)}"]`,
-            ),
-            (element) => element.dataset.rowKey!,
-          ),
-        )
-      : undefined
+    const mountedRows = getMountedTransitionRows('data-work-id', row.work.id)
     workExpansion.setOpen(row.work.id, !open, mountedRows)
   }
 

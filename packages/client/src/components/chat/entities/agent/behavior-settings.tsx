@@ -43,8 +43,8 @@ export function BehaviorGeneralSettings({
         label="Reminders"
         help={md`
           Reminders are injected into the conversation at intervals. Add
-          reminders of this agent's own, or pull reusable ones from your
-          reminder library. Library reminders are edited in your user settings.
+          reminders of this agent's own, or pull ones from your library.
+          Library reminders are edited in your user settings.
         `}
       >
         <AgentReminderList control={control} />

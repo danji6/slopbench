@@ -59,13 +59,13 @@ function FolderMenuItems({
         Move down
       </Item>
       <Separator />
-      <Item {...select(actions.onCollapseAll)}>
-        <ChevronsDownUpIcon />
-        Collapse all
-      </Item>
       <Item {...select(actions.onExpandAll)}>
         <ChevronsUpDownIcon />
         Expand all
+      </Item>
+      <Item {...select(actions.onCollapseAll)}>
+        <ChevronsDownUpIcon />
+        Collapse all
       </Item>
       <Separator />
       <Item

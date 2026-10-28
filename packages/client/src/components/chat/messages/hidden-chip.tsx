@@ -6,18 +6,21 @@ import {
   useHasNewerMessages,
   useUserProfile,
 } from '@/hooks/chat'
+import { useNoteExpansion } from '@/hooks/chat/note-expansion'
 import {
   canMutateMessage,
   extractTextFromMessage,
   messageExtra,
 } from '@/lib/chat'
 import type { MessageRecord } from '@/lib/chat'
+import { noteContentKey } from '@/lib/chat/note-state'
 import { cn, isTouchDevice } from '@/lib/utils'
 import type { MessageExtra } from '@sb/convex/types'
 import type { UIMessage } from 'ai'
 import type { LucideIcon } from 'lucide-react'
 import {
   AlarmClockIcon,
+  BookOpenIcon,
   CircleXIcon,
   ClipboardListIcon,
   CopyIcon,
@@ -32,6 +35,8 @@ import {
 } from 'lucide-react'
 import { useCallback, useMemo, useRef, useState } from 'react'
 
+import { CollapsibleBlock } from './collapsible-block'
+import { HiddenNoteContent } from './hidden-note-content'
 import { useMessageHighlight } from './message-highlight-context'
 
 type ChipPresentation = {
@@ -60,7 +65,7 @@ function chipPresentation(record: MessageRecord | undefined): ChipPresentation {
         noun: 'reminder',
       }
     case 'skills':
-      return { icon: ClipboardListIcon, label: 'Skills updated', noun: 'note' }
+      return { icon: BookOpenIcon, label: 'Skills updated', noun: 'note' }
     case 'mcp':
       return {
         icon: ClipboardListIcon,
@@ -145,6 +150,7 @@ export function HiddenChip({ message, record }: HiddenChipProps) {
   const highlight = useMessageHighlight()
   const [confirm, setConfirm] = useState(false)
   const ownsHighlightRef = useRef(false)
+  const [open, setOpen] = useNoteExpansion(noteContentKey(message.id))
 
   const canMutate = canMutateMessage(message, record, session, profile)
   const { icon: Icon, label, noun, copyText } = chipPresentation(record)
@@ -177,12 +183,31 @@ export function HiddenChip({ message, record }: HiddenChipProps) {
       data-slot="hidden-chip"
       data-message-id={message.id}
       className={cn(
-        'text-muted-foreground bg-muted/50 inline-flex w-fit max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs select-none',
+        'w-fit max-w-full min-w-0',
         isTouchDevice() && '[-webkit-touch-callout:none]',
       )}
     >
-      <Icon className="size-3.5 shrink-0" />
-      <span className="truncate">{label}</span>
+      <CollapsibleBlock
+        label={label}
+        leadingIcon={
+          <Icon className="text-muted-foreground size-3.5 shrink-0" />
+        }
+        open={open}
+        onOpenChange={setOpen}
+        revealOnOpen={false}
+        dense
+        surface
+      >
+        <div
+          className="px-2.5 pb-2.5 wrap-anywhere select-text"
+          style={{
+            fontFamily: 'var(--chat-font-family)',
+            fontSize: 'var(--chat-font-size)',
+          }}
+        >
+          <HiddenNoteContent message={message} record={record} />
+        </div>
+      </CollapsibleBlock>
     </div>
   )
 

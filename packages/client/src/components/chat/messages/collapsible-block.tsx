@@ -2,7 +2,8 @@ import { Accordion, Button } from '@/components/ui'
 import { Collapsible, useCollapsible } from '@/components/ui/collapsible'
 import { useScrollIntoView } from '@/hooks/chat/scroll-into-view'
 import { cn } from '@/lib/utils'
-import { useEffect, useRef, useState } from 'react'
+import { useReducedMotion } from 'motion/react'
+import { useEffect, useId, useRef, useState } from 'react'
 
 import { useGrowOnly } from './grow-only'
 import { useMessageList } from './message-list/message-list-context'
@@ -65,6 +66,7 @@ export function CollapsibleBlock({
   ...rest
 }: CollapsibleBlockProps) {
   const blockRef = useRef<HTMLDivElement>(null)
+  const contentId = useId()
   const messageList = useMessageList()
   const bottomPadding = messageList?.bottomPadding ?? 0
   const topPadding = messageList?.topPadding ?? 0
@@ -124,8 +126,8 @@ export function CollapsibleBlock({
           defaultOpen={defaultOpen}
           open={open}
           onOpenChange={(next) => {
-            onOpenChange?.(next)
             messageList?.onLayoutChange()
+            onOpenChange?.(next)
             if (next) onExpand?.()
           }}
           data-full-width={fullWidth ? '' : undefined}
@@ -140,6 +142,7 @@ export function CollapsibleBlock({
             )}
           >
             <Trigger
+              contentId={contentId}
               leadingIcon={leadingIcon}
               label={label}
               canExpand={canExpand}
@@ -152,6 +155,7 @@ export function CollapsibleBlock({
             {actions}
           </div>
           <Content
+            id={contentId}
             scrollRef={messageList?.scrollRef}
             blockRef={blockRef}
             releaseFollow={messageList?.releaseFollow}
@@ -223,6 +227,7 @@ function Header({
 }
 
 type TriggerProps = {
+  contentId: string
   leadingIcon?: React.ReactNode
   label: React.ReactNode
   canExpand: boolean
@@ -234,6 +239,7 @@ type TriggerProps = {
 }
 
 function Trigger({
+  contentId,
   leadingIcon,
   label,
   canExpand,
@@ -251,6 +257,8 @@ function Trigger({
       variant="plain"
       size={null}
       data-block-trigger=""
+      aria-expanded={showChevron ? isOpen : undefined}
+      aria-controls={showChevron ? contentId : undefined}
       onClick={onLabelClick ?? (canExpand ? toggle : undefined)}
       className={cn(
         'flex min-w-0 shrink grow items-center justify-start gap-2 rounded-none text-left whitespace-normal focus-visible:ring-0',
@@ -278,6 +286,7 @@ function Trigger({
 }
 
 function Content({
+  id,
   children,
   scrollRef,
   blockRef,
@@ -286,6 +295,7 @@ function Content({
   bottomPadding = 0,
   topPadding = 0,
 }: {
+  id: string
   children?: React.ReactNode
   scrollRef?: React.RefObject<HTMLElement | null>
   blockRef: React.RefObject<HTMLDivElement | null>
@@ -295,6 +305,7 @@ function Content({
   topPadding?: number
 }) {
   const { isOpen } = useCollapsible()
+  const reducedMotion = useReducedMotion()
   const [present, setPresent] = useState(isOpen)
   const [expanded, setExpanded] = useState(isOpen)
 
@@ -308,6 +319,7 @@ function Content({
 
   if (isOpen && !present) setPresent(true)
   if (!isOpen && expanded) setExpanded(false)
+  if (!isOpen && present && reducedMotion) setPresent(false)
 
   useEffect(() => {
     if (!isOpen) return
@@ -329,8 +341,11 @@ function Content({
 
   return (
     <div
+      id={id}
+      inert={!isOpen}
+      aria-hidden={!isOpen || undefined}
       className={cn(
-        'grid transition-[grid-template-rows,opacity] duration-200 ease-in-out',
+        'grid transition-[grid-template-rows,opacity] duration-200 ease-in-out motion-reduce:transition-none',
         expanded ? 'opacity-100' : 'pointer-events-none opacity-0',
       )}
       style={{ gridTemplateRows: expanded ? '1fr' : '0fr' }}

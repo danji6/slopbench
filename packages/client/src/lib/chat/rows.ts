@@ -1,6 +1,7 @@
 import type { UIMessage } from 'ai'
 import { dequal } from 'dequal'
 
+import { groupNoteRows } from './note-rows'
 import {
   type PartGroup,
   groupHasToolCall,
@@ -41,8 +42,26 @@ export type MessageRow =
       work: WorkGroup
       grouped?: boolean
     }
-  | { kind: 'footer'; key: string; messageId: string; grouped?: boolean }
-  | { kind: 'hidden'; key: string; messageId: string; grouped?: boolean }
+  | {
+      kind: 'footer'
+      key: string
+      messageId: string
+      grouped?: boolean
+    }
+  | {
+      kind: 'note-group'
+      key: string
+      messageId: string
+      count: number
+      grouped?: boolean
+    }
+  | {
+      kind: 'hidden'
+      key: string
+      messageId: string
+      noteGroupId?: string
+      grouped?: boolean
+    }
 
 /** One loaded segment's part slice with its cached part groups. */
 export type SegmentGroups = {
@@ -219,7 +238,7 @@ export function buildRows(
     }
   }
 
-  return rows
+  return groupNoteRows(rows)
 }
 
 /**

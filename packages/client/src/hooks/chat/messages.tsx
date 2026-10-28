@@ -16,6 +16,8 @@ import {
   isMessageEmpty,
   runningShellSender,
 } from '@/lib/chat/messages'
+import { projectNoteRows } from '@/lib/chat/note-rows'
+import { noteExpansion } from '@/lib/chat/note-state'
 import type { MessageRow } from '@/lib/chat/rows'
 import type { UIMetadata } from '@/lib/chat/types'
 import { projectWorkRows } from '@/lib/chat/work-rows'
@@ -99,6 +101,14 @@ export function useMessageIds(): string[] {
 export function useMessageRows(): MessageRow[] {
   const store = useMessageStore()
   const rows = useSyncExternalStore(store.subscribe, store.getRows)
+  const openNotes = useSyncExternalStore(
+    noteExpansion.subscribe,
+    noteExpansion.getSnapshot,
+  )
+  const noteTransitions = useSyncExternalStore(
+    noteExpansion.subscribe,
+    noteExpansion.getTransitions,
+  )
   const open = useSyncExternalStore(workExpansion.subscribe, workExpansion.getSnapshot) // prettier-ignore
   const transitions = useSyncExternalStore(workExpansion.subscribe, workExpansion.getTransitions) // prettier-ignore
   const session = useActiveSession()
@@ -107,14 +117,18 @@ export function useMessageRows(): MessageRow[] {
 
   return useMemo(
     () =>
-      projectWorkRows(rows, {
-        open,
-        transitions,
-        jobs,
-        getMessage: store.getMessage,
-        getMetadata: store.getMessageMetadata,
-      }),
-    [rows, open, transitions, jobs, store],
+      projectNoteRows(
+        projectWorkRows(rows, {
+          open,
+          transitions,
+          jobs,
+          getMessage: store.getMessage,
+          getMetadata: store.getMessageMetadata,
+        }),
+        openNotes,
+        noteTransitions,
+      ),
+    [rows, open, transitions, jobs, store, openNotes, noteTransitions],
   )
 }
 
