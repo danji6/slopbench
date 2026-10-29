@@ -1,5 +1,5 @@
 import type { FolderMoveArgs, FolderView } from '@sb/convex/types'
-import { folderSiblings, projectFolderMove } from '@sb/core/utils/folder-tree'
+import { folderSiblings } from '@sb/core/utils/folder-tree'
 
 import type { GroupRow } from './session-groups'
 
@@ -50,27 +50,81 @@ export function folderDropIntent(
   const active = folders.find((folder) => folder._id === folderId)
   if (!target || !active || target._id === active._id) return null
 
-  const siblings = folderSiblings(folders, target.parentId)
-  const index = siblings.findIndex((folder) => folder._id === targetId)
-
   const input: FolderMoveArgs = {
     folderId: active._id,
     parentId: placement === 'inside' ? target._id : (target.parentId ?? null),
-    beforeFolderId:
-      placement === 'before'
-        ? target._id
-        : placement === 'after'
-          ? siblings[index + 1]?._id
-          : undefined,
+    beforeFolderId: placement === 'before' ? target._id : undefined,
+    afterFolderId: placement === 'after' ? target._id : undefined,
   }
   if (input.beforeFolderId === active._id) return null
 
-  try {
-    projectFolderMove(folders, input)
-    return input
-  } catch {
-    return null
+  const destinationAncestry =
+    placement === 'inside'
+      ? [...target.ancestorIds, target._id]
+      : target.ancestorIds
+  if (destinationAncestry.includes(active._id)) return null
+  return input
+}
+
+/** Projects loaded rows without assuming unloaded ancestors or siblings are present. */
+export function projectLoadedFolderMove(
+  folders: FolderView[],
+  input: FolderMoveArgs,
+) {
+  const moving = folders.find((folder) => folder._id === input.folderId)
+  if (!moving) return folders
+
+  const parent = folders.find((folder) => folder._id === input.parentId)
+  const siblings = folderSiblings(folders, input.parentId ?? undefined).filter(
+    (folder) => folder._id !== moving._id,
+  )
+
+  let index = siblings.length
+
+  if (input.beforeFolderId) {
+    index = siblings.findIndex((folder) => folder._id === input.beforeFolderId)
   }
+  if (input.afterFolderId) {
+    index =
+      siblings.findIndex((folder) => folder._id === input.afterFolderId) + 1
+  }
+  if (input.direction) {
+    const original = folderSiblings(folders, moving.parentId).findIndex(
+      (folder) => folder._id === moving._id,
+    )
+    index = Math.max(0, Math.min(siblings.length, original + input.direction))
+  }
+
+  siblings.splice(Math.max(0, index), 0, moving)
+
+  const positions = new Map(siblings.map((folder, position) => [folder._id, position])) // prettier-ignore
+  const ancestorIds = parent ? [...parent.ancestorIds, parent._id] : []
+  const folderPath = parent
+    ? `${parent.folderPath} / ${moving.name}`
+    : moving.name
+
+  return folders.map((folder) => {
+    const position = positions.get(folder._id) ?? folder.position
+    if (folder._id === moving._id)
+      return {
+        ...folder,
+        parentId: input.parentId ?? undefined,
+        position,
+        ancestorIds,
+        folderPath,
+      }
+    const offset = folder.ancestorIds.indexOf(moving._id)
+    if (offset < 0) return { ...folder, position }
+    return {
+      ...folder,
+      position,
+      ancestorIds: [...ancestorIds, ...folder.ancestorIds.slice(offset)],
+      folderPath: folder.folderPath.replace(
+        `${moving.folderPath} /`,
+        `${folderPath} /`,
+      ),
+    }
+  })
 }
 
 export function folderMoveNeedsConfirmation(
@@ -97,7 +151,7 @@ export function folderMoveConfirmed(
 ) {
   const folder = folders.find((f) => f._id === input.folderId)
 
-  if (!folder) return true
+  if (!folder) return false
   if (revision !== undefined) return (folder.organizationRevision ?? 0) >= revision // prettier-ignore
   if (folder.parentId !== (input.parentId ?? undefined)) return false
 

@@ -63,6 +63,7 @@ export function makeCtx(tables: Record<string, Row[]>, queries: string[] = []) {
   return {
     userId: 'user_1',
     db: {
+      normalizeId: (_table: string, id: string) => id,
       get: async (id: string) => find(id) ?? null,
       query: (table: string) => ({
         withIndex: (index: string, build?: (q: unknown) => unknown) => {

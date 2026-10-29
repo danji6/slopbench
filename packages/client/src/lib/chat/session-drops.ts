@@ -1,6 +1,10 @@
 import type { SessionListItem } from './types'
 
-type GroupPage = { results: SessionListItem[]; status: string }
+type GroupPage = {
+  results: SessionListItem[]
+  status: string
+  sessionsDeferred?: boolean
+}
 
 export type SessionDrop = {
   item: SessionListItem
@@ -68,6 +72,7 @@ export function sessionDropConfirmed(
   if (source?.results.some((item) => item._id === drop.item._id)) return false
   if (!target) return true // the group is no longer mounted, e.g. during search
   if (target.results.some((item) => item._id === drop.item._id)) return true
+  if (target.sessionsDeferred) return true
 
   const last = target.results.at(-1)
   // An older moved row can fall beyond the loaded destination page

@@ -10,7 +10,7 @@ import { duplicate } from '@sb/convex/model/session/sessionDuplicate'
 import { toListItem } from '@sb/convex/model/session/sessionQueries'
 import { redeem } from '@sb/convex/model/session/shares'
 import { getApprovals } from '@sb/convex/model/session/state'
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, spyOn, test } from 'bun:test'
 import {
   args,
   cancelArgs,
@@ -19,6 +19,20 @@ import {
 } from '~/tests/helpers/session-folder-fixture'
 
 describe('session folders', () => {
+  test('pins append deterministically even when several mutations share a timestamp', async () => {
+    const { ctx, row } = setup()
+    const clock = spyOn(Date, 'now').mockReturnValue(1234)
+    try {
+      await pinFolder(ctx, { folderId: 'b' as never, pinned: true })
+      await pinFolder(ctx, { folderId: 'a' as never, pinned: true })
+      expect(row('a').pinnedAt).toBeGreaterThan(Number(row('b').pinnedAt))
+      await pinFolder(ctx, { folderId: 'b' as never, pinned: false })
+      await pinFolder(ctx, { folderId: 'b' as never, pinned: true })
+      expect(row('b').pinnedAt).toBeGreaterThan(Number(row('a').pinnedAt))
+    } finally {
+      clock.mockRestore()
+    }
+  })
   test('folder pins preserve workspace, hierarchy, order, and session pins', async () => {
     const { ctx, row } = setup()
     row('b').parentId = 'a'
@@ -26,13 +40,24 @@ describe('session folders', () => {
     const before = structuredClone(row('b'))
     const membership = structuredClone(row('own'))
     await pinFolder(ctx, { folderId: 'b' as never, pinned: true })
-    expect(row('b')).toEqual({ ...before, pinned: true })
+    expect(row('b')).toEqual({
+      ...before,
+      pinned: true,
+      pinnedAt: expect.any(Number),
+    })
+    const pinnedAt = row('b').pinnedAt
+    await pinFolder(ctx, { folderId: 'b' as never, pinned: true })
+    expect(row('b').pinnedAt).toBe(pinnedAt)
     expect(row('own')).toEqual(membership)
     expect(
       (await getSessionWithWorkspace(ctx, 's' as never))?.workspace?.path,
     ).toBe('/a')
     await pinFolder(ctx, { folderId: 'b' as never, pinned: false })
-    expect(row('b')).toEqual({ ...before, pinned: undefined })
+    expect(row('b')).toEqual({
+      ...before,
+      pinned: undefined,
+      pinnedAt: undefined,
+    })
   })
 
   test('folder pinning rejects foreign folders and locks on ancestors', async () => {

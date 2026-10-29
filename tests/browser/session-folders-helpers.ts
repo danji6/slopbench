@@ -1,12 +1,26 @@
 import { type Locator, type Page, expect } from '@playwright/test'
 import { APP_ID } from '@sb/core/const'
 
+async function waitForFolderAnimations(page: Page) {
+  await page.evaluate(() => new Promise(requestAnimationFrame))
+  await expect
+    .poll(() =>
+      page
+        .locator('[data-slot="collapsible-content"]')
+        .evaluateAll((elements) =>
+          elements.every((element) => element.getAnimations().length === 0),
+        ),
+    )
+    .toBe(true)
+}
+
 export async function dragTo(
   page: Page,
   source: Locator,
   destination: Locator,
   bottom = false,
 ) {
+  await waitForFolderAnimations(page)
   const from = (await source.boundingBox())!
   const to = (await destination.boundingBox())!
   const x = from.x + from.width / 2
@@ -31,6 +45,7 @@ export async function drag(
 ) {
   await dragTo(page, source, destination, bottom)
   await page.mouse.up()
+  await waitForFolderAnimations(page)
 }
 
 export async function folderState(page: Page) {
@@ -49,6 +64,7 @@ export const folder = (page: Page, name: string) =>
 export async function pinFolder(page: Page, name: string) {
   await page.getByRole('button', { name: `Options for ${name}` }).click()
   await page.getByRole('menuitem', { name: 'Pin', exact: true }).click()
+  await waitForFolderAnimations(page)
 }
 
 export async function loadedPages(page: Page): Promise<Record<string, number>> {
@@ -64,4 +80,5 @@ export async function openSessionFolders(page: Page) {
   }, APP_ID)
   await page.goto('/?fixture=session-folders')
   await expect(folder(page, 'Portfolio')).toBeVisible()
+  await waitForFolderAnimations(page)
 }

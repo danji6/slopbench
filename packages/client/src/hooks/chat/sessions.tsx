@@ -6,10 +6,8 @@ import { createUsableContext } from '@/hooks/context'
 import type { SessionListItem } from '@/lib/chat'
 import type { PaginationMetadata } from '@/lib/chat/message-store'
 import { type SessionStore, createSessionStore } from '@/lib/chat/session-store'
-import { api } from '@sb/convex/_generated/api'
 import type { FolderView } from '@sb/convex/types'
 import { parseSessionSearch } from '@sb/core/session-search/parse'
-import { usePaginatedQuery, useQuery } from 'convex/react'
 import {
   type ReactNode,
   useCallback,
@@ -18,11 +16,9 @@ import {
   useSyncExternalStore,
 } from 'react'
 
+import { useFolderPage } from './folder-page'
 import { useSessionDrops } from './session-drops'
 import { useSessionSearchPage } from './session-search-page'
-
-const INITIAL_FOLDER_ITEMS = 5
-const INITIAL_LIST_ITEMS = 20
 
 const [SessionStoreContext, useSessionStore] =
   createUsableContext<SessionStore>('SessionStore')
@@ -42,6 +38,8 @@ export { useSessionSearch, useSessionShowHidden }
 
 export type SessionGroupPage = {
   results: SessionListItem[]
+  folders?: FolderView[]
+  sessionsDeferred?: boolean
   status: PaginationMetadata['status']
   loadMore: (count: number) => void
 }
@@ -61,12 +59,30 @@ type PublishPage = (key: string, page: SessionGroupPage | null) => void
 const [SessionPagesContext, usePublishSessionPage] =
   createUsableContext<PublishPage>('SessionPages')
 
+/** Retains metadata identity when only a group's session rows change. */
+function useLoadedFolders(pages: Record<string, SessionGroupPage>) {
+  const [previous, setPrevious] = useState<FolderView[]>([])
+  const folders = [
+    ...new Map(
+      Object.values(pages)
+        .flatMap((page) => page.folders ?? [])
+        .map((folder) => [folder._id, folder]),
+    ).values(),
+  ]
+  const changed =
+    folders.length !== previous.length ||
+    folders.some((folder, index) => folder !== previous[index])
+  if (!changed) return previous
+  setPrevious(folders)
+  return folders
+}
+
 export function SessionStoreProvider({ children }: { children: ReactNode }) {
   const [store] = useState(createSessionStore)
   const [search, setSearch] = useState('')
   const [showHidden, setShowHidden] = useState(false)
-  const folders = useQuery(api.sessionFolders.list) ?? []
   const [serverPages, setPages] = useState<Record<string, SessionGroupPage>>({})
+  const folders = useLoadedFolders(serverPages)
   const { pages, pendingSessionIds, dropSession } = useSessionDrops(serverPages, folders) // prettier-ignore
   const activeId = useActiveSessionId()
   const streamingIds = useActiveStreamSessionIds()
@@ -109,7 +125,14 @@ export function SessionStoreProvider({ children }: { children: ReactNode }) {
   )
 }
 
-/** Loads a group's pages only while its contents are mounted. */
+/** Keeps a visible folder's initial page ready without publishing hidden rows. */
+export function SessionGroupPreload({ groupKey }: { groupKey: string }) {
+  const { showHidden } = useSessionShowHidden()
+  useFolderPage({ groupKey, search: '', showHidden })
+  return null
+}
+
+/** Loads a group's display pages only while its contents are mounted. */
 export function SessionGroupQuery({
   groupKey,
   search = '',
@@ -141,18 +164,7 @@ function SessionGroupLoader({
   showHidden,
 }: SessionGroupLoaderProps) {
   const publish = usePublishSessionPage()
-  const isFlatList = groupKey === 'search' || groupKey === 'ungrouped'
-  const candidates = usePaginatedQuery(
-    api.sessions.list,
-    {
-      groupKey: groupKey === 'search' ? undefined : groupKey,
-      search: search || undefined,
-      showHidden: showHidden || undefined,
-    },
-    {
-      initialNumItems: isFlatList ? INITIAL_LIST_ITEMS : INITIAL_FOLDER_ITEMS,
-    },
-  )
+  const candidates = useFolderPage({ groupKey, search, showHidden })
   const hasFilters = parseSessionSearch(search).clauses.length > 0
   const { results, status, loadMore } = useSessionSearchPage(
     candidates,
@@ -160,8 +172,22 @@ function SessionGroupLoader({
   )
 
   useLayoutEffect(() => {
-    publish(groupKey, { results, status, loadMore })
-  }, [groupKey, results, status, loadMore, publish])
+    publish(groupKey, {
+      results,
+      status,
+      loadMore,
+      folders: candidates.folders,
+      sessionsDeferred: candidates.sessionsDeferred,
+    })
+  }, [
+    groupKey,
+    results,
+    status,
+    loadMore,
+    candidates.folders,
+    candidates.sessionsDeferred,
+    publish,
+  ])
   useLayoutEffect(() => () => publish(groupKey, null), [groupKey, publish])
 
   return null

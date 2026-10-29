@@ -36,15 +36,20 @@ export async function list(
     result.page.map(async (row) => {
       const session = await ctx.db.get(row.sessionId)
       if (!session || session.parent) return null
-      return toListItem(ctx, session, row.userHidden, row.pinned, row.folderId)
+      const item = await toListItem(
+        ctx,
+        session,
+        row.userHidden,
+        row.pinned,
+        row.folderId,
+      )
+      return (await matches(item)) ? item : null
     }),
   )
 
   return {
     ...result,
-    page: page.filter(
-      (item): item is SessionListItem => item !== null && matches(item),
-    ),
+    page: page.filter((item): item is SessionListItem => item !== null),
   }
 }
 

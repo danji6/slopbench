@@ -3,9 +3,10 @@ import {
   matchesSessionSearch,
 } from '@sb/core/session-search/filters'
 
+import type { Id } from '../../_generated/dataModel'
 import type { AuthQueryCtx } from '../../functions'
 import type { ListSessionsArgs, SessionListItem } from '../../types'
-import { checkedTrail, ownerFolders } from './folderTree'
+import { readFolderTrail } from './folderTree'
 
 /** Selects title relevance, global activity, or the normal folder listing. */
 export function sessionListQuery(
@@ -42,22 +43,25 @@ export async function sessionSearchMatcher(
   clauses: SessionSearchClause[],
 ) {
   const needsFolders = clauses.some((clause) => clause.key === 'folder')
-  const folders = needsFolders ? await ownerFolders(ctx, ctx.userId) : []
-  const namesByFolder = new Map<string, string[]>()
+  const namesByFolder = new Map<string, Promise<string[]>>()
 
-  function folderNames(id?: string) {
+  async function folderNames(id?: Id<'sessionFolders'>) {
     if (!needsFolders || !id) return []
     let names = namesByFolder.get(id)
     if (!names) {
-      names = checkedTrail(folders, id).map((folder) => folder.name)
+      names = readFolderTrail(ctx, id, ctx.userId).then((trail) =>
+        trail.map((folder) => folder.name),
+      )
       namesByFolder.set(id, names)
     }
     return names
   }
 
-  return (item: SessionListItem) =>
+  return async (item: SessionListItem) =>
     matchesSessionSearch(clauses, {
-      folderNames: folderNames(item.folderId),
+      folderNames: await folderNames(
+        item.folderId as Id<'sessionFolders'> | undefined,
+      ),
       participants: item.participants,
     })
 }

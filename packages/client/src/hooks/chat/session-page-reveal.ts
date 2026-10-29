@@ -21,6 +21,8 @@ export function useSessionPageReveal({
   disabled,
 }: SessionPageRevealOptions) {
   const ref = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const observer = useRef<ResizeObserver | null>(null)
   const pending = useRef<PageReveal | null>(null)
   const frame = useRef<number | null>(null)
   const animation = useRef<Animation | null>(null)
@@ -30,6 +32,8 @@ export function useSessionPageReveal({
   const reset = useCallback(() => {
     if (frame.current !== null) cancelAnimationFrame(frame.current)
     animation.current?.cancel()
+    observer.current?.disconnect()
+    observer.current = null
     ref.current?.style.removeProperty('height')
     ref.current?.style.removeProperty('overflow')
     frame.current = null
@@ -53,14 +57,28 @@ export function useSessionPageReveal({
       // Wait for the session store's layout effects to populate the new rows
       frame.current = requestAnimationFrame(() => {
         frame.current = null
-        animation.current = element.animate(
-          [
-            { height: `${request.height}px` },
-            { height: `${element.scrollHeight}px` },
-          ],
-          { duration: 200, easing: 'ease-out' },
-        )
-        animation.current.onfinish = finish
+        let target = -1
+        const resize = () => {
+          const next =
+            contentRef.current?.getBoundingClientRect().height ??
+            element.scrollHeight
+          if (next === target) return
+          const from = animation.current
+            ? element.getBoundingClientRect().height
+            : request.height
+          target = next
+          animation.current?.cancel()
+          animation.current = element.animate(
+            [{ height: `${from}px` }, { height: `${next}px` }],
+            { duration: 200, easing: 'ease-out' },
+          )
+          animation.current.onfinish = finish
+        }
+        resize()
+        if (contentRef.current) {
+          observer.current = new ResizeObserver(resize)
+          observer.current.observe(contentRef.current)
+        }
       })
     },
     [finish],
@@ -71,15 +89,19 @@ export function useSessionPageReveal({
     const element = ref.current
     if (!request || !element) return
 
-    const samePrefix = request.ids.every((id, index) => ids[index] === id)
+    const previousIds = new Set(request.ids)
+    const retainedIds = ids.filter((id) => !id.startsWith('folder:') || previousIds.has(id)) // prettier-ignore
+    const samePrefix = request.ids.every((id, index) => retainedIds[index] === id) // prettier-ignore
     const canceled = disabled || reducedMotion || !samePrefix
     const changedDuringReveal = request.phase === 'revealing' && ids.length !== request.ids.length // prettier-ignore
+
     if (canceled || changedDuringReveal) {
       finish()
       return
     }
-    if (request.phase === 'revealing') return
-
+    if (request.phase === 'revealing') {
+      return
+    }
     if (page?.status === 'LoadingMore') {
       request.phase = 'loading'
       return
@@ -107,5 +129,5 @@ export function useSessionPageReveal({
     page.loadMore(20)
   }
 
-  return { ref, loadMore, revealing }
+  return { ref, contentRef, loadMore, revealing }
 }

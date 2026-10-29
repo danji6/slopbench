@@ -1,12 +1,19 @@
 import type { FolderMenuActions } from '@/components/chat/sessions/folder-menu'
 import { useFolderMoves } from '@/hooks/chat/folder-moves'
 import { useFolderPins } from '@/hooks/chat/folder-pins'
-import { readCollapsed, saveCollapsed } from '@/lib/chat/session-folder-state'
+import {
+  isFolderCollapsed,
+  readCollapsed,
+  saveCollapsed,
+  setFolderCollapsed,
+} from '@/lib/chat/session-folder-state'
 import type { FolderView } from '@sb/convex/types'
-import { folderBranch, folderSiblings } from '@sb/core/utils/folder-tree'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-type FolderHeaderActions = FolderMenuActions & { toggle: () => void }
+type FolderHeaderActions = FolderMenuActions & {
+  toggle: () => void
+  onCollapseAll: () => void
+}
 
 /** Keeps folder controls stable while session pages and expansion state change. */
 export function useFolderControls(serverFolders: FolderView[]) {
@@ -24,6 +31,7 @@ export function useFolderControls(serverFolders: FolderView[]) {
       setCollapsed((current) => {
         const next = { ...current }
         for (const id of [...(parent?.ancestorIds ?? []), parentId]) {
+          delete next[id]
           next[id] = false
         }
         return next
@@ -37,36 +45,47 @@ export function useFolderControls(serverFolders: FolderView[]) {
   const { folders, request } = organizing
   const { setPinned } = folderPins
 
-  const toggle = useCallback((key: string) => {
-    setCollapsed((current) => ({ ...current, [key]: !current[key] }))
-  }, [])
+  const toggle = useCallback(
+    (key: string) => {
+      const folder = folders.find((entry) => entry._id === key)
+      setCollapsed((current) =>
+        setFolderCollapsed(
+          current,
+          key,
+          !isFolderCollapsed(current, key, folder?.ancestorIds),
+        ),
+      )
+    },
+    [folders],
+  )
 
   const collapseAll = useCallback(
-    (value: boolean, folder?: FolderView) => {
-      const keys = folder
-        ? folderBranch(folders, folder._id).map((entry) => entry._id)
-        : ['pinned', ...folders.map((entry) => entry._id)]
-      setCollapsed((current) => ({
-        ...current,
-        ...Object.fromEntries(keys.map((key) => [key, value])),
-      }))
+    (folder?: FolderView) => {
+      setCollapsed((current) => {
+        if (!folder) return { '*': true }
+        const own = setFolderCollapsed(current, folder._id, true)
+        const next = setFolderCollapsed(own, `branch:${folder._id}`, true)
+        for (const entry of folders) {
+          if (entry.ancestorIds.includes(folder._id)) {
+            delete next[entry._id]
+            delete next[`branch:${entry._id}`]
+          }
+        }
+        return next
+      })
     },
     [folders],
   )
 
   const order = useCallback(
     (folder: FolderView, direction: -1 | 1) => {
-      const siblings = folderSiblings(folders, folder.parentId)
-      const index = siblings.findIndex((entry) => entry._id === folder._id)
-      if (index + direction < 0 || index + direction >= siblings.length) return
       request({
         folderId: folder._id,
         parentId: folder.parentId ?? null,
-        beforeFolderId:
-          direction < 0 ? siblings[index - 1]?._id : siblings[index + 2]?._id,
+        direction,
       })
     },
-    [folders, request],
+    [request],
   )
 
   const headers = useMemo(() => {
@@ -75,8 +94,7 @@ export function useFolderControls(serverFolders: FolderView[]) {
       const key = folder?._id ?? 'pinned'
       actions.set(key, {
         toggle: () => toggle(key),
-        onCollapseAll: () => collapseAll(true, folder),
-        onExpandAll: () => collapseAll(false, folder),
+        onCollapseAll: () => collapseAll(folder),
         edit: () => folder && setEditing(folder),
         remove: () => folder && setDeleting(folder),
         reorder: (direction) => folder && order(folder, direction),
@@ -104,12 +122,19 @@ export function useFolderControls(serverFolders: FolderView[]) {
     setEditing('new')
   }
 
+  const hasExpandedFolders =
+    !isFolderCollapsed(collapsed, 'pinned') ||
+    folders.some(
+      (folder) => !isFolderCollapsed(collapsed, folder._id, folder.ancestorIds),
+    )
+
   return {
     folders,
     collapsed,
     setCollapsed,
     headers,
     collapseAll,
+    hasExpandedFolders,
     organizing,
     folderPins,
     pending: organizing.pending || folderPins.pending,

@@ -31,23 +31,22 @@ export async function create(
   args: FolderCreateBasicArgs,
 ) {
   validateIcon(args.icon)
-  const folders = await list(ctx)
-
-  if (folders.length >= 100) error('Folder limit reached (100)', 409)
   if (args.parentId) await requireFolder(ctx, args.parentId, ctx.userId)
+
+  const last = await ctx.db
+    .query('sessionFolders')
+    .withIndex('by_ownerId_parentId_position', (q) =>
+      q.eq('ownerId', ctx.userId).eq('parentId', args.parentId),
+    )
+    .order('desc')
+    .first()
 
   return ctx.db.insert('sessionFolders', {
     ownerId: ctx.userId,
     name: folderName(args.name),
     icon: args.icon,
     parentId: args.parentId,
-    position:
-      Math.max(
-        -1,
-        ...folders
-          .filter((f) => f.parentId === args.parentId)
-          .map((f) => f.position),
-      ) + 1,
+    position: (last?.position ?? -1) + 1,
     sources: [],
     revision: 0,
   })
@@ -124,8 +123,26 @@ export async function pinFolder(
   ctx: AuthMutationCtx,
   args: { folderId: Id<'sessionFolders'>; pinned: boolean },
 ) {
-  await requireFolder(ctx, args.folderId, ctx.userId)
-  await ctx.db.patch(args.folderId, { pinned: args.pinned || undefined })
+  const folder = await requireFolder(ctx, args.folderId, ctx.userId)
+  const pinnedAt = args.pinned
+    ? (folder.pinnedAt ?? (await nextPinOrder(ctx)))
+    : undefined
+  await ctx.db.patch(args.folderId, {
+    pinned: args.pinned || undefined,
+    pinnedAt,
+  })
+}
+
+/** Appends simultaneous pins deterministically through the indexed transaction read. */
+async function nextPinOrder(ctx: AuthMutationCtx) {
+  const last = await ctx.db
+    .query('sessionFolders')
+    .withIndex('by_owner_pinned_order', (q) =>
+      q.eq('ownerId', ctx.userId).eq('pinned', true),
+    )
+    .order('desc')
+    .first()
+  return Math.max(Date.now(), (last?.pinnedAt ?? 0) + 1)
 }
 
 export async function createWithSources(

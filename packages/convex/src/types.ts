@@ -268,3 +268,5 @@ export type IntegrationMissingArgs = Infer<typeof IntegrationsV.integrationMissi
 export type IntegrationSkillReadArgs = Infer<typeof IntegrationsV.integrationSkillReadValidator> // prettier-ignore
 export type IntegrationObservationArgs = Infer<typeof IntegrationsV.integrationObservationValidator> // prettier-ignore
 export type IntegrationSkillsArgs = Infer<typeof IntegrationsV.integrationSkillsValidator> // prettier-ignore
+export type FolderPageArgs = Infer<typeof V.folderPageArgs>
+export type FolderPickerArgs = Infer<typeof V.folderPickerArgs>

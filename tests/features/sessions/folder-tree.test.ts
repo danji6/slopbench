@@ -14,6 +14,10 @@ import {
   folderMoveNeedsConfirmation,
 } from '~/packages/client/src/lib/chat/folder-moves'
 import { createSessionDrop } from '~/packages/client/src/lib/chat/session-drops'
+import {
+  isFolderCollapsed,
+  setFolderCollapsed,
+} from '~/packages/client/src/lib/chat/session-folder-state'
 import { flattenSessionTree } from '~/packages/client/src/lib/chat/session-groups'
 
 const nodes = [
@@ -53,6 +57,21 @@ const pages = {
   b: page([]),
   ungrouped: page([]),
 }
+
+test('subtree choices apply to unloaded descendants and later individual choices override them', () => {
+  const previous = { '*': false, unloaded: false }
+  const collapsed = setFolderCollapsed(previous, 'branch:a', true)
+  expect(isFolderCollapsed(collapsed, 'unloaded', ['a', 'n'])).toBe(true)
+  expect(isFolderCollapsed(collapsed, 'new-child', ['a'])).toBe(true)
+  expect(isFolderCollapsed(collapsed, 'unrelated', ['b'])).toBe(false)
+  const reopened = setFolderCollapsed(collapsed, 'unloaded', false)
+  expect(
+    isFolderCollapsed(JSON.parse(JSON.stringify(reopened)), 'unloaded', [
+      'a',
+      'n',
+    ]),
+  ).toBe(false)
+})
 
 test('ordered trees keep child branches contiguous and reject broken ancestry', () => {
   expect(orderedFolderTree(nodes).map(({ folder }) => folder._id)).toEqual([
@@ -227,6 +246,14 @@ test('folder drag edges insert siblings and centers nest while moving the whole 
   })
   expect(folderDropIntent(folders, 'a', 'g', 'inside')).toBeNull()
   expect(folderDropIntent(folders, 'a', 'g', 'before')).toBeNull()
+  expect(
+    folderDropIntent(
+      folders.filter((folder) => folder._id === 'a' || folder._id === 'g'),
+      'a',
+      'g',
+      'before',
+    ),
+  ).toBeNull()
   expect(() =>
     projectFolderMove(folders, {
       folderId: 'n',

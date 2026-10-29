@@ -68,7 +68,9 @@ export default defineSchema({
 
   sessionFolders: defineTable(sessionFolderSchema)
     .index('by_ownerId_position', ['ownerId', 'position'])
-    .index('by_ownerId_parentId_position', ['ownerId', 'parentId', 'position']),
+    .index('by_ownerId_parentId_position', ['ownerId', 'parentId', 'position'])
+    .index('by_owner_parent_pinned_position', ['ownerId', 'parentId', 'pinned', 'position'])
+    .index('by_owner_pinned_order', ['ownerId', 'pinned', 'pinnedAt']),
 
   sessions: defineTable(sessionSchema)
     .index('by_folderId', ['folderId'])

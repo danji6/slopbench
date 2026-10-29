@@ -62,6 +62,24 @@ test('action completion cannot snap back while either group query is stale', () 
   expect(sessionDropConfirmed(committed, both)).toBe(true)
 })
 
+test('committed session moves reconcile when the destination budget is filled by subfolders', () => {
+  const original = item('moving')
+  const drop = {
+    ...createSessionDrop(original, folder._id, folder)!,
+    settled: true,
+  }
+  const destination = { ...page([], 'CanLoadMore'), sessionsDeferred: true }
+  expect(
+    sessionDropConfirmed(drop, {
+      ungrouped: page([original]),
+      folder: destination,
+    }),
+  ).toBe(false)
+  expect(
+    sessionDropConfirmed(drop, { ungrouped: page([]), folder: destination }),
+  ).toBe(true)
+})
+
 test('a committed older row can reconcile beyond the loaded destination page', () => {
   const drop = {
     ...createSessionDrop(item('moving'), folder._id, folder)!,

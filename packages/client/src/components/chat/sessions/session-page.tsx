@@ -19,6 +19,9 @@ type SessionPageProps = {
   page?: SessionGroupPage
   disabled: boolean
   renderRow: SessionRowRenderer
+  children?: ReactNode
+  folderIds?: string[]
+  animate?: boolean
 }
 
 /** Keeps existing rows mounted while appended rows are revealed as one block. */
@@ -28,32 +31,42 @@ export function SessionPage({
   page,
   disabled,
   renderRow,
+  children,
+  folderIds = [],
+  animate = true,
 }: SessionPageProps) {
   const sessions = rows.filter((row) => row.kind === 'session')
   const separator = rows.find((row) => row.kind === 'separator')
   const footer = rows.find((row) => row.kind === 'footer')
 
-  const { ref, loadMore, revealing } = useSessionPageReveal({
-    ids: sessions.map((row) => row.id),
+  const { ref, contentRef, loadMore, revealing } = useSessionPageReveal({
+    ids: [
+      ...folderIds.map((id) => `folder:${id}`),
+      ...sessions.map((row) => row.id),
+    ],
     page,
-    disabled,
+    disabled: disabled || !animate,
   })
 
   return (
     <>
-      {separator && renderRow(separator)}
       <div ref={ref} data-session-page={groupKey}>
-        {sessions.map((row) => (
-          <div key={row.id}>{renderRow(row)}</div>
-        ))}
-        {footer && (
-          <div
-            data-slot="session-page-footer"
-            className="[overflow-anchor:none]"
-          >
-            {renderRow(footer, { loadMore, revealing })}
-          </div>
-        )}
+        <div ref={contentRef}>
+          {children}
+          {separator && renderRow(separator)}
+          {sessions.map((row) => (
+            <div key={row.id}>{renderRow(row)}</div>
+          ))}
+          {footer && (
+            <div
+              data-slot="session-page-footer"
+              data-page-footer={groupKey}
+              className="[overflow-anchor:none]"
+            >
+              {renderRow(footer, { loadMore, revealing })}
+            </div>
+          )}
+        </div>
       </div>
     </>
   )

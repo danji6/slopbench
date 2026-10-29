@@ -1,6 +1,5 @@
+import { AnimatedToolbar } from '@/components/ui/animated-toolbar'
 import { ChevronDownIcon, KeyboardIcon, SaveIcon, XIcon } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
-import type { ReactNode } from 'react'
 
 import { ChatPill, type ChatPillProps } from './chat-pill'
 
@@ -33,67 +32,40 @@ export function ChatToolbar({
 }: ChatToolbarProps) {
   return (
     <ChatPill data-slot="chat-toolbar" {...props}>
-      <AnimatePresence initial={false}>
-        {showScroll && (
-          <Group key="scroll">
-            <ChatPill.Button
-              onClick={onScrollToBottom}
-              aria-label="Scroll to bottom"
-              className="relative"
-            >
-              <ChevronDownIcon />
-              {activity && (
-                <span className="bg-primary ring-m3-surface-container-low absolute top-2 right-3.5 size-2 rounded-full ring-2" />
-              )}
-            </ChatPill.Button>
-            <AnimatePresence initial={false}>
-              {pinnable && (
-                <Group key="pin">
-                  <ChatPill.Separator />
-                  <ChatPill.Button
-                    variant={pinned ? 'secondary' : 'stealth'}
-                    onClick={() => onPinChange?.(!pinned)}
-                    aria-label="Pin chat input"
-                  >
-                    <KeyboardIcon />
-                  </ChatPill.Button>
-                </Group>
-              )}
-            </AnimatePresence>
-          </Group>
-        )}
-        {editing && showScroll && (
-          <Group key="divider">
-            <ChatPill.Separator />
-          </Group>
-        )}
-        {editing && (
-          <Group key="editor">
-            <ChatPill.Button onClick={onEditCancel} aria-label="Cancel edit">
-              <XIcon />
-            </ChatPill.Button>
-            <ChatPill.Separator />
-            <ChatPill.Button onClick={onEditSave} aria-label="Save edit">
-              <SaveIcon />
-            </ChatPill.Button>
-          </Group>
-        )}
-      </AnimatePresence>
+      <AnimatedToolbar.Item visible={showScroll}>
+        <ChatPill.Button
+          onClick={onScrollToBottom}
+          aria-label="Scroll to bottom"
+          className="relative"
+        >
+          <ChevronDownIcon />
+          {activity && (
+            <span className="bg-primary ring-m3-surface-container-low absolute top-2 right-3.5 size-2 rounded-full ring-2" />
+          )}
+        </ChatPill.Button>
+        <AnimatedToolbar.Item visible={pinnable}>
+          <ChatPill.Separator />
+          <ChatPill.Button
+            variant={pinned ? 'secondary' : 'stealth'}
+            onClick={() => onPinChange?.(!pinned)}
+            aria-label="Pin chat input"
+          >
+            <KeyboardIcon />
+          </ChatPill.Button>
+        </AnimatedToolbar.Item>
+      </AnimatedToolbar.Item>
+      <AnimatedToolbar.Item visible={editing && showScroll}>
+        <ChatPill.Separator />
+      </AnimatedToolbar.Item>
+      <AnimatedToolbar.Item visible={editing}>
+        <ChatPill.Button onClick={onEditCancel} aria-label="Cancel edit">
+          <XIcon />
+        </ChatPill.Button>
+        <ChatPill.Separator />
+        <ChatPill.Button onClick={onEditSave} aria-label="Save edit">
+          <SaveIcon />
+        </ChatPill.Button>
+      </AnimatedToolbar.Item>
     </ChatPill>
-  )
-}
-
-function Group({ children }: { children: ReactNode }) {
-  return (
-    <motion.div
-      className="flex"
-      initial={{ width: 0, opacity: 0 }}
-      animate={{ width: 'auto', opacity: 1 }}
-      exit={{ width: 0, opacity: 0 }}
-      transition={{ type: 'tween', ease: 'easeInOut', duration: 0.2 }}
-      style={{ overflow: 'hidden' }}
-    >
-      {children}
-    </motion.div>
   )
 }

@@ -3,12 +3,28 @@ import { v } from 'convex/values'
 import { internalMutation } from './_generated/server'
 import { authMutation, authQuery } from './functions'
 import * as Moves from './model/session/folderMoves'
+import * as Pages from './model/session/folderPages'
 import { cancel } from './model/session/folderTransitionLocks'
 import * as Transitions from './model/session/folderTransitions'
 import * as Folders from './model/session/folders'
 import * as V from './validators/folders'
 
 export const list = authQuery({ args: {}, handler: Folders.list })
+
+export const page = authQuery({
+  args: V.folderPageArgs.fields,
+  handler: Pages.page,
+})
+
+export const picker = authQuery({
+  args: V.folderPickerArgs.fields,
+  handler: Pages.picker,
+})
+
+export const get = authQuery({
+  args: { folderId: v.id('sessionFolders') },
+  handler: Pages.get,
+})
 
 export const create = authMutation({
   args: V.folderCreateBasicArgs.fields,

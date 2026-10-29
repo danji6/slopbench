@@ -12,9 +12,9 @@ test.beforeEach(async ({ page }) => openSessionFolders(page))
 async function samplePageExpansion(page: Page, groupKey: string) {
   const content = page.locator(`[data-session-page="${groupKey}"]`)
   await content
-    .locator('[data-slot="session-page-footer"] button')
+    .locator(`[data-page-footer="${groupKey}"] button`)
     .scrollIntoViewIfNeeded()
-  await content.locator('[data-slot="session-page-footer"] button').focus()
+  await content.locator(`[data-page-footer="${groupKey}"] button`).focus()
   return content.evaluate(async (element) => {
     await new Promise(requestAnimationFrame)
     const scrollArea = element.closest(
@@ -24,15 +24,21 @@ async function samplePageExpansion(page: Page, groupKey: string) {
     const section = element.closest('[data-session-folder]') ?? element
     const initialTop = firstRow.getBoundingClientRect().top
     const button = element.querySelector<HTMLButtonElement>(
-      '[data-slot="session-page-footer"] button',
+      `[data-page-footer="${element.getAttribute('data-session-page')}"] button`,
     )!
+    const surface =
+      element
+        .closest('[data-session-folder]')
+        ?.querySelector<HTMLElement>(
+          ':scope > [data-slot="collapsible-content"]',
+        ) ?? element
     const read = () => ({
-      height: element.getBoundingClientRect().height,
+      height: surface.getBoundingClientRect().height,
       sectionHeight: section.getBoundingClientRect().height,
       scrollTop: scrollArea.scrollTop,
       firstTop: firstRow.getBoundingClientRect().top,
       sameRow: element.querySelector('button') === firstRow,
-      animations: element.getAnimations().length,
+      animations: surface.getAnimations().length,
     })
     const samples = [read()]
     button.click()
@@ -44,7 +50,7 @@ async function samplePageExpansion(page: Page, groupKey: string) {
     return {
       samples,
       initialTop,
-      heightStyle: (element as HTMLElement).style.height,
+      heightStyle: (surface as HTMLElement).style.height,
     }
   })
 }
@@ -90,13 +96,15 @@ test('the final page grows without briefly losing the load-more footer height', 
   await page.goto('/?fixture=session-folders&manySessions')
   for (const [groupKey, beforeFinal] of [
     ['pinned', 25],
-    ['a', 125],
+    ['a', 124],
   ] as const) {
     const branch = page.locator(`[data-session-folder="${groupKey}"]`)
-    const button = page.locator(
-      `[data-session-page="${groupKey}"] [data-slot="session-page-footer"] button`,
-    )
-    for (let count = 5; count < beforeFinal; count += 20) {
+    const button = page.locator(`[data-page-footer="${groupKey}"] button`)
+    for (
+      let count = groupKey === 'a' ? 4 : 5;
+      count < beforeFinal;
+      count += 20
+    ) {
       await button.click()
       await expect
         .poll(async () => (await loadedPages(page))[groupKey])
@@ -127,19 +135,23 @@ test('reduced motion skips the page reveal and collapsing cancels it before unlo
   await page.reload()
   const content = page.locator('[data-session-page="a"]')
   const canceled = await content.evaluate(async (element) => {
+    const surface = element
+      .closest('[data-session-folder]')!
+      .querySelector<HTMLElement>(':scope > [data-slot="collapsible-content"]')!
     element
       .querySelector<HTMLButtonElement>(
-        '[data-slot="session-page-footer"] button',
+        `[data-page-footer="${element.getAttribute('data-session-page')}"] button`,
       )!
       .click()
     const start = performance.now()
     while (
-      !element.getAnimations().length &&
+      !surface.getAnimations().length &&
       performance.now() - start < 1000
     ) {
       await new Promise(requestAnimationFrame)
     }
-    const started = element.getAnimations().length === 1
+    const started = surface.getAnimations().length === 1
+    const reveal = surface.getAnimations()[0]!
     element
       .closest('[data-session-folder="a"]')!
       .querySelector<HTMLButtonElement>('button[aria-expanded]')!
@@ -147,14 +159,13 @@ test('reduced motion skips the page reveal and collapsing cancels it before unlo
     await new Promise(requestAnimationFrame)
     return {
       started,
-      animations: element.getAnimations().length,
-      heightStyle: (element as HTMLElement).style.height,
+      canceled: reveal.playState === 'idle',
     }
   })
-  expect(canceled).toEqual({ started: true, animations: 0, heightStyle: '' })
+  expect(canceled).toEqual({ started: true, canceled: true })
   await expect.poll(async () => (await loadedPages(page)).a).toBeUndefined()
   await folder(page, 'Portfolio').click()
-  await expect.poll(async () => (await loadedPages(page)).a).toBe(5)
+  await expect.poll(async () => (await loadedPages(page)).a).toBe(4)
 })
 
 test('sidebar edges and empty space do not highlight or move sessions', async ({
@@ -201,19 +212,22 @@ test('starting a drag finishes a page reveal before choosing a drop target', asy
   await source.scrollIntoViewIfNeeded()
   await source.focus()
   const started = await content.evaluate(async (element) => {
+    const surface = element
+      .closest('[data-session-folder]')!
+      .querySelector<HTMLElement>(':scope > [data-slot="collapsible-content"]')!
     element
       .querySelector<HTMLButtonElement>(
-        '[data-slot="session-page-footer"] button',
+        `[data-page-footer="${element.getAttribute('data-session-page')}"] button`,
       )!
       .click()
     const start = performance.now()
     while (
-      !element.getAnimations().length &&
+      !surface.getAnimations().length &&
       performance.now() - start < 1000
     ) {
       await new Promise(requestAnimationFrame)
     }
-    return element.getAnimations().length === 1
+    return surface.getAnimations().length === 1
   })
   expect(started).toBe(true)
   await page.keyboard.press('Space')
@@ -222,11 +236,17 @@ test('starting a drag finishes a page reveal before choosing a drop target', asy
     await content.evaluate((element) => `${element.scrollHeight}px`),
   )
   expect(
-    await content.evaluate((element) => element.getAnimations().length),
+    await content.evaluate(
+      (element) =>
+        element
+          .closest('[data-session-folder]')!
+          .querySelector(':scope > [data-slot="collapsible-content"]')!
+          .getAnimations().length,
+    ),
   ).toBe(0)
   await page.keyboard.press('Escape')
   await expect(source).toBeFocused()
-  await expect.poll(async () => (await loadedPages(page)).a).toBe(25)
+  await expect.poll(async () => (await loadedPages(page)).a).toBe(24)
 })
 
 test('unfiled drop highlights stay continuous across the separator and sessions', async ({
@@ -272,11 +292,11 @@ test('closing unloads the branch after animating and reopening resets pagination
   await page.goto('/?fixture=session-folders&manySessions')
   const branch = page.locator('[data-session-folder="a"]')
   const loadMore = branch.getByRole('button', { name: 'Load more' }).last()
-  await expect.poll(async () => (await loadedPages(page)).a).toBe(5)
+  await expect.poll(async () => (await loadedPages(page)).a).toBe(4)
   await loadMore.click()
-  await expect.poll(async () => (await loadedPages(page)).a).toBe(25)
+  await expect.poll(async () => (await loadedPages(page)).a).toBe(24)
   // All loaded rows remain mounted even when below the scroll viewport.
-  await expect(branch.getByText(/^a session /)).toHaveCount(24)
+  await expect(branch.getByText(/^a session /)).toHaveCount(23)
   await expect(loadMore).toHaveCSS('justify-content', 'flex-start')
   await expect(loadMore).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
   await folder(page, 'Portfolio').click()
@@ -286,31 +306,35 @@ test('closing unloads the branch after animating and reopening resets pagination
   await expect.poll(async () => (await loadedPages(page)).n).toBeUndefined()
   await expect(branch.getByText(/^a session /)).toHaveCount(0)
   await folder(page, 'Portfolio').click()
-  await expect.poll(async () => (await loadedPages(page)).a).toBe(5)
+  await expect.poll(async () => (await loadedPages(page)).a).toBe(4)
   await expect.poll(async () => (await loadedPages(page)).n).toBe(5)
-  await expect(branch.getByText(/^a session /)).toHaveCount(4)
+  await expect(branch.getByText(/^a session /)).toHaveCount(3)
 })
 
-test('unfiled sessions start at twenty and load without placeholder flashes', async ({
+test('unfiled sessions start at ten and folder loading feedback stays local', async ({
   page,
 }) => {
   await page.goto('/?fixture=session-folders&manySessions&slowSessions')
   const sidebar = page.getByTestId('sidebar')
   const resolve = page.getByRole('button', { name: 'Resolve session queries' })
   await expect.poll(async () => (await loadedPages(page)).ungrouped).toBe(0)
-  await expect(sidebar.getByText('Loading…', { exact: true })).toHaveCount(0)
+  await expect(
+    page.locator('[data-session-page="ungrouped"] > [role="status"]'),
+  ).toHaveCount(0)
   await resolve.click()
   await expect
     .poll(() => loadedPages(page))
-    .toEqual({ pinned: 5, a: 5, n: 5, b: 5, ungrouped: 20 })
+    .toEqual({ pinned: 5, a: 4, n: 5, b: 5, ungrouped: 10 })
 
   const loadMore = sidebar.getByRole('button', { name: 'Load more' }).last()
   await loadMore.click()
   await expect(loadMore).toBeDisabled()
-  await expect(sidebar.getByText('Loading…', { exact: true })).toHaveCount(0)
+  await expect(
+    page.locator('[data-session-page="ungrouped"] > [role="status"]'),
+  ).toHaveCount(0)
   await expect(sidebar.getByText('No matching sessions')).toHaveCount(0)
   await resolve.click()
-  await expect.poll(async () => (await loadedPages(page)).ungrouped).toBe(40)
+  await expect.poll(async () => (await loadedPages(page)).ungrouped).toBe(30)
   await expect(loadMore).toBeEnabled()
 
   const search = page.getByRole('textbox', { name: 'Search sessions' })
@@ -330,7 +354,7 @@ test('reversing a collapse keeps content and pagination until a completed collap
   await page.goto('/?fixture=session-folders&manySessions')
   const branch = page.locator('[data-session-folder="a"]')
   await branch.getByRole('button', { name: 'Load more' }).last().click()
-  await expect.poll(async () => (await loadedPages(page)).a).toBe(25)
+  await expect.poll(async () => (await loadedPages(page)).a).toBe(24)
   await folder(page, 'Portfolio').evaluate((button) =>
     (button as HTMLButtonElement).click(),
   )
@@ -341,7 +365,7 @@ test('reversing a collapse keeps content and pagination until a completed collap
     'aria-expanded',
     'true',
   )
-  await expect.poll(async () => (await loadedPages(page)).a).toBe(25)
+  await expect.poll(async () => (await loadedPages(page)).a).toBe(24)
 })
 
 test('reduced motion and subtree collapse unload descendants but leave unfiled sessions', async ({
@@ -352,17 +376,19 @@ test('reduced motion and subtree collapse unload descendants but leave unfiled s
   await expect
     .poll(async () => Object.keys(await loadedPages(page)).length)
     .toBe(5)
-  // Settle focus scrolling before opening the scroll-dismissed context menu.
-  await folder(page, 'Portfolio').focus()
-  await folder(page, 'Portfolio').click({ button: 'right' })
-  await page
-    .getByRole('menuitem', { name: 'Collapse all', exact: true })
-    .click()
+  const collapse = page.getByRole('button', {
+    name: 'Collapse Portfolio and subfolders',
+    exact: true,
+  })
+  await expect(collapse).toBeVisible()
+  await collapse.click()
+  await expect(collapse).toHaveCount(0)
+  await expect(folder(page, 'Portfolio')).toBeFocused()
   await expect.poll(async () => (await loadedPages(page)).a).toBeUndefined()
   await expect.poll(async () => (await loadedPages(page)).n).toBeUndefined()
-  await expect.poll(async () => (await loadedPages(page)).ungrouped).toBe(20)
+  await expect.poll(async () => (await loadedPages(page)).ungrouped).toBe(10)
   await folder(page, 'Portfolio').click()
-  await expect.poll(async () => (await loadedPages(page)).a).toBe(5)
+  await expect.poll(async () => (await loadedPages(page)).a).toBe(4)
   await expect(folder(page, 'Design')).toHaveAttribute('aria-expanded', 'false')
   await expect.poll(async () => (await loadedPages(page)).n).toBeUndefined()
 })
@@ -397,7 +423,7 @@ test('folder contents animate together before unmounting', async ({ page }) => {
   )
 })
 
-test('a few hundred loaded sessions collapse and reset together', async ({
+test('a few hundred loaded sessions collapse and reset when reopened individually', async ({
   page,
 }) => {
   await page.goto('/?fixture=session-folders&manySessions')
@@ -411,7 +437,7 @@ test('a few hundred loaded sessions collapse and reset together', async ({
       if (await button.count()) {
         await button.click()
         const expected = Math.min(
-          5 + (count + 1) * 20,
+          (id === 'a' ? 4 : 5) + (count + 1) * 20,
           id === 'pinned' ? 30 : 126,
         )
         await expect
@@ -431,15 +457,27 @@ test('a few hundred loaded sessions collapse and reset together', async ({
         0,
       ),
     )
-    .toBe(305)
-  await page.getByRole('button', { name: 'Session list options' }).click()
-  await page
-    .getByRole('menuitem', { name: 'Collapse all', exact: true })
-    .click()
-  await expect.poll(() => loadedPages(page)).toEqual({ ungrouped: 80 })
-  await page.getByRole('button', { name: 'Session list options' }).click()
-  await page.getByRole('menuitem', { name: 'Expand all', exact: true }).click()
+    .toBe(294)
+  const collapse = page.getByRole('button', { name: 'Collapse all folders' })
+  await expect(collapse).toBeEnabled()
+  await collapse.click()
+  await expect(collapse).toHaveCount(0)
+  await expect(
+    page.getByRole('button', { name: 'Session list options' }),
+  ).toBeFocused()
+  await expect.poll(() => loadedPages(page)).toEqual({ ungrouped: 70 })
+
+  await folder(page, 'Pinned').click()
+  await expect(collapse).toBeEnabled()
+  await folder(page, 'Pinned').click()
+  await expect(collapse).toHaveCount(0)
+  await folder(page, 'Portfolio').click()
+  await expect(collapse).toBeEnabled()
+  await expect(folder(page, 'Design')).toHaveAttribute('aria-expanded', 'false')
+  for (const name of ['Design', 'Pinned', 'SlopBench']) {
+    await folder(page, name).click()
+  }
   await expect
     .poll(() => loadedPages(page))
-    .toEqual({ ungrouped: 80, pinned: 5, a: 5, n: 5, b: 5 })
+    .toEqual({ ungrouped: 70, pinned: 5, a: 4, n: 5, b: 5 })
 })

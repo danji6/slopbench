@@ -43,8 +43,7 @@ export function EmptyChat({
   const [, navigate] = useLocation()
   const search = useSearch()
   const folderId = new URLSearchParams(search).get('folder') as Id<'sessionFolders'> | null // prettier-ignore
-  const folders = useQuery(api.sessionFolders.list)
-  const folder = folders?.find((item) => item._id === folderId)
+  const folder = useQuery(api.sessionFolders.get, folderId ? { folderId } : 'skip') // prettier-ignore
   const workspaceRoot = folder?.workspace?.path ?? null
   const [orphanDraftKey, setOrphanDraftKey] = useState<string | null>(null)
   const draftKey = orphanDraftKey ?? (folderId ? `folder:${folderId}` : NO_SESSION_DRAFT_KEY) // prettier-ignore
@@ -54,7 +53,7 @@ export function EmptyChat({
   const isAdmin = useIsAdmin()
   const topPadding = useNavPadding()
   const keyboardInset = useKeyboardInset()
-  const fileIndex = useWorkspaceFileIndexByFolder(folder)
+  const fileIndex = useWorkspaceFileIndexByFolder(folder ?? undefined)
 
   // Manual mode tracking since no session is available here
   const [mode, setMode] = useState<SessionMode>('normal')
@@ -62,14 +61,14 @@ export function EmptyChat({
   const handleWorkspaceChange = useCallback(
     (id: string | null) => {
       if (userId) setSelectedSessionFolder(userId, id)
-      setOrphanDraftKey(folderId && folders && !folder ? draftKey : null)
+      setOrphanDraftKey(folderId && folder === null ? draftKey : null)
       navigate(id ? `/?folder=${id}` : '/', { replace: true })
       if (!id) {
         setMode('normal')
         setApprovalMode('ask')
       }
     },
-    [navigate, folderId, folders, folder, draftKey, userId],
+    [navigate, folderId, folder, draftKey, userId],
   )
 
   const handleSubmit = useCallback(

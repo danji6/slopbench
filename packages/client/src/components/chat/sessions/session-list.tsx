@@ -1,10 +1,16 @@
-import { ConfirmDialog, RippleButton } from '@/components/ui'
+import {
+  AnimatedToolbar,
+  ConfirmDialog,
+  RippleButton,
+  Tooltip,
+} from '@/components/ui'
 import { useSession, useSessionGroups } from '@/hooks/chat'
 import { useFolderControls } from '@/hooks/chat/folder-controls'
 import {
   type FolderDropPlacement,
   folderDropIntent,
 } from '@/lib/chat/folder-moves'
+import { isFolderCollapsed } from '@/lib/chat/session-folder-state'
 import {
   type GroupRow,
   flattenSessionGroups,
@@ -26,8 +32,8 @@ import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import type { FolderView } from '@sb/convex/types'
 import { useAction, useMutation } from 'convex/react'
-import { FolderPlusIcon } from 'lucide-react'
-import { memo, useMemo, useState } from 'react'
+import { ChevronsDownUpIcon, FolderPlusIcon } from 'lucide-react'
+import { memo, useMemo, useRef, useState } from 'react'
 
 import { useUnreadNotificationSessionIds } from '../notifications/notification-provider'
 import { FolderDialog } from './folder-dialog'
@@ -49,12 +55,14 @@ export const SessionListView = memo(function SessionListView() {
   const { pages, folders: serverFolders, search, pendingSessionIds, dropSession } = useSessionGroups() // prettier-ignore
   const unreadSessionIds = useUnreadNotificationSessionIds()
   const [renamingId, setRenamingId] = useState<string | null>(null)
+  const menuTrigger = useRef<HTMLButtonElement>(null)
   const {
     folders,
     collapsed,
     setCollapsed,
     headers,
     collapseAll,
+    hasExpandedFolders,
     organizing,
     folderPins,
     pending: organizationPending,
@@ -180,7 +188,7 @@ export const SessionListView = memo(function SessionListView() {
         <FolderHeader
           groupKey={row.key}
           folder={folder}
-          collapsed={Boolean(collapsed[row.key])}
+          collapsed={isFolderCollapsed(collapsed, row.key, folder?.ancestorIds)}
           pending={organizationPending}
           {...headers.get(row.key)!}
         />
@@ -237,7 +245,7 @@ export const SessionListView = memo(function SessionListView() {
         <header className="flex flex-col gap-2 px-3">
           <div className="flex items-center justify-between gap-2">
             <span className="ml-2 font-bold">Sessions</span>
-            <div className="flex items-center">
+            <AnimatedToolbar>
               <RippleButton
                 variant="stealth"
                 size="icon"
@@ -247,11 +255,28 @@ export const SessionListView = memo(function SessionListView() {
               >
                 <FolderPlusIcon />
               </RippleButton>
-              <SessionListMenu
-                onCollapseAll={() => collapseAll(true)}
-                onExpandAll={() => collapseAll(false)}
-              />
-            </div>
+              <AnimatedToolbar.Item visible={hasExpandedFolders}>
+                <Tooltip>
+                  <Tooltip.Trigger
+                    render={
+                      <RippleButton
+                        variant="stealth"
+                        size="icon"
+                        aria-label="Collapse all folders"
+                        onClick={() => {
+                          collapseAll()
+                          menuTrigger.current?.focus()
+                        }}
+                      >
+                        <ChevronsDownUpIcon />
+                      </RippleButton>
+                    }
+                  />
+                  <Tooltip.Content>Collapse all folders</Tooltip.Content>
+                </Tooltip>
+              </AnimatedToolbar.Item>
+              <SessionListMenu ref={menuTrigger} />
+            </AnimatedToolbar>
           </div>
           <SessionSearch />
         </header>

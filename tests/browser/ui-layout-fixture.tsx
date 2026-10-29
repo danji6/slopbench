@@ -1,10 +1,26 @@
 import { CollapsibleBlock } from '@/components/chat/messages/collapsible-block'
 import { MessageListContext } from '@/components/chat/messages/message-list/message-list-context'
+import { AnimatedToolbar } from '@/components/ui/animated-toolbar'
 import { Dialog } from '@/components/ui/dialog'
 import { SettingsCollapsible } from '@/components/ui/settings-collapsible'
 import { Tabs } from '@/components/ui/tabs'
 import '@/globals.css'
 import { useEffect, useRef, useState } from 'react'
+
+function ToolbarExample() {
+  const [visible, setVisible] = useState(false)
+  return (
+    <AnimatedToolbar data-testid="example-toolbar">
+      <button onClick={() => setVisible((value) => !value)}>
+        Toggle extra action
+      </button>
+      <AnimatedToolbar.Item visible={visible}>
+        <button className="w-24 shrink-0">Extra action</button>
+      </AnimatedToolbar.Item>
+      <button>Last action</button>
+    </AnimatedToolbar>
+  )
+}
 
 export function UiLayoutFixture() {
   const variant =
@@ -25,6 +41,7 @@ export function UiLayoutFixture() {
 
   return (
     <main className="bg-background text-foreground min-h-screen">
+      <ToolbarExample />
       <Dialog open={open} onOpenChange={setOpen}>
         <Dialog.Trigger>Settings</Dialog.Trigger>
         <Dialog.Content>

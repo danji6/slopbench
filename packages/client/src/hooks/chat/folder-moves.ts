@@ -1,15 +1,12 @@
 import {
   folderMoveConfirmed,
   folderMoveNeedsConfirmation,
+  projectLoadedFolderMove,
 } from '@/lib/chat/folder-moves'
 import { toastError } from '@/lib/notifications'
 import { api } from '@sb/convex/_generated/api'
 import type { FolderMoveArgs, FolderView } from '@sb/convex/types'
-import {
-  orderedFolderTree,
-  projectFolderMove,
-} from '@sb/core/utils/folder-tree'
-import { useAction } from 'convex/react'
+import { useAction, useQuery } from 'convex/react'
 import { useCallback, useMemo, useRef, useState } from 'react'
 
 type PendingMove = {
@@ -29,29 +26,40 @@ export function useFolderMoves(
   const [intent, setIntent] = useState<FolderMoveArgs | null>(null)
   const [chooseParent, setChooseParent] = useState(false)
 
-  const confirmed =
-    pending?.settled &&
-    folderMoveConfirmed(serverFolders, pending.input, pending.revision)
+  const authoritative = useQuery(
+    api.sessionFolders.get,
+    pending ? { folderId: pending.input.folderId } : 'skip',
+  )
+
+  const committed =
+    pending &&
+    (authoritative === null ||
+      folderMoveConfirmed(
+        authoritative ? [authoritative] : serverFolders,
+        pending.input,
+        pending.revision,
+      ))
+
+  const loaded = serverFolders.find(
+    (folder) => folder._id === pending?.input.folderId,
+  )
+
+  const visibleRevisionCurrent =
+    !loaded ||
+    pending?.revision === undefined ||
+    (loaded.organizationRevision ?? 0) >= pending.revision
+
+  const confirmed = pending?.settled && committed && visibleRevisionCurrent
   if (confirmed) setPending(null)
 
   const activeMove = confirmed ? null : pending
-  const folders = useMemo(() => {
-    let projected = serverFolders
-    if (activeMove) {
-      try {
-        projected = projectFolderMove(serverFolders, activeMove.input)
-      } catch {
-        // A concurrent deletion or move is resolved by the action result
-      }
-    }
-    return orderedFolderTree(projected).map(
-      ({ folder, path, ancestorIds }) => ({
-        ...folder,
-        folderPath: path,
-        ancestorIds,
-      }),
-    )
-  }, [serverFolders, activeMove])
+  const folders = useMemo(
+    () =>
+      activeMove
+        ? projectLoadedFolderMove(serverFolders, activeMove.input)
+        : serverFolders,
+    [serverFolders, activeMove],
+  )
 
   const apply = useCallback(
     async (input: FolderMoveArgs) => {

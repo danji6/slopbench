@@ -225,6 +225,7 @@ import type * as model_session_archive from "../model/session/archive.js";
 import type * as model_session_cache from "../model/session/cache.js";
 import type * as model_session_folderContext from "../model/session/folderContext.js";
 import type * as model_session_folderMoves from "../model/session/folderMoves.js";
+import type * as model_session_folderPages from "../model/session/folderPages.js";
 import type * as model_session_folderTransitionLocks from "../model/session/folderTransitionLocks.js";
 import type * as model_session_folderTransitionSessions from "../model/session/folderTransitionSessions.js";
 import type * as model_session_folderTransitions from "../model/session/folderTransitions.js";
@@ -632,6 +633,7 @@ declare const fullApi: ApiFromModules<{
   "model/session/cache": typeof model_session_cache;
   "model/session/folderContext": typeof model_session_folderContext;
   "model/session/folderMoves": typeof model_session_folderMoves;
+  "model/session/folderPages": typeof model_session_folderPages;
   "model/session/folderTransitionLocks": typeof model_session_folderTransitionLocks;
   "model/session/folderTransitionSessions": typeof model_session_folderTransitionSessions;
   "model/session/folderTransitions": typeof model_session_folderTransitions;

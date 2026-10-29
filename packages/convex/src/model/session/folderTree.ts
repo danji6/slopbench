@@ -1,4 +1,4 @@
-import { folderBranch, folderTrail } from '@sb/core/utils/folder-tree'
+import { folderTrail } from '@sb/core/utils/folder-tree'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { QueryCtx } from '../../_generated/server'
@@ -53,12 +53,35 @@ export async function getFolderBranch(
   ctx: QueryCtx,
   folder: Doc<'sessionFolders'>,
 ) {
-  const folders = await ownerFolders(ctx, folder.ownerId)
-  try {
-    return folderBranch(folders, folder._id)
-  } catch {
-    error('Invalid folder hierarchy', 409)
+  const folders = [folder]
+  const seen = new Set([folder._id])
+  for (let index = 0; index < folders.length; index++) {
+    const children = await folderChildren(
+      ctx,
+      folder.ownerId,
+      folders[index]!._id,
+    )
+    for (const child of children) {
+      if (seen.has(child._id)) error('Invalid folder hierarchy', 409)
+      seen.add(child._id)
+      folders.push(child)
+    }
   }
+  return folders
+}
+
+/** Reads only the siblings needed by a folder operation. */
+export async function folderChildren(
+  ctx: QueryCtx,
+  ownerId: Id<'users'>,
+  parentId?: Id<'sessionFolders'>,
+) {
+  return ctx.db
+    .query('sessionFolders')
+    .withIndex('by_ownerId_parentId_position', (q) =>
+      q.eq('ownerId', ownerId).eq('parentId', parentId),
+    )
+    .collect()
 }
 
 export async function branchSessions(
@@ -87,8 +110,7 @@ export async function readFolderTrail(
   let current: Id<'sessionFolders'> | undefined = id
 
   while (current) {
-    if (seen.has(current) || seen.size >= 100)
-      error('Invalid folder hierarchy', 409)
+    if (seen.has(current)) error('Invalid folder hierarchy', 409)
     seen.add(current)
     const folder: Doc<'sessionFolders'> | null = await ctx.db.get(current)
     if (!folder || folder.ownerId !== ownerId) error('Folder not found', 404)

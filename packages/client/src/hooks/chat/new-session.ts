@@ -3,6 +3,7 @@ import {
   setSelectedSessionFolder,
 } from '@/lib/ui-settings'
 import { api } from '@sb/convex/_generated/api'
+import type { Id } from '@sb/convex/_generated/dataModel'
 import { useQuery } from 'convex/react'
 import { useEffect } from 'react'
 import { useLocation, useSearch } from 'wouter'
@@ -18,7 +19,11 @@ export function useNewSession() {
   const draftFolderId = params.has('id') ? null : params.get('folder')
   const session = useActiveSession()
   const userId = useUserProfile()?._id
-  const folders = useQuery(api.sessionFolders.list)
+  const remembered = userId ? getSelectedSessionFolder(userId) : null
+  const selectedFolder = useQuery(
+    api.sessionFolders.get,
+    remembered ? { folderId: remembered as Id<'sessionFolders'> } : 'skip',
+  )
   const sessionId = session?._id
   const ownerId = session?.ownerId
   const folderId = session?.folderId
@@ -35,9 +40,7 @@ export function useNewSession() {
   return () => {
     const selected = userId ? getSelectedSessionFolder(userId) : null
     const available =
-      selected &&
-      (folders === undefined ||
-        folders.some((folder) => folder._id === selected))
+      selected && (selected !== remembered || selectedFolder !== null)
     if (userId && !available) setSelectedSessionFolder(userId, null)
     navigate(available ? `/?folder=${selected}` : '/', { replace: true })
   }

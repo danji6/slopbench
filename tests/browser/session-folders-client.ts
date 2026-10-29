@@ -12,6 +12,7 @@ type FixtureFolder = {
   pinned?: boolean
   position: number
   organizationRevision?: number
+  pinnedAt?: number
 }
 
 type FixtureSession = {
@@ -36,6 +37,30 @@ let sessions: FixtureSession[] = [
   { _id: 's2', title: 'Design chat', folderId: 'n', pinned: false },
   { _id: 's3', title: 'SlopBench chat', folderId: 'b', pinned: false },
 ]
+if (new URLSearchParams(location.search).has('manyFolders')) {
+  for (const parentId of [undefined, 'a']) {
+    folders.push(
+      ...Array.from({ length: 30 }, (_, index) => ({
+        _id: `${parentId ?? 'root'}-folder-${index}`,
+        name: `${parentId ? 'Child' : 'Root'} folder ${index + 1}`,
+        parentId,
+        position: index + 2,
+      })),
+    )
+  }
+}
+if (new URLSearchParams(location.search).has('manyPinnedFolders')) {
+  folders.push(
+    ...Array.from({ length: 12 }, (_, index) => ({
+      _id: `pinned-folder-${index}`,
+      name: `Pinned folder ${index + 1}`,
+      parentId: 'a',
+      position: index + 2,
+      pinned: true,
+      pinnedAt: index + 1,
+    })),
+  )
+}
 if (searchFixtures) {
   sessions.push({
     _id: 'hidden',
@@ -75,6 +100,9 @@ const listeners = new Set<() => void>()
 const cache = new Map<string, unknown>()
 const pendingSessionQueries = new Map<string, () => void>()
 export const slowSessions = new URLSearchParams(location.search).has('slowSessions') // prettier-ignore
+export const slowFolders = new URLSearchParams(location.search).has(
+  'slowFolders',
+)
 
 /** Releases held responses so loading assertions do not depend on timing. */
 export function resolveSessionQueries() {
@@ -172,6 +200,43 @@ function query(name: string, args: Record<string, unknown>) {
   if (name === 'notifications:pendingPage')
     return { page: [], isDone: true, continueCursor: '' }
   if (name === 'sessionFolders:list') return folderViews()
+  if (name === 'sessionFolders:get')
+    return folderViews().find((folder) => folder._id === args.folderId) ?? null
+  if (name === 'sessionFolders:page' || name === 'sessionFolders:picker') {
+    const candidates = folderViews()
+      .filter((folder) => {
+        if (name === 'sessionFolders:page') {
+          return args.groupKey === 'pinned'
+            ? folder.pinned
+            : !folder.pinned &&
+                folder.parentId ===
+                  (args.groupKey === 'ungrouped' ? undefined : args.groupKey)
+        }
+        if (
+          folder._id === args.excludeBranchId ||
+          folder.ancestorIds.includes(String(args.excludeBranchId))
+        )
+          return false
+        return folder.folderPath
+          .toLowerCase()
+          .includes(String(args.search ?? '').toLowerCase())
+      })
+      .sort((a, b) =>
+        args.groupKey === 'pinned'
+          ? (a.pinnedAt ?? 0) - (b.pinnedAt ?? 0)
+          : a.position - b.position,
+      )
+    const { cursor, numItems } = args.paginationOpts as {
+      cursor: string | null
+      numItems: number
+    }
+    const start = Number(cursor ?? 0)
+    return {
+      page: candidates.slice(start, start + numItems),
+      isDone: start + numItems >= candidates.length,
+      continueCursor: String(start + numItems),
+    }
+  }
   if (name === 'notifications:list' || name === 'streams:activeSessionIds')
     return []
   if (name !== 'sessions:list') return null
@@ -192,7 +257,13 @@ const client = {
       },
       localQueryResult() {
         if (!cache.has(key)) {
-          if (slowSessions && name === 'sessions:list') {
+          if (
+            (slowSessions && name === 'sessions:list') ||
+            (slowFolders &&
+              (name === 'sessionFolders:page' ||
+                name === 'sessionFolders:picker' ||
+                name === 'sessionFolders:get'))
+          ) {
             cache.set(key, undefined)
             pendingSessionQueries.set(key, () =>
               cache.set(key, query(name, args)),
@@ -215,7 +286,11 @@ const client = {
     if (name === 'sessionFolders:pinFolder') {
       folders = folders.map((folder) =>
         folder._id === args.folderId
-          ? { ...folder, pinned: Boolean(args.pinned) }
+          ? {
+              ...folder,
+              pinned: Boolean(args.pinned),
+              pinnedAt: args.pinned ? Date.now() : undefined,
+            }
           : folder,
       )
     } else if (name === 'sessionFolders:pin') {
@@ -256,6 +331,28 @@ const client = {
       folderId: string
       parentId: string | null
       beforeFolderId?: string
+      afterFolderId?: string
+      direction?: number
+    }
+    const siblings = folders
+      .filter((folder) => folder.parentId === (input.parentId ?? undefined))
+      .sort((a, b) => a.position - b.position)
+    if (input.afterFolderId)
+      input.beforeFolderId = siblings.filter(
+        (folder) => folder._id !== input.folderId,
+      )[
+        siblings
+          .filter((folder) => folder._id !== input.folderId)
+          .findIndex((folder) => folder._id === input.afterFolderId) + 1
+      ]?._id
+    if (input.direction) {
+      const index = siblings.findIndex(
+        (folder) => folder._id === input.folderId,
+      )
+      input.beforeFolderId =
+        input.direction < 0
+          ? siblings[Math.max(0, index - 1)]?._id
+          : siblings[index + 2]?._id
     }
     folders = projectFolderMove(folders, input)
     const moving = folders.find((folder) => folder._id === input.folderId)!

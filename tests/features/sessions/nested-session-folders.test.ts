@@ -168,7 +168,7 @@ describe('nested session folders', () => {
     ).rejects.toThrow('Subfolders inherit')
   })
 
-  test('the folder limit counts every descendant', async () => {
+  test('creation supports more than one hundred folders', async () => {
     const { ctx, tables } = nested()
     for (
       let i = tables.sessionFolders!.filter(
@@ -186,9 +186,10 @@ describe('nested session folders', () => {
         sources: [],
         revision: 0,
       })
-    await expect(
-      create(ctx, { name: 'Overflow', parentId: 'g' as never }),
-    ).rejects.toThrow('Folder limit reached')
+    const id = await create(ctx, { name: 'Overflow', parentId: 'g' as never })
+    expect(
+      tables.sessionFolders!.find((folder) => folder._id === id),
+    ).toMatchObject({ name: 'Overflow', parentId: 'g', position: 100 })
   })
 
   test('creation appends within the selected sibling list and nested sources are rejected', async () => {
@@ -208,6 +209,45 @@ describe('nested session folders', () => {
       reorder(ctx, { parentId: 'a' as never, folderIds: ['g', 'n'] as never }),
     ).rejects.toThrow('Folder list changed')
     expect(tables.sessionFolders!.length).toBe(7)
+  })
+
+  test('deep valid ancestry is supported and cycles are still rejected', async () => {
+    const { ctx, tables, row } = nested()
+    let parentId = 'g'
+    for (let index = 0; index < 110; index++) {
+      const id = `deep-${index}`
+      tables.sessionFolders!.push({
+        _id: id,
+        parentId,
+        ownerId: 'owner',
+        name: id,
+        position: 0,
+        sources: [],
+        revision: 0,
+      })
+      parentId = id
+    }
+    expect(
+      (await requireFolder(ctx, parentId as never, 'owner' as never)).workspace
+        ?.path,
+    ).toBe('/a')
+    row('a').parentId = parentId
+    await expect(
+      requireFolder(ctx, parentId as never, 'owner' as never),
+    ).rejects.toThrow('Invalid folder hierarchy')
+  })
+
+  test('relative placement resolves the next sibling on the server across page boundaries', async () => {
+    const { ctx, row } = nested()
+    await run(
+      ctx,
+      await moveArgs(ctx, { parentId: 'a', afterFolderId: 'sibling' }),
+    )
+    expect(row('n').position).toBe(1)
+    expect(row('sibling').position).toBe(0)
+    await run(ctx, await moveArgs(ctx, { parentId: 'a', direction: -1 }))
+    expect(row('n').position).toBe(0)
+    expect(row('sibling').position).toBe(1)
   })
 
   test('same-workspace session and branch moves commit atomically during streaming', async () => {

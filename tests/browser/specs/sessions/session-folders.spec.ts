@@ -65,6 +65,9 @@ test('folder buttons have independent focus and matching menus, and Compose targ
   ).toBe('rgba(0, 0, 0, 0)')
   await header.click({ button: 'right' })
   const contextItems = await page.getByRole('menuitem').allTextContents()
+  await expect(
+    page.getByRole('menuitem', { name: 'Expand all', exact: true }),
+  ).toHaveCount(0)
   await page.keyboard.press('Escape')
   await options.focus()
   await page.keyboard.press('Enter')
@@ -180,13 +183,13 @@ test('folder controls retain sibling collapse state and refresh pin actions afte
   await folder(page, 'Portfolio').click()
   await expect.poll(async () => (await loadedPages(page)).a).toBeUndefined()
   await folder(page, 'Portfolio').click()
-  await expect.poll(async () => (await loadedPages(page)).a).toBe(5)
+  await expect.poll(async () => (await loadedPages(page)).a).toBe(4)
   await page
     .locator('[data-session-folder="a"]')
     .getByRole('button', { name: 'Load more' })
     .last()
     .click()
-  await expect.poll(async () => (await loadedPages(page)).a).toBe(25)
+  await expect.poll(async () => (await loadedPages(page)).a).toBe(24)
 
   for (const pinned of [true, false, true, false]) {
     await page.getByRole('button', { name: 'Options for Portfolio' }).click()
@@ -224,6 +227,10 @@ test('narrow sidebar controls fit in both themes', async ({ page }) => {
     const header = folder(page, 'Portfolio')
     const options = page.getByRole('button', { name: 'Options for Portfolio' })
     const compose = page.getByRole('button', { name: 'Compose in Portfolio' })
+    const collapse = page.getByRole('button', {
+      name: 'Collapse Portfolio and subfolders',
+      exact: true,
+    })
     const foreground = await page
       .getByTestId('sidebar')
       .evaluate((element) => getComputedStyle(element).color)
@@ -231,6 +238,7 @@ test('narrow sidebar controls fit in both themes', async ({ page }) => {
     const boxes = await Promise.all([
       header.boundingBox(),
       compose.boundingBox(),
+      collapse.boundingBox(),
       options.boundingBox(),
     ])
     const row = await header.evaluate((element) => {
@@ -242,7 +250,8 @@ test('narrow sidebar controls fit in both themes', async ({ page }) => {
     expect(boxes[0]!.width).toBe(row.width)
     expect(row.labelRight).toBeLessThanOrEqual(boxes[1]!.x)
     expect(boxes[1]!.x + boxes[1]!.width).toBeLessThanOrEqual(boxes[2]!.x)
-    expect(boxes[2]!.x + boxes[2]!.width).toBeLessThanOrEqual(260)
+    expect(boxes[2]!.x + boxes[2]!.width).toBeLessThanOrEqual(boxes[3]!.x)
+    expect(boxes[3]!.x + boxes[3]!.width).toBeLessThanOrEqual(260)
     await header.hover({ position: { x: 8, y: 18 } })
     await page.screenshot({
       animations: 'disabled',

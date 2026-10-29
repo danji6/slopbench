@@ -32,9 +32,10 @@ export function FolderDialog({
   const [busy, setBusy] = useState(false)
   const [browsing, setBrowsing] = useState(false)
   const isAdmin = useIsAdmin()
-  const folders = useQuery(api.sessionFolders.list) ?? []
-  const inherited = folders.find((item) => item._id === parentId)
-  const sourceOwner = folders.find((item) => item._id === (inherited?.ancestorIds[0] ?? inherited?._id)) // prettier-ignore
+  const inherited = useQuery(
+    api.sessionFolders.get,
+    parentId ? { folderId: parentId as Id<'sessionFolders'> } : 'skip',
+  )
   const displayedSources = parentId ? (inherited?.workspace?.sources ?? []) : sources // prettier-ignore
   const canEditSources = isAdmin && !parentId
   const { recent, remember } = useRecentWorkspaces()
@@ -133,8 +134,9 @@ export function FolderDialog({
               </span>
               {parentId && (
                 <p className="text-muted-foreground text-xs">
-                  Inherited from {sourceOwner?.name ?? 'the parent folder'}.
-                  Edit sources on the top-level folder.
+                  Inherited from{' '}
+                  {inherited?.workspace?.label ?? 'the parent folder'}. Edit
+                  sources on the top-level folder.
                 </p>
               )}
               <div className="flex flex-col gap-2 rounded-xl border p-3">

@@ -13,17 +13,50 @@ export function useFolderPins() {
   const pin = useMemo(
     () =>
       mutate.withOptimisticUpdate((store, { folderId, pinned }) => {
-        const folders = store.getQuery(api.sessionFolders.list, {})
-        if (!folders) return
-        store.setQuery(
-          api.sessionFolders.list,
-          {},
-          folders.map((folder) =>
-            folder._id === folderId
-              ? { ...folder, pinned: pinned || undefined }
-              : folder,
-          ),
-        )
+        const pages = store.getAllQueries(api.sessionFolders.page)
+        const folder = pages
+          .flatMap(({ value }) => value?.page ?? [])
+          .find((entry) => entry._id === folderId)
+        if (!folder) return
+
+        const updated = {
+          ...folder,
+          pinned: pinned || undefined,
+          pinnedAt: pinned
+            ? Math.max(
+                0,
+                ...pages.flatMap(
+                  ({ value }) =>
+                    value?.page.map((entry) => entry.pinnedAt ?? 0) ?? [],
+                ),
+              ) + 1
+            : undefined,
+        }
+
+        const target = pinned ? 'pinned' : (folder.parentId ?? 'ungrouped')
+
+        for (const { args, value } of pages) {
+          if (!value) continue
+          const page = value.page.filter((entry) => entry._id !== folderId)
+          if (args.groupKey === target && args.paginationOpts.cursor === null) {
+            page.push(updated)
+            page.sort((a, b) =>
+              pinned
+                ? (a.pinnedAt ?? a._creationTime) -
+                  (b.pinnedAt ?? b._creationTime)
+                : a.position - b.position,
+            )
+          }
+          store.setQuery(api.sessionFolders.page, args, {
+            ...value,
+            page: page.slice(0, args.paginationOpts.numItems),
+          })
+        }
+
+        const selected = store.getQuery(api.sessionFolders.get, { folderId })
+
+        if (selected)
+          store.setQuery(api.sessionFolders.get, { folderId }, updated)
       }),
     [mutate],
   )

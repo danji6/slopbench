@@ -11,11 +11,12 @@ import {
 import { api } from '@sb/convex/_generated/api'
 import { ConvexQueryCacheProvider } from 'convex-helpers/react/cache'
 import { ConvexProvider, useQuery } from 'convex/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import {
   resolveSessionQueries,
   sessionFoldersFixtureClient,
+  slowFolders,
   slowSessions,
 } from './session-folders-client'
 
@@ -34,6 +35,16 @@ function Controls() {
   const [disabled, setDisabled] = useState(false)
   const folders = useQuery(api.sessionFolders.list)
   const { pages } = useSessionGroups()
+
+  useEffect(() => {
+    window.addEventListener('resolve-folder-queries', resolveSessionQueries)
+    return () =>
+      window.removeEventListener(
+        'resolve-folder-queries',
+        resolveSessionQueries,
+      )
+  }, [])
+
   return (
     <section className="flex flex-col gap-3 p-3">
       <FolderPicker
@@ -62,7 +73,7 @@ function Controls() {
       >
         Toggle theme
       </button>
-      {slowSessions && (
+      {(slowSessions || slowFolders) && (
         <button onClick={resolveSessionQueries}>Resolve session queries</button>
       )}
       <output data-testid="selected-folder">{selected ?? 'none'}</output>
@@ -72,6 +83,16 @@ function Controls() {
             Object.entries(pages).map(([key, page]) => [
               key,
               page.results.length,
+            ]),
+          ),
+        )}
+      </output>
+      <output data-testid="loaded-folders" className="sr-only">
+        {JSON.stringify(
+          Object.fromEntries(
+            Object.entries(pages).map(([key, page]) => [
+              key,
+              page.folders?.length ?? 0,
             ]),
           ),
         )}

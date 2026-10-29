@@ -204,12 +204,15 @@ function ComboboxDisplayValue({
   )
 }
 
-type ComboboxContentProps = React.ComponentProps<typeof Popover.Content>
+type ComboboxContentProps = React.ComponentProps<typeof Popover.Content> & {
+  shouldFilter?: boolean
+}
 
 function ComboboxContent({
   className,
   children,
   align = 'start',
+  shouldFilter,
   ...props
 }: ComboboxContentProps) {
   return (
@@ -218,7 +221,7 @@ function ComboboxContent({
       align={align}
       {...props}
     >
-      <Command>{children}</Command>
+      <Command shouldFilter={shouldFilter}>{children}</Command>
     </Popover.Content>
   )
 }

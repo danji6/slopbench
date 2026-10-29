@@ -101,6 +101,8 @@ export function setup() {
       return id
     },
     query: (table: string) => {
+      let sortField = 'position'
+      let sortDirection = 1
       const equal: Array<[string, unknown]> = []
       const q = {
         eq: (field: string, expected: unknown) => {
@@ -111,6 +113,8 @@ export function setup() {
       }
       const result = {
         withIndex: (_name: string, fn?: (query: typeof q) => unknown) => {
+          sortField =
+            _name === 'by_owner_pinned_order' ? 'pinnedAt' : 'position'
           fn?.(q)
           return result
         },
@@ -118,11 +122,22 @@ export function setup() {
           fn(q)
           return result
         },
-        order: () => result,
+        order: (direction: string) => {
+          sortDirection = direction === 'desc' ? -1 : 1
+          return result
+        },
         collect: async () =>
-          (tables[table] ?? []).filter((item) =>
-            equal.every(([field, expected]) => value(item, field) === expected),
-          ),
+          (tables[table] ?? [])
+            .filter((item) =>
+              equal.every(
+                ([field, expected]) => value(item, field) === expected,
+              ),
+            )
+            .sort(
+              (a, b) =>
+                sortDirection *
+                (Number(a[sortField] ?? 0) - Number(b[sortField] ?? 0)),
+            ),
         unique: async () => (await result.collect())[0] ?? null,
         first: async () => (await result.collect())[0] ?? null,
       }

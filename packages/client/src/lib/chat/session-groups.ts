@@ -1,4 +1,5 @@
 import type { SessionListItem } from '@/lib/chat'
+import type { FolderView } from '@sb/convex/types'
 import {
   type FolderNode,
   folderSiblings,
@@ -24,7 +25,10 @@ export type GroupRow = (
 /** Flattens independently paginated groups into sidebar rows. */
 export function flattenSessionGroups(
   keys: string[],
-  pages: Record<string, { results: SessionListItem[]; status: string }>,
+  pages: Record<
+    string,
+    { results: SessionListItem[]; status: string; folders?: FolderView[] }
+  >,
   collapsed: Record<string, boolean>,
 ): GroupRow[] {
   const seen = new Set<string>()
@@ -73,9 +77,13 @@ export function flattenSessionTree(
     (pages.pinned?.results ?? []).map((item) => item._id),
   )
 
-  const tree = orderedFolderTree(folders)
+  // Paginated pages already carry ancestry; their combined metadata is a partial tree.
+  const paginated = pages.ungrouped?.folders !== undefined
+  const tree = paginated ? [] : orderedFolderTree(folders)
 
-  const displayedFolders = tree.map(({ folder }) => ({
+  const displayedFolders = (
+    paginated ? folders : tree.map(({ folder }) => folder)
+  ).map((folder) => ({
     ...folder,
     parentId: folder.pinned ? 'pinned' : folder.parentId,
   }))
@@ -97,8 +105,9 @@ export function flattenSessionTree(
     const meta = {
       depth: ancestorIds.length,
       ancestorIds,
-      folderAncestorIds: tree.find((entry) => entry.folder._id === folder._id)!
-        .ancestorIds,
+      folderAncestorIds: paginated
+        ? (folder as FolderView).ancestorIds
+        : tree.find((entry) => entry.folder._id === folder._id)!.ancestorIds,
       last: false,
     }
 
@@ -115,9 +124,18 @@ export function flattenSessionTree(
   }
 
   function visit(parentId?: string, ancestorIds: string[] = []) {
-    // Pinned roots retain the complete tree's order across different parents.
-    const siblings =
-      parentId === 'pinned'
+    // Pinned folders use pin order; normal children retain sibling order
+    const siblings = paginated
+      ? parentId === 'pinned'
+        ? displayedFolders
+            .filter((folder) => folder.pinned)
+            .sort(
+              (a, b) =>
+                ((a as FolderView).pinnedAt ?? 0) -
+                ((b as FolderView).pinnedAt ?? 0),
+            )
+        : folderSiblings(displayedFolders, parentId)
+      : parentId === 'pinned'
         ? displayedFolders.filter((folder) => folder.pinned)
         : folderSiblings(displayedFolders, parentId)
     for (const folder of siblings) appendFolder(folder, ancestorIds)

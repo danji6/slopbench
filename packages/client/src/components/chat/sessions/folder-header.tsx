@@ -1,5 +1,6 @@
 import {
   Accordion,
+  AnimatedToolbar,
   ContextMenu,
   RippleButton,
   Tooltip,
@@ -10,8 +11,8 @@ import { setSelectedSessionFolder } from '@/lib/ui-settings'
 import { cn } from '@/lib/utils'
 import { useDraggable } from '@dnd-kit/core'
 import type { FolderView } from '@sb/convex/types'
-import { PinIcon, SquarePenIcon } from 'lucide-react'
-import { memo } from 'react'
+import { ChevronsDownUpIcon, PinIcon, SquarePenIcon } from 'lucide-react'
+import { memo, useCallback, useRef } from 'react'
 import { useLocation } from 'wouter'
 
 import { FolderDropTargets } from './folder-drop-targets'
@@ -27,6 +28,7 @@ type FolderHeaderProps = FolderMenuActions & {
   folder?: FolderView
   collapsed: boolean
   toggle: () => void
+  onCollapseAll: () => void
   pending: boolean
 }
 
@@ -35,6 +37,7 @@ export const FolderHeader = memo(function FolderHeader({
   folder,
   collapsed,
   toggle,
+  onCollapseAll,
   pending,
   ...actions
 }: FolderHeaderProps) {
@@ -44,6 +47,14 @@ export const FolderHeader = memo(function FolderHeader({
       data: { kind: 'folder' },
       disabled: !folder || pending,
     })
+  const toggleRef = useRef<HTMLButtonElement>(null)
+  const setToggleRef = useCallback(
+    (element: HTMLButtonElement | null) => {
+      toggleRef.current = element
+      setActivatorNodeRef(element)
+    },
+    [setActivatorNodeRef],
+  )
 
   const [, navigate] = useLocation()
   const sidebar = useOptionalSidebar()
@@ -74,7 +85,7 @@ export const FolderHeader = memo(function FolderHeader({
           )}
         >
           <RippleButton
-            ref={setActivatorNodeRef}
+            ref={setToggleRef}
             {...(folder ? attributes : {})}
             {...(folder ? listeners : {})}
             variant="stealth"
@@ -101,7 +112,7 @@ export const FolderHeader = memo(function FolderHeader({
             </span>
           </RippleButton>
           {folder && (
-            <div className="relative z-10 col-start-2 row-start-1 flex items-center gap-0.5">
+            <AnimatedToolbar className="relative z-10 col-start-2 row-start-1">
               <Tooltip>
                 <Tooltip.Trigger
                   render={
@@ -118,8 +129,31 @@ export const FolderHeader = memo(function FolderHeader({
                 />
                 <Tooltip.Content>Compose</Tooltip.Content>
               </Tooltip>
+              <AnimatedToolbar.Item visible={!collapsed}>
+                <Tooltip>
+                  <Tooltip.Trigger
+                    render={
+                      <RippleButton
+                        variant="stealth"
+                        size="icon"
+                        className="text-muted-foreground hover:text-foreground focus-visible:text-foreground size-8 shrink-0"
+                        aria-label={`Collapse ${name} and subfolders`}
+                        onClick={() => {
+                          onCollapseAll()
+                          toggleRef.current?.focus()
+                        }}
+                      >
+                        <ChevronsDownUpIcon />
+                      </RippleButton>
+                    }
+                  />
+                  <Tooltip.Content>
+                    Collapse folder and subfolders
+                  </Tooltip.Content>
+                </Tooltip>
+              </AnimatedToolbar.Item>
               <FolderOptionsMenu name={name} {...menu} />
-            </div>
+            </AnimatedToolbar>
           )}
           {folder && !pending && <FolderDropTargets folder={folder} />}
         </div>

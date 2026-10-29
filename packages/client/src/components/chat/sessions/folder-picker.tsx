@@ -2,10 +2,10 @@ import { type IconName, IconSvg } from '@/components/icon-picker/icon-picker'
 import { Combobox } from '@/components/ui/combobox'
 import { RippleButton } from '@/components/ui/ripple-button'
 import { api } from '@sb/convex/_generated/api'
-import { orderedFolderTree } from '@sb/core/utils/folder-tree'
-import { useQuery } from 'convex/react'
+import type { Id } from '@sb/convex/_generated/dataModel'
+import { usePaginatedQuery, useQuery } from 'convex-helpers/react/cache/hooks'
 import { FolderIcon, XIcon } from 'lucide-react'
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export function FolderIconView({ icon }: { icon?: string }) {
   return icon ? (
@@ -37,19 +37,51 @@ export function FolderPicker({
   showPath = true,
 }: FolderPickerProps) {
   const triggerRef = useRef<HTMLButtonElement>(null)
-  const folders = useQuery(api.sessionFolders.list) ?? []
-  const selected = folders.find((folder) => folder._id === value)
-  const available = orderedFolderTree(folders)
-    .map(({ folder }) => folder)
-    .filter(
-      (folder) =>
-        (!organizationOnly || !folder.workspace) &&
-        folder._id !== excludeBranchId &&
-        !folder.ancestorIds.includes(excludeBranchId ?? ''),
-    )
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+
+  const selected = useQuery(
+    api.sessionFolders.get,
+    value ? { folderId: value as Id<'sessionFolders'> } : 'skip',
+  )
+
+  const pickerArgs = {
+    organizationOnly,
+    excludeBranchId: excludeBranchId as Id<'sessionFolders'> | undefined,
+  }
+  // Keep the first page subscribed independently of the popup's pagination
+  const initialPage = usePaginatedQuery(
+    api.sessionFolders.picker,
+    { ...pickerArgs, search: '' },
+    { initialNumItems: 20, customPagination: true },
+  )
+  const popupPage = usePaginatedQuery(
+    api.sessionFolders.picker,
+    open ? { ...pickerArgs, search } : 'skip',
+    { initialNumItems: 20, customPagination: true },
+  )
+  const {
+    results: available,
+    status,
+    loadMore,
+  } = open ? popupPage : initialPage
+
+  useEffect(() => {
+    if (search && available.length < 20 && status === 'CanLoadMore')
+      loadMore(20)
+  }, [search, available.length, status, loadMore])
+
+  const loadingSelection = Boolean(value) && selected === undefined
+  const loading = loadingSelection || status === 'LoadingFirstPage'
+  const controlsDisabled = disabled || loading
 
   return (
     <Combobox
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (!next) setSearch('')
+      }}
       value={value ?? 'ungrouped'}
       onValueChange={(next) =>
         onChange(!next || next === 'ungrouped' ? null : next)
@@ -62,14 +94,15 @@ export function FolderPicker({
           title={selected?.folderPath ?? rootLabel}
           variant="input"
           className="min-w-0 flex-1"
-          disabled={disabled}
+          disabled={controlsDisabled}
+          aria-busy={loading || undefined}
         >
           <FolderIconView icon={selected?.icon} />
           <Combobox.DisplayValue
             label={
               value
                 ? ((showPath ? selected?.folderPath : selected?.name) ??
-                  'Folder unavailable')
+                  (loadingSelection ? label : 'Folder unavailable'))
                 : rootLabel
             }
           />
@@ -81,7 +114,7 @@ export function FolderPicker({
             className="text-muted-foreground size-8 shrink-0"
             aria-label={`Clear ${label.toLowerCase()}`}
             title="Clear folder"
-            disabled={disabled}
+            disabled={controlsDisabled}
             onClick={() => {
               onChange(null)
               triggerRef.current?.focus()
@@ -92,19 +125,27 @@ export function FolderPicker({
         )}
       </div>
       <Combobox.Content
+        shouldFilter={false}
         side="top"
         className="w-[calc(min(fit-content,100%,200px))]"
       >
         <Combobox.Search
           placeholder="Search folders…"
           aria-label="Search folders"
+          onValueChange={setSearch}
         />
         <Combobox.List className="max-h-52">
-          <Combobox.Empty>No folders found.</Combobox.Empty>
+          {status === 'Exhausted' && (
+            <Combobox.Empty>No folders found.</Combobox.Empty>
+          )}
           <Combobox.Group>
-            <Combobox.Item value="ungrouped" searchText={rootLabel}>
-              {rootLabel}
-            </Combobox.Item>
+            {rootLabel
+              .toLocaleLowerCase()
+              .includes(search.trim().toLocaleLowerCase()) && (
+              <Combobox.Item value="ungrouped" searchText={rootLabel}>
+                {rootLabel}
+              </Combobox.Item>
+            )}
             {available.map((folder) => (
               <Combobox.Item
                 key={folder._id}
@@ -120,6 +161,17 @@ export function FolderPicker({
               </Combobox.Item>
             ))}
           </Combobox.Group>
+          {status !== 'Exhausted' && status !== 'LoadingFirstPage' && (
+            <RippleButton
+              variant="stealth"
+              size="sm"
+              className="w-full justify-start"
+              disabled={status === 'LoadingMore'}
+              onClick={() => loadMore(20)}
+            >
+              Load more folders
+            </RippleButton>
+          )}
         </Combobox.List>
       </Combobox.Content>
     </Combobox>

@@ -1,3 +1,4 @@
+import { paginationOptsValidator } from 'convex/server'
 import { v } from 'convex/values'
 
 import { folderSourceValidator } from './workspaces'
@@ -12,7 +13,21 @@ export const folderMoveArgs = v.object({
   folderId: v.id('sessionFolders'),
   parentId: v.union(v.id('sessionFolders'), v.null()),
   beforeFolderId: v.optional(v.id('sessionFolders')),
+  afterFolderId: v.optional(v.id('sessionFolders')),
+  direction: v.optional(v.union(v.literal(-1), v.literal(1))),
   confirmationKey: v.optional(v.string()),
+})
+
+export const folderPageArgs = v.object({
+  paginationOpts: paginationOptsValidator,
+  groupKey: v.string(),
+})
+
+export const folderPickerArgs = v.object({
+  paginationOpts: paginationOptsValidator,
+  search: v.optional(v.string()),
+  organizationOnly: v.optional(v.boolean()),
+  excludeBranchId: v.optional(v.id('sessionFolders')),
 })
 
 const moveSessionCommand = v.object({
@@ -112,6 +127,7 @@ export const sessionFolderSchema = v.object({
   icon: v.optional(v.string()),
   position: v.number(),
   pinned: v.optional(v.boolean()),
+  pinnedAt: v.optional(v.number()),
   organizationRevision: v.optional(v.number()),
   sources: v.array(folderSourceValidator),
   revision: v.number(),

@@ -1,6 +1,7 @@
 import type { SessionTree as SessionTreeComponent } from '@/components/chat/sessions/session-tree'
 import type * as SessionHooks from '@/hooks/chat/sessions'
 import { afterEach, beforeAll, expect, spyOn, test } from 'bun:test'
+import { ConvexQueryCacheProvider } from 'convex-helpers/react/cache'
 import { ConvexProvider, type ConvexReactClient } from 'convex/react'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
@@ -42,16 +43,18 @@ async function render(search = '') {
   await act(async () => {
     root!.render(
       <ConvexProvider client={client}>
-        <SessionStoreProvider>
-          <SessionTree
-            rows={[{ kind: 'session', key: groupKey, id: 'chat' }]}
-            collapsed={{}}
-            renderRow={() => <span>Test chat</span>}
-            search={search}
-            pages={{}}
-            dragging={false}
-          />
-        </SessionStoreProvider>
+        <ConvexQueryCacheProvider>
+          <SessionStoreProvider>
+            <SessionTree
+              rows={[{ kind: 'session', key: groupKey, id: 'chat' }]}
+              collapsed={{}}
+              renderRow={() => <span>Test chat</span>}
+              search={search}
+              pages={{}}
+              dragging={false}
+            />
+          </SessionStoreProvider>
+        </ConvexQueryCacheProvider>
       </ConvexProvider>,
     )
   })

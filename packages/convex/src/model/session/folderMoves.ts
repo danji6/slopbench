@@ -15,10 +15,10 @@ import {
 } from './folderTransitionSessions'
 import {
   branchSessions,
-  checkedTrail,
+  folderChildren,
   folderWorkspace,
   getFolderBranch,
-  ownerFolders,
+  readFolderTrail,
 } from './folderTree'
 import { assertNoSharedSessions } from './personalFolders'
 
@@ -29,14 +29,27 @@ export async function describeMove(
   ownerId: Id<'users'>,
   token?: string,
 ) {
-  const folders = await ownerFolders(ctx, ownerId)
-  const trail = checkedTrail(folders, args.folderId)
+  const trail = await readFolderTrail(ctx, args.folderId, ownerId)
   const folder = trail.at(-1)!
-  const targetTrail = args.parentId ? checkedTrail(folders, args.parentId) : []
+  const targetTrail = args.parentId
+    ? await readFolderTrail(ctx, args.parentId, ownerId)
+    : []
 
   assertUnlocked([...trail, ...targetTrail], token)
 
-  const projected = projectMove(folders, args)
+  const [sourceSiblings, targetSiblings] = await Promise.all([
+    folderChildren(ctx, ownerId, folder.parentId),
+    folderChildren(ctx, ownerId, args.parentId ?? undefined),
+  ])
+  const folders = [
+    ...new Map(
+      [...trail, ...targetTrail, ...sourceSiblings, ...targetSiblings].map(
+        (entry) => [entry._id, entry],
+      ),
+    ).values(),
+  ]
+  const resolved = relativeMove(args, folder, targetSiblings)
+  const projected = projectMove(folders, resolved)
   const authority = moveAuthority(
     folder,
     trail[0]!,
@@ -58,6 +71,32 @@ export async function describeMove(
   ])
 
   return { ...authority, folder, branch, sessions, projected, confirmationKey }
+}
+
+/** Resolves relative placement against all siblings, including unloaded pages. */
+function relativeMove(
+  args: FolderMoveArgs,
+  folder: Doc<'sessionFolders'>,
+  siblings: Doc<'sessionFolders'>[],
+): FolderMoveArgs {
+  if (args.direction) {
+    const index = siblings.findIndex((entry) => entry._id === folder._id)
+    const target = index + args.direction
+    if (target < 0 || target >= siblings.length)
+      return { ...args, beforeFolderId: siblings[index + 1]?._id }
+    return {
+      ...args,
+      beforeFolderId:
+        args.direction < 0 ? siblings[target]?._id : siblings[target + 1]?._id,
+    }
+  }
+  if (!args.afterFolderId) return args
+
+  const remaining = siblings.filter((entry) => entry._id !== folder._id)
+  const index = remaining.findIndex((entry) => entry._id === args.afterFolderId)
+  if (index < 0) error('Folder list changed, try again', 409)
+
+  return { ...args, beforeFolderId: remaining[index + 1]?._id }
 }
 
 function assertUnlocked(folders: Doc<'sessionFolders'>[], token?: string) {

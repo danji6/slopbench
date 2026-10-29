@@ -1,15 +1,7 @@
 import { ContextMenu, DropdownMenu, RippleButton } from '@/components/ui'
-import {
-  ChevronsDownUpIcon,
-  ChevronsUpDownIcon,
-  MoreHorizontalIcon,
-  PinIcon,
-  PinOffIcon,
-} from 'lucide-react'
+import { MoreHorizontalIcon, PinIcon, PinOffIcon } from 'lucide-react'
 
 export type FolderMenuActions = {
-  onCollapseAll: () => void
-  onExpandAll: () => void
   edit: () => void
   remove: () => void
   reorder: (direction: -1 | 1) => void
@@ -57,15 +49,6 @@ function FolderMenuItems({
       </Item>
       <Item disabled={pending} {...select(() => actions.reorder(1))}>
         Move down
-      </Item>
-      <Separator />
-      <Item {...select(actions.onExpandAll)}>
-        <ChevronsUpDownIcon />
-        Expand all
-      </Item>
-      <Item {...select(actions.onCollapseAll)}>
-        <ChevronsDownUpIcon />
-        Collapse all
       </Item>
       <Separator />
       <Item

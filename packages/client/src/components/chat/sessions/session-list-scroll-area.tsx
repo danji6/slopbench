@@ -11,7 +11,7 @@ export function SessionListScrollArea({
   return (
     <div
       data-slot="session-list-scroll-area"
-      className="min-h-0 flex-1 overflow-y-auto px-2"
+      className="min-h-0 flex-1 overflow-y-auto px-2 [overflow-anchor:none]"
     >
       {children}
     </div>

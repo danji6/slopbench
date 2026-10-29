@@ -5,6 +5,7 @@
 export * from './accordion'
 export * from './alert-dialog'
 export * from './alert-message'
+export * from './animated-toolbar'
 export * from './anti-flashbang'
 export * from './avatar'
 export * from './background'
