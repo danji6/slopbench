@@ -1,3 +1,4 @@
+import { useElementHeight } from '@/hooks/measure'
 import { cn } from '@/lib/utils'
 import { Accordion as AccordionPrimitive } from '@base-ui/react/accordion'
 import { AnimatePresence, type HTMLMotionProps, motion } from 'framer-motion'
@@ -32,6 +33,7 @@ function AccordionTrigger({
   return (
     <AccordionPrimitive.Header className="flex">
       <AccordionPrimitive.Trigger
+        children={children}
         render={(triggerProps, state) => {
           return (
             <RippleButton
@@ -40,7 +42,11 @@ function AccordionTrigger({
               {...(triggerProps as RippleButtonProps)}
             >
               {children}
-              <AccordionIcon isExpanded={state.open} className="ml-auto" />
+              <AccordionIcon
+                data-slot="accordion-trigger-icon"
+                isExpanded={state.open}
+                className="ml-auto"
+              />
             </RippleButton>
           )
         }}
@@ -67,59 +73,63 @@ function AccordionContent({
       keepMounted
       {...props}
       render={(panelProps: React.ComponentProps<'div'>, state) => {
-        const { style, ...rest } = panelProps
-
         return (
           <AnimatePresence initial={false}>
             {state.open && (
-              <motion.div
-                {...(rest as HTMLMotionProps<'div'>)}
-                style={{ ...style, display: 'block' }}
-                initial="closed"
-                animate="open"
-                exit="closed"
-                variants={{
-                  open: {
-                    height: 'auto',
-                    filter: 'blur(0)',
-                    opacity: 1,
-                  },
-                  closed: {
-                    height: 0,
-                    filter: 'blur(12px)',
-                    opacity: 0,
-                  },
-                }}
-                transition={{
-                  height: {
-                    duration: 0.3,
-                    ease: [0.4, 0, 0.2, 1],
-                  },
-                  opacity: {
-                    duration: 0.25,
-                    ease: 'linear',
-                  },
-                  filter: {
-                    duration: 0.2,
-                    ease: 'linear',
-                  },
-                }}
-                className="overflow-hidden"
+              <AccordionPanel
+                {...(panelProps as HTMLMotionProps<'div'>)}
+                contentClassName={
+                  typeof className === 'function' ? className(state) : className
+                }
               >
-                <div
-                  className={cn(
-                    '[&_a]:hover:text-foreground border border-t-0 pt-2 pb-4 group-last/accordion-item:rounded-b-xl [&_a]:underline [&_a]:underline-offset-3 [&_p:not(:last-child)]:mb-4',
-                    className,
-                  )}
-                >
-                  {children}
-                </div>
-              </motion.div>
+                {children}
+              </AccordionPanel>
             )}
           </AnimatePresence>
         )
       }}
     />
+  )
+}
+
+type AccordionPanelProps = Omit<HTMLMotionProps<'div'>, 'children'> & {
+  children?: React.ReactNode
+  contentClassName?: string
+}
+
+/** Retargets the expansion when asynchronous content changes the panel's height. */
+function AccordionPanel({
+  children,
+  contentClassName,
+  style,
+  ...props
+}: AccordionPanelProps) {
+  const [contentRef, height] = useElementHeight<HTMLDivElement>()
+  return (
+    <motion.div
+      {...props}
+      style={{ ...style, display: 'block' }}
+      initial="closed"
+      animate={{ height: height || 'auto', filter: 'blur(0)', opacity: 1 }}
+      exit="closed"
+      variants={{ closed: { height: 0, filter: 'blur(12px)', opacity: 0 } }}
+      transition={{
+        height: { duration: 0.3, ease: [0.4, 0, 0.2, 1] },
+        opacity: { duration: 0.25, ease: 'linear' },
+        filter: { duration: 0.2, ease: 'linear' },
+      }}
+      className="overflow-hidden"
+    >
+      <div
+        ref={contentRef}
+        className={cn(
+          '[&_a]:hover:text-foreground border border-t-0 pt-2 pb-4 group-last/accordion-item:rounded-b-xl [&_a]:underline [&_a]:underline-offset-3 [&_p:not(:last-child)]:mb-4',
+          contentClassName,
+        )}
+      >
+        {children}
+      </div>
+    </motion.div>
   )
 }
 

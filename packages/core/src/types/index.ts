@@ -4,6 +4,7 @@
 
 export * from './agents'
 export * from './ask'
+export * from './changes'
 export * from './chat'
 export * from './fetch'
 export * from './integration'

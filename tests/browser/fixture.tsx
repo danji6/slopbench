@@ -2,6 +2,7 @@ import { usePromptPreviews } from '@/hooks/chat/prompt-previews'
 import { Suspense, lazy, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 
+import { ChangesFixture } from './changes-fixture'
 import { CheckboxFixture } from './checkbox-fixture'
 import { IntegrationsFixture } from './integrations-fixture'
 import { McpCatalogFixture } from './mcp-catalog-fixture'
@@ -147,6 +148,8 @@ createRoot(document.getElementById('root')!).render(
     <Suspense fallback={<p>Loading pagination…</p>}>
       <MessagePaginationFixture />
     </Suspense>
+  ) : new URLSearchParams(location.search).get('fixture') === 'changes' ? (
+    <ChangesFixture />
   ) : new URLSearchParams(location.search).get('fixture') ===
     'tool-settings' ? (
     <ToolSettingsFixture />

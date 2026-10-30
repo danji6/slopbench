@@ -1,6 +1,6 @@
 import { useCode } from '@/hooks/code'
 import { useDebouncedState } from '@/hooks/debounce'
-import { diffVisualText } from '@/lib/shiki/diff'
+import { diffGutters, parseDiffLines } from '@/lib/shiki/diff'
 import { cn } from '@/lib/utils'
 import { Fragment, useEffect } from 'react'
 
@@ -47,14 +47,15 @@ export function Code({
     setDebouncedText(text)
   }, [text, setDebouncedText])
 
-  if (!highlighting) {
+  const showPlainDiff = !code && diff && text !== undefined
+  if (!highlighting || showPlainDiff) {
     return (
       <CodeContainer
         copyValue={noCopyButton ? undefined : text}
         lineNumberValue={text}
         {...props}
       >
-        <PlainCode text={diff && text ? diffVisualText(text) : (text ?? '')} />
+        <PlainCode text={text ?? ''} diff={diff} />
       </CodeContainer>
     )
   }
@@ -62,7 +63,7 @@ export function Code({
   if (!code) {
     return (
       <CodePlaceholder
-        text={diff && text ? diffVisualText(text) : text}
+        text={text}
         noLoadingIndicator={noLoadingIndicator}
         {...props}
       />
@@ -163,17 +164,36 @@ export function CodeContainer({
  * Renders raw code using the same `.shiki`/`.line` structure Shiki emits.
  * This allows pre-highlighted code to render exactly the same.
  */
-export function PlainCode({ text }: { text: string }) {
-  const lines = text.split('\n')
+export function PlainCode({
+  text,
+  diff = false,
+}: {
+  text: string
+  diff?: boolean
+}) {
+  const parsed = diff ? parseDiffLines(text) : undefined
+  const lines = (parsed?.code ?? text).split('\n')
+  const gutters = parsed ? diffGutters(parsed.lines, parsed.hasHunks) : []
   return (
-    <pre className="shiki">
+    <pre className={cn('shiki', diff && 'shiki-diff')}>
       <code>
-        {lines.map((line, index) => (
-          <Fragment key={index}>
-            <span className="line">{line}</span>
-            {index < lines.length - 1 ? '\n' : null}
-          </Fragment>
-        ))}
+        {lines.map((line, index) => {
+          const type = parsed?.lines[index]?.type
+          return (
+            <Fragment key={index}>
+              <span
+                className={cn(
+                  'line',
+                  type && type !== 'context' && `diff-${type}`,
+                )}
+                data-gutter={diff ? gutters[index] : undefined}
+              >
+                {line}
+              </span>
+              {index < lines.length - 1 ? '\n' : null}
+            </Fragment>
+          )
+        })}
       </code>
     </pre>
   )

@@ -60,6 +60,7 @@ function convertDoc(doc: MessageDoc): ConvertedEntry {
       _creationTime: doc._creationTime,
       sender: doc.sender,
       senderName: doc.senderName,
+      hasChanges: doc.hasChanges,
       senderAvatarId: doc.senderAvatarId,
       type: doc.type,
       hidden: doc.hidden,

@@ -105,6 +105,8 @@ export async function _stream(ctx: ActionCtx, execution: StreamExecutionArgs) {
 
       if (!shouldContinue) {
         await recordStep(ctx, execution, false)
+        const { finishStreamChanges } = await import('../session/changes')
+        await finishStreamChanges(ctx, execution)
         await ctx.runMutation(internal.streams._complete, { ...execution })
         return
       }

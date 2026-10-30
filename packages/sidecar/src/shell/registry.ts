@@ -1,3 +1,5 @@
+import { finishCheckpointJob } from '../checkpoints/manager'
+import { isOutside } from '../mcp/workspace/access'
 import { startWaitProbe } from './job-interaction'
 import { trackAltScreen } from './job-interaction'
 import { type ShellJobStatus } from './job-protocol'
@@ -63,6 +65,7 @@ function runningSessionJobs(sessionId: string): ShellJob[] {
 
 export async function startShellJob(
   input: StartShellJobInput,
+  roots: string[] = [input.cwd],
 ): Promise<{ jobId: string; mode: PtyMode }> {
   if (runningSessionJobs(input.sessionId).length >= MAX_RUNNING_PER_SESSION) {
     throw new Error(
@@ -91,6 +94,7 @@ export async function startShellJob(
     messageCreatedAt: input.messageCreatedAt,
     toolCallId: input.toolCallId,
     workspaceId: input.workspaceId,
+    roots,
     command: input.command,
     proc,
     ring: new OutputRing(),
@@ -132,6 +136,9 @@ export async function startShellJob(
       if (job.status === 'running') job.status = job.endReason ?? 'done'
       for (const sub of job.subscribers) sub.onEnd(job.status, job.exitCode)
       job.subscribers.clear()
+      void finishCheckpointJob(job.sessionId, job.proc.pid).catch(() => {
+        console.error('Failed to retire a completed checkpoint shell process')
+      })
     }, EXIT_FLUSH_MS)
   })
 
@@ -302,4 +309,34 @@ export function hasRunningAgentJobs(agentId: string): boolean {
       (job.homeId === agentId || job.agentId === agentId) &&
       job.status === 'running',
   )
+}
+
+/** Returns a started job's process identity for durable capture reservations. */
+export function shellJobPid(jobId: string, sessionId: string) {
+  return requireJob(jobId, sessionId).proc.pid
+}
+
+/** Stops owned subprocesses before the sidecar exits. */
+export function killAllShellJobs() {
+  for (const job of jobs.values()) {
+    if (job.status !== 'running') continue
+    job.endReason = 'killed'
+    job.proc.kill()
+  }
+}
+
+/** Detects older shell writers even when they predate checkpoint capture. */
+export function hasRunningWorkspaceJobs(
+  roots: string[],
+  ownerSessions: string[],
+) {
+  return [...jobs.values()].some((job) => {
+    if (job.status !== 'running' || ownerSessions.includes(job.sessionId))
+      return false
+    return roots.some((root) =>
+      job.roots?.some(
+        (other) => !isOutside(root, other) || !isOutside(other, root),
+      ),
+    )
+  })
 }

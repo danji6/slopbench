@@ -292,6 +292,7 @@ async function spawnChild(
   await assertAgentAvailable(ctx, agent._id)
   const childStreamId = await ctx.db.insert('streams', {
     generation: 0,
+    changeGroupId: stream.changeGroupId ?? String(stream._id),
     sessionId: childSessionId,
     agentId: agent._id,
     // The parent's invoker gates workspace tools in the child too

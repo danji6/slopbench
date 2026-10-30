@@ -13,6 +13,7 @@ export type ShellJob = {
   messageCreatedAt?: number
   toolCallId?: string
   workspaceId: string
+  roots?: string[]
   command: string
   proc: ShellJobProcess
   ring: OutputRing

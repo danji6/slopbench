@@ -132,6 +132,7 @@ function hasFooterContent(
 ): boolean {
   // A processing turn can surface the waiting indicator at any moment
   if ((message as { status?: string }).status === 'processing') return true
+  if (meta?.hasChanges) return true
   if (meta?.metadata?.error) return true
   if ((meta?.versionCount ?? 1) > 1) return true
   return (partMeta?.duration ?? 0) > 0

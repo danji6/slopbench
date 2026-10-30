@@ -20,6 +20,7 @@ mock.module('@/fonts', () => ({
 const { StreamingCodeBlock } =
   await import('@/components/chat/messages/streaming-code-block')
 const { MarkdownCode } = await import('@/components/markdown/code')
+const { Code } = await import('@/components/ui/code')
 const { MessagePreview } = await import('@/components/chat/message-preview')
 const { CodeBlockSetting } =
   await import('@/components/chat/entities/code-block-setting')
@@ -94,6 +95,25 @@ test('code blocks keep highlighting and line numbers enabled by default', () => 
   const defaults = renderToStaticMarkup(<MarkdownCode text={SOURCE} />)
   expect(defaults).toContain('color:red')
   expect(defaults).toContain('shiki-numbered')
+})
+
+test('diff colors and gutters are available before syntax highlighting and safely escape source text', () => {
+  cache = spyOn(highlighter, 'getCachedHighlight').mockReturnValue(null)
+  const text =
+    '--- file.ts\n+++ file.ts\n@@ -1,1 +1,1 @@\n-old <script>\n+new <script>'
+  for (const highlighting of [true, false]) {
+    const container = document.createElement('div')
+    container.innerHTML = renderToStaticMarkup(
+      <Code text={text} diff highlighting={highlighting} />,
+    )
+    const added = container.querySelector('.diff-add')!
+    const removed = container.querySelector('.diff-remove')!
+    expect(added.textContent).toBe('new <script>')
+    expect(added.getAttribute('data-gutter')).toBe('1 +')
+    expect(removed.textContent).toBe('old <script>')
+    expect(removed.getAttribute('data-gutter')).toBe('1 -')
+    expect(container.querySelector('script')).toBeNull()
+  }
 })
 
 test('appearance preview uses the edited preferences', () => {

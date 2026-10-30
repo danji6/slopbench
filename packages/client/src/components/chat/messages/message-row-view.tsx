@@ -22,6 +22,7 @@ import { toDisplayName } from '@sb/core/utils/names'
 import { type UIMessage, isReasoningUIPart } from 'ai'
 import { memo, useCallback, useMemo } from 'react'
 
+import { ChangesSummary } from './changes/changes-summary'
 import { ErrorBlock } from './error-block'
 import { GrowOnly } from './grow-only'
 import { HiddenChip } from './hidden-chip'
@@ -354,7 +355,9 @@ function FooterRow({ message, messageMeta, partMeta, isLast }: FooterRowProps) {
   const selectedVersion = messageMeta?.selectedVersion ?? 1
   const showSwitcher = versionCount > 1
 
-  if (!error && !isInactive && !showDuration && !showSwitcher) {
+  const showChanges = messageMeta?.hasChanges && !isStreaming
+
+  if (!error && !isInactive && !showDuration && !showSwitcher && !showChanges) {
     return null
   }
 
@@ -367,6 +370,13 @@ function FooterRow({ message, messageMeta, partMeta, isLast }: FooterRowProps) {
         <div className="px-4">
           <ErrorBlock messageId={message.id} error={error} />
         </div>
+      )}
+      {showChanges && (
+        <ChangesSummary
+          key={`${message.id}:${selectedVersion}`}
+          messageId={message.id}
+          version={selectedVersion}
+        />
       )}
       {isInactive && (
         <WaitingIndicator visible className="static w-auto gap-2" />

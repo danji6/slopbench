@@ -11,11 +11,13 @@ import {
 } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { workspaceCheckpoint } from '~/tests/helpers/workspace-checkpoints'
 
 type WorkspaceModule = typeof Workspace
 
 let workspaceModule: WorkspaceModule
 let dataDir: string
+const previousDataDir = process.env.CHAT_SIDECAR_DATA_DIR
 
 async function boundWorkspace(sessionId: string) {
   const root = await mkdtemp(path.join(tmpdir(), 'chat-workspace-'))
@@ -32,13 +34,81 @@ describe('previewWorkspaceDiff', () => {
   beforeAll(async () => {
     dataDir = await mkdtemp(path.join(tmpdir(), 'chat-sidecar-'))
     process.env.CHAT_SIDECAR_DATA_DIR = dataDir
-    process.env.CHAT_WORKSPACE_STORE = path.join(dataDir, 'workspaces.json')
-    process.env.CHAT_WORKSPACE_CHECKPOINTS = path.join(dataDir, 'checkpoints')
     workspaceModule = await import('@sb/sidecar/mcp/workspace/workspace')
   })
 
   afterAll(async () => {
+    if (previousDataDir === undefined) delete process.env.CHAT_SIDECAR_DATA_DIR
+    else process.env.CHAT_SIDECAR_DATA_DIR = previousDataDir
     await rm(dataDir, { recursive: true, force: true })
+  })
+
+  test('turn checkpoint routes capture real file tools and reject later conflicts', async () => {
+    const { Hono } = await import('hono')
+    const { checkpointRoutes } = await import('@sb/sidecar/checkpoints/routes')
+    const { root, workspaceId, workspace } = await boundWorkspace('turn-routes')
+    const app = new Hono().route('/checkpoints', checkpointRoutes)
+    const request = (endpoint: string, body: unknown) =>
+      app.request(`/checkpoints/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+    const context = { sessionId: 'turn-routes', workspaceId, workspace }
+    try {
+      await writeFile(path.join(root, 'file.txt'), 'original\n')
+      expect(
+        (
+          await request('begin', {
+            ...context,
+            groupId: 'route-group',
+            participantId: 'route-parent',
+            root: true,
+          })
+        ).ok,
+      ).toBe(true)
+      await workspaceModule.writeWorkspaceFile({
+        ...context,
+        filePath: 'file.txt',
+        content: 'changed\n',
+      })
+      await workspaceModule.writeWorkspaceFile({
+        ...context,
+        filePath: 'new.txt',
+        content: 'new\n',
+      })
+      const response = await request('finish', {
+        groupId: 'route-group',
+        participantId: 'route-parent',
+        checkpointId: 'route-turn',
+        root: true,
+      })
+      const result = await response.json()
+      expect(result.publication.files).toHaveLength(2)
+      const restore = {
+        ...context,
+        checkpointId: 'route-turn',
+        operationId: 'route-undo',
+        revision: 0,
+        direction: 'revert',
+        allowedPaths: [],
+      }
+      await writeFile(path.join(root, 'file.txt'), 'manual\n')
+      expect(
+        (await (await request('restore', restore)).json()).conflicts,
+      ).toEqual(['file.txt'])
+      expect(await readFile(path.join(root, 'new.txt'), 'utf8')).toBe('new\n')
+      await writeFile(path.join(root, 'file.txt'), 'changed\n')
+      expect(
+        (await (await request('restore', restore)).json()).summary.state,
+      ).toBe('reverted')
+      expect(await readFile(path.join(root, 'file.txt'), 'utf8')).toBe(
+        'original\n',
+      )
+    } finally {
+      await request('remove-session', { sessionId: context.sessionId })
+      await rm(root, { recursive: true, force: true })
+    }
   })
 
   test('builds a positioned unified diff for an edit', async () => {
@@ -111,6 +181,7 @@ describe('previewWorkspaceDiff', () => {
       filePath,
     }
     const granted = { ...args, allowedPaths: [path.relative(root, external)] }
+    const capture = await workspaceCheckpoint(args)
     try {
       await writeFile(filePath, 'original\n')
       await expect(workspaceModule.readWorkspaceFile(args)).rejects.toThrow(
@@ -146,28 +217,35 @@ describe('previewWorkspaceDiff', () => {
       })
       expect(write.path).toBe(filePath)
       expect(write.diff).toBe(preview.diff)
-      await workspaceModule.restoreLatestCheckpoint(granted)
-      expect(await readFile(filePath, 'utf8')).toBe('original\n')
       await workspaceModule.editWorkspaceFile({
         ...granted,
-        edits: [{ oldText: 'original', newText: 'edited' }],
+        edits: [{ oldText: 'changed', newText: 'edited' }],
       })
       expect(await readFile(filePath, 'utf8')).toBe('edited\n')
-      await workspaceModule.restoreLatestCheckpoint(granted)
-      expect(await readFile(filePath, 'utf8')).toBe('original\n')
       const newPath = path.join(external, 'new', 'created.txt')
       await workspaceModule.writeWorkspaceFile({
         ...granted,
         filePath: newPath,
         content: 'new',
       })
-      await workspaceModule.restoreLatestCheckpoint(granted)
+      await capture.finish()
+      await expect(capture.restore()).rejects.toThrow('escapes')
+      await capture.restore({ allowedPaths: granted.allowedPaths })
+      expect(await readFile(filePath, 'utf8')).toBe('original\n')
       expect(await Bun.file(newPath).exists()).toBe(false)
+      await capture.restore({
+        allowedPaths: granted.allowedPaths,
+        direction: 'reapply',
+        revision: 1,
+      })
+      expect(await readFile(filePath, 'utf8')).toBe('edited\n')
+      expect(await readFile(newPath, 'utf8')).toBe('new')
       // Mentions never receive these grants.
       await expect(
         workspaceModule.resolveExistingPath(root, filePath),
       ).rejects.toThrow('escapes')
     } finally {
+      await capture.cleanup()
       await rm(root, { recursive: true, force: true })
       await rm(external, { recursive: true, force: true })
     }
@@ -179,6 +257,10 @@ describe('previewWorkspaceDiff', () => {
     const external = await mkdtemp(path.join(tmpdir(), 'external-checkpoint-'))
     const filePath = path.join(external, 'file.txt')
     const untouched = path.join(external, 'untouched.txt')
+    const capture = await workspaceCheckpoint({
+      sessionId: 'external-symlink',
+      workspace,
+    })
     try {
       await writeFile(filePath, 'original')
       await writeFile(untouched, 'untouched')
@@ -190,17 +272,15 @@ describe('previewWorkspaceDiff', () => {
         content: 'changed',
         allowedPaths: [external],
       })
+      await capture.finish()
       await rm(filePath)
       await symlink(untouched, filePath)
       await expect(
-        workspaceModule.restoreLatestCheckpoint({
-          sessionId: 'external-symlink',
-          workspaceId,
-          workspace,
-        }),
+        capture.restore({ allowedPaths: [external] }),
       ).rejects.toThrow('symlink')
       expect(await readFile(untouched, 'utf8')).toBe('untouched')
     } finally {
+      await capture.cleanup()
       await rm(root, { recursive: true, force: true })
       await rm(external, { recursive: true, force: true })
     }
@@ -293,6 +373,7 @@ describe('previewWorkspaceDiff', () => {
     const { root, workspaceId, workspace } =
       await boundWorkspace('multi-source')
     const secondary = await mkdtemp(path.join(tmpdir(), 'chat-secondary-'))
+    let capture: Awaited<ReturnType<typeof workspaceCheckpoint>> | undefined
     try {
       workspace.sources.push({
         id: 'secondary',
@@ -323,15 +404,15 @@ describe('previewWorkspaceDiff', () => {
       expect((await listWorkspaceFiles(input)).files.sort()).toEqual(
         [path.join(secondary, 'same.txt'), 'same.txt'].sort(),
       )
+      capture = await workspaceCheckpoint(input)
       await workspaceModule.writeWorkspaceFile({
         ...input,
         filePath: path.join(secondary, 'same.txt'),
         content: 'edited',
       })
+      await capture.finish()
       workspace.sources.pop()
-      await expect(
-        workspaceModule.restoreLatestCheckpoint(input),
-      ).rejects.toThrow()
+      await expect(capture.restore()).rejects.toThrow()
       expect(await readFile(path.join(secondary, 'same.txt'), 'utf8')).toBe(
         'edited',
       )
@@ -340,7 +421,7 @@ describe('previewWorkspaceDiff', () => {
         path: secondary,
         label: 'secondary',
       })
-      await workspaceModule.restoreLatestCheckpoint(input)
+      await capture.restore()
       expect(await readFile(path.join(secondary, 'same.txt'), 'utf8')).toBe(
         'secondary',
       )
@@ -349,6 +430,7 @@ describe('previewWorkspaceDiff', () => {
         workspaceModule.readWorkspaceFile({ ...input, filePath: 'same.txt' }),
       ).rejects.toThrow()
     } finally {
+      await capture?.cleanup()
       await rm(root, { recursive: true, force: true })
       await rm(secondary, { recursive: true, force: true })
     }

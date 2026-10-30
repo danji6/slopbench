@@ -3,7 +3,9 @@ import { v } from 'convex/values'
 
 import { internalMutation, internalQuery } from './_generated/server'
 import { authMutation, authQuery } from './functions'
+import * as Changes from './model/changes'
 import * as Chat from './model/chat'
+import * as ChangesV from './validators/changes'
 import * as V from './validators/messages'
 import { environmentValidator } from './validators/sessions'
 import {
@@ -214,4 +216,101 @@ export const _finishUserShell = internalMutation({
 export const _reapUserShell = internalMutation({
   args: { messageId: v.id('messages') },
   handler: Chat._reapUserShell,
+})
+
+export const changeSummary = authQuery({
+  args: { messageId: v.id('messages'), version: v.number() },
+  handler: Changes.changeSummary,
+})
+
+export const changeDiff = authQuery({
+  args: { changeSetId: v.id('changeSets'), fileKey: v.string() },
+  handler: Changes.changeDiff,
+})
+
+export const restoreChanges = authMutation({
+  args: ChangesV.restoreChangesArgsValidator.fields,
+  handler: Changes.restoreChanges,
+})
+
+export const _prepareChanges = internalMutation({
+  args: ChangesV.prepareChangesArgsValidator.fields,
+  handler: Changes.prepareChanges,
+})
+
+export const _queueChanges = internalMutation({
+  args: { streamId: v.id('streams'), generation: v.number() },
+  handler: Changes.queueChanges,
+})
+
+export const _captureChangesIssue = internalMutation({
+  args: { changeSetId: v.id('changeSets'), message: v.string() },
+  handler: Changes.captureIssue,
+})
+
+export const _publishChanges = internalMutation({
+  args: ChangesV.publishChangesArgsValidator.fields,
+  handler: Changes.publishChanges,
+})
+export const _restoreChangesResult = internalMutation({
+  args: ChangesV.restoreChangesResultValidator.fields,
+  handler: Changes.restoreResult,
+})
+
+export const _getChangeSet = internalQuery({
+  args: { changeSetId: v.id('changeSets') },
+  handler: Changes.getChangeSet,
+})
+
+export const _changesFinishContext = internalQuery({
+  args: { changeSetId: v.id('changeSets') },
+  handler: Changes.finishContext,
+})
+
+export const _changesRestoreContext = internalQuery({
+  args: { changeSetId: v.id('changeSets') },
+  handler: Changes.restoreContext,
+})
+
+export const changeFiles = authQuery({
+  args: {
+    changeSetId: v.id('changeSets'),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: Changes.changeFiles,
+})
+
+export const _reserveChangesPublication = internalMutation({
+  args: ChangesV.reservePublicationArgsValidator.fields,
+  handler: Changes.reservePublication,
+})
+
+export const _appendChanges = internalMutation({
+  args: ChangesV.appendChangesArgsValidator.fields,
+  handler: Changes.appendChanges,
+})
+
+export const _settleChangesCapture = internalMutation({
+  args: { changeSetId: v.id('changeSets') },
+  handler: Changes.settleCapture,
+})
+
+export const _releaseChangeGroup = internalMutation({
+  args: { groupId: v.string() },
+  handler: Changes.releaseChangeGroup,
+})
+
+export const _changeSetForStream = internalQuery({
+  args: { streamId: v.id('streams') },
+  handler: (ctx, args) => Changes.forStream(ctx, args.streamId),
+})
+
+export const _cleanupChanges = internalMutation({
+  args: { sessionId: v.id('sessions') },
+  handler: Changes.cleanupChanges,
+})
+
+export const _scheduleSettleChanges = internalMutation({
+  args: { changeSetId: v.id('changeSets') },
+  handler: Changes.scheduleSettleChanges,
 })

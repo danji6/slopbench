@@ -77,8 +77,10 @@ export const lockSchema = z.object({
 export async function lockWorkspaces(input: z.infer<typeof lockSchema>) {
   if (!transitionActive(input.token)) throw new Error('Folder update timed out')
   const { listShellJobs } = await import('../../shell/registry')
+  const { checkpoints } = await import('../../checkpoints/manager')
   for (const id of input.sessionIds) {
     if (
+      (await checkpoints().reserved(id)) ||
       transitionActive(locks.get(id)) ||
       active.get(id) ||
       mcpRegistry.hasActivity(id) ||

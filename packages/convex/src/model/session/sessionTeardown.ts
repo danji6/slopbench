@@ -3,6 +3,7 @@ import type { MutationCtx } from '../../_generated/server'
 import { type AuthMutationCtx } from '../../functions'
 import * as Attachments from '../attachments'
 import * as Avatars from '../avatars'
+import { removeChanges } from '../changes'
 import { revoke as revokeMcp } from '../mcpRuntime'
 import { deleteVersions } from '../messageContents'
 import { cancelForSession as cancelScheduledEvents } from '../scheduledEvents'
@@ -87,6 +88,7 @@ export async function remove(
     await Attachments.removeAttachment(ctx, attachment)
   }
 
+  await removeChanges(ctx, sessionId)
   await deleteStorageIfPresent(ctx, log)
 
   const messages = await ctx.db

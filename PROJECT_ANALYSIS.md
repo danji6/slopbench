@@ -7,6 +7,20 @@ The architectural overview below was originally audited at `0d6092b` on
 boundaries; it is not a fresh audit of every product feature or outstanding bug.
 See `REFACTOR_PLAN.md` for scope, verification, and remaining release checks.
 
+## Turn changes and release cleanup (2026-10-30)
+
+The pre-release schema baseline is 33, with an empty public migration manifest.
+Turn checkpoints are the sole restore mechanism: the changes summary publishes
+net file changes, previews diffs, and offers conflict-checked Revert/Reapply.
+The sidecar stores exact bytes and journals restores in `turn-checkpoints`;
+workspace writer reservations cover parent/subagent groups and background jobs.
+The old per-file store, `/workspace/restore-latest`, and its Convex action have
+been removed. File tools return paths, edit/byte counts, and capped diffs without
+per-file checkpoint IDs. Existing legacy checkpoint files are unused; this
+cleanup does not delete local data or migrate historical tool results.
+The release deployment framework remains for future public migrations. Restart
+the sidecar after updating.
+
 ## Persistent MCP connections (stage 1, 2026-10-20)
 
 Standalone MCP servers now support supervised local stdio commands alongside
@@ -290,8 +304,8 @@ move from inheriting sources changed during preparation. Changes revoke path
 grants while retaining frozen prompts, tool schemas, and other approval rules.
 The next invocation appends the changed filesystem context to the transcript.
 Folder deletion keeps chats and pins and moves sessions
-to the surviving parent or Ungrouped. Checkpoint restoration rechecks current access; legacy checkpoints
-are ignored.
+to the surviving parent or Ungrouped. Turn checkpoint restoration rechecks
+current access for every target before changing any file.
 
 The approved pre-release data reset migrated existing memberships to Ungrouped
 or Shared, cleared legacy workspace bindings and path grants, and removed stale
@@ -1425,7 +1439,7 @@ Key backend domains:
 `migrations.ts` holds the `@convex-dev/migrations` runner, the append-only
 public release migration list, and stable internal endpoints for boot
 coordination. `packages/core/src/migration-version.ts` establishes pre-release
-schema version 22 as the pre-release baseline; later manifest entries advance the
+schema version 33 as the pre-release baseline; later manifest entries advance the
 version from that baseline. The public migration manifest is currently empty.
 A singleton
 `releaseState` document records the last strictly completed version and any
@@ -1816,8 +1830,8 @@ Other automatic context audited during this change:
 
 Workspace tool outputs are structured JSON through the builtin MCP bridge:
 `read_file` returns path, content, total line count, 1-indexed offset, and
-truncation status; `write_file` and `edit_file` return checkpoint ids plus
-capped unified diffs; `shell` returns model-friendly text while retaining
+truncation status; `write_file` and `edit_file` return paths, edit/byte counts,
+and capped unified diffs; `shell` returns model-friendly text while retaining
 terminal tails for the UI.
 
 `read_attachment` is independent of the workspace and sidecar. It accepts a
@@ -1963,20 +1977,21 @@ do directly:
   including the workspace-backed `readFile`/`fileExists` helpers
 - agent import/export image routes under `/io/agent/*`
 - image thumbnail/PNG processing under `/io/image/*`
-- workspace bind, clear, directory and file listing, file read, diff preview,
-  and checkpoint restore routes under `/workspace/*`
+- workspace directory and file listing, linked file reads, and diff previews
+  under `/workspace/*`
+- turn capture, finalization, restore/reapply, and cleanup under `/checkpoints/*`
 
-Workspace bindings are persisted by the sidecar and referenced from Convex
-sessions as `{ workspaceId, label, path }`. Convex actions authorize the user
-and session, then call the sidecar with the session id and workspace id.
+Workspace context is derived from Convex session folders and personal agent
+homes. Convex actions authorize the user and session, then send the current
+filesystem context to the sidecar.
 
 The sidecar workspace layer handles directory picking/listing, file index
 generation (preferring `git ls-files` with a glob fallback), file and
 directory mention resolution, safe line-windowed file reads, write/edit
-operations with no-op rejection, BOM/line-ending preservation, per-file
-serialization, checkpointing, capped unified diffs, simulated diffs for
-approval previews, path sensitivity checks, workspace instructions discovery,
-and checkpoint restoration.
+operations with no-op rejection, BOM/line-ending preservation, capped unified
+diffs, simulated diffs for approval previews, path sensitivity checks, and
+workspace instructions discovery. The turn checkpoint manager serializes writes,
+captures before/after snapshots, and performs authorized transactional restores.
 
 Convex never reads arbitrary local files directly. It calls the sidecar only
 after auth and role checks, using the dedicated internal Bearer credential.

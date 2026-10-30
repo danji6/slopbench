@@ -75,6 +75,7 @@ export type MessageRecord = Pick<
   | 'extra'
   | 'selectedVersion'
   | 'versionCount'
+  | 'hasChanges'
   | '_creationTime'
 > & {
   metadata?: Pick<MessageMetadata, 'error' | 'warnings' | 'usage'>

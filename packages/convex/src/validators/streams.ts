@@ -126,6 +126,7 @@ export const scheduleStreamRetryArgsValidator = v.object({
 /** A leased background turn, including retries and deferred work. */
 export const streamSchema = v.object({
   generation: v.number(),
+  changeGroupId: v.optional(v.string()),
   sessionId: v.id('sessions'),
   agentId: v.id('agents'),
   invokedBy: v.id('users'),

@@ -64,12 +64,11 @@ describe('workspace edit helper', () => {
     ).toBe(
       `--- monitor.c
 +++ monitor.c
-@@ -1,4 +1,5 @@
+@@ -1,3 +1,4 @@
  #include "monitor.h"
 +#include "buttonbar.h"
  //
- // Definitions
- `,
+ // Definitions`,
     )
   })
 
@@ -79,11 +78,10 @@ describe('workspace edit helper', () => {
     ).toBe(
       `--- file.txt
 +++ file.txt
-@@ -1,4 +1,3 @@
+@@ -1,3 +1,2 @@
  alpha
 -beta
- gamma
- `,
+ gamma`,
     )
   })
 

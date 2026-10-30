@@ -1,6 +1,7 @@
 import { internal } from '../../_generated/api'
 import type { Doc } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
+import { finishChanges } from '../changes'
 import { cancelForStream } from '../mcpOperations'
 import { scheduleTitle } from '../messages'
 import { settleStream } from '../notificationRequests'
@@ -62,6 +63,7 @@ export async function requestImmediateStop(
   if (!stream.state.processingMessageId) {
     await settleStream(ctx, stream._id, 'cancelled')
     await cancelScheduledExecution(ctx, stream)
+    await finishChanges(ctx, stream._id)
     await ctx.db.delete(stream._id)
     await scheduleTitle(ctx, stream.sessionId)
     await ctx.scheduler.runAfter(0, internal.chat._drainCommandQueue, {

@@ -17,6 +17,7 @@ import {
 } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { workspaceCheckpoint } from '~/tests/helpers/workspace-checkpoints'
 
 let root: string
 let project: string
@@ -130,20 +131,26 @@ test('writes, previews, edits and checkpoint restoration retain the agent prefix
   expect(
     await files.previewWorkspaceDiff({ ...input, content: 'draft one' }),
   ).toMatchObject({ path: 'agent://draft' })
-  expect(
-    await files.writeWorkspaceFile({ ...input, content: 'draft one' }),
-  ).toMatchObject({ path: 'agent://draft' })
-  expect(
-    await files.editWorkspaceFile({
-      ...input,
-      edits: [{ oldText: 'one', newText: 'two' }],
-    }),
-  ).toMatchObject({ path: 'agent://draft' })
-  expect(await readFile(path.join(home, 'draft'), 'utf8')).toBe('draft two')
-  expect(
-    await files.restoreLatestCheckpoint(context('checkpoint')),
-  ).toMatchObject({ restored: 'agent://draft' })
-  expect(await readFile(path.join(home, 'draft'), 'utf8')).toBe('draft one')
+  await writeFile(path.join(home, 'draft'), 'original')
+  const capture = await workspaceCheckpoint(input)
+  try {
+    expect(
+      await files.writeWorkspaceFile({ ...input, content: 'draft one' }),
+    ).toMatchObject({ path: 'agent://draft' })
+    expect(
+      await files.editWorkspaceFile({
+        ...input,
+        edits: [{ oldText: 'one', newText: 'two' }],
+      }),
+    ).toMatchObject({ path: 'agent://draft' })
+    expect(await readFile(path.join(home, 'draft'), 'utf8')).toBe('draft two')
+    const result = await capture.finish()
+    expect(result.publication?.files).toMatchObject([{ path: 'agent://draft' }])
+    await capture.restore()
+    expect(await readFile(path.join(home, 'draft'), 'utf8')).toBe('original')
+  } finally {
+    await capture.cleanup()
+  }
 })
 
 test('prefixes cannot escape through traversal or symlinks even with an external grant', async () => {

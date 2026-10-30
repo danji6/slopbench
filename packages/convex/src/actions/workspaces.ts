@@ -5,6 +5,7 @@ import { v } from 'convex/values'
 import { internal } from '../_generated/api'
 import { action, internalAction } from '../_generated/server'
 import { getFlaggedPaths } from '../model/tool/shellTools'
+import { settleChangesArgsValidator } from '../validators/changes'
 import { workspaceRefValidator } from '../validators/workspaces'
 import * as Workspace from './session/workspace'
 
@@ -28,11 +29,6 @@ export const resolveFileLinks = action({
   handler: Workspace.resolveFileLinks,
 })
 
-export const restoreCheckpoint = action({
-  args: { sessionId: v.id('sessions') },
-  handler: Workspace.restoreCheckpoint,
-})
-
 export const _rememberFlaggedPaths = internalAction({
   args: {
     sessionId: v.id('sessions'),
@@ -49,4 +45,34 @@ export const _rememberFlaggedPaths = internalAction({
       paths: flagged,
     })
   },
+})
+
+export const _finishChanges = internalAction({
+  args: { changeSetId: v.id('changeSets') },
+  handler: async (ctx, args) =>
+    (await import('./session/changes')).finishChanges(ctx, args),
+})
+
+export const _settleChanges = internalAction({
+  args: settleChangesArgsValidator.fields,
+  handler: async (ctx, args) =>
+    (await import('./session/changes')).settleChanges(ctx, args),
+})
+
+export const _restoreChanges = internalAction({
+  args: { changeSetId: v.id('changeSets'), operationId: v.string() },
+  handler: async (ctx, args) =>
+    (await import('./session/changes')).restoreChanges(ctx, args),
+})
+
+export const _removeChanges = internalAction({
+  args: { sessionId: v.id('sessions') },
+  handler: async (ctx, args) =>
+    (await import('./session/changes')).removeChanges(ctx, args),
+})
+
+export const _finishChangesParticipant = internalAction({
+  args: { changeSetId: v.id('changeSets'), participantId: v.string() },
+  handler: async (ctx, args) =>
+    (await import('./session/changes')).finishParticipantChanges(ctx, args),
 })

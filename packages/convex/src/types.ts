@@ -15,6 +15,7 @@ import type { Doc, Id } from './_generated/dataModel'
 import type { SpawnableAgent } from './model/agent/subagents'
 import type { PromptSets } from './model/prompts'
 import type * as V from './validators'
+import type * as ChangesV from './validators/changes'
 import type * as IntegrationsV from './validators/integrations'
 import type * as McpBrokerV from './validators/mcpBroker'
 import type * as McpCatalogsV from './validators/mcpCatalogs'
@@ -270,3 +271,9 @@ export type IntegrationObservationArgs = Infer<typeof IntegrationsV.integrationO
 export type IntegrationSkillsArgs = Infer<typeof IntegrationsV.integrationSkillsValidator> // prettier-ignore
 export type FolderPageArgs = Infer<typeof V.folderPageArgs>
 export type FolderPickerArgs = Infer<typeof V.folderPickerArgs>
+export type PrepareChangesArgs = Infer<typeof ChangesV.prepareChangesArgsValidator> // prettier-ignore
+export type RestoreChangesArgs = Infer<typeof ChangesV.restoreChangesArgsValidator> // prettier-ignore
+export type PublishChangesArgs = Infer<typeof ChangesV.publishChangesArgsValidator> // prettier-ignore
+export type RestoreChangesResultArgs = Infer<typeof ChangesV.restoreChangesResultValidator> // prettier-ignore
+export type AppendChangesArgs = Infer<typeof ChangesV.appendChangesArgsValidator> // prettier-ignore
+export type ReservePublicationArgs = Infer<typeof ChangesV.reservePublicationArgsValidator> // prettier-ignore

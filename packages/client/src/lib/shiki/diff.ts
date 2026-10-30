@@ -28,7 +28,8 @@ export function parseDiffLines(diff: string): ParsedDiff {
   let hasHunks = false
 
   for (const raw of diff.split('\n')) {
-    if (raw.startsWith('+++') || raw.startsWith('---')) continue // file headers
+    if (raw === '\\ No newline at end of file') continue
+    if (!hasHunks && (raw.startsWith('+++') || raw.startsWith('---'))) continue // file headers
     if (raw.startsWith('@@')) {
       const match = HUNK_HEADER.exec(raw)
       if (match) {

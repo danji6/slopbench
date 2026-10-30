@@ -71,6 +71,14 @@ export function applyEdits(
   return output
 }
 
+/** Counts real lines without treating an empty file or final newline as another line. */
+function diffLines(content: string): string[] {
+  if (!content) return []
+  const lines = content.split('\n')
+  if (lines.at(-1) === '') lines.pop()
+  return lines
+}
+
 const DIFF_CONTEXT = 3
 
 /** Build a git-style unified diff with hunk headers and surrounding context. */
@@ -80,20 +88,47 @@ export function createUnifiedDiff(
   newContent: string,
   context = DIFF_CONTEXT,
 ) {
-  const oldLines = oldContent.split('\n')
-  const newLines = newContent.split('\n')
-  const hunks = buildHunks(diffOps(oldLines, newLines), context)
+  const oldLines = diffLines(oldContent)
+  const newLines = diffLines(newContent)
+  const ops = diffOps(oldLines, newLines)
+  const finalNewlineChanged = oldContent.endsWith('\n') !== newContent.endsWith('\n') // prettier-ignore
+  const lastOp = ops.at(-1)
+
+  if (finalNewlineChanged && lastOp?.type === 'equal') {
+    ops.splice(
+      -1,
+      1,
+      { type: 'remove', text: lastOp.text },
+      { type: 'add', text: lastOp.text },
+    )
+  }
+
+  const hunks = buildHunks(ops, context)
   if (hunks.length === 0) return ''
 
   const out: string[] = [`--- ${filePath}`, `+++ ${filePath}`]
   for (const hunk of hunks) {
     out.push(
-      `@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@`,
+      `@@ -${hunk.oldCount ? hunk.oldStart : hunk.oldStart - 1},${hunk.oldCount} +${hunk.newCount ? hunk.newStart : hunk.newStart - 1},${hunk.newCount} @@`,
     )
+
+    let oldNo = hunk.oldStart
+    let newNo = hunk.newStart
     for (const line of hunk.lines) {
       const prefix =
         line.type === 'add' ? '+' : line.type === 'remove' ? '-' : ' '
       out.push(prefix + line.text)
+      const oldEnd =
+        line.type !== 'add' &&
+        oldNo === oldLines.length &&
+        !oldContent.endsWith('\n')
+      const newEnd =
+        line.type !== 'remove' &&
+        newNo === newLines.length &&
+        !newContent.endsWith('\n')
+      if (oldEnd || newEnd) out.push('\\ No newline at end of file')
+      if (line.type !== 'add') oldNo++
+      if (line.type !== 'remove') newNo++
     }
   }
 

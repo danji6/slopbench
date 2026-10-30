@@ -1,6 +1,7 @@
 import type { Id } from '@sb/convex/_generated/dataModel'
 import type { ActionCtx } from '@sb/convex/_generated/server'
 import { prepare } from '@sb/convex/actions/stream/engineSetup'
+import { prepareChanges } from '@sb/convex/model/changes'
 import { reserveStream } from '@sb/convex/model/chat/reserve'
 import { availableIntegrations } from '@sb/convex/model/integrations/access'
 import { withCurrentSkillContext } from '@sb/convex/model/integrations/skillContext'
@@ -180,6 +181,8 @@ export function skillRequests(root: string) {
       reference: Parameters<typeof getFunctionName>[0],
       args: unknown,
     ) => {
+      if (getFunctionName(reference) === 'chat:_prepareChanges')
+        return prepareChanges(fixture.ctx, args as never)
       if (getFunctionName(reference) === 'streams:_prepareSkillContext')
         return prepareSkillContext(fixture.ctx, args as PrepareContextNoteArgs)
       if (getFunctionName(reference) === 'streams:_prepareWorkspaceContext')
@@ -262,6 +265,8 @@ export function skillRequests(root: string) {
   const secret = process.env.SIDECAR_SECRET
   process.env.SIDECAR_SECRET = 'fixture-secret'
   globalThis.fetch = (async (url, init) => {
+    if (String(url).endsWith('/checkpoints/begin'))
+      return Response.json({ queued: false })
     if (String(url).endsWith('/integrations/catalog')) {
       return Response.json(
         await integrationSkillCatalog(

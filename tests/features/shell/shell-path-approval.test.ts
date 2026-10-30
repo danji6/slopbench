@@ -90,8 +90,6 @@ describe('shell approval through scoped MCP path checks', () => {
     await createFixture()
     const dataEnvironment = {
       CHAT_SIDECAR_DATA_DIR: path.join(base, 'data'),
-      CHAT_WORKSPACE_STORE: path.join(base, 'data/workspaces.json'),
-      CHAT_WORKSPACE_CHECKPOINTS: path.join(base, 'data/checkpoints'),
     }
     for (const [key, value] of Object.entries(dataEnvironment)) {
       previousDataEnvironment[key] = process.env[key]

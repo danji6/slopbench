@@ -13,7 +13,14 @@ export async function lockAgent(agentId: string, token: string) {
   }
 
   const { hasRunningAgentJobs } = await import('../shell/registry')
+  const { checkpoints } = await import('../checkpoints/manager')
+
+  const captured = process.env.CHAT_SIDECAR_DATA_DIR
+    ? await checkpoints().homeReserved(agentId)
+    : false
+
   const busy =
+    captured ||
     transitionActive(locks.get(agentId)) ||
     active.get(agentId) ||
     mutating.get(agentId) ||

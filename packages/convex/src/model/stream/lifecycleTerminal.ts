@@ -6,6 +6,7 @@ import type { MutationCtx } from '../../_generated/server'
 import { settleAbandonedTaskParts } from '../../lib/subagent'
 import type { FailStreamArgs, StreamExecutionArgs } from '../../types'
 import { cleanUpGeneratedAttachments } from '../attachments'
+import { finishChanges } from '../changes'
 import { clearAnnouncedMode } from '../chat/notes'
 import { handleStreamEnd } from '../chat/scheduling'
 import { cancelForStream } from '../mcpOperations'
@@ -300,6 +301,7 @@ export function preserveStoppedStreamError(
 
 /** Reclaims unused output before deleting its owning stream. */
 export async function discardStream(ctx: MutationCtx, streamId: Id<'streams'>) {
+  await finishChanges(ctx, streamId)
   await cancelForStream(ctx, streamId, 'Owning turn ended.')
   await settleStream(ctx, streamId, 'unavailable')
   await cleanUpOffloadedOutputs(ctx, streamId)

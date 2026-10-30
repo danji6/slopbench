@@ -13,12 +13,7 @@ import type { ActionCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import { authorizeAdmin } from '../../functions'
 import { decodeBase64 } from '../../model/io/base64'
-import type {
-  AgentWithHome,
-  ApprovalMode,
-  Session,
-  SessionMode,
-} from '../../types'
+import type { ApprovalMode, Session, SessionMode } from '../../types'
 
 export async function createSession(
   ctx: ActionCtx,
@@ -159,39 +154,11 @@ async function freezeBinaryLink(
   }
 }
 
-export async function restoreCheckpoint(
-  ctx: ActionCtx,
-  args: { sessionId: Id<'sessions'> },
-): Promise<{ restored: string; checkpointId: string }> {
-  const data = await requireAdminWorkspaceAction(ctx, args.sessionId)
-  if (data.agent?.fileOperationId || data.agent?.home?.operationId)
-    error('Personal folder is being updated', 409)
-  const { resolvePersonalWorkspace } =
-    await import('../../model/skills/runtime')
-  const workspace = data.agent
-    ? await resolvePersonalWorkspace(data.agent, data.workspace)
-    : data.workspace
-  if (!workspace) error('No filesystem context configured', 409)
-  const approvals = await ctx.runQuery(internal.sessions._getApprovals, {
-    sessionId: args.sessionId,
-  })
-  return postWorkspaceSidecar<{ restored: string; checkpointId: string }>(
-    '/workspace/restore-latest',
-    {
-      sessionId: args.sessionId,
-      allowedPaths: approvals.paths,
-      workspaceId: workspace.workspaceId,
-      workspace,
-    },
-  )
-}
-
 async function requireAdminWorkspaceAction(
   ctx: ActionCtx,
   sessionId: Id<'sessions'>,
 ): Promise<{
   workspace?: Session['workspace']
-  agent?: AgentWithHome | null
 }> {
   const identity = await authorizeAdmin(ctx)
   return ctx.runQuery(internal.sessions._getWorkspaceContext, {

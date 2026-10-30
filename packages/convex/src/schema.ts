@@ -39,6 +39,7 @@ import {
   userSchema,
   userSessionSchema,
 } from './validators'
+import { changeFileSchema, changeSetSchema } from './validators/changes'
 import {
   catalogRowSchema,
   discoveryPreviewSchema,
@@ -212,6 +213,17 @@ export default defineSchema({
     .index('by_sessionId_type_status', ['sessionId', 'type', 'status'])
     .index('by_senderAvatarId', ['senderAvatarId'])
     .index('by_sender_status', ['sender.type', 'sender.id', 'status']),
+
+  changeSets: defineTable(changeSetSchema)
+    .index('by_streamId', ['streamId'])
+    .index('by_groupId', ['groupId'])
+    .index('by_sessionId', ['sessionId'])
+    .index('by_messageId_version', ['messageId', 'version']),
+
+  changeFiles: defineTable(changeFileSchema)
+    .index('by_changeSetId', ['changeSetId'])
+    .index('by_changeSetId_key', ['changeSetId', 'file.key'])
+    .index('by_sessionId', ['sessionId']),
 
   messageContents: defineTable(messageContentSchema)
     .index('by_messageId_version_segment', ['messageId', 'version', 'segmentIndex'])

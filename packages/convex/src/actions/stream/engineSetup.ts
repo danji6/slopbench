@@ -67,6 +67,18 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
     minRole(data.invoker.role, 'admin')
   const defaultShell = needsShell ? await sidecarDefaultShell() : undefined
 
+  const capturesFiles =
+    invokesTools &&
+    !!data.session.workspace &&
+    minRole(data.invoker.role, 'admin') &&
+    chosen.some((name) =>
+      ['write_file', 'edit_file', 'shell', 'task'].includes(name),
+    )
+  if (capturesFiles) {
+    const { prepareChanges } = await import('../session/changes')
+    if (!(await prepareChanges(ctx, execution, data))) return null
+  }
+
   const availability = await prepareToolAvailability(ctx, data)
   const operationPlan = createOperationPlan(data, defaultShell, availability)
 

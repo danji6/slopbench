@@ -4,6 +4,20 @@ import { open } from 'node:fs/promises'
 const SNAPSHOT_READ_BYTES = 8 * 1024 * 1024
 
 export async function readEditSnapshot(filename: string): Promise<string> {
+  return (await readEditBytes(filename)).toString('utf8')
+}
+
+/** Reads an edit baseline, treating only a missing file as absent. */
+export async function readOptionalEditSnapshot(filename: string) {
+  try {
+    return await readEditSnapshot(filename)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return undefined
+    throw error
+  }
+}
+
+export async function readEditBytes(filename: string): Promise<Buffer> {
   const file = await open(filename, 'r')
   try {
     const info = await file.stat()
@@ -22,7 +36,7 @@ export async function readEditSnapshot(filename: string): Promise<string> {
     if (bytesRead > info.size || bytesRead > SNAPSHOT_READ_BYTES)
       throw new Error('File grew beyond the edit-preview read budget')
 
-    return buffer.subarray(0, bytesRead).toString('utf8')
+    return buffer.subarray(0, bytesRead)
   } finally {
     await file.close()
   }

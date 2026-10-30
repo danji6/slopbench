@@ -20,6 +20,7 @@ import {
 import { verifySkillUpload } from './agent-files/upload'
 import { verifyLibrary } from './agent-files/verify-library'
 import { sidecarAuthentication } from './auth'
+import { checkpointRoutes } from './checkpoints/routes'
 import { messageSchema, promptsSchema } from './eval/schemas'
 import { evaluateMessage, evaluatePrompts } from './eval/service'
 import { ioError, sidecarError } from './http-errors'
@@ -51,8 +52,6 @@ import {
   previewWorkspaceDiff,
   readWorkspaceFileLink,
   readWorkspaceFileLinkSchema,
-  restoreCheckpointSchema,
-  restoreLatestCheckpoint,
 } from './mcp/workspace'
 import {
   lockSchema,
@@ -83,6 +82,7 @@ import {
   startShell,
   streamShell,
 } from './shell/handlers'
+import { killAllShellJobs } from './shell/registry'
 import { updateStatus } from './update/status'
 
 const PORT = Number(process.env.MCP_PORT ?? 3212)
@@ -92,6 +92,7 @@ export function createApp(authenticate: MiddlewareHandler) {
   app.get('/health', (c) => c.json({ ready: true }))
   app.use('*', authenticate)
   app.route('/integrations', integrationRoutes())
+  app.route('/checkpoints', checkpointRoutes)
 
   app.post('/providers/chatgpt/prepare-transfer', prepareChatGPTTransfer)
   app.post('/providers/chatgpt/start', startChatGPTSignIn)
@@ -286,15 +287,6 @@ export function createApp(authenticate: MiddlewareHandler) {
     }
   })
 
-  app.post('/workspace/restore-latest', async (c) => {
-    try {
-      const input = restoreCheckpointSchema.parse(await c.req.json())
-      return c.json(await restoreLatestCheckpoint(input))
-    } catch (err: unknown) {
-      return ioError(c, err)
-    }
-  })
-
   app.post('/workspace/preview-diff', async (c) => {
     try {
       const input = previewDiffSchema.parse(await c.req.json())
@@ -317,6 +309,7 @@ if (import.meta.main) {
     process.on(signal, () => {
       if (shuttingDown) return
       shuttingDown = true
+      killAllShellJobs()
       void mcpRegistry
         .close()
         .then(drainMcpOperations)
