@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 
 import { ChangesFixture } from './changes-fixture'
 import { CheckboxFixture } from './checkbox-fixture'
+import { CodeFixture } from './code-fixture'
 import { IntegrationsFixture } from './integrations-fixture'
 import { McpCatalogFixture } from './mcp-catalog-fixture'
 import { McpProtocolFixture } from './mcp-protocol-fixture'
@@ -143,7 +144,9 @@ function PreviewFixture() {
 }
 
 createRoot(document.getElementById('root')!).render(
-  new URLSearchParams(location.search).get('fixture') ===
+  new URLSearchParams(location.search).get('fixture') === 'code' ? (
+    <CodeFixture />
+  ) : new URLSearchParams(location.search).get('fixture') ===
     'message-pagination' ? (
     <Suspense fallback={<p>Loading pagination…</p>}>
       <MessagePaginationFixture />

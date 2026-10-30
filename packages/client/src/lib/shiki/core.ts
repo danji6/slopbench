@@ -1,11 +1,13 @@
 import flourite from 'flourite'
 import {
+  type DecorationItem,
   type Highlighter,
   type ShikiTransformer,
   createHighlighter,
 } from 'shiki'
 
 import { type ParsedDiffLine, diffGutters, parseDiffLines } from './diff'
+import { gutterElement, gutterTransformer } from './gutter'
 import { theme, themeName } from './theme'
 
 let highlighter: Highlighter | null = null
@@ -111,6 +113,7 @@ export async function runHighlighter(code: string, lang?: string) {
       lang: resolveLang(hl, code, lang),
       theme: themeName,
       defaultColor: false,
+      transformers: [gutterTransformer],
     })
   } catch (e) {
     console.warn(e)
@@ -118,6 +121,7 @@ export async function runHighlighter(code: string, lang?: string) {
       lang: 'text',
       theme: themeName,
       defaultColor: false,
+      transformers: [gutterTransformer],
     })
   }
 }
@@ -130,6 +134,7 @@ function diffTransformer(
     name: 'diff-lines',
     pre(node) {
       this.addClassToHast(node, 'shiki-diff')
+      node.properties.style += `;--code-gutter-chars:${gutters[0]?.length ?? 1}`
     },
     line(node, line) {
       const info = lines[line - 1]
@@ -138,6 +143,7 @@ function diffTransformer(
       else if (info.type === 'remove') this.addClassToHast(node, 'diff-remove')
       else if (info.type === 'meta') this.addClassToHast(node, 'diff-meta')
       node.properties['data-gutter'] = gutters[line - 1] ?? ''
+      node.children.unshift(gutterElement(gutters[line - 1]))
       return node
     },
   }
@@ -148,11 +154,21 @@ export async function runDiffHighlighter(diff: string, lang?: string) {
 
   const { code, lines, hasHunks } = parseDiffLines(diff)
   const gutters = diffGutters(lines, hasHunks)
+
+  const decorations: DecorationItem[] = lines.flatMap((line, index) =>
+    (line.changes ?? []).map((range) => ({
+      start: { line: index, character: range.start },
+      end: { line: index, character: range.end },
+      properties: { class: 'diff-change' },
+    })),
+  )
+
   const render = (resolved: string) =>
     hl.codeToHtml(code, {
       lang: resolved,
       theme: themeName,
       defaultColor: false,
+      decorations,
       transformers: [diffTransformer(lines, gutters)],
     })
 

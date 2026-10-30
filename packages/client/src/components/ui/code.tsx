@@ -1,8 +1,9 @@
 import { useCode } from '@/hooks/code'
 import { useDebouncedState } from '@/hooks/debounce'
 import { diffGutters, parseDiffLines } from '@/lib/shiki/diff'
+import { diffTextParts } from '@/lib/shiki/intraline'
 import { cn } from '@/lib/utils'
-import { Fragment, useEffect } from 'react'
+import { Fragment, useEffect, useMemo } from 'react'
 
 import { CopyButton } from './copy-button'
 import { LoadingIndicator } from './loading-indicator'
@@ -171,11 +172,23 @@ export function PlainCode({
   text: string
   diff?: boolean
 }) {
-  const parsed = diff ? parseDiffLines(text) : undefined
+  const parsed = useMemo(
+    () => (diff ? parseDiffLines(text) : undefined),
+    [diff, text],
+  )
   const lines = (parsed?.code ?? text).split('\n')
   const gutters = parsed ? diffGutters(parsed.lines, parsed.hasHunks) : []
   return (
-    <pre className={cn('shiki', diff && 'shiki-diff')}>
+    <pre
+      className={cn('shiki', diff && 'shiki-diff')}
+      style={
+        diff
+          ? ({
+              '--code-gutter-chars': gutters[0]?.length ?? 1,
+            } as React.CSSProperties)
+          : undefined
+      }
+    >
       <code>
         {lines.map((line, index) => {
           const type = parsed?.lines[index]?.type
@@ -188,7 +201,23 @@ export function PlainCode({
                 )}
                 data-gutter={diff ? gutters[index] : undefined}
               >
-                {line}
+                <span
+                  className="code-gutter"
+                  aria-hidden="true"
+                  data-gutter={diff ? gutters[index] : undefined}
+                />
+                {diff
+                  ? diffTextParts(line, parsed?.lines[index]?.changes).map(
+                      (part, index) =>
+                        part.changed ? (
+                          <span key={index} className="diff-change">
+                            {part.text}
+                          </span>
+                        ) : (
+                          part.text
+                        ),
+                    )
+                  : line}
               </span>
               {index < lines.length - 1 ? '\n' : null}
             </Fragment>

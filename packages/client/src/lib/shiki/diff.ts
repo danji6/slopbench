@@ -1,9 +1,12 @@
+import { type TextRange, intralineRanges } from './intraline'
+
 export type DiffLineType = 'add' | 'remove' | 'context' | 'meta'
 
 export type ParsedDiffLine = {
   type: DiffLineType
   oldNo: number | null
   newNo: number | null
+  changes?: TextRange[]
 }
 
 export type ParsedDiff = {
@@ -58,6 +61,13 @@ export function parseDiffLines(diff: string): ParsedDiff {
     }
   }
 
+  const ranges = intralineRanges(
+    code,
+    lines.map((line) => line.type),
+  )
+  for (const [index, line] of lines.entries()) {
+    if (ranges[index].length) line.changes = ranges[index]
+  }
   return { code: code.join('\n'), lines, hasHunks }
 }
 

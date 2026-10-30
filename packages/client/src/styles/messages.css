@@ -78,45 +78,99 @@
   animation: text-shimmer 3s linear infinite;
 }
 
-/* --- Diff line highlighting --- */
-.shiki-diff code {
+/* --- Sticky code gutters --- */
+.shiki .code-gutter {
+  display: none;
+}
+
+.shiki-diff code,
+.shiki-numbered .shiki code {
   display: inline-block;
   min-width: 100%;
 }
 
-.shiki-diff .line {
+.shiki-diff .line,
+.shiki-numbered .shiki .line {
+  --code-gutter-width: calc(var(--code-gutter-chars, 2) * 1ch + 2rem + 1px);
   display: inline-block;
+  vertical-align: top;
   min-width: 100%;
+  min-height: 1lh;
+  box-sizing: border-box;
+  padding-left: var(--code-gutter-width);
 }
 
-.shiki-diff .line::before {
-  content: attr(data-gutter);
-  white-space: pre;
+.shiki-diff .code-gutter,
+.shiki-numbered .shiki .code-gutter {
+  position: sticky;
+  left: 0;
+  z-index: 1;
   display: inline-block;
+  box-sizing: content-box;
+  width: calc(var(--code-gutter-chars, 2) * 1ch);
+  margin-left: calc(-1 * var(--code-gutter-width));
   margin-right: 1rem;
   padding-right: 1rem;
-  text-align: right;
-  color: var(--base-muted-foreground);
   border-right: 1px solid var(--base-border);
+  vertical-align: top;
+  text-align: right;
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+  color: var(--base-muted-foreground);
+  background-color: var(--surface-container-low);
   user-select: none;
   -webkit-user-select: none;
 }
 
+/* Cover the scroll surface's leading padding as code passes behind it. */
+.shiki .code-gutter::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -2rem;
+  width: 2rem;
+  background-color: inherit;
+}
+
+/* --- Diff line and word highlighting --- */
+.shiki-diff .code-gutter::before {
+  content: attr(data-gutter);
+}
+
 .shiki-diff .line.diff-add {
-  background-color: color-mix(in oklab, #22c55e 16%, transparent);
+  --diff-accent: #22c55e;
 }
 
 .shiki-diff .line.diff-remove {
-  background-color: color-mix(in oklab, #ef4444 16%, transparent);
+  --diff-accent: #ef4444;
+}
+
+.shiki-diff :is(.diff-add, .diff-remove) {
+  background-color: color-mix(in oklab, var(--diff-accent) 16%, transparent);
+}
+
+.shiki-diff :is(.diff-add, .diff-remove) .code-gutter {
+  background-color: color-mix(
+    in oklab,
+    var(--diff-accent) 16%,
+    var(--surface-container-low)
+  );
+}
+
+.shiki-diff .diff-change {
+  border-radius: 2px;
+  background-color: color-mix(in oklab, var(--diff-accent) 35%, transparent);
 }
 
 .shiki-diff .line.diff-meta {
   color: var(--base-muted-foreground);
 }
 
-/* --- Line number gutter --- */
-.shiki-numbered .shiki {
-  position: relative;
+/* --- Line numbers --- */
+.shiki-numbered .shiki:not(.shiki-diff) {
+  --code-gutter-chars: var(--line-number-digits, 2);
 }
 
 .shiki-numbered pre {
@@ -124,54 +178,16 @@
   line-height: calc(var(--spacing) * 4.5);
 }
 
-.shiki-numbered .shiki::before {
-  content: '';
-  position: absolute;
-  z-index: 1;
-  top: 0;
-  bottom: 0;
-  left: calc(var(--line-number-digits, 2) * 1ch + 1rem);
-  border-left: 1px solid var(--base-border);
-  pointer-events: none;
-}
-
 .shiki-numbered .shiki code {
   counter-reset: step;
-  counter-increment: step 0;
-  display: inline-block;
-  min-width: 100%;
 }
 
-.shiki-numbered .shiki .line::before {
+.shiki-numbered .shiki:not(.shiki-diff) .code-gutter::before {
   content: counter(step);
   counter-increment: step;
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: block;
-  box-sizing: content-box;
-  width: calc(var(--line-number-digits, 2) * 1ch);
-  padding-right: 1rem;
-  text-align: right;
-  white-space: pre;
-  overflow-wrap: normal;
-  word-break: normal;
-  color: var(--base-muted-foreground);
-  user-select: none;
-  -webkit-user-select: none;
 }
 
 /* Remove numbering from Shiki's empty trailing line. */
-.shiki-numbered .shiki .line:last-child:empty::before {
+.shiki-numbered .shiki .line:last-child > .code-gutter:only-child::before {
   content: none;
-}
-
-.shiki-numbered .shiki .line {
-  position: relative;
-  display: inline-block;
-  vertical-align: top;
-  min-width: 100%;
-  min-height: 1lh;
-  box-sizing: border-box;
-  padding-left: calc(var(--line-number-digits, 2) * 1ch + 2rem);
 }

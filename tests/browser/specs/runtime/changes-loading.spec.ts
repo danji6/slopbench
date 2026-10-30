@@ -78,11 +78,12 @@ test('expands to newly loaded content smoothly and renders diff markers before s
         (element) => getComputedStyle(element).backgroundColor,
       ),
     ).not.toMatch(/^(transparent|rgba\(0, 0, 0, 0\))$/)
-    await expect(added.locator('span')).toHaveCount(0)
+    await expect(added.locator('.diff-change')).toHaveText('after')
+    await expect(added.locator('span[style]')).toHaveCount(0)
     const surface = panel.locator('[data-slot="code-surface"]')
     const before = (await surface.boundingBox())!.height
     resumeWorker()
-    await expect(added.locator('span')).not.toHaveCount(0)
+    await expect(added.locator('span[style]')).not.toHaveCount(0)
     expect((await surface.boundingBox())!.height).toBeCloseTo(before, 0)
   } finally {
     resumeWorker()
