@@ -21,8 +21,8 @@ export function ShellSettings({
         label={override ? <OverrideLabel>{label}</OverrideLabel> : label}
         description={
           override
-            ? 'A program name or a path. Empty uses your own setting.'
-            : 'A program name or a path. Empty uses the system default.'
+            ? 'A program name or a path. Leave empty to use your own setting.'
+            : 'A program name or a path. Leave empty to use the system default.'
         }
         help={md`
           Configure this when you want to use a different shell than the system's

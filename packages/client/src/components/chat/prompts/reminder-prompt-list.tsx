@@ -218,7 +218,7 @@ export function ReminderPromptList({
         open={!!deleteId}
         onOpenChange={(v) => !v && setDeleteId(null)}
         title="Delete reminder?"
-        description="Already injected reminders stay in their sessions. This cannot be undone."
+        description="Reminders already added to conversations stay in their sessions. This cannot be undone."
         confirmText="Delete"
         variant="destructive"
         onConfirm={() => deleteId && handleDelete(deleteId)}

@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
 import { CollapsibleBlock } from '../collapsible-block'
 import type { CollapsibleBlockProps } from '../collapsible-block'
 import { useMessageList } from '../message-list/message-list-context'
+import { ToolIcon } from './tool-icon'
 
 const openStates = new Map<string, boolean>()
 const openListeners = new Set<() => void>()
@@ -41,6 +42,7 @@ export function ToolShell({
   messageId,
   forceError,
   label,
+  leadingIcon = <ToolIcon name={part.type.slice(5)} />,
   actions,
   footer,
   collapsible = true,
@@ -83,6 +85,7 @@ export function ToolShell({
       surface={surface}
       dense={dense}
       className={className}
+      leadingIcon={leadingIcon}
       label={label}
       actions={actions}
       footer={footer}

@@ -154,9 +154,8 @@ export function ProviderBaseURLField({
         <HelpPopoverLabel
           className="text-muted-foreground text-sm"
           help={md`
-            When picking a custom provider, the system treats it
-            as OpenAI-compatible. Add '/responses' at the end of
-            the URL to use the responses API.
+            The system treats custom providers as OpenAI-compatible.
+            Add '/responses' to the end of the URL to use the Responses API.
           `}
         >
           Base URL <span className="opacity-60">(required)</span>

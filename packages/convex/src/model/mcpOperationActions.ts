@@ -272,7 +272,7 @@ export async function settle(
   await ctx.runMutation(internal.mcpOperations._acknowledged, { operationId })
 }
 
-/** Settles pending MCP results before the next model step or stream handoff. */
+/** Settles recovered MCP results and interjections before the next model step. */
 export async function resumeOperations(
   ctx: ActionCtx,
   execution: StreamExecutionArgs,
@@ -282,6 +282,7 @@ export async function resumeOperations(
     internal.mcpOperations._pending,
     execution,
   )
+  if (!operations.length) return true
 
   for (const operation of operations) {
     const result = await waitForOperation(ctx, execution, operation._id, { deadlineAt }) // prettier-ignore
@@ -293,7 +294,8 @@ export async function resumeOperations(
     await settle(ctx, { operationId: operation._id }).catch(() => {})
   }
 
-  return true
+  // Claiming could not consume messages while these results were undelivered
+  return ctx.runMutation(internal.streams._continue, execution)
 }
 
 export async function operationOutput(ctx: ActionCtx, operation: Operation) {

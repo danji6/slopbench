@@ -193,6 +193,7 @@ export function ShellBlock({
       surface={hasTerminal}
       noErrorText={hasTerminal || Boolean(fallbackText)}
       dense={dense}
+      leadingIcon={null}
       label={
         <ShellLabel
           input={input}

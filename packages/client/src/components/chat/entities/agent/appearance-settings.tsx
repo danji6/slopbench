@@ -76,15 +76,12 @@ export function AppearanceSettings({
             orientation="vertical"
             label="Custom CSS"
             help={md`
-              These override the global CSS rules, on every message of the
+              These rules override the global CSS rules for every message in the
               conversation:
 
               - AI messages: \`.ai\`
               - User messages: \`.user\`
               - System messages: \`.sys\`
-
-              Note that to allow every identity to have their own styling, the
-              CSS is snapshotted on each message this agent sends.
             `}
           >
             <CodeEditor

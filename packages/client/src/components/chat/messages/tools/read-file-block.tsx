@@ -1,9 +1,9 @@
 import { getToolErrorText, getToolStatus } from '@/lib/chat'
 import { cn } from '@/lib/utils'
 import type { ToolUIPart } from 'ai'
-import { FileTextIcon } from 'lucide-react'
 
 import { CollapsibleBlock } from '../collapsible-block'
+import { ToolIcon } from './tool-icon'
 
 type ReadFileInput = {
   path?: string
@@ -32,7 +32,7 @@ export function ReadFileBlock({
     <CollapsibleBlock
       data-slot="read-file-block"
       collapsible={false}
-      leadingIcon={<FileTextIcon className="size-3.5 shrink-0" />}
+      leadingIcon={<ToolIcon name="read_file" />}
       label={label}
     >
       <ul className="before:bg-border relative ml-4 flex flex-col gap-1 pb-2.5 pl-3 before:absolute before:top-0 before:left-0 before:h-2 before:w-px">

@@ -175,7 +175,9 @@ export function AgentHomeSettings({ agentId }: { agentId: Id<'agents'> }) {
         open={!!destination}
         onOpenChange={(open) => !open && setDestination(undefined)}
         title="Change personal folder?"
-        description="Carry over copies files and preserves the original folder. Change only keeps existing destination files and adds clean copies of assigned skills. Selecting a registered home adopts its files and skills without copying."
+        description={
+          '"Carry over" copies files and preserves the original folder. "Change only" keeps existing destination files and adds clean copies of assigned skills. Selecting a registered home adopts its files and skills without copying.'
+        }
         confirmText="Carry over"
         onConfirm={() => change(true)}
         extraAction={{

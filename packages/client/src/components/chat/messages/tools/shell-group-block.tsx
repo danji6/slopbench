@@ -1,11 +1,11 @@
 import { createOptionalContext } from '@/hooks'
 import { isToolInFlight } from '@/lib/chat'
 import type { ToolUIPart } from 'ai'
-import { SquareTerminalIcon } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 
 import { CollapsibleBlock } from '../collapsible-block'
 import { ShellBlock } from './shell-block'
+import { ToolIcon } from './tool-icon'
 
 export type ShellGroupState = {
   reportRunning: (id: string, running: boolean) => void
@@ -48,7 +48,7 @@ export function ShellGroupBlock({
         data-slot="shell-group"
         collapsible={false}
         fullWidth
-        leadingIcon={<SquareTerminalIcon className="size-3.5 shrink-0" />}
+        leadingIcon={<ToolIcon name="shell" />}
         label={
           <>
             {inFlight ? 'Running' : 'Ran'}{' '}

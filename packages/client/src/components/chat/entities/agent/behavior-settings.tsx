@@ -42,9 +42,9 @@ export function BehaviorGeneralSettings({
         orientation="vertical"
         label="Reminders"
         help={md`
-          Reminders are injected into the conversation at intervals. Add
-          reminders of this agent's own, or pull ones from your library.
-          Library reminders are edited in your user settings.
+          Reminders are added to the conversation at intervals measured in
+          agent steps (a turn can contain multiple steps). Add reminders for
+          this agent or choose reminders from your library.
         `}
       >
         <AgentReminderList control={control} />

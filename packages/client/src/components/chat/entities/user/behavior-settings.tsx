@@ -2,6 +2,7 @@ import {
   OperationPromptList,
   ReminderPromptList,
 } from '@/components/chat/prompts'
+import { md } from '@/components/markdown'
 import { SettingsList } from '@/components/ui'
 import {
   createDefaultCompactionPrompts,
@@ -47,7 +48,7 @@ export function BehaviorSettings({ control }: BehaviorSettingsProps) {
             label="Scroll mode"
             description={
               field.value === 'follow'
-                ? 'Auto scroll to follow the response as it streams in.'
+                ? 'Automatically scroll to follow the response as it streams in.'
                 : 'Scroll the response into view to fill the viewport.'
             }
             value={field.value}
@@ -98,6 +99,11 @@ export function BehaviorSettings({ control }: BehaviorSettingsProps) {
         orientation="vertical"
         label="Prompt library"
         description="A library of prompts that can be reused across agents."
+        help={md`
+          Prompts tell agents how to behave and respond. Save reusable
+          instructions here and add them to an agent from its prompts list.
+          Editing a library prompt updates it for every agent using it.
+        `}
       >
         <Controller
           control={control}
@@ -117,6 +123,11 @@ export function BehaviorSettings({ control }: BehaviorSettingsProps) {
         orientation="vertical"
         label="Reminder library"
         description="A library of reminders that can be reused across agents."
+        help={md`
+          Reminders repeat instructions in the conversation to help an agent
+          stay on track. Each reminder is added after a configured number of
+          agent steps.
+        `}
       >
         <Controller
           control={control}

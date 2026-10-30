@@ -8,7 +8,11 @@ import * as Cleanup from '@sb/convex/model/mcpCleanup'
 import * as Operations from '@sb/convex/model/mcpOperations'
 import { connected, updateStatus } from '@sb/convex/model/mcpRuntime'
 import { getApprovals } from '@sb/convex/model/session/state'
-import { _heartbeat, _patchMessage } from '@sb/convex/model/stream/lifecycle'
+import {
+  _continue,
+  _heartbeat,
+  _patchMessage,
+} from '@sb/convex/model/stream/lifecycle'
 import { _trackOffloadedOutput } from '@sb/convex/model/stream/lifecycleCleanup'
 import { trackStreamOutputArgsValidator } from '@sb/convex/validators/streams'
 import { mcpConnectionSchema } from '@sb/core/types'
@@ -55,6 +59,7 @@ export async function mcpBackendFixture(fixture?: URL) {
     selectedVersion: 1,
     versionCount: 1,
     role: 'assistant',
+    sender: { type: 'agent', id: agentId },
     status: 'processing',
   })) as Id<'messages'>
   const contentId = (await db.insert('messageContents', {
@@ -135,6 +140,7 @@ export async function mcpBackendFixture(fixture?: URL) {
     _unsettled: Operations.unsettled,
   }
   const mutationHandlers = {
+    _continue,
     _getExecution,
     _connected: connected,
     _updateRuntimeStatus: updateStatus,

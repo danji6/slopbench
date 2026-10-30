@@ -12,8 +12,10 @@ import {
 } from '@sb/convex/model/mcpOperationActions'
 import { pending, reserve } from '@sb/convex/model/mcpOperations'
 import { connected } from '@sb/convex/model/mcpRuntime'
-import { _claim, _handoff } from '@sb/convex/model/stream/lifecycle'
+import { insertMessage } from '@sb/convex/model/messageContents'
+import { _claim, _continue, _handoff } from '@sb/convex/model/stream/lifecycle'
 import { cleanUpOffloadedOutputs } from '@sb/convex/model/stream/lifecycleCleanup'
+import { _getProviderHistory } from '@sb/convex/model/stream/reads'
 import { createExternalMcpTool } from '@sb/convex/model/tool/mcp'
 import { sidecarAuthentication } from '@sb/sidecar/auth'
 import { mcpOperationRoutes } from '@sb/sidecar/mcp/external/operation-routes'
@@ -93,7 +95,7 @@ function model(input: string) {
   })
 }
 
-test('accelerated engine window detaches and resumes one invocation across a real stream handoff and lost start response', async () => {
+test('handoff recovers one invocation after response loss and consumes user messages before continuation', async () => {
   const f = await fixture('start')
   const dispatchFile = path.join(f.sidecar.root, 'dispatches')
   const input = JSON.stringify({
@@ -157,6 +159,22 @@ test('accelerated engine window detaches and resumes one invocation across a rea
   expect(await _handoff(f.ctx, f.execution)).toBe(true)
   const next = { ...f.execution, generation: 2 }
   expect(await _claim(f.ctx, next)).not.toBeNull()
+  await f.db.patch(next.streamId, { contextBoundaryCreationTime: 0 })
+  const { messageId: interjectionId } = await insertMessage(
+    f.ctx,
+    {
+      sessionId: f.sessionId,
+      sender: { type: 'user', id: 'owner' as never },
+      role: 'user',
+      status: 'done',
+    },
+    [{ type: 'text', text: 'Change direction before continuing.' }],
+  )
+  // Undelivered tool output must keep its original processing message.
+  expect(await _continue(f.ctx, next)).toBe(true)
+  expect((await f.db.get(next.streamId))?.state).toMatchObject({
+    processingMessageId: f.messageId,
+  })
   expect(await resumeOperations(f.action, next, Date.now() + 3000)).toBe(true)
   expect(await readFile(dispatchFile, 'utf8')).toBe('1\n')
   expect(
@@ -177,6 +195,19 @@ test('accelerated engine window detaches and resumes one invocation across a rea
     },
   ])
   expect(await pending(f.ctx, next)).toEqual([])
+  const history = await _getProviderHistory(f.ctx, next)
+  expect(history.map((message) => message._id)).toContain(interjectionId)
+  expect(
+    history.find((message) => message._id === f.messageId)?.parts,
+  ).toContainEqual(
+    expect.objectContaining({
+      type: 'tool-local_work',
+      state: 'output-available',
+    }),
+  )
+  expect((await f.db.get(next.streamId))?.contextBoundaryMessageId).toBe(
+    interjectionId,
+  )
 }, 10_000)
 
 test('lost result response preserves full output and serves completed backend retries', async () => {

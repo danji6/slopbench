@@ -5,7 +5,8 @@ import {
   ATTACHMENT_READ_MAX_BYTES,
 } from '@sb/core/const'
 import type { ToolUIPart } from 'ai'
-import { FileTextIcon } from 'lucide-react'
+
+import { ToolIcon } from './tool-icon'
 
 type ReadAttachmentInput = { offset?: number; limit?: number }
 
@@ -52,7 +53,7 @@ function AttachmentReadRow({
       data-tool-call-id={part.toolCallId}
       className="flex min-h-7 w-fit max-w-full flex-wrap items-center gap-x-2 px-2.5 text-xs"
     >
-      <FileTextIcon className="text-muted-foreground size-3.5 shrink-0" />
+      <ToolIcon name="read_attachment" />
       <span
         className={cn('text-foreground font-medium', running && 'text-shimmer')}
       >
