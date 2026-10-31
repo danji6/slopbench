@@ -39,8 +39,12 @@ export async function page(ctx: AuthQueryCtx, args: FolderPageArgs) {
       : ctx.db.normalizeId('sessionFolders', args.groupKey)
   if (parentId === null) error('Folder not found', 404)
 
-  if (parentId && !(await get(ctx, { folderId: parentId })))
-    error('Folder not found', 404)
+  if (parentId) {
+    const parent = await ctx.db.get(parentId)
+    // Subscriptions can rerun after deletion, before the client unmounts them.
+    if (!parent) return { page: [], isDone: true, continueCursor: '' }
+    if (parent.ownerId !== ctx.userId) error('Folder not found', 404)
+  }
 
   const folders = ctx.db.query('sessionFolders')
   const query = pinned

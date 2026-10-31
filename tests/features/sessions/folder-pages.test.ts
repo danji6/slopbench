@@ -95,7 +95,47 @@ test('child and pinned pages resolve ancestry independently of loaded root pages
   })
 })
 
-test('direct lookups and child listing enforce ownership and tolerate deleted selections', async () => {
+test.each(['folder-0', 'child'])(
+  'folder pages finish without errors after deleting an expanded folder (%s)',
+  async (groupKey) => {
+    const { ctx, folders } = fixture()
+    folders.push(
+      ...Array.from({ length: 2 }, (_, index) => ({
+        _id: `extra-${index}`,
+        ownerId: 'user_1',
+        name: `Extra ${index}`,
+        parentId: groupKey,
+        position: index + 2,
+        sources: [],
+        revision: 0,
+      })),
+    )
+    const first = await page(ctx, {
+      groupKey,
+      paginationOpts: { numItems: 1, cursor: null },
+    })
+    expect(first.page).toHaveLength(1)
+    expect(first.isDone).toBe(false)
+
+    for (let index = folders.length - 1; index >= 0; index--) {
+      const folder = folders[index]!
+      if (folder._id === groupKey || folder.parentId === groupKey) {
+        folders.splice(index, 1)
+      }
+    }
+
+    for (const cursor of [null, first.continueCursor]) {
+      expect(
+        await page(ctx, {
+          groupKey,
+          paginationOpts: { numItems: 1, cursor },
+        }),
+      ).toEqual({ page: [], isDone: true, continueCursor: '' })
+    }
+  },
+)
+
+test('direct lookups tolerate deleted selections and folder pages enforce ownership', async () => {
   const { ctx } = fixture()
   expect(await get(ctx, { folderId: 'foreign' as never })).toBeNull()
   expect(await get(ctx, { folderId: 'deleted' as never })).toBeNull()
