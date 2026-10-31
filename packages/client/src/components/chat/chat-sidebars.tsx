@@ -138,7 +138,7 @@ function RightSidebar() {
           </Sidebar.Content>
           <Sidebar.Footer className="items-center">
             {canSearch && (
-              <QuickTooltip text="Search" side="left">
+              <QuickTooltip text="Search (Ctrl+Shift+F)" side="left">
                 <SearchHistoryButton collapsed />
               </QuickTooltip>
             )}
