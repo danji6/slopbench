@@ -1,3 +1,10 @@
+import { buildApprovalActions } from '@/lib/chat/tool-approval-policy'
+import { attachApprovalPreviews } from '@sb/convex/actions/stream/engineApproval'
+import { alwaysLabel, approvalHold } from '@sb/convex/lib/tool/approvalPolicy'
+import { rememberApproval } from '@sb/convex/model/chat/approvalMemory'
+import { patchToolApproval } from '@sb/convex/model/chat/approvals'
+import { getSessionWithWorkspace } from '@sb/convex/model/session/folderContext'
+import { getApprovals } from '@sb/convex/model/session/state'
 import type { WorkspaceToolContext } from '@sb/convex/model/tool/context'
 import {
   createEditFileTool,
@@ -19,6 +26,7 @@ import {
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { ZodType } from 'zod'
+import { skillsDatabase } from '~/tests/helpers/skills-db'
 
 let root: string
 let project: string
@@ -134,3 +142,96 @@ test('unrestricted file execution reaches external files without a saved path gr
     approvals = {}
   }
 })
+
+async function sessionApprovalFixture() {
+  const database = skillsDatabase()
+  await database.db.insert('sessionFolders', {
+    _id: context.workspaceId,
+    ownerId: 'owner',
+    name: 'Project',
+    revision: 0,
+    sources: context.workspace!.sources,
+  })
+  await database.db.insert('sessions', {
+    _id: context.sessionId,
+    ownerId: 'owner',
+    folderId: context.workspaceId,
+  })
+  const session = await getSessionWithWorkspace(database.ctx, context.sessionId)
+  const liveApprovals = () => getApprovals(database.ctx, context.sessionId)
+  return {
+    ...database,
+    session: session!,
+    liveApprovals,
+    toolContext: { ...context, approvals: liveApprovals },
+  }
+}
+
+test.each(['read_file', 'write_file', 'edit_file', 'shell'])(
+  '%s session approval remembers the external path without broadening access',
+  async (toolName) => {
+    const fixture = await sessionApprovalFixture()
+    const folderApproval = toolName === 'shell'
+    const input = folderApproval
+      ? { command: 'ls', cwd: outside }
+      : { path: 'external/note' }
+    const grant = folderApproval ? outside : path.join(outside, 'note')
+    const unapprovedPath = folderApproval
+      ? path.join(root, 'outside-sibling', 'note')
+      : path.join(outside, 'sibling')
+    const setup = {
+      stream: { sessionId: context.sessionId },
+      workspaceSessionId: context.sessionId,
+      workspace: context.workspace,
+      agent: {},
+    } as Parameters<typeof attachApprovalPreviews>[1]
+    const action = {
+      runQuery: fixture.liveApprovals,
+    } as unknown as Parameters<typeof attachApprovalPreviews>[0]
+    const parts = await attachApprovalPreviews(action, setup, [
+      {
+        type: `tool-${toolName}`,
+        toolCallId: options.toolCallId,
+        state: 'approval-requested',
+        approval: { id: 'file-approval' },
+        input,
+      },
+    ])
+    const request = parts[0] as (typeof parts)[number] & {
+      approvalPathStatus?: 'paths'
+      approvalPaths?: string[]
+    }
+    expect(request.approvalPaths).toEqual([grant])
+    const hold = approvalHold(toolName, input, undefined, request.approvalPathStatus) // prettier-ignore
+    const choices = buildApprovalActions(true, alwaysLabel(toolName, input, {}), hold) // prettier-ignore
+    const remembered = choices.find((choice) => choice.remember)
+    expect(remembered?.remember).toBe('paths')
+
+    const { matched } = patchToolApproval(parts, {
+      toolCallId: options.toolCallId,
+      approved: true,
+    })
+    await rememberApproval(fixture.ctx, fixture.session, matched, remembered!.remember!) // prettier-ignore
+    expect(await fixture.liveApprovals()).toEqual({
+      paths: [grant],
+    })
+    for (const tool of await Promise.all([
+      createReadFileTool(fixture.toolContext),
+      createWriteFileTool(fixture.toolContext),
+      createEditFileTool(fixture.toolContext),
+    ])) {
+      expect(await needsApproval(tool, { path: 'external/note' })).toBe(false)
+      expect(await needsApproval(tool, { path: unapprovedPath })).toBe(true)
+      if (folderApproval) {
+        expect(
+          await needsApproval(tool, { path: path.join(outside, 'new/note') }),
+        ).toBe(false)
+        expect(
+          await needsApproval(tool, {
+            path: path.join(outside, '.git/config'),
+          }),
+        ).toBe(true)
+      }
+    }
+  },
+)

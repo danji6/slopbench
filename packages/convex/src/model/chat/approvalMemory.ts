@@ -5,6 +5,7 @@ import { internal } from '../../_generated/api'
 import type { AuthMutationCtx } from '../../functions'
 import {
   analyzeShellCommand,
+  isFileTool,
   toolNamesForApproval,
 } from '../../lib/tool/approval'
 import type { RememberScope, Session } from '../../types'
@@ -79,9 +80,9 @@ async function rememberPaths(
   session: Session,
   matched: ApprovedTool,
 ) {
-  const command = (matched.input as { command?: string } | undefined)?.command
-  if (matched.toolName !== 'shell') return
-  if (!command || !session.workspace) return
+  const supportsPathGrants =
+    matched.toolName === 'shell' || isFileTool(matched.toolName)
+  if (!supportsPathGrants || !session.workspace) return
 
   if (matched.paths?.length) {
     await allowToolPaths(ctx, {
@@ -90,6 +91,10 @@ async function rememberPaths(
     })
     return
   }
+
+  if (matched.toolName !== 'shell') return
+  const command = (matched.input as { command?: string } | undefined)?.command
+  if (!command) return
 
   await ctx.scheduler.runAfter(
     0,

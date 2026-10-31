@@ -36,6 +36,24 @@ describe('approval choices', () => {
     expect(approvalHold('shell', input, 'plan')).toBe('plan')
   })
 
+  test('file session choices preserve ordinary edits and require resolved paths', () => {
+    for (const toolName of ['read_file', 'write_file', 'edit_file']) {
+      const input = { path: 'src/file.ts' }
+      const label = alwaysLabel(toolName, input, {})
+      const ordinary = approvalHold(toolName, input, undefined, null)
+      expect(
+        buildApprovalActions(true, label, ordinary).map((action) => action.id),
+      ).toContain('remember-patterns')
+
+      const unresolved = approvalHold(toolName, input, undefined, 'analysis')
+      expect(
+        buildApprovalActions(true, label, unresolved).some(
+          (action) => action.remember,
+        ),
+      ).toBe(false)
+    }
+  })
+
   test.each([
     'nl -ba src/file.ts',
     'git branch -a && git tag --sort=-creatordate | head -20',

@@ -16,6 +16,7 @@ import {
   enrollParticipant,
   overlaps,
 } from './group'
+import { hasCaptureJobs } from './jobs'
 import { recoverCaptures } from './recovery'
 import { recoverJournal, restore } from './restore'
 import { captureFile, snapshot } from './snapshot'
@@ -56,6 +57,9 @@ export class CheckpointManager {
     return this.serial(async () => {
       const requestedRoots = await captureRoots(input)
       const existing = this.groups.get(input.groupId)
+      const inheritedJobsRunning =
+        existing?.interrupted && (await hasCaptureJobs(existing))
+      if (inheritedJobsRunning) return { queued: true }
       const roots = [...new Set([...(existing?.roots ?? []), ...requestedRoots])] // prettier-ignore
       const turn = this.waiters.findIndex((waiter) => waiter.id === input.groupId) // prettier-ignore
       const earlier = this.waiters
@@ -100,6 +104,10 @@ export class CheckpointManager {
       }
       group.roots = roots
       enrollParticipant(group, input)
+      if (group.interrupted) {
+        group.interrupted = false
+        group.shellPids = []
+      }
       this.groups.set(group.id, group)
       await this.saveGroup(group)
       return { queued: false }
@@ -283,7 +291,7 @@ export class CheckpointManager {
       const group = this.groups.get(groupId)
       if (!group || group.released) return { released: true }
       const pending = group.participants.some((participant) => !participant.finished) // prettier-ignore
-      if (pending || (await this.hasJobs(group))) return { released: false }
+      if (pending || (await hasCaptureJobs(group))) return { released: false }
 
       const result = group.sealed
         ? await this.seal(group, checkpointId)
@@ -310,7 +318,7 @@ export class CheckpointManager {
 
       for (const group of this.groups.values()) {
         if (group.sessionId !== sessionId) continue
-        if (await this.hasJobs(group))
+        if (await hasCaptureJobs(group))
           throw new Error('Waiting for background jobs to stop')
         group.released = true
         await this.storage.remove('groups', group.id)
@@ -455,23 +463,11 @@ export class CheckpointManager {
     return display
   }
 
-  private async hasJobs(group: CaptureGroup) {
-    const { listShellJobs } = await import('../shell/registry')
-    return (
-      (group.shellPids ?? []).some(processAlive) ||
-      group.participants.some((participant) =>
-        listShellJobs(participant.sessionId).some(
-          (job) => job.status === 'running',
-        ),
-      )
-    )
-  }
-
   private async tryRelease(group: CaptureGroup) {
     const finished = group.participants.every(
       (participant) => participant.finished,
     )
-    if (finished && !(await this.hasJobs(group))) group.released = true
+    if (finished && !(await hasCaptureJobs(group))) group.released = true
     return group.released
   }
 
@@ -487,13 +483,4 @@ export function checkpoints() {
 
 export async function finishCheckpointJob(sessionId: string, pid?: number) {
   await manager?.finishJob(sessionId, pid)
-}
-
-function processAlive(pid: number) {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code !== 'ESRCH'
-  }
 }

@@ -342,31 +342,37 @@ describe('shared remembered approvals', () => {
     expect((await getApprovals(ctx, parentId)).paths).toBeUndefined()
   })
 
-  test('remembers paths approved for a child in the main session', async () => {
-    const { ctx, byId } = setup([
-      { ...approval('shell'), approvalPaths: ['/tmp/shared'] },
-    ])
-    byId.get(parentId)!.folderId = 'folder-1'
-    byId.set('folder-1', {
-      _id: 'folder-1',
-      ownerId: 'user_1',
-      name: 'Test',
-      revision: 0,
-      sources: [{ id: 'root', path: '/repo', label: 'repo' }],
-    })
-    await approveTool(ctx, {
-      sessionId: parentId,
-      childSessionId: childId,
-      toolCallId: 'shell',
-      approved: true,
-      remember: 'paths',
-    })
-    for (const sessionId of [parentId, childId, siblingId]) {
-      expect((await getApprovals(ctx, sessionId)).paths).toEqual([
-        '/tmp/shared',
+  test.each(['shell', 'read_file', 'write_file', 'edit_file'])(
+    'remembers %s paths approved for a child in the main session',
+    async (toolName) => {
+      const { ctx, byId } = setup([
+        {
+          ...approval('call', `tool-${toolName}`),
+          approvalPaths: ['/tmp/shared'],
+        },
       ])
-    }
-  })
+      byId.get(parentId)!.folderId = 'folder-1'
+      byId.set('folder-1', {
+        _id: 'folder-1',
+        ownerId: 'user_1',
+        name: 'Test',
+        revision: 0,
+        sources: [{ id: 'root', path: '/repo', label: 'repo' }],
+      })
+      await approveTool(ctx, {
+        sessionId: parentId,
+        childSessionId: childId,
+        toolCallId: 'call',
+        approved: true,
+        remember: 'paths',
+      })
+      for (const sessionId of [parentId, childId, siblingId]) {
+        expect((await getApprovals(ctx, sessionId)).paths).toEqual([
+          '/tmp/shared',
+        ])
+      }
+    },
+  )
 
   test('one-time approval leaves the shared policy and other requests untouched', async () => {
     const { ctx, byId } = setup([approval('shell')])

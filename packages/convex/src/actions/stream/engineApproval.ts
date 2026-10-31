@@ -1,7 +1,10 @@
 'use node'
 
 import type { FolderWorkspace } from '@sb/core/types/workspace'
-import { pathApprovalStatus } from '@sb/core/workspace/path-policy'
+import {
+  type PathCheckResult,
+  pathApprovalStatus,
+} from '@sb/core/workspace/path-policy'
 import type { UIMessage } from 'ai'
 
 import { internal } from '../../_generated/api'
@@ -9,6 +12,7 @@ import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import {
   analyzeShellPathCandidates,
+  isFileTool,
   mergeToolApprovals,
 } from '../../lib/tool/approval'
 import { postSidecar } from '../../model/sidecar'
@@ -37,7 +41,7 @@ export type ApprovalContext = {
 
 /**
  * Attach what an approval request needs beyond its input: a simulated diff for
- * file mutations, and the sensitive paths a shell command references.
+ * file mutations, and resolved paths for file and shell access.
  */
 export async function attachApprovalPreviews(
   ctx: ActionCtx,
@@ -60,21 +64,41 @@ export async function attachApprovalPreviews(
     )?.paths,
   }
   const result = await Promise.all(
-    parts.map((part) => {
-      if ((part as { state?: string }).state !== 'approval-requested') {
-        return part
-      }
-      if (FILE_MUTATION_TOOL_TYPES.has(part.type)) {
-        return withPreviewDiff(context, part)
-      }
-      if (part.type === 'tool-shell') {
-        return withApprovalPaths(context, part)
-      }
-      return part
-    }),
+    parts.map((part) => withApprovalPreview(context, part)),
   )
 
   return result as UIMessage['parts']
+}
+
+async function withApprovalPreview(
+  context: ApprovalContext,
+  part: UIMessage['parts'][number],
+) {
+  if ((part as { state?: string }).state !== 'approval-requested') {
+    return part
+  }
+  if (isFileTool(part.type.replace(/^tool-/, ''))) {
+    const checked = await withFileApprovalPaths(context, part)
+    return FILE_MUTATION_TOOL_TYPES.has(part.type)
+      ? withPreviewDiff(context, checked)
+      : checked
+  }
+  return part.type === 'tool-shell' ? withApprovalPaths(context, part) : part
+}
+
+async function withFileApprovalPaths(
+  context: ApprovalContext,
+  part: UIMessage['parts'][number],
+) {
+  const input = (part as { input?: { path?: string } }).input
+  if (typeof input?.path !== 'string') return part
+  const result = await checkToolPaths(
+    [input.path],
+    context,
+    context.allowedPaths,
+    true,
+  )
+  return withPathApprovalResult(part, result)
 }
 
 type PreviewDiffInput = {
@@ -126,6 +150,13 @@ export async function withApprovalPaths(
       )
     : null
 
+  return withPathApprovalResult(part, result)
+}
+
+function withPathApprovalResult(
+  part: UIMessage['parts'][number],
+  result: PathCheckResult | null,
+) {
   return {
     ...part,
     approvalPathStatus: pathApprovalStatus(result),

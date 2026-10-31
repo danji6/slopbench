@@ -5,6 +5,7 @@ import type { PathApprovalStatus } from '@sb/core/workspace/path-policy'
 import type { ToolApprovals } from '../../types'
 import {
   analyzeShellCommand,
+  isFileTool,
   isPathForbidden,
   isReadOnlyShellCommand,
   toolNamesForApproval,
@@ -36,7 +37,7 @@ export function alwaysLabel(
 export const HOLD_HINTS: Record<NonNullable<ApprovalHold>, string> = {
   forbidden: 'This accesses a forbidden path and always requires approval.',
   plan: 'This command is not recognized as read-only. Plan mode requires approval each time, even if it is allowed for this session.',
-  paths: 'This command references git-ignored files or paths outside the workspace.',
+  paths: 'This accesses git-ignored files or paths outside the workspace.',
   analysis: 'This command’s file paths cannot be verified. Approval is required each time, even if the command is allowed for this session.',
 }
 
@@ -47,6 +48,7 @@ export function approvalHold(
   pathStatus?: PathApprovalStatus,
 ): ApprovalHold {
   if (toolName !== 'shell') {
+    if (isFileTool(toolName) && pathStatus) return pathStatus
     const path = (input as { path?: string } | undefined)?.path
     return typeof path === 'string' && isPathForbidden(path)
       ? 'forbidden'

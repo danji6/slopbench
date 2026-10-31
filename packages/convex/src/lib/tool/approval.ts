@@ -31,6 +31,11 @@ export {
 } from './shellPathAnalysis'
 export type { ShellPathAnalysis } from './shellPathAnalysis'
 
+/** Identifies file calls whose approval can grant access to a resolved path. */
+export function isFileTool(name: string): boolean {
+  return name === 'read_file' || name === 'write_file' || name === 'edit_file'
+}
+
 /**
  * Shell approval matching.
  *
