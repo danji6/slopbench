@@ -162,12 +162,15 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
     data.session.model?.id,
     data.session.reasoningEffort as ReasoningEffort | undefined,
     credentials,
-    async (body) => {
-      requestLog.body = body
-      await patchSessionLogBody(ctx, {
-        body: buildSessionLogBody({ requestBody: body }),
-        execution,
-      })
+    {
+      cacheKey: data.stream.sessionId,
+      onRequest: async (body) => {
+        requestLog.body = body
+        await patchSessionLogBody(ctx, {
+          body: buildSessionLogBody({ requestBody: body }),
+          execution,
+        })
+      },
     },
   )
 

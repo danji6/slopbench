@@ -1,8 +1,12 @@
+const HTTP_HEADER_VALUE = /^[\t\x20-\x7e\x80-\xff]+$/
+
 /** Applies the subscription contract after all ordinary SDK options have been serialized. */
 export function prepareChatGPTRequest(body: Record<string, unknown>) {
   const result = { ...body, store: false, stream: true } as Record<string, unknown> // prettier-ignore
   if (!Array.isArray(result.input))
     throw new Error('ChatGPT requests must include full history')
+
+  chatGPTCacheKey(result)
 
   result.input = result.input
     .map((item) => {
@@ -32,4 +36,25 @@ export function prepareChatGPTRequest(body: Record<string, unknown>) {
   }
 
   return result
+}
+
+/** Reads a cache identity that can be sent unchanged as an HTTP header. */
+export function chatGPTCacheKey(body: Record<string, unknown>) {
+  const key = body.prompt_cache_key
+  if (key === undefined) return undefined
+
+  const message =
+    'ChatGPT prompt_cache_key must be a nonempty HTTP header value'
+  const keyFitsHeader =
+    typeof key === 'string' && !!key.trim() && HTTP_HEADER_VALUE.test(key)
+  if (!keyFitsHeader) throw new Error(message)
+
+  try {
+    const headers = new Headers({ 'session-id': key })
+    if (headers.get('session-id') === key) return key
+  } catch {
+    // Reject characters that HTTP headers cannot carry.
+  }
+
+  throw new Error(message)
 }

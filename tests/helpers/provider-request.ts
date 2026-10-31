@@ -26,10 +26,12 @@ export async function captureRequest(
     'fixture-model',
     'auto',
     { providerId: provider, apiKey: 'fixture' },
-    (body) => {
-      logged = parse(body)
+    {
+      onRequest: (body) => {
+        logged = parse(body)
+      },
+      fetch: capture,
     },
-    capture,
   )
   const prefix = applyPromptCaching(
     { systemPrompt: request.systemPrompt, messages: request.messages },

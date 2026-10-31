@@ -105,17 +105,20 @@ export async function inspectPath(
   }
 }
 
-/** File tools may leave the workspace only through an explicit grant. */
+/** Requires a saved path grant or authorization for this invocation to leave the workspace. */
 export async function resolveToolPath(
   root: string,
   input: string,
   allowedPaths: string[] = [],
   roots?: string[],
   grantRoot?: string,
+  allowOutsideWorkspace = false,
 ) {
   const grants = await resolvePathGrants(grantRoot ?? root, allowedPaths)
   const target = await inspectPath(root, input, grants, roots)
-  if (target.outside && !target.allowed)
+  const requiresPathApproval =
+    target.outside && !target.allowed && !allowOutsideWorkspace
+  if (requiresPathApproval)
     throw new Error(
       'Path escapes the configured workspace, add an explicit path approval to access it',
     )

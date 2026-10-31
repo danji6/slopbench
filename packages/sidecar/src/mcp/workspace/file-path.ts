@@ -13,6 +13,7 @@ export async function resolveFileToolPath(
   allowedPaths?: string[],
   roots?: string[],
   grantRoot?: string,
+  allowOutsideWorkspace = false,
 ) {
   const parsed = parseScopedPath(input)
   const target = await resolveToolPath(
@@ -21,6 +22,7 @@ export async function resolveFileToolPath(
     allowedPaths,
     roots,
     grantRoot,
+    allowOutsideWorkspace,
   )
   if (parsed.explicit) assertInside(root, target.absolutePath)
   return {

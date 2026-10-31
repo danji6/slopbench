@@ -52,8 +52,7 @@ describe('ChatGPT subscription inference', () => {
         auth: 'chatgpt',
         model: { id: 'fixture-model', inference: { temperature: 0.5 } },
       },
-      undefined,
-      capture,
+      { fetch: capture },
     )
     const result = streamText({
       model: resolved.languageModel,
@@ -161,8 +160,7 @@ test('replays client tool calls with their namespace and full output', async () 
     'model',
     'auto',
     { providerId: 'openai', auth: 'chatgpt', model: { id: 'model' } },
-    undefined,
-    capture,
+    { fetch: capture },
   )
   const result = streamText({
     model: resolved.languageModel,

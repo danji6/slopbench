@@ -113,8 +113,7 @@ describe('provider model middleware', () => {
           baseURL,
           model: { id: 'video-model' },
         },
-        undefined,
-        fetch,
+        { fetch },
       )
 
       await (options.languageModel as unknown as LanguageModelV3).doStream({
@@ -160,8 +159,7 @@ describe('provider model middleware', () => {
           reasoning: { type: 'binary', parameter: 'enable_thinking' },
         },
       },
-      undefined,
-      fetch,
+      { fetch },
     )
 
     const result = await (
@@ -201,8 +199,7 @@ describe('provider model middleware', () => {
           reasoning: { type: 'binary', parameter: 'enable_thinking' },
         },
       },
-      undefined,
-      captureQwenReasoningFetch([], []),
+      { fetch: captureQwenReasoningFetch([], []) },
     )
     const result = streamText({
       model: options.languageModel,

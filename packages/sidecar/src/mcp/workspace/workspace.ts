@@ -47,6 +47,7 @@ async function readWorkspaceFileImpl(input: {
   workspace?: FolderWorkspace
   filePath: string
   allowedPaths?: string[]
+  allowOutsideWorkspace?: boolean
   offset?: number
   limit?: number
   byteOffset?: number
@@ -62,6 +63,7 @@ async function readWorkspaceFileImpl(input: {
     input.allowedPaths,
     workspace.roots,
     workspace.grantRoot,
+    input.allowOutsideWorkspace,
   )
   assertPersonalScope(input.workspace, target.absolutePath)
   return {
@@ -76,6 +78,7 @@ async function writeWorkspaceFileImpl(input: {
   workspace?: FolderWorkspace
   filePath: string
   allowedPaths?: string[]
+  allowOutsideWorkspace?: boolean
   content: string
 }) {
   const workspace = await requireWorkspace(
@@ -89,6 +92,7 @@ async function writeWorkspaceFileImpl(input: {
     input.allowedPaths,
     workspace.roots,
     workspace.grantRoot,
+    input.allowOutsideWorkspace,
   )
 
   assertPersonalScope(input.workspace, target.absolutePath)
@@ -141,6 +145,7 @@ async function editWorkspaceFileImpl(input: {
   workspace?: FolderWorkspace
   filePath: string
   allowedPaths?: string[]
+  allowOutsideWorkspace?: boolean
   edits: Array<{ oldText: string; newText: string }>
 }) {
   const workspace = await requireWorkspace(
@@ -154,6 +159,7 @@ async function editWorkspaceFileImpl(input: {
     input.allowedPaths,
     workspace.roots,
     workspace.grantRoot,
+    input.allowOutsideWorkspace,
   )
 
   assertPersonalScope(input.workspace, target.absolutePath)
@@ -287,6 +293,7 @@ export async function resolveExistingFile(
   allowedPaths?: string[],
   roots?: string[],
   grantRoot?: string,
+  allowOutsideWorkspace = false,
 ) {
   const target = await resolveFileToolPath(
     root,
@@ -294,6 +301,7 @@ export async function resolveExistingFile(
     allowedPaths,
     roots,
     grantRoot,
+    allowOutsideWorkspace,
   )
   const fileStat = await stat(target.absolutePath)
   if (!fileStat.isFile()) throw new Error('Path is not a file')
@@ -321,8 +329,16 @@ async function resolveWritablePath(
   allowedPaths?: string[],
   roots?: string[],
   grantRoot?: string,
+  allowOutsideWorkspace = false,
 ) {
-  return resolveFileToolPath(root, filePath, allowedPaths, roots, grantRoot)
+  return resolveFileToolPath(
+    root,
+    filePath,
+    allowedPaths,
+    roots,
+    grantRoot,
+    allowOutsideWorkspace,
+  )
 }
 
 const MAX_DIFF_BYTES = 50_000

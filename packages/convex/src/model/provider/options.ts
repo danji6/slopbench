@@ -29,12 +29,17 @@ export type ProviderOptions = {
   presencePenalty?: number
 }
 
+export type ProviderRequestOptions = {
+  cacheKey?: string
+  onRequest?: (body: string) => void | Promise<void>
+  fetch?: typeof globalThis.fetch
+}
+
 export async function getProviderOptions(
   model?: string,
   reasoningEffort?: ReasoningEffort,
   credentials?: ProviderCredentials | null,
-  onRequest?: (body: string) => void | Promise<void>,
-  fetchOverride?: typeof globalThis.fetch,
+  request: ProviderRequestOptions = {},
 ): Promise<ProviderOptions> {
   if (!model) {
     error('No model provided')
@@ -52,7 +57,7 @@ export async function getProviderOptions(
     )
   }
 
-  const transport = inferenceTransport(credentials)
+  const transport = inferenceTransport(credentials, request.cacheKey)
   const providerId = credentials.providerId
   const reasoning = resolveModelReasoning(providerId, credentials.model?.reasoning) // prettier-ignore
   const normalizedEffort = normalizeReasoningEffort(reasoningEffort, reasoning)
@@ -63,8 +68,8 @@ export async function getProviderOptions(
     reasoningEffort: normalizedEffort,
     extraParameters: credentials.model?.extraParameters,
     extraHeaders: credentials.extraHeaders,
-    onRequest,
-    fetch: fetchOverride ?? transport?.fetch,
+    onRequest: request.onRequest,
+    fetch: request.fetch ?? transport?.fetch,
     transformRequest: transport?.transformRequest,
   })
 

@@ -92,6 +92,7 @@ function buildMcpServer(): McpServer {
         ...workspaceFields,
         ...readFileFields,
         allowedPaths: z.array(z.string()).optional(),
+        allowOutsideWorkspace: z.boolean().optional(),
       }),
     },
     async ({
@@ -103,6 +104,7 @@ function buildMcpServer(): McpServer {
       limit,
       byteOffset,
       allowedPaths,
+      allowOutsideWorkspace,
     }) => {
       const result = await readWorkspaceFile({
         sessionId,
@@ -110,6 +112,7 @@ function buildMcpServer(): McpServer {
         workspace,
         filePath: path,
         allowedPaths,
+        allowOutsideWorkspace,
         offset,
         limit,
         byteOffset,
@@ -126,6 +129,7 @@ function buildMcpServer(): McpServer {
         ...workspaceFields,
         ...writeFileFields,
         allowedPaths: z.array(z.string()).optional(),
+        allowOutsideWorkspace: z.boolean().optional(),
       }),
     },
     async ({
@@ -135,6 +139,7 @@ function buildMcpServer(): McpServer {
       path,
       content,
       allowedPaths,
+      allowOutsideWorkspace,
     }) => {
       const result = await writeWorkspaceFile({
         sessionId,
@@ -142,6 +147,7 @@ function buildMcpServer(): McpServer {
         workspace,
         filePath: path,
         allowedPaths,
+        allowOutsideWorkspace,
         content,
       })
       return { content: [{ type: 'text' as const, text: formatJson(result) }] }
@@ -156,6 +162,7 @@ function buildMcpServer(): McpServer {
         ...workspaceFields,
         ...editFileFields,
         allowedPaths: z.array(z.string()).optional(),
+        allowOutsideWorkspace: z.boolean().optional(),
       }),
     },
     async ({
@@ -165,6 +172,7 @@ function buildMcpServer(): McpServer {
       path,
       edits,
       allowedPaths,
+      allowOutsideWorkspace,
     }) => {
       const result = await editWorkspaceFile({
         sessionId,
@@ -172,6 +180,7 @@ function buildMcpServer(): McpServer {
         workspace,
         filePath: path,
         allowedPaths,
+        allowOutsideWorkspace,
         edits,
       })
       return { content: [{ type: 'text' as const, text: formatJson(result) }] }

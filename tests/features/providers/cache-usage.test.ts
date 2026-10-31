@@ -120,9 +120,10 @@ describe('provider cache reporting', () => {
         'fixture-model',
         'auto',
         { providerId: 'openai', auth: 'chatgpt' },
-        undefined,
-        (async (_input: RequestInfo | URL) =>
-          completedStream(cachedTokens)) as typeof fetch,
+        {
+          fetch: (async (_input: RequestInfo | URL) =>
+            completedStream(cachedTokens)) as typeof fetch,
+        },
       )
       const result = streamText({
         model: options.languageModel,

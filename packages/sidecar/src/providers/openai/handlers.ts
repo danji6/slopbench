@@ -1,4 +1,4 @@
-import { prepareChatGPTRequest } from '@sb/core/chatgpt-policy'
+import { chatGPTCacheKey, prepareChatGPTRequest } from '@sb/core/chatgpt-policy'
 import type { Handler } from 'hono'
 import { z } from 'zod'
 
@@ -68,6 +68,7 @@ export const chatGPTResponses: Handler = async (c) => {
     .extend({ body: z.record(z.string(), z.unknown()) })
     .parse(await c.req.json())
   const body = prepareChatGPTRequest(input.body)
+  const cacheKey = chatGPTCacheKey(body)
   const id = keyId(input)
   const controller = new AbortController()
   const controllers = active.get(id) ?? new Set<AbortController>()
@@ -88,6 +89,7 @@ export const chatGPTResponses: Handler = async (c) => {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
+        ...(cacheKey === undefined ? {} : { 'session-id': cacheKey }),
       },
       body: JSON.stringify(body),
       redirect: 'error',

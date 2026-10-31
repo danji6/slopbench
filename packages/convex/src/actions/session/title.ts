@@ -60,6 +60,7 @@ async function composeTitle(
       resolved.modelId,
       'none', // no reasoning
       resolved.credentials,
+      { cacheKey: `title:${sessionId}` },
     )
 
     const generate =

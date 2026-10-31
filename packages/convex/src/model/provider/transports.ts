@@ -6,11 +6,14 @@ import {
 } from './openai/chatgpt'
 import type { ProviderCredentials } from './providers'
 
-export function inferenceTransport(connection: ProviderCredentials) {
+export function inferenceTransport(
+  connection: ProviderCredentials,
+  cacheKey?: string,
+) {
   return connection.providerId === 'openai' && connection.auth === 'chatgpt'
     ? {
         fetch: chatGPTFetch(connection),
-        transformRequest: chatGPTRequest(connection),
+        transformRequest: chatGPTRequest(connection, cacheKey),
         options: CHATGPT_OPENAI_OPTIONS,
         wrap: withChatGPTPolicy,
       }

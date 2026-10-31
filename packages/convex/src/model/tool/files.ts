@@ -22,8 +22,7 @@ export async function createReadFileTool(context: WorkspaceToolContext) {
     needsApproval: ({ path }) => fileNeedsApproval('read_file', path, context),
     execute: async ({ path, offset, limit, byteOffset }) =>
       callMcpTool('read_file', {
-        ...fileWorkspaceArgs(context),
-        allowedPaths: (await context.approvals?.())?.paths,
+        ...(await approvedFileArgs(context)),
         path,
         offset,
         limit,
@@ -40,6 +39,15 @@ async function assertNotPlanMode(context: WorkspaceToolContext) {
   }
 }
 
+/** Carries this invocation's passed approval gate without saving a path grant. */
+async function approvedFileArgs(context: WorkspaceToolContext) {
+  return {
+    ...fileWorkspaceArgs(context),
+    allowedPaths: (await context.approvals?.())?.paths,
+    allowOutsideWorkspace: true,
+  }
+}
+
 export async function createWriteFileTool(context: WorkspaceToolContext) {
   const [{ tool }, { z }] = await Promise.all([import('ai'), import('zod')])
   return tool({
@@ -52,8 +60,7 @@ export async function createWriteFileTool(context: WorkspaceToolContext) {
     execute: async ({ path, content }) => {
       await assertNotPlanMode(context)
       return callMcpTool('write_file', {
-        ...fileWorkspaceArgs(context),
-        allowedPaths: (await context.approvals?.())?.paths,
+        ...(await approvedFileArgs(context)),
         path,
         content,
       })
@@ -73,8 +80,7 @@ export async function createEditFileTool(context: WorkspaceToolContext) {
     execute: async ({ path, edits }) => {
       await assertNotPlanMode(context)
       return callMcpTool('edit_file', {
-        ...fileWorkspaceArgs(context),
-        allowedPaths: (await context.approvals?.())?.paths,
+        ...(await approvedFileArgs(context)),
         path,
         edits,
       })

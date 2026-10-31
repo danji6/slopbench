@@ -103,7 +103,10 @@ export async function withChatGPTPolicy(
 }
 
 /** Preserves explicit user parameters even when the SDK omits unsupported settings. */
-export function chatGPTRequest(credentials: ProviderCredentials) {
+export function chatGPTRequest(
+  credentials: ProviderCredentials,
+  cacheKey: string = crypto.randomUUID(),
+) {
   const inference = credentials.model?.inference
   const explicit: Record<string, unknown> = {}
 
@@ -123,5 +126,10 @@ export function chatGPTRequest(credentials: ProviderCredentials) {
   const extras = parseModelExtraParameters(credentials.model?.extraParameters)
 
   return (body: Record<string, unknown>) =>
-    prepareChatGPTRequest({ ...body, ...explicit, ...extras })
+    prepareChatGPTRequest({
+      prompt_cache_key: cacheKey,
+      ...body,
+      ...explicit,
+      ...extras,
+    })
 }

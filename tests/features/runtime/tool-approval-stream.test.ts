@@ -94,8 +94,7 @@ describe('tool approval stream resume', () => {
         apiKey: 'test-key',
         model: { id: 'gpt-test' },
       },
-      undefined,
-      captureStreamFetch(bodies),
+      { fetch: captureStreamFetch(bodies) },
     )
     const notes = collectRespondedApprovalNotes(initial.parts)
     const result = streamText({
