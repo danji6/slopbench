@@ -195,6 +195,20 @@ function sessionPage(args: Record<string, unknown>) {
 }
 
 function query(name: string, args: Record<string, unknown>) {
+  if (new URLSearchParams(location.search).has('emptyChat')) {
+    const agent = {
+      _id: 'fixture-agent',
+      ownerId: 'fixture-owner',
+      name: 'Code',
+      tools: [],
+    }
+    if (name === 'providers:list') return [{ _id: 'fixture-provider' }]
+    if (name === 'settings:get') return { recentAgentId: agent._id }
+    if (name === 'agents:get') return agent
+    if (name === 'agents:list') return [agent]
+    if (name === 'prompts:list') return []
+    if (name === 'models:list') return { models: [] }
+  }
   if (name === 'users:getProfile')
     return { _id: 'fixture-owner', role: 'admin' }
   if (name === 'notifications:pendingPage')

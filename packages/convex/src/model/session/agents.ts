@@ -2,6 +2,7 @@ import type { Id } from '../../_generated/dataModel'
 import { error } from '../../errors'
 import type { AuthMutationCtx, AuthQueryCtx } from '../../functions'
 import type { ThemeSnapshot } from '../../types'
+import { rememberSelection } from '../agent/selection'
 import { stopForSession } from '../stream/lifecycle'
 import {
   getMember,
@@ -107,7 +108,10 @@ export async function activate(ctx: AuthMutationCtx, args: Args) {
   }
 
   const isActive = session.activeAgentId === args.agentId
-  if (!isActive) await requireAgent(ctx, args.agentId)
+  if (!isActive) {
+    const agent = await requireAgent(ctx, args.agentId)
+    await rememberSelection(ctx, agent)
+  }
 
   await ctx.db.patch(args.sessionId, {
     activeAgentId: isActive ? undefined : args.agentId,

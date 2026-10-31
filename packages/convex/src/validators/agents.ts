@@ -1,3 +1,4 @@
+import { paginationOptsValidator } from 'convex/server'
 import { v } from 'convex/values'
 
 import {
@@ -86,6 +87,7 @@ export const agentHomeSchema = v.object({
 
 /** An agent’s settings and optional personal folder membership. */
 export const agentSchema = v.object({
+  lastSelectedAt: v.optional(v.number()),
   /** Absent until a personal folder is explicitly assigned. */
   homeId: v.optional(v.id('agentHomes')),
   fileOperationId: v.optional(v.id('agentFileOperations')),
@@ -109,4 +111,9 @@ export const agentSchema = v.object({
   autoApprove: v.optional(agentAutoApproveValidator),
   subAgents: v.optional(agentSubAgentsValidator),
   ...overridableFields,
+})
+
+export const agentPageArgsValidator = v.object({
+  search: v.optional(v.string()),
+  paginationOpts: paginationOptsValidator,
 })

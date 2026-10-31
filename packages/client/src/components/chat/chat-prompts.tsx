@@ -28,6 +28,22 @@ export function ChatPrompts({
     )
   }
 
+  return <ChatPromptMessages prompts={{ messages, sender, css }} {...props} />
+}
+
+type ChatPromptMessagesProps = React.ComponentProps<'div'> & {
+  prompts: Pick<
+    ReturnType<typeof useAgentPrompts>,
+    'messages' | 'sender' | 'css'
+  >
+}
+
+/** Renders already-resolved prompts without repeating preview evaluation. */
+export function ChatPromptMessages({
+  prompts,
+  ...props
+}: ChatPromptMessagesProps) {
+  const { messages, sender, css } = prompts
   return (
     <div {...props} className={cn('h-fit', props.className)}>
       {messages.map((msg) => (

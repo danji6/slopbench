@@ -1,12 +1,24 @@
 import { v } from 'convex/values'
 
 import { authMutation, authQuery } from './functions'
+import { page as pageAgents } from './model/agent/discovery'
+import { select as selectAgent } from './model/agent/selection'
 import * as Agents from './model/agents'
 import * as V from './validators/agents'
 
 export const list = authQuery({
   args: {},
   handler: Agents.list,
+})
+
+export const page = authQuery({
+  args: V.agentPageArgsValidator.fields,
+  handler: pageAgents,
+})
+
+export const select = authMutation({
+  args: { agentId: v.union(v.id('agents'), v.null()) },
+  handler: selectAgent,
 })
 
 export const get = authQuery({

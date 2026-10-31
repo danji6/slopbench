@@ -89,6 +89,8 @@ import type * as mcpOperations from "../mcpOperations.js";
 import type * as mcpProtocol from "../mcpProtocol.js";
 import type * as migrations from "../migrations.js";
 import type * as model_agent_archive from "../model/agent/archive.js";
+import type * as model_agent_discovery from "../model/agent/discovery.js";
+import type * as model_agent_selection from "../model/agent/selection.js";
 import type * as model_agent_subagents from "../model/agent/subagents.js";
 import type * as model_agents from "../model/agents.js";
 import type * as model_appearances from "../model/appearances.js";
@@ -500,6 +502,8 @@ declare const fullApi: ApiFromModules<{
   mcpProtocol: typeof mcpProtocol;
   migrations: typeof migrations;
   "model/agent/archive": typeof model_agent_archive;
+  "model/agent/discovery": typeof model_agent_discovery;
+  "model/agent/selection": typeof model_agent_selection;
   "model/agent/subagents": typeof model_agent_subagents;
   "model/agents": typeof model_agents;
   "model/appearances": typeof model_appearances;

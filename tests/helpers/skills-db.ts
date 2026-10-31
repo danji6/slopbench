@@ -3,7 +3,7 @@ import type { AuthMutationCtx } from '@sb/convex/functions'
 type Row = Record<string, unknown> & { _id: string }
 
 /** Minimal indexed database fixture for skill ownership, paging and transition behavior. */
-export function skillsDatabase() {
+export function skillsDatabase(indexes: Record<string, string[]> = {}) {
   const tables = new Map<string, Row[]>()
   const scheduled: { reference: unknown; args: unknown }[] = []
   let sequence = 0
@@ -47,6 +47,7 @@ export function skillsDatabase() {
     query: (table: string) => {
       const predicates: ((row: Row) => boolean)[] = []
       let descending = false
+      let indexFields = ['name', '_creationTime', '_id']
       const compare = (a: unknown, b: unknown) =>
         a === b
           ? 0
@@ -98,10 +99,11 @@ export function skillsDatabase() {
           .filter((row) => predicates.every((predicate) => predicate(row)))
           .map((row) => ({ _creationTime: 0, ...row }))
           .sort((a, b) => {
-            const order =
-              compare((a as Row).name, (b as Row).name) ||
-              compare(a._creationTime, b._creationTime) ||
-              compare(a._id, b._id)
+            const order = indexFields.reduce(
+              (result, field) =>
+                result || compare((a as Row)[field], (b as Row)[field]),
+              0,
+            )
             return descending ? -order : order
           })
       type FilterValue = { field: string } | unknown
@@ -136,10 +138,8 @@ export function skillsDatabase() {
           predicates.push(select(filter))
           return query
         },
-        withIndex: (
-          _name: string,
-          select: (range: typeof index) => unknown,
-        ) => {
+        withIndex: (name: string, select: (range: typeof index) => unknown) => {
+          indexFields = indexes[name] ?? indexFields
           select?.(index)
           return query
         },

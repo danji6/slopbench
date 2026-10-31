@@ -73,6 +73,12 @@ const SessionFoldersFixture = lazy(() =>
   })),
 )
 
+const EmptyChatFixture = lazy(() =>
+  import('./empty-chat-fixture').then((module) => ({
+    default: module.EmptyChatFixture,
+  })),
+)
+
 const SubagentApprovalsFixture = lazy(() =>
   import('./subagent-approvals-fixture').then((module) => ({
     default: module.SubagentApprovalsFixture,
@@ -207,6 +213,10 @@ createRoot(document.getElementById('root')!).render(
     'account-security' ? (
     <Suspense fallback={<p>Loading account settings…</p>}>
       <AccountSecurityFixture />
+    </Suspense>
+  ) : new URLSearchParams(location.search).get('fixture') === 'empty-chat' ? (
+    <Suspense fallback={null}>
+      <EmptyChatFixture />
     </Suspense>
   ) : new URLSearchParams(location.search).get('fixture') ===
     'session-folders' ? (

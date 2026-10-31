@@ -134,7 +134,7 @@ export function useUserPromptSetsSave() {
   )
 }
 
-function usePromptRows(
+export function usePromptRows(
   scope: PromptScope,
   agentId?: Id<'agents'>,
 ): PromptRow[] | undefined {

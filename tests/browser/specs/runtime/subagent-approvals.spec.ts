@@ -126,3 +126,51 @@ test('keeps approval controls unavailable to non-admins', async ({ page }) => {
   await expect(page.locator('[data-slot="subagent-banner"]')).toBeVisible()
   await expect(picker(page)).toHaveCount(0)
 })
+
+test('hands focus from the full-screen composer to a new approval without locking the app', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=subagent-approvals&id=parent&delayedApprovals')
+  const composer = page.locator(
+    '[data-slot="chat-box"] [contenteditable="true"]',
+  )
+  await composer.fill('Keep this draft')
+  await expect
+    .poll(() =>
+      page.evaluate(() => localStorage.getItem('slopbench-composer-drafts')),
+    )
+    .toContain('Keep this draft')
+  await page.getByRole('button', { name: 'Full screen', exact: true }).click()
+  await expect(
+    page.getByRole('dialog', { name: 'Expanded editor' }),
+  ).toBeVisible()
+
+  await page.evaluate(() =>
+    window.dispatchEvent(new Event('release-approvals')),
+  )
+  await expect(
+    page.getByRole('dialog', { name: 'Expanded editor' }),
+  ).toHaveCount(0)
+  await expect(picker(page)).toBeFocused()
+  await expect(page).not.toHaveURL(/full%3Acomposer|full:composer/)
+  await note(page).fill('Use the test remote')
+  await note(page).press('ControlOrMeta+Enter')
+  await expect(picker(page)).toContainText('git push origin second')
+  await resolveApproval(page)
+  await picker(page)
+    .getByRole('option', { name: /^Abort/ })
+    .click()
+  await expect(picker(page)).toContainText('git push origin sibling')
+  await picker(page)
+    .getByRole('option', { name: /^Abort/ })
+    .click()
+
+  await expect(picker(page)).toHaveCount(0)
+  await expect(composer).toBeVisible()
+  await expect(composer).toHaveText('Keep this draft')
+  await composer.fill('The app is interactive')
+  await page.getByRole('button', { name: 'Full screen', exact: true }).click()
+  await expect(
+    page.getByRole('dialog', { name: 'Expanded editor' }),
+  ).toBeVisible()
+})

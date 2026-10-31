@@ -141,6 +141,9 @@ describe('session model binding', () => {
     expect(session.activeAgentId).toBe('agents_2')
     expect(session.model).toEqual({ id: 'model-a' })
     expect(session.reasoningEffort).toBe('high')
+    expect(
+      tables.agents.find((agent) => agent._id === 'agents_2')?.lastSelectedAt,
+    ).toBeNumber()
   })
 
   test('provider edits refresh metadata without changing the selected id', async () => {

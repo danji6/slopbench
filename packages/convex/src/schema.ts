@@ -118,6 +118,7 @@ export default defineSchema({
     .index('by_agentId', ['agentId']),
 
   agents: defineTable(agentSchema)
+    .index('by_ownerId_lastSelectedAt', ['ownerId', 'lastSelectedAt'])
     .index('by_homeId', ['homeId'])
     .index('by_ownerId_name', ['ownerId', 'name'])
     .index('by_avatarId', ['avatarId']),

@@ -1,8 +1,10 @@
+import { EmptyChat } from '@/components/chat/empty-chat'
 import { NotificationProvider } from '@/components/chat/notifications/notification-provider'
 import { FolderPicker } from '@/components/chat/sessions/folder-picker'
 import { SessionListView } from '@/components/chat/sessions/session-list'
 import '@/globals.css'
 import { SessionStoreProvider, useSessionGroups } from '@/hooks/chat/sessions'
+import { StreamStoreProvider } from '@/hooks/chat/stream'
 import {
   applyTheme,
   exportSchemeCss,
@@ -106,16 +108,28 @@ function Controls() {
 
 /** Exercises production sidebar, folder controls, and picker against a local fixture. */
 export function SessionFoldersFixture() {
+  const emptyChat = new URLSearchParams(location.search).has('emptyChat')
   return (
     <ConvexProvider client={sessionFoldersFixtureClient}>
       <ConvexQueryCacheProvider>
         <SessionStoreProvider>
           <NotificationProvider>
-            <main className="bg-background text-foreground w-72 max-w-full py-3">
-              <div className="h-[600px]" data-testid="sidebar">
-                <SessionListView />
+            <main
+              className={`bg-background text-foreground max-w-full py-3 ${emptyChat ? 'flex' : 'w-72'}`}
+            >
+              <div className="w-72 shrink-0">
+                <div className="h-[600px]" data-testid="sidebar">
+                  <SessionListView />
+                </div>
+                <Controls />
               </div>
-              <Controls />
+              {emptyChat && (
+                <div className="min-w-0 flex-1" data-testid="empty-chat">
+                  <StreamStoreProvider>
+                    <EmptyChat onFirstMessage={() => {}} />
+                  </StreamStoreProvider>
+                </div>
+              )}
             </main>
           </NotificationProvider>
         </SessionStoreProvider>

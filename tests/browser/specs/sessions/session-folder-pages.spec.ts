@@ -197,3 +197,41 @@ test('picker preloads before opening without loading indicators and resets addit
   await expect(page.getByRole('option')).toHaveCount(21)
   await expect(page.getByRole('listbox').getByRole('status')).toHaveCount(0)
 })
+
+test('empty chat waits for the selected folder instead of flashing the welcome heading', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=session-folders&emptyChat&slowFolders')
+  const chat = page.getByTestId('empty-chat')
+  const genericLabel = 'What’s on your mind?'
+  await expect(chat.getByText(genericLabel, { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Resolve session queries' }).click()
+  await page
+    .getByRole('button', { name: 'Compose in Portfolio', exact: true })
+    .click()
+
+  const picker = chat.getByRole('combobox', {
+    name: 'Session folder',
+    exact: true,
+  })
+  await expect(picker).toBeDisabled()
+  await expect(chat).not.toContainText(genericLabel)
+  await page.getByRole('button', { name: 'Resolve session queries' }).click()
+  await expect(
+    chat.getByText('Portfolio', { exact: true }).first(),
+  ).toBeVisible()
+
+  await page
+    .getByRole('button', { name: 'Compose in SlopBench', exact: true })
+    .click()
+  await expect(picker).toBeDisabled()
+  await expect(chat).not.toContainText(genericLabel)
+  await expect(chat.getByText('Portfolio', { exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Resolve session queries' }).click()
+  await expect(
+    chat.getByText('SlopBench', { exact: true }).first(),
+  ).toBeVisible()
+
+  await chat.getByRole('button', { name: 'Clear session folder' }).click()
+  await expect(chat.getByText(genericLabel, { exact: true })).toBeVisible()
+})

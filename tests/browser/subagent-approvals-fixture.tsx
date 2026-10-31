@@ -8,7 +8,7 @@ import { StreamStoreProvider, useChatStatus } from '@/hooks/chat/stream'
 import { useWorkspaceFileIndex } from '@/hooks/chat/workspace'
 import { ConvexQueryCacheProvider } from 'convex-helpers/react/cache'
 import { ConvexProvider } from 'convex/react'
-import { useSyncExternalStore } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import { useLocation } from 'wouter'
 
 import {
@@ -40,6 +40,17 @@ function Controls() {
     approvalFixtureControls.subscribe,
     approvalFixtureControls.getSnapshot,
   )
+  useEffect(() => {
+    window.addEventListener(
+      'release-approvals',
+      approvalFixtureControls.release,
+    )
+    return () =>
+      window.removeEventListener(
+        'release-approvals',
+        approvalFixtureControls.release,
+      )
+  }, [])
   return (
     <div className="bg-background fixed top-0 z-30 flex gap-3 p-2">
       <button

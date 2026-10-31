@@ -26,6 +26,9 @@ export type ComposerHandle = {
   focus: (options?: FocusOptions) => void
   /** Replaces the editor content from a markdown string. */
   setContent: (markdown: string) => void
+  /** Inserts a starter only while the composer is empty and restored. */
+  insertStarter: (markdown: string) => void
+  openAttachments: () => void
 }
 
 type UseComposerEditorOptions = {
@@ -35,6 +38,8 @@ type UseComposerEditorOptions = {
   onRestoreMessage: (message: PendingMessage) => void
   onTyping?: () => void
   restoreMessage?: PendingMessage | null
+  canInsertStarter?: boolean
+  onAddFiles?: () => void
 }
 
 /** Owns composer editor state, draft restoration, and editor lifecycle effects. */
@@ -45,6 +50,8 @@ export function useComposerEditor({
   onRestoreMessage,
   onTyping,
   restoreMessage,
+  canInsertStarter = false,
+  onAddFiles,
 }: UseComposerEditorOptions) {
   useComposerCloseGuard(editorRef)
   const draft = useComposerDraft(draftKey)
@@ -68,6 +75,7 @@ export function useComposerEditor({
   )
 
   const [message, setMessage] = useState('')
+  const [isReady, setIsReady] = useState(false)
   const [caret, setCaret] = useState(0)
   const [shellCommand, setShellCommand] = useState<string | null>(null)
   const suppressTypingRef = useRef(false)
@@ -101,8 +109,16 @@ export function useComposerEditor({
         const editor = editorRef.current
         if (editor) applyMarkdown(editor, markdown)
       },
+      insertStarter: (markdown) => {
+        const editor = editorRef.current
+        if (!editor || !canInsertStarter) return
+        if (editor.state.doc.textContent.trim()) return
+        applyMarkdown(editor, markdown)
+        editor.commands.focus('end')
+      },
+      openAttachments: () => onAddFiles?.(),
     }),
-    [applyMarkdown, editorRef],
+    [applyMarkdown, canInsertStarter, editorRef, onAddFiles],
   )
 
   useEffect(
@@ -169,6 +185,7 @@ export function useComposerEditor({
       restoreDraft(editor)
       restoreFailedMessage(editor)
       syncFromEditor(editor)
+      setIsReady(true)
     },
     [editorRef, restoreDraft, restoreFailedMessage, syncFromEditor],
   )
@@ -208,6 +225,7 @@ export function useComposerEditor({
     handleEditorReady,
     handleSurfaceMouseDown,
     message,
+    isReady,
     setEditorText,
     shellCommand,
   }

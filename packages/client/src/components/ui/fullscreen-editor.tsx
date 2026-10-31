@@ -6,14 +6,21 @@ import type { HostFocus } from '@/lib/reparent'
 import { hostBox, moveHost, trackHostFocus } from '@/lib/reparent'
 import { cn } from '@/lib/utils'
 import { ArrowLeftIcon, Maximize2Icon } from 'lucide-react'
-import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import { createPortal } from 'react-dom'
 
 import { Dialog } from './dialog'
 import { RippleButton } from './ripple-button'
 
-const [FullscreenContext, useFullscreen] =
-  createUsableContext<FullscreenHandle>('Fullscreen')
+const [FullscreenContext, useFullscreen] = createUsableContext<
+  FullscreenHandle & { disabled: boolean }
+>('Fullscreen')
 
 /** Frees a wrapped surface from its size limits. */
 export const fullscreenFill =
@@ -26,6 +33,8 @@ export const fullscreenGrow =
 export type FullscreenEditorProps = {
   /** Stable id for this editor in the `?view=` path. */
   id: string
+  /** Closes full screen when the editor cannot be interacted with. */
+  disabled?: boolean
   /** The editor surface, which must render a single positioned box. */
   children: React.ReactNode
 }
@@ -34,9 +43,17 @@ export type FullscreenEditorProps = {
  * Expands the editor surface it wraps to fill the browser window. The content
  * is moved rather than remounted to preserve its state.
  */
-export function FullscreenEditor({ id, children }: FullscreenEditorProps) {
+export function FullscreenEditor({
+  id,
+  disabled = false,
+  children,
+}: FullscreenEditorProps) {
   const handle = useFullscreenView(id)
-  const { active } = handle
+  const active = handle.active && !disabled
+
+  useEffect(() => {
+    if (disabled && handle.active) handle.exit()
+  }, [disabled, handle])
 
   const [host] = useState(createHost)
   const inlineRef = useRef<HTMLDivElement | null>(null)
@@ -85,7 +102,9 @@ export function FullscreenEditor({ id, children }: FullscreenEditorProps) {
           className="group/fullscreen contents"
           data-fullscreen={active || undefined}
         >
-          <FullscreenContext value={handle}>{children}</FullscreenContext>
+          <FullscreenContext value={{ ...handle, active, disabled }}>
+            {children}
+          </FullscreenContext>
         </div>,
         host,
       )}
@@ -94,9 +113,11 @@ export function FullscreenEditor({ id, children }: FullscreenEditorProps) {
           <Dialog.Content
             aria-label="Expanded editor"
             showCloseButton={false}
-            finalFocus={() =>
-              focusRef.current?.target() ?? getFocusReturnTarget()
-            }
+            finalFocus={() => {
+              const target =
+                focusRef.current?.target() ?? getFocusReturnTarget()
+              return target?.closest('[inert]') ? false : target
+            }}
             className="inset-0 z-51 flex h-svh w-screen max-w-none translate-x-0 translate-y-0 gap-0 rounded-none border-0 p-0"
           >
             <div
@@ -144,7 +165,7 @@ function FullscreenToolbar({ children, className }: FullscreenToolbarProps) {
 }
 
 function FullscreenToggle() {
-  const { active, toggle } = useFullscreen()
+  const { active, disabled, toggle } = useFullscreen()
   const label = active ? 'Back' : 'Full screen'
 
   return (
@@ -154,6 +175,7 @@ function FullscreenToggle() {
       size="icon-sm"
       aria-label={label}
       title={label}
+      disabled={disabled}
       onClick={toggle}
       className={cn(
         'bg-m3-surface-container-low/70 supports-backdrop-filter:backdrop-blur-md',

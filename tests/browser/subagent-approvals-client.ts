@@ -49,6 +49,7 @@ type Entry = {
 }
 const cache = new Map<string, Entry>()
 const listeners = new Set<() => void>()
+let approvalsReady = !new URLSearchParams(location.search).has('delayedApprovals') // prettier-ignore
 const key = (reference: FunctionReference<'query'>, args: unknown) =>
   `${getFunctionName(reference)}:${JSON.stringify(args)}`
 
@@ -132,7 +133,7 @@ function query(name: string, args: Record<string, unknown>) {
       : []
   }
   if (name === 'subagents:pendingApprovals')
-    return requests
+    return (approvalsReady ? requests : [])
       .filter((request) => !stopped.includes(request.sessionId))
       .map((request) => ({
         ...request,
@@ -261,5 +262,10 @@ export const approvalFixtureControls = {
   resolve: () => resolvePending?.(),
   failNext: () => {
     failNext = true
+  },
+  release: () => {
+    approvalsReady = true
+    cache.clear()
+    notify()
   },
 }

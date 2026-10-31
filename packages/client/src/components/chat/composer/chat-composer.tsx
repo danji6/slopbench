@@ -74,7 +74,7 @@ export type ChatComposerProps = Omit<InputGroupProps, 'onSubmit'> & {
   startContent?: React.ReactNode
   /** Session mode exposed through the attach menu. */
   mode?: ComposerToolbarMode
-  onContentChange?: (hasContent: boolean) => void
+  onContentChange?: (hasContent: boolean, draftReady: boolean) => void
   /** Fired on content change while the composer has text. */
   onTyping?: () => void
   /** Imperative handle for focusing the composer. */
@@ -137,6 +137,7 @@ export function ChatComposer({
     handleEditorReady,
     handleSurfaceMouseDown,
     message,
+    isReady,
     setEditorText,
     shellCommand,
   } = useComposerEditor({
@@ -146,6 +147,9 @@ export function ChatComposer({
     onRestoreMessage: attachments.restoreAttachments,
     onTyping,
     restoreMessage,
+    canInsertStarter:
+      attachments.isRestored && attachments.fileParts.length === 0,
+    onAddFiles: () => dropZoneRef.current?.open(),
   })
 
   const isProcessing = status === 'submitted' || status === 'streaming'
@@ -153,8 +157,8 @@ export function ChatComposer({
     message.trim().length > 0 || attachments.fileParts.length > 0
 
   useEffect(() => {
-    onContentChange?.(hasContent)
-  }, [hasContent, onContentChange])
+    onContentChange?.(hasContent, isReady && attachments.isRestored)
+  }, [hasContent, isReady, attachments.isRestored, onContentChange])
 
   function clearComposer() {
     clearEditor()
@@ -318,7 +322,10 @@ export function ChatComposer({
   }
 
   async function handleFilePick(picked: File[]) {
-    if (await attachments.addFiles(picked)) dropZoneRef.current?.clear()
+    if (await attachments.addFiles(picked)) {
+      dropZoneRef.current?.clear()
+      editorRef.current?.commands.focus('end')
+    }
   }
 
   const placeholder =
@@ -334,7 +341,7 @@ export function ChatComposer({
 
   return (
     <ComposerLayoutProvider value={layout}>
-      <FullscreenEditor id={COMPOSER_FULLSCREEN_ID}>
+      <FullscreenEditor id={COMPOSER_FULLSCREEN_ID} disabled={props.inert}>
         <DropZone
           ref={dropZoneRef}
           onDrop={handleFilePick}

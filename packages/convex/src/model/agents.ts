@@ -62,7 +62,15 @@ export async function exportData(
   const agent = await get(ctx, { agentId })
   if (!agent) return null
 
-  const { _id, _creationTime, ownerId, avatarId, ...rest } = agent
+  const {
+    _id,
+    _creationTime,
+    ownerId,
+    avatarId,
+    lastSelectedAt: _lastSelectedAt,
+    ...rest
+  } = agent
+
   const [prompts, reminders, library] = await Promise.all([
     Prompts.listForAgent(ctx, agentId, 'own'),
     Reminders.listForAgent(ctx, agentId),
@@ -216,6 +224,7 @@ export async function duplicate(
     avatarId: _avatarId,
     homeId: _homeId,
     fileOperationId: _fileOperationId,
+    lastSelectedAt: _lastSelectedAt,
     ...copy
   } = agent
 

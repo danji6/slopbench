@@ -9,7 +9,7 @@ interface Ripple {
   id: string
   x: number
   y: number
-  radius: number
+  diameter: number
   shouldFade: boolean
 }
 
@@ -98,8 +98,8 @@ export function useRipples(
       if (ignored && ignored !== element && element.contains(ignored)) return
 
       const rect = element.getBoundingClientRect()
-      const x = clientX - rect.left
-      const y = clientY - rect.top
+      const x = clientX - rect.left - element.clientLeft
+      const y = clientY - rect.top - element.clientTop
       const w = rect.width + RIPPLE_PADDING
       const h = rect.height + RIPPLE_PADDING
 
@@ -114,13 +114,13 @@ export function useRipples(
         Math.sqrt((cx - x) ** 2 + (cy - y) ** 2),
       )
 
-      const radius = Math.max(...distances) * 2
+      const diameter = Math.max(...distances) * 2
 
       const newRipple: Ripple = {
         id: `${rippleId}-${rippleCountRef.current++}`,
         x,
         y,
-        radius,
+        diameter,
         shouldFade: false,
       }
 
@@ -163,32 +163,24 @@ export function useRipples(
       key: ripple.id,
       className: `pointer-events-none absolute rounded-full`,
       style: {
-        left: ripple.x,
-        top: ripple.y,
+        left: ripple.x - ripple.diameter / 2,
+        top: ripple.y - ripple.diameter / 2,
+        width: ripple.diameter,
+        height: ripple.diameter,
         background: color,
         filter: 'blur(12px)',
         zIndex,
       },
       initial: {
-        width: 0,
-        height: 0,
+        scale: 0,
         opacity: 1,
-        x: 0,
-        y: 0,
       },
       animate: {
-        width: ripple.radius,
-        height: ripple.radius,
+        scale: 1,
         opacity: ripple.shouldFade ? 0 : 0.5,
-        x: -ripple.radius / 2,
-        y: -ripple.radius / 2,
       },
       transition: {
-        width: {
-          duration: rippleDuration / 1000,
-          ease: [0.25, 1, 0.8, 1],
-        },
-        height: {
+        scale: {
           duration: rippleDuration / 1000,
           ease: [0.25, 1, 0.8, 1],
         },
@@ -196,15 +188,7 @@ export function useRipples(
           duration: ripple.shouldFade
             ? fadeDuration / 1000
             : rippleDuration / 1000,
-          ease: ripple.shouldFade ? 'easeOut' : 'easeOut',
-        },
-        x: {
-          duration: rippleDuration / 1000,
-          ease: [0.25, 1, 0.8, 1],
-        },
-        y: {
-          duration: rippleDuration / 1000,
-          ease: [0.25, 1, 0.8, 1],
+          ease: 'easeOut',
         },
       },
     }),

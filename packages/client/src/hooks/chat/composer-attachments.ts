@@ -180,6 +180,7 @@ export function useComposerAttachments({
     removeFile,
     resetAttachments,
     restoreAttachments,
+    isRestored: !draftKey || restoredDraftKey === draftKey,
   }
 }
 

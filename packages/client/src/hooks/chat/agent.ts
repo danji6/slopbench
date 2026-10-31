@@ -21,9 +21,9 @@ import { useCallback, useMemo, useSyncExternalStore } from 'react'
 
 import { useActiveModel } from './models'
 import { usePromptPreviews } from './prompt-previews'
-import { useLibraryPrompts, usePromptItems } from './prompts'
+import { usePromptRows } from './prompts'
 import { useActiveSession, useActiveSessionId } from './session'
-import { useSettings, useSettingsUpdate } from './settings'
+import { useSettings } from './settings'
 import { useIsAdmin } from './tools'
 
 export type LinkedAgent = {
@@ -105,12 +105,26 @@ export function useAgentPrompts(workDir?: string) {
   const settings = useSettings()
   const isAdmin = useIsAdmin()
   const agent = activeAgent && 'ownerId' in activeAgent ? activeAgent : null
+  const ownRows = usePromptRows('own', agent?._id)
+  const libraryRows = usePromptRows('library')
+
   const home = useQuery(
     api.skills.getHome,
     isAdmin && agent ? { agentId: agent._id } : 'skip',
   )
-  const ownPrompts = usePromptItems('own', agent?._id)
-  const libraryPrompts = useLibraryPrompts()
+
+  const ownPrompts = useMemo(
+    () => (ownRows ?? []).map((row) => row.item),
+    [ownRows],
+  )
+
+  const libraryPrompts = useMemo(
+    () =>
+      (libraryRows ?? [])
+        .map((row) => row.item)
+        .filter((item): item is Prompt => 'content' in item),
+    [libraryRows],
+  )
 
   const data = useMemo(() => {
     const merged = agent
@@ -183,6 +197,9 @@ export function useAgentPrompts(workDir?: string) {
   const values = usePromptPreviews(data.texts, data.context)
   return {
     ...data,
+    isLoading: Boolean(
+      agent && (ownRows === undefined || libraryRows === undefined),
+    ),
     messages: data.messages.map((message, index) => ({
       ...message,
       parts: [{ type: 'text' as const, text: values[index] }],
@@ -233,15 +250,23 @@ export function useAgentUpdate() {
 
 /** Picks the agent outside of a session. */
 export function useSelectAgent() {
-  const update = useSettingsUpdate()
-  const remove = useMutation(api.settings.remove)
-  return useCallback(
-    (agentId: string | null) => {
-      // `undefined` record values are dropped, so clearing the selection
-      // must go through `settings.remove`, which deletes the field.
-      if (agentId === null) return void remove({ key: 'recentAgentId' })
-      return void update({ patch: { recentAgentId: agentId as Id<'agents'> } })
+  const select = useMutation(api.agents.select).withOptimisticUpdate(
+    (store, { agentId }) => {
+      const settings = store.getQuery(api.settings.get, {})
+      if (!settings) return
+      store.setQuery(
+        api.settings.get,
+        {},
+        {
+          ...settings,
+          recentAgentId: agentId ?? undefined,
+        },
+      )
     },
-    [update, remove],
+  )
+  return useCallback(
+    (agentId: string | null) =>
+      select({ agentId: agentId as Id<'agents'> | null }),
+    [select],
   )
 }
