@@ -75,7 +75,7 @@ export function ToolSettings({
             isLoading={isLoading}
           />
         </Tabs.Content>
-        <Tabs.Content value="allowlists">
+        <Tabs.Content value="approvals">
           <ShellSettings
             override
             value={shellField.value}

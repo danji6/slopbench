@@ -106,7 +106,7 @@ function WelcomeContent({ view, prompts, ...props }: WelcomeContentProps) {
           <div className="text-muted-foreground flex min-w-0 items-center justify-center gap-2 text-sm leading-5">
             <span
               aria-hidden="true"
-              className="flex size-4 shrink-0 translate-y-px items-center justify-center"
+              className="flex size-4 shrink-0 -translate-y-px items-center justify-center"
             >
               <FolderIconView icon={props.folderIcon} />
             </span>

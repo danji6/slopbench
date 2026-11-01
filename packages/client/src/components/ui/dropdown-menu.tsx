@@ -250,7 +250,7 @@ function DropdownMenuSwitch({
       {...props}
     >
       {children}
-      <Switch checked={checked} size="sm" />
+      <Switch checked={checked} size="xs" />
     </MenuPrimitive.Item>
   )
 }

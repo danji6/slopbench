@@ -1,7 +1,7 @@
-import { ConfirmDialog, RippleButton } from '@/components/ui'
 import { QuickTooltip } from '@/components/ui/quick-tooltip'
-import { Result } from '@/lib'
+import { RippleButton } from '@/components/ui/ripple-button'
 import type { SessionMode } from '@/lib/chat/modes'
+import { Result } from '@/lib/result'
 import { cn } from '@/lib/utils'
 import type { ApprovalMode } from '@sb/convex/types'
 import {
@@ -15,28 +15,21 @@ type ModeWidgetProps = {
   onDisable: () => void | Promise<void>
 }
 
-/** Active plan mode indicator with confirmation. */
 export function ModeWidget({ mode, onDisable }: ModeWidgetProps) {
   if (mode !== 'plan') return null
 
   return (
-    <ConfirmDialog
-      title="Disable plan mode?"
-      description="The agent will leave its read-only planning state."
-      confirmText="Disable"
-      onConfirm={() => void Result.from(onDisable).catch()}
-    >
-      <QuickTooltip text="Plan mode is active">
-        <RippleButton
-          variant="stealth"
-          size="icon"
-          className="text-m3-primary size-10"
-          aria-label="Disable plan mode"
-        >
-          <LightbulbIcon />
-        </RippleButton>
-      </QuickTooltip>
-    </ConfirmDialog>
+    <QuickTooltip text="Plan mode is active">
+      <RippleButton
+        onClick={() => void Result.from(onDisable).catch()}
+        variant="stealth"
+        size="icon"
+        className="text-m3-primary size-10"
+        aria-label="Disable plan mode"
+      >
+        <LightbulbIcon />
+      </RippleButton>
+    </QuickTooltip>
   )
 }
 
