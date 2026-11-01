@@ -3,6 +3,7 @@ export interface ShellOptionSpec {
   required: ReadonlySet<string>
   optional?: ReadonlySet<string>
   legacyCount?: boolean
+  stopAtOperand?: boolean
 }
 
 export interface ShellOption {
@@ -14,6 +15,7 @@ export interface ShellOptionArgs {
   operands: string[]
   options: ShellOption[]
   complete: boolean
+  terminated: boolean
 }
 
 /** Classify options without confusing their values with filesystem operands. */
@@ -21,15 +23,26 @@ export function parseShellOptionArgs(
   args: string[],
   spec: ShellOptionSpec,
 ): ShellOptionArgs {
-  const result: ShellOptionArgs = { operands: [], options: [], complete: true }
+  const result: ShellOptionArgs = {
+    operands: [],
+    options: [],
+    complete: true,
+    terminated: false,
+  }
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!
     if (arg === '--') {
+      result.terminated = true
       result.operands.push(...args.slice(i + 1))
       break
     }
-    if (arg === '-' || !arg.startsWith('-')) result.operands.push(arg)
-    else if (spec.legacyCount && /^-\d+$/.test(arg)) continue
+    if (arg === '-' || !arg.startsWith('-')) {
+      if (spec.stopAtOperand) {
+        result.operands.push(...args.slice(i))
+        break
+      }
+      result.operands.push(arg)
+    } else if (spec.legacyCount && /^-\d+$/.test(arg)) continue
     else {
       const options = splitOptions(arg, spec)
       for (const option of options) {

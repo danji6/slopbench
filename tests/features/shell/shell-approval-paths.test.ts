@@ -109,8 +109,24 @@ describe('wrappers and prefixes', () => {
     expect(analyzeShellCommand('bun test "focused test"', []).patterns).toEqual(
       ['bun test'],
     )
+    expect(
+      analyzeShellCommand('bun --cwd src test widget.test.ts', []).patterns,
+    ).toEqual(['bun test'])
+    expect(
+      isShellCommandAutoApproved('bun --cwd src test widget.test.ts', [
+        'bun test',
+      ]),
+    ).toBe(true)
+    expect(
+      isShellCommandAutoApproved('bun --cwd src format widget.ts', [
+        'bun test',
+      ]),
+    ).toBe(false)
+    expect(isShellCommandAutoApproved('bun --preload setup.ts pm ls', [])).toBe(
+      false,
+    )
     expect(analyzeShellCommand('bun run "build"', []).patterns).toEqual([
-      'bun run',
+      'bun run build',
     ])
   })
 })

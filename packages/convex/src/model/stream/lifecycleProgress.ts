@@ -22,6 +22,7 @@ import {
 } from '../messageContents'
 import {
   notACommandChip,
+  notAContextNote,
   notAUserKilledReport,
   scheduleMessageEval,
 } from '../messages'
@@ -89,8 +90,7 @@ export async function consumeInterjections(
         .gt('_creationTime', current._creationTime),
     )
     .filter(notACommandChip)
-    .filter((q) => q.neq(q.field('type'), 'skills'))
-    .filter((q) => q.neq(q.field('type'), 'workspace'))
+    .filter(notAContextNote)
     .filter(notAUserKilledReport)
     .order('desc')
     .first()

@@ -30,6 +30,7 @@ async function createFixture() {
     'src/main',
     'src/composition',
     'ignored',
+    'tests/browser',
   ]) {
     await mkdir(path.join(root, directory), { recursive: true })
   }
@@ -43,10 +44,16 @@ async function createFixture() {
     '50',
     'auto',
     '-notes',
+    'format',
+    'test',
+    'tests/browser/excluded.test.ts',
   ]) {
     await writeFile(path.join(root, file), 'fixture')
   }
-  await writeFile(path.join(root, '.gitignore'), 'ignored/\n50\nauto\n-notes\n')
+  await writeFile(
+    path.join(root, '.gitignore'),
+    'ignored/\n50\nauto\n-notes\nformat\ntest\ntests/browser/\n',
+  )
   await writeFile(path.join(external, 'file.txt'), 'outside')
   await symlink(external, path.join(root, 'src/escape'))
   await symlink(path.join(external, 'missing'), path.join(root, 'dangling'))
@@ -63,10 +70,19 @@ async function createFixture() {
   } as WorkspaceToolContext
 }
 
-async function needsApproval(command: string, cwd?: string, paths?: string[]) {
+type ApprovalOptions = {
+  cwd?: string
+  paths?: string[]
+  shell?: string[]
+  plan?: boolean
+}
+
+async function needsApproval(command: string, options: ApprovalOptions = {}) {
+  const { cwd, paths, shell, plan = false } = options
   const tool = await createShellTool({
     ...context,
-    approvals: async () => ({ paths }),
+    approvals: async () => ({ paths, shell }),
+    isPlanMode: async () => plan,
   })
   const predicate = tool.needsApproval as (input: {
     command: string
@@ -124,6 +140,76 @@ describe('shell approval through scoped MCP path checks', () => {
     },
   )
 
+  test('honors Bun task grants for the reported formatting and test chain', async () => {
+    const command =
+      "bun format packages/client/src/components/chat/widgets/mode-widget.tsx tests/features/runtime/mode-widget.test.tsx && bun test --isolate --path-ignore-patterns '**/browser/**' ./tests/features/runtime/mode-widget.test.tsx"
+    expect(await needsApproval(command)).toBe(true)
+    expect(await needsApproval(command, { shell: ['bun test'] })).toBe(true)
+    const shell = ['bun format', 'bun test']
+    expect(await needsApproval(command, { shell })).toBe(false)
+    expect(await needsApproval(command, { shell, plan: true })).toBe(true)
+    expect(await approvalPreview(command)).toMatchObject({
+      approvalPathStatus: null,
+    })
+  })
+
+  test.each([
+    'bun test --preload ignored/patterns.txt README.md',
+    'bun test --reporter junit --reporter-outfile .git/report.xml',
+    'bun --cwd ignored test',
+    'bun test --unknown=README.md',
+    'bun test --preload',
+    'bun format ignored/patterns.txt',
+    'bun test README.md > output.txt',
+  ])('Bun grants retain path and syntax checks: %s', async (command) => {
+    expect(
+      await needsApproval(command, { shell: ['bun test', 'bun format'] }),
+    ).toBe(true)
+  })
+
+  test.each([
+    ['npm run test -- README.md', 'npm run test'],
+    ['pnpm exec eslint README.md', 'pnpm exec eslint'],
+    ['uv run --with pytest pytest README.md', 'uv run pytest'],
+    ['uv tool run pytest README.md', 'uv tool run pytest'],
+  ])(
+    'honors saved runner grants through scoped checks: %s',
+    async (command, pattern) => {
+      expect(await needsApproval(command)).toBe(true)
+      expect(await needsApproval(command, { shell: [pattern] })).toBe(false)
+      expect(
+        await needsApproval(command, { shell: [pattern], plan: true }),
+      ).toBe(true)
+      expect(await approvalPreview(command)).toMatchObject({
+        approvalPathStatus: null,
+      })
+    },
+  )
+
+  test.each([
+    ['npm run test -- ignored/patterns.txt', 'npm run test'],
+    ['npm run test -- -- -notes', 'npm run test'],
+    ['pnpm --filter "*" run test', 'pnpm run test'],
+    [
+      'npx --userconfig ignored/patterns.txt prettier README.md',
+      'npx prettier',
+    ],
+    [
+      'uv run --with-requirements ignored/patterns.txt pytest README.md',
+      'uv run pytest',
+    ],
+    ['uv run python "ignored/patterns.txt"', 'uv run python'],
+    ['uv run grep -f.git/config README.md', 'uv run grep'],
+    ['uvx --from ./ignored pytest README.md', 'uvx pytest'],
+    ['uv run cat src/escape/file.txt', 'uv run cat'],
+    ['uv run --directory src pytest ../ignored/patterns.txt', 'uv run pytest'],
+  ])(
+    'runner grants retain protected-path and selection checks: %s',
+    async (command, pattern) => {
+      expect(await needsApproval(command, { shell: [pattern] })).toBe(true)
+    },
+  )
+
   test.each([
     'ls -la',
     'head -n 50 README.md',
@@ -163,7 +249,7 @@ describe('shell approval through scoped MCP path checks', () => {
   test('external operands still require a grant', async () => {
     const command = `head -n 50 ${external}/file.txt`
     expect(await needsApproval(command)).toBe(true)
-    expect(await needsApproval(command, undefined, [external])).toBe(false)
+    expect(await needsApproval(command, { paths: [external] })).toBe(false)
   })
 
   test('uses the actual cwd and respects ignored and external directories', async () => {
@@ -173,11 +259,13 @@ describe('shell approval through scoped MCP path checks', () => {
       `${root}/src/..`,
       'workspace://src',
     ]) {
-      expect(await needsApproval('ls', cwd)).toBe(false)
+      expect(await needsApproval('ls', { cwd })).toBe(false)
     }
-    expect(await needsApproval('ls', 'workspace://ignored')).toBe(true)
-    expect(await needsApproval('ls', external)).toBe(true)
-    expect(await needsApproval('ls', external, [external])).toBe(false)
+    expect(await needsApproval('ls', { cwd: 'workspace://ignored' })).toBe(true)
+    expect(await needsApproval('ls', { cwd: external })).toBe(true)
+    expect(
+      await needsApproval('ls', { cwd: external, paths: [external] }),
+    ).toBe(false)
   })
 
   test('supports a secondary source as the working directory', async () => {

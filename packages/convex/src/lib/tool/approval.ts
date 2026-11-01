@@ -3,6 +3,7 @@ import { isPathForbidden } from '@sb/core/workspace/path-policy'
 import type { AgentAutoApprove, ToolApprovals } from '../../types'
 import { gitSubcommandIndex } from './gitReadOnly'
 import { hasReadOnlyArguments } from './readOnlyArgs'
+import { parseRunnerInvocation } from './runnerInvocation'
 import {
   DEFAULT_SAFE_SHELL_PATTERNS,
   ENV_ASSIGNMENT,
@@ -252,7 +253,10 @@ function patternFromSegment(text: string) {
   }
 
   const rest = tokens.slice(i)
-  if (program && SUBCOMMAND_PROGRAMS.has(program)) {
+  const runner =
+    program && !hasOpaquePayload ? parseRunnerInvocation(program, rest) : null
+  if (runner) names.push(...runner.parts)
+  else if (program && SUBCOMMAND_PROGRAMS.has(program)) {
     const subIndex = subcommandIndex(program, rest)
     const sub = subIndex === -1 ? undefined : rest[subIndex]
     if (sub && !hasOpaquePayload) {
@@ -291,6 +295,7 @@ function hasQuotedInterpreterArgument(
   program: string,
   args: ShellToken[],
 ): boolean {
+  if (program === 'bun' && parseRunnerInvocation(program, args)) return false
   if (INTERPRETER_PROGRAMS.has(program)) {
     return args.some((token) => token.quoted)
   }

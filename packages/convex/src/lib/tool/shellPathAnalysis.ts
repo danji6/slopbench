@@ -1,7 +1,12 @@
+import { bunTestPathValues } from './bunPathArgs'
 import { gitSubcommandIndex, hasGitRefOperands } from './gitReadOnly'
 import { grepPathValues } from './grepPathArgs'
 import { listingPathValues } from './listingPathArgs'
 import { isReadOnlySedScript } from './readOnlyArgs'
+import {
+  type RunnerInvocation,
+  parseRunnerInvocation,
+} from './runnerInvocation'
 import {
   DEFAULT_SAFE_SHELL_PATTERNS,
   ENV_ASSIGNMENT,
@@ -88,8 +93,17 @@ export function extractPathCandidates(command: string): string[] {
 function pathValuesFromSegment(text: string): SegmentPathAnalysis {
   const invocation = invocationFromTokens(tokenizeShell(text))
   if (!invocation) return { values: [], complete: false }
+  return pathValuesFromInvocation(invocation)
+}
 
+function pathValuesFromInvocation(
+  invocation: Invocation,
+  depth = 0,
+): SegmentPathAnalysis {
   const { program, args, values } = invocation
+  if (depth > 4) return { values, complete: false }
+  const runner = parseRunnerInvocation(program, args)
+  if (runner) return mergePathValues(values, runnerPathValues(runner, depth))
   if (
     INTERPRETER_PROGRAMS.has(program) ||
     hasInterpreterPayload(program, args)
@@ -137,6 +151,45 @@ function pathValuesFromSegment(text: string): SegmentPathAnalysis {
   }
 
   return { values: [...values, ...genericPathValues(args)], complete: true }
+}
+
+/** Inspect a trusted runner's explicit inputs without treating its task as a file. */
+function runnerPathValues(
+  runner: RunnerInvocation,
+  depth: number,
+): SegmentPathAnalysis {
+  let analysis: SegmentPathAnalysis
+  if (runner.kind === 'bun-test') {
+    analysis = bunTestPathValues(runner.args.map((token) => token.value))
+  } else if (runner.target) {
+    analysis = executedPathValues(runner.target, runner.args, depth + 1)
+  } else {
+    analysis = { values: genericPathValues(runner.args), complete: true }
+  }
+  return {
+    values: [...runner.values, ...analysis.values],
+    complete: runner.complete && analysis.complete,
+  }
+}
+
+function executedPathValues(
+  target: ShellToken,
+  args: ShellToken[],
+  depth: number,
+): SegmentPathAnalysis {
+  const program = target.value
+  const remoteScript = /^(?:https?:\/\/|file:|link:|workspace:)/.test(program)
+  const executablePath =
+    !program.startsWith('@') && /[\\/]|\.(?:[cm]?[jt]s|py)$/.test(program)
+  const values = executablePath && !remoteScript ? [program] : []
+  const known =
+    DEFAULT_SAFE_PROGRAMS.has(program) ||
+    INTERPRETER_PROGRAMS.has(program) ||
+    parseRunnerInvocation(program, args)
+  const analysis = known
+    ? pathValuesFromInvocation({ program, args, values }, depth)
+    : { values: [...values, ...genericPathValues(args)], complete: depth <= 4 }
+  return { ...analysis, complete: analysis.complete && !remoteScript }
 }
 
 /** Preserve global repository paths, including Git's attached `-Cpath` form. */
@@ -210,7 +263,14 @@ function interpreterPathValues(program: string, args: ShellToken[]): string[] {
       if (!token.value.includes('=')) i++
       continue
     }
-    if (!token.quoted && !token.value.startsWith('-')) values.push(token.value)
+    if (
+      (program === 'python' || program === 'python3') &&
+      token.value === '-m'
+    ) {
+      i++
+      continue
+    }
+    if (!token.value.startsWith('-')) values.push(token.value)
   }
 
   return values
@@ -306,11 +366,20 @@ function findPathValues(args: ShellToken[]): SegmentPathAnalysis {
 function genericPathValues(args: ShellToken[]): string[] {
   const values: string[] = []
   let skipNext = false
+  let optionsEnded = false
 
   for (const token of args) {
     const value = token.value
     if (skipNext) {
       skipNext = false
+      continue
+    }
+    if (value === '--') {
+      optionsEnded = true
+      continue
+    }
+    if (optionsEnded) {
+      values.push(value)
       continue
     }
     if (PATTERN_ARG_FLAGS.has(value)) {

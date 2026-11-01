@@ -1,3 +1,4 @@
+import { CONTEXT_NOTE_TYPES } from '@sb/core/context-notes'
 import { hasInterpolation } from '@sb/core/interpreter/parse'
 import { settleUnansweredToolPart } from '@sb/core/utils/tool-parts'
 import type { UIMessage } from 'ai'
@@ -180,6 +181,10 @@ type MessageFilter = FilterBuilder<NamedTableInfo<DataModel, 'messages'>>
  */
 export const notACommandChip = (q: MessageFilter) =>
   q.neq(q.field('type'), 'command')
+
+/** Excludes prepared provider context from messages that interrupt a turn. */
+export const notAContextNote = (q: MessageFilter) =>
+  q.and(...CONTEXT_NOTE_TYPES.map((type) => q.neq(q.field('type'), type)))
 
 /**
  * Reports of jobs the user stopped by hand are transcript records only. Turn

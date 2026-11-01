@@ -4,6 +4,8 @@ type ContextNoteMessage = {
   extra?: object
 }
 
+export const CONTEXT_NOTE_TYPES = ['skills', 'workspace', 'mcp'] as const
+
 /** Places each note before the assistant output whose request first consumed it. */
 export function orderContextNotes<T extends ContextNoteMessage>(
   messages: T[],
@@ -31,5 +33,5 @@ function contextNoteAnchor(message: ContextNoteMessage) {
 
 /** Identifies immutable context prepared before a provider invocation. */
 export function isContextNote(type: string | undefined) {
-  return type === 'skills' || type === 'workspace' || type === 'mcp'
+  return CONTEXT_NOTE_TYPES.some((contextType) => contextType === type)
 }
