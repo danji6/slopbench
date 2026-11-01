@@ -8,6 +8,7 @@ import {
   groupKey,
   groupPartsCached,
 } from './parts'
+import { messageSenderKey, senderGroupDurations } from './sender-groups'
 import type { MessageRecord, PartMetadata } from './types'
 import {
   type ReasoningAddress,
@@ -46,6 +47,7 @@ export type MessageRow =
       kind: 'footer'
       key: string
       messageId: string
+      duration?: number
       grouped?: boolean
     }
   | {
@@ -128,14 +130,14 @@ export type BuildRowsOptions = {
 function hasFooterContent(
   message: UIMessage,
   meta: MessageRecord | undefined,
-  partMeta: PartMetadata | undefined,
+  duration: number | undefined,
 ): boolean {
   // A processing turn can surface the waiting indicator at any moment
   if ((message as { status?: string }).status === 'processing') return true
   if (meta?.hasChanges) return true
   if (meta?.metadata?.error) return true
   if ((meta?.versionCount ?? 1) > 1) return true
-  return (partMeta?.duration ?? 0) > 0
+  return duration !== undefined
 }
 
 export function buildRows(
@@ -148,6 +150,13 @@ export function buildRows(
   const rows: MessageRow[] = []
   let previousSenderKey: string | null = null
   let senderHeader: Extract<MessageRow, { kind: 'header' }> | undefined
+  const durations = senderGroupDurations({
+    ids,
+    getMessage,
+    getMetadata: getMessageMetadata,
+    getPartMetadata,
+    groupBySender,
+  })
 
   for (const id of ids) {
     const message = getMessage(id)
@@ -168,10 +177,7 @@ export function buildRows(
     }
 
     // Summaries and other typed messages never join a sender group
-    const senderKey =
-      meta?.sender && !meta.type
-        ? `${message.role}:${meta.sender.type}:${meta.sender.id}`
-        : null
+    const senderKey = messageSenderKey(message, meta)
     const grouped =
       groupBySender && senderKey !== null && senderKey === previousSenderKey
     previousSenderKey = senderKey
@@ -229,11 +235,13 @@ export function buildRows(
     }
 
     // Only render a footer if it has something to show or is the first row
-    if (first || hasFooterContent(message, meta, getPartMetadata(id))) {
+    const duration = durations.get(id)
+    if (first || hasFooterContent(message, meta, duration)) {
       rows.push({
         kind: 'footer',
         key: firstKey(`f:${id}`),
         messageId: id,
+        ...(duration !== undefined && { duration }),
         ...(first && grouped && { grouped }),
       })
     }

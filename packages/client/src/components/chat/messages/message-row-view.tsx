@@ -78,9 +78,9 @@ export const MessageRowView = memo(function MessageRowView({
         />
       ) : row.kind === 'footer' ? (
         <FooterRow
+          duration={row.duration}
           message={message}
           messageMeta={messageMeta}
-          partMeta={partMeta}
           isLast={isLast}
         />
       ) : null}
@@ -163,7 +163,11 @@ function RowShell({ message, messageMeta, row, children }: RowShellProps) {
           roleClass,
         )}
       >
-        <GrowOnly growKey={growKey}>{children}</GrowOnly>
+        {row.kind === 'footer' ? (
+          children
+        ) : (
+          <GrowOnly growKey={growKey}>{children}</GrowOnly>
+        )}
       </div>
     </MessageContextMenu>
   )
@@ -332,22 +336,17 @@ function GroupRow({ row, message, messageMeta, partMeta }: GroupRowProps) {
 }
 
 type FooterRowProps = {
+  duration?: number
   message: UIMessage
   messageMeta?: MessageRecord
-  partMeta?: PartMetadata
   isLast: boolean
 }
 
-function FooterRow({ message, messageMeta, partMeta, isLast }: FooterRowProps) {
+function FooterRow({ duration, message, messageMeta, isLast }: FooterRowProps) {
   const isStreaming = useIsMessageStreaming(message.id)
   const isInactive = useStreamInactivity(message)
 
-  const totalDurationMs = useMemo(() => {
-    const duration = partMeta?.duration
-    return duration && duration > 0 ? duration : undefined
-  }, [partMeta])
-
-  const showDuration = totalDurationMs !== undefined && !isStreaming
+  const showDuration = duration !== undefined && !isStreaming
 
   const error = messageMeta?.metadata?.error
 
@@ -364,7 +363,7 @@ function FooterRow({ message, messageMeta, partMeta, isLast }: FooterRowProps) {
   return (
     <div
       data-slow="message-footer"
-      className={cn('flex w-full flex-col', !isLast && 'pb-4')}
+      className={cn('flex w-full flex-col empty:hidden', !isLast && 'pb-4')}
     >
       {error && (
         <div className="px-4">
@@ -393,7 +392,7 @@ function FooterRow({ message, messageMeta, partMeta, isLast }: FooterRowProps) {
           )}
           {showDuration && (
             <span className="text-muted-foreground/80 text-sm tabular-nums">
-              {formatDuration(totalDurationMs)}
+              {formatDuration(duration)}
             </span>
           )}
         </div>

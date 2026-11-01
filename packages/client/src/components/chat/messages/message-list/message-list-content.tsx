@@ -285,10 +285,11 @@ function VirtualizedItem({
   const row = rows[index]
   const previousRow = rows[index - 1]
 
-  // Spacing for certain rows (e.g. summary blocks)
+  // Separate messages only when they start a new sender group.
   const spacing =
     row !== undefined &&
     index > 0 &&
+    !row.grouped &&
     row.kind !== 'footer' &&
     !(row.kind === 'hidden' && row.noteGroupId) &&
     previousRow?.messageId !== row.messageId
@@ -310,7 +311,7 @@ function VirtualizedItem({
       data-segment-index={row?.kind === 'group' ? row.segmentIndex : undefined}
       style={overhang}
     >
-      {spacing && <div aria-hidden className={row.grouped ? 'h-3' : 'h-10'} />}
+      {spacing && <div aria-hidden className="h-10" />}
       {row?.kind === 'group' && row.workId ? (
         <VirtualizedRowTransition
           state={

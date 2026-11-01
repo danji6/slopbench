@@ -2,6 +2,7 @@ import { HiddenChip } from '@/components/chat/messages/hidden-chip'
 import type { ScrollDeps } from '@/components/chat/messages/message-list/deps'
 import { MessageListContent } from '@/components/chat/messages/message-list/message-list-content'
 import { MessageListContext } from '@/components/chat/messages/message-list/message-list-context'
+import { MessageRowView } from '@/components/chat/messages/message-row-view'
 import { NoteGroupBlock } from '@/components/chat/messages/note-group-block'
 import { WorkBlock } from '@/components/chat/messages/work-block'
 import '@/globals.css'
@@ -25,6 +26,7 @@ import type { WindowVirtualizerHandle } from 'virtua'
 import { appendNote, isNoteRow, notesClient } from './notes-client'
 
 const noop = () => {}
+const groupedWork = new URLSearchParams(location.search).has('groupedWork')
 
 function NoteRow({ row }: { row: MessageRow }) {
   const { message, messageMeta } = useChatMessage(row.messageId)
@@ -38,6 +40,7 @@ function NoteRow({ row }: { row: MessageRow }) {
 
 function Transcript() {
   const [groupSettled, setGroupSettled] = useState(false)
+  const [hideDuration, setHideDuration] = useState(false)
   const rows = useMessageRows()
   const store = useMessageStore()
   const { anchorAround } = useWindowControls()
@@ -92,6 +95,9 @@ function Transcript() {
       }}
     >
       <nav className="bg-background fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-2 px-2 text-xs">
+        {groupedWork && (
+          <button onClick={() => setHideDuration(true)}>Hide duration</button>
+        )}
         <button
           data-seek-settled={groupSettled}
           onClick={() => {
@@ -136,7 +142,15 @@ function Transcript() {
             onLoadNewer: () => {},
             virtuaRef,
             renderRow: (row) =>
-              isNoteRow(row) || row.kind === 'work' ? (
+              groupedWork ? (
+                <MessageRowView
+                  row={
+                    hideDuration && row.kind === 'footer'
+                      ? { ...row, duration: undefined }
+                      : row
+                  }
+                />
+              ) : isNoteRow(row) || row.kind === 'work' ? (
                 <NoteRow row={row} />
               ) : (
                 <article className="h-24">{row.messageId}</article>

@@ -296,7 +296,7 @@ describe('sender grouping', () => {
     )
   }
 
-  test('suppresses the header of consecutive same-sender messages', () => {
+  test('shares a header and total duration across consecutive same-sender messages', () => {
     const rows = rowsFor(
       { 'message-1': agentMeta, 'message-2': agentMeta },
       true,
@@ -305,11 +305,68 @@ describe('sender grouping', () => {
     expect(rows.map((row) => row.key)).toEqual([
       'h:message-1',
       'g:message-1:s0:text:0',
-      'f:message-1',
       'g:message-2:s0:text:0:grp',
       'f:message-2',
     ])
-    expect(rows[3]).toMatchObject({ grouped: true })
+    expect(rows[2]).toMatchObject({ grouped: true })
+    expect(rows.at(-1)).toMatchObject({ duration: 2 })
+  })
+
+  test('waits for the grouped continuation to finish across a hidden note', () => {
+    const ids = ['message-1', 'note', 'message-2']
+    const getMetadata = (id: string) =>
+      id === 'note'
+        ? { ...agentMeta, type: 'mode' as const, hidden: true }
+        : agentMeta
+    const getPartMetadata = (id: string) => ({
+      duration: id === 'message-1' ? 8300 : id === 'message-2' ? 2000 : 0,
+    })
+    const rowsAt = (status: 'processing' | 'done') =>
+      buildRows(
+        ids,
+        (id) => ({
+          ...getMessage(id),
+          status: id === 'message-2' ? status : 'done',
+        }),
+        getMetadata,
+        getPartMetadata,
+        { groupBySender: true },
+      )
+
+    const processing = rowsAt('processing')
+    expect(processing.filter((row) => row.kind === 'footer')).toEqual([
+      { kind: 'footer', key: 'f:message-2', messageId: 'message-2' },
+    ])
+
+    const completed = rowsAt('done')
+    expect(completed.filter((row) => row.kind === 'footer')).toEqual([
+      {
+        kind: 'footer',
+        key: 'f:message-2',
+        messageId: 'message-2',
+        duration: 10300,
+      },
+    ])
+  })
+
+  test('preserves message-specific footer controls inside a group', () => {
+    const rows = rowsFor(
+      {
+        'message-1': { ...agentMeta, versionCount: 2 },
+        'message-2': agentMeta,
+      },
+      true,
+    )
+
+    expect(rows.filter((row) => row.kind === 'footer')).toEqual([
+      { kind: 'footer', key: 'f:message-1', messageId: 'message-1' },
+      {
+        kind: 'footer',
+        key: 'f:message-2',
+        messageId: 'message-2',
+        duration: 2,
+      },
+    ])
   })
 
   test('keeps headers when the option is off', () => {
@@ -328,6 +385,9 @@ describe('sender grouping', () => {
     ])
     // Keys differ between the on/off states so `rowKeysEqual` catches toggles
     expect(rows.every((row) => !row.key.endsWith(':grp'))).toBe(true)
+    expect(
+      rows.filter((row) => row.kind === 'footer').map((row) => row.duration),
+    ).toEqual([1, 1])
   })
 
   test('a nameless sender still gets a header', () => {
@@ -348,6 +408,9 @@ describe('sender grouping', () => {
     )
 
     expect(rows.map((row) => row.key)).toContain('h:message-2')
+    expect(
+      rows.filter((row) => row.kind === 'footer').map((row) => row.duration),
+    ).toEqual([1, 1])
   })
 
   test('hidden messages render a single chip row', () => {
@@ -399,6 +462,9 @@ describe('sender grouping', () => {
     // The summary itself never groups, and the message after it starts fresh
     expect(rows.map((row) => row.key)).toContain('h:message-3')
     expect(rows.some((row) => row.key.endsWith(':grp'))).toBe(false)
+    expect(
+      rows.filter((row) => row.kind === 'footer').map((row) => row.duration),
+    ).toEqual([1, 1, 1])
   })
 })
 

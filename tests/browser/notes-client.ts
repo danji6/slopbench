@@ -65,18 +65,29 @@ function noteExtra(type?: NoteType) {
 }
 
 const params = new URLSearchParams(location.search)
-let messages = [
-  ...Array.from({ length: 35 }, (_, i) => message(`before${i}`, i)),
-  message('mcp', 40, 'mcp'),
-  message('workspace', 41, 'workspace'),
-  message('skills', 42, 'skills'),
-  message('command', 43, 'command'),
-  ...Array.from({ length: Number(params.get('extraNotes') ?? 0) }, (_, i) =>
-    message(`note${i}`, 44 + i / 1000, 'skills'),
-  ),
-  ...(params.has('work') ? [message('work', 45)] : []),
-  ...Array.from({ length: 35 }, (_, i) => message(`after${i}`, 50 + i)),
-]
+let messages = params.has('groupedWork')
+  ? groupedWorkMessages()
+  : [
+      ...Array.from({ length: 35 }, (_, i) => message(`before${i}`, i)),
+      message('mcp', 40, 'mcp'),
+      message('workspace', 41, 'workspace'),
+      message('skills', 42, 'skills'),
+      message('command', 43, 'command'),
+      ...Array.from({ length: Number(params.get('extraNotes') ?? 0) }, (_, i) =>
+        message(`note${i}`, 44 + i / 1000, 'skills'),
+      ),
+      ...(params.has('work') ? [message('work', 45)] : []),
+      ...Array.from({ length: 35 }, (_, i) => message(`after${i}`, 50 + i)),
+    ]
+
+function groupedWorkMessages() {
+  return ['first', 'second'].map((id, index) => ({
+    ...message('work', index),
+    _id: id,
+    hasChanges: index === 0 && params.has('emptyChanges'),
+    metadata: { duration: 8300 },
+  }))
+}
 const cache = new Map<string, unknown>()
 const listeners = new Set<() => void>()
 
