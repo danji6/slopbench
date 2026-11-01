@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import { z } from 'zod'
 
 import {
@@ -92,6 +92,7 @@ export async function importTransfer(value: unknown) {
 
     await saveRegistration(key, {
       ...record,
+      authRevision: randomUUID(),
       transferNonce: undefined,
       transferExpiresAt: undefined,
     })

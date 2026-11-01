@@ -2,11 +2,16 @@ import { chatGPTCacheKey, prepareChatGPTRequest } from '@sb/core/chatgpt-policy'
 import type { Handler } from 'hono'
 import { z } from 'zod'
 
+import {
+  continuitySchema,
+  responseRoutingHeaders,
+  turnRoutingHeaders,
+} from './continuity'
 import { cancelSignIn, connectionStatus, startSignIn } from './oauth'
 import { hostId } from './storage'
 import type { ConnectionKey } from './storage'
 import { requireCompletedStream } from './stream'
-import { accessToken, disconnect } from './tokens'
+import { accessContext, accessToken, disconnect } from './tokens'
 import { prepareTransfer } from './transfer'
 
 const keySchema = z.object({
@@ -65,7 +70,10 @@ export const chatGPTModels: Handler = async (c) => {
 
 export const chatGPTResponses: Handler = async (c) => {
   const input = keySchema
-    .extend({ body: z.record(z.string(), z.unknown()) })
+    .extend({
+      body: z.record(z.string(), z.unknown()),
+      continuity: continuitySchema.optional(),
+    })
     .parse(await c.req.json())
   const body = prepareChatGPTRequest(input.body)
   const cacheKey = chatGPTCacheKey(body)
@@ -82,19 +90,27 @@ export const chatGPTResponses: Handler = async (c) => {
   }
 
   try {
-    const token = await accessToken(input)
+    const { token, authRevision } = await accessContext(input)
+    const routing = turnRoutingHeaders(input.continuity, authRevision)
 
     const response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
+        ...routing.headers,
         ...(cacheKey === undefined ? {} : { 'session-id': cacheKey }),
       },
       body: JSON.stringify(body),
       redirect: 'error',
       signal: AbortSignal.any([controller.signal, c.req.raw.signal]),
     })
+
+    const responseHeaders = responseRoutingHeaders(response, {
+      ...routing,
+      authRevision,
+    })
+    for (const [name, value] of responseHeaders) c.header(name, value)
 
     if (!response.ok) {
       release()
@@ -123,10 +139,11 @@ export const chatGPTResponses: Handler = async (c) => {
       throw new Error('ChatGPT returned an empty stream')
     }
     return new Response(requireCompletedStream(response.body, release), {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-store',
-      },
+      headers: new Headers([
+        ...responseHeaders,
+        ['Content-Type', 'text/event-stream'],
+        ['Cache-Control', 'no-store'],
+      ]),
     })
   } catch (err) {
     release()

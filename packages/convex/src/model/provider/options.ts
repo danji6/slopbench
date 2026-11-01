@@ -1,6 +1,7 @@
 import type { SharedV3ProviderOptions } from '@ai-sdk/provider'
 import { normalizeReasoningEffort } from '@sb/core/model-reasoning'
 import { parseModelReference } from '@sb/core/model-reference'
+import type { ProviderTransportObserver } from '@sb/core/provider-continuity'
 import type { LanguageModel } from 'ai'
 
 import { error } from '../../errors'
@@ -30,6 +31,7 @@ export type ProviderOptions = {
 }
 
 export type ProviderRequestOptions = {
+  observeTransport?: ProviderTransportObserver
   cacheKey?: string
   onRequest?: (body: string) => void | Promise<void>
   fetch?: typeof globalThis.fetch
@@ -57,7 +59,11 @@ export async function getProviderOptions(
     )
   }
 
-  const transport = inferenceTransport(credentials, request.cacheKey)
+  const transport = inferenceTransport(
+    credentials,
+    request.cacheKey,
+    request.observeTransport,
+  )
   const providerId = credentials.providerId
   const reasoning = resolveModelReasoning(providerId, credentials.model?.reasoning) // prettier-ignore
   const normalizedEffort = normalizeReasoningEffort(reasoningEffort, reasoning)

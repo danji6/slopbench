@@ -24,6 +24,7 @@ export async function _saveMeta(
     toolErrors,
     warnings,
     usage,
+    providerRequestId,
   }: SaveStreamMetaArgs,
 ) {
   const stream = await ctx.db.get(streamId)
@@ -42,7 +43,7 @@ export async function _saveMeta(
     })
   }
 
-  await accumulateSessionUsage(ctx, stream.sessionId, usage)
+  await accumulateSessionUsage(ctx, stream.sessionId, usage, providerRequestId)
 }
 
 export type MetaDelta = {
@@ -71,14 +72,28 @@ export async function accumulateSessionUsage(
   ctx: MutationCtx,
   sessionId: Id<'sessions'>,
   delta: TokenUsage,
+  providerRequestId?: string,
 ) {
-  const prev = (await getState(ctx, sessionId))?.usage ?? {
+  const state = await getState(ctx, sessionId)
+  const prev = state?.usage ?? {
     inputTokens: 0,
     outputTokens: 0,
     totalTokens: 0,
   }
 
+  const cacheDiagnostics = state?.cacheDiagnostics?.map((entry) =>
+    entry.id === providerRequestId
+      ? {
+          ...entry,
+          usageSavedAt: Date.now(),
+          inputTokens: delta.inputTokens,
+          cacheReadTokens: delta.cache?.readTokens,
+        }
+      : entry,
+  )
+
   await patchState(ctx, sessionId, {
+    ...(providerRequestId && cacheDiagnostics ? { cacheDiagnostics } : {}),
     usage: {
       inputTokens: prev.inputTokens + delta.inputTokens,
       outputTokens: prev.outputTokens + delta.outputTokens,

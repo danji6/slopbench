@@ -21,6 +21,8 @@ import type * as McpBrokerV from './validators/mcpBroker'
 import type * as McpCatalogsV from './validators/mcpCatalogs'
 import type * as McpOperationsV from './validators/mcpOperations'
 import type * as McpProtocolV from './validators/mcpProtocol'
+import type * as ProviderRequestsV from './validators/providerRequests'
+import type * as StreamsV from './validators/streams'
 
 export type { Role } from './lib/roles'
 export type * from '@sb/core/types'
@@ -278,3 +280,8 @@ export type RestoreChangesResultArgs = Infer<typeof ChangesV.restoreChangesResul
 export type AppendChangesArgs = Infer<typeof ChangesV.appendChangesArgsValidator> // prettier-ignore
 export type ReservePublicationArgs = Infer<typeof ChangesV.reservePublicationArgsValidator> // prettier-ignore
 export type AgentPageArgs = Infer<typeof V.agentPageArgsValidator>
+export type CacheDiagnostic = Infer<typeof ProviderRequestsV.cacheDiagnosticValidator> // prettier-ignore
+export type ProviderContinuityScope = Infer<typeof ProviderRequestsV.providerContinuityScopeValidator> // prettier-ignore
+export type PrepareProviderRequestArgs = Infer<typeof StreamsV.prepareProviderRequestArgsValidator> // prettier-ignore
+export type SaveProviderContinuityArgs = Infer<typeof StreamsV.saveProviderContinuityArgsValidator> // prettier-ignore
+export type RecordCacheDiagnosticArgs = Infer<typeof StreamsV.recordCacheDiagnosticArgsValidator> // prettier-ignore

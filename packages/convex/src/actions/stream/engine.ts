@@ -78,6 +78,7 @@ export async function _stream(ctx: ActionCtx, execution: StreamExecutionArgs) {
         toolErrors: hasOutput.toolErrors,
         warnings: hasOutput.warnings,
         usage,
+        providerRequestId: setup.cacheDiagnostics?.requestId(),
       })
 
       const pendingMcp = await ctx.runQuery(

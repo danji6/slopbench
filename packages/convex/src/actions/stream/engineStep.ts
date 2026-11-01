@@ -223,7 +223,8 @@ export async function consumeProviderStep(
     })
 
     const steps = await result.steps
-    const finishReason = steps.at(-1)?.finishReason
+    const lastStep = steps.at(-1)
+    const finishReason = lastStep?.finishReason
 
     const lastResponseBody = JSON.stringify(
       omitLargeStrings({ parts: latestParts, usage, finishReason }),
@@ -240,6 +241,11 @@ export async function consumeProviderStep(
     })
 
     assertProviderStepOutput(outputTracker.hasOutput, finishReason)
+    await setup.cacheDiagnostics?.complete(
+      usage,
+      lastStep?.usage,
+      lastStep?.response,
+    )
 
     return {
       shouldContinue: finishReason === 'tool-calls',
@@ -255,6 +261,7 @@ export async function consumeProviderStep(
       usage,
     }
   } catch (error) {
+    await setup.cacheDiagnostics?.fail(abortController.signal.aborted)
     latestParts = await prepareParts(latestParts).catch(() => latestParts)
 
     await tryPatchMessage(ctx, execution, latestParts)

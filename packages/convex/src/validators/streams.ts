@@ -1,5 +1,11 @@
 import { v } from 'convex/values'
 
+import {
+  cacheDiagnosticValidator,
+  providerContinuityScopeValidator,
+  providerContinuityValidator,
+  providerContinuityValueValidator,
+} from './providerRequests'
 import { tokenUsageValidator } from './providers'
 import { sessionModeValidator } from './sessionModes'
 import { saveSessionCacheArgsValidator } from './sessions'
@@ -115,6 +121,7 @@ export const saveStreamMetaArgsValidator = v.object({
   toolErrors: v.array(v.string()),
   warnings: v.array(v.string()),
   usage: tokenUsageValidator,
+  providerRequestId: v.optional(v.string()),
 })
 
 export const scheduleStreamRetryArgsValidator = v.object({
@@ -126,6 +133,7 @@ export const scheduleStreamRetryArgsValidator = v.object({
 /** A leased background turn, including retries and deferred work. */
 export const streamSchema = v.object({
   generation: v.number(),
+  providerContinuity: v.optional(providerContinuityValidator),
   changeGroupId: v.optional(v.string()),
   sessionId: v.id('sessions'),
   agentId: v.id('agents'),
@@ -174,4 +182,20 @@ export const prepareContextNoteArgsValidator = v.object({
   content: v.string(),
   label: v.optional(v.string()),
   integrationFingerprint: v.optional(v.string()),
+})
+
+export const prepareProviderRequestArgsValidator = v.object({
+  ...streamExecutionArgsValidator.fields,
+  scope: providerContinuityScopeValidator,
+})
+
+export const saveProviderContinuityArgsValidator = v.object({
+  ...prepareProviderRequestArgsValidator.fields,
+  value: v.optional(providerContinuityValueValidator),
+  reset: v.boolean(),
+})
+
+export const recordCacheDiagnosticArgsValidator = v.object({
+  ...streamExecutionArgsValidator.fields,
+  diagnostic: cacheDiagnosticValidator,
 })

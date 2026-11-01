@@ -146,8 +146,11 @@ export async function getLogUrls(
   const member = await getMember(ctx, sessionId, ctx.userId)
   if (!member) return null
 
-  const log = (await getState(ctx, sessionId))?.log
-  return { logUrl: log ? await ctx.storage.getUrl(log) : null }
+  const state = await getState(ctx, sessionId)
+  return {
+    logUrl: state?.log ? await ctx.storage.getUrl(state.log) : null,
+    cacheDiagnostics: state?.cacheDiagnostics ?? [],
+  }
 }
 
 /** The slice of a session's hot state the UI renders. */
@@ -162,7 +165,7 @@ export async function getStateView(
   return {
     toolApprovals: await getApprovals(ctx, sessionId),
     usage: state?.usage,
-    hasLog: Boolean(state?.log),
+    hasLog: Boolean(state?.log || state?.cacheDiagnostics?.length),
   }
 }
 

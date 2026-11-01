@@ -1,7 +1,12 @@
+import { createCacheDiagnostics } from '@sb/convex/actions/stream/cacheDiagnostics'
+import { chatGPTFetch } from '@sb/convex/model/provider/openai/chatgpt'
 import {
   type ProviderOptions,
   getProviderOptions,
 } from '@sb/convex/model/provider/options'
+import { accumulateSessionUsage } from '@sb/convex/model/stream/lifecycleMeta'
+import { resolveUsage } from '@sb/convex/model/stream/usage'
+import type { CacheDiagnostic } from '@sb/convex/types'
 import { sidecarAuthentication } from '@sb/sidecar/auth'
 import { sidecarError } from '@sb/sidecar/http-errors'
 import { chatGPTResponses } from '@sb/sidecar/providers/openai/handlers'
@@ -12,6 +17,8 @@ import { Hono } from 'hono'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+
+import { streamDiagnosticsFixture } from '../../helpers/provider-diagnostics'
 
 const key = { ownerId: 'fixture-owner', connectionId: 'fixture-connection' }
 const credentials = { ...key, providerId: 'openai', auth: 'chatgpt' } as const
@@ -31,6 +38,9 @@ type UpstreamRequest = {
 let directory: string
 let app: Hono
 let requests: UpstreamRequest[]
+let upstreamHeaders: Record<string, string>
+let truncated: boolean
+let upstreamStatus: number
 let fetchSpy: ReturnType<typeof spyOn<typeof globalThis, 'fetch'>>
 
 beforeEach(async () => {
@@ -45,6 +55,9 @@ beforeEach(async () => {
     expiresAt: Date.now() + 3_600_000,
   })
   requests = []
+  upstreamHeaders = {}
+  truncated = false
+  upstreamStatus = 200
   app = new Hono()
   app.onError(sidecarError)
   app.use('*', sidecarAuthentication(process.env.SIDECAR_SECRET))
@@ -74,10 +87,22 @@ async function captureFetch(input: RequestInfo | URL, init?: RequestInit) {
     headers: new Headers(init?.headers),
     redirect: init?.redirect,
   })
+  if (truncated)
+    return new Response(
+      'data: {"type":"response.created","response":{"id":"fixture-response"}}\n\n',
+      { headers: upstreamHeaders },
+    )
+  if (upstreamStatus >= 400)
+    return Response.json(
+      { error: { message: 'fixture error' } },
+      { status: upstreamStatus, headers: upstreamHeaders },
+    )
   return new Response(
     `data: ${JSON.stringify({
       type: 'response.completed',
       response: {
+        id: 'fixture-response',
+        model: 'fixture-model',
         usage: {
           input_tokens: 2048,
           output_tokens: 2,
@@ -85,7 +110,7 @@ async function captureFetch(input: RequestInfo | URL, init?: RequestInit) {
         },
       },
     })}\n\n`,
-    { headers: { 'Content-Type': 'text/event-stream' } },
+    { headers: { 'Content-Type': 'text/event-stream', ...upstreamHeaders } },
   )
 }
 
@@ -95,6 +120,7 @@ async function runRequest(options: ProviderOptions) {
     providerOptions: options.providerOptions,
     prompt: 'Reply OK',
     maxRetries: 0,
+    onError: () => {},
   })
   return result.usage
 }
@@ -106,6 +132,7 @@ function legacyRequest(body: Record<string, unknown>) {
       Authorization: `Bearer ${process.env.SIDECAR_SECRET}`,
       'Content-Type': 'application/json',
       'session-id': 'untrusted-incoming-header',
+      'x-codex-turn-state': 'untrusted-turn-state',
     },
     body: JSON.stringify({ ...key, body }),
   })
@@ -191,6 +218,7 @@ describe('ChatGPT cache routing', () => {
     expect(response.status).toBe(200)
     await response.text()
     expect(requests[0].headers.has('session-id')).toBe(false)
+    expect(requests[0].headers.has('x-codex-turn-state')).toBe(false)
     expect(requests[0].body).not.toHaveProperty('prompt_cache_key')
   })
 
@@ -229,9 +257,245 @@ describe('ChatGPT cache routing', () => {
     )
     await runRequest(options)
     expect(requests[0].headers.has('session-id')).toBe(false)
+    expect(requests[0].headers.has('x-codex-turn-state')).toBe(false)
     expect(requests[0].body).not.toHaveProperty('prompt_cache_key')
     expect(requests[0].headers.get('Authorization')).toBe(
       'Bearer fixture-api-key',
     )
+  })
+})
+
+describe('ChatGPT turn routing and diagnostics', () => {
+  test('round-trips first state through reconstructed SDK models and correlates saved usage', async () => {
+    const { ctx, rows, databaseCtx } = streamDiagnosticsFixture()
+    for (let index = 0; index < 4; index++) {
+      const messageId = index < 3 ? 'message' : 'next-turn'
+      rows('streams')[0].state = {
+        phase: 'streaming',
+        processingMessageId: messageId,
+      }
+      rows('streams')[0].generation = index + 1
+      const diagnostics = createCacheDiagnostics(ctx, {
+        execution: { streamId: 'stream' as never, generation: index + 1 },
+        messageId: messageId as never,
+        attempt: 0,
+        credentials,
+      })
+      upstreamHeaders = {
+        'x-codex-turn-state': index === 1 ? 'conflicting-token' : 'first-token',
+        'x-request-id': `request-${index}`,
+        'openai-model': 'fixture-model',
+        'x-private-upstream': 'must-not-forward',
+      }
+      const options = await getProviderOptions(
+        'fixture-model',
+        'auto',
+        credentials,
+        { cacheKey: 'session', observeTransport: diagnostics.observeTransport },
+      )
+      const result = streamText({
+        model: options.languageModel,
+        providerOptions: options.providerOptions,
+        prompt: 'Reply OK',
+        maxRetries: 0,
+      })
+      const normalized = await resolveUsage({
+        usage: await result.usage,
+        outputText: '',
+      })
+      const step = (await result.steps).at(-1)
+      await diagnostics.complete(normalized, step?.usage, step?.response)
+      await accumulateSessionUsage(
+        databaseCtx,
+        'session' as never,
+        normalized,
+        diagnostics.requestId(),
+      )
+      const log = rows('sessionState')[0].cacheDiagnostics as CacheDiagnostic[]
+      expect(log.at(-1)).toMatchObject({
+        outcome: 'completed',
+        rawInputTokens: 2048,
+        rawCacheReadTokens: 1024,
+        cacheReadTokens: 1024,
+        upstreamRequestId: `request-${index}`,
+      })
+      const responseHeaders = (await result.response).headers
+      expect(responseHeaders).not.toHaveProperty('x-codex-turn-state')
+      expect(responseHeaders).not.toHaveProperty('x-slopbench-auth-revision')
+      expect(responseHeaders).not.toHaveProperty('x-private-upstream')
+      expect(JSON.stringify(log)).not.toContain('first-token')
+      expect(JSON.stringify(log)).not.toContain('fixture-oauth-token')
+    }
+    expect(
+      requests.map((request) => request.headers.get('x-codex-turn-state')),
+    ).toEqual([null, 'first-token', 'first-token', null])
+    expect(
+      (rows('sessionState')[0].cacheDiagnostics as CacheDiagnostic[])[1]
+        .continuityConflict,
+    ).toBe(true)
+    const stream = rows('streams')[0]
+    expect(stream.providerContinuity).toMatchObject({
+      value: { token: 'first-token' },
+    })
+  })
+
+  test('captures routing before a truncated stream and preserves it when a later response omits state', async () => {
+    const { ctx, rows } = streamDiagnosticsFixture()
+    const makeDiagnostics = () =>
+      createCacheDiagnostics(ctx, {
+        execution: { streamId: 'stream' as never, generation: 1 },
+        messageId: 'message' as never,
+        attempt: 0,
+        credentials,
+      })
+    const first = makeDiagnostics()
+    upstreamHeaders = { 'x-codex-turn-state': 'retry-token' }
+    truncated = true
+    const response = await chatGPTFetch(credentials, first.observeTransport)(
+      'ignored',
+      {
+        body: JSON.stringify({
+          model: 'fixture-model',
+          input: [],
+          prompt_cache_key: 'session',
+        }),
+      },
+    )
+    expect(rows('streams')[0].providerContinuity).toMatchObject({
+      value: { token: 'retry-token' },
+    })
+    await expect(response.text()).rejects.toThrow()
+    await first.fail(false)
+    truncated = false
+    upstreamHeaders = {}
+    const next = makeDiagnostics()
+    await (
+      await chatGPTFetch(credentials, next.observeTransport)('ignored', {
+        body: JSON.stringify({
+          model: 'fixture-model',
+          input: [],
+          prompt_cache_key: 'session',
+        }),
+      })
+    ).text()
+    expect(requests[1].headers.get('x-codex-turn-state')).toBe('retry-token')
+    expect(rows('streams')[0].providerContinuity).toMatchObject({
+      value: { token: 'retry-token' },
+    })
+    expect(
+      (rows('sessionState')[0].cacheDiagnostics as CacheDiagnostic[])[0]
+        .outcome,
+    ).toBe('stream_error')
+  })
+
+  test('drops old sign-in state, even if the connection ID is reused', async () => {
+    const { ctx, rows } = streamDiagnosticsFixture()
+    const invoke = async () => {
+      const diagnostics = createCacheDiagnostics(ctx, {
+        execution: { streamId: 'stream' as never, generation: 1 },
+        messageId: 'message' as never,
+        attempt: 0,
+        credentials,
+      })
+      await runRequest(
+        await getProviderOptions('fixture-model', 'auto', credentials, {
+          cacheKey: 'session',
+          observeTransport: diagnostics.observeTransport,
+        }),
+      )
+    }
+    upstreamHeaders = { 'x-codex-turn-state': 'old-sign-in' }
+    await invoke()
+    await saveRegistration(key, {
+      hostId: 'fixture-host',
+      clientId: 'fixture-client',
+      accessToken: 'new-fixture-token',
+      scopes: ['chatgpt.tokens.use.direct'],
+      expiresAt: Date.now() + 3600000,
+      authRevision: crypto.randomUUID(),
+    })
+    upstreamHeaders = { 'x-codex-turn-state': 'new-sign-in' }
+    await invoke()
+    expect(requests[1].headers.has('x-codex-turn-state')).toBe(false)
+    expect(rows('streams')[0].providerContinuity).toMatchObject({
+      value: { token: 'new-sign-in' },
+    })
+    expect(
+      (rows('sessionState')[0].cacheDiagnostics as CacheDiagnostic[]).at(-1)
+        ?.authReset,
+    ).toBe(true)
+  })
+
+  test.each(['', ' padded ', 'bad\r\nheader', 'bad\0', '😀', 'a'.repeat(8193)])(
+    'rejects invalid supplied turn state',
+    async (token) => {
+      const response = await app.request(`${sidecarURL}${route}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.SIDECAR_SECRET}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...key,
+          body: { input: [] },
+          continuity: { token, authRevision: crypto.randomUUID() },
+        }),
+      })
+      expect(response.status).toBe(400)
+      expect(requests).toHaveLength(0)
+    },
+  )
+
+  test('flags invalid upstream state without failing inference, and retains metadata on HTTP failures', async () => {
+    const { ctx, rows } = streamDiagnosticsFixture()
+    upstreamHeaders = { 'x-codex-turn-state': '' }
+    const diagnostics = createCacheDiagnostics(ctx, {
+      execution: { streamId: 'stream' as never, generation: 1 },
+      messageId: 'message' as never,
+      attempt: 0,
+      credentials,
+    })
+    await runRequest(
+      await getProviderOptions('fixture-model', 'auto', credentials, {
+        cacheKey: 'session',
+        observeTransport: diagnostics.observeTransport,
+      }),
+    )
+    expect(rows('streams')[0].providerContinuity).toMatchObject({
+      value: undefined,
+    })
+    expect(
+      (rows('sessionState')[0].cacheDiagnostics as CacheDiagnostic[]).at(-1)
+        ?.invalidContinuity,
+    ).toBe(true)
+    upstreamStatus = 500
+    upstreamHeaders = {
+      'x-codex-turn-state': 'error-token',
+      'x-request-id': 'failed-request',
+    }
+    const failed = createCacheDiagnostics(ctx, {
+      execution: { streamId: 'stream' as never, generation: 1 },
+      messageId: 'message' as never,
+      attempt: 0,
+      credentials,
+    })
+    await expect(
+      runRequest(
+        await getProviderOptions('fixture-model', 'auto', credentials, {
+          cacheKey: 'session',
+          observeTransport: failed.observeTransport,
+        }),
+      ),
+    ).rejects.toThrow()
+    expect(rows('streams')[0].providerContinuity).toMatchObject({
+      value: { token: 'error-token' },
+    })
+    expect(
+      (rows('sessionState')[0].cacheDiagnostics as CacheDiagnostic[]).at(-1),
+    ).toMatchObject({
+      outcome: 'http_error',
+      status: 500,
+      upstreamRequestId: 'failed-request',
+    })
   })
 })

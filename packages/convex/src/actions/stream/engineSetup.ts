@@ -156,6 +156,21 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
     data.session.model?.id,
   )
 
+  const { createCacheDiagnostics } = await import('./cacheDiagnostics')
+  const isChatGPT =
+    credentials?.providerId === 'openai' && credentials.auth === 'chatgpt'
+  const cacheDiagnostics = isChatGPT
+    ? createCacheDiagnostics(ctx, {
+        execution,
+        messageId: data.stream.state.processingMessageId,
+        attempt: data.stream.attempt,
+        credentials,
+      })
+    : undefined
+  if (!isChatGPT && data.stream.providerContinuity) {
+    await ctx.runMutation(internal.streams._clearProviderContinuity, execution)
+  }
+
   // Apply logging after replay filtering for more accuracy
   const requestLog: { body?: string } = {}
   const resolved = await getProviderOptions(
@@ -164,6 +179,7 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
     credentials,
     {
       cacheKey: data.stream.sessionId,
+      observeTransport: cacheDiagnostics?.observeTransport,
       onRequest: async (body) => {
         requestLog.body = body
         await patchSessionLogBody(ctx, {
@@ -194,6 +210,7 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
     messages: request.messages,
     resolved,
     requestLog,
+    cacheDiagnostics,
     tools,
     hasActiveMedia: data.hasActiveMedia || hasToolResultMedia(messages),
   }

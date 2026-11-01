@@ -9,6 +9,7 @@ import {
 } from './model/stream/contextNotes'
 import * as StreamLifecycle from './model/stream/lifecycle'
 import * as StreamMeta from './model/stream/lifecycleMeta'
+import * as ProviderRequests from './model/stream/providerRequests'
 import * as StreamReads from './model/stream/reads'
 import * as StreamSubagents from './model/stream/subagents'
 import { filesystemToolContext } from './model/tool/filesystemContext'
@@ -166,4 +167,24 @@ export const _prepareMcpContext = internalMutation({
 export const _getFilesystemContext = internalQuery({
   args: V.streamExecutionArgsValidator.fields,
   handler: filesystemToolContext,
+})
+
+export const _prepareProviderRequest = internalMutation({
+  args: V.prepareProviderRequestArgsValidator.fields,
+  handler: ProviderRequests.prepareProviderRequest,
+})
+
+export const _saveProviderContinuity = internalMutation({
+  args: V.saveProviderContinuityArgsValidator.fields,
+  handler: ProviderRequests.saveProviderContinuity,
+})
+
+export const _clearProviderContinuity = internalMutation({
+  args: V.streamExecutionArgsValidator.fields,
+  handler: ProviderRequests.clearProviderContinuity,
+})
+
+export const _recordCacheDiagnostic = internalMutation({
+  args: V.recordCacheDiagnosticArgsValidator.fields,
+  handler: ProviderRequests.recordCacheDiagnostic,
 })

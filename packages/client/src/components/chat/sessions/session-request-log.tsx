@@ -1,13 +1,25 @@
 import { Code, Dialog, RippleButton, SettingsList } from '@/components/ui'
 import { useActiveSession, useActiveSessionState } from '@/hooks/chat'
+import { useRequestLogSnapshot } from '@/hooks/chat/request-log'
 import { normalizeBrowserUrl } from '@/lib/auth/site-url'
 import { extractErrorMessage } from '@/lib/errors'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
+import type { CacheDiagnostic } from '@sb/convex/types'
 import { useQuery } from 'convex/react'
 import { useEffect, useMemo, useState } from 'react'
 
-type OpenedLog = { sessionId: Id<'sessions'>; hasStoredLog: boolean }
+type OpenedLog = {
+  sessionId: Id<'sessions'>
+  hasStoredLog: boolean
+}
+
+type StoredLog = {
+  url?: string | null
+  error?: string
+  requestBody?: string
+  responseBody?: string
+}
 
 export function SessionRequestLogSection() {
   const session = useActiveSession()
@@ -17,22 +29,21 @@ export function SessionRequestLogSection() {
   const hasStoredLog = opened?.hasStoredLog ?? false
   const logUrls = useQuery(
     api.sessions.getLogUrls,
-    opened && hasStoredLog ? { sessionId: opened.sessionId } : 'skip',
+    opened ? { sessionId: opened.sessionId } : 'skip',
   )
-  const logUrl = useLatchedUrl(normalizeBrowserUrl(logUrls?.logUrl), open)
-  const [storedLog, setStoredLog] = useState<{
-    url?: string | null
-    error?: string
-    requestBody?: string
-    responseBody?: string
-  }>({})
+  const snapshot = useRequestLogSnapshot(logUrls, open)
+  const logUrl = normalizeBrowserUrl(snapshot?.logUrl)
+  const cacheDiagnostics = snapshot?.cacheDiagnostics
+  const [storedLog, setStoredLog] = useState<StoredLog>({})
   const visibleStoredLog = storedLog.url === logUrl ? storedLog : undefined
   const requestBody = visibleStoredLog?.requestBody
   const responseBody = visibleStoredLog?.responseBody
+
   const logBody = useMemo(
-    () => buildRequestLogBody(requestBody, responseBody),
-    [requestBody, responseBody],
+    () => buildRequestLogBody(requestBody, responseBody, cacheDiagnostics),
+    [requestBody, responseBody, cacheDiagnostics],
   )
+
   const pendingLog =
     open &&
     hasStoredLog &&
@@ -80,7 +91,8 @@ export function SessionRequestLogSection() {
             <Dialog.Header>
               <Dialog.Title>Request Log</Dialog.Title>
             </Dialog.Header>
-            {pendingLog ? null : visibleStoredLog?.error ? (
+            {pendingLog ? null : visibleStoredLog?.error &&
+              !cacheDiagnostics?.length ? (
               <p className="text-destructive text-sm">
                 {visibleStoredLog.error}
               </p>
@@ -107,15 +119,6 @@ export function SessionRequestLogSection() {
       </SettingsList.Item>
     </SettingsList>
   )
-}
-
-function useLatchedUrl(url: string | null, open: boolean) {
-  const [latched, setLatched] = useState<string | null>(null)
-
-  if (!open && latched) setLatched(null)
-  if (open && !latched && url) setLatched(url)
-
-  return open ? (latched ?? url) : null
 }
 
 async function fetchLogBody(url: string | null, signal: AbortSignal) {
@@ -145,8 +148,12 @@ function parseStoredLogBody(body: string | undefined) {
   }
 }
 
-function buildRequestLogBody(requestBody?: string, responseBody?: string) {
-  if (!requestBody && !responseBody) return null
+function buildRequestLogBody(
+  requestBody?: string,
+  responseBody?: string,
+  cacheDiagnostics?: CacheDiagnostic[],
+) {
+  if (!requestBody && !responseBody && !cacheDiagnostics?.length) return null
 
   return JSON.stringify(
     {
@@ -154,6 +161,7 @@ function buildRequestLogBody(requestBody?: string, responseBody?: string) {
       response: responseBody
         ? parseJsonBody(responseBody)
         : 'Awaiting response…',
+      ...(cacheDiagnostics?.length ? { cacheDiagnostics } : {}),
     },
     null,
     2,

@@ -28,6 +28,7 @@ import type * as actions_sessions from "../actions/sessions.js";
 import type * as actions_shellJobs from "../actions/shellJobs.js";
 import type * as actions_skills from "../actions/skills.js";
 import type * as actions_stream_attachmentHistory from "../actions/stream/attachmentHistory.js";
+import type * as actions_stream_cacheDiagnostics from "../actions/stream/cacheDiagnostics.js";
 import type * as actions_stream_engine from "../actions/stream/engine.js";
 import type * as actions_stream_engineApproval from "../actions/stream/engineApproval.js";
 import type * as actions_stream_engineLog from "../actions/stream/engineLog.js";
@@ -208,6 +209,7 @@ import type * as model_provider_openai_account from "../model/provider/openai/ac
 import type * as model_provider_openai_cacheUsage from "../model/provider/openai/cacheUsage.js";
 import type * as model_provider_openai_chatgpt from "../model/provider/openai/chatgpt.js";
 import type * as model_provider_openai_inference from "../model/provider/openai/inference.js";
+import type * as model_provider_openai_transport from "../model/provider/openai/transport.js";
 import type * as model_provider_openrouter_inference from "../model/provider/openrouter/inference.js";
 import type * as model_provider_options from "../model/provider/options.js";
 import type * as model_provider_previews from "../model/provider/previews.js";
@@ -295,6 +297,7 @@ import type * as model_stream_lifecycleMeta from "../model/stream/lifecycleMeta.
 import type * as model_stream_lifecycleProgress from "../model/stream/lifecycleProgress.js";
 import type * as model_stream_lifecycleReservations from "../model/stream/lifecycleReservations.js";
 import type * as model_stream_lifecycleTerminal from "../model/stream/lifecycleTerminal.js";
+import type * as model_stream_providerRequests from "../model/stream/providerRequests.js";
 import type * as model_stream_reads from "../model/stream/reads.js";
 import type * as model_stream_reasoning from "../model/stream/reasoning.js";
 import type * as model_stream_retry from "../model/stream/retry.js";
@@ -398,6 +401,7 @@ import type * as validators_messages from "../validators/messages.js";
 import type * as validators_notifications from "../validators/notifications.js";
 import type * as validators_plans from "../validators/plans.js";
 import type * as validators_prompts from "../validators/prompts.js";
+import type * as validators_providerRequests from "../validators/providerRequests.js";
 import type * as validators_providers from "../validators/providers.js";
 import type * as validators_rateLimits from "../validators/rateLimits.js";
 import type * as validators_releases from "../validators/releases.js";
@@ -441,6 +445,7 @@ declare const fullApi: ApiFromModules<{
   "actions/shellJobs": typeof actions_shellJobs;
   "actions/skills": typeof actions_skills;
   "actions/stream/attachmentHistory": typeof actions_stream_attachmentHistory;
+  "actions/stream/cacheDiagnostics": typeof actions_stream_cacheDiagnostics;
   "actions/stream/engine": typeof actions_stream_engine;
   "actions/stream/engineApproval": typeof actions_stream_engineApproval;
   "actions/stream/engineLog": typeof actions_stream_engineLog;
@@ -621,6 +626,7 @@ declare const fullApi: ApiFromModules<{
   "model/provider/openai/cacheUsage": typeof model_provider_openai_cacheUsage;
   "model/provider/openai/chatgpt": typeof model_provider_openai_chatgpt;
   "model/provider/openai/inference": typeof model_provider_openai_inference;
+  "model/provider/openai/transport": typeof model_provider_openai_transport;
   "model/provider/openrouter/inference": typeof model_provider_openrouter_inference;
   "model/provider/options": typeof model_provider_options;
   "model/provider/previews": typeof model_provider_previews;
@@ -708,6 +714,7 @@ declare const fullApi: ApiFromModules<{
   "model/stream/lifecycleProgress": typeof model_stream_lifecycleProgress;
   "model/stream/lifecycleReservations": typeof model_stream_lifecycleReservations;
   "model/stream/lifecycleTerminal": typeof model_stream_lifecycleTerminal;
+  "model/stream/providerRequests": typeof model_stream_providerRequests;
   "model/stream/reads": typeof model_stream_reads;
   "model/stream/reasoning": typeof model_stream_reasoning;
   "model/stream/retry": typeof model_stream_retry;
@@ -811,6 +818,7 @@ declare const fullApi: ApiFromModules<{
   "validators/notifications": typeof validators_notifications;
   "validators/plans": typeof validators_plans;
   "validators/prompts": typeof validators_prompts;
+  "validators/providerRequests": typeof validators_providerRequests;
   "validators/providers": typeof validators_providers;
   "validators/rateLimits": typeof validators_rateLimits;
   "validators/releases": typeof validators_releases;

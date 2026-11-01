@@ -123,6 +123,7 @@ describe('ChatGPT OAuth lifecycle', () => {
     const record = await readRegistration(key)
     expect(record?.subject).toBe('account-a')
     expect(record?.accessToken).toBe('access-0')
+    expect(record?.authRevision).toBeString()
     for (const file of await readdir(directory)) {
       if (file.endsWith('.json') && process.platform !== 'win32')
         expect((await stat(join(directory, file))).mode & 0o777).toBe(0o600)
@@ -155,6 +156,9 @@ describe('ChatGPT OAuth lifecycle', () => {
     expect(refreshes).toBe(1)
     expect(new Set(tokens)).toEqual(new Set(['access-1']))
     expect((await readRegistration(key))?.refreshToken).toBe('refresh-1')
+    expect((await readRegistration(key))?.authRevision).toBe(
+      record.authRevision,
+    )
     expect(tokenBody.has('scope')).toBe(false)
   })
   test('retains identity while disabling inference when permission was declined', async () => {
@@ -199,6 +203,9 @@ describe('ChatGPT OAuth lifecycle', () => {
     expect((await readRegistration(key))?.transferNonce).toBe(setup.nonce)
     await importTransfer({ setup, registration })
     expect((await connectionStatus(key)).status).toBe('connected')
+    expect((await readRegistration(key))?.authRevision).not.toBe(
+      record.authRevision,
+    )
     await expect(
       importTransfer({ setup, registration: record }),
     ).rejects.toThrow('ticket')
@@ -223,6 +230,7 @@ describe('ChatGPT OAuth lifecycle', () => {
       scopes: [],
     })
     expect((await readRegistration(key))?.refreshToken).toBeUndefined()
+    expect((await readRegistration(key))?.authRevision).toBeUndefined()
     await expect(accessToken(key)).rejects.toThrow('Continue with ChatGPT')
   })
 })

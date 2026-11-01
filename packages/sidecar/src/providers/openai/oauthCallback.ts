@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 import {
   type ConnectionKey,
   type Registration,
@@ -59,6 +61,10 @@ export async function completeAuthorization(
       throw new Error('Selected ChatGPT account changed')
 
     pending.cancellation.throwIfAborted()
-    await saveRegistration(pending.key, { ...tokens, ...identity })
+    await saveRegistration(pending.key, {
+      ...tokens,
+      ...identity,
+      authRevision: randomUUID(),
+    })
   })
 }

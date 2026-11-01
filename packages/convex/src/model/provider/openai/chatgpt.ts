@@ -1,6 +1,7 @@
 import type { LanguageModelV4 } from '@ai-sdk/provider'
 import { prepareChatGPTRequest } from '@sb/core/chatgpt-policy'
 import { parseModelExtraParameters } from '@sb/core/model-parameters'
+import type { ProviderTransportObserver } from '@sb/core/provider-continuity'
 import type { InferenceParameters } from '@sb/core/types'
 import type { LanguageModel } from 'ai'
 
@@ -8,6 +9,7 @@ import { sidecarUrl } from '../../sidecar'
 import { sidecarRequest } from '../../sidecarTransport'
 import type { ProviderCredentials } from '../providers'
 import { filterPromptReasoning } from '../reasoningReplay'
+import { fetchChatGPTResponse } from './transport'
 
 export const CHATGPT_OPENAI_OPTIONS = {
   store: false,
@@ -16,14 +18,17 @@ export const CHATGPT_OPENAI_OPTIONS = {
 } as const
 
 /** Routes OAuth requests through the sidecar without exporting its credentials. */
-export function chatGPTFetch(credentials: ProviderCredentials): typeof fetch {
+export function chatGPTFetch(
+  credentials: ProviderCredentials,
+  observeTransport?: ProviderTransportObserver,
+): typeof fetch {
   return (async (_input: RequestInfo | URL, init?: RequestInit) => {
-    if (typeof init?.body !== 'string')
+    if (typeof init?.body !== 'string') {
       throw new Error('Invalid ChatGPT inference request')
-
+    }
     const body = prepareChatGPTRequest(JSON.parse(init.body))
-
-    return fetch(
+    const context = await observeTransport?.(body)
+    return fetchChatGPTResponse(
       `${sidecarUrl()}/providers/chatgpt/responses`,
       sidecarRequest({
         method: 'POST',
@@ -33,8 +38,10 @@ export function chatGPTFetch(credentials: ProviderCredentials): typeof fetch {
           ownerId: credentials.ownerId,
           connectionId: credentials.connectionId,
           body,
+          continuity: context?.continuity,
         }),
       }),
+      context,
     )
   }) as typeof fetch
 }

@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { z } from 'zod'
 
 export const registrationSchema = z.object({
+  authRevision: z.string().optional(),
   transferNonce: z.string().optional(),
   transferExpiresAt: z.number().optional(),
   hostId: z.string(),

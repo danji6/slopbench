@@ -1,4 +1,5 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose'
+import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 
 import {
@@ -119,6 +120,11 @@ class TokenGrantError extends Error {
 }
 
 export async function accessToken(key: ConnectionKey): Promise<string> {
+  return (await accessContext(key)).token
+}
+
+/** Keeps routing bound to a sign-in while allowing ordinary token renewal. */
+export async function accessContext(key: ConnectionKey) {
   return withRegistrationLock(key, async () => {
     let record = await readRegistration(key)
 
@@ -136,7 +142,12 @@ export async function accessToken(key: ConnectionKey): Promise<string> {
       )
     }
 
-    return record.accessToken!
+    if (!record.authRevision) {
+      record = { ...record, authRevision: randomUUID() }
+      await saveRegistration(key, record)
+    }
+
+    return { token: record.accessToken!, authRevision: record.authRevision! }
   })
 }
 

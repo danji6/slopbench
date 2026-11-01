@@ -4,6 +4,7 @@ import { v } from 'convex/values'
 import { approvalModeValidator, toolApprovalsValidator } from './approvals'
 import { queuedCommandValidator } from './commands'
 import { promptItemValidator } from './prompts'
+import { cacheDiagnosticValidator } from './providerRequests'
 import { modelSelectionValidator, tokenUsageValidator } from './providers'
 import { sessionArchiveValidator } from './sessionArchives'
 import { sessionModeValidator } from './sessionModes'
@@ -112,6 +113,7 @@ export const sessionStateSchema = v.object({
   usage: v.optional(tokenUsageValidator),
   /** Last provider request/response body. */
   log: v.optional(v.id('_storage')),
+  cacheDiagnostics: v.optional(v.array(cacheDiagnosticValidator)),
   updatedAt: v.number(),
 })
 
