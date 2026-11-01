@@ -150,7 +150,7 @@ export class Scroller {
 
   private _updateOverflowAnchor() {
     if (!this.target) return
-    // Disable native scroll anchoring during follow to prevent interferences
+    // Keep browser anchoring from competing with explicit positioning or follow.
     this.target.setOverflowAnchor(
       this._shiftInProgress || this._overflowAnchorLocked || this._ownsScroll()
         ? 'none'
@@ -289,16 +289,19 @@ export class Scroller {
     this.onSettle?.()
   }
 
-  // True while an eased follow is actively running. Used to suppress external
-  // programmatic scrolls.
-  private _ownsScroll = () =>
-    this.isFollowing &&
-    this._enabled &&
-    this.hasScrolled &&
-    !this.scrollLock &&
-    this._userScrollIntent !== 'up' &&
-    !this._manualScrollActive &&
-    !this._shiftInProgress
+  /** Blocks competing writes during exclusive navigation and active following. */
+  private _ownsScroll = () => {
+    if (this.coordinator.exclusive) return true
+    return (
+      this.isFollowing &&
+      this._enabled &&
+      this.hasScrolled &&
+      !this.scrollLock &&
+      this._userScrollIntent !== 'up' &&
+      !this._manualScrollActive &&
+      !this._shiftInProgress
+    )
+  }
 
   lockScroll = () => {
     if (this.scrollLock || !this._enabled) return
@@ -427,6 +430,11 @@ export class Scroller {
           }
         },
         content: () => {
+          if (this.coordinator.exclusive) {
+            this.scrollToBottom(true)
+            this.onPositionChange?.(this.autoScrolling)
+            return
+          }
           if (!this.hasScrolled) {
             this.scrollToBottomImmediate()
             return

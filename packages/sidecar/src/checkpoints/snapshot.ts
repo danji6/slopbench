@@ -4,7 +4,7 @@ import {
   execFile,
 } from 'node:child_process'
 import { constants } from 'node:fs'
-import { lstat, open, readFile, readdir } from 'node:fs/promises'
+import { lstat, open, readFile, readdir, readlink } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 
@@ -32,6 +32,7 @@ type ScanContext = {
   issues: string[]
   visited: number
   excluded: string[]
+  unavailable: string[]
 }
 
 export function excludedPath(target: string) {
@@ -50,6 +51,7 @@ export async function snapshot(
     issues: [],
     visited: 0,
     excluded: [],
+    unavailable: [],
   }
 
   for (const root of roots) {
@@ -59,6 +61,7 @@ export async function snapshot(
       if (!indexed) await walk(root, [], context)
     } catch (error) {
       context.issues.push(`${root}: ${String(error)}`)
+      context.unavailable.push(root)
     }
   }
   for (const target of explicit) {
@@ -66,7 +69,7 @@ export async function snapshot(
   }
 
   const files: Snapshot = {}
-  const unavailable: string[] = []
+  const unavailable = context.unavailable
   let total = 0
   for (const target of [...context.paths].sort()) {
     if (!isOutside(storage.root, target)) continue
@@ -123,9 +126,16 @@ async function walk(root: string, parents: IgnoreSource[], scan: ScanContext) {
       scan.excluded.push(target)
       continue
     }
-    if (entry.isSymbolicLink()) continue
-    if (entry.isDirectory()) await walk(target, sources, scan)
-    else if (entry.isFile()) scan.paths.add(target)
+    if (entry.isDirectory()) {
+      try {
+        await walk(target, sources, scan)
+      } catch (error) {
+        scan.issues.push(`${target}: ${String(error)}`)
+        scan.unavailable.push(target)
+      }
+    } else if (entry.isFile() || entry.isSymbolicLink()) {
+      scan.paths.add(target)
+    }
   }
 }
 
@@ -210,18 +220,31 @@ async function ignoredGitRoot(
   }
 }
 
-/** Reads exact bytes while rejecting links and files that change during capture. */
+/** Captures links themselves and reads regular files without following links. */
 export async function captureFile(
   storage: CheckpointStorage,
   target: string,
 ): Promise<FileState | undefined> {
-  await assertPlainPath(target)
+  await assertPlainPath(path.dirname(target))
   let info
   try {
     info = await lstat(target)
   } catch (error) {
     if (isMissing(error)) return undefined
     throw error
+  }
+
+  if (info.isSymbolicLink()) {
+    const bytes = await readlink(target, { encoding: 'buffer' })
+    const after = await lstat(target)
+    if (info.ino !== after.ino || info.ctimeMs !== after.ctimeMs)
+      throw new Error('Symlink changed during snapshot')
+    return {
+      hash: await storage.blob(bytes),
+      size: bytes.length,
+      mode: 0o777,
+      symlink: true,
+    }
   }
 
   if (!info.isFile() || info.nlink > 1)
@@ -256,5 +279,9 @@ export async function captureFile(
 }
 
 export function sameFile(left?: FileState, right?: FileState) {
-  return left?.hash === right?.hash && left?.mode === right?.mode
+  return (
+    left?.hash === right?.hash &&
+    left?.mode === right?.mode &&
+    !!left?.symlink === !!right?.symlink
+  )
 }

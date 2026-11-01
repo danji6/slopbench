@@ -51,7 +51,7 @@ export function WorkBlock({ row, message, record, partMeta }: WorkBlockProps) {
       aria-expanded={open}
       aria-label={`${open ? 'Collapse' : 'Expand'} work: ${summary.label}`}
       onClick={toggle}
-      className="text-muted-foreground mb-2 flex min-h-9 max-w-full items-center justify-start gap-2 py-1 text-left text-xs whitespace-normal"
+      className="text-muted-foreground flex min-h-9 max-w-full items-center justify-start gap-2 py-1 text-left text-xs whitespace-normal"
     >
       <span
         className={cn(

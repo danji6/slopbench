@@ -106,7 +106,7 @@ test('keeps long diagnostics to one collapsed line and exposes the full error on
   ).toBe(true)
   await expect(
     page.getByRole('button', { name: 'Revert changes' }),
-  ).toBeDisabled()
+  ).toBeEnabled()
   const collapsedHeight = await notice.evaluate(
     (element) => element.getBoundingClientRect().height,
   )
@@ -150,4 +150,17 @@ test('keeps long diagnostics to one collapsed line and exposes the full error on
       )
       .last(),
   ).toBeVisible()
+})
+
+test('hides completed summaries with no file changes even when capture has warnings', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=changes')
+  await expect(
+    page.getByRole('region', { name: 'Agent changes' }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Report no changes' }).click()
+  await expect(page.getByRole('region', { name: 'Agent changes' })).toHaveCount(
+    0,
+  )
 })

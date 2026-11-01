@@ -276,7 +276,7 @@ export async function publishChanges(
   }
 
   await ctx.db.patch(row._id, {
-    phase: args.fileCount || args.issues.length ? 'ready' : 'empty',
+    phase: args.fileCount ? 'ready' : 'empty',
     additions: args.additions,
     deletions: args.deletions,
     issues: args.issues,
@@ -316,6 +316,7 @@ export async function changeSummary(
     )
     .first()
   if (!row || row.phase === 'empty') return null
+  if (row.phase === 'ready' && !row.fileCount) return null
 
   const group = await ctx.db
     .query('changeSets')
@@ -326,7 +327,7 @@ export async function changeSummary(
 
   return {
     ...row,
-    canRestore: ctx.role === 'admin' && !row.issues.length && !writing,
+    canRestore: ctx.role === 'admin' && !writing,
   }
 }
 
@@ -364,8 +365,8 @@ export async function restoreChanges(
   if (row.phase === 'restoring') {
     return
   }
-  if (row.phase !== 'ready' || row.issues.length) {
-    error('Checkpoint is unavailable or incomplete', 409)
+  if (row.phase !== 'ready') {
+    error('Checkpoint is unavailable', 409)
   }
   if (row.revision !== args.revision) {
     error('Changes state changed; refresh and try again', 409)
@@ -403,6 +404,7 @@ export async function restoreResult(
     revision: args.revision ?? row.revision,
     conflicts: args.conflicts ?? [],
     error: args.error,
+    issues: args.issues ?? row.issues,
   })
 }
 

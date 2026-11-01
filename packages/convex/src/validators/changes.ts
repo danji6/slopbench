@@ -108,5 +108,6 @@ export const restoreChangesResultValidator = v.object({
   state: v.optional(changeStateValidator),
   revision: v.optional(v.number()),
   conflicts: v.optional(v.array(v.string())),
+  issues: v.optional(v.array(v.string())),
   error: v.optional(v.string()),
 })

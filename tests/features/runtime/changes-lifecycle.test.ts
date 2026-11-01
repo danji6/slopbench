@@ -1,6 +1,7 @@
 import {
   appendChanges,
   captureIssue,
+  changeSummary,
   finishChanges,
   prepareChanges,
   publishChanges,
@@ -129,7 +130,16 @@ describe('changes lifecycle', () => {
       deletions: 1,
       issues: [],
     })
+    f.rows('changeSets')[0].issues = ['Skipped an unreadable file']
     await releaseChangeGroup(f.ctx, { groupId: row.groupId })
+    expect(
+      (
+        await changeSummary(f.ctx, {
+          messageId: 'message' as never,
+          version: 1,
+        })
+      )?.canRestore,
+    ).toBe(true)
     const args = {
       changeSetId: row._id,
       revision: 0,
@@ -152,10 +162,14 @@ describe('changes lifecycle', () => {
     await restoreResult(f.ctx, {
       changeSetId: row._id,
       operationId,
+      issues: ['Skipped an unwritable file'],
       state: 'reverted',
       revision: 1,
     })
     expect(f.rows('changeSets')[0].state).toBe('reverted')
+    expect(f.rows('changeSets')[0].issues).toEqual([
+      'Skipped an unwritable file',
+    ])
     await expect(restoreChanges(f.ctx, args)).rejects.toThrow('changed')
   })
 
@@ -173,6 +187,23 @@ describe('changes lifecycle', () => {
     expect(f.scheduled).toHaveLength(2)
     await releaseChangeGroup(f.ctx, { groupId: row.groupId })
     expect(f.rows('changeSets')[0].writersSettled).toBe(true)
+  })
+
+  test('hides warning-only publications, including existing ready summaries with no files', async () => {
+    const f = fixture()
+    const row = (await prepareChanges(f.ctx, prepareArgs))!
+    await publishChanges(f.ctx, {
+      changeSetId: row._id,
+      fileCount: 0,
+      additions: 0,
+      deletions: 0,
+      issues: ['Permission denied in an unrelated directory'],
+    })
+    expect(f.rows('changeSets')[0].phase).toBe('empty')
+    const args = { messageId: 'message' as never, version: 1 }
+    expect(await changeSummary(f.ctx, args)).toBeNull()
+    f.rows('changeSets')[0].phase = 'ready'
+    expect(await changeSummary(f.ctx, args)).toBeNull()
   })
 
   test('keeps capture failures visible instead of publishing a false empty summary', async () => {

@@ -410,12 +410,12 @@ export function remarkHighlightQuotes() {
  * The text is passed as `hChildren` because the normal mdast→hast conversion
  * trims lines.
  */
-function toLiteralText(value: string) {
+function toLiteralText(value: string, block: boolean) {
   return {
     type: 'literalHtml',
     children: [{ type: 'text', value }],
     data: {
-      hName: 'span',
+      hName: block ? 'div' : 'span',
       hProperties: { className: ['md-literal-html'] },
       hChildren: [{ type: 'text', value }],
     },
@@ -435,14 +435,10 @@ export function remarkLiteralHtml() {
         return
       }
 
-      const literal = toLiteralText(node.value)
-      const nodes =
-        parent.type === 'root'
-          ? [{ type: 'paragraph', children: [literal] }]
-          : [literal]
-
-      parent.children.splice(index, 1, ...nodes)
-      return [SKIP, index + nodes.length]
+      // Raw blocks aren't paragraphs: their preserved whitespace owns spacing.
+      const literal = toLiteralText(node.value, parent.type === 'root')
+      parent.children.splice(index, 1, literal)
+      return [SKIP, index + 1]
     })
   }
 }

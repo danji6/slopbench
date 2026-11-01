@@ -2,6 +2,7 @@
 import { remarkLiteralHtml } from '@/lib/markdown/remark'
 import { sanitizeSchema } from '@/lib/markdown/sanitize'
 import { describe, expect, test } from 'bun:test'
+import { parseHTML } from 'linkedom'
 import { renderToStaticMarkup } from 'react-dom/server'
 import Markdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
@@ -30,6 +31,20 @@ describe('literal html rendering', () => {
     expect(html).toContain('&lt;system-reminder&gt;')
     expect(html).toContain('&lt;/system-reminder&gt;')
     expect(html).toContain('be brief')
+  })
+
+  test('keeps a closing literal block after a list out of paragraph layout', () => {
+    const source =
+      '<system-reminder>\nPlan mode is now active.\n\n' +
+      '- Explore the request.\n- Present the plan.\n</system-reminder>'
+    const { document } = parseHTML(`<main>${render(source)}</main>`)
+    const list = document.querySelector('ul')!
+    const closing = list.nextElementSibling!
+
+    expect(closing.tagName).toBe('DIV')
+    expect(closing.textContent).toBe('</system-reminder>')
+    expect(list.children).toHaveLength(2)
+    expect(document.querySelector('main > p')).toBeNull()
   })
 
   test('still renders allowed html', () => {

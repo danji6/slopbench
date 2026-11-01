@@ -1,4 +1,8 @@
 import type { ScrollDeps } from '@/components/chat/messages/message-list/deps'
+import {
+  MessageListContext,
+  usePendingMessageLayout,
+} from '@/components/chat/messages/message-list/message-list-context'
 import { useFollowEdges } from '@/hooks/chat/message-list/follow-edges'
 import { useSeek } from '@/hooks/chat/message-list/seek'
 import { useScroller } from '@/hooks/scroller'
@@ -7,6 +11,24 @@ import type { MessageRow } from '@/lib/chat/rows'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { WindowVirtualizer, type WindowVirtualizerHandle } from 'virtua'
 
+type ChangesPhase = 'off' | 'loading' | 'summary' | 'files'
+
+/** Models the summary query followed by the file-list query on a mounted footer. */
+function DelayedChangesSummary({ phase }: { phase: ChangesPhase }) {
+  usePendingMessageLayout(phase !== 'files')
+  if (phase === 'loading') return null
+  return (
+    <section style={{ padding: 16, border: '1px solid #ccc' }}>
+      <div style={{ height: 80 }}>Changes made</div>
+      {phase === 'files' && (
+        <div data-loaded-files style={{ height: 160 }}>
+          Three changed files
+        </div>
+      )}
+    </section>
+  )
+}
+
 /** Uses production scrolling hooks and virtua with deterministic local rows. */
 export function ScrollFixture() {
   const [count, setCount] = useState(80)
@@ -14,6 +36,7 @@ export function ScrollFixture() {
   const [expanded, setExpanded] = useState(false)
   const [inset, setInset] = useState(80)
   const [streaming, setStreaming] = useState(false)
+  const [changes, setChanges] = useState<ChangesPhase>('off')
   const rows = useMemo<MessageRow[]>(
     () =>
       Array.from({ length: count }, (_, index) => ({
@@ -79,7 +102,17 @@ export function ScrollFixture() {
     return () => clearInterval(timer)
   }, [streaming])
   return (
-    <>
+    <MessageListContext
+      value={{
+        scrollRef: docScrollRef,
+        onLayoutChange: () => {},
+        releaseFollow: scroller.holdPosition,
+        resumeFollow: () => scroller.unlockScroll(true),
+        trackPendingLayout: scroller.coordinator.trackPendingLayout,
+        bottomPadding: inset,
+        topPadding: 16,
+      }}
+    >
       <nav
         style={{
           position: 'fixed',
@@ -93,6 +126,9 @@ export function ScrollFixture() {
       >
         <button onClick={followToTop}>Top</button>
         <button onClick={followToBottom}>Bottom</button>
+        <button onClick={() => setChanges('loading')}>Delay changes</button>
+        <button onClick={() => setChanges('summary')}>Resolve summaries</button>
+        <button onClick={() => setChanges('files')}>Resolve files</button>
         <button onClick={() => requestScrollToMessage('m20')}>Seek 20</button>
         <button
           onClick={() => {
@@ -140,11 +176,14 @@ export function ScrollFixture() {
               data-message-id={row.messageId}
               data-row-key={row.key}
               style={{
-                height: expanded ? 160 : 80,
+                minHeight: expanded ? 160 : 80,
                 borderBottom: '1px solid #ddd',
               }}
             >
               {row.messageId}
+              {changes !== 'off' && ['m78', 'm79'].includes(row.messageId) && (
+                <DelayedChangesSummary phase={changes} />
+              )}
               {editing && row.messageId === 'm20' && (
                 <textarea aria-label="Edit message" defaultValue="Draft" />
               )}
@@ -153,6 +192,6 @@ export function ScrollFixture() {
         </WindowVirtualizer>
         <div ref={sentinelRef} style={{ height: 1 }} />
       </div>
-    </>
+    </MessageListContext>
   )
 }

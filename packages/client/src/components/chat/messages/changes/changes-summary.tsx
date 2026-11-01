@@ -12,6 +12,7 @@ import {
 import { useEffect, useState } from 'react'
 
 import { useGrowOnly } from '../grow-only'
+import { usePendingMessageLayout } from '../message-list/message-list-context'
 import { ChangeDiff } from './change-diff'
 import { ChangeNotice } from './change-notice'
 
@@ -30,6 +31,10 @@ export function ChangesSummary({
   const [showAll, setShowAll] = useState(false)
   const [expanded, setExpanded] = useState<string>()
   const [hovered, setHovered] = useState<string>()
+  const loadsFiles =
+    summary?.phase === 'ready' || summary?.phase === 'restoring'
+  const loadingFiles = loadsFiles && fileStatus === 'LoadingFirstPage'
+  usePendingMessageLayout(summary === undefined || loadingFiles)
 
   useEffect(() => {
     if (showAll && fileStatus === 'CanLoadMore') loadMore(100)
@@ -40,6 +45,7 @@ export function ChangesSummary({
   }, [expanded, showAll, summary?.phase, growOnly])
 
   if (!summary) return null
+  if (summary.phase === 'ready' && !summary.fileCount) return null
 
   const pending = summary.phase === 'capturing' || summary.phase === 'queued'
   const restoring = summary.phase === 'restoring'
@@ -147,7 +153,8 @@ export function ChangesSummary({
       {summary.issues.length > 0 && (
         <ChangeNotice
           role="status"
-          message="Capture is incomplete. Revert is unavailable."
+          message="Some files were skipped. Other files can still be restored."
+          warning
           details={summary.issues}
         />
       )}

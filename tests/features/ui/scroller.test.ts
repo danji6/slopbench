@@ -161,6 +161,55 @@ describe('pagination scroll holds', () => {
   )
 })
 
+describe('bottom navigation ownership', () => {
+  test.each(['mutation', 'resize'] as const)(
+    'compensates late content growth before the next frame on %s',
+    (event) => {
+      scroller.coordinator.begin('navigate', { exclusive: true })
+      scroller.scrollToBottom(true)
+      scrollHeight += 320
+      if (event === 'mutation') mutate()
+      else resize()
+      expect(content.scrollTop).toBe(1520)
+      expect(scroller.coordinator.exclusive).toBe(true)
+    },
+  )
+
+  test.each([true, false])(
+    'keeps anchoring disabled throughout immediate navigation when follow is %s',
+    (enabled) => {
+      scroller.enabled = enabled
+      const operation = scroller.coordinator.begin('navigate', {
+        exclusive: true,
+      })!
+      scroller.scrollToBottom(true)
+      expect(content.scrollTop).toBe(1200)
+      expect(content.style.overflowAnchor).toBe('none')
+
+      scrollHeight += 200
+      scroller.scrollToBottom(true)
+      expect(content.scrollTop).toBe(1400)
+      expect(scroller.coordinator.exclusive).toBe(true)
+
+      operation.finish()
+      scroller.unlockScroll(true)
+      expect(scroller.coordinator.exclusive).toBe(false)
+    },
+  )
+
+  test('wheel input releases exclusive navigation and browser anchoring', () => {
+    const operation = scroller.coordinator.begin('navigate', {
+      exclusive: true,
+    })!
+    scroller.scrollToBottom(true)
+    content.dispatchEvent(new WheelEvent('wheel', { deltaY: -100 }))
+    expect(operation.isCurrent()).toBe(false)
+    expect(scroller.coordinator.exclusive).toBe(false)
+    expect(content.style.overflowAnchor).toBe('')
+    expect(scroller.autoScrolling).toBe(false)
+  })
+})
+
 describe('keyboard bottom compensation', () => {
   test.each([true, false])(
     'keeps the tail visible when follow is %s',

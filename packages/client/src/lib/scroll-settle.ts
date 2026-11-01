@@ -59,6 +59,8 @@ type TrackOptions = {
   tolerance?: number
   stableFrames?: number
   maxMs?: number
+  /** Waits for asynchronous content before counting stable frames or timeout. */
+  pending?: () => boolean
   /** Fires once when the loop finishes, whether it settles or is cancelled. */
   onDone?: () => void
 }
@@ -74,13 +76,14 @@ export function trackUntilSettled(
     tolerance = CONVERGE_TOLERANCE,
     stableFrames = CONVERGE_STABLE_FRAMES,
     maxMs = CONVERGE_MAX_MS,
+    pending,
     onDone,
   }: TrackOptions = {},
 ): () => void {
   let raf = 0
   let stable = 0
   let done = false
-  const start = performance.now()
+  let start = performance.now()
 
   const finish = () => {
     if (done) return
@@ -90,12 +93,15 @@ export function trackUntilSettled(
 
   const tick = () => {
     const remaining = step()
-    if (remaining !== null && Math.abs(remaining) <= tolerance) {
+    const waiting = pending?.() ?? false
+    if (waiting) start = performance.now()
+    if (!waiting && remaining !== null && Math.abs(remaining) <= tolerance) {
       stable++
     } else {
       stable = 0
     }
-    if (stable < stableFrames && performance.now() - start < maxMs) {
+    const settling = stable < stableFrames && performance.now() - start < maxMs
+    if (waiting || settling) {
       raf = requestAnimationFrame(tick)
     } else {
       raf = 0

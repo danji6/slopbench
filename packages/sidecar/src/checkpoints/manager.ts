@@ -101,6 +101,10 @@ export class CheckpointManager {
         Object.assign(group.baseline, captured.files)
         group.issues.push(...captured.issues)
         group.excluded.push(...captured.excluded)
+        group.unavailable = [
+          ...(group.unavailable ?? []),
+          ...captured.unavailable,
+        ]
       }
       group.roots = roots
       enrollParticipant(group, input)
@@ -177,8 +181,13 @@ export class CheckpointManager {
     })
 
     if (!previouslyCovered || previouslyExcluded) {
-      const state = await captureFile(this.storage, target)
-      if (!group.baseline[target] && state) group.baseline[target] = state
+      try {
+        const state = await captureFile(this.storage, target)
+        if (!group.baseline[target] && state) group.baseline[target] = state
+      } catch (error) {
+        group.issues.push(`${target}: ${String(error)}`)
+        group.unavailable = [...(group.unavailable ?? []), target]
+      }
     }
 
     group.explicit.push(target)
@@ -438,7 +447,10 @@ export class CheckpointManager {
         captured.files[target] = group.baseline[target]
     }
 
-    const files = changedFiles(group.baseline, captured.files)
+    const unavailable = [...(group.unavailable ?? []), ...captured.unavailable]
+    const files = changedFiles(group.baseline, captured.files).filter(
+      (file) => !unavailable.some((target) => !isOutside(target, file.target)),
+    )
     for (const file of files) file.path = displayFile(group, file.target)
 
     const issues = [...new Set([...group.issues, ...captured.issues])]
@@ -456,6 +468,7 @@ export class CheckpointManager {
 
     await this.storage.save('checkpoints', id, checkpoint)
     group.baseline = captured.files
+    group.unavailable = captured.unavailable
     group.pendingCheckpoint = undefined
     group.issues = issues
     await this.saveGroup(group)

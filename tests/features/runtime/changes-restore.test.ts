@@ -12,7 +12,11 @@ function fixture(paths?: readonly string[], failure?: string) {
       requests.push((await request.json()) as Record<string, unknown>)
       if (failure) return Response.json({ error: failure }, { status: 409 })
       return Response.json({
-        summary: { state: 'reverted', revision: 1 },
+        summary: {
+          state: 'reverted',
+          revision: 1,
+          issues: ['Skipped locked.txt'],
+        },
         conflicts: [],
       })
     },
@@ -84,6 +88,7 @@ test.each([
       state: 'reverted',
       revision: 1,
       conflicts: [],
+      issues: ['Skipped locked.txt'],
     })
   } finally {
     f.close()

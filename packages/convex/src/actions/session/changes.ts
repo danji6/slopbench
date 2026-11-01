@@ -141,7 +141,7 @@ async function publish(
   value: ChangePublication,
   late: boolean,
 ) {
-  if (late && !value.files.length && !value.issues.length) return
+  if (late && !value.files.length) return
 
   const changeSetId = await ctx.runMutation(
     internal.chat._reserveChangesPublication,
@@ -229,6 +229,7 @@ export async function restoreChanges(
       state: result.summary.state,
       revision: result.summary.revision,
       conflicts: result.conflicts,
+      issues: result.summary.issues,
     })
   } catch (error) {
     await ctx.runMutation(internal.chat._restoreChangesResult, {

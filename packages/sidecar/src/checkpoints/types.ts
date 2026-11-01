@@ -5,6 +5,7 @@ export type FileState = {
   hash: string
   mode: number
   size: number
+  symlink?: boolean
 }
 
 export type Snapshot = Record<string, FileState>
@@ -21,6 +22,7 @@ export type CheckpointFile = {
   path: string
   before?: FileState
   after?: FileState
+  reverted?: boolean
 }
 
 export type Checkpoint = {
@@ -51,6 +53,7 @@ export type CaptureGroup = {
   baseline: Snapshot
   explicit: string[]
   excluded: string[]
+  unavailable?: string[]
   issues: string[]
   sealed: boolean
   released: boolean

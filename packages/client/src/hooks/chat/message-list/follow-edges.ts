@@ -39,7 +39,8 @@ export function useFollowEdges(
     const operation = operationRef.current
     if (!operation?.isCurrent()) return
     bottomSettleRef.current?.()
-    bottomSettleRef.current = trackUntilSettled(
+    let cancelled = false
+    const cancel = trackUntilSettled(
       () => {
         if (!operation.isCurrent()) return 0
         const doc = docScrollRef.current
@@ -49,7 +50,9 @@ export function useFollowEdges(
         return distance
       },
       {
+        pending: () => coordinator.layoutPending,
         onDone: () => {
+          if (cancelled) return
           if (operation.isCurrent() && metaRef.current.isAtLiveTail) {
             operation.finish()
             unlockScroll(true)
@@ -57,7 +60,11 @@ export function useFollowEdges(
         },
       },
     )
-  }, [scrollToBottom, docScrollRef, metaRef, unlockScroll])
+    bottomSettleRef.current = () => {
+      cancelled = true
+      cancel()
+    }
+  }, [scrollToBottom, docScrollRef, metaRef, unlockScroll, coordinator])
   useEffect(() => () => bottomSettleRef.current?.(), [])
 
   const topSettleRef = useRef<(() => void) | null>(null)
@@ -86,20 +93,24 @@ export function useFollowEdges(
   const pendingBottomRef = useRef(false)
   const pendingTopRef = useRef(false)
 
-  const beginNavigation = useCallback(() => {
-    const operation = coordinator.begin('navigate')
-    operationRef.current = operation
-    operation?.onCancel(() => {
-      bottomSettleRef.current?.()
-      topSettleRef.current?.()
-      pendingBottomRef.current = false
-      pendingTopRef.current = false
-    })
-  }, [coordinator])
+  const beginNavigation = useCallback(
+    (exclusive = false) => {
+      const operation = coordinator.begin('navigate', { exclusive })
+      operationRef.current = operation
+      operation?.onCancel(() => {
+        bottomSettleRef.current?.()
+        topSettleRef.current?.()
+        pendingBottomRef.current = false
+        pendingTopRef.current = false
+      })
+    },
+    [coordinator],
+  )
 
   // Reload the live tail and scroll to the bottom, unloading older pages
   const followToBottom = useCallback(() => {
-    beginNavigation()
+    beginNavigation(true)
+    scrollToBottom(true)
     setFollowOverride(isOngoingStream(status))
     if (!metaRef.current.isAtLiveTail) pendingBottomRef.current = true
     returnToLatest()
@@ -111,6 +122,7 @@ export function useFollowEdges(
     setFollowOverride,
     metaRef,
     beginNavigation,
+    scrollToBottom,
   ])
 
   // Ensure the list is at the very bottom when the live tail reloads

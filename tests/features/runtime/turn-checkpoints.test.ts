@@ -397,7 +397,8 @@ describe('turn checkpoints', () => {
     const result = await f.manager.finish(f.finish)
     expect(result.publication?.files).toEqual([])
     expect(result.publication?.issues.join(' ')).toContain('byte budget')
-    await expect(f.manager.restore(f.restore)).rejects.toThrow('incomplete')
+    expect((await f.manager.restore(f.restore)).conflicts).toEqual([])
+    expect(await Bun.file(target).size).toBe(33 * 1024 * 1024)
   })
   test('does not attribute a later writer to a child finalized twice', async () => {
     const f = await fixture()

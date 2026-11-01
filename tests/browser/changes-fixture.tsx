@@ -21,6 +21,7 @@ let revision = 0
 let conflicts: string[] = []
 let issues: string[] = []
 let error: string | undefined
+let empty = false
 const notify = () => {
   cache.clear()
   for (const listener of listeners) listener()
@@ -59,13 +60,13 @@ function result(name: string, args: Record<string, unknown>) {
       phase,
       state,
       revision,
-      fileCount: files.length,
-      additions: 8,
-      deletions: 8,
+      fileCount: empty ? 0 : files.length,
+      additions: empty ? 0 : 8,
+      deletions: empty ? 0 : 8,
       issues,
       error,
       conflicts,
-      canRestore: !issues.length,
+      canRestore: true,
     }
   if (name === 'chat:changeFiles') {
     const { cursor, numItems } = args.paginationOpts as {
@@ -127,6 +128,15 @@ export function ChangesFixture() {
           }}
         >
           Report capture issue
+        </button>
+        <button
+          onClick={() => {
+            empty = true
+            issues = ['Permission denied in an unrelated directory']
+            notify()
+          }}
+        >
+          Report no changes
         </button>
         <button
           onClick={() => {

@@ -3,7 +3,7 @@ import { digest } from '@sb/sidecar/checkpoints/storage'
 import { afterEach, expect, test } from 'bun:test'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { rm, writeFile } from 'node:fs/promises'
+import { readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { checkpointFixture } from '~/tests/helpers/turn-checkpoints'
 
@@ -57,7 +57,9 @@ test('resumes a restarted capture without losing its baseline or external file r
     expect(file?.before?.hash).toBe(digest(original!))
     expect(file?.after?.hash).toBe(digest('after restart'))
   }
-  await expect(restarted.restore(f.restore)).rejects.toThrow('incomplete')
+  await restarted.restore({ ...f.restore, allowedPaths: [external] })
+  expect(await readFile(local, 'utf8')).toBe('original local')
+  expect(await readFile(external, 'utf8')).toBe('original external')
 })
 
 test('waits for inherited shell processes before resuming and retires their identities', async () => {

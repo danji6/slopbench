@@ -2,6 +2,7 @@ export type ScrollOperationKind = 'follow' | 'restore' | 'navigate'
 
 export type ScrollOperation = {
   readonly kind: ScrollOperationKind
+  readonly exclusive: boolean
   isCurrent(): boolean
   onCancel(cleanup: () => void): void
   finish(): void
@@ -20,17 +21,40 @@ export class ScrollCoordinator {
   private editing = false
   private followAllowed = true
   private revision = 0
+  private pendingLayouts = new Set<symbol>()
+
+  get layoutPending() {
+    return this.pendingLayouts.size > 0
+  }
+
+  /** Tracks mounted content whose initial data can still change its height. */
+  trackPendingLayout = () => {
+    const token = Symbol()
+    this.pendingLayouts.add(token)
+    return () => {
+      this.pendingLayouts.delete(token)
+    }
+  }
 
   get kind() {
     return this.active?.kind ?? null
   }
 
-  begin(kind: ScrollOperationKind): ScrollOperation | null {
+  /** Reports whether the active operation blocks external scroll corrections. */
+  get exclusive() {
+    return this.active?.exclusive ?? false
+  }
+
+  begin(
+    kind: ScrollOperationKind,
+    options: { exclusive?: boolean } = {},
+  ): ScrollOperation | null {
     if (kind === 'follow' && !this.canFollow()) return null
     if (this.active && priority[kind] < priority[this.active.kind]) return null
     this.cancel()
     const operation: ScrollOperation = {
       kind,
+      exclusive: options.exclusive ?? false,
       isCurrent: () => this.active === operation,
       onCancel: (cleanup) => {
         if (this.active === operation) this.cleanups.push(cleanup)

@@ -3,6 +3,7 @@ import { AlertCircle } from 'lucide-react'
 import { CollapsibleBlock } from '../collapsible-block'
 
 type ChangeNoticeProps = {
+  warning?: boolean
   message: string
   details?: string[]
   role?: 'alert' | 'status'
@@ -13,24 +14,30 @@ export function ChangeNotice({
   message,
   details = [],
   role = 'alert',
+  warning = false,
 }: ChangeNoticeProps) {
+  const tone = warning
+    ? 'text-amber-700 dark:text-amber-400'
+    : 'text-destructive'
   return (
     <CollapsibleBlock
       role={role}
       label={[message, ...details].join(' ')}
-      labelClassName="text-destructive truncate"
+      labelClassName={`${tone} truncate`}
       leadingIcon={
         <AlertCircle
           aria-hidden
-          className="text-destructive size-3.5 shrink-0"
+          className={`${tone} size-3.5 shrink-0 -translate-y-px`}
         />
       }
       fullWidth
       dense
       revealOnOpen={false}
-      className="border-destructive/15 bg-destructive/5 mt-3 rounded-md"
+      className={`mt-3 rounded-md ${warning ? 'border-amber-500/15 bg-amber-500/5' : 'border-destructive/15 bg-destructive/5'}`}
     >
-      <div className="text-destructive max-h-64 overflow-y-auto px-4 pt-1 pb-3 text-xs wrap-anywhere whitespace-pre-wrap select-text">
+      <div
+        className={`${tone} max-h-64 overflow-y-auto px-4 pt-1 pb-3 text-xs wrap-anywhere whitespace-pre-wrap select-text`}
+      >
         <p>{message}</p>
         {details.map((detail, index) => (
           <p key={index} className="mt-2 font-mono">
