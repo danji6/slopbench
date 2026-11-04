@@ -27,6 +27,7 @@ import { appendNote, isNoteRow, notesClient } from './notes-client'
 
 const noop = () => {}
 const groupedWork = new URLSearchParams(location.search).has('groupedWork')
+const tailWork = new URLSearchParams(location.search).has('tailWork')
 
 function NoteRow({ row }: { row: MessageRow }) {
   const { message, messageMeta } = useChatMessage(row.messageId)
@@ -87,7 +88,8 @@ function Transcript() {
     <MessageListContext
       value={{
         scrollRef,
-        onLayoutChange: holdPosition,
+        onLayoutChange: scroller.holdLayoutPosition,
+        trackPendingLayout: scroller.coordinator.trackPendingLayout,
         releaseFollow: holdPosition,
         resumeFollow: noop,
         bottomPadding: 80,
@@ -142,7 +144,7 @@ function Transcript() {
             onLoadNewer: () => {},
             virtuaRef,
             renderRow: (row) =>
-              groupedWork ? (
+              groupedWork || tailWork ? (
                 <MessageRowView
                   row={
                     hideDuration && row.kind === 'footer'

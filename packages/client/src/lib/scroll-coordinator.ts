@@ -1,4 +1,4 @@
-export type ScrollOperationKind = 'follow' | 'restore' | 'navigate'
+export type ScrollOperationKind = 'follow' | 'layout' | 'restore' | 'navigate'
 
 export type ScrollOperation = {
   readonly kind: ScrollOperationKind
@@ -10,8 +10,9 @@ export type ScrollOperation = {
 
 const priority: Record<ScrollOperationKind, number> = {
   follow: 0,
-  restore: 1,
-  navigate: 2,
+  layout: 1,
+  restore: 2,
+  navigate: 3,
 }
 
 /** Arbitrates viewport ownership and invalidates asynchronous work on interruption. */

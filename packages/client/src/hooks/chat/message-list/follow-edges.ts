@@ -32,6 +32,8 @@ export function useFollowEdges(
   const { scroller, metaRef, docScrollRef } = deps
   const { scrollToBottom, holdPosition, coordinator, unlockScroll } = scroller
   const operationRef = useRef<ScrollOperation | null>(null)
+  const pendingBottomRef = useRef(false)
+  const pendingTopRef = useRef(false)
 
   const bottomSettleRef = useRef<(() => void) | null>(null)
   // Scroll until sitting at the very bottom
@@ -50,7 +52,10 @@ export function useFollowEdges(
         return distance
       },
       {
-        pending: () => coordinator.layoutPending,
+        pending: () =>
+          pendingBottomRef.current ||
+          metaRef.current.isLoadingNewer ||
+          coordinator.layoutPending,
         onDone: () => {
           if (cancelled) return
           if (operation.isCurrent() && metaRef.current.isAtLiveTail) {
@@ -89,9 +94,6 @@ export function useFollowEdges(
     )
   }, [holdPosition, metaRef])
   useEffect(() => () => topSettleRef.current?.(), [])
-
-  const pendingBottomRef = useRef(false)
-  const pendingTopRef = useRef(false)
 
   const beginNavigation = useCallback(
     (exclusive = false) => {

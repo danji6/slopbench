@@ -73,12 +73,17 @@ async function mount() {
 }
 
 async function settle() {
-  for (let frame = 0; frame < 10 && view.meta.isLoadingOlder; frame++) {
+  for (
+    let frame = 0;
+    frame < 10 && (view.meta.isLoadingOlder || view.meta.isLoadingNewer);
+    frame++
+  ) {
     await act(async () => {
       await new Promise(requestAnimationFrame)
     })
   }
   expect(view.meta.isLoadingOlder).toBe(false)
+  expect(view.meta.isLoadingNewer).toBe(false)
 }
 
 test('completes cached requests once and keeps growth and slide budgets bounded', async () => {
@@ -143,6 +148,7 @@ test('waits for fresh data and invalidates a pending request on navigation', asy
     source.resolve()
   })
   expect(view.meta.navigationRevision).toBe(1)
-  expect(view.meta.pageRevision).toBe(0)
   expect(view.meta.isLoadingOlder).toBe(false)
+  await settle()
+  expect(view.meta.pageRevision).toBe(2)
 })

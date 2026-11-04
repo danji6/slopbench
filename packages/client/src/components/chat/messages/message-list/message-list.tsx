@@ -31,7 +31,6 @@ import { getNavPaddingPx } from '@/hooks/nav-padding'
 import { useScroller } from '@/hooks/scroller'
 import type { MessageRow } from '@/lib/chat/rows'
 import { isOngoingStream } from '@/lib/chat/stream'
-import { trackHeightSettle } from '@/lib/scroll-settle'
 import {
   useCallback,
   useEffect,
@@ -203,6 +202,7 @@ export function MessageList({
     unlockScroll,
     setShiftInProgress,
     holdPosition,
+    holdLayoutPosition,
     scrollUntilCondition,
     isAutoScrolling,
   } = scroller
@@ -374,11 +374,10 @@ export function MessageList({
     processingMessageId: processingMessageId ?? null,
   })
 
-  const shiftHoldRef = useRef(false)
   useLayoutEffect(() => {
-    shiftHoldRef.current =
+    const shiftInProgress =
       isLoadingOlder || isLoadingNewer || slide.isPositioning || !!editingId
-    setShiftInProgress(shiftHoldRef.current)
+    setShiftInProgress(shiftInProgress)
   }, [
     isLoadingOlder,
     isLoadingNewer,
@@ -422,35 +421,10 @@ export function MessageList({
   // Fade the swapped content for a smoother transition
   useVersionCrossfade(messageIds, messageStore)
 
-  const settleCancelRef = useRef<(() => void) | null>(null)
-  // Suppress auto-follow during layout shifts and emit scroll change when the
-  // height settles
-  const onLayoutChange = useCallback(() => {
-    holdPosition()
-    setShiftInProgress(true)
-    const current = coordinator.checkpoint()
-    requestAnimationFrame(() => {
-      if (current()) setShiftInProgress(shiftHoldRef.current)
-    })
-
-    settleCancelRef.current?.()
-    settleCancelRef.current = onScrollChange
-      ? trackHeightSettle(handleScrollChange)
-      : null
-  }, [
-    holdPosition,
-    setShiftInProgress,
-    onScrollChange,
-    handleScrollChange,
-    coordinator,
-  ])
-
-  useEffect(() => () => settleCancelRef.current?.(), [])
-
   const messageListCtxValue = useMemo(
     () => ({
       scrollRef: docScrollRef as React.RefObject<HTMLElement | null>,
-      onLayoutChange,
+      onLayoutChange: holdLayoutPosition,
       onIntoViewSettle,
       releaseFollow: holdPosition,
       resumeFollow: () => unlockScroll(true),
@@ -459,7 +433,7 @@ export function MessageList({
       topPadding: topPad,
     }),
     [
-      onLayoutChange,
+      holdLayoutPosition,
       onIntoViewSettle,
       holdPosition,
       unlockScroll,

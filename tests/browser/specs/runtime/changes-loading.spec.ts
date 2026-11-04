@@ -1,5 +1,54 @@
 import { expect, test } from '@playwright/test'
 
+for (const width of [480, 1280]) {
+  test(`reserves file-list space and retains loaded changes across remounts (width=${width})`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 })
+    await page.goto('/?fixture=changes&delayed')
+    await page.getByRole('button', { name: 'Resolve changeSummary' }).click()
+    const summary = page.getByRole('region', { name: 'Agent changes' })
+    await expect(summary).toBeVisible()
+    const loadingHeight = (await summary.boundingBox())!.height
+    await page.getByRole('button', { name: 'Resolve changeFiles' }).click()
+    await expect(page.getByRole('button', { name: /src\/file-/ })).toHaveCount(
+      5,
+    )
+    const loadedHeight = (await summary.boundingBox())!.height
+    expect(Math.abs(loadedHeight - loadingHeight)).toBeLessThanOrEqual(1)
+
+    await page.getByRole('button', { name: 'Unmount summary' }).click()
+    await expect(summary).toHaveCount(0)
+    const frames = await page
+      .getByRole('button', { name: 'Remount summary' })
+      .evaluate(
+        (button) =>
+          new Promise<Array<{ height: number; files: number }>>((resolve) => {
+            const frames: Array<{ height: number; files: number }> = []
+            const tick = () => {
+              const summary = document.querySelector(
+                '[aria-label="Agent changes"]',
+              )
+              frames.push({
+                height: summary?.getBoundingClientRect().height ?? 0,
+                files:
+                  summary?.querySelectorAll('[data-slot="accordion-trigger"]')
+                    .length ?? 0,
+              })
+              if (frames.length < 8) requestAnimationFrame(tick)
+              else resolve(frames)
+            }
+            ;(button as HTMLButtonElement).click()
+            requestAnimationFrame(tick)
+          }),
+      )
+    expect(frames.every((frame) => frame.files === 5)).toBe(true)
+    expect(
+      Math.max(...frames.map((frame) => Math.abs(frame.height - loadedHeight))),
+    ).toBeLessThanOrEqual(1)
+  })
+}
+
 test('expands to newly loaded content smoothly and renders diff markers before syntax highlighting', async ({
   page,
 }) => {

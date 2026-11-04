@@ -5,6 +5,8 @@ import type {
 import { cn } from '@/lib/utils'
 import { type ReactNode, useLayoutEffect, useSyncExternalStore } from 'react'
 
+import { usePendingMessageLayout } from './message-list/message-list-context'
+
 /** Animates each measured child without adding another scrolling container. */
 export function VirtualizedRowTransition({
   state,
@@ -13,6 +15,7 @@ export function VirtualizedRowTransition({
   state?: RowTransition['phase']
   children: ReactNode
 }) {
+  usePendingMessageLayout(!!state)
   const collapsed = state === 'closing' || state === 'preparing'
   return (
     <div

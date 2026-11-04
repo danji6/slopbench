@@ -1,14 +1,19 @@
 import { readTextPreview } from '@/lib/text-file-preview'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
-import { useMutation, usePaginatedQuery, useQuery } from 'convex/react'
+import {
+  useQuery as useCachedQuery,
+  usePaginatedQuery,
+} from 'convex-helpers/react/cache/hooks'
+import { useMutation, useQuery } from 'convex/react'
 import { useEffect, useState } from 'react'
 
 const diffCache = new Map<string, string>()
 type DiffResult = { key: string; text?: string; error?: string }
 
+/** Retains reactive summaries and file pages through virtualized row remounts. */
 export function useTurnChanges(messageId: string, version: number) {
-  const summary = useQuery(api.chat.changeSummary, {
+  const summary = useCachedQuery(api.chat.changeSummary, {
     messageId: messageId as Id<'messages'>,
     version,
   })

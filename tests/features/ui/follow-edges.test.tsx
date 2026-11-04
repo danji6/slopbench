@@ -128,3 +128,17 @@ test('waits for mounted asynchronous content before handing navigation to follow
   for (let i = 0; i < 3; i++) advanceFrame()
   expect(unlockScroll).toHaveBeenCalledTimes(1)
 })
+
+test('keeps bottom navigation exclusive while the trimmed live window is loading', () => {
+  deps.metaRef.current.isAtLiveTail = true
+  deps.metaRef.current.isLoadingNewer = true
+  act(() => view.followToBottom())
+  for (let i = 0; i < 6; i++) advanceFrame()
+  expect(deps.scroller.coordinator.exclusive).toBe(true)
+  expect(unlockScroll).not.toHaveBeenCalled()
+
+  deps.metaRef.current.isLoadingNewer = false
+  for (let i = 0; i < 3; i++) advanceFrame()
+  expect(deps.scroller.coordinator.kind).toBeNull()
+  expect(unlockScroll).toHaveBeenCalledTimes(1)
+})

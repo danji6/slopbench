@@ -262,14 +262,14 @@ export function useMessageWindow(
 
   const returnToLatest = useCallback(() => {
     if (!sessionId) return
-    setLoading(null)
+    startLoading('newer', false)
     setResetKey((key) => key + 1)
     setState({
       kind: 'live',
       capBytes: MESSAGE_PAGE_BUDGET_BYTES,
       session: sessionId,
     })
-  }, [sessionId])
+  }, [sessionId, startLoading])
 
   const returnToOldest = useCallback(() => {
     if (!sessionId) return

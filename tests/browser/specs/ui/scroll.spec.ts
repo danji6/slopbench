@@ -156,10 +156,12 @@ test('bottom navigation waits for delayed summaries and file lists without bounc
   await page.getByRole('button', { name: 'Delay changes', exact: true }).click()
   await page.clock.install()
   await page.getByRole('button', { name: 'Bottom', exact: true }).click()
+  await expect(page.locator('[data-message-id="m79"]')).toBeAttached()
   await page.clock.fastForward(3000)
   await page
     .getByRole('button', { name: 'Resolve summaries', exact: true })
     .evaluate((button) => (button as HTMLButtonElement).click())
+  await expect(page.locator('[data-message-id="m79"] section')).toHaveCount(1)
   await page.clock.fastForward(3000)
 
   const distances = await page
@@ -184,5 +186,48 @@ test('bottom navigation waits for delayed summaries and file lists without bounc
         }),
     )
   await expect(page.locator('[data-loaded-files]')).toHaveCount(2)
+  expect(Math.max(...distances)).toBeLessThanOrEqual(1)
+})
+
+test('bottom navigation stays pinned while older rows are dropped and the window header returns', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=scroll&trim-window')
+  await page.getByRole('button', { name: 'Top', exact: true }).click()
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
+  await page.getByRole('button', { name: 'Bottom', exact: true }).click()
+  await expect(page.locator('[data-window-phase]')).toHaveAttribute(
+    'data-window-phase',
+    'loading',
+  )
+  await page.evaluate(async () => {
+    for (let frame = 0; frame < 6; frame++)
+      await new Promise(requestAnimationFrame)
+  })
+  const distances = await page
+    .getByRole('button', { name: 'Resolve window', exact: true })
+    .evaluate(
+      (button) =>
+        new Promise<number[]>((resolve) => {
+          const distances: number[] = []
+          const tick = () => {
+            distances.push(
+              document.documentElement.scrollHeight -
+                window.scrollY -
+                window.innerHeight,
+            )
+            if (distances.length < 12) requestAnimationFrame(tick)
+            else resolve(distances)
+          }
+          button.addEventListener('click', () => requestAnimationFrame(tick), {
+            once: true,
+          })
+          ;(button as HTMLButtonElement).click()
+        }),
+    )
+  await expect(page.locator('[data-row-count]')).toHaveAttribute(
+    'data-row-count',
+    '20',
+  )
   expect(Math.max(...distances)).toBeLessThanOrEqual(1)
 })

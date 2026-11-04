@@ -1,8 +1,8 @@
 import { RippleButton, WavyProgressCircle } from '@/components/ui'
+import { useVirtualizedLayout } from '@/hooks/chat/message-list/virtualized-layout'
 import { noteExpansion } from '@/lib/chat/note-state'
 import type { RowTransition } from '@/lib/chat/row-expansion-state'
 import type { MessageRow } from '@/lib/chat/rows'
-import { shiftsOnlyAtStart } from '@/lib/chat/window-row-shift'
 import { workExpansion } from '@/lib/chat/work-state'
 import { AnimatePresence, motion } from 'motion/react'
 import {
@@ -190,10 +190,7 @@ function MessageRows({
   renderRow,
   virtuaRef,
 }: MessageRowsProps) {
-  const [layout, setLayout] = useState({ rows, shift: false })
-  if (layout.rows !== rows) {
-    setLayout({ rows, shift: shiftsOnlyAtStart(layout.rows, rows) })
-  }
+  const layout = useVirtualizedLayout({ rows, virtualizer: virtuaRef })
   const workTransitions = useRowTransitions(workExpansion)
   const noteTransitions = useRowTransitions(noteExpansion)
   const transitions = new Map([...workTransitions, ...noteTransitions])
@@ -223,8 +220,8 @@ function MessageRows({
         className="mx-auto"
         style={
           hasHeaderContainer
-            ? innerStyle
-            : { ...innerStyle, ...topPaddingStyle }
+            ? { ...innerStyle, minHeight: layout.minHeight }
+            : { ...innerStyle, ...topPaddingStyle, minHeight: layout.minHeight }
         }
       >
         <VirtualizedRowsContext value={rows}>
@@ -234,6 +231,7 @@ function MessageRows({
               data={rows}
               item={VirtualizedItem}
               shift={shiftItems || layout.shift}
+              onResize={layout.onResize}
             >
               {(row) => <Fragment key={row.key}>{renderRow(row)}</Fragment>}
             </WindowVirtualizer>

@@ -1,6 +1,7 @@
 import { ScrollBindings } from './scroll-bindings'
 import { ScrollCoordinator } from './scroll-coordinator'
 import { FollowAnimation } from './scroll-follow'
+import { preserveLayoutPosition } from './scroll-layout'
 import type { AutoScrollerOptions } from './scroll-options'
 import type { ScrollTarget } from './scroll-target'
 
@@ -45,6 +46,8 @@ export class Scroller {
   private _immediate = false
   private _manualScrollActive = false
   private _userScrollIntent: 'up' | 'down' | null = null
+  private layoutPosition: ReturnType<typeof preserveLayoutPosition> | null =
+    null
   onSettle: (() => void) | null = null
   onFollowRelease: (() => void) | null = null
   onPositionChange: ((autoScrolling: boolean) => void) | null = null
@@ -174,6 +177,7 @@ export class Scroller {
   private _resumeAtBottom() {
     const target = this.target
     if (!target || !this._enabled) return
+    if (this.coordinator.exclusive) return
     if (this._shiftInProgress) return
     if (this.isFollowing || this._stopCondition !== null) return
 
@@ -364,6 +368,28 @@ export class Scroller {
     this._stopFollowing(true)
   }
 
+  /** Holds the viewport through a user-triggered expansion or collapse. */
+  holdLayoutPosition = () => {
+    this.holdPosition()
+    const target = this.target
+    if (!target) return
+    const operation = this.coordinator.begin('layout', { exclusive: true })
+    if (!operation) return
+
+    this._updateOverflowAnchor()
+    const position = preserveLayoutPosition(target, {
+      pending: () => this.coordinator.layoutPending,
+      changed: () => this.onPositionChange?.(false),
+      done: () => {
+        this.layoutPosition = null
+        operation.finish()
+        this._updateOverflowAnchor()
+      },
+    })
+    this.layoutPosition = position
+    operation.onCancel(position.cancel)
+  }
+
   scrollToBottom = (immediate = false) => {
     const target = this.target
     if (!target) return
@@ -430,6 +456,10 @@ export class Scroller {
           }
         },
         content: () => {
+          if (this.layoutPosition) {
+            this.layoutPosition.restore()
+            return
+          }
           if (this.coordinator.exclusive) {
             this.scrollToBottom(true)
             this.onPositionChange?.(this.autoScrolling)
@@ -464,6 +494,7 @@ export class Scroller {
           const t = this.target
           if (!t) return
           if (!this._enabled) return
+          if (this.coordinator.exclusive) return
 
           this._unlockIfContentFits()
 

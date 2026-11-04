@@ -1,4 +1,10 @@
-import { Accordion, Button, Popover, RippleButton } from '@/components/ui'
+import {
+  Accordion,
+  Button,
+  Popover,
+  RippleButton,
+  Skeleton,
+} from '@/components/ui'
 import { useTurnChanges } from '@/hooks/chat/changes'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import type { ChangedFile } from '@sb/core/types/changes'
@@ -98,6 +104,7 @@ export function ChangesSummary({
         )}
       </div>
       <Accordion
+        aria-busy={loadingFiles}
         className="border-border ml-1 w-auto border-l pl-5"
         multiple={false}
         value={expanded ? [expanded] : []}
@@ -106,6 +113,9 @@ export function ChangesSummary({
           setHovered(undefined)
         }}
       >
+        {loadingFiles && (
+          <LoadingFiles count={Math.min(summary.fileCount, 5)} />
+        )}
         {visible.map((file) => (
           <ChangedFileRow
             key={file.key}
@@ -167,6 +177,18 @@ export function ChangesSummary({
       )}
     </section>
   )
+}
+
+/** Reserves the same responsive row heights while the first file page loads. */
+function LoadingFiles({ count }: { count: number }) {
+  return Array.from({ length: count }, (_, index) => (
+    <div key={index} aria-hidden className="flex min-h-10 items-center py-2">
+      <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
+        <Skeleton className="h-5 w-24 rounded-sm" />
+        <Skeleton className="h-4 w-40 rounded-sm" />
+      </div>
+    </div>
+  ))
 }
 
 type ChangedFileRowProps = {

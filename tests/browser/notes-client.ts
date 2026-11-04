@@ -65,20 +65,47 @@ function noteExtra(type?: NoteType) {
 }
 
 const params = new URLSearchParams(location.search)
-let messages = params.has('groupedWork')
-  ? groupedWorkMessages()
-  : [
-      ...Array.from({ length: 35 }, (_, i) => message(`before${i}`, i)),
-      message('mcp', 40, 'mcp'),
-      message('workspace', 41, 'workspace'),
-      message('skills', 42, 'skills'),
-      message('command', 43, 'command'),
-      ...Array.from({ length: Number(params.get('extraNotes') ?? 0) }, (_, i) =>
-        message(`note${i}`, 44 + i / 1000, 'skills'),
-      ),
-      ...(params.has('work') ? [message('work', 45)] : []),
-      ...Array.from({ length: 35 }, (_, i) => message(`after${i}`, 50 + i)),
-    ]
+let messages = params.has('tailWork')
+  ? tailWorkMessages()
+  : params.has('groupedWork')
+    ? groupedWorkMessages()
+    : [
+        ...Array.from({ length: 35 }, (_, i) => message(`before${i}`, i)),
+        message('mcp', 40, 'mcp'),
+        message('workspace', 41, 'workspace'),
+        message('skills', 42, 'skills'),
+        message('command', 43, 'command'),
+        ...Array.from(
+          { length: Number(params.get('extraNotes') ?? 0) },
+          (_, i) => message(`note${i}`, 44 + i / 1000, 'skills'),
+        ),
+        ...(params.has('work') ? [message('work', 45)] : []),
+        ...Array.from({ length: 35 }, (_, i) => message(`after${i}`, 50 + i)),
+      ]
+
+function tailWorkMessages() {
+  const work = message('work', 45)
+  work.segments[0].parts = Array.from({ length: 8 }, (_, index) => [
+    {
+      type: 'tool-read_file' as const,
+      toolCallId: `read${index}`,
+      state: 'output-available' as const,
+      input: { path: `file${index}.ts` },
+      output: 'File contents',
+    },
+    { type: 'reasoning' as const, text: 'Checking the implementation.' },
+  ]).flat()
+  work.segments[0].parts.push({
+    type: 'text',
+    text: 'Regression checks passed.\n\n'.repeat(10),
+  })
+  return [
+    ...Array.from({ length: 35 }, (_, index) =>
+      message(`before${index}`, index),
+    ),
+    work,
+  ]
+}
 
 function groupedWorkMessages() {
   return ['first', 'second'].map((id, index) => ({

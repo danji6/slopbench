@@ -1,11 +1,16 @@
 import { ChangesSummary } from '@/components/chat/messages/changes/changes-summary'
 import { GrowOnly } from '@/components/chat/messages/grow-only'
 import '@/globals.css'
+import { ConvexQueryCacheProvider } from 'convex-helpers/react/cache'
 import { ConvexProvider, type ConvexReactClient } from 'convex/react'
 import { type FunctionReference, getFunctionName } from 'convex/server'
+import { useState } from 'react'
 
 const listeners = new Set<() => void>()
 const cache = new Map<string, unknown>()
+const subscriptions = new Map<string, number>()
+const delayed = new URLSearchParams(location.search).has('delayed')
+const ready = new Set<string>()
 const files = Array.from({ length: 8 }, (_, index) => ({
   key: `file-${index + 1}`,
   path: `src/file-${index + 1}.ts`,
@@ -27,6 +32,26 @@ const notify = () => {
   for (const listener of listeners) listener()
 }
 
+/** Mimics query eviction when its last subscriber leaves the virtualized row. */
+function subscribe(name: string, key: string, listener: () => void) {
+  subscriptions.set(key, (subscriptions.get(key) ?? 0) + 1)
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+    const remaining = subscriptions.get(key)! - 1
+    if (remaining) {
+      subscriptions.set(key, remaining)
+      return
+    }
+    subscriptions.delete(key)
+    cache.delete(key)
+    const stillSubscribed = [...subscriptions.keys()].some((key) =>
+      key.startsWith(`${name}:`),
+    )
+    if (!stillSubscribed) ready.delete(name)
+  }
+}
+
 const client = {
   watchQuery(
     reference: FunctionReference<'query'>,
@@ -35,11 +60,9 @@ const client = {
     const name = getFunctionName(reference)
     const key = `${name}:${JSON.stringify(args)}`
     return {
-      onUpdate(listener: () => void) {
-        listeners.add(listener)
-        return () => listeners.delete(listener)
-      },
+      onUpdate: (listener: () => void) => subscribe(name, key, listener),
       localQueryResult() {
+        if (delayed && !ready.has(name)) return undefined
         if (!cache.has(key)) cache.set(key, result(name, args))
         return cache.get(key)
       },
@@ -93,61 +116,84 @@ function result(name: string, args: Record<string, unknown>) {
 }
 
 export function ChangesFixture() {
+  const [visible, setVisible] = useState(true)
   return (
     <ConvexProvider client={client}>
-      <main className="mx-auto max-w-3xl p-6">
-        <GrowOnly data-testid="summary-row">
-          <ChangesSummary messageId="message" version={1} />
-        </GrowOnly>
-        <button
-          onClick={() => {
-            state = state === 'applied' ? 'reverted' : 'applied'
-            phase = 'ready'
-            revision++
-            conflicts = []
-            notify()
-          }}
-        >
-          Complete operation
-        </button>
-        <button
-          onClick={() => {
-            phase = 'ready'
-            conflicts = ['src/file-2.ts']
-            notify()
-          }}
-        >
-          Report conflict
-        </button>
-        <button
-          onClick={() => {
-            issues = [
-              `${'/project/.data/sidecar/agents/owner/home/'.repeat(8)}: Error: Command failed: git ls-files\nfatal: directory entry not superset of prefix`,
-            ]
-            notify()
-          }}
-        >
-          Report capture issue
-        </button>
-        <button
-          onClick={() => {
-            empty = true
-            issues = ['Permission denied in an unrelated directory']
-            notify()
-          }}
-        >
-          Report no changes
-        </button>
-        <button
-          onClick={() => {
-            error =
-              'Could not restore changes.\nThe local server is unavailable.'
-            notify()
-          }}
-        >
-          Report restore error
-        </button>
-      </main>
+      <ConvexQueryCacheProvider>
+        <main className="mx-auto max-w-3xl p-6">
+          {visible && (
+            <GrowOnly data-testid="summary-row">
+              <ChangesSummary messageId="message" version={1} />
+            </GrowOnly>
+          )}
+          {delayed && (
+            <>
+              <button onClick={() => setVisible(!visible)}>
+                {visible ? 'Unmount summary' : 'Remount summary'}
+              </button>
+              {['changeSummary', 'changeFiles'].map((query) => (
+                <button
+                  key={query}
+                  onClick={() => {
+                    ready.add(`chat:${query}`)
+                    notify()
+                  }}
+                >
+                  Resolve {query}
+                </button>
+              ))}
+            </>
+          )}
+          <button
+            onClick={() => {
+              state = state === 'applied' ? 'reverted' : 'applied'
+              phase = 'ready'
+              revision++
+              conflicts = []
+              notify()
+            }}
+          >
+            Complete operation
+          </button>
+          <button
+            onClick={() => {
+              phase = 'ready'
+              conflicts = ['src/file-2.ts']
+              notify()
+            }}
+          >
+            Report conflict
+          </button>
+          <button
+            onClick={() => {
+              issues = [
+                `${'/project/.data/sidecar/agents/owner/home/'.repeat(8)}: Error: Command failed: git ls-files\nfatal: directory entry not superset of prefix`,
+              ]
+              notify()
+            }}
+          >
+            Report capture issue
+          </button>
+          <button
+            onClick={() => {
+              empty = true
+              issues = ['Permission denied in an unrelated directory']
+              notify()
+            }}
+          >
+            Report no changes
+          </button>
+          <button
+            onClick={() => {
+              error =
+                'Could not restore changes.\nThe local server is unavailable.'
+              notify()
+            }}
+          >
+            Report restore error
+          </button>
+        </main>
+      </ConvexQueryCacheProvider>
     </ConvexProvider>
   )
 }

@@ -161,6 +161,31 @@ describe('pagination scroll holds', () => {
   )
 })
 
+describe('collapsing layout ownership', () => {
+  test('restores the offset after temporary shrinkage and releases on user input', () => {
+    scroller.holdLayoutPosition()
+    expect(scroller.coordinator.kind).toBe('layout')
+    expect(content.style.overflowAnchor).toBe('none')
+
+    scrollHeight = 700
+    content.scrollTop = 0
+    resize()
+    expect(content.scrollTop).toBe(0)
+
+    scrollHeight = 2000
+    mutate()
+    expect(content.scrollTop).toBe(1200)
+
+    content.dispatchEvent(new WheelEvent('wheel', { deltaY: -100 }))
+    content.scrollTop = 900
+    scrollHeight += 200
+    resize()
+    expect(content.scrollTop).toBe(900)
+    expect(scroller.coordinator.kind).toBeNull()
+    expect(content.style.overflowAnchor).toBe('')
+  })
+})
+
 describe('bottom navigation ownership', () => {
   test.each(['mutation', 'resize'] as const)(
     'compensates late content growth before the next frame on %s',

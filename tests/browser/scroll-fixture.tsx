@@ -12,6 +12,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { WindowVirtualizer, type WindowVirtualizerHandle } from 'virtua'
 
 type ChangesPhase = 'off' | 'loading' | 'summary' | 'files'
+type WindowPhase = 'expanded' | 'loading' | 'trimmed'
 
 /** Models the summary query followed by the file-list query on a mounted footer. */
 function DelayedChangesSummary({ phase }: { phase: ChangesPhase }) {
@@ -31,22 +32,25 @@ function DelayedChangesSummary({ phase }: { phase: ChangesPhase }) {
 
 /** Uses production scrolling hooks and virtua with deterministic local rows. */
 export function ScrollFixture() {
+  const trimWindow = new URLSearchParams(location.search).has('trim-window')
+  const [windowPhase, setWindowPhase] = useState<WindowPhase>('expanded')
   const [count, setCount] = useState(80)
   const [editing, setEditing] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [inset, setInset] = useState(80)
   const [streaming, setStreaming] = useState(false)
   const [changes, setChanges] = useState<ChangesPhase>('off')
+  const messageOffset = windowPhase === 'expanded' ? 0 : 60
   const rows = useMemo<MessageRow[]>(
     () =>
       Array.from({ length: count }, (_, index) => ({
         kind: 'group',
-        messageId: `m${index}`,
-        key: `m${index}`,
+        messageId: `m${index + messageOffset}`,
+        key: `m${index + messageOffset}`,
         segmentIndex: 0,
         groupIndex: 0,
       })),
-    [count],
+    [count, messageOffset],
   )
   const scroller = useScroller({
     mode: 'window',
@@ -69,7 +73,8 @@ export function ScrollFixture() {
   useLayoutEffect(() => {
     rowsRef.current = rows
     docScrollRef.current = document.documentElement
-  }, [rows])
+    metaRef.current.isLoadingNewer = windowPhase === 'loading'
+  }, [rows, windowPhase])
   const deps: ScrollDeps = {
     scroller,
     rowsRef,
@@ -79,7 +84,11 @@ export function ScrollFixture() {
     topPadding: 16,
   }
   const { followToBottom, followToTop } = useFollowEdges(deps, {
-    returnToLatest: () => {},
+    returnToLatest: () => {
+      if (!trimWindow) return
+      setWindowPhase('loading')
+      setCount(20)
+    },
     returnToOldest: () => {},
     status: streaming ? 'streaming' : 'ready',
     isAtLiveTail: true,
@@ -126,6 +135,11 @@ export function ScrollFixture() {
       >
         <button onClick={followToTop}>Top</button>
         <button onClick={followToBottom}>Bottom</button>
+        {trimWindow && (
+          <button onClick={() => setWindowPhase('trimmed')}>
+            Resolve window
+          </button>
+        )}
         <button onClick={() => setChanges('loading')}>Delay changes</button>
         <button onClick={() => setChanges('summary')}>Resolve summaries</button>
         <button onClick={() => setChanges('files')}>Resolve files</button>
@@ -168,8 +182,12 @@ export function ScrollFixture() {
       <div
         ref={scrollRef as React.RefObject<HTMLDivElement | null>}
         data-row-count={count}
+        data-window-phase={windowPhase}
         style={{ paddingTop: 64, paddingBottom: inset }}
       >
+        {windowPhase === 'trimmed' && (
+          <div style={{ height: 72 }}>Load older messages</div>
+        )}
         <WindowVirtualizer ref={virtuaRef} data={rows}>
           {(row) => (
             <article

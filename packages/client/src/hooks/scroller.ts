@@ -47,6 +47,10 @@ export function useScroller(
     scrollerRef.current?.holdPosition()
   }, [])
 
+  const holdLayoutPosition = useCallback(() => {
+    scrollerRef.current?.holdLayoutPosition()
+  }, [])
+
   const pauseFollow = useCallback((direction: 1 | -1) => {
     scrollerRef.current?.pauseFollow(direction)
   }, [])
@@ -130,6 +134,7 @@ export function useScroller(
     scrollToElementTop,
     scrollToBottom,
     holdPosition,
+    holdLayoutPosition,
     pauseFollow,
     scrollUntilCondition,
     isAutoScrolling,
