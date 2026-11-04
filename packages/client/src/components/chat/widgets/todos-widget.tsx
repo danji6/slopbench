@@ -31,7 +31,7 @@ export function TodosWidget({ className }: { className?: string }) {
           {done}/{items.length}
         </span>
       </Popover.Trigger>
-      <Popover.Content align="end" side="top" className="w-72">
+      <Popover.Content align="start" side="top" className="w-72">
         <Popover.Header>
           <Popover.Title>Todos</Popover.Title>
           <Popover.Description>

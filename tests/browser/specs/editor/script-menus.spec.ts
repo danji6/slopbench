@@ -6,24 +6,25 @@ test.beforeEach(async ({ page }) => {
 })
 
 for (const readOnly of [false, true]) {
-  test(`Scripts opens the manager without editing or running scripts (read only: ${readOnly})`, async ({
+  test(`the message context menu omits Scripts (read only: ${readOnly})`, async ({
     page,
   }) => {
     if (readOnly) await page.getByLabel('Read only').check()
     await page.getByTestId('message').click({ button: 'right' })
-    const items = page.getByRole('menuitem')
-    const names = await items.allTextContents()
-    expect(names.indexOf('Scripts')).toBe(names.indexOf('Copy Message') + 1)
-    await page.getByRole('menuitem', { name: 'Scripts', exact: true }).click()
-    await expect(page.getByRole('dialog')).toContainText('Manage your scripts.')
-    await expect(page.getByRole('menu')).toHaveCount(0)
+    await expect(
+      page.getByRole('menuitem', { name: 'Copy Message', exact: true }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('menuitem', { name: 'Scripts', exact: true }),
+    ).toHaveCount(0)
+    await expect(page.getByRole('dialog')).toHaveCount(0)
     await expect(
       page.getByLabel('Editing message', { exact: true }),
     ).toHaveText('none')
     await expect(page.getByLabel('Script actions', { exact: true })).toHaveText(
       '0',
     )
-    expect(new URL(page.url()).searchParams.get('view')).toBe('scripts')
+    expect(new URL(page.url()).searchParams.has('view')).toBe(false)
   })
 }
 

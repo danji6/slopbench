@@ -19,7 +19,7 @@ export function ReadAttachmentBlock({
   toolErrors?: string[]
 }) {
   return (
-    <div data-slot="read-attachment-block" className="mb-2 flex flex-col">
+    <div data-slot="read-attachment-block" className="flex flex-col">
       {parts.map((part) => (
         <AttachmentReadRow
           key={part.toolCallId}

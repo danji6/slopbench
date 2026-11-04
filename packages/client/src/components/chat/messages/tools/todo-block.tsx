@@ -67,7 +67,6 @@ function TodoToolShell({
     <ToolShell
       data-slot="todo-block"
       {...props}
-      dense
       label={
         <span className="text-foreground font-medium">
           {label}

@@ -19,7 +19,6 @@ export function QuestionBlock(props: ToolRendererProps) {
     <ToolShell
       data-slot="question-block"
       {...props}
-      dense
       label={<span className="text-foreground font-medium">{label}</span>}
     >
       {output?.aborted ? (

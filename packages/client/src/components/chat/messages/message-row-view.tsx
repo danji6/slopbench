@@ -366,7 +366,7 @@ function FooterRow({ duration, message, messageMeta, isLast }: FooterRowProps) {
       className={cn('flex w-full flex-col empty:hidden', !isLast && 'pb-4')}
     >
       {error && (
-        <div className="px-4">
+        <div className="px-4 pt-3">
           <ErrorBlock messageId={message.id} error={error} />
         </div>
       )}

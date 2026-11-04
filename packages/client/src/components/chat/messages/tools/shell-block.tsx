@@ -42,7 +42,7 @@ export function ShellBlock({
   part,
   messageId,
   forceError,
-  dense,
+  dense = true,
   alwaysExpand,
 }: ShellBlockProps) {
   const input = part.input as

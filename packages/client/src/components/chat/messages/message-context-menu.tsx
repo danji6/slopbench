@@ -7,7 +7,6 @@ import {
   useHasNewerMessages,
   useRetryMessage,
 } from '@/hooks/chat'
-import { useOpenScriptManager } from '@/hooks/chat/script-manager'
 import { extractTextFromMessage, isEditableMessage } from '@/lib/chat'
 import type { MessageRecord } from '@/lib/chat'
 import {
@@ -27,13 +26,7 @@ import {
   isTextUIPart,
   isToolUIPart,
 } from 'ai'
-import {
-  CopyIcon,
-  GanttChartIcon,
-  PencilIcon,
-  RotateCcwIcon,
-  Trash2Icon,
-} from 'lucide-react'
+import { CopyIcon, PencilIcon, RotateCcwIcon, Trash2Icon } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 
 import { prefetchRichTextEditor } from './editor/editable-text'
@@ -95,7 +88,6 @@ export function MessageContextMenu({
   children,
 }: MessageContextMenuProps) {
   const editCtx = useMessageEdit()
-  const openScriptManager = useOpenScriptManager()
   const deleteMessage = useDeleteMessage()
   const deleteMessageParts = useDeleteMessageParts()
   const deleteMessagesFrom = useDeleteMessagesFrom()
@@ -191,10 +183,6 @@ export function MessageContextMenu({
             onEditMessage={startEditMessage}
           />
           <CopyMenu copy={menu.copy} />
-          <ContextMenu.Item onSelect={openScriptManager}>
-            <GanttChartIcon />
-            Scripts
-          </ContextMenu.Item>
           {menu.delete.message && <ContextMenu.Separator />}
           {menu.delete.message && (
             <DeleteMenu

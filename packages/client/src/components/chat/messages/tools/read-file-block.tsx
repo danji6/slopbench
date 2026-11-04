@@ -32,10 +32,11 @@ export function ReadFileBlock({
     <CollapsibleBlock
       data-slot="read-file-block"
       collapsible={false}
+      dense
       leadingIcon={<ToolIcon name="read_file" />}
       label={label}
     >
-      <ul className="before:bg-border relative ml-4 flex flex-col gap-1 pb-2.5 pl-3 before:absolute before:top-0 before:left-0 before:h-2 before:w-px">
+      <ul className="before:bg-border relative ml-4 flex flex-col gap-1 pl-3 before:absolute before:top-0 before:left-0 before:h-2 before:w-px">
         {parts.map((part, index) => {
           const error = partError(part, toolErrors)
           const running = !error && partRunning(part, toolErrors)

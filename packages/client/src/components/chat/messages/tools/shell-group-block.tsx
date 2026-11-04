@@ -47,6 +47,7 @@ export function ShellGroupBlock({
       <CollapsibleBlock
         data-slot="shell-group"
         collapsible={false}
+        dense
         fullWidth
         leadingIcon={<ToolIcon name="shell" />}
         label={
@@ -58,7 +59,7 @@ export function ShellGroupBlock({
           </>
         }
       >
-        <div className="border-border/60 ml-3.5 flex flex-col gap-0.5 border-l pb-2.5 pl-2">
+        <div className="border-border/60 ml-3.5 flex flex-col gap-0.5 border-l pl-2">
           {parts.map((part) => (
             <ShellBlock
               key={part.toolCallId}

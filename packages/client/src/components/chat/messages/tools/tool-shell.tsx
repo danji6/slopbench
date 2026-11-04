@@ -52,7 +52,7 @@ export function ToolShell({
   fullWidth = false,
   surface = false,
   noErrorText = false,
-  dense = false,
+  dense = true,
   className,
   children,
   ...props

@@ -26,10 +26,11 @@ export function SubagentGroupBlock({
     <CollapsibleBlock
       data-slot="subagent-group"
       collapsible={false}
+      dense
       leadingIcon={<NetworkIcon className="size-3.5 shrink-0" />}
       label={label}
     >
-      <ul className="before:bg-border relative ml-4 flex flex-col gap-1 pb-2.5 pl-3 before:absolute before:top-0 before:left-0 before:h-2.5 before:w-px">
+      <ul className="before:bg-border relative ml-4 flex flex-col gap-1 pl-3 before:absolute before:top-0 before:left-0 before:h-2.5 before:w-px">
         {parts.map((part, index) => (
           <SubagentGroupItem
             key={part.toolCallId}

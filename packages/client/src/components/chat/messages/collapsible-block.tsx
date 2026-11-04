@@ -3,7 +3,7 @@ import { Collapsible, useCollapsible } from '@/components/ui/collapsible'
 import { useScrollIntoView } from '@/hooks/chat/scroll-into-view'
 import { cn } from '@/lib/utils'
 import { useReducedMotion } from 'motion/react'
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 
 import { useGrowOnly } from './grow-only'
 import { useMessageList } from './message-list/message-list-context'
@@ -68,8 +68,14 @@ export function CollapsibleBlock({
   const blockRef = useRef<HTMLDivElement>(null)
   const contentId = useId()
   const messageList = useMessageList()
+  const releaseHeight = useGrowOnly()?.release
   const bottomPadding = messageList?.bottomPadding ?? 0
   const topPadding = messageList?.topPadding ?? 0
+
+  // Re-measure retained row heights when the header density changes.
+  useLayoutEffect(() => {
+    releaseHeight?.()
+  }, [dense, releaseHeight])
 
   useScrollIntoView({
     active: reveal,
