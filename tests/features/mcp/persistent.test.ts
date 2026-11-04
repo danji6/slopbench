@@ -10,6 +10,9 @@ import { afterEach, expect, test } from 'bun:test'
 import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { mcpText } from '~/tests/helpers/mcp-result'
+import { setupCheckpoints } from '~/tests/setup/checkpoints'
+
+setupCheckpoints()
 
 const registries: McpRegistry[] = []
 const fixture = fileURLToPath(

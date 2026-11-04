@@ -11,6 +11,9 @@ import { Hono } from 'hono'
 import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { mcpText } from '~/tests/helpers/mcp-result'
+import { setupCheckpoints } from '~/tests/setup/checkpoints'
+
+setupCheckpoints()
 
 const app = new Hono()
 app.use('*', sidecarAuthentication('route-test-secret'))
