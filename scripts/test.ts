@@ -22,17 +22,39 @@ async function run(args: string[]) {
   }
 }
 
+function suiteTargets(suite: string) {
+  const directory = `./tests/features/${suite}`
+  if (suite !== 'ui') return [directory]
+
+  // Use processes instead of Bun 1.3's unstable --isolate realm swaps.
+  return readdirSync(join(root, directory), {
+    recursive: true,
+    encoding: 'utf8',
+  })
+    .filter((file) =>
+      /[._](test|spec)\.(js|jsx|ts|tsx|mjs|cjs|mts|cts)$/.test(file),
+    )
+    .filter((file) => !file.split(/[\\/]/).includes('browser'))
+    .sort()
+    .map((file) => join(root, directory, file))
+}
+
 async function runSuite(suite: string, args: string[]) {
   const smoke = `./tests/smoke/${suite}.test.ts`
-  await run([
-    'test',
-    ...(suite === 'ui' ? ['--isolate'] : []),
-    '--path-ignore-patterns',
-    '**/browser/**',
-    `./tests/features/${suite}`,
+  const targets = [
+    ...suiteTargets(suite),
     ...(existsSync(join(root, smoke)) ? [smoke] : []),
-    ...args,
-  ])
+  ]
+  const batches = suite === 'ui' ? targets.map((target) => [target]) : [targets]
+  for (const batch of batches) {
+    await run([
+      'test',
+      '--path-ignore-patterns',
+      '**/browser/**',
+      ...batch,
+      ...args,
+    ])
+  }
 }
 
 async function runBrowser(args: string[]) {

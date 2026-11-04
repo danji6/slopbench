@@ -18,10 +18,10 @@ script. `bun run tests smoke`, `bun run tests all`, and `bun run tests browser`
 also work. Full Bun runs use a fresh process per feature and stop on failure.
 Native flags pass through to each selected suite, including during `all` runs.
 Use separate output paths for per-suite reports to avoid overwriting them.
-When filtering `all` by name, add `--pass-with-no-tests` to allow suites without
-matches.
+When filtering `all` or `ui` by name, add `--pass-with-no-tests` to allow suites
+or files without matches.
 
-For one file, explicitly enable feature discovery (add `--isolate` for UI files):
+For one file, explicitly enable feature discovery:
 
 ```sh
 bun test --path-ignore-patterns '**/browser/**' ./tests/features/integrations/configuration.test.ts
@@ -67,10 +67,11 @@ copy, constants, or a library's behavior.
 Default discovery excludes `features/` and `browser/`. Put new comprehensive
 tests in their feature directory; new features do not automatically expand smoke.
 The full command runs features in fresh Bun processes to avoid dependencies on
-cross-feature module state. The UI suite also uses native file isolation for its
-module mocks. Other suites preserve Bun 1.3's evaluator preload, which is not
-compatible with reloading its WASM dependencies between isolated files. Keep DOM
-setup scoped to files that need it; evaluator initialization remains unchanged.
+cross-feature module state. The UI suite runs each file in a fresh process to
+isolate its module mocks without Bun 1.3's unstable `--isolate` realm swaps. All
+suites preserve the evaluator preload without reloading its WASM dependencies
+between isolated files. Keep DOM setup scoped to files that need it; evaluator
+initialization remains unchanged.
 
 Prefer readiness signals to fixed sleeps. Real process, HTTP, timer, and browser
 checks remain useful when they exercise additional behavior. Keep them in the
