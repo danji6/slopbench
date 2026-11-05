@@ -346,7 +346,6 @@ function ShellTerminal({
 
   useEffect(() => {
     if (!showingFull) return
-    handleRef.current?.clear()
     resetFeed()
   }, [showingFull, resetFeed])
 

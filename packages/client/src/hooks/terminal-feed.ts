@@ -5,7 +5,7 @@ import { type RefObject, useCallback, useEffect, useRef } from 'react'
 /**
  * Feeds a terminal from the persisted `term` tail by writing only the bytes
  * past what was already written into the current xterm instance.
- * @returns A callback to reset the feed.
+ * @returns A callback to clear the terminal and replay the current tail.
  */
 export function useTerminalFeed(
   handle: RefObject<TerminalHandle | null>,
@@ -13,12 +13,17 @@ export function useTerminalFeed(
   termOffset: number | undefined,
 ) {
   const writtenThroughRef = useRef<number | null>(null)
-  const feedRef = useRef(() => {})
+  const feedRef = useRef<(reset?: boolean) => void>(() => {})
 
   useEffect(() => {
-    feedRef.current = () => {
+    feedRef.current = (reset = false) => {
       const terminal = handle.current
       if (terminal === null || term === undefined) return
+
+      if (reset) {
+        terminal.clear()
+        writtenThroughRef.current = null
+      }
 
       const write = computeTerminalFeed(
         writtenThroughRef.current,
@@ -34,7 +39,6 @@ export function useTerminalFeed(
   }, [handle, term, termOffset])
 
   return useCallback(() => {
-    writtenThroughRef.current = null
-    feedRef.current()
+    feedRef.current(true)
   }, [])
 }
