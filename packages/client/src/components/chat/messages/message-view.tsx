@@ -3,7 +3,6 @@ import { useSettings } from '@/hooks/chat'
 import {
   extractTextFromMessage,
   isEditableMessage,
-  isMessagePending,
   useScopedAppearance,
 } from '@/lib/chat'
 import type { PartMetadata, UIMessageType } from '@/lib/chat'
@@ -15,7 +14,6 @@ import { ErrorBlock } from './error-block'
 import { MessageContext } from './message-context'
 import { MessageHeader, type MessageSender } from './message-header'
 import { PartsRenderer } from './parts-renderer'
-import { WaitingIndicator } from './waiting-indicator'
 
 export type MessageViewProps = {
   message: UIMessage
@@ -123,7 +121,6 @@ const MessageContent = memo(function MessageContent({
   error,
 }: MessageContentProps) {
   const isUser = message.role === 'user'
-  const showPendingIndicator = isMessagePending(message) // TODO idle timer
 
   return (
     <Surface
@@ -140,9 +137,6 @@ const MessageContent = memo(function MessageContent({
         partMeta={partMeta}
       />
       {error && <ErrorBlock messageId={message.id} error={error} />}
-      {showPendingIndicator && (
-        <WaitingIndicator visible className="static w-auto gap-2" />
-      )}
     </Surface>
   )
 })

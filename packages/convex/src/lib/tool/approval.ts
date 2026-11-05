@@ -42,12 +42,12 @@ export function isFileTool(name: string): boolean {
  *
  * A command is auto-approved only when every segment of its chain (split on
  * `&&`, `||`, `;`, `|`, `&` and quote-aware newlines) matches an allowed
- * pattern: either a built-in safe pattern or one the user approved for the
- * session. Patterns are `program` or `program subcommand` for multi-command
+ * pattern: either a built-in safe pattern or a user-approved word prefix.
+ * Patterns are `program` or `program subcommand` for multi-command
  * programs (`git status`, `npm view`, etc), so `git status` is different from
  * `git checkout`. Wrapper programs (sudo, xargs, timeout, etc) keep their name
- * in the pattern and unwrap to the real program (e.g. `rm` can't hide behind
- * an allowed wrapper). Some safe programs (find, sed) are additionally gated
+ * in the pattern and unwrap to the real program. Granting a wrapper alone
+ * covers every wrapped command. Some safe programs (find, sed) are gated
  * on their arguments staying read-only (see read_only_args.ts).
  *
  * Commands containing command/process substitution or subshells are never
@@ -92,6 +92,9 @@ export function analyzeShellCommand(
   command: string,
   allowlist: string[],
 ): ShellCommandAnalysis {
+  const prefixes = allowlist.map((entry) =>
+    tokenizeShell(entry).map((token) => token.value),
+  )
   const patterns: string[] = []
   const unapproved: string[] = []
   let unsafe = false
@@ -105,19 +108,29 @@ export function analyzeShellCommand(
     if (!segment.text) continue
 
     for (const text of expandShellControlSegment(segment.text)) {
-      const { pattern, helpOnly, readOnlyArgs } = patternFromSegment(text)
+      const { pattern, parts, helpOnly, readOnlyArgs } =
+        patternFromSegment(text)
       if (!pattern) continue
       if (!patterns.includes(pattern)) patterns.push(pattern)
 
       const covered =
         helpOnly ||
         (readOnlyArgs && DEFAULT_SAFE_SHELL_PATTERNS.has(pattern)) ||
-        allowlist.includes(pattern)
+        prefixes.some((prefix) => matchesCommandPrefix(parts, prefix))
       if (!covered && !unapproved.includes(pattern)) unapproved.push(pattern)
     }
   }
 
   return { patterns, unapproved, unsafe }
+}
+
+/** Matches complete words in a normalized command identity. */
+function matchesCommandPrefix(parts: string[], prefix: string[]): boolean {
+  return (
+    prefix.length > 0 &&
+    prefix.length <= parts.length &&
+    prefix.every((word, index) => word === parts[index])
+  )
 }
 
 export function isShellCommandAutoApproved(
@@ -281,6 +294,7 @@ function patternFromSegment(text: string) {
 
   return {
     pattern: names.join(' '),
+    parts: names,
     helpOnly,
     readOnlyArgs:
       program === null ||

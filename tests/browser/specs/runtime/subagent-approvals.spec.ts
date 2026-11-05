@@ -25,6 +25,9 @@ test('approves locally with a note and keeps the parent queue synchronized', asy
   await page.goto('/?fixture=subagent-approvals&id=child')
   await expect(picker(page)).toBeVisible()
   await expect(picker(page)).toContainText('git push origin first')
+  await expect(
+    page.getByRole('status', { name: 'Explore is waiting' }),
+  ).toBeVisible()
   await expect(picker(page)).not.toContainText('git push origin sibling')
   await expect(page.locator('[data-slot="subagent-banner"]')).toBeVisible()
   await note(page).fill('Use the test remote')
@@ -49,6 +52,9 @@ test('approves locally with a note and keeps the parent queue synchronized', asy
   await resolveApproval(page)
   await page.getByRole('button', { name: 'View child', exact: true }).click()
   await expect(picker(page)).toHaveCount(0)
+  await expect(
+    page.getByRole('status', { name: 'Explore is working' }),
+  ).toBeVisible()
   expect((await mutations(page))[1].args).toMatchObject({
     sessionId: 'parent',
     childSessionId: 'child',
@@ -98,12 +104,65 @@ test('aborts only the viewed child', async ({ page }) => {
     .getByRole('option', { name: /^Abort/ })
     .click()
   await expect(picker(page)).toHaveCount(0)
+  await expect(page.locator('[data-slot="activity-indicator"]')).toHaveCount(0)
   expect((await mutations(page))[0]).toEqual({
     name: 'chat:stopStream',
     args: { sessionId: 'child' },
   })
   await page.getByRole('button', { name: 'View parent', exact: true }).click()
   await expect(picker(page)).toContainText('git push origin sibling')
+})
+
+test('combines busy typing activity with agent status in a stable footer', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/?fixture=subagent-approvals&id=child&typing=5')
+  const activity = page.locator('[data-slot="activity-indicator"]')
+  await expect(activity).toHaveText('5 people are typing·Explore is waiting')
+  await expect(activity).toHaveAttribute(
+    'title',
+    'Alice, Bob, Carol, Dave, Eve are typing · Explore is waiting',
+  )
+  await expect(activity).toHaveCSS('opacity', '1')
+  expect(
+    await activity.evaluate((element) => {
+      const footer = element.parentElement!.parentElement!.parentElement!
+      const gradient = footer.querySelector<HTMLElement>(
+        '[aria-hidden="true"]',
+      )!
+      const pointerEvents = gradient.style.pointerEvents
+      gradient.style.pointerEvents = 'auto'
+      const rect = element.firstElementChild!.getBoundingClientRect()
+      const top = document.elementFromPoint(
+        rect.x + rect.width / 2,
+        rect.y + rect.height / 2,
+      )
+      gradient.style.pointerEvents = pointerEvents
+      return element.contains(top)
+    }),
+  ).toBe(true)
+  await expect(activity.locator('span').first()).toHaveCSS(
+    'animation-name',
+    'text-shimmer',
+  )
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await expect(activity.locator('span').first()).toHaveCSS(
+    'animation-name',
+    'none',
+  )
+  const before = await activity.boundingBox()
+  await page.getByRole('button', { name: 'Stop typing', exact: true }).click()
+  await expect(activity).toHaveText('Explore is waiting')
+  const after = await activity.boundingBox()
+  expect(after!.height).toBe(before!.height)
+  expect(after!.y).toBe(before!.y)
+  await expect(activity.locator('span[style]')).toHaveCount(0)
+  await expect(page.locator('[data-slot="waiting-indicator"]')).toHaveCount(0)
+  await expect(page.locator('[data-row-kind="footer"]')).toHaveCSS(
+    'height',
+    '0px',
+  )
 })
 
 test('restores the request and note after an approval fails', async ({

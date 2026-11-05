@@ -61,7 +61,7 @@ export function AutoApproveSettings({
       <SettingsList.Item
         className="pl-8"
         label="Shell commands"
-        description="Command patterns this agent may run without approval, e.g. `find` or `git checkout`."
+        description="Command prefixes this agent may run without approval, e.g. `find` or `git checkout`."
         orientation="vertical"
         unclickable
         unhoverable
@@ -70,7 +70,7 @@ export function AutoApproveSettings({
           values={shellField.value}
           onChange={shellField.onChange}
           placeholder="git checkout"
-          label="Command pattern"
+          label="Command prefix"
         />
       </SettingsList.Item>
       <SettingsList.Item

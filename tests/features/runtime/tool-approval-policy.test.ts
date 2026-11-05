@@ -36,6 +36,12 @@ describe('approval choices', () => {
     expect(approvalHold('shell', input, 'plan')).toBe('plan')
   })
 
+  test('runner prefix grants suppress redundant session approval choices', () => {
+    const input = { command: 'bun run tests toolkits' }
+    expect(alwaysLabel('shell', input, { shell: ['bun run'] })).toBeNull()
+    expect(approvalHold('shell', input, 'plan')).toBe('plan')
+  })
+
   test('file session choices preserve ordinary edits and require resolved paths', () => {
     for (const toolName of ['read_file', 'write_file', 'edit_file']) {
       const input = { path: 'src/file.ts' }

@@ -5,7 +5,6 @@ import {
   useChatMessage,
   useIsMessageStreaming,
   useMessageAppearance,
-  useStreamInactivity,
   useUserProfile,
 } from '@/hooks/chat'
 import {
@@ -34,7 +33,6 @@ import { MessageVersionSwitcher } from './message-version-switcher'
 import { NoteGroupBlock } from './note-group-block'
 import { ReasoningHeader } from './reasoning-header'
 import { RenderGroup } from './render-group'
-import { WaitingIndicator } from './waiting-indicator'
 import { WorkBlock } from './work-block'
 
 export type MessageRowViewProps = {
@@ -344,7 +342,6 @@ type FooterRowProps = {
 
 function FooterRow({ duration, message, messageMeta, isLast }: FooterRowProps) {
   const isStreaming = useIsMessageStreaming(message.id)
-  const isInactive = useStreamInactivity(message)
 
   const showDuration = duration !== undefined && !isStreaming
 
@@ -356,7 +353,7 @@ function FooterRow({ duration, message, messageMeta, isLast }: FooterRowProps) {
 
   const showChanges = messageMeta?.hasChanges && !isStreaming
 
-  if (!error && !isInactive && !showDuration && !showSwitcher && !showChanges) {
+  if (!error && !showDuration && !showSwitcher && !showChanges) {
     return null
   }
 
@@ -376,9 +373,6 @@ function FooterRow({ duration, message, messageMeta, isLast }: FooterRowProps) {
           messageId={message.id}
           version={selectedVersion}
         />
-      )}
-      {isInactive && (
-        <WaitingIndicator visible className="static w-auto gap-2" />
       )}
       {(showSwitcher || showDuration) && (
         <div className="flex items-center gap-3 px-2 pt-4">

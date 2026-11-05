@@ -1,7 +1,6 @@
-import { Accordion, RippleButton } from '@/components/ui'
+import { Accordion, Button } from '@/components/ui'
 import { useNoteExpansion } from '@/hooks/chat/note-expansion'
 import type { MessageRow } from '@/lib/chat/rows'
-import { StickyNoteIcon } from 'lucide-react'
 
 import { useMessageList } from './message-list/message-list-context'
 import { getMountedTransitionRows } from './virtualized-row-transition'
@@ -15,8 +14,9 @@ export function NoteGroupBlock({
   const list = useMessageList()
 
   return (
-    <RippleButton
+    <Button
       data-slot="note-group-block"
+      data-open={open}
       variant="plain"
       size={null}
       aria-expanded={open}
@@ -29,11 +29,10 @@ export function NoteGroupBlock({
         )
         onOpenChange(!open, mountedRows)
       }}
-      className="text-muted-foreground bg-muted/50 flex min-h-7 w-fit max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs"
+      className="text-muted-foreground flex min-h-9 max-w-full items-center justify-start gap-2 py-1 text-left text-xs whitespace-normal"
     >
-      <StickyNoteIcon className="size-3.5 shrink-0" />
-      <span>{row.count} notes</span>
+      <span className="min-w-0 wrap-anywhere">{row.count} notes</span>
       <Accordion.Icon isExpanded={open} className="shrink-0" />
-    </RippleButton>
+    </Button>
   )
 }

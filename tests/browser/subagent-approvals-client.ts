@@ -61,6 +61,9 @@ type Entry = {
 }
 const cache = new Map<string, Entry>()
 const listeners = new Set<() => void>()
+let typingCount = Number(
+  new URLSearchParams(location.search).get('typing') ?? 0,
+)
 let approvalsReady = !new URLSearchParams(location.search).has('delayedApprovals') // prettier-ignore
 const key = (reference: FunctionReference<'query'>, args: unknown) =>
   `${getFunctionName(reference)}:${JSON.stringify(args)}`
@@ -114,6 +117,11 @@ function messageWindow(sessionId: string) {
 
 function query(name: string, args: Record<string, unknown>) {
   const sessionId = String(args.sessionId ?? '')
+  if (name === 'typing:list') {
+    return ['Alice', 'Bob', 'Carol', 'Dave', 'Eve']
+      .slice(0, typingCount)
+      .map((name) => ({ userId: name, name, expiresAt: Date.now() + 60_000 }))
+  }
   if (name === 'users:getProfile')
     return {
       _id: 'owner',
@@ -266,6 +274,11 @@ export const approvalFixtureClient = {
 } as unknown as ConvexReactClient
 
 export const approvalFixtureControls = {
+  stopTyping: () => {
+    typingCount = 0
+    cache.clear()
+    notify()
+  },
   subscribe: (listener: () => void) => {
     listeners.add(listener)
     return () => listeners.delete(listener)

@@ -153,6 +153,19 @@ describe('shell approval through scoped MCP path checks', () => {
     })
   })
 
+  test('Bun runner prefixes retain path and plan approval gates', async () => {
+    const shell = ['bun run']
+    const command = 'bun run tests README.md'
+    expect(await needsApproval(command, { shell })).toBe(false)
+    expect(await needsApproval(command, { shell, plan: true })).toBe(true)
+    expect(
+      await needsApproval('bun run tests ignored/patterns.txt', { shell }),
+    ).toBe(true)
+    expect(await needsApproval('bun run --cwd ignored tests', { shell })).toBe(
+      true,
+    )
+  })
+
   test.each([
     'bun test --preload ignored/patterns.txt README.md',
     'bun test --reporter junit --reporter-outfile .git/report.xml',

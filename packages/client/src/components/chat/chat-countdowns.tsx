@@ -4,12 +4,9 @@ import {
   useStreamRawStatus,
 } from '@/hooks/chat'
 import { useCountdown } from '@/hooks/countdown'
-import { useDelayedFlag } from '@/hooks/debounce'
 import { cn } from '@/lib/utils'
 import { TimerIcon } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-
-import { WaitingIndicator } from './messages/waiting-indicator'
 
 const COUNTDOWN_SPRING = {
   type: 'spring',
@@ -64,11 +61,10 @@ export function PendingAgentRow() {
   const remaining = useCountdown(status === 'pending' ? fireAt : null)
   const pending = status === 'pending'
   const counting = pending && !!fireAt && remaining > 0
-  const waiting = useDelayedFlag(pending && !counting, 500)
 
   return (
     <AnimatePresence initial={false}>
-      {pending && (counting || waiting) && (
+      {counting && (
         <motion.div
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
@@ -77,16 +73,10 @@ export function PendingAgentRow() {
           className="overflow-hidden"
         >
           <div className="text-muted-foreground flex items-center gap-2 pt-10 text-sm">
-            {counting ? (
-              <>
-                <TimerIcon className="size-4 shrink-0" />
-                <span className="flex-1">
-                  Agent responds in {seconds(remaining)}s…
-                </span>
-              </>
-            ) : (
-              <WaitingIndicator visible className="static w-auto gap-2" />
-            )}
+            <TimerIcon className="size-4 shrink-0" />
+            <span className="flex-1">
+              Agent responds in {seconds(remaining)}s…
+            </span>
           </div>
         </motion.div>
       )}

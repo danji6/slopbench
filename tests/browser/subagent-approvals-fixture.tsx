@@ -28,6 +28,7 @@ function View() {
       onRunCommand={async () => {}}
       onContinueAgent={() => {}}
       hasActiveAgent={false}
+      activeAgentName="Explore"
       onDismissError={() => {}}
       fileIndex={useWorkspaceFileIndex(undefined, false)}
     />
@@ -67,6 +68,7 @@ function Controls() {
       <button onClick={approvalFixtureControls.failNext}>
         Fail next approval
       </button>
+      <button onClick={approvalFixtureControls.stopTyping}>Stop typing</button>
       <output data-testid="approval-mutations" className="sr-only">
         {mutations}
       </output>

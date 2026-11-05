@@ -51,9 +51,11 @@ describe('unsafe constructs', () => {
 })
 
 describe('wrappers and prefixes', () => {
-  test('wrappers cannot hide the wrapped program', () => {
-    expect(isShellCommandAutoApproved('sudo rm -rf /', ['sudo'])).toBe(false)
-    expect(isShellCommandAutoApproved('xargs rm', ['xargs'])).toBe(false)
+  test('wrapped commands require a matching wrapper prefix', () => {
+    expect(isShellCommandAutoApproved('sudo rm -rf /', ['rm'])).toBe(false)
+    expect(isShellCommandAutoApproved('xargs rm', ['rm'])).toBe(false)
+    expect(isShellCommandAutoApproved('sudo rm -rf /', ['sudo'])).toBe(true)
+    expect(isShellCommandAutoApproved('xargs rm', ['xargs'])).toBe(true)
     expect(analyzeShellCommand('timeout 5 rm x', []).patterns).toEqual([
       'timeout rm',
     ])

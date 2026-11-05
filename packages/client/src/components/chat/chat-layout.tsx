@@ -64,7 +64,7 @@ export function ChatLayout({
         >
           {dock}
           <div className="relative -z-10 flex w-full justify-center pb-1">
-            <FadingGradient className="-top-8 h-auto rounded-none" />
+            <FadingGradient className="-top-8 -z-10 h-auto rounded-none" />
             <div
               className="flex min-h-6 items-center px-1 pt-1.5 pb-0.5"
               style={dockFooterWidth ? { width: dockFooterWidth } : undefined}

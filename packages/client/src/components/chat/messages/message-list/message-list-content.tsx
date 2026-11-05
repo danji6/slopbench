@@ -339,7 +339,7 @@ function VirtualizedItem({
         <VirtualizedRowTransition
           state={transitions.get(row.noteGroupId)?.phase}
         >
-          <div className="border-border/60 border-l py-1 pl-3">{children}</div>
+          <div className="border-border/60 border-l py-1">{children}</div>
         </VirtualizedRowTransition>
       ) : (
         children

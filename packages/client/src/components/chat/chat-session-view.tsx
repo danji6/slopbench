@@ -43,10 +43,10 @@ import { ChatDock } from './chat-dock'
 import { ChatLayout } from './chat-layout'
 import { ChatPrompts } from './chat-prompts'
 import { ChatToolbar } from './chat-toolbar'
+import { ActivityIndicator } from './composer/activity-indicator'
 import { ChatComposer } from './composer/chat-composer'
 import type { ComposerHandle } from './composer/chat-composer'
 import { ComposerToolbar } from './composer/composer-toolbar'
-import { TypingIndicator } from './composer/typing-indicator'
 import { useMessageEdit } from './messages/editor'
 import { MessageHighlightProvider } from './messages/message-highlight-context'
 import { MessageList, type MessageListHandle } from './messages/message-list'
@@ -205,6 +205,7 @@ export function ChatSessionView({
 
   const unseenActivity = useUnseenTailActivity(isAtBottom)
   const hasActivity = isOngoingStream(status) || unseenActivity
+  const agentWaiting = awaitingApproval || awaitingAnswer
 
   const showDock = !isEditing && (isPinned || (isAtBottom && !isPinned) || hasContent) // prettier-ignore
   const pendingFocusRef = useRef(false)
@@ -336,9 +337,20 @@ export function ChatSessionView({
               )
             }}
             dockFooter={
-              <div className="flex w-full">
-                <TypingIndicator names={typingUsers.map((user) => user.name)} />
-                <SlowModeLabel className="ml-auto" />
+              <div className="flex h-4 w-full min-w-0 items-center">
+                <ActivityIndicator
+                  className="pl-2"
+                  names={typingUsers.map((user) => user.name)}
+                  agent={
+                    isOngoingStream(status)
+                      ? {
+                          name: activeAgentName ?? 'Agent',
+                          state: agentWaiting ? 'waiting' : 'working',
+                        }
+                      : undefined
+                  }
+                />
+                <SlowModeLabel className="ml-auto shrink-0" />
               </div>
             }
             dockFooterWidth={dockWidth}

@@ -38,17 +38,64 @@ describe('package and environment runners', () => {
     })
   })
 
-  test('requires the specific task or executable grant', () => {
+  test('specific task or executable grants do not cover siblings', () => {
     expect(isShellCommandAutoApproved('npm run deploy', ['npm run test'])).toBe(
       false,
     )
     expect(
       isShellCommandAutoApproved('uv run python script.py', ['uv run pytest']),
     ).toBe(false)
-    expect(isShellCommandAutoApproved('npm run lint', ['npm run'])).toBe(false)
-    expect(isShellCommandAutoApproved('uv run pytest', ['uv run'])).toBe(false)
+  })
+
+  test('runner prefixes cover their tasks and executables', () => {
+    expect(
+      isShellCommandAutoApproved('bun run tests toolkits', ['bun run']),
+    ).toBe(true)
+    expect(isShellCommandAutoApproved('npm run lint', ['npm run'])).toBe(true)
+    expect(isShellCommandAutoApproved('uv run pytest', ['uv run'])).toBe(true)
     expect(
       isShellCommandAutoApproved('uv tool run pytest', ['uv tool run']),
+    ).toBe(true)
+  })
+
+  test('prefixes match complete words, including quoted task names', () => {
+    expect(isShellCommandAutoApproved('bun runtime tests', ['bun run'])).toBe(
+      false,
+    )
+    expect(
+      isShellCommandAutoApproved('bun run tests-extra', ['bun run tests']),
+    ).toBe(false)
+    expect(
+      isShellCommandAutoApproved('bun run "tests extra"', ['bun run tests']),
+    ).toBe(false)
+    expect(
+      isShellCommandAutoApproved('bun run "tests extra" toolkits', [
+        'bun run "tests extra"',
+      ]),
+    ).toBe(true)
+    expect(isShellCommandAutoApproved('bun run tests', ['  bun\trun  '])).toBe(
+      true,
+    )
+    expect(isShellCommandAutoApproved('bun run tests', [''])).toBe(false)
+  })
+
+  test('runner prefixes still check every chain segment and unsafe syntax', () => {
+    const allowlist = ['bun run']
+    expect(
+      isShellCommandAutoApproved('bun run tests && bun run lint', allowlist),
+    ).toBe(true)
+    expect(
+      analyzeShellCommand('bun run tests && rm output.txt', allowlist)
+        .unapproved,
+    ).toEqual(['rm'])
+    expect(
+      isShellCommandAutoApproved('bun run tests && rm output.txt', allowlist),
+    ).toBe(false)
+    expect(
+      isShellCommandAutoApproved('bun run tests > output.txt', allowlist),
+    ).toBe(false)
+    expect(
+      isShellCommandAutoApproved('bun run tests "$(whoami)"', allowlist),
     ).toBe(false)
   })
 
