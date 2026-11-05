@@ -6,7 +6,7 @@ import { RippleButton, type RippleButtonProps } from './ripple-button'
 export type SettingsFooterProps = {
   /** Whether the form has unsaved changes. */
   isDirty: boolean
-  /** Close without changes (Cancel while clean). */
+  /** Close without changes (Close while clean). */
   onClose: () => void
   /** Discard changes and close (confirmed Cancel while dirty). */
   onDiscard: () => void
@@ -20,7 +20,7 @@ export type SettingsFooterProps = {
 }
 
 /**
- * Shared Cancel / Apply / Save footer for settings-style dialogs. Must be
+ * Show Close for clean drafts and Cancel / Apply / Save for unsaved changes. Must be
  * rendered inside the `<form>` so Apply can submit it (persist without closing).
  */
 export function SettingsFooter({
@@ -58,28 +58,30 @@ export function SettingsFooter({
           disabled={busy}
           className="max-w-32 min-w-0 flex-1"
         >
-          Cancel
+          {isDirty ? 'Cancel' : 'Close'}
         </FooterButton>
       )}
-      {showApply && (
+      {isDirty && showApply && (
         <FooterButton
-          variant={isDirty ? 'outline' : 'surface'}
+          variant="outline"
           type="submit"
-          disabled={!isDirty || busy}
+          disabled={busy}
           className="max-w-32 min-w-0 flex-1"
         >
           Apply
         </FooterButton>
       )}
-      <FooterButton
-        variant={isDirty ? 'primary' : 'surface'}
-        type="button"
-        onClick={onSave}
-        disabled={!isDirty || busy}
-        className="max-w-32 min-w-0 flex-1"
-      >
-        Save
-      </FooterButton>
+      {isDirty && (
+        <FooterButton
+          variant="primary"
+          type="button"
+          onClick={onSave}
+          disabled={busy}
+          className="max-w-32 min-w-0 flex-1"
+        >
+          Save
+        </FooterButton>
+      )}
     </div>
   )
 }
