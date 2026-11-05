@@ -13,8 +13,6 @@ import {
   activeAttachmentMessages,
   hasLoadedAttachmentMedia,
 } from '../attachmentMedia'
-import { availableIntegrations } from '../integrations/access'
-import { integrationSkillFingerprint } from '../integrations/skillContext'
 import { resolve as resolveMcpServers } from '../mcp'
 import {
   getProcessingSegmentRow,
@@ -31,6 +29,8 @@ import { getApprovals, getState } from '../session/state'
 import { getByOwnerId as getSettings } from '../settings'
 import { agentWithHome } from '../skills/homes'
 import { hasStoredMcpOutput } from '../tool/availabilityRead'
+import { availableToolkits } from '../toolkits/access'
+import { toolkitSkillFingerprint } from '../toolkits/skillContext'
 import { ownsExecution } from './execution'
 
 /** Returns a list of session ids that have ongoing streams. */
@@ -111,11 +111,7 @@ export async function _getContext(
   )
 
   const state = await getState(ctx, stream.sessionId)
-  const integrations = await availableIntegrations(
-    ctx,
-    agent._id,
-    stream.sessionId,
-  )
+  const toolkits = await availableToolkits(ctx, agent._id, stream.sessionId)
 
   return {
     sessionCache,
@@ -133,8 +129,8 @@ export async function _getContext(
     output: { ...output, parts: outputRow?.parts ?? [] },
     settings,
     prompts,
-    integrationContext: await Promise.all(
-      integrations.map(async (row) => ({
+    toolkitContext: await Promise.all(
+      toolkits.map(async (row) => ({
         id: row._id,
         name: row.name,
         fingerprint: await sha256(
@@ -142,9 +138,9 @@ export async function _getContext(
         ),
       })),
     ),
-    integrationSkillRevision: await integrationSkillFingerprint(integrations),
-    integrationCount: integrations.length,
-    hasIntegrationSkills: integrations.some((row) => row.skillsEnabled),
+    toolkitSkillRevision: await toolkitSkillFingerprint(toolkits),
+    toolkitCount: toolkits.length,
+    hasToolkitSkills: toolkits.some((row) => row.skillsEnabled),
     hasStoredMcpOutput:
       invocation && agent.tools?.includes('mcp_access')
         ? await hasStoredMcpOutput(ctx, session._id, agent)

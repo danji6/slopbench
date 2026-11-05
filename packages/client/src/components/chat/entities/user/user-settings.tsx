@@ -1,5 +1,5 @@
-import { IntegrationSettings } from '@/components/chat/integrations/integration-settings'
 import { SkillLibrary } from '@/components/chat/skills/skill-library'
+import { ToolkitSettings } from '@/components/chat/toolkits/toolkit-settings'
 import {
   AlertMessage,
   ConfirmDialog,
@@ -39,11 +39,11 @@ import { api } from '@sb/convex/_generated/api'
 import { useQuery } from 'convex/react'
 import {
   ActivityIcon,
-  BlocksIcon,
   BookOpenIcon,
   BotIcon,
   PaletteIcon,
   SettingsIcon,
+  ToolboxIcon,
   UserIcon,
   WrenchIcon,
 } from 'lucide-react'
@@ -77,7 +77,7 @@ const USER_SETTINGS_TABS = [
   { value: 'behavior', label: 'Behavior', icon: ActivityIcon },
   { value: 'models', label: 'Models', icon: BotIcon },
   { value: 'skills', label: 'Skills', icon: BookOpenIcon },
-  { value: 'integrations', label: 'Integrations', icon: BlocksIcon },
+  { value: 'toolkits', label: 'Toolkits', icon: ToolboxIcon },
   { value: 'tools', label: 'Tools', icon: WrenchIcon },
   { value: 'appearance', label: 'Appearance', icon: PaletteIcon },
 ]
@@ -393,8 +393,8 @@ function ChatSettingsDialog() {
                 <BehaviorSettings control={form.control} />
               </SettingsTabs.Content>
 
-              <SettingsTabs.Content value="integrations">
-                <IntegrationSettings />
+              <SettingsTabs.Content value="toolkits">
+                <ToolkitSettings />
               </SettingsTabs.Content>
               <SettingsTabs.Content value="appearance">
                 <AppearanceSettings

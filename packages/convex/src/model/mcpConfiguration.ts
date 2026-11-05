@@ -5,7 +5,7 @@ import * as Credentials from './credentials'
 
 type LaunchSettings = Pick<
   McpServer,
-  | 'integrationBinding'
+  | 'toolkitBinding'
   | 'url'
   | 'transport'
   | 'command'
@@ -20,7 +20,7 @@ type LaunchSettings = Pick<
 /** Selects launch settings without credentials or presentation metadata. */
 export function launchFields(server: LaunchSettings) {
   return {
-    integrationBinding: server.integrationBinding,
+    toolkitBinding: server.toolkitBinding,
     url: server.url,
     command: server.command,
     args: server.args,

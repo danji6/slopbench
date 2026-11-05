@@ -10,9 +10,9 @@ import type { AgentWithHome, SkillAssignmentsArgs } from '@sb/convex/types'
 import { SKILL_CATALOG_CHARACTERS } from '@sb/core/skills/catalog'
 import type { FolderWorkspace } from '@sb/core/types/workspace'
 import {
-  integrationCatalogSchema,
-  integrationSkillCatalog,
-} from '@sb/sidecar/integrations/catalog'
+  toolkitCatalogSchema,
+  toolkitSkillCatalog,
+} from '@sb/sidecar/toolkits/catalog'
 import { expect, test } from 'bun:test'
 import { getFunctionName } from 'convex/server'
 import { skillsDatabase } from '~/tests/helpers/skills-db'
@@ -50,10 +50,10 @@ async function catalogFixture(
     })),
   )
   globalThis.fetch = (async (_input, init) => {
-    if (String(_input).endsWith('/integrations/catalog'))
+    if (String(_input).endsWith('/toolkits/catalog'))
       return Response.json(
-        await integrationSkillCatalog(
-          integrationCatalogSchema.parse(JSON.parse(String(init?.body))),
+        await toolkitSkillCatalog(
+          toolkitCatalogSchema.parse(JSON.parse(String(init?.body))),
         ),
       )
     const { names } = JSON.parse(String(init?.body)) as { names: string[] }

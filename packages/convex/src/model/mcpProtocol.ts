@@ -30,8 +30,8 @@ async function settingsServer(ctx: QueryCtx, serverId: Id<'mcpServers'>) {
   if (!user || stored?.ownerId !== user._id) {
     error('MCP server unavailable', 404)
   }
-  if (stored.integrationId) {
-    error('Integration servers are accessed by agents', 403)
+  if (stored.toolkitId) {
+    error('Toolkit servers are accessed by agents', 403)
   }
   if (!stored.enabled) {
     error('Enable and save the MCP server first', 409)

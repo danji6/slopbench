@@ -22,7 +22,7 @@ export async function createListSkillsTool(skillsCtx: SkillsContext) {
     description:
       TOOL_DESCRIPTIONS.skills +
       (skillsCtx.toolNames?.includes('read_skill')
-        ? ' Use read_skill for integration:// URIs.'
+        ? ' Use read_skill for toolkit:// URIs.'
         : '') +
       (skillsCtx.toolNames?.includes('read_file')
         ? ' Use read_file for project and personal paths.'
@@ -41,7 +41,7 @@ export async function createListSkillsTool(skillsCtx: SkillsContext) {
       }
 
       const live = await ctx.runQuery(
-        internal.integrations._skillContext,
+        internal.toolkits._skillContext,
         skillsCtx.execution,
       )
 
@@ -52,12 +52,12 @@ export async function createListSkillsTool(skillsCtx: SkillsContext) {
   })
 }
 
-/** Reads integration instructions without granting ordinary filesystem access. */
+/** Reads toolkit instructions without granting ordinary filesystem access. */
 export async function createReadSkillTool(context: SkillsContext) {
   const [{ tool }, { z }] = await Promise.all([import('ai'), import('zod')])
   return tool({
     description:
-      'Read an enabled integration:// skill or its contained text resources in bounded byte ranges. Read SKILL.md before following instructions.',
+      'Read an enabled toolkit:// skill or its contained text resources in bounded byte ranges. Read SKILL.md before following instructions.',
     inputSchema: z.object({
       uri: z.string().max(8192),
       offset: z.number().int().nonnegative().default(0),
@@ -65,7 +65,7 @@ export async function createReadSkillTool(context: SkillsContext) {
     }),
     execute: async (input) => {
       if (!context.execution) throw new Error('No authorized execution')
-      const { readSkill } = await import('../integrations/skillActions')
+      const { readSkill } = await import('../toolkits/skillActions')
       return readSkill(context.ctx, { ...context.execution, ...input })
     },
   })

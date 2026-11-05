@@ -12,7 +12,7 @@ on:
           - smoke
           - all
           - runtime
-          - integrations
+          - toolkits
           - mcp
           - skills
           - shell

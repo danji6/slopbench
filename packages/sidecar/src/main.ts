@@ -24,7 +24,6 @@ import { checkpointRoutes } from './checkpoints/routes'
 import { messageSchema, promptsSchema } from './eval/schemas'
 import { evaluateMessage, evaluatePrompts } from './eval/service'
 import { ioError, sidecarError } from './http-errors'
-import { integrationRoutes } from './integrations/routes'
 import {
   exportAgent,
   exportAgentSchema,
@@ -83,6 +82,7 @@ import {
   streamShell,
 } from './shell/handlers'
 import { killAllShellJobs } from './shell/registry'
+import { toolkitRoutes } from './toolkits/routes'
 import { updateStatus } from './update/status'
 
 const PORT = Number(process.env.MCP_PORT ?? 3212)
@@ -91,7 +91,7 @@ export function createApp(authenticate: MiddlewareHandler) {
   const app = new Hono()
   app.get('/health', (c) => c.json({ ready: true }))
   app.use('*', authenticate)
-  app.route('/integrations', integrationRoutes())
+  app.route('/toolkits', toolkitRoutes())
   app.route('/checkpoints', checkpointRoutes)
 
   app.post('/providers/chatgpt/prepare-transfer', prepareChatGPTTransfer)

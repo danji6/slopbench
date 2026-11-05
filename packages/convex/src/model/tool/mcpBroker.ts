@@ -109,14 +109,14 @@ async function searchTools(context: BrokerContext, input: McpBrokerSearch) {
   const { ctx, execution } = context.operation
 
   if (!input.tool) {
-    const { ensureIntegrationCatalog } = await import('./integrationCatalog')
+    const { ensureToolkitCatalog } = await import('./toolkitCatalog')
     const server = input.server
       ? await ctx.runQuery(internal.mcpBroker._server, {
           ...execution,
           server: input.server,
         })
       : undefined
-    await ensureIntegrationCatalog(context, server?.recordId)
+    await ensureToolkitCatalog(context, server?.recordId)
     return ctx.runMutation(internal.mcpBroker._search, {
       ...execution,
       query: input.query,

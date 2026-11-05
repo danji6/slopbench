@@ -107,7 +107,7 @@ const task = [
 ].join('\n')
 
 const skills = inline`
-  List enabled agent, project and integration skills. Use search to match a
+  List enabled agent, project and toolkit skills. Use search to match a
   skill name or cursor to continue a page. Read the chosen SKILL.md before
   following its instructions.`
 

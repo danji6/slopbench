@@ -4,7 +4,7 @@ Run the smallest set that exercises the behavior you changed:
 
 ```sh
 bun test                           # Critical smoke checks
-bun run tests integrations         # Feature coverage, including its smoke cases
+bun run tests toolkits         # Feature coverage, including its smoke cases
 bun run tests runtime -t 'claim'    # Filter a feature by test name
 bun run test:all                   # All Bun tests, including smoke
 bun run test:browser skills        # Only this feature's browser tests
@@ -24,7 +24,7 @@ or files without matches.
 For one file, explicitly enable feature discovery:
 
 ```sh
-bun test --path-ignore-patterns '**/browser/**' ./tests/features/integrations/configuration.test.ts
+bun test --path-ignore-patterns '**/browser/**' ./tests/features/toolkits/configuration.test.ts
 ```
 
 Bun combines positional file filters with **OR**, so appending a filename to a
@@ -40,7 +40,7 @@ live in `helpers/`, `setup/`, and `fixtures/`; browser fixtures stay in `browser
 | Suite           | Behavior                                                                 | Browser command              |
 | --------------- | ------------------------------------------------------------------------ | ---------------------------- |
 | `runtime`       | Streams, retries, history, tools, approvals, subagents, commands         | `test:browser runtime`       |
-| `integrations`  | Manifest discovery, activation, credentials, linked context              | `test:browser integrations`  |
+| `toolkits`      | Manifest discovery, activation, credentials, linked context              | `test:browser toolkits`      |
 | `mcp`           | Protocol, transports, catalogs, brokers, durable operations              | `test:browser mcp`           |
 | `skills`        | Skill libraries, imports, verification, agent homes, file transitions    | `test:browser skills`        |
 | `shell`         | Command policy, terminal output, jobs, watchers, streaming               | —                            |

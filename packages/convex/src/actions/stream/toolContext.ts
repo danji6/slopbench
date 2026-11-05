@@ -112,7 +112,7 @@ async function prepareSkills(
     fingerprint: await sha256(
       JSON.stringify([page?.fingerprint ?? 'disabled', capabilities]),
     ),
-    integrationFingerprint: page?.integrationFingerprint,
+    toolkitFingerprint: page?.toolkitFingerprint,
     content:
       (page && names.includes('list_skills') ? catalogNote(page, names) : '') ||
       'No skills are currently available. Earlier skill catalogs no longer apply.',

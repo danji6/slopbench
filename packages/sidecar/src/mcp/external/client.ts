@@ -14,7 +14,7 @@ import {
   mcpTransportCandidates,
 } from '@sb/core/types'
 
-import { assertIntegrationRevision } from '../../integrations/manifest'
+import { assertToolkitRevision } from '../../toolkits/manifest'
 import { discoverTools } from './discovery'
 import { localTransport } from './stdio'
 
@@ -111,7 +111,7 @@ export async function connectExternalClient(
   const candidates = candidatesFor(connection)
   let firstError: unknown
   for (const transport of candidates) {
-    await assertIntegrationRevision(connection.integrationBinding)
+    await assertToolkitRevision(connection.toolkitBinding)
     signal?.throwIfAborted()
     const client = new Client({ name: APP_ID, version: '1.0.0' })
     const channel = createTransport(connection, transport)

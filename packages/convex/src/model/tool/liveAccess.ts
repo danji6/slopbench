@@ -97,7 +97,7 @@ async function currentManifest(
     defaultShell: args.manifest.shell,
     availability: {
       skills: args.manifest.names.includes('list_skills'),
-      integrationSkills: args.manifest.names.includes('read_skill'),
+      toolkitSkills: args.manifest.names.includes('read_skill'),
       storedMcpOutput: args.manifest.names.includes('read_mcp_output'),
     },
   })

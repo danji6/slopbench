@@ -16,13 +16,13 @@ import type { SpawnableAgent } from './model/agent/subagents'
 import type { PromptSets } from './model/prompts'
 import type * as V from './validators'
 import type * as ChangesV from './validators/changes'
-import type * as IntegrationsV from './validators/integrations'
 import type * as McpBrokerV from './validators/mcpBroker'
 import type * as McpCatalogsV from './validators/mcpCatalogs'
 import type * as McpOperationsV from './validators/mcpOperations'
 import type * as McpProtocolV from './validators/mcpProtocol'
 import type * as ProviderRequestsV from './validators/providerRequests'
 import type * as StreamsV from './validators/streams'
+import type * as ToolkitsV from './validators/toolkits'
 
 export type { Role } from './lib/roles'
 export type * from '@sb/core/types'
@@ -41,9 +41,9 @@ export type StreamContext = {
   toolApprovals?: ToolApprovals
   agent: AgentWithHome
   hasStoredMcpOutput?: boolean
-  hasIntegrationSkills?: boolean
-  integrationContext?: Infer<typeof V.integrationContextValidator>[]
-  integrationSkillRevision?: string
+  hasToolkitSkills?: boolean
+  toolkitContext?: Infer<typeof V.toolkitContextValidator>[]
+  toolkitSkillRevision?: string
   invoker: Doc<'users'>
   invokerSettings: Doc<'settings'> | null
   owner: Doc<'users'>
@@ -265,15 +265,15 @@ export type McpCatalogActiveArgs = Infer<typeof McpCatalogsV.catalogActiveValida
 export type McpCatalogDefinitionAccessArgs = Infer<typeof McpCatalogsV.catalogDefinitionAccessValidator> // prettier-ignore
 export type McpProtocolRequestArgs = Infer<typeof McpProtocolV.protocolRequestValidator> // prettier-ignore
 export type McpProtocolPublishArgs = Infer<typeof McpProtocolV.protocolPublishValidator> // prettier-ignore
-export type IntegrationPublishArgs = Infer<typeof IntegrationsV.integrationPublishValidator> // prettier-ignore
-export type IntegrationSettingsArgs = Infer<typeof IntegrationsV.integrationSettingsValidator> // prettier-ignore
-export type IntegrationSelectionArgs = Infer<typeof IntegrationsV.integrationSelectionValidator> // prettier-ignore
-export type IntegrationListArgs = Infer<typeof IntegrationsV.integrationListValidator> // prettier-ignore
-export type IntegrationComponentArgs = Infer<typeof IntegrationsV.integrationComponentValidator> // prettier-ignore
-export type IntegrationMissingArgs = Infer<typeof IntegrationsV.integrationMissingValidator> // prettier-ignore
-export type IntegrationSkillReadArgs = Infer<typeof IntegrationsV.integrationSkillReadValidator> // prettier-ignore
-export type IntegrationObservationArgs = Infer<typeof IntegrationsV.integrationObservationValidator> // prettier-ignore
-export type IntegrationSkillsArgs = Infer<typeof IntegrationsV.integrationSkillsValidator> // prettier-ignore
+export type ToolkitPublishArgs = Infer<typeof ToolkitsV.toolkitPublishValidator> // prettier-ignore
+export type ToolkitSettingsArgs = Infer<typeof ToolkitsV.toolkitSettingsValidator> // prettier-ignore
+export type ToolkitSelectionArgs = Infer<typeof ToolkitsV.toolkitSelectionValidator> // prettier-ignore
+export type ToolkitListArgs = Infer<typeof ToolkitsV.toolkitListValidator> // prettier-ignore
+export type ToolkitComponentArgs = Infer<typeof ToolkitsV.toolkitComponentValidator> // prettier-ignore
+export type ToolkitMissingArgs = Infer<typeof ToolkitsV.toolkitMissingValidator> // prettier-ignore
+export type ToolkitSkillReadArgs = Infer<typeof ToolkitsV.toolkitSkillReadValidator> // prettier-ignore
+export type ToolkitObservationArgs = Infer<typeof ToolkitsV.toolkitObservationValidator> // prettier-ignore
+export type ToolkitSkillsArgs = Infer<typeof ToolkitsV.toolkitSkillsValidator> // prettier-ignore
 export type FolderPageArgs = Infer<typeof V.folderPageArgs>
 export type FolderPickerArgs = Infer<typeof V.folderPickerArgs>
 export type PrepareChangesArgs = Infer<typeof ChangesV.prepareChangesArgsValidator> // prettier-ignore

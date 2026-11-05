@@ -5,13 +5,13 @@ import { createRoot } from 'react-dom/client'
 import { ChangesFixture } from './changes-fixture'
 import { CheckboxFixture } from './checkbox-fixture'
 import { CodeFixture } from './code-fixture'
-import { IntegrationsFixture } from './integrations-fixture'
 import { McpCatalogFixture } from './mcp-catalog-fixture'
 import { McpProtocolFixture } from './mcp-protocol-fixture'
 import { McpSettingsFixture } from './mcp-settings-fixture'
 import { ProviderConnectionsFixture } from './provider-connections-fixture'
 import { ScrollFixture } from './scroll-fixture'
 import { ToolSettingsFixture } from './tool-settings-fixture'
+import { ToolkitsFixture } from './toolkits-fixture'
 
 const XmlTagsFixture = lazy(() =>
   import('./xml-tags-fixture').then((module) => ({
@@ -162,8 +162,8 @@ createRoot(document.getElementById('root')!).render(
   ) : new URLSearchParams(location.search).get('fixture') ===
     'tool-settings' ? (
     <ToolSettingsFixture />
-  ) : new URLSearchParams(location.search).get('fixture') === 'integrations' ? (
-    <IntegrationsFixture />
+  ) : new URLSearchParams(location.search).get('fixture') === 'toolkits' ? (
+    <ToolkitsFixture />
   ) : new URLSearchParams(location.search).get('fixture') === 'mcp-protocol' ? (
     <McpProtocolFixture />
   ) : new URLSearchParams(location.search).get('fixture') === 'mcp-settings' ? (

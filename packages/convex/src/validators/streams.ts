@@ -153,11 +153,11 @@ export const streamSchema = v.object({
   skillAvailability: v.optional(
     v.object({
       skills: v.boolean(),
-      integrationSkills: v.boolean(),
+      toolkitSkills: v.boolean(),
     }),
   ),
   skillContextPrepared: v.optional(v.boolean()),
-  skillIntegrationFingerprint: v.optional(v.string()),
+  skillToolkitFingerprint: v.optional(v.string()),
   skillContextMessageId: v.optional(v.id('messages')),
   workspaceContextPrepared: v.optional(v.boolean()),
   workspaceContextMessageId: v.optional(v.id('messages')),
@@ -192,7 +192,7 @@ export const prepareCapabilitiesArgsValidator = v.object({
   skillAvailability: v.optional(
     v.object({
       skills: v.boolean(),
-      integrationSkills: v.boolean(),
+      toolkitSkills: v.boolean(),
     }),
   ),
 })
@@ -210,7 +210,7 @@ export const prepareContextNoteArgsValidator = v.object({
   fingerprint: v.string(),
   content: v.string(),
   label: v.optional(v.string()),
-  integrationFingerprint: v.optional(v.string()),
+  toolkitFingerprint: v.optional(v.string()),
 })
 
 export const prepareProviderRequestArgsValidator = v.object({

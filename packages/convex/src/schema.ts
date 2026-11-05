@@ -44,7 +44,6 @@ import {
   catalogRowSchema,
   discoveryPreviewSchema,
 } from './validators/discovery'
-import { integrationSchema } from './validators/integrations'
 import { mcpCleanupSchema, mcpRuntimeSchema } from './validators/mcp'
 import { mcpBrokerNameSchema } from './validators/mcpBroker'
 import {
@@ -54,12 +53,13 @@ import {
 } from './validators/mcpCatalogs'
 import { mcpOperationSchema } from './validators/mcpOperations'
 import { protocolCheckSchema } from './validators/mcpProtocol'
+import { toolkitSchema } from './validators/toolkits'
 
 const schemaValidation = true
 
 // prettier-ignore
 export default defineSchema({
-  integrations: defineTable(integrationSchema)
+  toolkits: defineTable(toolkitSchema)
     .index('by_ownerId', ['ownerId'])
     .index('by_ownerId_root', ['ownerId', 'root']),
 
@@ -148,7 +148,7 @@ export default defineSchema({
     .index('by_agentId_scope_order', ['agentId', 'scope', 'order']),
 
   mcpServers: defineTable(mcpServerSchema)
-    .index('by_integrationId', ['integrationId'])
+    .index('by_toolkitId', ['toolkitId'])
     .index('by_ownerId_order', ['ownerId', 'order']),
 
   mcpRuntimes: defineTable(mcpRuntimeSchema)

@@ -167,7 +167,7 @@ test('unchanged skill configurations scan once per invocation and refresh an ini
     await f.nextTurn()
     const catalogCalls = () =>
       fetch.mock.calls.filter(([url]) =>
-        String(url).endsWith('/integrations/catalog'),
+        String(url).endsWith('/toolkits/catalog'),
       ).length
     const before = catalogCalls()
     await f.repeat()
@@ -278,15 +278,14 @@ test('a dispatcher call approved before revocation cannot execute on resume', as
   }
 })
 
-test('integration selections and updates are announced without enabling companion tools', async () => {
+test('toolkit selections and updates are announced without enabling companion tools', async () => {
   const f = await fixture()
   try {
-    const { publish } =
-      await import('@sb/convex/model/integrations/publication')
-    const { select } = await import('@sb/convex/model/integrations/selection')
+    const { publish } = await import('@sb/convex/model/toolkits/publication')
+    const { select } = await import('@sb/convex/model/toolkits/selection')
     await f.db.patch('owner', { subject: 'owner' })
     const first = (await f.nextTurn())!
-    const integrationId = await publish(f.ctx, {
+    const toolkitId = await publish(f.ctx, {
       subject: 'owner',
       root: f.root,
       revision: 'first',
@@ -295,18 +294,18 @@ test('integration selections and updates are announced without enabling companio
     })
     await select(f.ctx, {
       agentId: f.agent._id as never,
-      integrationId,
+      toolkitId,
       enabled: true,
     })
     const selected = (await f.repeat())!
     expect(selected.toolRuntime!.current.names).toEqual([])
     expect(selected.toolRuntime!.frozen).toEqual(first.toolRuntime!.frozen)
     expect(JSON.stringify(selected.messages.at(-1))).toContain(
-      'Integrations enabled: Toolkit',
+      'Toolkits enabled: Toolkit',
     )
     await publish(f.ctx, {
       subject: 'owner',
-      integrationId,
+      toolkitId,
       previousRevision: 'first',
       root: f.root,
       revision: 'second',
@@ -315,16 +314,16 @@ test('integration selections and updates are announced without enabling companio
     })
     const updated = (await f.repeat())!
     expect(JSON.stringify(updated.messages.at(-1))).toContain(
-      'Integrations updated: Updated toolkit',
+      'Toolkits updated: Updated toolkit',
     )
     await select(f.ctx, {
       agentId: f.agent._id as never,
-      integrationId,
+      toolkitId,
       enabled: false,
     })
     const removed = (await f.repeat())!
     expect(JSON.stringify(removed.messages.at(-1))).toContain(
-      'Integrations disabled or unavailable: Updated toolkit',
+      'Toolkits disabled or unavailable: Updated toolkit',
     )
     expect(removed.toolRuntime!.current.names).toEqual([])
   } finally {

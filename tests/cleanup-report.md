@@ -17,7 +17,7 @@ Case times sum the timings printed for individual cases, excluding setup/teardow
 | Feature         | Files before → after | Cases before → after | Case seconds before → after | New command seconds |
 | --------------- | -------------------: | -------------------: | --------------------------: | ------------------: |
 | `runtime`       |              74 → 90 |            749 → 743 |               0.647 → 0.745 |               1.197 |
-| `integrations`  |              11 → 12 |              66 → 66 |               7.308 → 5.898 |               6.130 |
+| `toolkits`      |              11 → 12 |              66 → 66 |               7.308 → 5.898 |               6.130 |
 | `mcp`           |              32 → 33 |            158 → 158 |           293.175 → 216.203 |             216.480 |
 | `skills`        |              24 → 24 |            158 → 158 |               3.439 → 2.904 |               3.350 |
 | `shell`         |              19 → 24 |            428 → 425 |             46.062 → 45.522 |              46.090 |
@@ -37,7 +37,7 @@ Case times sum the timings printed for individual cases, excluding setup/teardow
 - Strengthened the remaining history scenarios to verify snapshots and unavailable placeholders with and without a workspace, preserving prose and asserting that history never rereads the filesystem.
 - Replaced the code-appearance subprocess/pass-count wrapper with its seven existing UI tests. This exposes six previously hidden cases in the top-level count; it adds no new behavior coverage. Together with pruning/consolidation, reported Bun cases fall from 2,972 to 2,959.
 - Removed the browser assertion for a chevron SVG's exact vertical position (one case in each browser), plus stale help-copy/CSS assertions inside retained interaction tests.
-- Split stream, subagent, history, shell, provider, integration, session-duplication, catalog, and skill-folder groups by responsibility; extracted their fixtures without duplicating cases.
+- Split stream, subagent, history, shell, provider, toolkit, session-duplication, catalog, and skill-folder groups by responsibility; extracted their fixtures without duplicating cases.
 - Removed the throwaway launch/disconnect from backend MCP fixture setup. Tests still exercise real persistent connections and production shutdown/timeout behavior.
 - Replaced fixed shell-startup/output sleeps with readiness checks. Retained waits that observe real terminal/process behavior and cancellation cleanup.
 
@@ -63,5 +63,5 @@ On Bun 1.3.14, a filtered `test:all` invocation reached all 333 retained files o
 all ten browser feature selectors were checked using Playwright discovery. A
 temporary failing case confirmed feature failure propagation, immediate full-run
 failure, and unchanged default smoke discovery. The probe was removed. Runtime
-filtering, full UI/integrations suites, lint, typecheck, and formatting also pass.
+filtering, full UI/toolkits suites, lint, typecheck, and formatting also pass.
 The full behavior and browser measurements above precede this command-only change.

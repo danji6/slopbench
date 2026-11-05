@@ -1,21 +1,21 @@
 import type { Id } from '@sb/convex/_generated/dataModel'
-import { configureComponent } from '@sb/convex/model/integrations/components'
-import { publish } from '@sb/convex/model/integrations/publication'
-import { select } from '@sb/convex/model/integrations/selection'
 import { _getExecution } from '@sb/convex/model/mcp'
 import { servers as namedServers } from '@sb/convex/model/mcpBrokerAccess'
 import { connected } from '@sb/convex/model/mcpRuntime'
 import { cleanup } from '@sb/convex/model/mcpRuntimeActions'
 import { createMcpBrokerTools } from '@sb/convex/model/tool/mcpBroker'
+import { configureComponent } from '@sb/convex/model/toolkits/components'
+import { publish } from '@sb/convex/model/toolkits/publication'
+import { select } from '@sb/convex/model/toolkits/selection'
 import { mcpResultSchema } from '@sb/core/types/mcp-result'
 import { sidecarAuthentication } from '@sb/sidecar/auth'
-import {
-  inspectIntegration,
-  integrationConnections,
-} from '@sb/sidecar/integrations/manifest'
 import { mcpCatalogRoutes } from '@sb/sidecar/mcp/external/catalog-routes'
 import { CatalogSnapshots } from '@sb/sidecar/mcp/external/catalog-snapshots'
 import { mcpOperationRoutes } from '@sb/sidecar/mcp/external/operation-routes'
+import {
+  inspectToolkit,
+  toolkitConnections,
+} from '@sb/sidecar/toolkits/manifest'
 import { expect } from 'bun:test'
 import { Hono } from 'hono'
 import { existsSync } from 'node:fs'
@@ -45,9 +45,9 @@ export async function reaConformanceFixture(toolkit: string) {
   try {
     await f.sidecar.registry.disconnect(f.status.scope)
     mountSidecar(f)
-    const snapshot = await inspectIntegration(toolkit)
+    const snapshot = await inspectToolkit(toolkit)
     await f.db.patch('owner', { subject: 'owner' })
-    const { integrationId, serverId, serverKey } = await registerToolkit(
+    const { toolkitId, serverId, serverKey } = await registerToolkit(
       f,
       snapshot,
       root,
@@ -56,7 +56,7 @@ export async function reaConformanceFixture(toolkit: string) {
       ...f,
       root,
       snapshot,
-      integrationId,
+      toolkitId,
       serverId,
       serverKey,
       turn: (actor: Actor = f) => createTurn(f, serverId, actor),
@@ -91,19 +91,19 @@ export async function reaConformanceFixture(toolkit: string) {
 
 async function registerToolkit(
   f: Backend,
-  snapshot: Awaited<ReturnType<typeof inspectIntegration>>,
+  snapshot: Awaited<ReturnType<typeof inspectToolkit>>,
   root: string,
 ) {
-  const integrationId = await publish(f.ctx, {
+  const toolkitId = await publish(f.ctx, {
     subject: 'owner',
     root: snapshot.root,
     revision: snapshot.revision,
     manifest: JSON.stringify(snapshot.manifest),
-    connections: integrationConnections(snapshot),
+    connections: toolkitConnections(snapshot),
   })
   const server = f
     .rows('mcpServers')
-    .find((row) => row.integrationId === integrationId)!
+    .find((row) => row.toolkitId === toolkitId)!
   const serverId = server._id as Id<'mcpServers'>
   await configureComponent(f.ctx, {
     serverId,
@@ -116,8 +116,8 @@ async function registerToolkit(
       SLOPBENCH_TEST_PID_DIR: path.join(root, 'pids'),
     },
   })
-  await select(f.ctx, { integrationId, agentId: f.agentId, enabled: true })
-  return { integrationId, serverId, serverKey: String(server.key) }
+  await select(f.ctx, { toolkitId, agentId: f.agentId, enabled: true })
+  return { toolkitId, serverId, serverKey: String(server.key) }
 }
 
 function mountSidecar(f: Backend) {

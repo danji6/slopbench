@@ -17,13 +17,13 @@ export async function capabilitySource(data: StreamContext): Promise<string> {
       search: data.settings?.webSearchInstances,
       interactive: data.settings?.allowInteractiveShells,
       roster: data.spawnableAgents,
-      integrations: data.integrationContext,
+      toolkits: data.toolkitContext,
       servers: data.mcpServers.map((server) => ({
         id: server.id,
         label: server.label,
         enabled: server.enabled,
         broker: server.brokerEnabled,
-        integration: server.integrationId,
+        toolkit: server.toolkitId,
         transport: server.transport,
         configured: !!(server.command || server.url),
         catalog: server.catalogId,
@@ -55,6 +55,6 @@ export function skillCatalogSource(data: StreamContext): string {
     data.session.workspace?.agentOnly
       ? undefined
       : data.session.workspace?.sources,
-    data.integrationSkillRevision,
+    data.toolkitSkillRevision,
   ])
 }

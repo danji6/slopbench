@@ -3,10 +3,6 @@ import type { ActionCtx } from '@sb/convex/_generated/server'
 import { prepare } from '@sb/convex/actions/stream/engineSetup'
 import { prepareChanges } from '@sb/convex/model/changes'
 import { reserveStream } from '@sb/convex/model/chat/reserve'
-import { availableIntegrations } from '@sb/convex/model/integrations/access'
-import { executionIntegrations } from '@sb/convex/model/integrations/execution'
-import { observe } from '@sb/convex/model/integrations/observation'
-import { skillContext } from '@sb/convex/model/integrations/skills'
 import { _save, removeForSession } from '@sb/convex/model/session/cache'
 import { prepareSkillContext } from '@sb/convex/model/skills/context'
 import { assignments } from '@sb/convex/model/skills/endpoints'
@@ -15,15 +11,19 @@ import { prepareWorkspaceContext } from '@sb/convex/model/stream/contextNotes'
 import { _getContext, _getProviderHistory } from '@sb/convex/model/stream/reads'
 import { filesystemToolContext } from '@sb/convex/model/tool/filesystemContext'
 import { assertToolAccess } from '@sb/convex/model/tool/liveAccess'
+import { availableToolkits } from '@sb/convex/model/toolkits/access'
+import { executionToolkits } from '@sb/convex/model/toolkits/execution'
+import { observe } from '@sb/convex/model/toolkits/observation'
+import { skillContext } from '@sb/convex/model/toolkits/skills'
 import type {
   PrepareContextNoteArgs,
   StreamExecutionArgs,
 } from '@sb/convex/types'
 import {
-  integrationCatalogSchema,
-  integrationSkillCatalog,
-} from '@sb/sidecar/integrations/catalog'
-import { inspectIntegration } from '@sb/sidecar/integrations/manifest'
+  toolkitCatalogSchema,
+  toolkitSkillCatalog,
+} from '@sb/sidecar/toolkits/catalog'
+import { inspectToolkit } from '@sb/sidecar/toolkits/manifest'
 import { getFunctionName } from 'convex/server'
 import { type Value, convexToJson, jsonToConvex } from 'convex/values'
 
@@ -141,15 +141,15 @@ export function skillRequests(root: string) {
           return _getProviderHistory(fixture.ctx, args as StreamExecutionArgs)
         case 'streams:_getFilesystemContext':
           return filesystemToolContext(fixture.ctx, args as StreamExecutionArgs)
-        case 'integrations:_execution':
-          return executionIntegrations(fixture.ctx, args as StreamExecutionArgs)
-        case 'integrations:_available':
-          return availableIntegrations(
+        case 'toolkits:_execution':
+          return executionToolkits(fixture.ctx, args as StreamExecutionArgs)
+        case 'toolkits:_available':
+          return availableToolkits(
             fixture.ctx,
             (args as { agentId: Id<'agents'> }).agentId,
             (args as { sessionId?: Id<'sessions'> }).sessionId,
           )
-        case 'integrations:_skillContext':
+        case 'toolkits:_skillContext':
           return skillContext(fixture.ctx, args as StreamExecutionArgs)
         case 'skills:_agent':
           return agent
@@ -164,7 +164,7 @@ export function skillRequests(root: string) {
       args: unknown,
     ) => {
       args = convexRoundTrip(args)
-      if (getFunctionName(reference) === 'integrations:_observe')
+      if (getFunctionName(reference) === 'toolkits:_observe')
         return observe(fixture.ctx, args as never)
       if (getFunctionName(reference) === 'streams:_prepareCapabilities')
         return prepareCapabilities(fixture.ctx, args as never)
@@ -264,14 +264,14 @@ export function skillRequests(root: string) {
       return Response.json({ shell: '/bin/bash' })
     if (String(url).endsWith('/checkpoints/begin'))
       return Response.json({ queued: false })
-    if (String(url).endsWith('/integrations/inspect')) {
+    if (String(url).endsWith('/toolkits/inspect')) {
       const input = JSON.parse(String(init?.body))
-      return Response.json(await inspectIntegration(input.root))
+      return Response.json(await inspectToolkit(input.root))
     }
-    if (String(url).endsWith('/integrations/catalog')) {
+    if (String(url).endsWith('/toolkits/catalog')) {
       return Response.json(
-        await integrationSkillCatalog(
-          integrationCatalogSchema.parse(JSON.parse(String(init?.body))),
+        await toolkitSkillCatalog(
+          toolkitCatalogSchema.parse(JSON.parse(String(init?.body))),
         ),
       )
     }

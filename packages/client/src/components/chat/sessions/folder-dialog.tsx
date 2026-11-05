@@ -162,16 +162,16 @@ export function FolderDialog({
                       </div>
                     </div>
                     <LabeledCheckbox
-                      checked={source.discoverIntegrations === true}
+                      checked={source.discoverToolkits === true}
                       disabled={!canEditSources || busy}
                       size="xs"
                       className="shrink-0 gap-1.5 text-[0.625rem]"
                       labelClassName="min-w-max whitespace-nowrap"
-                      onCheckedChange={(discoverIntegrations) =>
+                      onCheckedChange={(discoverToolkits) =>
                         setSources((current) =>
                           current.map((item) =>
                             item.id === source.id
-                              ? { ...item, discoverIntegrations }
+                              ? { ...item, discoverToolkits }
                               : item,
                           ),
                         )

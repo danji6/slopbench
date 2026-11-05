@@ -41,8 +41,8 @@ export async function createMcpProtocolTools(context: McpBrokerContext) {
         )
         if (previous) return false
         if (server.transport !== 'stdio') return false
-        // The available set already enforces live integration selection.
-        if (server.integrationId) return false
+        // The available set already enforces live toolkit selection.
+        if (server.toolkitId) return false
         return !isToolAutoApproved(
           mcpProtocolApprovalKey(input, server.recordId!)!,
           input,

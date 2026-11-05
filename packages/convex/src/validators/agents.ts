@@ -102,7 +102,7 @@ export const agentSchema = v.object({
   tools: v.optional(v.array(v.string())),
   trimContext: v.optional(v.boolean()),
   /** Library skills omitted from this agent's catalog. */
-  integrationIds: v.optional(v.array(v.id('integrations'))),
+  toolkitIds: v.optional(v.array(v.id('toolkits'))),
   disabledSkillIds: v.optional(v.array(v.id('skills'))),
   contextWindow: v.optional(v.number()),
   outputTokens: v.optional(v.number()),

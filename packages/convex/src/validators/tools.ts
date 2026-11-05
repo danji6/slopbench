@@ -2,7 +2,7 @@ import { v } from 'convex/values'
 
 import { mcpManifestEntryValidator } from './mcp'
 
-export const integrationContextValidator = v.object({
+export const toolkitContextValidator = v.object({
   id: v.string(),
   name: v.string(),
   fingerprint: v.string(),
@@ -19,7 +19,7 @@ export const toolDefinitionValidator = v.object({
 export const toolManifestValidator = v.object({
   version: v.optional(v.number()),
   contextId: v.optional(v.string()),
-  integrations: v.optional(v.array(integrationContextValidator)),
+  toolkits: v.optional(v.array(toolkitContextValidator)),
   definitions: v.optional(v.array(toolDefinitionValidator)),
   names: v.array(v.string()),
   hasAgentHome: v.optional(v.boolean()),

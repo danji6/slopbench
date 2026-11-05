@@ -37,7 +37,7 @@ export async function prepareContextNote(
   await ctx.db.patch(stream._id, {
     ...contextPatch(type, args.fingerprint, noteId),
     ...(type === 'skills' && {
-      skillIntegrationFingerprint: args.integrationFingerprint,
+      skillToolkitFingerprint: args.toolkitFingerprint,
     }),
   })
 
@@ -52,7 +52,7 @@ function contextPrepared(
   if (type === 'mcp') return stream.mcpContextFingerprint === args.fingerprint
   return type === 'skills'
     ? stream.skillContextPrepared &&
-        stream.skillIntegrationFingerprint === args.integrationFingerprint
+        stream.skillToolkitFingerprint === args.toolkitFingerprint
     : stream.workspaceContextPrepared
 }
 

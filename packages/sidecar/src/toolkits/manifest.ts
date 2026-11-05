@@ -1,0 +1,106 @@
+import {
+  MAX_TOOLKIT_MANIFEST_BYTES,
+  validateToolkitManifest,
+} from '@sb/core/types/toolkit'
+import type { ToolkitSnapshot } from '@sb/core/types/toolkit'
+import { createHash } from 'node:crypto'
+import { constants } from 'node:fs'
+import { open, realpath, stat } from 'node:fs/promises'
+import path from 'node:path'
+
+import { assertPlainPath } from '../agent-files/storage'
+import { expandHome } from '../mcp/workspace/paths'
+
+/** Reads the exact root manifest without running toolkit code or walking directories. */
+export async function inspectToolkit(source: string): Promise<ToolkitSnapshot> {
+  const root = await realpath(path.resolve(expandHome(source)))
+
+  await assertPlainPath(path.resolve(expandHome(source)))
+  if (!(await stat(root)).isDirectory())
+    throw new Error('Toolkit root must be a directory')
+
+  const file = path.join(root, '.agents', 'toolkit.json')
+  await assertPlainPath(file)
+  const handle = await open(
+    file,
+    constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+  )
+  let raw: string
+
+  try {
+    const info = await handle.stat()
+    if (!info.isFile() || info.size > MAX_TOOLKIT_MANIFEST_BYTES) {
+      throw new Error(
+        'Toolkit manifest must be a regular file of at most 128 KiB',
+      )
+    }
+
+    const bytes = Buffer.alloc(MAX_TOOLKIT_MANIFEST_BYTES + 1)
+    const { bytesRead } = await handle.read(bytes, 0, bytes.length, 0)
+    if (bytesRead > MAX_TOOLKIT_MANIFEST_BYTES)
+      throw new Error('Toolkit manifest exceeds 128 KiB')
+
+    raw = bytes.subarray(0, bytesRead).toString('utf8')
+  } finally {
+    await handle.close()
+  }
+
+  const manifest = validateToolkitManifest(JSON.parse(raw))
+  manifest.name ??= path.basename(root)
+
+  return {
+    root,
+    manifest,
+    diagnostics: [],
+    // Include path semantics so snapshots cannot retain differently resolved launches
+    revision: createHash('sha256')
+      .update('toolkit-root\0')
+      .update(raw)
+      .digest('hex'),
+  }
+}
+
+/** Resolves explicit relative paths and the default cwd from the toolkit root. */
+export function toolkitConnections(snapshot: ToolkitSnapshot) {
+  const root = snapshot.root
+  return Object.entries(snapshot.manifest.mcpServers ?? {}).map(
+    ([name, server]) => {
+      const command =
+        server.command?.includes('/') && !path.isAbsolute(server.command)
+          ? path.resolve(root, server.command)
+          : server.command
+      const cwd = resolveToolkitCwd(root, server.cwd)
+      return {
+        name,
+        command,
+        cwd,
+        args: server.args,
+        url: server.url ?? '',
+        transport:
+          server.transport ??
+          (server.command ? ('stdio' as const) : ('auto' as const)),
+        startupTimeoutMs: server.startupTimeoutMs,
+        requestTimeoutMs: server.requestTimeoutMs,
+        maxTotalTimeoutMs: server.maxTotalTimeoutMs,
+      }
+    },
+  )
+}
+
+export async function assertToolkitRevision(binding?: {
+  root: string
+  revision: string
+}) {
+  if (!binding) return
+  const current = await inspectToolkit(binding.root)
+  if (current.revision !== binding.revision)
+    throw new Error('Toolkit manifest changed; refresh it in Toolkits settings')
+}
+
+/** Keeps relative templates anchored to the toolkit root until workspace substitution. */
+function resolveToolkitCwd(root: string, cwd?: string) {
+  if (!cwd) return root
+  if (!cwd.includes('${workspace}')) return path.resolve(root, cwd)
+  if (path.isAbsolute(cwd) || cwd.startsWith('${workspace}')) return cwd
+  return `${root}${path.sep}${cwd}`
+}

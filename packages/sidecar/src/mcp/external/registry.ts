@@ -10,14 +10,14 @@ import type { McpProtocolRequest } from '@sb/core/types/mcp-protocol'
 import { mcpResult } from '@sb/core/types/mcp-result'
 import { createHash, randomUUID } from 'node:crypto'
 
-import { assertIntegrationRevision } from '../../integrations/manifest'
+import { assertToolkitRevision } from '../../toolkits/manifest'
 import { connectExternalClient } from './client'
 import { discoverTools } from './discovery'
 import { initializationContext, requestProtocol } from './protocol'
 
 type Entry = {
   status: McpRuntimeStatus
-  integrationBinding?: McpConnection['integrationBinding']
+  toolkitBinding?: McpConnection['toolkitBinding']
   fingerprint: string
   client?: Client
   connecting: Promise<void>
@@ -128,7 +128,7 @@ export class McpRegistry {
       .digest('hex')
 
     if (existing) {
-      await this.checkIntegration(existing)
+      await this.checkToolkit(existing)
       if (existing.fingerprint !== fingerprint) {
         throw new Error('MCP configuration changed; reconnect explicitly')
       }
@@ -159,7 +159,7 @@ export class McpRegistry {
         stderr: '',
       },
       fingerprint,
-      integrationBinding: connection.integrationBinding,
+      toolkitBinding: connection.toolkitBinding,
       connecting: Promise.resolve(),
       queue: Promise.resolve(),
       touchedAt: Date.now(),
@@ -282,13 +282,13 @@ export class McpRegistry {
     return [...this.entries.values()].map((entry) => this.view(entry))
   }
 
-  private async checkIntegration(entry: Entry) {
+  private async checkToolkit(entry: Entry) {
     try {
-      await assertIntegrationRevision(entry.integrationBinding)
+      await assertToolkitRevision(entry.toolkitBinding)
     } catch (cause) {
       await this.disconnect(
         entry.status.scope,
-        'Integration manifest changed or became unavailable',
+        'Toolkit manifest changed or became unavailable',
       )
       throw cause
     }
@@ -310,7 +310,7 @@ export class McpRegistry {
         if (entry.status.state !== 'connected' || !entry.client) {
           throw new Error('MCP session unavailable; reconnect explicitly')
         }
-        await this.checkIntegration(entry)
+        await this.checkToolkit(entry)
         const authorizationExpired =
           expected.expiresAt !== undefined && expected.expiresAt < Date.now()
         if (authorizationExpired) {
@@ -368,7 +368,7 @@ export class McpRegistry {
         if (entry.status.state !== 'connected' || !entry.client)
           throw new Error('MCP session unavailable; reconnect explicitly')
         signal?.throwIfAborted()
-        await this.checkIntegration(entry)
+        await this.checkToolkit(entry)
         const authorizationExpired =
           expected.expiresAt !== undefined && expected.expiresAt < Date.now()
         if (authorizationExpired)

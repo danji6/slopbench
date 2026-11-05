@@ -2,7 +2,7 @@ import { SettingsList } from '@/components/ui'
 import { useActiveSession } from '@/hooks/chat'
 import { useUpdateSessionSettings } from '@/hooks/chat/sharing'
 
-import { ProjectIntegrations } from '../integrations/project-integrations'
+import { ProjectToolkits } from '../toolkits/project-toolkits'
 
 const toSeconds = (ms: number | undefined) => (ms ?? 0) / 1000
 
@@ -43,7 +43,7 @@ export function SessionSettingsSection() {
           onCheckedChange={(passiveSend) => void update({ passiveSend })}
         />
       </SettingsList>
-      {session && <ProjectIntegrations sessionId={session._id} />}
+      {session && <ProjectToolkits sessionId={session._id} />}
     </>
   )
 }

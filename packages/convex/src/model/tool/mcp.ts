@@ -195,8 +195,8 @@ export async function createExternalMcpTool(
       const server =
         live?.server ?? servers.find((server) => server.id === entry.serverId)
       if (server?.transport !== 'stdio') return false
-      // Linking and live agent selection authorize integration calls
-      if (live?.server.integrationId) return false
+      // Linking and live agent selection authorize toolkit calls
+      if (live?.server.toolkitId) return false
       const approvalName = operationContext?.broker
         ? mcpApprovalKey({
             serverId: server.recordId,

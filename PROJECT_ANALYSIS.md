@@ -1,6 +1,6 @@
 # Project Analysis
 
-MCP, integration, and tool capability coverage updated on 2026-10-27. The earlier maintainability
+MCP, toolkit, and tool capability coverage updated on 2026-10-27. The earlier maintainability
 and security update was on 2026-09-18.
 The architectural overview below was originally audited at `0d6092b` on
 2026-08-05. This update covers the refactored modules and changed security
@@ -31,7 +31,7 @@ operations. Session/agent deletion and server configuration changes schedule
 cleanup. Unexpected loss requires explicit reconnection, preserving uncertainty
 about interrupted calls. Local commands retain admin and tool-approval gates.
 Secret environment bindings are separate credential records; status exposes only
-bounded redacted stderr. See `MCP_INTEGRATIONS.md` for configuration, lifecycle
+bounded redacted stderr. See `MCP_TOOLKITS.md` for configuration, lifecycle
 semantics and the remaining staged work. Stage 2 supplies durable long calls and
 stage 3 supplies complete catalogs; text-only result handling remains until stage 4.
 Restart the sidecar after updating.
@@ -61,7 +61,7 @@ cannot overwrite cancellation. Process/sidecar loss is terminal and never silent
 replayed. Minute maintenance retries acknowledgement and reclaims deleted-owner
 journals after a stale-request grace period. Explicit storage/capacity failures
 preserve uncertainty rather than silently truncating canonical successful results.
-See `MCP_INTEGRATIONS.md` for defaults, limits and recovery behavior. Restart the
+See `MCP_TOOLKITS.md` for defaults, limits and recovery behavior. Restart the
 sidecar after updating; existing remote records retain legacy absent-field defaults.
 
 ## Complete MCP catalogs and stable brokers (stage 3, 2026-10-21)
@@ -104,11 +104,11 @@ availability. Live `tools/list_changed` notifications schedule a safe refresh ag
 the same process. Frozen definitions are pinned until their session cache is released;
 unreferenced revisions and abandoned uploads have bounded cleanup. Settings expose
 catalog refresh, paginated policies and complete-definition downloads. See
-`MCP_INTEGRATIONS.md` for limits and workflow. Restart the sidecar; no destructive
-migration is needed. Rich result fidelity, integrations and real REA conformance
+`MCP_TOOLKITS.md` for limits and workflow. Restart the sidecar; no destructive
+migration is needed. Rich result fidelity, toolkits and real REA conformance
 remain stages 4–7.
 
-## MCP results and linked integrations (stages 4–7, 2026-10-25)
+## MCP results and linked toolkits (stages 4–7, 2026-10-25)
 
 External MCP results preserve versioned content blocks, structured data, tool
 errors, metadata, and initialization guidance. Prompts and resources use scoped
@@ -117,24 +117,24 @@ approval and durable-operation path. Large canonical results use blob storage;
 provider previews expose their limits rather than clipping canonical evidence.
 Sampling and elicitation remain unsupported. See `docs/mcp-protocol.md`.
 
-Integrations link existing toolkit roots through `.agents/integration.json` and
+Toolkits link existing toolkit roots through `.agents/toolkit.json` and
 automatically discover sibling skills. Agent selections and component settings
-control access; there is no integration master switch or per-session override.
+control access; there is no toolkit master switch or per-session override.
 Linking a toolkit and selecting it for an agent authorize its MCP tool, prompt,
 and resource calls without further per-call approval. Standalone local MCP
 servers retain target-specific approvals; live role, selection, component, and
-read-only restrictions still apply to integration calls.
+read-only restrictions still apply to toolkit calls.
 The accepted manifest snapshot is durable, and Refresh applies valid changes
 without a separate approval step. Changes invalidate affected live sessions.
-Canonical skill directories merge origins across integration and workspace
+Canonical skill directories merge origins across toolkit and workspace
 discovery without granting ordinary filesystem permissions. Relative launch paths
 resolve from the toolkit root; `${workspace}` selects the primary session source
 in arguments, working directories, and configured nonsecret environment values.
 
 Managed toolkit installation, configuration import, prerequisite-check UI, and
 their temporary migrations have been removed. Users update linked toolkits with
-their own tools. The pre-release database baseline is 31 with no pending
-migrations. See `docs/integrations.md` for authoring, toggles, credentials and
+their own tools. The pre-release database baseline is 34 with no pending
+migrations. See `docs/toolkits.md` for authoring, toggles, credentials and
 recovery.
 
 Stage 7 adds opt-in real REA conformance through production backend model/action
@@ -172,7 +172,7 @@ Delete/reassign restores a clean copy. No skill-count or bundle-size quotas
 apply; file installation and copying stream data, while UI lists, discovery,
 and model reads use bounded responses. UI lists accumulate pages with virtualized infinite scrolling. YAML frontmatter follows the Agent Skills
 format, and optional harness metadata is preserved without executing hooks or
-provisioning integrations. Metadata comes from assigned copies each turn;
+provisioning toolkits. Metadata comes from assigned copies each turn;
 full instructions and resources are read on demand.
 
 File tools reuse their existing names and accept an optional `scope` selecting
@@ -1439,7 +1439,7 @@ Key backend domains:
 `migrations.ts` holds the `@convex-dev/migrations` runner, the append-only
 public release migration list, and stable internal endpoints for boot
 coordination. `packages/core/src/migration-version.ts` establishes pre-release
-schema version 33 as the pre-release baseline; later manifest entries advance the
+schema version 34 as the pre-release baseline; later manifest entries advance the
 version from that baseline. The public migration manifest is currently empty.
 A singleton
 `releaseState` document records the last strictly completed version and any
@@ -1448,7 +1448,8 @@ interrupted or skipped releases resume, and rejects an application older than
 the database. `_applyRelease` skips completed entries and returns only a compact
 applied count. Completion is recorded only after the tracked strict schema
 deploy succeeds. The one-off pre-release migrations and their compatibility
-helpers have been removed. Baseline 15 stores home authority only in `agentHomes`
+helpers have been removed, including the toolkit rename migration after test data
+was migrated to baseline 34. Baseline 15 stores home authority only in `agentHomes`
 and requires `homeId` on skill assignments. The local test database was normalized
 with a temporary migration: six agent records were cleaned, all eight home records
 were preserved, and three regenerable session caches were cleared. Strict schema
@@ -1794,7 +1795,7 @@ Every model-callable built-in belongs to one explicitly selected capability:
 Edit files bundles write/edit; Shell bundles command execution, output reading,
 and job cancellation; Planning and Todo list retain their existing bundles.
 MCP access bundles discovery, calls, protocol operations and retained-output
-retrieval. Skills bundles listing and integration instruction reading. The
+retrieval. Skills bundles listing and toolkit instruction reading. The
 All built-in tools checkbox controls every capability independently of external
 MCP selections. New groups are off until selected; older individual write/edit
 selections do not implicitly grant the new editing group.
@@ -1803,12 +1804,12 @@ Tool availability intersects explicit selections with role, workspace, subagent,
 configured search, selected-server, valid skill metadata and retained-output
 requirements. An undiscovered selected MCP catalog still permits discovery;
 a known-empty catalog can expose protocol access without a call broker. Stored
-MCP output remains retrievable without starting a process. Integration skills
+MCP output remains retrievable without starting a process. Toolkit skills
 can be read without granting normal filesystem access. All callable names and
 capability keys are reserved before external names are considered.
 
 Chat tool manifests remain frozen until cache reset; there is no automatic
-helper insertion during upgrades. Live role, source, integration, target and
+helper insertion during upgrades. Live role, source, toolkit, target and
 operation authorization still applies. Generated workspace, skill and MCP notes
 record their tool dependencies. Reset chats exclude incompatible or unstamped
 automatic notes from provider history without deleting stored messages or past
@@ -2318,7 +2319,7 @@ The recent work shows the project moving in these directions:
   matching output patterns.
 - **A document per thing, not a document per user**: unbounded and hot fields
   keep moving out of the documents clients subscribe to and into indexed tables
-  — prompts, reminders, integrations, credentials, session hot state, and
+  — prompts, reminders, toolkits, credentials, session hot state, and
   interned appearances. Documents that stay are small and change rarely.
 - **Nothing unbounded, nothing untyped**: every writable field has a cap with a
   uniform error message, and the remaining `v.any()` escape hatches have been

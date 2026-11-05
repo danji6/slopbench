@@ -11,8 +11,8 @@ import type { FolderWorkspace } from '@sb/core/types/workspace'
 import { internal } from '../../_generated/api'
 import type { ActionCtx } from '../../_generated/server'
 import type { AgentWithHome } from '../../types'
-import { integrationRequest } from '../integrations/transport'
 import { postSidecar } from '../sidecar'
+import { toolkitRequest } from '../toolkits/transport'
 import { CatalogWindow } from './catalogWindow'
 import type { CatalogRequest } from './catalogWindow'
 
@@ -22,7 +22,7 @@ type AssignmentPage = {
   isDone: boolean
 }
 
-type CatalogIntegration = {
+type CatalogToolkit = {
   _id: string
   root: string
   name: string
@@ -37,7 +37,7 @@ export async function combinedSkillCatalog(
   agent: AgentWithHome,
   workspace?: FolderWorkspace,
   input: CatalogRequest = {},
-  integrations: CatalogIntegration[] = [],
+  toolkits: CatalogToolkit[] = [],
 ): Promise<SkillCatalogPage> {
   const window = new CatalogWindow(String(agent._id), input)
 
@@ -56,18 +56,18 @@ export async function combinedSkillCatalog(
         root: source.path,
         origin: `Project: ${source.label}`,
       })),
-    ...integrations
+    ...toolkits
       .filter((row) => row.skillsEnabled)
       .map((row) => ({
         root: row.root,
-        origin: `Integration: ${row.name}`,
-        integrationId: row._id,
+        origin: `Toolkit: ${row.name}`,
+        toolkitId: row._id,
         revision: row.revision,
         disabledSkills: row.disabledSkills,
       })),
   ]
   if (!sources.length && !assigned.length) return window.finish()
-  const page = await integrationRequest<SkillCatalogSlice>('catalog', {
+  const page = await toolkitRequest<SkillCatalogSlice>('catalog', {
     sources,
     assigned,
     ...window.sourceOptions(),

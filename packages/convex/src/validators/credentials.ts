@@ -1,6 +1,6 @@
 import { v } from 'convex/values'
 
-/** Which integration a stored API key belongs to. */
+/** Identifies the connection type a stored API key belongs to. */
 export const credentialScopeValidator = v.union(
   v.literal('provider'),
   v.literal('mcp'),

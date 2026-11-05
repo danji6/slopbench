@@ -10,8 +10,8 @@ import type { Doc } from '../../_generated/dataModel'
 import { type Role, minRole } from '../../lib/roles'
 import type { Session } from '../../types'
 import type {
-  integrationContextValidator,
   toolDefinitionValidator,
+  toolkitContextValidator,
 } from '../../validators/tools'
 import type { SpawnableAgent } from '../agent/subagents'
 import { isMcpServerSelected, isMcpToolSelected } from '../mcpToolPolicy'
@@ -26,10 +26,10 @@ import {
  * Deliberately excludes anything behavioral.
  */
 export type ToolDefinition = Infer<typeof toolDefinitionValidator>
-export type IntegrationContext = Infer<typeof integrationContextValidator>
+export type ToolkitContext = Infer<typeof toolkitContextValidator>
 
 export type ToolManifest = {
-  integrations?: IntegrationContext[]
+  toolkits?: ToolkitContext[]
   contextId?: string
   definitions?: ToolDefinition[]
   version?: number
@@ -63,12 +63,12 @@ export type McpManifestEntry = {
 
 export type ToolAvailability = {
   skills?: boolean
-  integrationSkills?: boolean
+  toolkitSkills?: boolean
   storedMcpOutput?: boolean
 }
 
 export type ManifestInput = {
-  integrationContext?: IntegrationContext[]
+  toolkitContext?: ToolkitContext[]
   agent: Pick<Doc<'agents'>, 'tools' | 'shell'>
   invoker: Pick<Doc<'users'>, 'role'>
   session: Pick<Session, 'workspace' | 'parent'>
@@ -135,8 +135,8 @@ export function resolveToolManifest(data: ManifestInput): ToolManifest {
 
   return {
     version: MCP_MANIFEST_VERSION,
-    ...(data.integrationContext?.length && {
-      integrations: data.integrationContext,
+    ...(data.toolkitContext?.length && {
+      toolkits: data.toolkitContext,
     }),
     names,
     ...(data.session.workspace?.agentHome && { hasAgentHome: true }),
@@ -176,7 +176,7 @@ function builtinEligible(
     case 'list_skills':
       return !!data.availability?.skills
     case 'read_skill':
-      return !!data.availability?.integrationSkills
+      return !!data.availability?.toolkitSkills
     default:
       return true
   }
@@ -191,7 +191,7 @@ function directMcpEntries(
   const seen = new Set<string>()
   const entries: McpManifestEntry[] = []
   for (const server of servers) {
-    if (server.integrationId) continue
+    if (server.toolkitId) continue
     for (const meta of server.tools ?? []) {
       const name = mcpToolName(server, meta)
       if (isReservedToolName(name) || seen.has(name)) continue

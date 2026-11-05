@@ -7,7 +7,7 @@ import {
   useWorkspaceFileIndexByFolder,
 } from '@/hooks/chat'
 import { useOwnedAgent, useSelectAgent } from '@/hooks/chat/agent'
-import { useModelProviders } from '@/hooks/chat/integrations'
+import { useModelProviders } from '@/hooks/chat/connections'
 import { NO_SESSION_DRAFT_KEY, type PendingMessage } from '@/lib/chat'
 import type { SessionMode } from '@/lib/chat/modes'
 import { toastError } from '@/lib/notifications'

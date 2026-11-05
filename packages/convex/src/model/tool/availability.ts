@@ -22,7 +22,7 @@ export async function prepareToolAvailability(
   const availability: PreparedAvailability = {
     source,
     skills: false,
-    integrationSkills: false,
+    toolkitSkills: false,
     storedMcpOutput: data.hasStoredMcpOutput,
   }
 
@@ -52,8 +52,8 @@ export async function prepareToolAvailability(
 
   const found = catalog.availability ?? {
     skills: catalog.entries.some((entry) => !entry.error),
-    integrationSkills: catalog.entries.some(
-      (entry) => !entry.error && entry.path.startsWith('integration://'),
+    toolkitSkills: catalog.entries.some(
+      (entry) => !entry.error && entry.path.startsWith('toolkit://'),
     ),
   }
 

@@ -31,7 +31,7 @@ export type SkillImportSummary = {
   failed: number
 }
 
-export type SkillAvailability = { skills: boolean; integrationSkills: boolean }
+export type SkillAvailability = { skills: boolean; toolkitSkills: boolean }
 
 export type SkillCatalogEntry = SkillMetadata & {
   revision?: string

@@ -2,7 +2,7 @@ import { limitError } from '@sb/core/limit-errors'
 import { MAX_MCP_SERVERS } from '@sb/core/limits'
 import type { McpServer, McpToolMeta } from '@sb/core/types'
 import { mcpConnectionSchema, validateMcpTools } from '@sb/core/types'
-import { integrationWorkspaceSettings } from '@sb/core/types/integration'
+import { toolkitWorkspaceSettings } from '@sb/core/types/toolkit'
 
 import { internal } from '../_generated/api'
 import type { Doc, Id } from '../_generated/dataModel'
@@ -13,7 +13,6 @@ import { minRole } from '../lib/roles'
 import { sharedSessionId } from '../lib/subagent'
 import type { McpExecutionArgs, McpServerInput } from '../types'
 import * as Credentials from './credentials'
-import { availableIntegrations } from './integrations/access'
 import { catalogRows } from './mcpCatalogs'
 import { launchFields, parseSecrets, saveCredentials } from './mcpConfiguration'
 import { revokeRestrictedTargets } from './mcpPolicyRevocation'
@@ -22,6 +21,7 @@ import { isMcpServerSelected, isMcpToolSelected } from './mcpToolPolicy'
 import { getSessionWithWorkspace } from './session/folderContext'
 import { getMode } from './session/sessions'
 import { ownsExecution } from './stream/execution'
+import { availableToolkits } from './toolkits/access'
 
 /** Resolves live server configuration and mode immediately before execution. */
 export async function _getExecution(
@@ -95,7 +95,7 @@ export type McpServerView = Omit<McpServer, 'apiKey' | 'secretEnv'> & {
 
 export async function list(ctx: AuthQueryCtx): Promise<McpServerView[]> {
   const servers = (await listServers(ctx, ctx.userId)).filter(
-    (server) => !server.integrationId,
+    (server) => !server.toolkitId,
   )
   const keys = await Credentials.map(ctx, ctx.userId, 'mcp')
   const secrets = await Credentials.map(ctx, ctx.userId, 'mcp-env')
@@ -135,9 +135,7 @@ export async function resolve(
   { withCredentials = false, agentId, sessionId }: McpResolveOptions = {},
 ): Promise<McpServer[]> {
   const servers = await listServers(ctx, ownerId)
-  const active = agentId
-    ? await availableIntegrations(ctx, agentId, sessionId)
-    : []
+  const active = agentId ? await availableToolkits(ctx, agentId, sessionId) : []
   const enabledIds = new Set(active.map((row) => row._id))
   const session = sessionId
     ? await getSessionWithWorkspace(ctx, sessionId)
@@ -155,19 +153,16 @@ export async function resolve(
     servers.map(async (server) => {
       let launch = launchFields(server)
       let enabled = server.enabled
-      if (server.integrationId) {
-        enabled &&= enabledIds.has(server.integrationId)
+      if (server.toolkitId) {
+        enabled &&= enabledIds.has(server.toolkitId)
         try {
-          launch = integrationWorkspaceSettings(
-            launch,
-            session?.workspace?.path,
-          )
+          launch = toolkitWorkspaceSettings(launch, session?.workspace?.path)
         } catch {
           enabled = false
         }
       }
       return {
-        integrationId: server.integrationId,
+        toolkitId: server.toolkitId,
         recordId: server._id,
         id: server.key,
         label: server.label,
@@ -200,19 +195,19 @@ export async function replaceAll(
   }
 
   const stored = await listServers(ctx, ctx.userId)
-  const integrationKeys = new Set(
-    stored.filter((row) => row.integrationId).map((row) => row.key),
+  const toolkitKeys = new Set(
+    stored.filter((row) => row.toolkitId).map((row) => row.key),
   )
-  if (servers.length + integrationKeys.size > MAX_MCP_SERVERS)
+  if (servers.length + toolkitKeys.size > MAX_MCP_SERVERS)
     error(limitError('mcpServers'), 400)
 
-  const existing = stored.filter((server) => !server.integrationId)
+  const existing = stored.filter((server) => !server.toolkitId)
   const byKey = new Map(existing.map((server) => [server.key, server]))
   const seen = new Set<string>()
 
   for (const [order, input] of servers.entries()) {
-    if (integrationKeys.has(input.key))
-      error('Integration servers use Integrations settings', 400)
+    if (toolkitKeys.has(input.key))
+      error('Toolkit servers use Toolkits settings', 400)
     if (seen.has(input.key)) continue
     seen.add(input.key)
     await saveServer(ctx, input, byKey.get(input.key), order)

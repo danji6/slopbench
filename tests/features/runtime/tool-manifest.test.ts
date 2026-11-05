@@ -208,16 +208,14 @@ describe('tool manifest', () => {
   })
 })
 
-test('integration tools stay behind the broker when an unrelated direct alias has the same name', () => {
+test('toolkit tools stay behind the broker when an unrelated direct alias has the same name', () => {
   const manifest = resolveToolManifest({
     agent: { tools: ['docs_search'] },
     invoker: { role: 'admin' },
     session: {},
     resources: {
       settings: null,
-      mcpServers: [
-        { ...mcpServer, integrationId: 'linked', brokerEnabled: true },
-      ],
+      mcpServers: [{ ...mcpServer, toolkitId: 'linked', brokerEnabled: true }],
     },
     spawnableAgents: [],
   } as never)

@@ -38,14 +38,14 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
     data.stream.command.kind === 'invoke' ||
     data.stream.command.kind === 'retry'
   const chosen = selectedBuiltinTools(data.agent.tools)
-  const observesIntegrations =
+  const observesToolkits =
     invokesTools &&
-    !!data.integrationCount &&
+    !!data.toolkitCount &&
     (contextEnabled('mcp', chosen) || chosen.includes('list_skills')) &&
     minRole(data.invoker.role, 'admin')
-  if (observesIntegrations) {
-    const { observeLinkedIntegrations } = await import('../../model/integrations/actions') // prettier-ignore
-    const invalidated = new Set(await observeLinkedIntegrations(ctx, execution))
+  if (observesToolkits) {
+    const { observeLinkedToolkits } = await import('../../model/toolkits/actions') // prettier-ignore
+    const invalidated = new Set(await observeLinkedToolkits(ctx, execution))
     if (invalidated.size) {
       data = await ctx.runQuery(internal.streams._getContext, execution)
       if (!data) return null
@@ -173,7 +173,7 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
         skillCatalogSource: availability.source,
         skillAvailability: {
           skills: !!availability.skills,
-          integrationSkills: !!availability.integrationSkills,
+          toolkitSkills: !!availability.toolkitSkills,
         },
       },
     )

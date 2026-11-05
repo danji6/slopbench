@@ -1,5 +1,5 @@
 import { RippleButton, SettingsList } from '@/components/ui'
-import { useModelProviders } from '@/hooks/chat/integrations'
+import { useModelProviders } from '@/hooks/chat/connections'
 import { useProviderDiscoveryCoordinator } from '@/hooks/chat/provider-discovery'
 import { useProviderSettingsSync } from '@/hooks/chat/provider-settings'
 import { networkChanged } from '@/lib/provider-settings'

@@ -22,7 +22,7 @@ const server = {
   command: 'fixture',
   url: '',
   enabled: true,
-  integrationId: 'integration',
+  toolkitId: 'toolkit',
   brokerEnabled: true,
   catalogId: 'catalog',
   tools: [{ name: 'work', inputSchema: '{"type":"object"}' }],
@@ -46,7 +46,7 @@ function input(
     spawnableAgents: [{ name: 'Research' }],
     availability: {
       skills: true,
-      integrationSkills: true,
+      toolkitSkills: true,
       storedMcpOutput: true,
     },
     ...extra,
@@ -118,11 +118,11 @@ test('selected MCP access distinguishes missing, undiscovered, empty, and stored
     manifest([{ ...server, tools: undefined, catalogId: undefined }]),
   ).toContain('call_mcp_tool')
   expect(manifest([{ ...server, enabled: false }])).toEqual([])
-  expect(manifest([{ ...server, integrationId: undefined }])).toEqual([])
+  expect(manifest([{ ...server, toolkitId: undefined }])).toEqual([])
   expect(manifest([], { storedMcpOutput: true })).toEqual(['read_mcp_output'])
 })
 
-test('skills require real valid entries and integration readers require the integration origin', () => {
+test('skills require real valid entries and toolkit readers require the toolkit origin', () => {
   expect(
     resolveToolManifest(input(['skills'], { availability: {} })).names,
   ).toEqual([])
@@ -144,7 +144,7 @@ test('skills require real valid entries and integration readers require the inte
 test('explicit direct tools remain independent and cannot shadow capability keys or disabled built-ins', () => {
   const direct = {
     ...server,
-    integrationId: undefined,
+    toolkitId: undefined,
     brokerEnabled: false,
     label: 'Docs',
   }

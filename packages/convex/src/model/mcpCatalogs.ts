@@ -58,8 +58,7 @@ export async function ownedServer(
 /** Reserves a refresh without changing the usable catalog. */
 export async function begin(ctx: AuthMutationCtx, args: McpCatalogBeginArgs) {
   const server = await ownedServer(ctx, args.serverId)
-  if (server.integrationId)
-    error('Integration servers are discovered by agents', 403)
+  if (server.toolkitId) error('Toolkit servers are discovered by agents', 403)
   return beginRefresh(ctx, server)
 }
 

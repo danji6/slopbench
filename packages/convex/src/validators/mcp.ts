@@ -19,7 +19,7 @@ export const mcpToolMetaValidator = v.object({
 })
 
 export const mcpLaunchFields = {
-  integrationBinding: v.optional(
+  toolkitBinding: v.optional(
     v.object({ root: v.string(), revision: v.string() }),
   ),
   command: v.optional(v.string()),
@@ -111,7 +111,7 @@ export const mcpRuntimePageArgsValidator = v.object({
 
 /** An MCP server joined with its tools and credential. */
 export const mcpServerValidator = v.object({
-  integrationId: v.optional(v.string()),
+  toolkitId: v.optional(v.string()),
   recordId: v.optional(v.string()),
   id: v.string(),
   label: v.string(),
@@ -178,7 +178,7 @@ export const discoverMcpToolsArgsValidator = v.object({
 
 /** An external MCP server, without its credential or discovered tools. */
 export const mcpServerSchema = v.object({
-  integrationId: v.optional(v.id('integrations')),
+  toolkitId: v.optional(v.id('toolkits')),
   componentName: v.optional(v.string()),
   ownerId: v.id('users'),
   /** Client-generated key, stable across renames. */

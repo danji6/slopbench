@@ -1,4 +1,4 @@
-import { integrationWorkspaceSettings } from '@sb/core/types/integration'
+import { toolkitWorkspaceSettings } from '@sb/core/types/toolkit'
 
 import type { Doc } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'
@@ -12,12 +12,12 @@ export async function launchConnection(
   server: Doc<'mcpServers'>,
   options: { allowWorkspaceTemplate?: boolean } = {},
 ) {
-  if (server.integrationId) {
-    const integration = await ctx.db.get(server.integrationId)
-    if (!integration || integration.status !== 'ready')
-      error('Integration is unavailable or needs a refresh', 409)
+  if (server.toolkitId) {
+    const toolkit = await ctx.db.get(server.toolkitId)
+    if (!toolkit || toolkit.status !== 'ready')
+      error('Toolkit is unavailable or needs a refresh', 409)
     if (!options.allowWorkspaceTemplate)
-      integrationWorkspaceSettings(launchFields(server))
+      toolkitWorkspaceSettings(launchFields(server))
   }
   const secret = await Credentials.get(
     ctx,
