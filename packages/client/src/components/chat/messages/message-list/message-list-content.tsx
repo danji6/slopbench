@@ -272,6 +272,28 @@ function LoadWindowButton({
   )
 }
 
+/** Keeps section gaps inside the virtualizer's measured row bounds. */
+function getRowSpacing(row?: MessageRow, previousRow?: MessageRow) {
+  if (!row || !previousRow || row.kind === 'footer') return
+  if (row.kind === 'hidden' && row.noteGroupId) return
+
+  const startsSenderGroup =
+    !row.grouped && previousRow.messageId !== row.messageId
+  if (startsSenderGroup) return 'h-10'
+
+  const startsNotes = row.kind === 'note-group' || row.kind === 'hidden'
+  if (startsNotes) return 'h-3'
+
+  const startsContent = row.kind === 'group' && !row.workId
+  const followsContent = previousRow.kind === 'group' && !previousRow.workId
+  const followsWork =
+    previousRow.kind === 'work' ||
+    (previousRow.kind === 'group' && !!previousRow.workId)
+  const workBoundary =
+    (startsContent && followsWork) || (row.kind === 'work' && followsContent)
+  if (workBoundary) return 'h-3'
+}
+
 function VirtualizedItem({
   style,
   index,
@@ -283,14 +305,7 @@ function VirtualizedItem({
   const row = rows[index]
   const previousRow = rows[index - 1]
 
-  // Separate messages only when they start a new sender group.
-  const spacing =
-    row !== undefined &&
-    index > 0 &&
-    !row.grouped &&
-    row.kind !== 'footer' &&
-    !(row.kind === 'hidden' && row.noteGroupId) &&
-    previousRow?.messageId !== row.messageId
+  const spacing = getRowSpacing(row, previousRow)
 
   // The gutter avatar overhangs its header row into the band of the row below.
   // Without this, Virtua would make the avatar unclickable because it uses
@@ -309,7 +324,7 @@ function VirtualizedItem({
       data-segment-index={row?.kind === 'group' ? row.segmentIndex : undefined}
       style={overhang}
     >
-      {spacing && <div aria-hidden className="h-10" />}
+      {spacing && <div aria-hidden className={spacing} />}
       {row?.kind === 'group' && row.workId ? (
         <VirtualizedRowTransition
           state={
