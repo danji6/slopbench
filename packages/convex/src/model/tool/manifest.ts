@@ -4,10 +4,15 @@ import {
 } from '@sb/core/tool-capabilities'
 import { mcpToolDescription, mcpToolName } from '@sb/core/types'
 import { MCP_MANIFEST_VERSION } from '@sb/core/types/mcp-catalog'
+import type { Infer } from 'convex/values'
 
 import type { Doc } from '../../_generated/dataModel'
 import { type Role, minRole } from '../../lib/roles'
 import type { Session } from '../../types'
+import type {
+  integrationContextValidator,
+  toolDefinitionValidator,
+} from '../../validators/tools'
 import type { SpawnableAgent } from '../agent/subagents'
 import { isMcpServerSelected, isMcpToolSelected } from '../mcpToolPolicy'
 import {
@@ -20,7 +25,13 @@ import {
  * The cached shape of a session's tool set the provider sees.
  * Deliberately excludes anything behavioral.
  */
+export type ToolDefinition = Infer<typeof toolDefinitionValidator>
+export type IntegrationContext = Infer<typeof integrationContextValidator>
+
 export type ToolManifest = {
+  integrations?: IntegrationContext[]
+  contextId?: string
+  definitions?: ToolDefinition[]
   version?: number
   /** Exact tool names, in the order they are sent. */
   names: string[]
@@ -57,6 +68,7 @@ export type ToolAvailability = {
 }
 
 export type ManifestInput = {
+  integrationContext?: IntegrationContext[]
   agent: Pick<Doc<'agents'>, 'tools' | 'shell'>
   invoker: Pick<Doc<'users'>, 'role'>
   session: Pick<Session, 'workspace' | 'parent'>
@@ -85,9 +97,7 @@ export function buildTaskRoster(spawnable: SpawnableAgent[]): string {
 }
 
 /**
- * Resolves the tool set once from live state. Everything gated here is cached
- * from this point on, meaning a mid-session workspace bind, MCP toggle or agent
- * rename will not be reflected until the user resets the session cache.
+ * Resolves current tool eligibility. The initial provider shape is captured separately.
  */
 export function resolveToolManifest(data: ManifestInput): ToolManifest {
   const admin = minRole(data.invoker.role as Role | undefined, 'admin')
@@ -125,6 +135,9 @@ export function resolveToolManifest(data: ManifestInput): ToolManifest {
 
   return {
     version: MCP_MANIFEST_VERSION,
+    ...(data.integrationContext?.length && {
+      integrations: data.integrationContext,
+    }),
     names,
     ...(data.session.workspace?.agentHome && { hasAgentHome: true }),
     ...(roster && { taskRoster: roster }),
@@ -199,4 +212,18 @@ function directMcpEntries(
     }
   }
   return entries
+}
+
+/** Compares callable contracts, including description changes that need new guidance. */
+export function sameDefinition(
+  previous: ToolDefinition | undefined,
+  next: ToolDefinition | undefined,
+): boolean {
+  return (
+    !!previous &&
+    !!next &&
+    previous.definitionRef === next.definitionRef &&
+    previous.description === next.description &&
+    previous.inputSchema === next.inputSchema
+  )
 }

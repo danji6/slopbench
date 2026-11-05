@@ -4,15 +4,17 @@ import { prepare } from '@sb/convex/actions/stream/engineSetup'
 import { prepareChanges } from '@sb/convex/model/changes'
 import { reserveStream } from '@sb/convex/model/chat/reserve'
 import { availableIntegrations } from '@sb/convex/model/integrations/access'
-import { withCurrentSkillContext } from '@sb/convex/model/integrations/skillContext'
+import { executionIntegrations } from '@sb/convex/model/integrations/execution'
+import { observe } from '@sb/convex/model/integrations/observation'
 import { skillContext } from '@sb/convex/model/integrations/skills'
-import { _save, getBySessionAgent } from '@sb/convex/model/session/cache'
-import { folderWorkspace } from '@sb/convex/model/session/folderTree'
+import { _save, removeForSession } from '@sb/convex/model/session/cache'
 import { prepareSkillContext } from '@sb/convex/model/skills/context'
 import { assignments } from '@sb/convex/model/skills/endpoints'
+import { prepareCapabilities } from '@sb/convex/model/stream/capabilities'
 import { prepareWorkspaceContext } from '@sb/convex/model/stream/contextNotes'
-import { _getProviderHistory } from '@sb/convex/model/stream/reads'
+import { _getContext, _getProviderHistory } from '@sb/convex/model/stream/reads'
 import { filesystemToolContext } from '@sb/convex/model/tool/filesystemContext'
+import { assertToolAccess } from '@sb/convex/model/tool/liveAccess'
 import type {
   PrepareContextNoteArgs,
   StreamExecutionArgs,
@@ -21,7 +23,9 @@ import {
   integrationCatalogSchema,
   integrationSkillCatalog,
 } from '@sb/sidecar/integrations/catalog'
+import { inspectIntegration } from '@sb/sidecar/integrations/manifest'
 import { getFunctionName } from 'convex/server'
+import { type Value, convexToJson, jsonToConvex } from 'convex/values'
 
 import { skillsDatabase } from './skills-db'
 
@@ -72,95 +76,73 @@ export function skillRequests(root: string) {
   db.insert = (table, fields) =>
     insert(table, { ...fields, _creationTime: ++clock })
   const execution = { streamId: 'stream', generation: 1 } as StreamExecutionArgs
-  const snapshot = {
-    items: [
-      {
-        id: 'system',
-        name: 'System',
-        role: 'system',
-        enabled: true,
-        visible: false,
-        content: 'Frozen instructions',
-      },
-    ],
-    _id: 'snapshot',
-    sessionId: session._id,
-    agentId: agent._id,
-    filesystemAccess: true,
-    tools: {
-      names: [
-        'read_file',
-        'write_file',
-        'edit_file',
-        'shell',
-        'shell_output',
-        'kill_shell',
-        'list_skills',
-      ],
-      shell: '/bin/bash',
+  rows('prompts').push({
+    _id: 'system-prompt',
+    ownerId: 'owner',
+    agentId: 'agent',
+    scope: 'own',
+    item: {
+      id: 'system',
+      name: 'System',
+      role: 'system',
+      enabled: true,
+      visible: false,
+      content: 'Frozen instructions',
     },
-  }
-
-  rows('sessionCache').push(snapshot)
+  })
 
   const action = {
     runQuery: async (
       reference: Parameters<typeof getFunctionName>[0],
       args: unknown,
     ) => {
+      args = convexRoundTrip(args)
       switch (getFunctionName(reference)) {
         case 'streams:_getContext': {
-          const stream = await db.get((args as StreamExecutionArgs).streamId)
-          if (stream?.generation !== (args as StreamExecutionArgs).generation)
-            return null
-          const output = await db.get(
-            (stream.state as { processingMessageId: string })
-              .processingMessageId,
-          )
-          return {
-            stream: await withCurrentSkillContext(
-              structuredClone(stream) as never,
-              await availableIntegrations(
-                fixture.ctx,
-                agent._id as Id<'agents'>,
-                session._id as Id<'sessions'>,
-              ),
-            ),
-            session: {
-              ...session,
-              workspace: folderWorkspace(folder as never),
-            },
-            agent,
-            invoker: { _id: 'owner', role: 'admin' },
-            owner: { _id: 'owner' },
-            settings: null,
-            invokerSettings: null,
-            ownerSettings: null,
-            output,
-            sessionCache: await getBySessionAgent(
-              fixture.ctx,
-              session._id as never,
-              agent._id as never,
-              true,
-            ),
-            environment: {},
-            prompts: { own: [], library: [] },
-            modelProviders: [
-              {
-                id: 'openai',
-                enabled: true,
-                apiKey: 'fixture',
-                models: [{ id: 'fixture-model' }],
-              },
-            ],
-            mcpServers: [],
-            spawnableAgents: [],
+          if (!agent.home && 'homeId' in agent) {
+            await db.patch(String(agent.homeId), { path: undefined })
           }
+          if (agent.home) {
+            Object.assign(agent, { homeId: 'fixture-home' })
+            const home = {
+              _id: 'fixture-home',
+              ownerId: 'owner',
+              originAgentId: 'agent',
+              ...agent.home,
+            }
+            const previous = rows('agentHomes').find(
+              (row) => row._id === home._id,
+            )
+            if (previous) Object.assign(previous, home)
+            else rows('agentHomes').push(home)
+          }
+          const data = await _getContext(
+            fixture.ctx,
+            args as StreamExecutionArgs,
+          )
+          return (
+            data &&
+            convexRoundTrip({
+              ...data,
+              modelProviders: [
+                {
+                  id: 'openai',
+                  enabled: true,
+                  apiKey: 'fixture',
+                  models: [{ id: 'fixture-model' }],
+                },
+              ],
+            })
+          )
         }
+        case 'streams:_assertToolAccess':
+          return assertToolAccess(fixture.ctx, args as never)
         case 'streams:_getProviderHistory':
           return _getProviderHistory(fixture.ctx, args as StreamExecutionArgs)
         case 'streams:_getFilesystemContext':
           return filesystemToolContext(fixture.ctx, args as StreamExecutionArgs)
+        case 'integrations:_execution':
+          return executionIntegrations(fixture.ctx, args as StreamExecutionArgs)
         case 'integrations:_available':
           return availableIntegrations(
             fixture.ctx,
@@ -181,6 +163,11 @@ export function skillRequests(root: string) {
       reference: Parameters<typeof getFunctionName>[0],
       args: unknown,
     ) => {
+      args = convexRoundTrip(args)
+      if (getFunctionName(reference) === 'integrations:_observe')
+        return observe(fixture.ctx, args as never)
+      if (getFunctionName(reference) === 'streams:_prepareCapabilities')
+        return prepareCapabilities(fixture.ctx, args as never)
       if (getFunctionName(reference) === 'chat:_prepareChanges')
         return prepareChanges(fixture.ctx, args as never)
       if (getFunctionName(reference) === 'streams:_prepareSkillContext')
@@ -265,8 +252,22 @@ export function skillRequests(root: string) {
   const secret = process.env.SIDECAR_SECRET
   process.env.SIDECAR_SECRET = 'fixture-secret'
   globalThis.fetch = (async (url, init) => {
+    if (String(url).endsWith('/eval/prompts')) {
+      const input = JSON.parse(String(init?.body))
+      return Response.json({
+        items: input.items,
+        environment: input.environment,
+        dirty: false,
+      })
+    }
+    if (String(url).endsWith('/shell/info'))
+      return Response.json({ shell: '/bin/bash' })
     if (String(url).endsWith('/checkpoints/begin'))
       return Response.json({ queued: false })
+    if (String(url).endsWith('/integrations/inspect')) {
+      const input = JSON.parse(String(init?.body))
+      return Response.json(await inspectIntegration(input.root))
+    }
     if (String(url).endsWith('/integrations/catalog')) {
       return Response.json(
         await integrationSkillCatalog(
@@ -289,8 +290,11 @@ export function skillRequests(root: string) {
     ...fixture,
     folder,
     agent,
+    action,
+    execution,
     nextTurn,
     async compact() {
+      await removeForSession(fixture.ctx, 'session' as never)
       const last = Math.max(
         ...rows('messages').map((row) => Number(row._creationTime)),
       )
@@ -318,4 +322,9 @@ export function skillRequests(root: string) {
       else process.env.SIDECAR_SECRET = secret
     },
   }
+}
+
+/** Reproduces Convex's key ordering and omission of undefined object fields. */
+function convexRoundTrip<T>(value: T): T {
+  return jsonToConvex(convexToJson(value as Value)) as T
 }

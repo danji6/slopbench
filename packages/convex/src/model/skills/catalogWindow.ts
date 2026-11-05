@@ -45,6 +45,7 @@ export class CatalogWindow {
     const isDone = offset >= (page?.total ?? 0)
     return {
       entries,
+      availability: page?.availability,
       fingerprint,
       isDone,
       cursor: isDone

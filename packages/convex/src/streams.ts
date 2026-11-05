@@ -3,6 +3,7 @@ import { v } from 'convex/values'
 import { internalMutation, internalQuery } from './_generated/server'
 import { authQuery } from './functions'
 import { prepareSkillContext } from './model/skills/context'
+import { prepareCapabilities } from './model/stream/capabilities'
 import {
   prepareMcpContext,
   prepareWorkspaceContext,
@@ -13,6 +14,7 @@ import * as ProviderRequests from './model/stream/providerRequests'
 import * as StreamReads from './model/stream/reads'
 import * as StreamSubagents from './model/stream/subagents'
 import { filesystemToolContext } from './model/tool/filesystemContext'
+import { assertToolAccess } from './model/tool/liveAccess'
 import * as V from './validators/streams'
 import {
   saveStreamMetaArgsValidator,
@@ -147,6 +149,16 @@ export const _saveEnvironment = internalMutation({
 export const _saveLog = internalMutation({
   args: V.saveStreamLogArgsValidator.fields,
   handler: StreamMeta.saveLog,
+})
+
+export const _assertToolAccess = internalQuery({
+  args: V.assertToolAccessArgsValidator.fields,
+  handler: assertToolAccess,
+})
+
+export const _prepareCapabilities = internalMutation({
+  args: V.prepareCapabilitiesArgsValidator.fields,
+  handler: prepareCapabilities,
 })
 
 export const _prepareSkillContext = internalMutation({

@@ -89,6 +89,7 @@ export async function releaseHome(
   if (!home || home.operationId !== operationId) return
   await ctx.db.patch(homeId, {
     operationId: undefined,
+    catalogRevision: (home.catalogRevision ?? 0) + 1,
     revision: home.revision + Number(changesHome),
   })
 }

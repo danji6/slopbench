@@ -112,7 +112,7 @@ export function ModelPicker({
                   disabled={model.available === false}
                 >
                   {model.label ?? model.id}
-                  {model.available === false ? ' (not listed)' : ''}
+                  {model.available === false ? ' (unavailable)' : ''}
                 </Combobox.Item>
               ))}
             </Combobox.Group>

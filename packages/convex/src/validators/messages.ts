@@ -23,6 +23,7 @@ export const messageTypeValidator = v.union(
   v.literal('workspace'),
   v.literal('skills'),
   v.literal('mcp'),
+  v.literal('capabilities'),
   v.literal('command'),
   v.literal('mode'),
 )
@@ -62,12 +63,16 @@ export const workspaceExtraValidator = v.object({
   label: v.optional(v.string()), // absent when the workspace was unbound
   fingerprint: v.optional(v.string()),
   anchorMessageId: v.optional(v.id('messages')),
+  anchorPartCount: v.optional(v.number()),
+  contextId: v.optional(v.string()),
 })
 
 export const skillsExtraValidator = v.object({
   capabilities: v.optional(v.array(v.string())),
   fingerprint: v.string(),
   anchorMessageId: v.optional(v.id('messages')),
+  anchorPartCount: v.optional(v.number()),
+  contextId: v.optional(v.string()),
 })
 
 export const modeExtraValidator = v.object({

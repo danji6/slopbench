@@ -40,6 +40,7 @@ function setup(
     _id: 'child_stream',
     sessionId: childId,
     agentId: 'agent',
+    invokedBy: 'user_1',
     leaseExpiresAt: Date.now() + 60_000,
     state: {
       phase: 'awaiting_approval',
@@ -75,7 +76,12 @@ function setup(
       { _id: 'parent_content', parts: [approval('shell')] },
       parentState,
       childState,
-      { _id: 'agent', name: 'Writer' },
+      {
+        _id: 'agent',
+        name: 'Writer',
+        tools: ['shell', 'read_file', 'edit_files'],
+      },
+      { _id: 'user_1', role: 'admin' },
       { _id: 'message', selectedVersion: 1 },
       { _id: 'content', segmentIndex: 0, version: 1, parts },
     ],

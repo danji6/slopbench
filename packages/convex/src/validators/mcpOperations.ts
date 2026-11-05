@@ -33,6 +33,7 @@ export const mcpOperationSchema = v.object({
   name: v.string(),
   args: v.string(),
   input: v.optional(v.string()),
+  wireCall: v.optional(v.string()),
   catalogToolId: v.optional(v.id('mcpCatalogTools')),
   display: v.optional(
     v.object({ server: v.string(), name: v.string(), output: v.string() }),
@@ -67,6 +68,7 @@ export const mcpOperationFindValidator = v.object({
   toolCallId: v.string(),
   args: v.string(),
   input: v.optional(v.string()),
+  wireCall: v.optional(v.string()),
   catalogToolId: v.optional(v.id('mcpCatalogTools')),
 })
 

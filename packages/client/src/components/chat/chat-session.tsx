@@ -63,7 +63,7 @@ function EvalCompletionNotifier({
 
   useEffect(() => {
     if (queued !== false) return
-    toast.success('Environment updated')
+    toast.success('Environment refreshes on the next invocation')
     onComplete(requestId)
   }, [onComplete, queued, requestId])
 
@@ -231,7 +231,7 @@ function ChatSessionContent({
             if (result.queued) {
               setPendingEvalRequestIds((current) => [...current, requestId])
             } else {
-              toast.success('Environment updated')
+              toast.success('Environment refreshes on the next invocation')
             }
           }
           break

@@ -1,4 +1,5 @@
 import { orderContextNotes } from '@sb/core/context-notes'
+import { sha256 } from '@sb/core/sha256'
 import { isKnownTextFile } from '@sb/core/workspace/files'
 
 import type { Doc, Id } from '../../_generated/dataModel'
@@ -13,7 +14,7 @@ import {
   hasLoadedAttachmentMedia,
 } from '../attachmentMedia'
 import { availableIntegrations } from '../integrations/access'
-import { withCurrentSkillContext } from '../integrations/skillContext'
+import { integrationSkillFingerprint } from '../integrations/skillContext'
 import { resolve as resolveMcpServers } from '../mcp'
 import {
   getProcessingSegmentRow,
@@ -102,14 +103,12 @@ export async function _getContext(
       ? await resolveSpawnableAgents(ctx, agent)
       : []
 
-  const sessionCache = invocation
-    ? await getSessionCache(
-        ctx,
-        stream.sessionId,
-        stream.agentId,
-        minRole(invoker.role, 'admin'),
-      )
-    : null
+  const sessionCache = await getSessionCache(
+    ctx,
+    stream.sessionId,
+    stream.agentId,
+    minRole(invoker.role, 'admin'),
+  )
 
   const state = await getState(ctx, stream.sessionId)
   const integrations = await availableIntegrations(
@@ -124,7 +123,7 @@ export async function _getContext(
     environment: state?.environment ?? {},
     toolApprovals: await getApprovals(ctx, stream.sessionId),
     spawnableAgents,
-    stream: await withCurrentSkillContext(stream, integrations),
+    stream,
     session,
     agent,
     invoker,
@@ -134,10 +133,20 @@ export async function _getContext(
     output: { ...output, parts: outputRow?.parts ?? [] },
     settings,
     prompts,
+    integrationContext: await Promise.all(
+      integrations.map(async (row) => ({
+        id: row._id,
+        name: row.name,
+        fingerprint: await sha256(
+          JSON.stringify([row.revision, row.skillsEnabled, row.disabledSkills]),
+        ),
+      })),
+    ),
+    integrationSkillRevision: await integrationSkillFingerprint(integrations),
     integrationCount: integrations.length,
     hasIntegrationSkills: integrations.some((row) => row.skillsEnabled),
     hasStoredMcpOutput:
-      invocation && !sessionCache?.tools && agent.tools?.includes('mcp_access')
+      invocation && agent.tools?.includes('mcp_access')
         ? await hasStoredMcpOutput(ctx, session._id, agent)
         : false,
     mcpServers,
@@ -189,14 +198,24 @@ export async function _getProviderHistory(
     ? [summary, ...messages.filter((message) => message._id !== summary._id)]
     : messages
 
-  for (const id of [
-    stream.workspaceContextMessageId,
-    stream.skillContextMessageId,
-    stream.mcpContextMessageId,
-  ]) {
-    if (!id || ordered.some((message) => message._id === id)) continue
-    const note = await ctx.db.get(id)
-    if (note?.contextEligible) ordered.push(note)
+  const currentId = stream.state.processingMessageId
+  if (currentId) {
+    const notes = await ctx.db
+      .query('messages')
+      .withIndex('by_sessionId_contextAnchor', (q) =>
+        q
+          .eq('sessionId', stream.sessionId)
+          .eq('extra.anchorMessageId', currentId),
+      )
+      .collect()
+    for (const note of notes) {
+      if (
+        note.contextEligible &&
+        !ordered.some((message) => message._id === note._id)
+      ) {
+        ordered.push(note)
+      }
+    }
   }
 
   const visible = ordered.filter(

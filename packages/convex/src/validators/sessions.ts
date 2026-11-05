@@ -42,7 +42,13 @@ export const sessionParentValidator = v.object({
   agentId: v.id('agents'), // parent agent, for the back-link label
 })
 
+export const capabilityCacheFields = {
+  effectiveTools: v.optional(toolManifestValidator),
+  capabilitySource: v.optional(v.string()),
+}
+
 export const saveSessionCacheArgsValidator = v.object({
+  ...capabilityCacheFields,
   filesystemAccess: v.optional(v.boolean()),
   sessionId: v.id('sessions'),
   agentId: v.id('agents'),
@@ -154,6 +160,7 @@ export const sessionAgentSchema = v.object({
 
 /** The captured prompt and tool configuration for a session and agent. */
 export const sessionCacheSchema = v.object({
+  ...capabilityCacheFields,
   historyPresentation: v.optional(historyPresentationValidator),
   homeId: v.optional(v.id('agentHomes')),
   filesystemAccess: v.optional(v.boolean()),

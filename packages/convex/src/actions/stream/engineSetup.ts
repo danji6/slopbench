@@ -1,5 +1,6 @@
 'use node'
 
+import { stableStringify } from '@sb/core/stable-json'
 import {
   hasFilesystemTools,
   selectedBuiltinTools,
@@ -16,25 +17,27 @@ import { findCredentialsForModel } from '../../model/provider/providers'
 import { postSidecar, sidecarDefaultShell } from '../../model/sidecar'
 import { resolvePersonalWorkspace } from '../../model/skills/runtime'
 import { prepareToolAvailability } from '../../model/tool/availability'
+import { capabilitySource } from '../../model/tool/capabilitySource'
+import { resolveToolManifest } from '../../model/tool/manifest'
 import { hasToolResultMedia } from '../../model/tool/mcpOutput'
+import { prepareSessionTools } from '../../model/tool/sessionTools'
 import type { StreamExecutionArgs } from '../../types'
 import type { ReasoningEffort } from '../../types'
 import { buildSessionLogBody } from './engineLog'
 import { patchSessionLogBody } from './engineLog'
 import { buildEvalContext } from './evalContext'
-import { createOperationPlan } from './operations'
+import { createOperationPlan, toolResources } from './operations'
 import type { PromptEvalResult } from './operations'
 import { prepareToolContext } from './toolContext'
 
 export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
-  const data = await ctx.runQuery(internal.streams._getContext, execution)
+  let data = await ctx.runQuery(internal.streams._getContext, execution)
   if (!data) return null
 
   const invokesTools =
     data.stream.command.kind === 'invoke' ||
     data.stream.command.kind === 'retry'
-  const chosen =
-    data.sessionCache?.tools?.names ?? selectedBuiltinTools(data.agent.tools)
+  const chosen = selectedBuiltinTools(data.agent.tools)
   const observesIntegrations =
     invokesTools &&
     !!data.integrationCount &&
@@ -43,11 +46,10 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
   if (observesIntegrations) {
     const { observeLinkedIntegrations } = await import('../../model/integrations/actions') // prettier-ignore
     const invalidated = new Set(await observeLinkedIntegrations(ctx, execution))
-    data.mcpServers = data.mcpServers.map((server) =>
-      server.integrationId && invalidated.has(server.integrationId)
-        ? { ...server, enabled: false }
-        : server,
-    )
+    if (invalidated.size) {
+      data = await ctx.runQuery(internal.streams._getContext, execution)
+      if (!data) return null
+    }
   }
   const needsPersonalWorkspace =
     hasFilesystemTools(chosen) || chosen.includes('list_skills')
@@ -61,7 +63,6 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
   // Only needed while resolving a manifest
   const needsShell =
     invokesTools &&
-    !data.sessionCache?.tools &&
     data.agent.tools?.includes('shell') &&
     !!data.session.workspace &&
     minRole(data.invoker.role, 'admin')
@@ -80,7 +81,24 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
   }
 
   const availability = await prepareToolAvailability(ctx, data)
-  const operationPlan = createOperationPlan(data, defaultShell, availability)
+  const runtime = invokesTools
+    ? await prepareSessionTools(
+        ctx,
+        data,
+        resolveToolManifest({
+          ...data,
+          resources: toolResources(data),
+          defaultShell,
+          availability,
+        }),
+      )
+    : undefined
+  const operationPlan = createOperationPlan(
+    data,
+    defaultShell,
+    availability,
+    runtime,
+  )
 
   // Frozen prompts skip evaluation (see snapshots.ts)
   let evalResult: PromptEvalResult = {
@@ -137,19 +155,46 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
     })
   }
 
+  const source = runtime ? await capabilitySource(data) : undefined
+  const capabilitiesChanged =
+    runtime &&
+    (source !== data.sessionCache?.capabilitySource ||
+      stableStringify(runtime.current) !==
+        stableStringify(data.sessionCache?.effectiveTools) ||
+      availability.source !== data.stream.skillCatalogSource)
+  if (runtime && capabilitiesChanged) {
+    const accepted = await ctx.runMutation(
+      internal.streams._prepareCapabilities,
+      {
+        ...execution,
+        source: source!,
+        manifest: runtime.current,
+        contextId: runtime.frozen.contextId!,
+        skillCatalogSource: availability.source,
+        skillAvailability: {
+          skills: !!availability.skills,
+          integrationSkills: !!availability.integrationSkills,
+        },
+      },
+    )
+    if (!accepted) {
+      await ctx.runMutation(internal.streams._handoff, execution)
+      return null
+    }
+  }
+
   const contextPrepared = await prepareToolContext(
     ctx,
     execution,
     data,
     operationPlan.toolNames,
+    runtime?.frozen.contextId,
+    availability,
   )
   if (!contextPrepared) return null
 
-  const { systemPrompt, messages, tools } = await operationPlan.buildRequest(
-    ctx,
-    data,
-    evalResult,
-  )
+  const { systemPrompt, messages, tools, toolRuntime } =
+    await operationPlan.buildRequest(ctx, data, evalResult)
 
   const credentials = findCredentialsForModel(
     data.modelProviders,
@@ -212,6 +257,7 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
     requestLog,
     cacheDiagnostics,
     tools,
+    toolRuntime,
     hasActiveMedia: data.hasActiveMedia || hasToolResultMedia(messages),
   }
 }

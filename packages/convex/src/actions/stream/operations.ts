@@ -23,6 +23,7 @@ import {
   resolveToolManifest,
 } from '../../model/tool/manifest'
 import type { ToolAvailability } from '../../model/tool/manifest'
+import type { SessionTools } from '../../model/tool/sessionTools'
 import type { ToolResources } from '../../model/tool/settings'
 import type { Prompt, StreamContext } from '../../types'
 import { buildProviderHistory } from './history'
@@ -34,6 +35,7 @@ export type PromptEvalResult = {
 }
 
 export type ProviderRequest = {
+  toolRuntime?: SessionTools
   systemPrompt: string | undefined
   messages: Awaited<ReturnType<typeof buildProviderHistory>>
   tools: ToolSet
@@ -66,6 +68,7 @@ export function createOperationPlan(
   data: StreamContext,
   defaultShell?: string,
   availability?: ToolAvailability,
+  runtime?: SessionTools,
 ): OperationPlan {
   const prompts = removeStarterPrompts(
     mergePrompts(
@@ -90,7 +93,7 @@ export function createOperationPlan(
     )
   }
 
-  return createInvokePlan(data, prompts, defaultShell, availability)
+  return createInvokePlan(data, prompts, defaultShell, availability, runtime)
 }
 
 function createInvokePlan(
@@ -98,6 +101,7 @@ function createInvokePlan(
   prompts: PromptItem[],
   defaultShell?: string,
   availability?: ToolAvailability,
+  runtime?: SessionTools,
 ): OperationPlan {
   const plan = planSnapshotEval({ cache: data.sessionCache, prompts })
 
@@ -110,6 +114,7 @@ function createInvokePlan(
     shareAgentDisplayNames: !!data.agent.shareAgentDisplayNames,
   }
   const manifest =
+    runtime?.frozen ??
     frozenTools ??
     resolveToolManifest({
       ...data,
@@ -120,7 +125,7 @@ function createInvokePlan(
 
   return {
     evalItems: plan.evalItems,
-    toolNames: manifest.names,
+    toolNames: runtime?.current.names ?? manifest.names,
     snapshotPatch: (evalResult) => {
       const patch = plan.snapshotPatch(evalResult.items)
       const capturesTools = manifest !== frozenTools
@@ -137,6 +142,7 @@ function createInvokePlan(
         data,
         plan.requestItems(evalResult.items),
         manifest,
+        runtime,
       ),
   }
 }
@@ -167,6 +173,7 @@ async function buildInvokeRequest(
   data: StreamContext,
   prompts: PromptItem[],
   manifest: ToolManifest,
+  runtime?: SessionTools,
 ): Promise<ProviderRequest> {
   const { systemPrompt, remainingPrompts } = buildSystemPrompt(
     prompts,
@@ -180,30 +187,35 @@ async function buildInvokeRequest(
       remainingPrompts,
       manifest.names,
       manifest.version ?? 1,
+      manifest.contextId,
+      runtime,
     ),
   ])
 
   return {
     systemPrompt,
     messages,
-    tools: await getEnabledTools(
-      manifest,
-      { ...data.session, toolApprovals: data.toolApprovals },
-      toolResources(data),
-      {
-        ctx,
-        autoApprove: data.agent.autoApprove,
-        omitMcpMedia: data.stream.omitActiveMedia,
-        messageId: data.output._id,
-        messageCreatedAt: data.output._creationTime,
-        agentId: data.agent._id,
-        invokedBy: data.stream.invokedBy,
-        execution: {
-          streamId: data.stream._id,
-          generation: data.stream.generation,
+    toolRuntime: runtime,
+    tools:
+      runtime?.tools ??
+      (await getEnabledTools(
+        manifest,
+        { ...data.session, toolApprovals: data.toolApprovals },
+        toolResources(data),
+        {
+          ctx,
+          autoApprove: data.agent.autoApprove,
+          omitMcpMedia: data.stream.omitActiveMedia,
+          messageId: data.output._id,
+          messageCreatedAt: data.output._creationTime,
+          agentId: data.agent._id,
+          invokedBy: data.stream.invokedBy,
+          execution: {
+            streamId: data.stream._id,
+            generation: data.stream.generation,
+          },
         },
-      },
-    ),
+      )),
   }
 }
 

@@ -188,6 +188,7 @@ test('a filesystem-authorized prompt snapshot cannot cross into an unprivileged 
     filesystemAccess: true,
     workspaceRevision: '[]',
     items: [{ content: 'Previously read personal file' }],
+    tools: { contextId: 'context', names: [] },
   })
   expect(await getBySessionAgent(ctx, sessionId, agentId, true)).not.toBeNull()
   expect(await getBySessionAgent(ctx, sessionId, agentId, false)).toBeNull()

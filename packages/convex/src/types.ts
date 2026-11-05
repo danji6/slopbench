@@ -42,11 +42,13 @@ export type StreamContext = {
   agent: AgentWithHome
   hasStoredMcpOutput?: boolean
   hasIntegrationSkills?: boolean
+  integrationContext?: Infer<typeof V.integrationContextValidator>[]
+  integrationSkillRevision?: string
   invoker: Doc<'users'>
   invokerSettings: Doc<'settings'> | null
   owner: Doc<'users'>
   ownerSettings: Doc<'settings'> | null
-  output: Doc<'messages'>
+  output: Doc<'messages'> & { parts: unknown[] }
   settings: Doc<'settings'> | null
   /** Every prompt set the agent resolves to, from the `prompts` table. */
   prompts: PromptSets
@@ -80,6 +82,7 @@ export type PrepareContextNoteArgs = Infer<
  * that owns them.
  */
 export type MessageExtra = {
+  capabilities: Infer<typeof V.skillsExtraValidator>
   mcp: Infer<typeof V.skillsExtraValidator>
   skills: Infer<typeof V.skillsExtraValidator>
   /** Snapshot of the reminder prompt that produced an injected message. */
@@ -285,3 +288,5 @@ export type ProviderContinuityScope = Infer<typeof ProviderRequestsV.providerCon
 export type PrepareProviderRequestArgs = Infer<typeof StreamsV.prepareProviderRequestArgsValidator> // prettier-ignore
 export type SaveProviderContinuityArgs = Infer<typeof StreamsV.saveProviderContinuityArgsValidator> // prettier-ignore
 export type RecordCacheDiagnosticArgs = Infer<typeof StreamsV.recordCacheDiagnosticArgsValidator> // prettier-ignore
+export type PrepareCapabilitiesArgs = Infer<typeof V.prepareCapabilitiesArgsValidator> // prettier-ignore
+export type AssertToolAccessArgs = Infer<typeof V.assertToolAccessArgsValidator>

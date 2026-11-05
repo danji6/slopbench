@@ -1,5 +1,6 @@
 import { ASK_TOOL_NAME } from '@sb/core/const'
 import { READ_ATTACHMENT_TOOL_NAME } from '@sb/core/const'
+import type { WireToolCall } from '@sb/core/tool-dispatch'
 import type { ToolSet } from 'ai'
 
 import { internal } from '../../_generated/api'
@@ -50,6 +51,7 @@ export type ToolSession = Pick<Session, '_id' | 'workspace' | 'parent'> & {
 }
 
 export type ToolBuildOptions = {
+  wireCalls?: Map<string, WireToolCall>
   omitMcpMedia?: boolean
   ctx?: ActionCtx
   /** The agent's own approvals, merged into the session's. */
@@ -64,8 +66,8 @@ export type ToolBuildOptions = {
 }
 
 /**
- * Builds the tool set from a cached manifest, kept stable to prevent provider
- * cache invalidation.
+ * Builds execution behavior for a resolved manifest. Session tools freeze its
+ * provider shape separately.
  */
 export async function getEnabledTools(
   manifest: ToolManifest,
@@ -129,6 +131,7 @@ export async function getEnabledTools(
         ctx && options?.execution && options.messageId
           ? {
               ctx,
+              wireCalls: options.wireCalls,
               execution: options.execution,
               messageId: options.messageId,
               omitMedia: options.omitMcpMedia,

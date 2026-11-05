@@ -12,6 +12,7 @@ import { getSessionWithWorkspace } from '../session/folderContext'
 import * as Memberships from '../session/memberships'
 import { APPROVAL_LEASE_MS } from '../stream/lifecycle'
 import { resumeIfSettled } from '../stream/subagents'
+import { sessionToolNames } from '../tool/selection'
 import { type ApprovedTool, rememberApproval } from './approvalMemory'
 
 type ApprovalResponse = Pick<
@@ -57,11 +58,15 @@ export async function approveTool(ctx: AuthMutationCtx, args: ApproveToolArgs) {
     toolCallId: args.toolCallId,
   })
 
-  if (args.approved) {
+  const agent = await ctx.db.get(stream.agentId)
+  const names = agent
+    ? await sessionToolNames(ctx, session._id, agent, stream.invokedBy)
+    : []
+  const approvedEnabledTool = args.approved && names.includes(matched.toolName)
+  if (approvedEnabledTool) {
     await applyPlanModeTransition(ctx, stream, matched.toolName)
   }
-
-  if (args.approved && args.remember) {
+  if (approvedEnabledTool && args.remember) {
     await rememberApproval(ctx, session, matched, args.remember)
   }
 

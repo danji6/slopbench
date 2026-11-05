@@ -48,7 +48,7 @@ test('project discovery stays at its selected root and returns bounded, determin
     })
     expect(first.fingerprint).toBe(second.fingerprint)
     await skill(root, 'skill-042', 'skill-042', 'Edited body')
-    expect((await projectSkillCatalog(input)).fingerprint).toBe(
+    expect((await projectSkillCatalog(input)).fingerprint).not.toBe(
       first.fingerprint,
     )
     await skill(root, 'skill-042', 'Changed metadata')

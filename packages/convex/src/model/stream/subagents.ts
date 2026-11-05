@@ -1,4 +1,4 @@
-import { hasPendingQuestions } from '@sb/core/utils/ask'
+import { hasPendingQuestions, isPendingAskPart } from '@sb/core/utils/ask'
 import { hasPendingToolApprovals } from '@sb/core/utils/tool-parts'
 
 import type { Doc, Id } from '../../_generated/dataModel'
@@ -92,6 +92,25 @@ export async function _suspendStep(
       })
     }
     await patchSegmentParts(ctx, stream.state.processingMessageId, row, parts)
+  }
+
+  if (!session.parent && hasPendingQuestions(parts)) {
+    const agent = await ctx.db.get(stream.agentId)
+    const names = agent
+      ? await sessionToolNames(ctx, session._id, agent, stream.invokedBy)
+      : []
+    if (!names.includes('ask')) {
+      parts = parts.map((part) =>
+        isPendingAskPart(part)
+          ? {
+              ...part,
+              state: 'output-error',
+              errorText: 'Ask questions is no longer enabled.',
+            }
+          : part,
+      )
+      await patchSegmentParts(ctx, stream.state.processingMessageId, row, parts)
+    }
   }
 
   if (!session.parent && hasPendingQuestions(parts)) {

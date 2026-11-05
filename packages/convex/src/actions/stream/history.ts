@@ -1,6 +1,7 @@
 'use node'
 
 import { READ_ATTACHMENT_TOOL_NAME } from '@sb/core/const'
+import { contextNoteSegments } from '@sb/core/context-notes'
 import { selectedBuiltinTools } from '@sb/core/tool-capabilities'
 import {
   TOOL_CONTEXT_POLICY_VERSION,
@@ -14,6 +15,8 @@ import { internal } from '../../_generated/api'
 import type { ActionCtx } from '../../_generated/server'
 import { trimContextToThreshold } from '../../model/context'
 import { buildPrompts } from '../../model/prompt/prompts'
+import { rememberWireCalls } from '../../model/tool/dispatchTransport'
+import type { SessionTools } from '../../model/tool/sessionTools'
 import type { MessageRole, StreamContext } from '../../types'
 import { activeAttachmentMessages } from './attachmentHistory'
 import { collectApprovalNotes } from './historyApprovals'
@@ -36,6 +39,8 @@ export async function buildProviderHistory(
   remainingPrompts: Parameters<typeof buildPrompts>[0],
   toolNames?: string[],
   manifestVersion?: number,
+  contextId = data.sessionCache?.tools?.contextId,
+  runtime?: SessionTools,
 ) {
   const historyAgent = {
     ...data.agent,
@@ -45,6 +50,12 @@ export async function buildProviderHistory(
     streamId: data.stream._id,
     generation: data.stream.generation,
   })
+
+  if (runtime) {
+    for (const row of rows) rememberWireCalls(row.parts, runtime)
+    rememberWireCalls(data.output.parts, runtime)
+  }
+
   const names =
     toolNames ??
     data.sessionCache?.tools?.names ??
@@ -53,8 +64,10 @@ export async function buildProviderHistory(
     manifestVersion ??
     data.sessionCache?.tools?.version ??
     TOOL_CONTEXT_POLICY_VERSION
-  const history = rows.filter((message) =>
-    canReplayToolContext(message, names, data.agent._id, version),
+  const history = contextNoteSegments(
+    rows.filter((message) =>
+      canReplayToolContext(message, names, data.agent._id, version, contextId),
+    ),
   )
   const activeMediaMessages = activeAttachmentMessages(
     history,

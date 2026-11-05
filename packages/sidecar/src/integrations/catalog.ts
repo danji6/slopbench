@@ -28,6 +28,7 @@ export const integrationCatalogSchema = z.object({
         origin: z.string().optional(),
         canonicalDirectory: z.string().optional(),
         error: z.string().optional(),
+        revision: z.string().optional(),
       }),
     )
     .max(5000)
@@ -56,12 +57,18 @@ export async function integrationSkillCatalog(input: CatalogInput) {
   const hash = createHash('sha256')
   const ordered = [...entries]
 
+  const availability = { skills: false, integrationSkills: false }
   for (const [key, entry] of ordered) {
+    if (!entry.error) {
+      availability.skills = true
+      availability.integrationSkills ||= entry.path.startsWith('integration://')
+    }
     hash.update(JSON.stringify([key, entry]))
     selection.add(entry)
   }
 
   return {
+    availability,
     entries: selection.entries,
     total: selection.total(),
     fingerprint: hash.digest('hex'),

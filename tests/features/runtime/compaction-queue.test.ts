@@ -231,3 +231,80 @@ test('an attachment-only message during automatic compaction requests a reply', 
     contextBoundaryMessageId: messageId,
   })
 })
+
+test.each([false, true])(
+  'successful compaction resets every agent snapshot and releases pins (automatic: %s)',
+  async (automatic) => {
+    const state = fixture()
+    for (const agentId of ['agent', 'other-agent']) {
+      const cacheId = await state.db.insert('sessionCache', {
+        sessionId,
+        agentId,
+        items: [],
+        tools: {
+          names: ['docs_work'],
+          mcp: [{ name: 'docs_work', definitionRef: 'definition' }],
+        },
+      })
+      await state.db.insert('mcpCatalogPins', {
+        cacheId,
+        catalogId: `catalog-${agentId}`,
+      })
+    }
+    await state.db.insert('sessionCache', {
+      sessionId: 'unrelated',
+      agentId: 'agent',
+      items: [],
+    })
+    await state.db.insert('sessionState', {
+      sessionId,
+      environment: { saved: 'value' },
+      toolApprovals: { tools: ['read_file'] },
+      stepCount: 4,
+    })
+    const execution = await compact(state)
+    const stream = await state.db.get(execution.streamId)
+    await state.db.patch(execution.streamId, {
+      command: { ...(stream!.command as object), autoCompact: automatic },
+    })
+    await _claim(state.ctx, execution)
+    await finish(state, execution)
+    expect(state.rows('sessionCache')).toMatchObject([
+      { sessionId: 'unrelated' },
+    ])
+    expect(state.rows('mcpCatalogPins')).toHaveLength(0)
+    expect(state.rows('sessionState')[0]).toMatchObject({
+      environment: { saved: 'value' },
+      toolApprovals: { tools: ['read_file'] },
+    })
+  },
+)
+
+test.each(['failed', 'stopped'])(
+  'unsuccessful compaction preserves the captured context (%s)',
+  async (outcome) => {
+    const state = fixture()
+    await state.db.insert('sessionCache', {
+      sessionId,
+      agentId: 'agent',
+      items: [],
+      tools: { contextId: 'keep', names: [] },
+    })
+    const execution = await compact(state)
+    await _claim(state.ctx, execution)
+    const { _fail, _finalizeStopped } =
+      await import('@sb/convex/model/stream/lifecycleTerminal')
+    if (outcome === 'failed')
+      await _fail(state.ctx, { ...execution, message: 'Provider failed' })
+    else {
+      const stream = await state.db.get(execution.streamId)
+      await state.db.patch(execution.streamId, {
+        state: { ...(stream!.state as object), phase: 'stopping' },
+      })
+      await _finalizeStopped(state.ctx, { streamId: execution.streamId })
+    }
+    expect(state.rows('sessionCache')).toMatchObject([
+      { tools: { contextId: 'keep' } },
+    ])
+  },
+)

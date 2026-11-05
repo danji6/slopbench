@@ -9,7 +9,7 @@ import { getSessionWithWorkspace, workspaceKey } from './folderContext'
  * - Row absence means the entry needs to be (re)computed.
  * - `getVar()` inside a frozen prompt reads the environment as of capture time.
  * - `tools` is just the shape, their behavior is rebuilt live every step.
- * - Invalidated by `/eval`, a privilege change, or session removal.
+ * - Invalidated by `/eval`, successful compaction, or session removal.
  * - Filesystem authority and grants are resolved independently of this snapshot.
  */
 export async function getBySessionAgent(
@@ -19,9 +19,8 @@ export async function getBySessionAgent(
   filesystemAccess = false,
 ) {
   const row = await findCache(ctx, sessionId, agentId)
-  return row && (row.filesystemAccess ?? false) === filesystemAccess
-    ? row
-    : null
+  const sameAuthority = (row?.filesystemAccess ?? false) === filesystemAccess
+  return row?.tools?.contextId && sameAuthority ? row : null
 }
 
 async function findCache(
@@ -50,6 +49,8 @@ export async function _save(ctx: MutationCtx, args: SaveSessionCacheArgs) {
   if (existing) {
     await ctx.db.patch(existing._id, {
       ...(args.items && { items: args.items }),
+      ...(args.effectiveTools && { effectiveTools: args.effectiveTools }),
+      ...(args.capabilitySource && { capabilitySource: args.capabilitySource }),
       ...(args.tools && { tools: args.tools }),
       ...(args.historyPresentation && {
         historyPresentation: args.historyPresentation,
@@ -74,6 +75,8 @@ export async function _save(ctx: MutationCtx, args: SaveSessionCacheArgs) {
     agentId: args.agentId,
     items: args.items ?? [],
     tools: args.tools,
+    effectiveTools: args.effectiveTools,
+    capabilitySource: args.capabilitySource,
     historyPresentation: args.historyPresentation,
     capturedAt,
     homeId,

@@ -10,6 +10,7 @@ import {
 
 type Part = {
   type: 'tool-shell'
+  wireCall?: { name: string; input: unknown }
   toolCallId: string
   input: { command: string }
   state: string
@@ -19,6 +20,17 @@ type Part = {
 const part = (id: string): Part => ({
   type: 'tool-shell',
   toolCallId: id,
+  ...(new URLSearchParams(location.search).has('dispatched')
+    ? {
+        wireCall: {
+          name: 'call_tool',
+          input: {
+            name: 'shell',
+            arguments: { command: `git push origin ${id}` },
+          },
+        },
+      }
+    : {}),
   input: { command: `git push origin ${id}` },
   state: 'approval-requested',
   approval: { id },

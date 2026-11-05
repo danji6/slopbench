@@ -1,3 +1,4 @@
+import { isContextNote } from './context-notes'
 import {
   BUILTIN_TOOL_NAMES,
   FILESYSTEM_TOOL_NAMES,
@@ -57,7 +58,16 @@ export function canReplayToolContext(
   names: readonly string[],
   agentId: string,
   version = 1,
+  contextId?: string,
 ) {
+  if (contextId && isContextNote(note.type)) {
+    return (
+      note.sender.id === agentId &&
+      !!note.extra &&
+      'contextId' in note.extra &&
+      note.extra.contextId === contextId
+    )
+  }
   if (!['workspace', 'skills', 'mcp'].includes(note.type ?? '')) {
     return true
   }

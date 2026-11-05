@@ -23,6 +23,7 @@ import { settleRequest } from '../notificationRequests'
 import * as Memberships from '../session/memberships'
 import { getByOwnerId as getSettingsByOwnerId } from '../settings'
 import { resumeIfSettled } from '../stream/subagents'
+import { sessionToolNames } from '../tool/selection'
 
 /** Answers one pending client-executed Q&A call and resumes when possible. */
 export async function answerQuestions(
@@ -48,16 +49,29 @@ export async function answerQuestions(
     error('Question request not found', 409)
   }
 
-  const settings = await getSettingsByOwnerId(ctx, ctx.userId)
-  const output = buildAskToolOutput(
-    part.input,
-    args.answers,
-    toDisplayName(settings?.displayName),
-  )
+  const agent = await ctx.db.get(stream.agentId)
+  const names = agent
+    ? await sessionToolNames(ctx, stream.sessionId, agent, stream.invokedBy)
+    : []
+  const completed = names.includes('ask')
+    ? {
+        ...part,
+        state: 'output-available',
+        output: buildAskToolOutput(
+          part.input,
+          args.answers,
+          toDisplayName(
+            (await getSettingsByOwnerId(ctx, ctx.userId))?.displayName,
+          ),
+        ),
+      }
+    : {
+        ...part,
+        state: 'output-error',
+        errorText: 'Ask questions is no longer enabled.',
+      }
   const parts = row.parts.map((candidate) =>
-    candidate === part
-      ? { ...part, state: 'output-available' as const, output }
-      : candidate,
+    candidate === part ? completed : candidate,
   )
 
   await patchSegmentParts(ctx, stream.state.processingMessageId, row, parts)

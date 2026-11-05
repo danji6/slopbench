@@ -9,15 +9,45 @@ import { assertPlainPath } from './storage'
 
 /** Reads only the bounded frontmatter prefix, irrespective of the skill's body size. */
 export async function readSkillMetadata(root: string): Promise<SkillMetadata> {
+  return (await readMetadata(root)).metadata
+}
+
+/** Includes file identity so body edits invalidate catalog context without reading the body. */
+export async function readSkillCatalogMetadata(root: string) {
+  const { metadata, revision } = await readMetadata(root)
+  return { ...metadata, revision }
+}
+
+async function readMetadata(root: string) {
   const filename = path.join(root, 'SKILL.md')
   await assertPlainPath(filename)
   const file = await open(filename, 'r')
+
   try {
-    if (!(await file.stat()).isFile())
-      throw new Error('SKILL.md must be a regular file')
+    const before = await file.stat()
+    if (!before.isFile()) throw new Error('SKILL.md must be a regular file')
+
     const buffer = Buffer.alloc(SKILL_HEADER_READ_BYTES)
     const { bytesRead } = await file.read(buffer, 0, buffer.length, 0)
-    return parseSkillMetadata(buffer.subarray(0, bytesRead).toString('utf8'))
+    const after = await file.stat()
+
+    const revision = (value: typeof before) =>
+      JSON.stringify([
+        value.dev,
+        value.ino,
+        value.size,
+        value.mtimeMs,
+        value.ctimeMs,
+      ])
+    if (revision(before) !== revision(after))
+      throw new Error('Skill changed while reading metadata')
+
+    return {
+      metadata: parseSkillMetadata(
+        buffer.subarray(0, bytesRead).toString('utf8'),
+      ),
+      revision: revision(after),
+    }
   } finally {
     await file.close()
   }

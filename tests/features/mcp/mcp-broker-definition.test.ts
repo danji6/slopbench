@@ -87,6 +87,11 @@ test('default definitions are call-ready JSON with intact references and no outp
       ),
     ).rejects.toThrow('arguments rejected')
     expect(f.rows('mcpOperations')).toHaveLength(0)
+    const wireCall = {
+      name: 'call_tool',
+      input: { name: 'call_mcp_tool', arguments: input },
+    }
+    f.wireCalls.set(f.options().toolCallId, wireCall)
     await expect(
       f.broker.call_mcp_tool.execute!(
         { ...input, arguments: { invalidOutput: true } },
@@ -96,9 +101,18 @@ test('default definitions are call-ready JSON with intact references and no outp
     const operation = f.rows('mcpOperations')[0]
     expect(operation.state).toBe('completed')
     expect(operation.error).toContain('MCP output rejected')
+    const recovered = await mergeOperationParts(f.ctx, f.contentId, [])
+    expect(recovered[0]).toMatchObject({
+      wireCall,
+      toolCallId: operation.toolCallId,
+    })
     const projected = await mergeOperationParts(f.ctx, f.contentId, [
       {
         type: 'tool-call_mcp_tool',
+        wireCall: {
+          name: 'call_tool',
+          input: { name: 'call_mcp_tool', arguments: input },
+        },
         toolCallId: operation.toolCallId,
         state: 'output-available',
         errorText: undefined,
@@ -107,6 +121,10 @@ test('default definitions are call-ready JSON with intact references and no outp
     expect(projected).toMatchObject([
       {
         state: 'output-error',
+        wireCall: {
+          name: 'call_tool',
+          input: { name: 'call_mcp_tool', arguments: input },
+        },
         errorText: operation.error,
         output: { kind: 'mcp-result' },
       },
@@ -136,6 +154,10 @@ test('default definitions are call-ready JSON with intact references and no outp
     expect((await f.db.get(f.contentId))?.parts).toMatchObject([
       {
         state: 'output-error',
+        wireCall: {
+          name: 'call_tool',
+          input: { name: 'call_mcp_tool', arguments: input },
+        },
         errorText: operation.error,
       },
     ])

@@ -20,6 +20,9 @@ test('current MCP guidance crosses the frozen history boundary and other agents 
       contextEligible: true,
       hidden: true,
       type: 'mcp',
+      ...(id === 'current' && {
+        extra: { anchorMessageId: 'output', anchorPartCount: 0 },
+      }),
       selectedVersion: 1,
     })
     await f.db.insert('messageContents', {
@@ -34,9 +37,8 @@ test('current MCP guidance crosses the frozen history boundary and other agents 
     sessionId: 'session',
     generation: 1,
     contextBoundaryCreationTime: 10,
-    mcpContextMessageId: 'current',
     command: { kind: 'invoke' },
-    state: { phase: 'streaming' },
+    state: { phase: 'streaming', processingMessageId: 'output' },
   })) as Id<'streams'>
   const history = await _getProviderHistory(f.ctx, { streamId, generation: 1 })
   expect(history.map((message) => String(message._id))).toEqual([

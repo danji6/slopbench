@@ -207,6 +207,7 @@ export default defineSchema({
     .index('by_ownerId_order', ['ownerId', 'order']),
 
   messages: defineTable(messageSchema)
+    .index('by_sessionId_contextAnchor', ['sessionId', 'extra.anchorMessageId'])
     .index('by_sessionId', ['sessionId'])
     .index('by_sessionId_senderType', ['sessionId', 'sender.type'])
     .index('by_sessionId_sender', ['sessionId', 'sender.type', 'sender.id'])

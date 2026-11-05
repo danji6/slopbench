@@ -194,11 +194,15 @@ describe('plan approval timing', () => {
     const events: Array<{ id: string; patch: Record<string, unknown> }> = []
     const docs = new Map<string, Record<string, unknown>>([
       ['session_1', { _id: 'session_1', mode: 'plan' }],
+      ['agent_1', { _id: 'agent_1', tools: ['plan'] }],
+      ['user_1', { _id: 'user_1', role: 'admin' }],
       [
         'stream_1',
         {
           _id: 'stream_1',
           sessionId: 'session_1',
+          agentId: 'agent_1',
+          invokedBy: 'user_1',
           leaseExpiresAt: Date.now() + 10_000,
           command: { kind: 'invoke', mode: 'plan' },
           state: {

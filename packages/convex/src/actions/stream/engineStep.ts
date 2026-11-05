@@ -14,6 +14,10 @@ import {
 import { toolStateSignature } from '../../model/stream/toolOutput'
 import { stopWhenInactive } from '../../model/stream/transformers'
 import { resolveUsage } from '../../model/stream/usage'
+import {
+  attachWireCalls,
+  dispatchLanguageModel,
+} from '../../model/tool/dispatchTransport'
 import type { StreamExecutionArgs } from '../../types'
 import { hasAwaitingApproval } from './engineApproval'
 import { attachApprovalPreviews } from './engineApproval'
@@ -100,14 +104,18 @@ export async function consumeProviderStep(
   /** Everything a parts array needs before it can be persisted. */
   const prepareParts = async (parts: UIMessage['parts']) =>
     applyReasoningDurations(
-      await offloadLargeParts(ctx, parts, {
-        toolCache: offloadCache,
-        fileCache,
-        ...execution,
-        messageId: setup.output._id,
-        sessionId: setup.stream.sessionId,
-        uploaderId: setup.stream.invokedBy,
-      }),
+      await offloadLargeParts(
+        ctx,
+        setup.toolRuntime ? attachWireCalls(parts, setup.toolRuntime) : parts,
+        {
+          toolCache: offloadCache,
+          fileCache,
+          ...execution,
+          messageId: setup.output._id,
+          sessionId: setup.stream.sessionId,
+          uploaderId: setup.stream.invokedBy,
+        },
+      ),
       reasoningTracker,
       initialPartCount,
     )
@@ -119,7 +127,12 @@ export async function consumeProviderStep(
   try {
     const startedAt = Date.now()
     const result = streamText({
-      model: setup.resolved.languageModel,
+      model: setup.toolRuntime
+        ? await dispatchLanguageModel(
+            setup.resolved.languageModel,
+            setup.toolRuntime,
+          )
+        : setup.resolved.languageModel,
       system: setup.systemPrompt,
       allowSystemInMessages: true,
       messages: setup.messages,

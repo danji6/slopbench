@@ -27,11 +27,11 @@ export function guardMcpApproval(tool: ToolSet[string]): ToolSet[string] {
         return false
       }
     },
-    execute: async (input, options) => {
+    execute: (input, options) => {
       const failure = failures.get(options.toolCallId)
       if (failure) {
         failures.delete(options.toolCallId)
-        throw failure
+        return Promise.reject(failure)
       }
       return execute(input, options)
     },

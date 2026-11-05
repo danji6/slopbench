@@ -396,6 +396,7 @@ describe('answerQuestions mutation', () => {
       _id: 'stream_1',
       sessionId: session._id,
       agentId: 'agent_1',
+      invokedBy: 'user_1',
       leaseExpiresAt: Date.now() + 60_000,
       state: {
         phase: 'awaiting_input',
@@ -421,7 +422,14 @@ describe('answerQuestions mutation', () => {
       ],
     }
     const docs = new Map(
-      [session, stream, message, content].map((doc) => [doc._id, doc]),
+      [
+        session,
+        stream,
+        message,
+        content,
+        { _id: 'agent_1', tools: ['ask'] },
+        { _id: 'user_1', role: 'admin' },
+      ].map((doc) => [doc._id, doc]),
     )
     const scheduled: unknown[][] = []
     const ctx = {

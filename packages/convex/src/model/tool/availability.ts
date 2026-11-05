@@ -3,44 +3,61 @@
 import type { ActionCtx } from '../../_generated/server'
 import { minRole } from '../../lib/roles'
 import type { StreamContext } from '../../types'
+import type { PreparedSkillCatalog } from '../skills/runtime'
+import { skillCatalogSource } from './capabilitySource'
 import type { ToolAvailability } from './manifest'
 
-/** Reads metadata only when a fresh manifest explicitly opts into skills. */
+export type PreparedAvailability = ToolAvailability & {
+  catalog?: PreparedSkillCatalog
+  source: string
+}
+
+/** Scans once per invocation, repeating only when managed skill configuration changes. */
 export async function prepareToolAvailability(
   ctx: ActionCtx,
   data: StreamContext,
-): Promise<ToolAvailability> {
-  const availability: ToolAvailability = {
+): Promise<PreparedAvailability> {
+  const source = skillCatalogSource(data)
+
+  const availability: PreparedAvailability = {
+    source,
+    skills: false,
+    integrationSkills: false,
     storedMcpOutput: data.hasStoredMcpOutput,
   }
-  if (data.sessionCache?.tools) return availability
-  if (!data.agent.tools?.includes('skills')) return availability
-  if (!minRole(data.invoker.role, 'admin')) return availability
-  if (!['invoke', 'retry'].includes(data.stream.command.kind))
-    return availability
 
-  const { readSkillCatalog } = await import('../skills/runtime')
-  let cursor: string | null = null
-  do {
-    const page = await readSkillCatalog(
-      ctx,
-      data.agent,
-      data.session.workspace,
-      cursor,
-      undefined,
-      data.session._id,
-    )
-    const readable = page.entries.filter((entry) => !entry.error)
-    availability.skills ||= readable.length > 0
-    availability.integrationSkills ||= readable.some((entry) =>
-      entry.path.startsWith('integration://'),
-    )
-    cursor = page.cursor
-    const foundRequiredOrigins =
-      availability.skills &&
-      (!data.hasIntegrationSkills || availability.integrationSkills)
-    if (foundRequiredOrigins) break
-    if (page.isDone) break
-  } while (cursor)
+  const readsSkills =
+    data.agent.tools?.includes('skills') &&
+    minRole(data.invoker.role, 'admin') &&
+    ['invoke', 'retry'].includes(data.stream.command.kind)
+  if (!readsSkills) return availability
+
+  if (
+    data.sessionCache?.tools?.contextId &&
+    data.stream.skillCatalogSource === source
+  ) {
+    return { ...availability, ...data.stream.skillAvailability }
+  }
+
+  const { compactSkillCatalog } = await import('../skills/runtime')
+
+  const catalog = await compactSkillCatalog(
+    ctx,
+    data.agent,
+    data.session.workspace,
+    data.session._id,
+  )
+
+  availability.catalog = catalog
+
+  const found = catalog.availability ?? {
+    skills: catalog.entries.some((entry) => !entry.error),
+    integrationSkills: catalog.entries.some(
+      (entry) => !entry.error && entry.path.startsWith('integration://'),
+    ),
+  }
+
+  Object.assign(availability, found)
+
   return availability
 }

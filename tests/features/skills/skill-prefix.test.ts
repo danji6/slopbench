@@ -20,9 +20,6 @@ async function writeSkill(
   )
 }
 
-const wireTools = (tools: Record<string, unknown>) =>
-  JSON.stringify(tools, (key, value) => (key === 'execute' ? undefined : value))
-
 test('project edits and discovery toggles append context without rewriting the provider prefix', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'skill-prefix-'))
   const fixture = skillRequests(root)
@@ -50,7 +47,9 @@ test('project edits and discovery toggles append context without rewriting the p
 
     const second = (await fixture.nextTurn())!
     expect(second.systemPrompt).toBe(first.systemPrompt)
-    expect(wireTools(second.tools)).toBe(wireTools(first.tools))
+    expect(second.toolRuntime!.frozen.definitions).toEqual(
+      first.toolRuntime!.frozen.definitions,
+    )
     expect(second.messages.slice(0, first.messages.length)).toEqual(
       first.messages,
     )
@@ -65,9 +64,12 @@ test('project edits and discovery toggles append context without rewriting the p
 
     await writeSkill(root, 'Check changed code', 'Edited instructions')
     const third = (await fixture.nextTurn())!
+    expect(JSON.stringify(third.messages.at(-1))).toContain(
+      'Re-read the SKILL.md',
+    )
     expect(
       fixture.rows('messages').filter((row) => row.type === 'skills'),
-    ).toHaveLength(2)
+    ).toHaveLength(3)
     expect(third.messages.slice(0, second.messages.length)).toEqual(
       second.messages,
     )
@@ -75,7 +77,9 @@ test('project edits and discovery toggles append context without rewriting the p
     fixture.folder.sources[0]!.discoverSkills = false
     const fourth = (await fixture.nextTurn())!
     expect(fourth.systemPrompt).toBe(first.systemPrompt)
-    expect(wireTools(fourth.tools)).toBe(wireTools(first.tools))
+    expect(fourth.toolRuntime!.frozen.definitions).toEqual(
+      first.toolRuntime!.frozen.definitions,
+    )
     expect(fourth.messages.slice(0, third.messages.length)).toEqual(
       third.messages,
     )
@@ -193,8 +197,12 @@ test('folder renames, source changes, and personal-folder changes preserve the f
       folderId: 'folder' as never,
       name: 'Renamed repo',
     })
-    // A provider retry never rewrites or adds context to a request already sent.
-    expect((await fixture.repeat())!.messages).toEqual(previous.messages)
+    // Live configuration changes append notes at the next provider boundary.
+    const renamed = (await fixture.repeat())!
+    expect(renamed.messages.slice(0, previous.messages.length)).toEqual(
+      previous.messages,
+    )
+    previous = renamed
 
     const transitions = [
       () => {}, // The pending rename is announced on the next logical invocation.
@@ -220,7 +228,9 @@ test('folder renames, source changes, and personal-folder changes preserve the f
       transition()
       const next = (await fixture.nextTurn())!
       expect(next.systemPrompt).toBe(previous.systemPrompt)
-      expect(wireTools(next.tools)).toBe(wireTools(previous.tools))
+      expect(JSON.stringify(next.toolRuntime!.frozen.definitions)).toBe(
+        JSON.stringify(previous.toolRuntime!.frozen.definitions),
+      )
       expect(next.messages.slice(0, previous.messages.length)).toEqual(
         previous.messages,
       )
@@ -236,7 +246,12 @@ test('folder renames, source changes, and personal-folder changes preserve the f
       }
       previous = next
     }
-    expect(fixture.rows('sessionCache')).toEqual(initialCache)
+    const cache = fixture.rows('sessionCache')[0]!
+    expect(cache.tools).toEqual(initialCache[0]!.tools)
+    expect(cache.items).toEqual(initialCache[0]!.items)
+    expect(cache.historyPresentation).toEqual(
+      initialCache[0]!.historyPresentation,
+    )
     expect(fixture.rows('messageContents')[2]).toEqual(originalNote)
     expect(JSON.stringify(previous.messages)).toContain('Renamed repo')
     expect(JSON.stringify(previous.messages)).toContain('Re-read files')
@@ -245,12 +260,10 @@ test('folder renames, source changes, and personal-folder changes preserve the f
     )
     await expect(
       previous.tools.read_file.execute!({ path: 'file' }, {} as never),
-    ).rejects.toThrow('No filesystem context')
-    const shell = previous.tools.shell.execute!(
-      { command: 'pwd' },
-      {} as never,
-    ) as AsyncGenerator<unknown>
-    await expect(shell.next()).rejects.toThrow('No filesystem context')
+    ).rejects.toThrow('no longer enabled')
+    await expect(
+      previous.tools.shell.execute!({ command: 'pwd' }, {} as never),
+    ).rejects.toThrow('no longer enabled')
   } finally {
     fixture.restore()
     await rm(root, { recursive: true, force: true })
@@ -263,13 +276,17 @@ test('tools captured with personal-folder guidance retain it after the home disa
   const fixture = skillRequests(root)
   try {
     fixture.agent.home = { path: '/fixture-personal-home', revision: 1 }
-    const cache = fixture.rows('sessionCache')[0]!
-    cache.tools = { ...(cache.tools as object), hasAgentHome: true }
     const first = (await fixture.nextTurn())!
-    expect(first.tools.read_file.description).toContain('agent://')
+    expect(
+      first.toolRuntime!.frozen.definitions!.find(
+        (tool) => tool.name === 'read_file',
+      )!.description,
+    ).toContain('agent://')
     fixture.agent.home = null
     const second = (await fixture.nextTurn())!
-    expect(wireTools(second.tools)).toBe(wireTools(first.tools))
+    expect(second.toolRuntime!.frozen.definitions).toEqual(
+      first.toolRuntime!.frozen.definitions,
+    )
     expect(second.messages.slice(0, first.messages.length)).toEqual(
       first.messages,
     )

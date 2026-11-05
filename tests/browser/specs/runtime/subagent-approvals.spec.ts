@@ -174,3 +174,21 @@ test('hands focus from the full-screen composer to a new approval without lockin
     page.getByRole('dialog', { name: 'Expanded editor' }),
   ).toBeVisible()
 })
+
+test('dispatched shell approvals display target arguments and submit the original call ID', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=subagent-approvals&id=child&dispatched')
+  await expect(picker(page)).toContainText('git push origin first')
+  await note(page).fill('Approve the dispatched shell target')
+  await note(page).press('ControlOrMeta+Enter')
+  await expect(picker(page)).toContainText('git push origin second')
+  expect((await mutations(page))[0].args).toMatchObject({
+    sessionId: 'parent',
+    childSessionId: 'child',
+    toolCallId: 'first',
+    approved: true,
+    note: 'Approve the dispatched shell target',
+  })
+  await resolveApproval(page)
+})

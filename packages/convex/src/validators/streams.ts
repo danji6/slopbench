@@ -9,6 +9,7 @@ import {
 import { tokenUsageValidator } from './providers'
 import { sessionModeValidator } from './sessionModes'
 import { saveSessionCacheArgsValidator } from './sessions'
+import { toolManifestValidator } from './tools'
 
 export const streamStatusValidator = v.union(
   v.literal('pending'),
@@ -148,6 +149,13 @@ export const streamSchema = v.object({
   stopAt: v.optional(v.number()),
   /** Retry this logical turn without automatically materializing media. */
   omitActiveMedia: v.optional(v.boolean()),
+  skillCatalogSource: v.optional(v.string()),
+  skillAvailability: v.optional(
+    v.object({
+      skills: v.boolean(),
+      integrationSkills: v.boolean(),
+    }),
+  ),
   skillContextPrepared: v.optional(v.boolean()),
   skillIntegrationFingerprint: v.optional(v.string()),
   skillContextMessageId: v.optional(v.id('messages')),
@@ -175,7 +183,28 @@ export const saveStreamLogArgsValidator = v.object({
   storageId: v.id('_storage'),
 })
 
+export const prepareCapabilitiesArgsValidator = v.object({
+  ...streamExecutionArgsValidator.fields,
+  source: v.string(),
+  manifest: toolManifestValidator,
+  contextId: v.string(),
+  skillCatalogSource: v.optional(v.string()),
+  skillAvailability: v.optional(
+    v.object({
+      skills: v.boolean(),
+      integrationSkills: v.boolean(),
+    }),
+  ),
+})
+
+export const assertToolAccessArgsValidator = v.object({
+  ...streamExecutionArgsValidator.fields,
+  name: v.string(),
+  manifest: toolManifestValidator,
+})
+
 export const prepareContextNoteArgsValidator = v.object({
+  contextId: v.optional(v.string()),
   capabilities: v.optional(v.array(v.string())),
   ...streamExecutionArgsValidator.fields,
   fingerprint: v.string(),

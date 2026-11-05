@@ -31,7 +31,7 @@ test('stored-output eligibility is confined to the owner, actual session, and ag
   ).toBe(false)
 })
 
-test('mode and delegation policy follow frozen selections until reset and respect privilege changes', async () => {
+test('mode and delegation policy follow live selections and respect privilege changes', async () => {
   const f = skillsDatabase()
   await f.db.insert('users', { _id: 'owner', role: 'admin' })
   const agent = { _id: 'agent', ownerId: 'owner', tools: [] }
@@ -48,7 +48,7 @@ test('mode and delegation policy follow frozen selections until reset and respec
       agent as never,
       'owner' as never,
     ),
-  ).toEqual(['task', 'write_plan'])
+  ).toEqual([])
   await f.db.delete(cache)
   expect(
     await sessionToolNames(

@@ -1,3 +1,4 @@
+import type { WireToolCall } from '@sb/core/tool-dispatch'
 import type { McpProtocolMethod } from '@sb/core/types/mcp-protocol'
 
 import { internal } from '../../_generated/api'
@@ -13,6 +14,7 @@ import {
 import type { RuntimeAuthorization } from './mcp'
 
 export type McpOperationContext = {
+  wireCalls?: Map<string, WireToolCall>
   omitMedia?: boolean
   canReadOutput?: boolean
   ctx: ActionCtx
@@ -57,6 +59,7 @@ export async function executeMcpOperation(
     name: input.name,
     toolCallId: input.toolCallId,
     args: JSON.stringify(input.args),
+    wireCall: JSON.stringify(context.wireCalls?.get(input.toolCallId)),
     input: context.broker ? JSON.stringify(context.broker) : undefined,
     catalogToolId: context.catalogToolId,
   })
@@ -98,6 +101,7 @@ export function findMcpOperation(
     name: input.name,
     toolCallId: input.toolCallId,
     args: JSON.stringify(input.args),
+    wireCall: JSON.stringify(context.wireCalls?.get(input.toolCallId)),
     input: context.broker ? JSON.stringify(context.broker) : undefined,
     catalogToolId: context.catalogToolId,
   })

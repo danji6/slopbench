@@ -8,7 +8,7 @@ import { opendir, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
 
-import { readSkillMetadata } from './metadata'
+import { readSkillCatalogMetadata } from './metadata'
 import { assertPlainPath, inside, isMissing } from './storage'
 
 export const projectCatalogSchema = z.object({
@@ -77,7 +77,7 @@ async function projectEntry(
     if (!(await stat(path.join(directory, 'SKILL.md'))).isFile()) {
       throw new Error('SKILL.md must be a regular file')
     }
-    const metadata = await readSkillMetadata(directory)
+    const metadata = await readSkillCatalogMetadata(directory)
     if (metadata.name !== name)
       throw new Error('Skill name must match its directory')
     return {

@@ -38,8 +38,7 @@ export const TOOL_CAPABILITIES = [
   {
     name: 'read_file',
     label: 'Read files',
-    description:
-      'Read files in source directories and agent folders.',
+    description: 'Read files in source directories and agent folders.',
     category: 'workspace',
     tools: ['read_file'],
     requiresAdmin: true,
@@ -81,8 +80,7 @@ export const TOOL_CAPABILITIES = [
   {
     name: 'mcp_access',
     label: 'MCP access',
-    description:
-      'Discover and call MCP servers.',
+    description: 'Discover and call MCP servers.',
     category: 'mcp-skills',
     tools: [
       'search_mcp_tools',
@@ -94,8 +92,7 @@ export const TOOL_CAPABILITIES = [
   {
     name: 'skills',
     label: 'Skills',
-    description:
-      'Discover selected skills and read integration instructions.',
+    description: 'Discover selected skills and read integration instructions.',
     category: 'mcp-skills',
     tools: ['list_skills', 'read_skill'],
     requiresAdmin: true,
@@ -112,7 +109,13 @@ export const BUILTIN_TOOL_NAMES: readonly string[] = TOOL_CAPABILITIES.flatMap(
 const capabilityNames = new Set<string>(
   TOOL_CAPABILITIES.map((row) => row.name),
 )
-const reserved = new Set<string>([...BUILTIN_TOOL_NAMES, ...capabilityNames])
+const reserved = new Set<string>([
+  ...BUILTIN_TOOL_NAMES,
+  ...capabilityNames,
+  'get_tool',
+  'call_tool',
+  '__sb_tool_error',
+])
 
 /** Protects both callable names and selection keys from external aliases. */
 export function isReservedToolName(name: string) {

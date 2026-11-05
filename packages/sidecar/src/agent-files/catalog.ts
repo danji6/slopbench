@@ -2,7 +2,7 @@ import { realpath } from 'node:fs/promises'
 import type { z } from 'zod'
 
 import { withAgentFiles } from './access'
-import { readSkillMetadata } from './metadata'
+import { readSkillCatalogMetadata } from './metadata'
 import { skillCopy } from './operations'
 import type { catalogSchema } from './schemas'
 import { resolveHome } from './storage'
@@ -19,7 +19,7 @@ export async function skillMetadata(input: z.infer<typeof catalogSchema>) {
       const absolutePath = skillCopy(home, name)
       const relativePath = `agent://skills/${name}/SKILL.md`
       try {
-        const metadata = await readSkillMetadata(absolutePath)
+        const metadata = await readSkillCatalogMetadata(absolutePath)
         if (metadata.name !== name) {
           throw new Error('Skill name must match its directory')
         }

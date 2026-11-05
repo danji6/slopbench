@@ -144,6 +144,7 @@ function fields(
     toolCallId: args.toolCallId,
     args: args.args,
     input: args.input,
+    wireCall: args.wireCall,
     catalogToolId: args.catalogToolId,
     runtimeId: args.runtimeId,
     scope: live.runtime.scope,

@@ -143,6 +143,7 @@ export function assertSameInvocation(
   const sameArguments =
     operation.args === args.args &&
     operation.input === args.input &&
+    operation.wireCall === args.wireCall &&
     operation.catalogToolId === args.catalogToolId &&
     operation.toolName === args.toolName &&
     operation.protocolMethod === args.protocolMethod &&

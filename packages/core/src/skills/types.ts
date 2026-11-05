@@ -31,7 +31,10 @@ export type SkillImportSummary = {
   failed: number
 }
 
+export type SkillAvailability = { skills: boolean; integrationSkills: boolean }
+
 export type SkillCatalogEntry = SkillMetadata & {
+  revision?: string
   origins?: string[]
   canonicalDirectory?: string
   origin?: string
@@ -40,6 +43,7 @@ export type SkillCatalogEntry = SkillMetadata & {
 }
 
 export type SkillCatalogPage = {
+  availability?: SkillAvailability
   entries: SkillCatalogEntry[]
   fingerprint: string
   cursor: string | null
@@ -48,6 +52,7 @@ export type SkillCatalogPage = {
 
 /** A bounded source window with a digest of all of its metadata. */
 export type SkillCatalogSlice = {
+  availability?: SkillAvailability
   entries: SkillCatalogEntry[]
   total: number
   fingerprint: string

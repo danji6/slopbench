@@ -28,6 +28,7 @@ import {
   notifyAgentEvent,
 } from '../notifications'
 import { createPlanLinkPart, getBySession as getPlan } from '../plans'
+import { removeForSession } from '../session/cache'
 import { ownsExecution } from './execution'
 import { cleanUpOffloadedOutputs } from './lifecycleCleanup'
 import { killSessionJobs } from './lifecycleControl'
@@ -64,6 +65,10 @@ export async function _complete(
     })
   } else {
     await ctx.db.patch(processingMessageId, { status: 'done' })
+  }
+
+  if (stream.command.kind === 'compact') {
+    await removeForSession(ctx, stream.sessionId)
   }
 
   await discardStream(ctx, streamId)

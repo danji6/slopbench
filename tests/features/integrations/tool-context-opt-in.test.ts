@@ -23,7 +23,7 @@ async function rootWithSkill() {
   return root
 }
 
-test('all built-ins off makes no sidecar requests and injects no workspace or skill context', async () => {
+test('all built-ins off makes no capability sidecar requests and injects no workspace or skill context', async () => {
   const root = await rootWithSkill()
   const f = skillRequests(root)
   const fetch = globalThis.fetch
@@ -36,9 +36,13 @@ test('all built-ins off makes no sidecar requests and injects no workspace or sk
     f.agent.tools = []
     f.rows('sessionCache').splice(0)
     const request = (await f.nextTurn())!
-    expect(Object.keys(request.tools)).toEqual([])
+    expect(request.toolRuntime!.current.names).toEqual([])
     expect(request.messages).toHaveLength(1)
-    expect(requests).toEqual([])
+    expect(requests.filter((url) => !url.endsWith('/eval/prompts'))).toEqual([])
+    expect(request.toolRuntime!.frozen.names).toEqual(['get_tool', 'call_tool'])
+    await expect(
+      request.tools.get_tool.execute!({ name: 'read_file' }, {} as never),
+    ).rejects.toThrow('disabled')
     expect(
       f
         .rows('messages')
@@ -67,7 +71,7 @@ test('reset removes automatic disabled-feature notes from provider history while
     expect(JSON.stringify(frozen.messages)).toContain('Review this project')
     f.rows('sessionCache').splice(0)
     const reset = (await f.nextTurn())!
-    expect(Object.keys(reset.tools)).toEqual([])
+    expect(reset.toolRuntime!.current.names).toEqual([])
     expect(JSON.stringify(reset.messages)).not.toContain('Review this project')
     expect(JSON.stringify(reset.messages)).not.toContain('Primary source')
     expect(
@@ -88,7 +92,7 @@ test('project skill discovery stays opt-in to the Skills capability and does not
     f.rows('sessionCache').splice(0)
     f.agent.tools = ['skills']
     const request = (await f.nextTurn())!
-    expect(Object.keys(request.tools)).toEqual(['list_skills'])
+    expect(request.toolRuntime!.current.names).toEqual(['list_skills'])
     const text = JSON.stringify(request.messages)
     expect(text).toContain('Review this project')
     expect(text).not.toContain('Use read_file')
@@ -111,7 +115,7 @@ test('an empty skill directory exposes no skill tools or automatic catalog', asy
     f.rows('sessionCache').splice(0)
     f.agent.tools = ['skills']
     const request = (await f.nextTurn())!
-    expect(Object.keys(request.tools)).toEqual([])
+    expect(request.toolRuntime!.current.names).toEqual([])
     expect(
       f.rows('messages').filter((row) => row.type === 'skills'),
     ).toHaveLength(0)
@@ -168,11 +172,14 @@ test('a linked skills-only toolkit exposes its reader through Skills without fil
     f.folder.sources[0]!.discoverSkills = false
     f.rows('sessionCache').splice(0)
     f.agent.tools = []
-    expect(Object.keys((await f.nextTurn())!.tools)).toEqual([])
+    expect((await f.nextTurn())!.toolRuntime!.current.names).toEqual([])
     f.rows('sessionCache').splice(0)
     f.agent.tools = ['skills']
     const request = (await f.nextTurn())!
-    expect(Object.keys(request.tools)).toEqual(['list_skills', 'read_skill'])
+    expect(request.toolRuntime!.current.names).toEqual([
+      'list_skills',
+      'read_skill',
+    ])
     expect(JSON.stringify(request.messages)).toContain(
       `integration://${integrationId}/skills/review/SKILL.md`,
     )

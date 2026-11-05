@@ -6,6 +6,7 @@ import { refreshCatalog } from '@sb/convex/model/mcpCatalogActions'
 import * as Catalogs from '@sb/convex/model/mcpCatalogs'
 import { connected } from '@sb/convex/model/mcpRuntime'
 import { createMcpBrokerTools } from '@sb/convex/model/tool/mcpBroker'
+import type { WireToolCall } from '@sb/core/tool-dispatch'
 import { mcpCatalogRoutes } from '@sb/sidecar/mcp/external/catalog-routes'
 import { CatalogSnapshots } from '@sb/sidecar/mcp/external/catalog-snapshots'
 import { mcpOperationRoutes } from '@sb/sidecar/mcp/external/operation-routes'
@@ -45,8 +46,10 @@ export async function mcpCatalogBackend() {
     return refreshCatalog(f.action, catalogId)
   }
   const approvals: { tools: string[] } = { tools: [] }
+  const wireCalls = new Map<string, WireToolCall>()
   const broker = await createMcpBrokerTools({
     operation: {
+      wireCalls,
       ctx: f.action,
       execution: f.execution,
       messageId: f.messageId,
@@ -95,6 +98,7 @@ export async function mcpCatalogBackend() {
     catalogId,
     publish,
     broker,
+    wireCalls,
     approvals,
     target,
     identity,

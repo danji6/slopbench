@@ -211,7 +211,9 @@ describe('_suspendStep', () => {
       approval: { id: 'approval_1' },
     }
     const { ctx, patches, inserts } = fakeCtx({
-      docs: parentDocs([askPart, approvalPart]),
+      docs: parentDocs([askPart, approvalPart]).map((doc) =>
+        doc._id === parentAgent._id ? { ...doc, tools: ['task', 'ask'] } : doc,
+      ),
       membershipsBySession: {
         session_1: [
           { _id: 'membership_1', userId: owner },

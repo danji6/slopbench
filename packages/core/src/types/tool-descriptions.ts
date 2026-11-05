@@ -111,6 +111,12 @@ const skills = inline`
   skill name or cursor to continue a page. Read the chosen SKILL.md before
   following its instructions.`
 
+const get_tool =
+  'Read the current description and complete input schema of an enabled tool.'
+
+const call_tool =
+  'Call an enabled tool by name with arguments matching its current input schema.'
+
 const search_mcp_tools = inline`
   Discover authorized MCP servers and tools, and retrieve tool definitions
   without loading the whole catalog. Large definitions return text fragments:
@@ -159,6 +165,8 @@ export const TOOL_DESCRIPTIONS = {
   ask,
   task,
   skills,
+  get_tool,
+  call_tool,
   search_mcp_tools,
   call_mcp_tool,
   mcp_protocol,

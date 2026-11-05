@@ -6,10 +6,10 @@ import type { MutationCtx } from '../../_generated/server'
 import type { PrepareContextNoteArgs, RunningStream } from '../../types'
 import { agentIdentity } from '../chat/identities'
 import { WORKSPACE_CHANGE_GUIDANCE } from '../chat/notes'
-import { insertMessage } from '../messageContents'
+import { insertMessage, withParts } from '../messageContents'
 import { ownsExecution } from '../stream/execution'
 
-type ContextType = 'skills' | 'workspace' | 'mcp'
+type ContextType = 'skills' | 'workspace' | 'mcp' | 'capabilities'
 
 /** Records immutable context while deduplicating retries and unchanged snapshots. */
 export async function prepareContextNote(
@@ -20,14 +20,15 @@ export async function prepareContextNote(
   const stream = await ctx.db.get(args.streamId)
   if (!ownsExecution(stream, args)) return false
 
-  if (contextPrepared(stream, args, type)) return true
+  if (!args.contextId && contextPrepared(stream, args, type)) return true
 
   const user = await ctx.db.get(stream.invokedBy)
   const agent = await ctx.db.get(stream.agentId)
   if (!agent || !user) return false
 
-  const previous = await latestContext(ctx, stream, type)
+  const previous = await latestContext(ctx, stream, type, args.contextId)
   const unchanged = matchesContext(previous, stream.agentId, args.fingerprint)
+  if (args.contextId && unchanged) return true
   const content = contextNoteContent(args.content, type, previous)
   const noteId = unchanged
     ? undefined
@@ -61,6 +62,8 @@ function contextPatch(
   noteId?: Id<'messages'>,
 ) {
   switch (type) {
+    case 'capabilities':
+      return {}
     case 'mcp':
       return { mcpContextFingerprint: fingerprint, mcpContextMessageId: noteId }
     case 'skills':
@@ -73,14 +76,29 @@ function contextPatch(
   }
 }
 
-/** Preserves the source transition guidance when replacing an earlier context. */
+/** Adds guidance for capability updates and previously read context. */
 function contextNoteContent(
   content: string,
   type: ContextType,
   previous: Doc<'messages'> | null,
 ) {
-  if (type !== 'workspace' || !previous) return content
-  return `${content}\n\n${systemReminder(WORKSPACE_CHANGE_GUIDANCE)}`
+  // Capability notes are emitted only after the initial snapshot changes.
+  if (type === 'capabilities') {
+    return `${content}\n\n${systemReminder(
+      'Use get_tool({ name }) to read the current input contract. Use call_tool({ name, arguments }) for newly enabled or updated tools that are absent from, or differ from, your initial native tool definitions. Unchanged native tools remain directly callable.',
+    )}`
+  }
+
+  if (!previous) return content
+
+  const guidance =
+    type === 'workspace'
+      ? WORKSPACE_CHANGE_GUIDANCE
+      : type === 'skills'
+        ? 'Skill availability or content changed. Only use skills from the current catalog. Re-read the SKILL.md files you need; previously loaded instructions may be stale.'
+        : undefined
+
+  return guidance ? `${content}\n\n${systemReminder(guidance)}` : content
 }
 
 function matchesContext(
@@ -102,6 +120,9 @@ async function insertContextNote(
   args: PrepareContextNoteArgs,
   type: ContextType,
 ) {
+  const anchor = await ctx.db.get(stream.state.processingMessageId)
+  const anchorPartCount = anchor ? (await withParts(ctx, anchor)).parts.length : 0 // prettier-ignore
+
   const { messageId } = await insertMessage(
     ctx,
     {
@@ -114,6 +135,8 @@ async function insertContextNote(
       type,
       extra: {
         fingerprint: args.fingerprint,
+        contextId: args.contextId,
+        anchorPartCount,
         ...(args.capabilities && { capabilities: args.capabilities }),
         anchorMessageId: stream.state.processingMessageId,
         ...(type === 'workspace' && { label: args.label }),
@@ -121,6 +144,7 @@ async function insertContextNote(
     },
     [{ type: 'text', text: args.content }],
   )
+
   return messageId
 }
 
@@ -128,9 +152,31 @@ async function latestContext(
   ctx: MutationCtx,
   stream: Doc<'streams'>,
   type: ContextType,
+  contextId?: string,
 ) {
+  if (contextId) {
+    return ctx.db
+      .query('messages')
+      .withIndex('by_sessionId_type_status', (q) =>
+        q
+          .eq('sessionId', stream.sessionId)
+          .eq('type', type)
+          .eq('status', 'done'),
+      )
+      .filter((q) =>
+        q.and(
+          q.eq(q.field('contextEligible'), true),
+          q.eq(q.field('sender.id'), stream.agentId),
+          q.eq(q.field('extra.contextId'), contextId),
+        ),
+      )
+      .order('desc')
+      .first()
+  }
+
   const upper = stream.contextBoundaryCreationTime ?? Number.MAX_SAFE_INTEGER
   const floor = await summaryFloor(ctx, stream.sessionId, upper)
+
   return ctx.db
     .query('messages')
     .withIndex('by_sessionId_type_status', (q) =>

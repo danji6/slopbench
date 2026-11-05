@@ -66,6 +66,8 @@ function chipPresentation(record: MessageRecord | undefined): ChipPresentation {
       }
     case 'skills':
       return { icon: BookOpenIcon, label: 'Skills updated', noun: 'note' }
+    case 'capabilities':
+      return { icon: ClipboardListIcon, label: 'Tools updated', noun: 'note' }
     case 'mcp':
       return {
         icon: ClipboardListIcon,

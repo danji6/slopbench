@@ -224,3 +224,70 @@ test('integration tools stay behind the broker when an unrelated direct alias ha
   expect(manifest.mcp).toBeUndefined()
   expect(manifest.names).toEqual([])
 })
+
+test('frozen MCP contracts retain immutable references and reauthorize their materialization', async () => {
+  const { compactDefinitions, frozenDefinitions } =
+    await import('@sb/convex/model/tool/definitions')
+  const { sameDefinition } = await import('@sb/convex/model/tool/manifest')
+  const oldSchema = JSON.stringify({
+    type: 'object',
+    properties: { value: { type: 'string', description: 'x'.repeat(10_000) } },
+  })
+  const definition = {
+    name: 'docs_work',
+    inputSchema: oldSchema,
+    description: 'Original instructions',
+  }
+  const manifest = {
+    contextId: 'context',
+    names: ['docs_work'],
+    mcp: [
+      {
+        name: 'docs_work',
+        serverId: 'server',
+        toolName: 'work',
+        definitionRef: 'old',
+      },
+    ],
+  }
+  const frozen = {
+    ...manifest,
+    definitions: compactDefinitions(manifest, [definition]),
+  }
+  expect(JSON.stringify(frozen).length).toBeLessThan(1000)
+  let authorized = true
+  const ctx = {
+    runQuery: async () => {
+      if (!authorized) throw new Error('Access revoked')
+    },
+    storage: {
+      get: async () =>
+        new Blob([
+          JSON.stringify({
+            name: 'work',
+            inputSchema: oldSchema,
+            description: 'Original instructions',
+            metadata: '{}',
+          }),
+        ]),
+    },
+  } as never
+  expect(
+    await frozenDefinitions(ctx, frozen, {
+      streamId: 'stream' as never,
+      generation: 1,
+    }),
+  ).toEqual([definition])
+  const updated = compactDefinitions(
+    { ...manifest, mcp: [{ ...manifest.mcp[0]!, definitionRef: 'new' }] },
+    [definition],
+  )
+  expect(sameDefinition(frozen.definitions[0], updated[0])).toBe(false)
+  authorized = false
+  await expect(
+    frozenDefinitions(ctx, frozen, {
+      streamId: 'stream' as never,
+      generation: 1,
+    }),
+  ).rejects.toThrow('Access revoked')
+})

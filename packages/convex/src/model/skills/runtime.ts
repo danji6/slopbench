@@ -14,7 +14,7 @@ import { postSidecar } from '../sidecar'
 import { combinedSkillCatalog } from './catalog'
 import type { CatalogRequest } from './catalogWindow'
 
-type PreparedSkillCatalog = SkillCatalogPage & {
+export type PreparedSkillCatalog = SkillCatalogPage & {
   integrationFingerprint: string
 }
 

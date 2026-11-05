@@ -42,6 +42,7 @@ export async function prepareMcpCatalogContext(
   execution: StreamExecutionArgs,
   data: StreamContext,
   names: string[],
+  contextId?: string,
 ) {
   const available = await ctx.runMutation(
     internal.mcpBroker._servers,
@@ -89,6 +90,7 @@ export async function prepareMcpCatalogContext(
 
   return ctx.runMutation(internal.streams._prepareMcpContext, {
     ...execution,
+    contextId,
     capabilities: contextDependencies('mcp', names),
     fingerprint: await sha256(
       JSON.stringify([text, contextDependencies('mcp', names)]),

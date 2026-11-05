@@ -77,6 +77,7 @@ export const updateAgentArgsValidator = v.object({
 
 /** Shared ownership, path, revision, and operation lease for a personal folder. */
 export const agentHomeSchema = v.object({
+  catalogRevision: v.optional(v.number()),
   ownerId: v.id('users'),
   originAgentId: v.id('agents'),
   managed: v.boolean(),

@@ -8,6 +8,8 @@ export async function captureRequest(
     Awaited<ReturnType<ReturnType<typeof skillRequests>['nextTurn']>>
   >,
 ) {
+  const { dispatchLanguageModel } =
+    await import('@sb/convex/model/tool/dispatchTransport')
   const { generateText } = await import('ai')
   const { getProviderOptions } =
     await import('@sb/convex/model/provider/options')
@@ -40,7 +42,12 @@ export async function captureRequest(
   await expect(
     generateText({
       ...options,
-      model: options.languageModel,
+      model: request.toolRuntime
+        ? await dispatchLanguageModel(
+            options.languageModel,
+            request.toolRuntime,
+          )
+        : options.languageModel,
       system: prefix.systemPrompt,
       allowSystemInMessages: true,
       messages: prefix.messages,

@@ -10,6 +10,7 @@ export function operationPart(operation: Operation, existing?: unknown) {
   const previous = existing && typeof existing === 'object' ? existing : {}
   const base = {
     ...previous,
+    ...(operation.wireCall && { wireCall: JSON.parse(operation.wireCall) }),
     type: `tool-${operation.name}`,
     toolCallId: operation.toolCallId,
     input: JSON.parse(operation.input ?? operation.args),

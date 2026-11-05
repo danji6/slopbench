@@ -109,7 +109,15 @@ export function skillsDatabase(indexes: Record<string, string[]> = {}) {
       type FilterValue = { field: string } | unknown
       const resolve = (row: Row, value: FilterValue) =>
         value && typeof value === 'object' && 'field' in value
-          ? row[String(value.field)]
+          ? String(value.field)
+              .split('.')
+              .reduce<unknown>(
+                (entry, key) =>
+                  entry && typeof entry === 'object'
+                    ? (entry as Record<string, unknown>)[key]
+                    : undefined,
+                row,
+              )
           : value
       const comparison =
         (a: FilterValue, b: FilterValue, accept: (n: number) => boolean) =>

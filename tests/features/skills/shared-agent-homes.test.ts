@@ -48,9 +48,15 @@ async function setup(shared = true) {
 
 test('shared assignments are marked as added and excluded by the not-added filter', async () => {
   const { ctx, home } = await setup()
+  const originalRevision = home.revision
+  const originalCatalogRevision = home.catalogRevision ?? 0
   const operationId = await start(ctx, { kind: 'assign', agentId: a, skillId })
   await expect(assertAgentAvailable(ctx, b)).rejects.toThrow('updated')
   await complete(ctx, { operationId })
+  expect((await ctx.db.get(home._id))!.revision).toBe(originalRevision)
+  expect((await ctx.db.get(home._id))!.catalogRevision).toBe(
+    originalCatalogRevision + 1,
+  )
   const page = await assigned(ctx, {
     agentId: b,
     paginationOpts: { cursor: null, numItems: 20 },
@@ -78,6 +84,9 @@ test('shared assignments are marked as added and excluded by the not-added filte
     assignmentId: page.page[0]!._id,
   })
   await complete(ctx, { operationId: remove })
+  expect((await ctx.db.get(home._id))!.catalogRevision).toBe(
+    originalCatalogRevision + 2,
+  )
   expect(
     (
       await assigned(ctx, {
