@@ -9,7 +9,15 @@ import {
 } from 'lucide-react'
 import type { RefObject } from 'react'
 
-const projectStarters = [
+type StarterCard = {
+  title: string
+  description: string
+  icon: typeof ListChecksIcon
+  prompt: string | null
+  plan?: boolean
+}
+
+const projectStarters: StarterCard[] = [
   {
     title: 'Explore the project',
     description: 'Find your way around',
@@ -17,6 +25,7 @@ const projectStarters = [
     prompt: 'Help me understand how this project is organized.',
   },
   {
+    plan: true,
     title: 'Plan a change',
     description: 'Turn an idea into steps',
     icon: ListChecksIcon,
@@ -30,7 +39,7 @@ const projectStarters = [
   },
 ]
 
-const generalStarters = [
+const generalStarters: StarterCard[] = [
   {
     title: 'Work with a file',
     description: 'Get a summary, feedback, or answers',
@@ -55,12 +64,14 @@ type StarterCardsProps = {
   project: boolean
   disabled: boolean
   composerRef: RefObject<ComposerHandle | null>
+  onPlanChange: () => void
 }
 
 export function StarterCards({
   project,
   disabled,
   composerRef,
+  onPlanChange,
 }: StarterCardsProps) {
   const starters = project ? projectStarters : generalStarters
   return (
@@ -68,12 +79,13 @@ export function StarterCards({
       className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,175px),1fr))] gap-3 pt-7 pb-1"
       aria-label="Conversation starters"
     >
-      {starters.map(({ title, description, icon: Icon, prompt }) => (
+      {starters.map(({ title, description, icon: Icon, prompt, plan }) => (
         <RippleButton
           key={title}
           variant="input"
           disabled={disabled}
           onClick={() => {
+            if (plan) onPlanChange()
             if (prompt === null) composerRef.current?.openAttachments()
             else composerRef.current?.insertStarter(prompt)
           }}

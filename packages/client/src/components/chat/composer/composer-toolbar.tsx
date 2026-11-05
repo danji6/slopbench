@@ -1,3 +1,4 @@
+import { AnimatedToolbar } from '@/components/ui/animated-toolbar'
 import type { SessionMode } from '@/lib/chat/modes'
 import { Result } from '@/lib/result'
 import type { ApprovalMode } from '@sb/convex/types'
@@ -31,18 +32,25 @@ export function ComposerToolbar({
   mode,
   approval,
 }: ComposerToolbarProps) {
-  const modeVisible = mode.workspaceAvailable
+  const modeVisible = mode.workspaceAvailable && mode.value === 'plan'
 
   return (
-    <>
+    <AnimatedToolbar className="min-w-0">
       <ChatAgentPicker fallbackAgent={fallbackAgent} />
-      {modeVisible && (
-        <ModeWidget mode={mode.value} onDisable={() => mode.set('normal')} />
-      )}
-      {approval.available && (
-        <ApprovalModeWidget mode={approval.value} onToggle={approval.toggle} />
-      )}
-    </>
+      <AnimatedToolbar.Item visible={modeVisible}>
+        <div className="pl-1">
+          <ModeWidget onDisable={() => mode.set('normal')} />
+        </div>
+      </AnimatedToolbar.Item>
+      <AnimatedToolbar.Item visible={approval.available}>
+        <div className="pl-1">
+          <ApprovalModeWidget
+            mode={approval.value}
+            onToggle={approval.toggle}
+          />
+        </div>
+      </AnimatedToolbar.Item>
+    </AnimatedToolbar>
   )
 }
 

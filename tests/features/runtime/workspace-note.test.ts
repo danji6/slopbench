@@ -33,8 +33,6 @@ describe('workspace note', () => {
   test('a source change explains the new base and re-reading requirement', () => {
     const content = buildWorkspaceNoteContent(ws('old'), ws('new'))
 
-    expect(content).toStartWith('<system-reminder>')
-    expect(content).toEndWith('</system-reminder>')
     expect(content).toContain('Primary source: /srv/new')
     expect(content).toContain('Re-read files')
   })

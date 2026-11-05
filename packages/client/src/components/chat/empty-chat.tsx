@@ -191,6 +191,7 @@ export function EmptyChat({
                     composerState.hasContent
                   }
                   composerRef={composerRef}
+                  onPlanChange={() => setMode('plan')}
                   switchingAgent={switching}
                   onChooseAgent={() => void clearAgent()}
                 />

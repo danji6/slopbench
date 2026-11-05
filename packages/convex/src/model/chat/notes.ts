@@ -1,5 +1,5 @@
 import type { MessageRole } from '@sb/core/types'
-import { systemReminder } from '@sb/core/utils/blocks'
+import { systemNote } from '@sb/core/utils/blocks'
 import { inline } from '@sb/core/utils/strings'
 
 import type { Doc, Id } from '../../_generated/dataModel'
@@ -134,7 +134,7 @@ export function buildModeNoteContent(
   mode: SessionMode,
   audience: ModeNoteAudience,
 ) {
-  return systemReminder(...modeNoteBody(mode, audience))
+  return systemNote(...modeNoteBody(mode, audience))
 }
 
 type ModeTransition = MessageExtra['mode']
@@ -251,7 +251,7 @@ export function buildWorkspaceNoteContent(
   names?: readonly string[],
 ) {
   if (!previous && !next) return ''
-  return systemReminder(...workspaceNoteBody(previous, next, names))
+  return workspaceNoteBody(previous, next, names).join('\n')
 }
 
 function workspaceNoteBody(

@@ -133,7 +133,12 @@ describe('injectDueReminders', () => {
     })
 
     const content = inserts.find((entry) => entry.table === 'messageContents')
-    expect(content?.doc.parts).toEqual([{ type: 'text', text: 'stay focused' }])
+    expect(content?.doc.parts).toEqual([
+      {
+        type: 'text',
+        text: '<system-reminder>\nstay focused\n</system-reminder>',
+      },
+    ])
     expect(content?.doc.searchText).toBeUndefined()
 
     expect(state.patches).toEqual([{ reminderState: { r1: 6 } }])

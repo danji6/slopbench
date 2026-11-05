@@ -374,6 +374,13 @@ test('project suggestions require a source and reading capability', async ({
   await expect(
     page.getByRole('button', { name: 'Explore the project' }),
   ).toBeVisible()
+  await page.getByRole('button', { name: 'Plan a change' }).click()
+  await expect(
+    page.getByRole('button', { name: 'Disable plan mode' }),
+  ).toBeVisible()
+  await expect(page.locator('[contenteditable="true"]').first()).toHaveText(
+    'Help me plan this change:',
+  )
   await page.goto('/?fixture=empty-chat&folder=workspace&organizationOnly')
   await expect(
     page.getByRole('button', { name: 'Work with a file' }),

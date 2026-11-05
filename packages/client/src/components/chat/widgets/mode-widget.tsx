@@ -1,6 +1,5 @@
 import { QuickTooltip } from '@/components/ui/quick-tooltip'
 import { RippleButton } from '@/components/ui/ripple-button'
-import type { SessionMode } from '@/lib/chat/modes'
 import { Result } from '@/lib/result'
 import { cn } from '@/lib/utils'
 import type { ApprovalMode } from '@sb/convex/types'
@@ -11,13 +10,10 @@ import {
 } from 'lucide-react'
 
 type ModeWidgetProps = {
-  mode: SessionMode
   onDisable: () => void | Promise<void>
 }
 
-export function ModeWidget({ mode, onDisable }: ModeWidgetProps) {
-  if (mode !== 'plan') return null
-
+export function ModeWidget({ onDisable }: ModeWidgetProps) {
   return (
     <QuickTooltip text="Plan mode is active">
       <RippleButton

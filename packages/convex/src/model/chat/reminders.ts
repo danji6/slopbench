@@ -144,7 +144,7 @@ async function injectConfiguredReminders(
     await insertHiddenNote(ctx, session, invokerId, sender, {
       type: 'reminder',
       role: reminder.role,
-      content: reminder.content,
+      content: systemReminder(reminder.content),
       extra: {
         id: reminder.id,
         name: reminder.name,

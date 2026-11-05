@@ -1,5 +1,5 @@
 import { isContextNote } from '@sb/core/context-notes'
-import { systemReminder } from '@sb/core/utils/blocks'
+import { systemNote, systemReminder } from '@sb/core/utils/blocks'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
@@ -82,14 +82,16 @@ function contextNoteContent(
   type: ContextType,
   previous: Doc<'messages'> | null,
 ) {
+  const note = systemNote(content)
+
   // Capability notes are emitted only after the initial snapshot changes.
   if (type === 'capabilities') {
-    return `${content}\n\n${systemReminder(
+    return `${note}\n\n${systemNote(
       'Use get_tool({ name }) to read the current input contract. Use call_tool({ name, arguments }) for newly enabled or updated tools that are absent from, or differ from, your initial native tool definitions. Unchanged native tools remain directly callable.',
     )}`
   }
 
-  if (!previous) return content
+  if (!previous) return note
 
   const guidance =
     type === 'workspace'
@@ -98,7 +100,7 @@ function contextNoteContent(
         ? 'Skill availability or content changed. Only use skills from the current catalog. Re-read the SKILL.md files you need; previously loaded instructions may be stale.'
         : undefined
 
-  return guidance ? `${content}\n\n${systemReminder(guidance)}` : content
+  return guidance ? `${note}\n\n${systemReminder(guidance)}` : note
 }
 
 function matchesContext(

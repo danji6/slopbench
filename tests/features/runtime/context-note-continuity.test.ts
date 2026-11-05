@@ -81,11 +81,20 @@ test.each(['skills', 'workspace', 'mcp'] as const)(
     const f = await fixture()
     await prepareContextNote(
       f.ctx,
-      { ...execution, fingerprint: 'catalog', content: 'Prepared context' },
+      {
+        ...execution,
+        contextId: 'catalog',
+        fingerprint: 'catalog',
+        content: 'Prepared context',
+      },
       type,
     )
     const before = await _getProviderHistory(f.ctx, execution)
     expect(before.map((message) => message.type)).toContain(type)
+    const note = before.find((message) => message.type === type)
+    expect(note?.parts).toEqual([
+      { type: 'text', text: '<system-note>\nPrepared context\n</system-note>' },
+    ])
 
     expect(await _continue(f.ctx, execution)).toBe(true)
     expect(await _getProviderHistory(f.ctx, execution)).toEqual(before)
@@ -110,6 +119,24 @@ test.each(['skills', 'workspace', 'mcp'] as const)(
       value: continuity,
       resetReason: 'none',
     })
+
+    await prepareContextNote(
+      f.ctx,
+      {
+        ...resumed,
+        contextId: 'catalog',
+        fingerprint: 'updated',
+        content: 'Updated context',
+      },
+      type,
+    )
+    const parts = f.rows('messageContents').at(-1)?.parts as { text: string }[]
+    expect(parts[0].text).toStartWith(
+      '<system-note>\nUpdated context\n</system-note>',
+    )
+    if (type !== 'mcp') {
+      expect(parts[0].text).toContain('<system-reminder>')
+    }
   },
 )
 

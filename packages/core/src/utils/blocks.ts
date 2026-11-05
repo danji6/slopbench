@@ -35,3 +35,7 @@ export function block(
 export function systemReminder(...lines: string[]): string {
   return block('system-reminder', lines.join('\n'))
 }
+
+export function systemNote(...lines: string[]): string {
+  return block('system-note', lines.join('\n'))
+}

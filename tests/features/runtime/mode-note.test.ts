@@ -11,8 +11,8 @@ describe('mode note', () => {
   test('plan mode states the restriction and the planning loop', () => {
     const content = buildModeNoteContent('plan', withTools)
 
-    expect(content).toStartWith('<system-reminder>')
-    expect(content).toEndWith('</system-reminder>')
+    expect(content).toStartWith('<system-note>')
+    expect(content).toEndWith('</system-note>')
     expect(content).toContain('CANNOT make any changes')
     expect(content).toContain('write_plan')
     expect(content).toContain('exit_plan_mode')

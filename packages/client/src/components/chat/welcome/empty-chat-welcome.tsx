@@ -28,6 +28,7 @@ type EmptyChatWelcomeProps = {
   composerRef: RefObject<ComposerHandle | null>
   switchingAgent: boolean
   onChooseAgent: () => void
+  onPlanChange: () => void
 }
 
 export function EmptyChatWelcome(props: EmptyChatWelcomeProps) {
@@ -133,6 +134,7 @@ function WelcomeContent({ view, prompts, ...props }: WelcomeContentProps) {
         project={props.canReadProject}
         disabled={props.startersDisabled}
         composerRef={props.composerRef}
+        onPlanChange={props.onPlanChange}
       />
     </section>
   )
