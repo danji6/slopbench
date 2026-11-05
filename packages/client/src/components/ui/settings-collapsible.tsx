@@ -130,7 +130,7 @@ function SettingsCollapsibleTrigger({
         iconOnly
           ? 'text-muted-foreground hover:text-foreground shrink-0'
           : [
-              'col-span-full grid w-full min-w-0 grid-cols-subgrid text-left aria-expanded:rounded-b-none',
+              'col-span-full grid w-full min-w-0 grid-cols-subgrid py-0 text-left aria-expanded:rounded-b-none',
               compact ? 'h-12 rounded-lg px-3' : 'h-11 rounded-2xl px-2',
             ],
       )}
