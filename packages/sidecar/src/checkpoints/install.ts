@@ -1,3 +1,4 @@
+import { syncDirectory } from '@sb/core/fs/sync-directory'
 import { randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
 import { chmod, mkdir, open, rename, rm, symlink } from 'node:fs/promises'
@@ -30,12 +31,7 @@ export async function installFile(
     await writeTemporary(temporary, bytes, state)
     await assertPlainPath(path.dirname(target))
     await rename(temporary, target)
-    const directory = await open(path.dirname(target), 'r')
-    try {
-      await directory.sync()
-    } finally {
-      await directory.close()
-    }
+    await syncDirectory(path.dirname(target))
   } finally {
     await rm(temporary, { force: true })
   }

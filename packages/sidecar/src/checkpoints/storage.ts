@@ -1,3 +1,4 @@
+import { syncDirectory } from '@sb/core/fs/sync-directory'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, open, readFile, readdir, rename, rm } from 'node:fs/promises'
 import path from 'node:path'
@@ -113,11 +114,6 @@ export class CheckpointStorage {
       await file.close()
     }
     await rename(temporary, filename)
-    const handle = await open(directory, 'r')
-    try {
-      await handle.sync()
-    } finally {
-      await handle.close()
-    }
+    await syncDirectory(directory)
   }
 }

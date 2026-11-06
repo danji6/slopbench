@@ -1,3 +1,4 @@
+import { syncDirectory } from '@sb/core/fs/sync-directory'
 import type { McpRuntimeScope } from '@sb/core/types'
 import type { McpOperationStatus } from '@sb/core/types/mcp-operation'
 import type { McpResult } from '@sb/core/types/mcp-result'
@@ -96,11 +97,6 @@ export class McpOperationStore {
       await file.close()
     }
     await rename(temporary, filename)
-    const directory = await open(this.root, 'r')
-    try {
-      await directory.sync()
-    } finally {
-      await directory.close()
-    }
+    await syncDirectory(this.root)
   }
 }
