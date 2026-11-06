@@ -126,7 +126,12 @@ export function MessageList({
   } = useWindowControls() // prettier-ignore
 
   const shellSender = useRunningShellSender()
-  const isActive = status !== 'ready' || shellSender !== null
+  const activityMessageId =
+    processingMessageId ?? (shellSender !== null ? messageIds.at(-1) : null)
+  const visibleActivityMessageId =
+    activityMessageId && messageIds.includes(activityMessageId)
+      ? activityMessageId
+      : null
 
   const isLocalActivity =
     (!!invokedBy && invokedBy === profile?._id) ||
@@ -353,25 +358,22 @@ export function MessageList({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingId])
 
+  const shouldRevealStream =
+    isAtBottom === true && isAtLiveTail && !isMidListStream
+
   useConditionalFollow(
-    isActive,
-    // Autofollow only for the user's own activity and only when already at the bottom
-    isLocalActivity && isAtBottom === true && isAtLiveTail && !isMidListStream,
+    visibleActivityMessageId,
+    isLocalActivity && shouldRevealStream,
     unlockScroll,
   )
 
-  const shouldRevealStream =
-    (isLocalActivity || isAtBottom === true) && isAtLiveTail && !isMidListStream
-
   useConditionalScroll({
     autoScroll,
-    active: isActive,
+    messageId: visibleActivityMessageId,
     shouldRevealStream,
     scrollRef,
     scrollUntilCondition,
     topPadding: topPad,
-    messageIds,
-    processingMessageId: processingMessageId ?? null,
   })
 
   useLayoutEffect(() => {
