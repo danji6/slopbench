@@ -30,6 +30,19 @@ function Test-VersionAtLeast([string]$Version, [string]$Minimum) {
   return [version]$left.Value -ge [version]$right.Value
 }
 
+function Get-Sha256Hash([string]$Path) {
+  $sha256 = [System.Security.Cryptography.SHA256]::Create()
+  $stream = $null
+  try {
+    $stream = [System.IO.File]::OpenRead($Path)
+    $hash = $sha256.ComputeHash($stream)
+    return [System.BitConverter]::ToString($hash).Replace('-', '')
+  } finally {
+    if ($stream) { $stream.Dispose() }
+    $sha256.Dispose()
+  }
+}
+
 # Downloads the pinned Bun into bin/.
 function Install-Bun([string]$Version, [string]$Destination, [string]$Suffix = '') {
   $asset = "bun-windows-x64$Suffix"
@@ -53,7 +66,7 @@ function Install-Bun([string]$Version, [string]$Destination, [string]$Suffix = '
   if (-not $line) { throw "Bun $Version publishes no checksum for $archive." }
   $expected = ($line -split '\s+')[0]
 
-  $actual = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash
+  $actual = Get-Sha256Hash $archivePath
   if ($actual -ne $expected.ToUpperInvariant()) { throw "Checksum mismatch for $archive." }
 
   Expand-Archive -LiteralPath $archivePath -DestinationPath $tmp -Force

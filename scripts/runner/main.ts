@@ -95,7 +95,7 @@ export async function run(args: string[]) {
       await dev(config, manager, options.killPorts)
     }
   } catch (error) {
-    console.error(error instanceof Error ? error.message : error)
+    console.error(error)
     await shutdown()
     process.exit(1)
   }
