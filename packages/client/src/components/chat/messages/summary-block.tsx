@@ -27,7 +27,7 @@ export function SummaryBlock({ message }: { message: UIMessage }) {
       onExpand={onIntoViewSettle}
       fullWidth
       bodyClassName="px-4 pt-2 pb-4"
-      className="bg-muted/50 border-border border p-0.5"
+      className="bg-muted/50 border-border rounded-2xl border p-0.5"
       labelClassName="text-center w-full"
       floatingChevron
       footer={

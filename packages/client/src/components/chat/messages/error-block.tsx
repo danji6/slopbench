@@ -22,7 +22,7 @@ export function ErrorBlock({
       onOpenChange={onOpenChange}
       onExpand={onIntoViewSettle}
       bodyClassName="px-4 pt-2 pb-4"
-      className="border-destructive/20 bg-destructive/10 min-w-32"
+      className="border-destructive/20 bg-destructive/10 min-w-32 rounded-2xl"
       leadingIcon={
         <AlertCircleIcon className="text-destructive size-3.5 shrink-0" />
       }

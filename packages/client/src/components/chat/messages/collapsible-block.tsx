@@ -107,12 +107,12 @@ export function CollapsibleBlock({
   )
 
   const shellClassName = cn(
-    'group overflow-x-auto rounded-2xl border border-transparent transition-all',
+    'group overflow-x-auto rounded-none border border-transparent transition-all',
     TRIGGER_FOCUS,
     dense ? 'mb-0' : 'mb-2',
     fullWidth ? 'w-full' : 'w-fit max-w-full',
     surface &&
-      'data-[open=true]:bg-m3-surface-container-low data-[open=true]:border-border',
+      'data-[open=true]:bg-m3-surface-container-low data-[open=true]:border-border rounded-2xl',
     insetSurface &&
       'chat-block-inset rounded-none data-[open=true]:rounded-(--work-surface-radius)',
     surface === 'inset' && 'border-0 data-[open=true]:border',
