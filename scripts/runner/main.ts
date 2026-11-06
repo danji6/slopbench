@@ -1,4 +1,3 @@
-import { buildSidecar } from '../sidecar'
 import { ensureConvexBinaries } from './binaries'
 import { buildFrontendIfNeeded } from './build-cache'
 import {
@@ -19,6 +18,7 @@ import { ensureDependencies } from './deps'
 import { loadEnvFile } from './env-file'
 import { freePorts } from './ports'
 import { ProcessManager, bun, output } from './processes'
+import { startSidecar } from './sidecar'
 import { applyUpdateIfRequested, rollbackUpdate } from './update'
 
 export async function run(args: string[]) {
@@ -230,19 +230,6 @@ async function deployToBackend(
 async function restartDashboard(manager: ProcessManager, config: RunnerConfig) {
   await cleanupDocker(config)
   await startDashboard(manager, config)
-}
-
-async function startSidecar(manager: ProcessManager, config: RunnerConfig) {
-  const entry = await buildSidecar()
-  const sidecar = await manager.spawn('sidecar', [config.nodeBinary, entry], {
-    env: {
-      CHAT_SIDECAR_DATA_DIR: config.sidecarDataDir,
-      SIDECAR_SECRET: config.sidecarSecret,
-      MCP_PORT: String(config.sidecarPort),
-    },
-  })
-  console.log(`Started sidecar server (pid ${sidecar.pid})`)
-  return sidecar
 }
 
 async function startDashboard(manager: ProcessManager, config: RunnerConfig) {

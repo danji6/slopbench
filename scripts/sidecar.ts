@@ -11,6 +11,10 @@ import {
 const OUT_DIR = resolve(dataDir, 'build/sidecar')
 const SIDECAR_ENTRY = resolve(projectRoot, 'packages/sidecar/src/main.ts')
 
+export function sidecarBuildEntry(root: string = dataDir): string {
+  return join(root, 'build/sidecar/main.js')
+}
+
 /** Bundles the sidecar to plain JS so it can run under Node. */
 export async function buildSidecar(): Promise<string> {
   const result = await Bun.build({
@@ -43,7 +47,7 @@ export async function buildSidecar(): Promise<string> {
   if (!result.success) {
     throw new AggregateError(result.logs, 'Sidecar build failed')
   }
-  return join(OUT_DIR, 'main.js')
+  return sidecarBuildEntry()
 }
 
 /** The embedded Node downloaded by the runner, or the system one. */
@@ -53,7 +57,7 @@ export function resolveNodeBinary(): string {
   return existsSync(embedded) ? embedded : 'node'
 }
 
-if (import.meta.main) {
+async function runSidecar() {
   if (!process.env.SIDECAR_SECRET?.trim()) {
     throw new Error(
       'SIDECAR_SECRET must match the backend; run ./start.sh or ./dev.sh to provision it automatically',
@@ -73,4 +77,12 @@ if (import.meta.main) {
     process.on(signal, () => child.kill(signal))
   }
   process.exit(await child.exited)
+}
+
+if (import.meta.main) {
+  if (process.argv.includes('--build-only')) {
+    await buildSidecar()
+  } else {
+    await runSidecar()
+  }
 }
