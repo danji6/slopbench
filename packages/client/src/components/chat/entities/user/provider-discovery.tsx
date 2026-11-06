@@ -1,5 +1,6 @@
 import { Input, RippleButton } from '@/components/ui'
 import { providerInput } from '@/lib/provider-settings'
+import { generateId } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { modelMetadata } from '@sb/core/discovered-model'
@@ -163,7 +164,7 @@ export function ProviderDiscovery({ provider, onChange }: Props) {
         discovered: modelMetadata(enriched),
         source: 'discovered',
         available: true,
-        _clientId: crypto.randomUUID(),
+        _clientId: generateId(),
       },
     ]
     current.current = { ...latest, models }
