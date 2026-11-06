@@ -21,12 +21,13 @@ export function ErrorBlock({
       open={open}
       onOpenChange={onOpenChange}
       onExpand={onIntoViewSettle}
+      bodyClassName="px-4 pt-2 pb-4"
       className="border-destructive/20 bg-destructive/10 min-w-32"
       leadingIcon={
         <AlertCircleIcon className="text-destructive size-3.5 shrink-0" />
       }
     >
-      <div className="text-destructive px-4 pt-2 pb-4 text-sm wrap-break-word whitespace-pre-wrap">
+      <div className="text-destructive text-sm wrap-break-word whitespace-pre-wrap">
         {error}
       </div>
     </CollapsibleBlock>

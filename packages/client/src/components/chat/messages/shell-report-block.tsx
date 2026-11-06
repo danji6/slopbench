@@ -35,9 +35,8 @@ export function ShellReportBlock({ part }: { part: ShellReportPart }) {
           </span>
         </span>
       }
-      className="px-0 data-[open=true]:my-1 data-[open=true]:py-2"
     >
-      <pre className="max-h-72 overflow-auto px-2.5 pb-1 font-mono text-xs whitespace-pre-wrap">
+      <pre className="max-h-72 overflow-auto font-mono text-xs whitespace-pre-wrap">
         {part.text}
       </pre>
     </CollapsibleBlock>

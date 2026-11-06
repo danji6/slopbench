@@ -33,6 +33,8 @@ export type CollapsibleBlockProps = React.ComponentPropsWithoutRef<'div'> & {
   fullWidth?: boolean
   footer?: React.ReactNode
   onExpand?: () => void
+  headerClassName?: string
+  bodyClassName?: string
   labelClassName?: string
   /** Make the chevron icon absolutely positioned on the right. */
   floatingChevron?: boolean
@@ -58,6 +60,8 @@ export function CollapsibleBlock({
   footer,
   onExpand,
   className,
+  headerClassName,
+  bodyClassName,
   labelClassName,
   floatingChevron,
   onLabelClick,
@@ -85,7 +89,17 @@ export function CollapsibleBlock({
     topPadding,
   })
 
-  const rowMinH = dense ? 'min-h-7' : 'min-h-9'
+  const rowMinH = dense ? undefined : 'min-h-9'
+  const body = children && (
+    <div
+      className={cn(
+        collapsible ? 'chat-block-body' : 'chat-block-list',
+        bodyClassName,
+      )}
+    >
+      {children}
+    </div>
+  )
 
   const shellClassName = cn(
     'group overflow-x-auto rounded-2xl border border-transparent transition-all',
@@ -107,7 +121,13 @@ export function CollapsibleBlock({
           className={shellClassName}
           {...rest}
         >
-          <div className={cn('flex items-center px-2.5', rowMinH)}>
+          <div
+            className={cn(
+              'flex items-center px-(--work-body-padding)',
+              rowMinH,
+              headerClassName,
+            )}
+          >
             <Header
               leadingIcon={leadingIcon}
               label={label}
@@ -117,7 +137,7 @@ export function CollapsibleBlock({
             />
             {actions}
           </div>
-          {children}
+          {body}
         </div>
         {footer}
       </>
@@ -141,9 +161,10 @@ export function CollapsibleBlock({
         >
           <div
             className={cn(
-              'flex items-center px-2.5',
+              'flex items-center px-(--work-body-padding)',
               rowMinH,
-              open && 'pt-1 pb-2',
+              open && 'chat-block-header-expanded',
+              headerClassName,
             )}
           >
             <Trigger
@@ -168,7 +189,7 @@ export function CollapsibleBlock({
             bottomPadding={bottomPadding}
             topPadding={topPadding}
           >
-            {children}
+            {body}
           </Content>
         </Collapsible>
       </div>
@@ -218,7 +239,7 @@ function Header({
     <div
       className={cn(
         'flex min-w-0 grow items-center gap-2',
-        dense ? 'min-h-7 py-1' : 'min-h-9 py-2',
+        dense ? 'chat-work-header' : 'min-h-9 py-2',
       )}
     >
       <Label
@@ -267,7 +288,7 @@ function Trigger({
       onClick={onLabelClick ?? (canExpand ? toggle : undefined)}
       className={cn(
         'flex min-w-0 shrink grow items-center justify-start gap-2 rounded-none text-left whitespace-normal focus-visible:ring-0',
-        dense ? 'min-h-7 py-1' : 'min-h-9 py-2',
+        dense ? 'chat-work-header' : 'min-h-9 py-2',
         floatingChevron && 'relative',
       )}
     >

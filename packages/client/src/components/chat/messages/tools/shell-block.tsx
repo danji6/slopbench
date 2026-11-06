@@ -202,10 +202,7 @@ export function ShellBlock({
           terminated={terminated}
         />
       }
-      className={cn(
-        shellGroup ? 'px-0' : 'px-1',
-        dense ? 'data-[open=true]:my-1 data-[open=true]:py-2' : 'pt-1.5 pb-2',
-      )}
+      className={cn(shellGroup ? 'px-0' : 'px-1', !dense && 'pt-1.5 pb-2')}
     >
       {hasContent && (
         <>

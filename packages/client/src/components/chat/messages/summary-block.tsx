@@ -26,6 +26,7 @@ export function SummaryBlock({ message }: { message: UIMessage }) {
       onOpenChange={onOpenChange}
       onExpand={onIntoViewSettle}
       fullWidth
+      bodyClassName="px-4 pt-2 pb-4"
       className="bg-muted/50 border-border border p-0.5"
       labelClassName="text-center w-full"
       floatingChevron
@@ -40,7 +41,6 @@ export function SummaryBlock({ message }: { message: UIMessage }) {
       }
     >
       <div
-        className="px-4 pt-2 pb-4"
         style={{
           fontFamily: 'var(--chat-font-family)',
           fontSize: 'var(--chat-font-size)',

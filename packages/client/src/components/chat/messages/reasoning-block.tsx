@@ -41,7 +41,7 @@ export function ReasoningBlock({
       surface
     >
       <div
-        className="px-2.5 pb-2.5 wrap-break-word whitespace-pre-wrap opacity-70"
+        className="wrap-break-word whitespace-pre-wrap opacity-70"
         style={{
           fontFamily: 'var(--chat-font-family)',
           fontSize: 'var(--chat-font-size)',

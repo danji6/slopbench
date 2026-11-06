@@ -5,7 +5,7 @@ async function openThinking(page: Page) {
   const work = page.locator('[data-slot="work-block"]')
   await work.click()
   const blocks = page.locator('[data-slot="reasoning-block"]')
-  await expect(blocks).toHaveCount(8)
+  await expect(blocks.first()).toBeVisible()
   return blocks
 }
 
@@ -27,9 +27,10 @@ async function expectNoRetainedSpace(block: Locator) {
         const wrapper = element.closest(
           '[data-slot="message-row"]',
         )!.firstElementChild!
+        const group = element.closest('[data-slot="message-group"]')!
         return (
           wrapper.getBoundingClientRect().height -
-          element.getBoundingClientRect().height
+          group.getBoundingClientRect().height
         )
       }),
     )

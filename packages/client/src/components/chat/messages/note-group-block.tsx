@@ -29,7 +29,7 @@ export function NoteGroupBlock({
         )
         onOpenChange(!open, mountedRows)
       }}
-      className="text-muted-foreground flex min-h-9 max-w-full items-center justify-start gap-2 py-1 text-left text-xs whitespace-normal"
+      className="chat-summary-row text-muted-foreground flex max-w-full items-center justify-start gap-2 text-left text-xs whitespace-normal"
     >
       <span className="min-w-0 wrap-anywhere">{row.count} notes</span>
       <Accordion.Icon isExpanded={open} className="shrink-0" />

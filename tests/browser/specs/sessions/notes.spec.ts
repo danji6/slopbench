@@ -72,6 +72,7 @@ test('groups notes, expands independently with keyboard, and keeps state across 
   await expect(note(page, 'workspace')).toHaveCount(0)
   await group(page).focus()
   await page.keyboard.press('Enter')
+  await waitForGroupAnimation(page)
   const workspace = note(page, 'workspace').getByRole('button')
   await expect(workspace).toHaveAttribute('aria-expanded', 'false')
   await expect(note(page, 'workspace').locator('strong')).toHaveCount(0)

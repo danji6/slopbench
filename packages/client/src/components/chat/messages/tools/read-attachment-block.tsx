@@ -51,7 +51,7 @@ function AttachmentReadRow({
   return (
     <div
       data-tool-call-id={part.toolCallId}
-      className="flex min-h-7 w-fit max-w-full flex-wrap items-center gap-x-2 px-2.5 text-xs"
+      className="chat-work-header flex w-fit max-w-full flex-wrap items-center gap-x-2 border border-transparent px-(--work-body-padding) text-xs"
     >
       <ToolIcon name="read_attachment" />
       <span

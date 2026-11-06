@@ -92,7 +92,7 @@ export function ToolShell({
       {...props}
     >
       {hasBody && (
-        <div className="space-y-2 px-2.5 pb-2.5">
+        <div className="space-y-2">
           {children}
           {showErrorText && (
             <pre className="bg-background text-destructive overflow-x-auto rounded px-2 py-1 text-xs">

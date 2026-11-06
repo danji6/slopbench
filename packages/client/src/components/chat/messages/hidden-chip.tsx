@@ -199,9 +199,11 @@ export function HiddenChip({ message, record }: HiddenChipProps) {
         revealOnOpen={false}
         dense
         surface
+        className={open ? undefined : 'border-0'}
+        headerClassName={open ? undefined : 'chat-summary-row px-0'}
       >
         <div
-          className="px-2.5 pb-2.5 wrap-anywhere select-text"
+          className="wrap-anywhere select-text"
           style={{
             fontFamily: 'var(--chat-font-family)',
             fontSize: 'var(--chat-font-size)',

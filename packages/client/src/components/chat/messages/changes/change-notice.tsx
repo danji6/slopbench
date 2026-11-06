@@ -32,11 +32,12 @@ export function ChangeNotice({
       }
       fullWidth
       dense
+      bodyClassName="px-4 pt-1 pb-3"
       revealOnOpen={false}
       className={`mt-3 rounded-md ${warning ? 'border-amber-500/15 bg-amber-500/5' : 'border-destructive/15 bg-destructive/5'}`}
     >
       <div
-        className={`${tone} max-h-64 overflow-y-auto px-4 pt-1 pb-3 text-xs wrap-anywhere whitespace-pre-wrap select-text`}
+        className={`${tone} max-h-64 overflow-y-auto text-xs wrap-anywhere whitespace-pre-wrap select-text`}
       >
         <p>{message}</p>
         {details.map((detail, index) => (

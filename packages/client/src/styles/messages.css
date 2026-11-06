@@ -1,3 +1,39 @@
+/* --- Message layout: row gaps live in VirtualizedItem; block insets live in CollapsibleBlock. --- */
+@layer components {
+  :root {
+    --work-row-gap: --spacing(1);
+    --work-header-padding-y: --spacing(1);
+    --work-body-padding: --spacing(2.5);
+    --message-section-gap: --spacing(2);
+    --message-sender-gap: --spacing(10);
+    --message-summary-height: --spacing(9);
+  }
+
+  .chat-work-header {
+    padding-block: var(--work-header-padding-y);
+  }
+
+  .chat-block-header-expanded {
+    padding-block: var(--work-header-padding-y)
+      calc(var(--work-header-padding-y) * 2);
+  }
+
+  .chat-block-body {
+    padding-inline: var(--work-body-padding);
+    padding-bottom: var(--work-body-padding);
+  }
+
+  /* List bodies end with the same inset as a compact header. */
+  .chat-block-list {
+    padding-bottom: var(--work-header-padding-y);
+  }
+
+  .chat-summary-row {
+    min-height: var(--message-summary-height);
+    padding-block: var(--work-header-padding-y);
+  }
+}
+
 /* --- Streaming caret --- */
 .streaming-cursor::after,
 .streaming-cursor-code

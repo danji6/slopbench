@@ -301,9 +301,7 @@ function GroupRow({ row, message, messageMeta, partMeta }: GroupRowProps) {
       data-slot="message-group"
       className={cn(
         'w-full max-w-full wrap-break-word',
-        row.workId &&
-          !row.promotedToolCallIds &&
-          'border-border/60 border-l pl-3',
+        row.workId && !row.promotedToolCallIds && 'pl-3',
       )}
     >
       <div

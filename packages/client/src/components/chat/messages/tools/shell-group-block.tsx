@@ -58,6 +58,7 @@ export function ShellGroupBlock({
         data-slot="shell-group"
         collapsible={false}
         dense
+        bodyClassName="pb-0"
         fullWidth
         leadingIcon={<ToolIcon name="shell" />}
         label={
