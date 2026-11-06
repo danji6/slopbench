@@ -3,9 +3,11 @@ import {
   convertMessages,
   isMessagePending,
   isMessageStreaming,
+  isVisibleMessage,
   messageStructureSignature,
   sanitizeMessages,
 } from '@/lib/chat/messages'
+import type { MessageRecord } from '@/lib/chat/types'
 import {
   isEmptyAssistantMessage,
   removeEmptyAssistantMessages,
@@ -21,6 +23,56 @@ const emptyAssistant = {
 } as never
 
 describe('chat message visibility', () => {
+  test.each([
+    { parts: [] },
+    { parts: [{ type: 'step-start' }] },
+    { parts: [{ type: 'text', text: ' ', state: 'streaming' }] },
+    { parts: [{ type: 'reasoning', text: '', state: 'streaming' }] },
+  ])('hides assistant placeholders until content arrives: %j', ({ parts }) => {
+    const assistant: UIMessage = {
+      id: 'assistant',
+      role: 'assistant',
+      parts: [...parts],
+    }
+
+    expect(
+      isVisibleMessage({ ...assistant, status: 'processing' } as UIMessage),
+    ).toBe(false)
+    expect(
+      isVisibleMessage({ ...assistant, status: 'done' } as UIMessage),
+    ).toBe(false)
+  })
+
+  test.each([
+    { type: 'text', text: 'answer', state: 'streaming' },
+    { type: 'reasoning', text: 'thinking', state: 'streaming' },
+    { type: 'tool-shell', toolCallId: 'call', state: 'input-streaming' },
+    { type: 'file', mediaType: 'image/png', url: 'attachment:image' },
+    { type: 'subagent-report', sessionId: 'child', text: 'report' },
+  ])('reveals processing assistant content: %j', (part) => {
+    expect(
+      isVisibleMessage({
+        id: 'assistant',
+        role: 'assistant',
+        status: 'processing',
+        parts: [{ type: 'step-start' }, part],
+      } as UIMessage),
+    ).toBe(true)
+  })
+
+  test('preserves errors and non-assistant messages without content', () => {
+    const assistant: UIMessage = {
+      id: 'assistant',
+      role: 'assistant',
+      parts: [],
+    }
+    const record = { metadata: { error: 'Provider failed' } } as MessageRecord
+
+    expect(isVisibleMessage(assistant, record)).toBe(true)
+    expect(isVisibleMessage({ ...assistant, role: 'user' })).toBe(true)
+    expect(isVisibleMessage({ ...assistant, role: 'system' })).toBe(true)
+  })
+
   test('removes an empty assistant placeholder from visible messages', () => {
     const user = { id: 'user', role: 'user', parts: [] } as never
 

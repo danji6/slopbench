@@ -13,7 +13,7 @@ import {
 } from '@/lib/chat/message-store'
 import {
   convertMessages,
-  isMessageEmpty,
+  isVisibleMessage,
   runningShellSender,
 } from '@/lib/chat/messages'
 import { projectNoteRows } from '@/lib/chat/note-rows'
@@ -53,13 +53,8 @@ export function ChatMessagesProvider({ children }: { children: ReactNode }) {
 
   const converted = useMemo(() => {
     const conversion = convertMessages(messages)
-    const filtered = conversion.messages.filter(
-      (message) =>
-        message.role !== 'assistant' ||
-        message.status === 'processing' ||
-        !isMessageEmpty(message) ||
-        // For error propagation
-        Boolean(conversion.byId.get(message.id)?.metadata?.error),
+    const filtered = conversion.messages.filter((message) =>
+      isVisibleMessage(message, conversion.byId.get(message.id)),
     )
     return { ...conversion, messages: filtered }
   }, [messages])

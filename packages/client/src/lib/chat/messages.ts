@@ -6,10 +6,14 @@ import { SHELL_TOOL_PART_TYPE } from '@sb/convex/lib/userShell'
 import type { MessageExtra } from '@sb/convex/types'
 import { settleUnansweredToolPart } from '@sb/core/utils/tool-parts'
 import type { FileUIPart, TextUIPart, UIMessage } from 'ai'
-import { isFileUIPart, isReasoningUIPart, isTextUIPart, isToolUIPart } from 'ai'
+import { isReasoningUIPart, isTextUIPart, isToolUIPart } from 'ai'
 
 import type { MessageStore } from './message-store'
-import { isToolInFlight } from './parts'
+import {
+  groupPartsCached,
+  isRenderablePartGroup,
+  isToolInFlight,
+} from './parts'
 import type { MessageRecord, PartMetadata } from './types'
 
 export type Message = UIMessage & { status: 'processing' | 'done' }
@@ -188,14 +192,17 @@ export function isMessagePending(message: UIMessage): boolean {
 }
 
 export function hasVisibleMessageContent(message: UIMessage): boolean {
-  return message.parts.some((part) => {
-    if (isTextUIPart(part) || isReasoningUIPart(part)) {
-      return part.text.trim().length > 0
-    }
-    if (isFileUIPart(part)) return true
-    if (isToolUIPart(part) && part.type !== 'dynamic-tool') return true
-    return false
-  })
+  return groupPartsCached(message.parts).some(isRenderablePartGroup)
+}
+
+/** Keeps assistant placeholders hidden until content or an error arrives. */
+export function isVisibleMessage(
+  message: UIMessage,
+  record?: MessageRecord,
+): boolean {
+  if (message.role !== 'assistant') return true
+  if (record?.metadata?.error) return true
+  return hasVisibleMessageContent(message)
 }
 
 export function hasInFlightTool(message: UIMessage): boolean {

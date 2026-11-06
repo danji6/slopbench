@@ -123,7 +123,7 @@ export function ChatGPTConnection({
     <div className="flex flex-col gap-2 text-sm">
       <p>
         {status?.status === 'connected'
-          ? `Connected as ${status.email ?? 'ChatGPT account'} (${status.registration ?? ''})`
+          ? `Connected as ${status.email ?? 'ChatGPT account'}`
           : status?.status === 'pending'
             ? 'Complete sign-in in your browser.'
             : 'Sign in to use your eligible ChatGPT subscription.'}
@@ -169,13 +169,6 @@ export function ChatGPTConnection({
           </RippleButton>
         )}
       </div>
-      <p className="text-muted-foreground text-xs">
-        Account changes save immediately and remain when settings are cancelled.
-      </p>
-      <p className="text-muted-foreground text-xs">
-        Shared agents use their owner's selected connection and consume that
-        account's allowance.
-      </p>
       <a
         href="https://chatgpt.com/settings/usage"
         target="_blank"
