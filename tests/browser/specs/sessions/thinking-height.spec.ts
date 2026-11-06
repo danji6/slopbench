@@ -6,6 +6,22 @@ async function openThinking(page: Page) {
   await work.click()
   const blocks = page.locator('[data-slot="reasoning-block"]')
   await expect(blocks.first()).toBeVisible()
+  await expect
+    .poll(async () => {
+      const thinkingIcon = await blocks
+        .first()
+        .locator('svg')
+        .first()
+        .boundingBox()
+      const readIcon = await page
+        .locator('[data-slot="read-file-block"] svg')
+        .first()
+        .boundingBox()
+      return thinkingIcon && readIcon
+        ? Math.abs(thinkingIcon.x - readIcon.x)
+        : Infinity
+    })
+    .toBeLessThanOrEqual(1)
   return blocks
 }
 
@@ -17,6 +33,33 @@ async function waitForAnimations(block: Locator) {
         .map((animation) => animation.finished),
     )
   })
+}
+
+async function expectAnimatedExpansion(block: Locator) {
+  const insets = await block.evaluate(async (element) => {
+    const button = element.querySelector<HTMLButtonElement>('button')!
+    const inset = () =>
+      button.getBoundingClientRect().top - element.getBoundingClientRect().top
+    const closed = inset()
+    button.click()
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    const animations = element.getAnimations({ subtree: true })
+    const sample = (time: number) => {
+      for (const animation of animations) {
+        animation.pause()
+        animation.currentTime = time
+      }
+      return inset()
+    }
+    const start = sample(0)
+    const middle = sample(100)
+    for (const animation of animations) animation.finish()
+    return { closed, start, middle, end: inset() }
+  })
+  expect(Math.abs(insets.start - insets.closed)).toBeLessThanOrEqual(1)
+  expect(insets.middle).toBeGreaterThan(insets.start + 1)
+  expect(insets.middle).toBeLessThan(insets.end - 1)
 }
 
 async function expectNoRetainedSpace(block: Locator) {
@@ -41,7 +84,7 @@ test('delayed thinking collapse releases its retained height', async ({
   page,
 }) => {
   const block = (await openThinking(page)).first()
-  await block.getByRole('button').click()
+  await expectAnimatedExpansion(block)
   await waitForAnimations(block)
   await block.evaluate((element) => {
     const content = element.querySelector<HTMLElement>(

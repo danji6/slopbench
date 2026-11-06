@@ -12,6 +12,20 @@ function changes(diff: string) {
 }
 
 describe('inline diff ranges', () => {
+  test('ignores the patch terminator while preserving empty source lines', () => {
+    const parsed = parseDiffLines('-old\n+new\n')
+    expect(parsed.code).toBe('old\nnew')
+    expect(parsed.lines.map((line) => line.type)).toEqual(['remove', 'add'])
+
+    const blankContext = parseDiffLines('-old\n+new\n \n')
+    expect(blankContext.code).toBe('old\nnew\n')
+    expect(blankContext.lines.map((line) => line.type)).toEqual([
+      'remove',
+      'add',
+      'context',
+    ])
+  })
+
   test('isolates multiple changed words and significant whitespace', () => {
     expect(
       changes('-const theme = "dark";  // old\n+const theme = "light"; // new'),

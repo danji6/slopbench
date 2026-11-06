@@ -133,7 +133,7 @@ function TextPreviewBody({
       lineNumbers
       hugParent
       className="h-full min-h-0 rounded-none"
-      innerClassName="h-full p-4 text-xs"
+      innerClassName="h-full rounded-none border-0 p-4 text-xs"
       noLoadingIndicator
     />
   )

@@ -6,6 +6,8 @@ import { ConvexProvider, type ConvexReactClient } from 'convex/react'
 import { type FunctionReference, getFunctionName } from 'convex/server'
 import { useState } from 'react'
 
+import { ChangesTranscript } from './changes-transcript'
+
 const listeners = new Set<() => void>()
 const cache = new Map<string, unknown>()
 const subscriptions = new Map<string, number>()
@@ -124,10 +126,16 @@ export function ChangesFixture() {
     <ConvexProvider client={client}>
       <ConvexQueryCacheProvider>
         <main className="mx-auto max-w-3xl p-6">
-          {visible && (
-            <GrowOnly data-testid="summary-row">
+          {params.has('transcript') ? (
+            <ChangesTranscript>
               <ChangesSummary messageId="message" version={1} />
-            </GrowOnly>
+            </ChangesTranscript>
+          ) : (
+            visible && (
+              <GrowOnly data-testid="summary-row">
+                <ChangesSummary messageId="message" version={1} />
+              </GrowOnly>
+            )
           )}
           {delayed && (
             <>

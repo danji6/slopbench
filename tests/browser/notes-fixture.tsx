@@ -29,6 +29,10 @@ const noop = () => {}
 const groupedWork = new URLSearchParams(location.search).has('groupedWork')
 const tailWork = new URLSearchParams(location.search).has('tailWork')
 const shellReports = new URLSearchParams(location.search).has('shellReports')
+const fileChanges = new URLSearchParams(location.search).has('fileChanges')
+const compaction = new URLSearchParams(location.search).has('compaction')
+const thinkingWork = new URLSearchParams(location.search).has('thinkingWork')
+const reminderWork = new URLSearchParams(location.search).has('reminderWork')
 
 function NoteRow({ row }: { row: MessageRow }) {
   const { message, messageMeta } = useChatMessage(row.messageId)
@@ -37,7 +41,14 @@ function NoteRow({ row }: { row: MessageRow }) {
   if (row.kind === 'work') {
     return <WorkBlock row={row} message={message} record={messageMeta} />
   }
-  return <HiddenChip message={message} record={messageMeta} />
+  if (row.kind !== 'hidden') return null
+  return (
+    <HiddenChip
+      message={message}
+      record={messageMeta}
+      placement={row.placement}
+    />
+  )
 }
 
 function Transcript() {
@@ -150,7 +161,13 @@ function Transcript() {
             onLoadNewer: () => {},
             virtuaRef,
             renderRow: (row) =>
-              groupedWork || tailWork || shellReports ? (
+              groupedWork ||
+              tailWork ||
+              shellReports ||
+              fileChanges ||
+              compaction ||
+              thinkingWork ||
+              reminderWork ? (
                 <MessageRowView
                   row={
                     hideDuration && row.kind === 'footer'

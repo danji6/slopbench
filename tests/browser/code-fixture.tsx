@@ -10,7 +10,7 @@ const diff = `--- file.ts\n+++ file.ts\n@@ -1,12 +1,12 @@\n-const theme = "dark"
   .split('\n')
   .slice(1)
   .map((line) => ` ${line}`)
-  .join('\n')}`
+  .join('\n')}\n+short\n`
 
 export function CodeFixture() {
   const highlighting =
@@ -39,6 +39,16 @@ export function CodeFixture() {
         data-testid="wrapped"
         text={code}
         lineNumbers
+        wordWrap
+        highlighting={highlighting}
+        noCopyButton
+        hugParent
+        innerClassName="max-h-40"
+      />
+      <Code
+        data-testid="wrapped-diff"
+        text={diff}
+        diff
         wordWrap
         highlighting={highlighting}
         noCopyButton

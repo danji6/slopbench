@@ -30,7 +30,11 @@ export function parseDiffLines(diff: string): ParsedDiff {
   let hunks = 0
   let hasHunks = false
 
-  for (const raw of diff.split('\n')) {
+  // A patch's terminating newline is not an extra context row.
+  const rawLines = diff.split('\n')
+  if (rawLines.at(-1) === '') rawLines.pop()
+
+  for (const raw of rawLines) {
     if (raw === '\\ No newline at end of file') continue
     if (!hasHunks && (raw.startsWith('+++') || raw.startsWith('---'))) continue // file headers
     if (raw.startsWith('@@')) {

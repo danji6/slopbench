@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { type Locator, expect, test } from '@playwright/test'
 
 for (const side of ['top', 'bottom']) {
   test(`positions a slow hover diff on the ${side} using its loaded size`, async ({
@@ -204,3 +204,96 @@ test('expands to newly loaded content smoothly and renders diff markers before s
     resumeWorker()
   }
 })
+
+for (const delayedDiff of [false, true]) {
+  test(`keeps an expanded file in view in the transcript (delayed diff=${delayedDiff})`, async ({
+    page,
+  }) => {
+    let resolveDiff!: () => void
+    const diffReady = new Promise<void>((resolve) => {
+      resolveDiff = resolve
+    })
+    await page.route('**/diff/file-1.patch', async (route) => {
+      if (delayedDiff) await diffReady
+      await route.fulfill({
+        contentType: 'text/plain',
+        body: `--- file.ts\n+++ file.ts\n@@ -1 +1,120 @@\n-before\n${'+after\n'.repeat(120)}`,
+      })
+    })
+    try {
+      await page.goto('/?fixture=changes&transcript&networkDiff')
+      const first = page.getByRole('button', {
+        name: 'src/file-1.ts',
+        exact: true,
+      })
+      await expect(first).toBeVisible()
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () =>
+              document.documentElement.scrollHeight -
+              window.scrollY -
+              window.innerHeight,
+          ),
+        )
+        .toBeLessThan(2)
+      await sampleFilePosition(first, false)
+      if (!delayedDiff) {
+        await first.hover()
+        await expect(page.getByRole('dialog')).toBeVisible()
+      }
+      const before = (await first.boundingBox())!.y
+      await first.click()
+      if (delayedDiff) {
+        await expect(
+          page.getByRole('status').filter({ hasText: 'Loading diff' }),
+        ).toBeVisible()
+        await sampleFilePosition(first, false)
+        resolveDiff()
+      }
+      const positions = await sampleFilePosition(first, true)
+      expect(
+        Math.max(...positions.map((top) => Math.abs(top - before))),
+      ).toBeLessThanOrEqual(2)
+      await expect(first).toBeInViewport()
+    } finally {
+      resolveDiff()
+    }
+  })
+}
+
+/** Samples the viewport until virtual measurements and the accordion settle. */
+function sampleFilePosition(trigger: Locator, loaded: boolean) {
+  return trigger.evaluate(
+    (trigger, loaded) =>
+      new Promise<number[]>((resolve, reject) => {
+        const positions: number[] = []
+        const start = performance.now()
+        let stable = 0
+        let lastHeight = -1
+        const sample = () => {
+          const top = trigger.getBoundingClientRect().top
+          const panel = document.querySelector(
+            '[data-slot="accordion-content"]',
+          )
+          const height = panel?.getBoundingClientRect().height ?? 0
+          const content =
+            panel?.firstElementChild?.getBoundingClientRect().height ?? 0
+          const documentHeight = document.documentElement.scrollHeight
+          const unchanged =
+            positions.at(-1) === top && lastHeight === documentHeight
+          const settled =
+            Math.abs(height - content) < 1 && (!loaded || content > 100)
+          stable = unchanged && settled ? stable + 1 : 0
+          positions.push(top)
+          lastHeight = documentHeight
+          if (stable >= 8) return resolve(positions)
+          if (performance.now() - start > 5000)
+            return reject(new Error('Summary did not settle'))
+          requestAnimationFrame(sample)
+        }
+        requestAnimationFrame(sample)
+      }),
+    loaded,
+  )
+}

@@ -54,7 +54,13 @@ export const MessageRowView = memo(function MessageRowView({
   if (row.kind === 'note-group') return <NoteGroupBlock row={row} />
 
   if (row.kind === 'hidden') {
-    return <HiddenChip message={message} record={messageMeta} />
+    return (
+      <HiddenChip
+        message={message}
+        record={messageMeta}
+        placement={row.placement}
+      />
+    )
   }
 
   return (
@@ -301,7 +307,7 @@ function GroupRow({ row, message, messageMeta, partMeta }: GroupRowProps) {
       data-slot="message-group"
       className={cn(
         'w-full max-w-full wrap-break-word',
-        row.workId && !row.promotedToolCallIds && 'pl-3',
+        row.workId && !row.promotedToolCallIds && 'pl-(--message-group-inset)',
       )}
     >
       <div
@@ -386,7 +392,7 @@ function FooterRow({ duration, message, messageMeta, isLast }: FooterRowProps) {
           )}
           {showDuration && (
             <span className="text-muted-foreground/80 text-sm tabular-nums">
-              {formatDuration(duration)}
+              Worked for {formatDuration(duration)}
             </span>
           )}
         </div>

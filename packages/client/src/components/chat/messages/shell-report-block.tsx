@@ -21,7 +21,8 @@ export function ShellReportBlock({ part }: { part: ShellReportPart }) {
       data-slot="shell-report-block"
       open={open}
       onOpenChange={onOpenChange}
-      surface
+      surface="inset"
+      fullWidth
       dense
       label={
         <span className="font-mono">
@@ -36,7 +37,7 @@ export function ShellReportBlock({ part }: { part: ShellReportPart }) {
         </span>
       }
     >
-      <pre className="max-h-72 overflow-auto font-mono text-xs whitespace-pre-wrap">
+      <pre className="bg-m3-surface-container-lowest max-h-72 overflow-auto rounded-(--work-surface-inner-radius) border p-2 font-mono text-xs whitespace-pre-wrap">
         {part.text}
       </pre>
     </CollapsibleBlock>

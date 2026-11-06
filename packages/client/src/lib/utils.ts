@@ -139,6 +139,7 @@ export function download(blob: Blob, filename: string) {
 }
 
 export function formatDuration(ms: number): string {
+  if (ms >= 60_000) return formatLongDuration(ms)
   const seconds = ms / 1000
   return seconds === 0
     ? '0s'

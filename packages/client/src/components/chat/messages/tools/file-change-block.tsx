@@ -21,6 +21,13 @@ type FileChangePart = ToolUIPart & {
   previewPath?: string
 }
 
+type FileChangeBlockProps = {
+  part: ToolUIPart
+  messageId: string
+  forceError?: boolean
+  grouped?: boolean
+}
+
 /**
  * Renders write_file/edit_file as a highlighted diff. Before the tool
  * runs (input streaming or approval), a preview is built from the input
@@ -30,11 +37,8 @@ export function FileChangeBlock({
   part,
   messageId,
   forceError,
-}: {
-  part: ToolUIPart
-  messageId: string
-  forceError?: boolean
-}) {
+  grouped = false,
+}: FileChangeBlockProps) {
   const input = part.input as FileChangeInput | undefined
   const { previewDiff, previewPath } = part as FileChangePart
 
@@ -74,12 +78,14 @@ export function FileChangeBlock({
       part={part}
       messageId={messageId}
       forceError={forceError}
+      fullWidth
+      surface={grouped ? 'inset' : true}
       className="w-full"
+      leadingIcon={grouped ? null : undefined}
       label={
         <>
-          {verb}
-          {personal && ' personal file'}
-          {path && ' '}
+          {!grouped && `${verb} `}
+          {personal && (grouped ? 'Personal folder · ' : 'personal file ')}
           <span className="text-foreground font-mono">{path ?? '…'}</span>
         </>
       }
@@ -89,8 +95,8 @@ export function FileChangeBlock({
           text={diff}
           language={languageFromPath(path)}
           diff
-          className="my-1 rounded-lg"
-          innerClassName="max-h-[min(384px,50dvh)] overflow-auto p-3 text-xs w-full"
+          className="min-h-0 rounded-(--work-surface-inner-radius)"
+          innerClassName="max-h-[min(384px,50dvh)] overflow-auto rounded-(--work-surface-inner-radius) text-xs w-full"
           hugParent
           noLoadingIndicator
           noCopyButton
@@ -100,8 +106,8 @@ export function FileChangeBlock({
         <Code
           text={input?.content}
           language={languageFromPath(path)}
-          className="my-1 rounded-lg"
-          innerClassName="max-h-[min(384px,50dvh)] overflow-auto p-3 text-xs w-full"
+          className="min-h-0 rounded-(--work-surface-inner-radius)"
+          innerClassName="max-h-[min(384px,50dvh)] overflow-auto rounded-(--work-surface-inner-radius) p-3 text-xs w-full"
           hugParent
           noLoadingIndicator
           noCopyButton

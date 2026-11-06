@@ -2,6 +2,7 @@ import { buildRows, segmentGroupsFor } from '@/lib/chat/rows'
 import type { MessageRecord } from '@/lib/chat/types'
 import { buildWorkLayout } from '@/lib/chat/work-layout'
 import { projectWorkRows } from '@/lib/chat/work-rows'
+import type { ReasoningPart } from '@sb/convex/types'
 import type { ShellJobSummary } from '@sb/core/types/tools'
 import type { UIMessage } from 'ai'
 
@@ -9,10 +10,14 @@ export type Part = UIMessage['parts'][number]
 
 export const text = (text = 'commentary'): Part => ({ type: 'text', text })
 
-export const thinking = (text = 'thinking'): Part => ({
+export const thinking = (
+  text = 'thinking',
+  duration?: number,
+): ReasoningPart => ({
   type: 'reasoning',
   text,
   state: 'done',
+  duration,
 })
 
 export const tool = (name: string, id: string, input: object = {}): Part =>

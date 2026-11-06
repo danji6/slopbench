@@ -15,7 +15,6 @@ import { useTerminalFeed } from '@/hooks/terminal-feed'
 import type { ShellToolOutput } from '@/lib/chat'
 import { parseOutputValue } from '@/lib/chat/tool-output'
 import { toast } from '@/lib/notifications'
-import { cn } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { needsEmulator } from '@sb/core/shell/ansi'
@@ -45,6 +44,7 @@ export function ShellBlock({
   dense = true,
   alwaysExpand,
 }: ShellBlockProps) {
+  const outputRead = part.type === 'tool-shell_output'
   const input = part.input as
     | {
         command?: string
@@ -189,20 +189,26 @@ export function ShellBlock({
       autoExpand={interactive || Boolean(alwaysExpand)}
       reveal={revealTerminal}
       revealOnOpen={false}
-      fullWidth={hasTerminal}
-      surface={hasTerminal}
+      fullWidth
+      surface={outputRead ? 'inset-row' : 'inset'}
       noErrorText={hasTerminal || Boolean(fallbackText)}
       dense={dense}
-      leadingIcon={null}
+      leadingIcon={outputRead ? undefined : null}
       label={
-        <ShellLabel
-          input={input}
-          output={output}
-          background={optimisticBackground}
-          terminated={terminated}
-        />
+        outputRead ? (
+          <>
+            Read output of job{' '}
+            <span className="font-mono">{input?.jobId ?? '…'}</span>
+          </>
+        ) : (
+          <ShellLabel
+            input={input}
+            output={output}
+            background={optimisticBackground}
+            terminated={terminated}
+          />
+        )
       }
-      className={cn(shellGroup ? 'px-0' : 'px-1', !dense && 'pt-1.5 pb-2')}
     >
       {hasContent && (
         <>
@@ -223,12 +229,12 @@ export function ShellBlock({
             />
           )}
           {fallbackText && (
-            <pre className="max-h-72 overflow-auto font-mono text-xs whitespace-pre-wrap">
+            <pre className="bg-m3-surface-container-lowest max-h-72 overflow-auto rounded-(--work-surface-inner-radius) border p-2 font-mono text-xs whitespace-pre-wrap">
               {fallbackText}
             </pre>
           )}
           {!hasTerminal && fullOutput?.text && (
-            <pre className="max-h-72 overflow-auto font-mono text-xs whitespace-pre-wrap">
+            <pre className="bg-m3-surface-container-lowest max-h-72 overflow-auto rounded-(--work-surface-inner-radius) border p-2 font-mono text-xs whitespace-pre-wrap">
               {fullOutput.text}
             </pre>
           )}
@@ -290,9 +296,7 @@ function ShellLabel({
         {input?.command ? (
           <HighlightedCommand command={input.command} />
         ) : (
-          <span className="text-foreground/70">
-            output of job {input?.jobId ?? '…'}
-          </span>
+          <span className="text-foreground/70">…</span>
         )}
         {status && (
           <span className="text-muted-foreground ml-2 text-[10px] uppercase">
@@ -359,7 +363,7 @@ function ShellTerminal({
   return (
     <div
       data-slot="terminal-wrapper"
-      className="bg-m3-surface-container-lowest rounded-lg border p-2"
+      className="bg-m3-surface-container-lowest rounded-(--work-surface-inner-radius) border p-2"
     >
       {emulator ? (
         <Terminal

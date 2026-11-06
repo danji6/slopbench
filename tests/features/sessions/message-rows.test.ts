@@ -251,13 +251,14 @@ describe('segment rows', () => {
       () => message([reasoning, part('answer')]),
       () => named(true),
     )
-    // The header uses the latest loaded thought without creating an isolated block.
+    // The header keeps the latest thought while partial work remains expandable.
     expect(partial[0]).toMatchObject({
       kind: 'header',
       key: 'h:message-1',
       reasoning: { messageId: 'message-1', segmentIndex: 1, groupIndex: 0 },
     })
-    expect(partial[1]).toMatchObject({ kind: 'group', segmentIndex: 1 })
+    expect(partial[1]).toMatchObject({ kind: 'work', work: { partial: true } })
+    expect(partial[2]).toMatchObject({ kind: 'group', segmentIndex: 1 })
   })
 })
 
@@ -425,7 +426,12 @@ describe('sender grouping', () => {
     )
 
     expect(rows.filter((row) => row.messageId === 'message-2')).toEqual([
-      { kind: 'hidden', key: 'hid:message-2', messageId: 'message-2' },
+      {
+        kind: 'hidden',
+        key: 'hid:message-2',
+        messageId: 'message-2',
+        placement: 'standalone',
+      },
     ])
   })
 
@@ -447,6 +453,9 @@ describe('sender grouping', () => {
     // The message after the chip still folds into the sender group
     expect(rows.map((row) => row.key)).not.toContain('h:message-3')
     expect(rows.some((row) => row.key.endsWith(':grp'))).toBe(true)
+    expect(rows.find((row) => row.kind === 'hidden')).toMatchObject({
+      placement: 'inline',
+    })
   })
 
   test('a summary breaks the group on both sides', () => {

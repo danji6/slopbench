@@ -5,6 +5,7 @@ import { FileChangeBlock } from './file-change-block'
 import { ListSkillsBlock } from './list-skills-block'
 import { PlanBlock } from './plan-block'
 import { QuestionBlock } from './question-block'
+import { ShellBlock } from './shell-block'
 import { ShellGroupBlock } from './shell-group-block'
 import { SubagentBlock } from './subagent-block'
 import { EditTodoBlock, WriteTodoBlock } from './todo-block'
@@ -22,7 +23,6 @@ export function ToolPartBlock(props: ToolRendererProps) {
     case 'edit_file':
       return <FileChangeBlock {...props} />
     case 'shell':
-    case 'shell_output':
       return (
         <ShellGroupBlock
           parts={[props.part]}
@@ -30,6 +30,8 @@ export function ToolPartBlock(props: ToolRendererProps) {
           toolErrors={props.forceError ? [props.part.toolCallId] : undefined}
         />
       )
+    case 'shell_output':
+      return <ShellBlock {...props} />
     case 'web_fetch':
       return <WebFetchBlock {...props} />
     case 'list_skills':

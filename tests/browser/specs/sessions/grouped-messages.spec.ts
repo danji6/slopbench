@@ -1,9 +1,136 @@
-import { expect, test } from '@playwright/test'
+import { type Locator, expect, test } from '@playwright/test'
+
+for (const mixed of [false, true]) {
+  test(`work sums thinking durations and reveals every thinking block (mixed=${mixed})`, async ({
+    page,
+  }) => {
+    await page.goto(
+      `/?fixture=notes&id=notes&thinkingWork${mixed ? '&mixedThinking' : ''}`,
+    )
+    const work = page.locator('[data-slot="work-block"]')
+    await expect(work).toHaveText(
+      mixed ? 'Read 1 file, thought for 1m12s' : 'Thought for 1m12s',
+      { useInnerText: true },
+    )
+    await expect(
+      page.locator('[data-slot="reasoning-highlight"]'),
+    ).toContainText('Thought for 1m2s')
+    await expect(page.locator('[data-slow="message-footer"]')).toContainText(
+      '2m26s',
+    )
+    const blocks = page.locator('[data-slot="reasoning-block"]')
+    await expect(blocks).toHaveCount(0)
+    await work.click()
+    await expect(blocks).toHaveCount(2)
+    await expect(blocks.nth(0)).toContainText('Thought for 10.0s')
+    await expect(blocks.nth(1)).toContainText('Thought for 1m2s')
+    await blocks.nth(0).getByRole('button').click()
+    await blocks.nth(1).getByRole('button').click()
+    await expect(blocks.nth(0)).toContainText('First thinking block.')
+    await expect(blocks.nth(1)).toContainText('Second thinking block.')
+    await work.click()
+    await expect(blocks).toHaveCount(0)
+    await work.click()
+    await expect(blocks.nth(0).getByText('First thinking block.')).toBeVisible()
+    await expect(
+      blocks.nth(1).getByText('Second thinking block.'),
+    ).toBeVisible()
+  })
+}
+
+test('compaction keeps a smaller incoming gap and separates thinking from its summary', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=notes&id=notes&compaction')
+  const command = page.locator('[data-row-key="hid:command"]')
+  const thinking = page.locator('[data-slot="reasoning-block"]')
+  const summary = page.locator('[data-slot="summary-block"]').first()
+  await expect(thinking).toBeVisible()
+  const commandBox = await command.boundingBox()
+  const thinkingBox = await thinking.boundingBox()
+  expect(thinkingBox!.y - commandBox!.y - commandBox!.height).toBe(20)
+  for (const expanded of [true, false]) {
+    await thinking.getByRole('button').click()
+    await expect(thinking).toHaveAttribute('data-open', String(expanded))
+    await expect
+      .poll(async () => {
+        const above = await thinking.boundingBox()
+        const below = await summary.boundingBox()
+        return below!.y - above!.y - above!.height
+      })
+      .toBe(8)
+  }
+})
+
+test('file changes share a list with independent, persistent diff toggles', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=notes&id=notes&fileChanges')
+  const work = page.locator('[data-slot="work-block"]')
+  await work.click()
+  await expect(
+    page.locator('[data-slot="virtualized-row-transition"][data-state]'),
+  ).toHaveCount(0)
+  const group = page.locator('[data-slot="file-change-group"]')
+  await expect(group).toContainText('Changed 3 files')
+  const rows = group.getByRole('listitem')
+  await expect(rows).toHaveCount(3)
+  const first = rows.nth(0)
+  const second = rows.nth(1)
+  await expect(first.locator('[data-slot="code-container"]')).toBeHidden()
+  await expect(second.locator('[data-slot="code-container"]')).toBeHidden()
+  await expect(rows.nth(2)).toContainText('Original text was not found')
+
+  await first.getByRole('button', { name: 'first.ts' }).focus()
+  await page.keyboard.press('Enter')
+  await expect(first.locator('[data-slot="code-container"]')).toBeVisible()
+  await expect(first).toContainText('newFirst')
+  await expect(second.getByRole('button')).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  )
+  await second.getByRole('button', { name: 'second.ts' }).click()
+  await expect(second.locator('[data-slot="code-container"]')).toBeVisible()
+  await expect(second).toContainText('newSecond')
+  await first.getByRole('button', { name: 'first.ts' }).click()
+  await expect(first.locator('[data-slot="code-container"]')).toBeHidden()
+  await expect(first.getByRole('button')).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  )
+  await expect(second.getByRole('button')).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  )
+
+  await work.click()
+  await expect(group).toBeHidden()
+  await work.click()
+  await expect(second.getByRole('button')).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  )
+  await expect(second).toContainText('newSecond')
+  await expectEvenInset(
+    second.locator('[data-slot="file-change-block"]'),
+    '[data-slot="code-container"]',
+  )
+  const shell = page.locator('[data-slot="shell-block"]')
+  await expectMatchingTreeInset(shell, group)
+  await shell.getByRole('button').click()
+  await expect(shell.locator('[data-slot="terminal-wrapper"]')).toBeVisible()
+  await expectEvenInset(shell, '[data-slot="terminal-wrapper"]')
+  await expectMatchingTreeInset(shell, group)
+  await shell.getByRole('button').click()
+  await expect(shell.locator('[data-slot="terminal-wrapper"]')).toBeHidden()
+  await expectMatchingTreeInset(shell, group)
+})
 
 for (const grouped of [true, false]) {
   test(`shell commands and reports share shell groups (grouped=${grouped})`, async ({
     page,
   }) => {
+    await page.setViewportSize({ width: 1280, height: 1200 })
     await page.goto(
       `/?fixture=notes&id=notes&shellReports${grouped ? '' : '&ungrouped'}`,
     )
@@ -20,14 +147,41 @@ for (const grouped of [true, false]) {
     await expect(work).toHaveCount(grouped ? 2 : 3)
     await expect(work.first()).toContainText('Ran 2 commands')
     for (const block of await work.all()) await block.click()
+    await expect(
+      page.locator('[data-slot="virtualized-row-transition"][data-state]'),
+    ).toHaveCount(0)
     await expect(report.first()).toHaveAttribute('data-role', 'assistant')
 
     const groups = page.locator('[data-slot="shell-group"]')
-    await expect(groups).toHaveCount(4)
+    await expect(groups).toHaveCount(3)
     await expect(groups.nth(0)).toContainText('Ran 1 command')
     await expect(groups.nth(1)).toContainText('Ran 2 commands')
     await expect(groups.nth(2)).toContainText('Ran 1 command')
-    await expect(groups.nth(3)).toContainText('Read 1 command output')
+    const output = page.locator('[data-tool-call-id="poll"]')
+    const nextOutput = page.locator('[data-tool-call-id="poll-next"]')
+    await expect(output.getByRole('button')).toHaveText(
+      'Read output of job job',
+      { useInnerText: true },
+    )
+    await expect(nextOutput.getByRole('button')).toHaveText(
+      'Read output of job next-job',
+      { useInnerText: true },
+    )
+    await expect(
+      output.getByText('Command output', { exact: true }),
+    ).toBeHidden()
+    await output.getByRole('button').focus()
+    await page.keyboard.press('Enter')
+    await expect(
+      output.getByText('Command output', { exact: true }),
+    ).toBeVisible()
+    await nextOutput.getByRole('button').click()
+    await expect(nextOutput.getByText('Next command output')).toBeVisible()
+    await output.getByRole('button').click()
+    await expect(
+      output.getByText('Command output', { exact: true }),
+    ).toBeHidden()
+    await expect(nextOutput.getByText('Next command output')).toBeVisible()
     await expect(groups.nth(0)).toContainText('user output')
     await expect(groups.nth(2).getByText('Lint passed')).toBeHidden()
     await groups.nth(2).getByRole('button').click()
@@ -61,11 +215,11 @@ for (const grouped of [true, false]) {
       page.locator(
         '[data-slot="shell-block"]:not([data-slot="shell-group"] *)',
       ),
-    ).toHaveCount(0)
+    ).toHaveCount(2)
     if (grouped) {
       await expect(page.locator('[data-slow="message-footer"]')).toHaveCount(1)
       await expect(page.locator('[data-slow="message-footer"]')).toContainText(
-        '146.0s',
+        '2m26s',
       )
     }
   })
@@ -164,4 +318,49 @@ for (const finishOpening of [true, false]) {
       Math.max(...frames.map((frame) => Math.abs(frame.y - originalY))),
     ).toBeLessThanOrEqual(1)
   })
+}
+
+/** Checks the visible inset and corner relationship after expansion settles. */
+async function expectEvenInset(block: Locator, innerSelector: string) {
+  await expect
+    .poll(() =>
+      block.evaluate((outer, selector) => {
+        if (outer.getAnimations({ subtree: true }).length) return Infinity
+        const inner = outer.querySelector(selector)!
+        const outerBox = outer.getBoundingClientRect()
+        const innerBox = inner.getBoundingClientRect()
+        const left = innerBox.left - outerBox.left
+        const right = outerBox.right - innerBox.right
+        const bottom = outerBox.bottom - innerBox.bottom
+        const outerRadius = parseFloat(
+          getComputedStyle(outer).borderBottomLeftRadius,
+        )
+        const innerRadius = parseFloat(
+          getComputedStyle(inner).borderBottomLeftRadius,
+        )
+        return Math.max(
+          Math.abs(left - right),
+          Math.abs(left - bottom),
+          Math.abs(innerRadius - Math.max(0, outerRadius - left)),
+        )
+      }, innerSelector),
+    )
+    .toBeLessThanOrEqual(1)
+}
+
+/** Checks that shell surfaces clear the tree gutter by the same inset as files. */
+async function expectMatchingTreeInset(shell: Locator, files: Locator) {
+  const shellList = shell.locator('xpath=ancestor::ul[1]')
+  const shellBox = await shell.boundingBox()
+  const shellListBox = await shellList.boundingBox()
+  const fileBox = await files.getByRole('listitem').first().boundingBox()
+  const fileListBox = await files.getByRole('list').boundingBox()
+  expect(shellBox).not.toBeNull()
+  expect(shellListBox).not.toBeNull()
+  expect(fileBox).not.toBeNull()
+  expect(fileListBox).not.toBeNull()
+  const inset = shellBox!.x - shellListBox!.x
+  const fileInset = fileBox!.x - fileListBox!.x
+  expect(inset).toBeGreaterThan(0)
+  expect(Math.abs(inset - fileInset)).toBeLessThanOrEqual(1)
 }

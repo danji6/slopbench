@@ -4,6 +4,8 @@ import { languageFromPath } from '@/lib/chat/tool-output'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import type { ChangedFile } from '@sb/core/types/changes'
 
+import { usePendingMessageLayout } from '../message-list/message-list-context'
+
 type ChangeDiffProps = {
   changeSetId: Id<'changeSets'>
   file: ChangedFile
@@ -18,6 +20,7 @@ type ChangeDiffContentProps = {
 
 export function ChangeDiff({ changeSetId, file, active }: ChangeDiffProps) {
   const result = useChangeDiff(changeSetId, file.key, active)
+  usePendingMessageLayout(active && result.text === undefined && !result.error)
 
   if (!active) {
     return null
@@ -44,7 +47,7 @@ export function ChangeDiffPreview({
       <div className="px-1 pt-1 pb-2 font-mono text-xs break-all">
         {file.path}
       </div>
-      <div className="border-border overflow-hidden rounded-md border">
+      <div className="border-border overflow-hidden rounded-[calc(var(--radius-lg)-var(--spacing)*2)] border">
         <ChangeDiffContent file={file} {...result} />
       </div>
     </Popover.Content>
@@ -78,7 +81,7 @@ function ChangeDiffContent({ file, text, error }: ChangeDiffContentProps) {
       noCopyButton
       noLoadingIndicator
       className="rounded-none"
-      innerClassName="max-h-[min(384px,50dvh)] w-full overflow-auto rounded-none border-0 p-3 text-xs"
+      innerClassName="max-h-[min(384px,50dvh)] w-full overflow-auto rounded-none border-0 text-xs"
     />
   )
 }

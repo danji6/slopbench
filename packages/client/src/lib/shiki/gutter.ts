@@ -15,9 +15,23 @@ export function gutterElement(value?: string): Element {
   }
 }
 
+/** Separates the gutter from code so both cells share the full line height. */
+export function addLineGutter(node: Element, value?: string) {
+  node.children = [
+    gutterElement(value),
+    {
+      type: 'element',
+      tagName: 'span',
+      properties: { className: ['code-content'] },
+      children: node.children,
+    },
+  ]
+}
+
 export const gutterTransformer: ShikiTransformer = {
   name: 'line-gutters',
-  line(node) {
-    node.children.unshift(gutterElement())
+  // Wrap after Shiki applies token decorations in its code hook.
+  pre() {
+    for (const line of this.lines) addLineGutter(line)
   },
 }

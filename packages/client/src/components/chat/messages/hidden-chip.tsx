@@ -14,6 +14,7 @@ import {
 } from '@/lib/chat'
 import type { MessageRecord } from '@/lib/chat'
 import { noteContentKey } from '@/lib/chat/note-state'
+import type { HiddenChipPlacement } from '@/lib/chat/rows'
 import { cn, isTouchDevice } from '@/lib/utils'
 import type { MessageExtra } from '@sb/convex/types'
 import type { UIMessage } from 'ai'
@@ -140,10 +141,11 @@ function commandPresentation(
 export type HiddenChipProps = {
   message: UIMessage
   record?: MessageRecord
+  placement: HiddenChipPlacement
 }
 
 /** Compact row for a hidden message, styled by its type. */
-export function HiddenChip({ message, record }: HiddenChipProps) {
+export function HiddenChip({ message, record, placement }: HiddenChipProps) {
   const session = useActiveSession()
   const profile = useUserProfile()
   const deleteMessage = useDeleteMessage()
@@ -184,6 +186,7 @@ export function HiddenChip({ message, record }: HiddenChipProps) {
       ref={highlightRef}
       data-slot="hidden-chip"
       data-message-id={message.id}
+      data-placement={placement}
       className={cn(
         'w-fit max-w-full min-w-0',
         isTouchDevice() && '[-webkit-touch-callout:none]',
@@ -198,9 +201,8 @@ export function HiddenChip({ message, record }: HiddenChipProps) {
         onOpenChange={setOpen}
         revealOnOpen={false}
         dense
-        surface
-        className={open ? undefined : 'border-0'}
-        headerClassName={open ? undefined : 'chat-summary-row px-0'}
+        surface={placement === 'inline' ? 'inset' : 'inset-row'}
+        triggerClassName="py-(--work-header-padding-y)"
       >
         <div
           className="wrap-anywhere select-text"

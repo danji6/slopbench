@@ -23,8 +23,8 @@ export type CollapsibleBlockProps = React.ComponentPropsWithoutRef<'div'> & {
   reveal?: boolean
   /** Scroll the block into view whenever it opens. Disable to reveal only via `reveal`. */
   revealOnOpen?: boolean
-  /** Adds a Surface-like border and background while expanded. */
-  surface?: boolean
+  /** Inset surfaces pad header and body together; inset-row keeps collapsed row alignment. */
+  surface?: boolean | 'inset' | 'inset-row'
   /** Compact header height and no outer margin, for stacking inside a group. */
   dense?: boolean
   defaultOpen?: boolean
@@ -34,6 +34,7 @@ export type CollapsibleBlockProps = React.ComponentPropsWithoutRef<'div'> & {
   footer?: React.ReactNode
   onExpand?: () => void
   headerClassName?: string
+  triggerClassName?: string
   bodyClassName?: string
   labelClassName?: string
   /** Make the chevron icon absolutely positioned on the right. */
@@ -61,6 +62,7 @@ export function CollapsibleBlock({
   onExpand,
   className,
   headerClassName,
+  triggerClassName,
   bodyClassName,
   labelClassName,
   floatingChevron,
@@ -89,11 +91,14 @@ export function CollapsibleBlock({
     topPadding,
   })
 
+  const insetRow = surface === 'inset-row'
+  const insetSurface = surface === 'inset' || insetRow
   const rowMinH = dense ? undefined : 'min-h-9'
   const body = children && (
     <div
       className={cn(
         collapsible ? 'chat-block-body' : 'chat-block-list',
+        insetSurface && 'chat-block-body-inset',
         bodyClassName,
       )}
     >
@@ -108,6 +113,10 @@ export function CollapsibleBlock({
     fullWidth ? 'w-full' : 'w-fit max-w-full',
     surface &&
       'data-[open=true]:bg-m3-surface-container-low data-[open=true]:border-border',
+    insetSurface &&
+      'chat-block-inset rounded-none data-[open=true]:rounded-(--work-surface-radius)',
+    surface === 'inset' && 'border-0 data-[open=true]:border',
+    insetRow && 'chat-block-inset-row',
     className,
   )
 
@@ -125,6 +134,7 @@ export function CollapsibleBlock({
             className={cn(
               'flex items-center px-(--work-body-padding)',
               rowMinH,
+              insetSurface && 'p-0',
               headerClassName,
             )}
           >
@@ -163,11 +173,18 @@ export function CollapsibleBlock({
             className={cn(
               'flex items-center px-(--work-body-padding)',
               rowMinH,
+              insetSurface && 'p-0',
               open && 'chat-block-header-expanded',
               headerClassName,
             )}
           >
             <Trigger
+              className={cn(
+                insetSurface &&
+                  'py-0 focus-visible:ring-1 focus-visible:ring-inset',
+                insetRow && 'py-(--work-header-padding-y)',
+                triggerClassName,
+              )}
               contentId={contentId}
               leadingIcon={leadingIcon}
               label={label}
@@ -253,6 +270,7 @@ function Header({
 }
 
 type TriggerProps = {
+  className?: string
   contentId: string
   leadingIcon?: React.ReactNode
   label: React.ReactNode
@@ -265,6 +283,7 @@ type TriggerProps = {
 }
 
 function Trigger({
+  className,
   contentId,
   leadingIcon,
   label,
@@ -290,6 +309,7 @@ function Trigger({
         'flex min-w-0 shrink grow items-center justify-start gap-2 rounded-none text-left whitespace-normal focus-visible:ring-0',
         dense ? 'chat-work-header' : 'min-h-9 py-2',
         floatingChevron && 'relative',
+        className,
       )}
     >
       <Label

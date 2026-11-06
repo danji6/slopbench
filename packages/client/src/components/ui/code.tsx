@@ -15,8 +15,6 @@ export type CodeProps = CodeContainerProps & {
   delay?: number
   noCopyButton?: boolean
   noLoadingIndicator?: boolean
-  /** Render `text` as a unified diff with green/red line backgrounds. */
-  diff?: boolean
   /** Whether to apply syntax highlighting. */
   highlighting?: boolean
 }
@@ -29,6 +27,8 @@ export type CodeContainerProps = React.HTMLAttributes<HTMLDivElement> & {
   hugParent?: boolean
   wordWrap?: boolean
   lineNumbers?: boolean
+  /** Use edge-to-edge rows for a unified diff. */
+  diff?: boolean
 }
 
 export function Code({
@@ -52,6 +52,7 @@ export function Code({
   if (!highlighting || showPlainDiff) {
     return (
       <CodeContainer
+        diff={diff}
         copyValue={noCopyButton ? undefined : text}
         lineNumberValue={text}
         {...props}
@@ -73,6 +74,7 @@ export function Code({
 
   return (
     <CodeContainer
+      diff={diff}
       dangerouslySetInnerHTML={{ __html: code }}
       copyValue={noCopyButton ? undefined : text}
       lineNumberValue={text}
@@ -92,6 +94,7 @@ export function CodeContainer({
   hugParent = false,
   wordWrap = false,
   lineNumbers = false,
+  diff = false,
   ...props
 }: CodeContainerProps) {
   const lineNumberSource = lineNumberValue ?? copyValue
@@ -108,7 +111,9 @@ export function CodeContainer({
     : innerStyle
 
   const surfaceClassName = cn(
-    copyValue && 'col-start-1 row-start-1 pr-12',
+    copyValue && 'col-start-1 row-start-1',
+    copyValue && !diff && 'pr-12',
+    diff && 'p-0',
     wordWrap &&
       'overflow-x-hidden wrap-anywhere whitespace-pre-wrap [&_.line]:wrap-anywhere [&_code]:wrap-anywhere [&_code]:whitespace-pre-wrap [&_pre]:wrap-anywhere [&_pre]:whitespace-pre-wrap',
     lineNumbers && 'shiki-numbered',
@@ -124,19 +129,25 @@ export function CodeContainer({
       className={cn(
         'group/code relative isolate grid min-h-17 items-center overflow-clip rounded-2xl',
         !hugParent && 'max-w-[calc(100%-var(--spacing)*5)]',
+        diff && 'min-h-0 items-stretch',
         className,
       )}
       {...props}
     >
       {dangerouslySetInnerHTML ? (
         <CodeSurface
+          data-word-wrap={wordWrap || undefined}
           // biome-ignore lint/security/noDangerouslySetInnerHtml: needed for Shiki to work
           dangerouslySetInnerHTML={dangerouslySetInnerHTML}
           className={surfaceClassName}
           style={codeSurfaceStyle}
         />
       ) : (
-        <CodeSurface className={surfaceClassName} style={codeSurfaceStyle}>
+        <CodeSurface
+          data-word-wrap={wordWrap || undefined}
+          className={surfaceClassName}
+          style={codeSurfaceStyle}
+        >
           {children}
         </CodeSurface>
       )}
@@ -206,18 +217,20 @@ export function PlainCode({
                   aria-hidden="true"
                   data-gutter={diff ? gutters[index] : undefined}
                 />
-                {diff
-                  ? diffTextParts(line, parsed?.lines[index]?.changes).map(
-                      (part, index) =>
-                        part.changed ? (
-                          <span key={index} className="diff-change">
-                            {part.text}
-                          </span>
-                        ) : (
-                          part.text
-                        ),
-                    )
-                  : line}
+                <span className="code-content">
+                  {diff
+                    ? diffTextParts(line, parsed?.lines[index]?.changes).map(
+                        (part, index) =>
+                          part.changed ? (
+                            <span key={index} className="diff-change">
+                              {part.text}
+                            </span>
+                          ) : (
+                            part.text
+                          ),
+                      )
+                    : line}
+                </span>
               </span>
               {index < lines.length - 1 ? '\n' : null}
             </Fragment>

@@ -62,11 +62,18 @@ function AccordionTrigger({
   )
 }
 
+type AccordionContentProps = AccordionPrimitive.Panel.Props & {
+  onHeightAnimationStart?: () => void
+  onHeightAnimationComplete?: () => void
+}
+
 function AccordionContent({
   className,
   children,
+  onHeightAnimationStart,
+  onHeightAnimationComplete,
   ...props
-}: AccordionPrimitive.Panel.Props) {
+}: AccordionContentProps) {
   return (
     <AccordionPrimitive.Panel
       data-slot="accordion-content"
@@ -78,6 +85,8 @@ function AccordionContent({
             {state.open && (
               <AccordionPanel
                 {...(panelProps as HTMLMotionProps<'div'>)}
+                onAnimationStart={onHeightAnimationStart}
+                onAnimationComplete={onHeightAnimationComplete}
                 contentClassName={
                   typeof className === 'function' ? className(state) : className
                 }

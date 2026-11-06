@@ -114,10 +114,21 @@ describe('work stretches', () => {
     expect(project(msg).map((row) => row.kind)).toEqual(['header', 'group'])
   })
 
-  test('thinking-only stretches never create body blocks', () => {
+  test('thinking-only stretches keep expandable work and their original addresses', () => {
     const msg = message([thinking('old'), text(), thinking('latest')])
-    expect(layout(msg).work).toHaveLength(0)
-    expect(project(msg).map((row) => row.kind)).toEqual(['header', 'group'])
+    expect(layout(msg).work).toHaveLength(2)
+    expect(project(msg).map((row) => row.kind)).toEqual([
+      'header',
+      'work',
+      'group',
+      'work',
+    ])
+    const open = new Set(layout(msg).work.map((work) => work.id))
+    expect(
+      project(msg, open)
+        .filter((row) => row.kind === 'group')
+        .map((row) => row.groupIndex),
+    ).toEqual([0, 1, 2])
     expect(rows(msg)[0]).toMatchObject({
       reasoning: { messageId: 'm', segmentIndex: 0, groupIndex: 2 },
     })
@@ -127,9 +138,9 @@ describe('work stretches', () => {
       thinking('kept'),
       tool('shell', 's'),
     ])
-    expect(layout(mixed).work[0].groups).toHaveLength(2)
+    expect(layout(mixed).work.map((work) => work.groups.length)).toEqual([1, 2])
     expect(layout(mixed).groups.map((group) => group.groupIndex)).toEqual([
-      1, 2, 3,
+      0, 1, 2, 3,
     ])
   })
 

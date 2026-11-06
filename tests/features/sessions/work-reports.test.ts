@@ -89,13 +89,13 @@ test('a delayed report folds into its original work and retains its content addr
 })
 
 test.each([
-  ['done', 0, 0],
-  ['done', 1, 1],
-  ['failed', undefined, 1],
-  ['killed', undefined, 1],
+  ['done', 0],
+  ['done', 1],
+  ['failed', undefined],
+  ['killed', undefined],
 ] as const)(
-  'completion updates work status (%s, exit=%s)',
-  (status, exitCode, failures) => {
+  'completion settles work without tool failures (%s, exit=%s)',
+  (status, exitCode) => {
     const commandMessage = message([command], source.id)
     const completed = {
       ...report,
@@ -107,10 +107,21 @@ test.each([
     ).toEqual({
       label: 'Ran 1 command',
       running: false,
-      failures,
+      failures: 0,
     })
   },
 )
+
+test('completion preserves genuine tool failures recorded in metadata', () => {
+  const commandMessage = message([command], source.id)
+  const { works } = transcript([commandMessage, report])
+
+  expect(
+    summarizeWork(works[0].work, segmentGroupsFor(commandMessage, agent), [
+      command.toolCallId,
+    ]),
+  ).toEqual({ label: 'Ran 1 command', running: false, failures: 1 })
+})
 
 test('matches job identity rather than the nearest summary or repeated command text', () => {
   const unrelated = message(
@@ -183,18 +194,20 @@ test('keeps association across hidden context notes and while the group is expan
 test.each([true, false])(
   'unloaded original commands still give reports addressable work (grouped=%s)',
   (grouped) => {
+    const failedReport = {
+      ...report,
+      parts: [{ ...reportPart, exitCode: 1 }],
+    } as unknown as UIMessage
     const { rows, works, project, getMessage, getMetadata } = transcript(
-      [report],
+      [failedReport],
       {},
       grouped,
     )
     expect(works).toHaveLength(1)
     const row = works[0]
-    expect(summarizeWork(row.work, segmentGroupsFor(report, agent))).toEqual({
-      label: 'Ran 1 command',
-      running: false,
-      failures: 0,
-    })
+    expect(
+      summarizeWork(row.work, segmentGroupsFor(failedReport, agent)),
+    ).toEqual({ label: 'Ran 1 command', running: false, failures: 0 })
     expect(project().filter((row) => row.kind === 'group')).toHaveLength(0)
     expect(
       project(new Set([row.work.id])).some((row) => row.kind === 'group'),

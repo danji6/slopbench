@@ -69,7 +69,7 @@ export function TerminalsWidget({ className }: { className?: string }) {
         <SquareTerminalIcon className="size-4" />
         <span className="text-xs tabular-nums">{running.length}</span>
       </Popover.Trigger>
-      <Popover.Content align="end" side="top" className="w-72">
+      <Popover.Content align="start" side="top" className="w-72">
         <Popover.Header>
           <Popover.Title>Terminals</Popover.Title>
           <Popover.Description>

@@ -2,11 +2,23 @@
 @layer components {
   :root {
     --work-row-gap: --spacing(1);
+    --work-command-gap: --spacing(3);
     --work-header-padding-y: --spacing(1);
     --work-body-padding: --spacing(2.5);
+    --work-surface-padding: --spacing(4);
+    --work-surface-gap: --spacing(2);
+    --work-surface-radius: var(--radius-2xl);
+    /* Clamp the inner curve when the inset consumes the outer radius. */
+    --work-surface-inner-radius: max(
+      0px,
+      var(--work-surface-radius) - var(--work-surface-padding) - 1px
+    );
     --message-section-gap: --spacing(2);
     --message-sender-gap: --spacing(10);
+    --message-compaction-gap: calc(var(--message-sender-gap) / 2);
+    --message-group-inset: --spacing(3);
     --message-summary-height: --spacing(9);
+    --message-summary-padding-y: --spacing(2.5);
   }
 
   .chat-work-header {
@@ -23,14 +35,49 @@
     padding-bottom: var(--work-body-padding);
   }
 
+  .chat-block-inset {
+    transition-duration: 200ms;
+    transition-timing-function: ease-in-out;
+  }
+
+  .chat-block-inset-row {
+    padding-inline: var(--work-body-padding);
+  }
+
+  .chat-block-inset[data-open='true'] {
+    padding: var(--work-surface-padding);
+  }
+
+  .chat-block-body-inset {
+    padding: var(--work-surface-gap) 0 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chat-block-inset {
+      transition: none;
+    }
+  }
+
   /* List bodies end with the same inset as a compact header. */
   .chat-block-list {
-    padding-bottom: var(--work-header-padding-y);
+    padding-bottom: var(
+      --work-list-bottom-padding,
+      var(--work-header-padding-y)
+    );
+  }
+
+  /* The work boundary owns trailing space, regardless of its final block type. */
+  .chat-work-row {
+    --work-list-bottom-padding: 0px;
+  }
+
+  .chat-work-end {
+    padding-bottom: var(--message-summary-padding-y);
   }
 
   .chat-summary-row {
     min-height: var(--message-summary-height);
-    padding-block: var(--work-header-padding-y);
+    padding-block: var(--message-summary-padding-y);
   }
 }
 
@@ -128,12 +175,22 @@
 .shiki-diff .line,
 .shiki-numbered .shiki .line {
   --code-gutter-width: calc(var(--code-gutter-chars, 2) * 1ch + 2rem + 1px);
-  display: inline-block;
+  display: inline-grid;
+  grid-template-columns: var(--code-gutter-width) minmax(0, 1fr);
   vertical-align: top;
+  width: max-content;
   min-width: 100%;
   min-height: 1lh;
   box-sizing: border-box;
-  padding-left: var(--code-gutter-width);
+}
+
+.shiki-diff .code-content,
+.shiki-numbered .shiki .code-content {
+  min-width: 0;
+}
+
+[data-slot='code-surface'][data-word-wrap] .line {
+  width: 100%;
 }
 
 .shiki-diff .code-gutter,
@@ -141,14 +198,11 @@
   position: sticky;
   left: 0;
   z-index: 1;
-  display: inline-block;
+  display: block;
   box-sizing: content-box;
-  width: calc(var(--code-gutter-chars, 2) * 1ch);
-  margin-left: calc(-1 * var(--code-gutter-width));
   margin-right: 1rem;
   padding-right: 1rem;
   border-right: 1px solid var(--base-border);
-  vertical-align: top;
   text-align: right;
   white-space: pre;
   overflow-wrap: normal;
@@ -171,6 +225,44 @@
 }
 
 /* --- Diff line and word highlighting --- */
+.shiki-diff {
+  --diff-edge-padding: --spacing(1);
+}
+
+.shiki-diff code {
+  display: block;
+  width: max-content;
+}
+
+[data-slot='code-surface'][data-word-wrap] .shiki-diff code {
+  width: 100%;
+}
+
+.shiki-diff .line {
+  --code-gutter-width: calc(
+    var(--code-gutter-chars, 2) * 1ch + 2rem + 1px + --spacing(3)
+  );
+  width: 100%;
+}
+
+/* Keep spacing inside the painted rows instead of around the scroll surface. */
+.shiki-diff .code-gutter {
+  padding-left: --spacing(3);
+}
+
+.shiki-diff .code-content {
+  padding-right: --spacing(3);
+}
+
+/* Keep edge spacing inside both cells so the paint and divider stay continuous. */
+.shiki-diff .line:first-child > :is(.code-gutter, .code-content) {
+  padding-top: var(--diff-edge-padding);
+}
+
+.shiki-diff .line:last-child > :is(.code-gutter, .code-content) {
+  padding-bottom: var(--diff-edge-padding);
+}
+
 .shiki-diff .code-gutter::before {
   content: attr(data-gutter);
 }
@@ -196,7 +288,6 @@
 }
 
 .shiki-diff .diff-change {
-  border-radius: 2px;
   background-color: color-mix(in oklab, var(--diff-accent) 35%, transparent);
 }
 
@@ -224,6 +315,9 @@
 }
 
 /* Remove numbering from Shiki's empty trailing line. */
-.shiki-numbered .shiki .line:last-child > .code-gutter:only-child::before {
+.shiki-numbered
+  .shiki
+  .line:last-child:has(> .code-content:empty)
+  > .code-gutter::before {
   content: none;
 }

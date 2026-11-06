@@ -1,7 +1,7 @@
 import type { RowTransition } from './row-expansion-state'
 import type { MessageRow } from './rows'
 
-/** Adds a header to each uninterrupted run of two or more hidden messages. */
+/** Assigns chip placement and groups uninterrupted runs of hidden messages. */
 export function groupNoteRows(rows: MessageRow[]): MessageRow[] {
   const result: MessageRow[] = []
   let index = 0
@@ -15,8 +15,13 @@ export function groupNoteRows(rows: MessageRow[]): MessageRow[] {
     let end = index + 1
     while (rows[end]?.kind === 'hidden') end++
     const count = end - index
-    if (count === 1) result.push(first)
-    else {
+    if (count === 1) {
+      const continuesSenderGroup = first.grouped && rows[end]?.grouped
+      result.push({
+        ...first,
+        placement: continuesSenderGroup ? 'inline' : 'standalone',
+      })
+    } else {
       const key = `notes:${first.messageId}`
       result.push({
         kind: 'note-group',
@@ -26,7 +31,9 @@ export function groupNoteRows(rows: MessageRow[]): MessageRow[] {
         ...(first.grouped && { grouped: true }),
       })
       for (const row of rows.slice(index, end)) {
-        if (row.kind === 'hidden') result.push({ ...row, noteGroupId: key })
+        if (row.kind === 'hidden') {
+          result.push({ ...row, placement: 'grouped', noteGroupId: key })
+        }
       }
     }
     index = end

@@ -7,7 +7,7 @@ import {
 } from 'shiki'
 
 import { type ParsedDiffLine, diffGutters, parseDiffLines } from './diff'
-import { gutterElement, gutterTransformer } from './gutter'
+import { addLineGutter, gutterTransformer } from './gutter'
 import { theme, themeName } from './theme'
 
 let highlighter: Highlighter | null = null
@@ -135,6 +135,7 @@ function diffTransformer(
     pre(node) {
       this.addClassToHast(node, 'shiki-diff')
       node.properties.style += `;--code-gutter-chars:${gutters[0]?.length ?? 1}`
+      this.lines.forEach((line, index) => addLineGutter(line, gutters[index]))
     },
     line(node, line) {
       const info = lines[line - 1]
@@ -143,7 +144,6 @@ function diffTransformer(
       else if (info.type === 'remove') this.addClassToHast(node, 'diff-remove')
       else if (info.type === 'meta') this.addClassToHast(node, 'diff-meta')
       node.properties['data-gutter'] = gutters[line - 1] ?? ''
-      node.children.unshift(gutterElement(gutters[line - 1]))
       return node
     },
   }

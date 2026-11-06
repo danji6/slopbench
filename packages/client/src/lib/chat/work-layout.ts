@@ -36,15 +36,15 @@ export type WorkLayout = { groups: LayoutGroup[]; work: WorkGroup[] }
 
 export type ResolveWorkId = (
   scope: string,
-  toolCallIds: string[],
+  activityKeys: string[],
   claimed?: ReadonlySet<string>,
 ) => string
 
-/** Keeps a run's identity when paging extends either end of its loaded slice. */
+/** Keeps a run's identity as thinking, tool calls, or older segments arrive. */
 export function createWorkIdentity(): ResolveWorkId {
   const ids = new Map<string, string>()
-  return (scope, calls, claimed) => {
-    const keys = calls.map((call) => JSON.stringify([scope, call]))
+  return (scope, activityKeys, claimed) => {
+    const keys = activityKeys.map((key) => JSON.stringify([scope, key]))
     const id =
       keys
         .map((key) => ids.get(key))
@@ -109,7 +109,6 @@ export function buildWorkLayout(
     )
 
     const work = describeWork(entries, scope, partial, claimed, resolveId)
-    if (!work) continue
 
     claimed.add(work.id)
     layout.work.push(work)
@@ -167,13 +166,17 @@ function describeWork(
   partial: boolean,
   claimed: ReadonlySet<string>,
   resolveId: ResolveWorkId,
-): WorkGroup | undefined {
+): WorkGroup {
   const toolCallIds = entries.flatMap(({ group }) =>
     toolsInGroup(group).map((part) => part.toolCallId),
   )
-  if (!toolCallIds.length) return undefined
+  const thinkingKeys = entries.flatMap(({ group, segmentIndex, groupIndex }) =>
+    group.type === 'single' && isReasoningUIPart(group.part)
+      ? [`thinking:${segmentIndex}:${groupIndex}`]
+      : [],
+  )
   return {
-    id: resolveId(scope, toolCallIds, claimed),
+    id: resolveId(scope, [...toolCallIds, ...thinkingKeys], claimed),
     toolCallIds,
     groups: entries.map(({ segmentIndex, groupIndex }) => ({
       segmentIndex,

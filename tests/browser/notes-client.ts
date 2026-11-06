@@ -4,7 +4,7 @@ import type { UIMessage } from 'ai'
 import type { ConvexReactClient } from 'convex/react'
 import { type FunctionReference, getFunctionName } from 'convex/server'
 
-type NoteType = 'skills' | 'mcp' | 'workspace' | 'command'
+type NoteType = 'skills' | 'mcp' | 'workspace' | 'command' | 'todo'
 
 function message(id: string, time: number, type?: NoteType) {
   const text = noteText(id)
@@ -68,6 +68,10 @@ const params = new URLSearchParams(location.search)
 let messages = initialMessages()
 
 function initialMessages() {
+  if (params.has('reminderWork')) return reminderWorkMessages()
+  if (params.has('thinkingWork')) return thinkingWorkMessages()
+  if (params.has('compaction')) return compactionMessages()
+  if (params.has('fileChanges')) return fileChangeMessages()
   if (params.has('shellReports')) return shellMessages()
   if (params.has('tailWork')) return tailWorkMessages()
   if (params.has('groupedWork')) return groupedWorkMessages()
@@ -83,6 +87,151 @@ function initialMessages() {
     ...(params.has('work') ? [message('work', 45)] : []),
     ...Array.from({ length: 35 }, (_, i) => message(`after${i}`, 50 + i)),
   ]
+}
+
+function reminderWorkMessages() {
+  const [first, second] = groupedWorkMessages()
+  first.segments[0].parts = [
+    { type: 'reasoning', text: 'Reviewing the work.', state: 'done' },
+    ...reminderWorkParts(),
+  ]
+  return [first, message('todo', 0.5, 'todo'), second]
+}
+
+function reminderWorkParts(): UIMessage['parts'] {
+  switch (params.get('lastBlock')) {
+    case 'shell':
+      return [
+        {
+          type: 'tool-shell',
+          toolCallId: 'command',
+          state: 'output-available',
+          input: { command: 'bun test' },
+          output: 'Tests passed.',
+        },
+      ]
+    case 'file':
+      return [
+        {
+          type: 'tool-write_file',
+          toolCallId: 'write',
+          state: 'output-available',
+          input: { path: 'notes.ts', content: 'export const done = true' },
+          output: { path: 'notes.ts', diff: '+export const done = true' },
+        },
+      ]
+    default:
+      return message('work', 0).segments[0].parts
+  }
+}
+
+function thinkingWorkMessages() {
+  return [
+    {
+      ...message('work', 0),
+      metadata: { duration: 146_000 },
+      segments: [
+        {
+          segmentIndex: 0,
+          parts: [
+            {
+              type: 'reasoning',
+              text: 'First thinking block.',
+              state: 'done',
+              duration: 10_000,
+            },
+            {
+              type: 'reasoning',
+              text: 'Second thinking block.',
+              state: 'done',
+              duration: 62_000,
+            },
+            ...(params.has('mixedThinking')
+              ? message('work', 0).segments[0].parts
+              : []),
+            { type: 'text', text: 'Finished thinking.' },
+          ] as UIMessage['parts'],
+          sizeBytes: 100,
+        },
+      ],
+    },
+  ]
+}
+
+function compactionMessages() {
+  const command = {
+    ...message('command', 0, 'command'),
+    extra: { name: 'compact', argument: '', status: 'done' },
+  }
+  const summary = {
+    ...message('summary', 1),
+    role: 'assistant',
+    type: 'summary' as const,
+    segments: [
+      {
+        segmentIndex: 0,
+        parts: [
+          {
+            type: 'reasoning' as const,
+            text: 'Checking completed task status.',
+          },
+          { type: 'text' as const, text: 'Summary of the completed work.' },
+        ],
+        sizeBytes: 100,
+      },
+    ],
+  }
+  return [
+    command,
+    summary,
+    message('mcp', 2, 'mcp'),
+    message('workspace', 3, 'workspace'),
+    message('skills', 4, 'skills'),
+    message('work', 5),
+  ]
+}
+
+function fileChangeMessages() {
+  const work = message('work', 0)
+  work.segments[0].parts = [
+    {
+      type: 'tool-edit_file',
+      toolCallId: 'edit',
+      state: 'output-available',
+      input: { path: 'first.ts' },
+      output: { path: 'first.ts', diff: '-oldFirst\n+newFirst' },
+    },
+    { type: 'step-start' },
+    {
+      type: 'tool-write_file',
+      toolCallId: 'write',
+      state: 'output-available',
+      input: { path: 'second.ts', content: 'newSecond' },
+      output: { path: 'second.ts', diff: '+newSecond' },
+    },
+    {
+      type: 'tool-edit_file',
+      toolCallId: 'failed',
+      state: 'output-error',
+      input: { path: 'first.ts' },
+      errorText: 'Original text was not found',
+    },
+    {
+      type: 'tool-shell',
+      toolCallId: 'verify',
+      state: 'output-available',
+      input: { command: 'bun test', description: 'Verify file changes.' },
+      output: {
+        jobId: 'verify-job',
+        status: 'done',
+        exitCode: 0,
+        term: 'All checks passed.\r\n',
+        termOffset: 0,
+      },
+    },
+    { type: 'text', text: 'File changes finished.' },
+  ]
+  return [work]
 }
 
 function tailWorkMessages() {
@@ -161,6 +310,13 @@ function shellMessages() {
         state: 'output-available',
         input: { jobId: 'job' },
         output: 'Command output',
+      },
+      {
+        type: 'tool-shell_output',
+        toolCallId: 'poll-next',
+        state: 'output-available',
+        input: { jobId: 'next-job' },
+        output: 'Next command output',
       },
       { type: 'text', text: 'Finished' },
     ],

@@ -19,6 +19,8 @@ import {
   latestReasoning,
 } from './work-layout'
 
+export type HiddenChipPlacement = 'standalone' | 'inline' | 'grouped'
+
 export type MessageRow =
   | {
       kind: 'header'
@@ -33,6 +35,8 @@ export type MessageRow =
       messageId: string
       segmentIndex: number
       groupIndex: number
+      /** Uses compaction spacing for all groups, including its thinking. */
+      summary?: boolean
       workId?: string
       promotedToolCallIds?: string[]
       grouped?: boolean
@@ -62,6 +66,7 @@ export type MessageRow =
       kind: 'hidden'
       key: string
       messageId: string
+      placement: HiddenChipPlacement
       noteGroupId?: string
       grouped?: boolean
     }
@@ -172,6 +177,7 @@ export function buildRows(
         kind: 'hidden',
         key: `hid:${id}`,
         messageId: id,
+        placement: 'standalone',
         ...(grouped && { grouped }),
       })
       continue
@@ -229,6 +235,7 @@ export function buildRows(
         messageId: id,
         segmentIndex: entry.segmentIndex,
         groupIndex: entry.groupIndex,
+        ...(meta?.type === 'summary' && { summary: true }),
         ...(entry.workId && { workId: entry.workId }),
         ...(first && grouped && { grouped }),
       })

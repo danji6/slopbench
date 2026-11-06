@@ -18,7 +18,10 @@ import {
 import { useEffect, useState } from 'react'
 
 import { useGrowOnly } from '../grow-only'
-import { usePendingMessageLayout } from '../message-list/message-list-context'
+import {
+  useMessageList,
+  usePendingMessageLayout,
+} from '../message-list/message-list-context'
 import { ChangeDiff, ChangeDiffPreview } from './change-diff'
 import { ChangeNotice } from './change-notice'
 
@@ -34,6 +37,7 @@ export function ChangesSummary({
     version,
   )
   const growOnly = useGrowOnly()
+  const messageList = useMessageList()
   const [showAll, setShowAll] = useState(false)
   const [expanded, setExpanded] = useState<string>()
   const [hovered, setHovered] = useState<string>()
@@ -109,6 +113,7 @@ export function ChangesSummary({
         multiple={false}
         value={expanded ? [expanded] : []}
         onValueChange={(value) => {
+          messageList?.onLayoutChange()
           setExpanded(value[0] as string | undefined)
           setHovered(undefined)
         }}
@@ -133,6 +138,7 @@ export function ChangesSummary({
           size="sm"
           className="text-muted-foreground mt-1 ml-6 h-auto max-w-[calc(100%-1.5rem)] justify-start rounded-md px-1 py-2 text-xs font-normal whitespace-normal has-[>svg]:px-1"
           onClick={() => {
+            messageList?.onLayoutChange()
             setShowAll(!showAll)
             setExpanded(undefined)
             setHovered(undefined)
@@ -207,6 +213,8 @@ function ChangedFileRow({
   onHover,
 }: ChangedFileRowProps) {
   const [pointerInside, setPointerInside] = useState(false)
+  const [animating, setAnimating] = useState(false)
+  usePendingMessageLayout(animating)
   const slash = file.path.lastIndexOf('/')
   const directory = file.path.slice(0, slash + 1)
   const filename = file.path.slice(slash + 1)
@@ -276,7 +284,11 @@ function ChangedFileRow({
           active={!expanded && (hovered || pointerInside)}
         />
       </Popover>
-      <Accordion.Content className="rounded-none! border-0 pt-0 pb-0">
+      <Accordion.Content
+        className="rounded-none! border-0 pt-0 pb-0"
+        onHeightAnimationStart={() => setAnimating(true)}
+        onHeightAnimationComplete={() => setAnimating(false)}
+      >
         <div className="border-border mb-2 overflow-hidden rounded-md border">
           <ChangeDiff changeSetId={changeSetId} file={file} active={expanded} />
         </div>

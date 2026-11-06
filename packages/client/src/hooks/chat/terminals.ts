@@ -68,6 +68,8 @@ export type JobTail = {
   waiting: boolean
 }
 
+type JobTailState = { key: string; tail: JobTail }
+
 const EMPTY_TAIL: JobTail = {
   term: '',
   termOffset: 0,
@@ -99,9 +101,18 @@ export function useJobTail(
   enabled: boolean,
 ): JobTail {
   const cacheKey = `${sessionId}:${jobId}`
-  const [tail, setTail] = useState<JobTail>(
-    () => tailCache.get(cacheKey) ?? EMPTY_TAIL,
-  )
+  const [state, setState] = useState<JobTailState>(() => ({
+    key: cacheKey,
+    tail: tailCache.get(cacheKey) ?? EMPTY_TAIL,
+  }))
+  const tail =
+    state.key === cacheKey
+      ? state.tail
+      : (tailCache.get(cacheKey) ?? EMPTY_TAIL)
+
+  if (state.key !== cacheKey) {
+    setState({ key: cacheKey, tail })
+  }
 
   useEffect(() => {
     if (!enabled || !sessionId || !jobId) return
@@ -115,20 +126,18 @@ export function useJobTail(
     let waiting = tailCache.get(key)?.waiting ?? false
 
     const update = (next: JobTail) => {
-      const prev = tailCache.get(key)
       cacheTail(key, next)
 
-      // Skip re-renders when nothing changed
-      const tailUnchanged =
-        prev &&
-        prev.term === next.term &&
-        prev.termOffset === next.termOffset &&
-        prev.status === next.status &&
-        prev.waiting === next.waiting
-      if (tailUnchanged) {
-        return
-      }
-      setTail(next)
+      // Other readers may have cached this output without updating this one.
+      setState((prev) => {
+        const tailUnchanged =
+          prev.key === key &&
+          prev.tail.term === next.term &&
+          prev.tail.termOffset === next.termOffset &&
+          prev.tail.status === next.status &&
+          prev.tail.waiting === next.waiting
+        return tailUnchanged ? prev : { key, tail: next }
+      })
     }
 
     const emit = () =>
@@ -189,6 +198,7 @@ export function useJobTail(
           continue
         }
 
+        if (!active) return
         if (response.status === 404) {
           status = 'lost'
           emit()

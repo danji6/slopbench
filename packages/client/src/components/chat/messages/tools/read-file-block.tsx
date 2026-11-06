@@ -4,6 +4,7 @@ import type { ToolUIPart } from 'ai'
 
 import { CollapsibleBlock } from '../collapsible-block'
 import { ToolIcon } from './tool-icon'
+import { ToolList, ToolListItem } from './tool-list'
 
 type ReadFileInput = {
   path?: string
@@ -36,38 +37,35 @@ export function ReadFileBlock({
       leadingIcon={<ToolIcon name="read_file" />}
       label={label}
     >
-      <ul className="before:bg-border relative ml-4 flex flex-col gap-1 pl-3 before:absolute before:top-0 before:left-0 before:h-2 before:w-px">
+      <ToolList>
         {parts.map((part, index) => {
           const error = partError(part, toolErrors)
           const running = !error && partRunning(part, toolErrors)
-          const last = index === parts.length - 1
           return (
-            <li
+            <ToolListItem
               key={part.toolCallId}
-              className={cn(
-                'before:bg-border relative flex flex-wrap items-baseline gap-x-2 text-xs before:absolute before:top-2 before:-left-3 before:h-px before:w-2.5',
-                !last &&
-                  'after:bg-border after:absolute after:top-2 after:-bottom-3 after:-left-3 after:w-px',
-              )}
+              last={index === parts.length - 1}
             >
-              <span
-                className={cn(
-                  'font-mono break-all',
-                  running ? 'text-shimmer' : 'text-foreground',
-                )}
-              >
-                {partPersonalPath(part) && 'Personal folder · '}
-                {partPath(part) ?? '…'}
-              </span>
-              {error && (
-                <span className="text-destructive wrap-break-word">
-                  {error}
+              <div className="flex flex-wrap items-baseline gap-x-2">
+                <span
+                  className={cn(
+                    'font-mono break-all',
+                    running ? 'text-shimmer' : 'text-foreground',
+                  )}
+                >
+                  {partPersonalPath(part) && 'Personal folder · '}
+                  {partPath(part) ?? '…'}
                 </span>
-              )}
-            </li>
+                {error && (
+                  <span className="text-destructive wrap-break-word">
+                    {error}
+                  </span>
+                )}
+              </div>
+            </ToolListItem>
           )
         })}
-      </ul>
+      </ToolList>
     </CollapsibleBlock>
   )
 }

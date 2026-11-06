@@ -1,6 +1,7 @@
 import { useReasoningOpen } from '@/hooks/chat/reasoning-collapsible'
 import { useReasoningLabel } from '@/hooks/chat/reasoning-label'
 import type { ReasoningPart } from '@sb/convex/types'
+import { BrainIcon } from 'lucide-react'
 
 import { CollapsibleBlock } from './collapsible-block'
 import { SmoothText } from './smooth-text'
@@ -34,11 +35,17 @@ export function ReasoningBlock({
     <CollapsibleBlock
       data-slot="reasoning-block"
       label={label}
+      leadingIcon={
+        <BrainIcon
+          aria-hidden="true"
+          className="text-muted-foreground size-3.5 shrink-0"
+        />
+      }
       shimmer={isStreaming}
       open={open}
       onOpenChange={onOpenChange}
       dense
-      surface
+      surface="inset-row"
     >
       <div
         className="wrap-break-word whitespace-pre-wrap opacity-70"

@@ -4,7 +4,7 @@ import { buildRows } from '@/lib/chat/rows'
 import type { MessageRecord } from '@/lib/chat/types'
 import { describe, expect, test } from 'bun:test'
 
-function rowsFor(ids: string[], visible: string[] = []) {
+function rowsFor(ids: string[], visible: string[] = [], groupBySender = true) {
   const types: MessageRecord['type'][] = [
     'skills',
     'mcp',
@@ -25,7 +25,7 @@ function rowsFor(ids: string[], visible: string[] = []) {
         sender: { type: 'agent', id: 'agent' },
       }) as MessageRecord,
     undefined,
-    { groupBySender: true },
+    { groupBySender },
   )
 }
 
@@ -40,6 +40,11 @@ describe('note rows', () => {
       count: 8,
     })
     expect(rows.slice(1).map((row) => row.messageId)).toEqual(ids)
+    expect(
+      rows
+        .slice(1)
+        .every((row) => row.kind === 'hidden' && row.placement === 'grouped'),
+    ).toBe(true)
     expect(projectNoteRows(rows, new Set())).toEqual([rows[0]])
     expect(projectNoteRows(rows, new Set(['notes:n0']))).toEqual(rows)
   })
@@ -66,9 +71,26 @@ describe('note rows', () => {
       count: 2,
     })
     expect(rowsFor(['a'])).toEqual([
-      { kind: 'hidden', key: 'hid:a', messageId: 'a' },
+      { kind: 'hidden', key: 'hid:a', messageId: 'a', placement: 'standalone' },
     ])
   })
+
+  test.each([true, false])(
+    'only chips within a continuing sender group are inline (groupBySender=%s)',
+    (groupBySender) => {
+      const rows = rowsFor(
+        ['start', 'before', 'middle', 'after', 'end'],
+        ['before', 'after'],
+        groupBySender,
+      )
+      const chips = rows.filter((row) => row.kind === 'hidden')
+      expect(chips.map((row) => row.placement)).toEqual([
+        'standalone',
+        groupBySender ? 'inline' : 'standalone',
+        'standalone',
+      ])
+    },
+  )
 
   test('sender grouping survives a group of hidden notes', () => {
     const rows = rowsFor(['visible', 'a', 'b', 'later'], ['visible', 'later'])

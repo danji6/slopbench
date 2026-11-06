@@ -3,6 +3,7 @@
  */
 
 export * from './file-change-block'
+export * from './file-change-group-block'
 export * from './highlighted-command'
 export * from './list-skills-block'
 export * from './load-full-output'
@@ -18,6 +19,7 @@ export * from './subagent-block'
 export * from './subagent-group-block'
 export * from './todo-block'
 export * from './tool-icon'
+export * from './tool-list'
 export * from './tool-part-block'
 export * from './tool-shell'
 export * from './web-fetch-block'

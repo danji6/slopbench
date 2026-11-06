@@ -27,6 +27,7 @@ import { PlanLinkBlock } from './plan-link-block'
 import { ReasoningBlock } from './reasoning-block'
 import { SummaryBlock } from './summary-block'
 import { TextBlock } from './text-block'
+import { FileChangeGroupBlock } from './tools/file-change-group-block'
 import { ReadAttachmentBlock } from './tools/read-attachment-block'
 import { ReadFileBlock } from './tools/read-file-block'
 import { ShellGroupBlock } from './tools/shell-group-block'
@@ -54,6 +55,15 @@ export const RenderGroup = memo(function RenderGroup(props: RenderGroupProps) {
   }
 
   if (group.type === 'tools') {
+    if (group.toolName === 'file_change') {
+      return (
+        <FileChangeGroupBlock
+          parts={group.parts}
+          messageId={props.message.id}
+          toolErrors={partMeta?.toolErrors}
+        />
+      )
+    }
     if (group.toolName === 'shell') {
       return (
         <ShellGroupBlock

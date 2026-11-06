@@ -8,6 +8,7 @@ import { CollapsibleBlock } from '../collapsible-block'
 import { ShellReportBlock } from '../shell-report-block'
 import { ShellBlock } from './shell-block'
 import { ToolIcon } from './tool-icon'
+import { ToolList, ToolListItem } from './tool-list'
 
 export type ShellGroupState = {
   reportRunning: (id: string, running: boolean) => void
@@ -25,7 +26,7 @@ type ShellGroupBlockProps = {
   alwaysExpand?: boolean
 }
 
-/** Groups shell commands, output polls, and background completion reports. */
+/** Groups shell commands and background completion reports. */
 export function ShellGroupBlock({
   parts,
   messageId,
@@ -49,8 +50,6 @@ export function ShellGroupBlock({
   const inFlight =
     running.size > 0 ||
     parts.some((part) => !isShellReportPart(part) && isToolInFlight(part))
-  const outputOnly = parts.every((part) => part.type === 'tool-shell_output')
-  const noun = outputOnly ? 'command output' : 'command'
 
   return (
     <ShellGroupContext.Provider value={state}>
@@ -58,35 +57,38 @@ export function ShellGroupBlock({
         data-slot="shell-group"
         collapsible={false}
         dense
-        bodyClassName="pb-0"
         fullWidth
         leadingIcon={<ToolIcon name="shell" />}
         label={
           <>
-            {outputOnly ? 'Read' : inFlight ? 'Running' : 'Ran'}{' '}
+            {inFlight ? 'Running' : 'Ran'}{' '}
             <span className="text-foreground font-medium">
-              {parts.length} {noun}
+              {parts.length} command
               {parts.length === 1 ? '' : 's'}
             </span>
           </>
         }
       >
-        <div className="border-border/60 ml-4 flex flex-col gap-0.5 border-l">
-          {parts.map((part) =>
-            isShellReportPart(part) ? (
-              <ShellReportBlock key={part.jobId} part={part} />
-            ) : (
-              <ShellBlock
-                key={part.toolCallId}
-                part={part}
-                messageId={messageId}
-                forceError={toolErrors?.includes(part.toolCallId)}
-                dense
-                alwaysExpand={alwaysExpand}
-              />
-            ),
-          )}
-        </div>
+        <ToolList className="[--tool-list-gap:var(--work-command-gap)]">
+          {parts.map((part, index) => (
+            <ToolListItem
+              key={isShellReportPart(part) ? part.jobId : part.toolCallId}
+              last={index === parts.length - 1}
+            >
+              {isShellReportPart(part) ? (
+                <ShellReportBlock part={part} />
+              ) : (
+                <ShellBlock
+                  part={part}
+                  messageId={messageId}
+                  forceError={toolErrors?.includes(part.toolCallId)}
+                  dense
+                  alwaysExpand={alwaysExpand}
+                />
+              )}
+            </ToolListItem>
+          ))}
+        </ToolList>
       </CollapsibleBlock>
     </ShellGroupContext.Provider>
   )

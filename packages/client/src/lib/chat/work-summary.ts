@@ -1,3 +1,5 @@
+import { formatDuration } from '@/lib/utils'
+import type { ReasoningPart } from '@sb/convex/types'
 import type { ShellToolOutput } from '@sb/core/types/tools'
 import { type ToolUIPart, isReasoningUIPart } from 'ai'
 
@@ -28,7 +30,11 @@ export function summarizeWork(
     ).values(),
   ]
   const { statuses, reportCommands } = workStatuses(tools, work.reports, errors)
-  const label = activityLabel(tools, reportCommands)
+  const activity =
+    tools.length || reportCommands ? activityLabel(tools, reportCommands) : ''
+  const label =
+    [activity, thinkingLabel(groups)].filter(Boolean).join(', ') ||
+    'Tool activity'
 
   return {
     label: label[0].toUpperCase() + label.slice(1),
@@ -39,7 +45,23 @@ export function summarizeWork(
   }
 }
 
-/** Applies completion outcomes without counting their commands a second time. */
+/** Adds the recorded duration of every thinking block in the work group. */
+function thinkingLabel(groups: PartGroup[]): string {
+  const parts = groups.flatMap((group) =>
+    group.type === 'single' && isReasoningUIPart(group.part)
+      ? [group.part as ReasoningPart]
+      : [],
+  )
+  if (!parts.length) return ''
+  if (parts.some((part) => part.state === 'streaming')) return 'thinking…'
+  const duration = parts.reduce(
+    (total, part) => total + Math.max(0, part.duration ?? 0),
+    0,
+  )
+  return duration > 0 ? `thought for ${formatDuration(duration)}` : 'thought'
+}
+
+/** Settles reported jobs without treating command outcomes as tool failures. */
 function workStatuses(
   tools: ToolUIPart[],
   reports: WorkShellReport[] = [],
@@ -53,9 +75,9 @@ function workStatuses(
     const report = jobId ? byJob.get(jobId) : undefined
     if (report) unmatched.delete(report.jobId)
     if (errors.includes(part.toolCallId)) return 'error'
-    return report ? reportStatus(report) : getToolStatus(part)
+    const status = getToolStatus(part)
+    return report && status !== 'error' ? 'complete' : status
   })
-  statuses.push(...[...unmatched.values()].map(reportStatus))
 
   return { statuses, reportCommands: unmatched.size }
 }
@@ -71,12 +93,6 @@ function isThinking(group: PartGroup): boolean {
 function shellJobId(part: ToolUIPart): string | undefined {
   if (part.type !== 'tool-shell') return
   return parseOutputValue<ShellToolOutput>(part.output)?.jobId
-}
-
-function reportStatus(report: WorkShellReport): 'complete' | 'error' {
-  return report.status === 'done' && (report.exitCode ?? 0) === 0
-    ? 'complete'
-    : 'error'
 }
 
 function activityLabel(tools: ToolUIPart[], reportCommands = 0): string {

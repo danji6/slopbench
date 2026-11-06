@@ -321,6 +321,7 @@ function groupableToolName(
 ): string | undefined {
   if (!part.type.startsWith('tool-')) return undefined
   const name = part.type.slice('tool-'.length)
+  if (name === 'write_file' || name === 'edit_file') return 'file_change'
   return GROUPED_TOOLS.has(name) ? name : undefined
 }
 

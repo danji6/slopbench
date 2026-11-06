@@ -109,6 +109,41 @@ describe('tool part status', () => {
 })
 
 describe('tool part grouping', () => {
+  test('groups mixed writes and edits across steps, preserving repeated changes', () => {
+    const changes = [
+      toolPart({ type: 'tool-write_file', toolCallId: 'write' }),
+      toolPart({ type: 'tool-edit_file', toolCallId: 'edit' }),
+      toolPart({ type: 'tool-edit_file', toolCallId: 'edit-again' }),
+    ]
+    const before = groupParts([changes[0]])
+    const after = groupParts([changes[0], stepPart, ...changes.slice(1)])
+
+    expect(after).toHaveLength(1)
+    expect(after[0]).toMatchObject({
+      type: 'tools',
+      toolName: 'file_change',
+      parts: changes,
+    })
+    expect(groupKey(after[0])).toBe(groupKey(before[0]))
+  })
+
+  test('separates file changes at text, thinking, and other tools', () => {
+    const change = (id: string) =>
+      toolPart({ type: 'tool-edit_file', toolCallId: id })
+    const groups = groupParts([
+      change('a'),
+      textPart,
+      change('b'),
+      { type: 'reasoning', text: 'Checking' },
+      change('c'),
+      readPart('read'),
+      change('d'),
+    ])
+
+    expect(groups).toHaveLength(7)
+    expect(groups.filter((group) => group.type === 'tools')).toHaveLength(5)
+  })
+
   test('groups consecutive read_file parts', () => {
     const groups = groupParts([readPart('a'), readPart('b'), textPart])
 

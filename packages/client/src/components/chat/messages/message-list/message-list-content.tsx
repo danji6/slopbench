@@ -4,6 +4,7 @@ import { noteExpansion } from '@/lib/chat/note-state'
 import type { RowTransition } from '@/lib/chat/row-expansion-state'
 import type { MessageRow } from '@/lib/chat/rows'
 import { workExpansion } from '@/lib/chat/work-state'
+import { cn } from '@/lib/utils'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   type CSSProperties,
@@ -281,12 +282,21 @@ function getRowSpacing(row?: MessageRow, previousRow?: MessageRow) {
 
   const startsSenderGroup =
     previousRow && !row.grouped && previousRow.messageId !== row.messageId
-  if (startsSenderGroup) return 'h-(--message-sender-gap)'
+  const isSummary = row.kind === 'group' && row.summary
+  if (startsSenderGroup) {
+    return isSummary
+      ? 'h-(--message-compaction-gap)'
+      : 'h-(--message-sender-gap)'
+  }
 
   const isWorkRow =
     row.kind === 'group' && row.workId && !row.promotedToolCallIds
   if (isWorkRow) return 'h-(--work-row-gap)'
   if (!previousRow) return
+  if (isSummary) return 'h-(--message-section-gap)'
+
+  const bordersNote = row.kind === 'hidden' || previousRow.kind === 'hidden'
+  if (bordersNote) return 'h-(--message-section-gap)'
 
   const startsNotes = row.kind === 'note-group'
   if (startsNotes) return 'h-(--message-section-gap)'
@@ -296,10 +306,8 @@ function getRowSpacing(row?: MessageRow, previousRow?: MessageRow) {
   const followsWork =
     previousRow.kind === 'work' ||
     (previousRow.kind === 'group' && !!previousRow.workId)
-  const startsCompactRow = row.kind === 'work' || row.kind === 'hidden'
-  const followsCompactRow = followsWork || previousRow.kind === 'hidden'
   const contentBoundary =
-    (startsContent && followsCompactRow) || (startsCompactRow && followsContent)
+    (startsContent && followsWork) || (row.kind === 'work' && followsContent)
   if (contentBoundary) return 'h-(--message-section-gap)'
 }
 
@@ -313,6 +321,12 @@ function VirtualizedItem({
   const transitions = useContext(RowTransitionsContext)
   const row = rows[index]
   const previousRow = rows[index - 1]
+  const nextRow = rows[index + 1]
+  const continuesWork =
+    nextRow?.kind === 'group' &&
+    row?.kind === 'group' &&
+    nextRow.workId === row.workId &&
+    !nextRow.promotedToolCallIds
 
   const spacing = getRowSpacing(row, previousRow)
   const content = (
@@ -350,14 +364,20 @@ function VirtualizedItem({
           {row.promotedToolCallIds ? (
             content
           ) : (
-            <div className="border-border/60 border-l">{content}</div>
+            <div
+              className={cn('chat-work-row', !continuesWork && 'chat-work-end')}
+            >
+              <div className="border-border/60 border-l">{content}</div>
+            </div>
           )}
         </VirtualizedRowTransition>
       ) : row?.kind === 'hidden' && row.noteGroupId ? (
         <VirtualizedRowTransition
           state={transitions.get(row.noteGroupId)?.phase}
         >
-          <div className="border-border/60 border-l">{content}</div>
+          <div className="border-border/60 border-l pl-(--message-group-inset)">
+            {content}
+          </div>
         </VirtualizedRowTransition>
       ) : (
         content
