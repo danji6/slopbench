@@ -14,3 +14,11 @@ export const importFromImage = action({
   args: { storageId: v.id('_storage') },
   handler: AgentIO.importFromImage,
 })
+
+export const importFromJson = action({
+  args: { data: v.any() },
+  handler: async (ctx, args) => {
+    const { importFromJson } = await import('./io/agent')
+    return importFromJson(ctx, args)
+  },
+})

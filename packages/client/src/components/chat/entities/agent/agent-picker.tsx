@@ -4,12 +4,11 @@ import {
   AgentItemLabel,
 } from '@/components/chat/sessions/agent-combobox'
 import { FileOperationStatus } from '@/components/chat/skills/operation-status'
-import { LabeledCheckbox, Combobox } from '@/components/ui'
+import { Combobox, LabeledCheckbox } from '@/components/ui'
 import { useStableValue } from '@/hooks'
 import { useEditingAgentId } from '@/hooks/chat'
 import { useNewAgent } from '@/hooks/chat/agent'
 import { useAgentFileOperation, useHomeOperation } from '@/hooks/chat/skills'
-import type { CreateAgentArgs } from '@/lib/chat'
 import { setEditingAgentId, startNewAgent } from '@/lib/chat/agent-editor-store'
 import { triggerAgentDownload, uploadAgentFile } from '@/lib/chat/io'
 import { cn } from '@/lib/utils'
@@ -37,11 +36,11 @@ export function AgentPicker({ className, confirmSwitch }: AgentPickerProps) {
   const [cleanupId, setCleanupId] = useState<Id<'agentFileOperations'>>()
   const cleanup = useAgentFileOperation('agent-cleanup', cleanupId)
   const docs = useQuery(api.agents.list)
-  const createAgent = useMutation(api.agents.create)
   const removeAgent = useMutation(api.agents.remove)
   const duplicateAgent = useMutation(api.agents.duplicate)
   const exportAsImage = useAction(api.actions.agents.exportAsImage)
   const importFromImage = useAction(api.actions.agents.importFromImage)
+  const importFromJson = useAction(api.actions.agents.importFromJson)
   const generateUploadUrl = useMutation(api.agents.generateAvatarUploadUrl)
 
   const records: AgentItem[] = useMemo(
@@ -95,15 +94,9 @@ export function AgentPicker({ className, confirmSwitch }: AgentPickerProps) {
       return { id: agentId, name: file.name.replace(/\.png$/, '') }
     }
 
-    const { data } = parsed
-    const name = (data.name as string | undefined) ?? 'Imported agent'
-
-    const args = { ...data, name } as CreateAgentArgs
-
-    const id = await createAgent(args)
-    select(id)
-
-    return { id, name }
+    const imported = await importFromJson({ data: parsed.data })
+    select(imported.id)
+    return imported
   }
 
   const match = records.find((r) => r.id === editingAgentId)

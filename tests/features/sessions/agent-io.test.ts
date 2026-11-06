@@ -1,11 +1,18 @@
 /// <reference types="bun-types" />
-import { decodeBase64 } from '@/lib/chat/io'
+import { decodeBase64, uploadAgentFile } from '@/lib/chat/io'
+import type { Id } from '@sb/convex/_generated/dataModel'
+import type { ActionCtx } from '@sb/convex/_generated/server'
+import { importFromJson } from '@sb/convex/actions/io/agent'
+import { createAgentArchive } from '@sb/convex/model/agent/archive'
+import { createAgentArgsValidator } from '@sb/convex/validators/agents'
 import { exportAgent, importAgentImage } from '@sb/sidecar/io/agent'
-import { afterEach, describe, expect, test } from 'bun:test'
+import { afterEach, describe, expect, mock, test } from 'bun:test'
+import { validate } from 'convex-helpers/validators'
 import extractChunks from 'png-chunks-extract'
 import sharp from 'sharp'
 
 const originalFetch = globalThis.fetch
+const importedAgentId = 'imported-agent' as Id<'agents'>
 
 const pngBytes = new Uint8Array([
   137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0,
@@ -22,16 +29,65 @@ const agentData = {
   outputTokens: -1,
 }
 
+function importContext() {
+  const create = mock(async (_reference: unknown, args: unknown) => {
+    validate(createAgentArgsValidator, args, { throw: true })
+    return importedAgentId
+  })
+  const ctx = { runMutation: create } as unknown as ActionCtx
+  return { ctx, create }
+}
+
 describe('agent export I/O', () => {
   afterEach(() => {
     globalThis.fetch = originalFetch
   })
 
-  test('sidecar returns JSON export data when no avatar URL is provided', async () => {
-    const result = await exportAgent({ data: agentData })
+  test('round-trips versioned JSON exports into validated agent creation arguments', async () => {
+    const archive = createAgentArchive(agentData)
+    const result = await exportAgent({ data: archive })
 
     expect(result.type).toBe('json')
-    expect(JSON.parse(result.data)).toEqual(agentData)
+    expect(JSON.parse(result.data)).toEqual(archive)
+
+    const upload = mock(async () => 'https://example.com/upload')
+    const parsed = await uploadAgentFile(
+      new File([result.data], 'Assistant.json', { type: 'application/json' }),
+      upload,
+    )
+    if (parsed.type !== 'json') throw new Error('Expected JSON import')
+
+    const { ctx, create } = importContext()
+    expect(await importFromJson(ctx, { data: parsed.data })).toEqual({
+      id: importedAgentId,
+      name: 'Assistant',
+    })
+    expect(create).toHaveBeenCalledTimes(1)
+    expect(create.mock.calls[0]?.[1]).toEqual(agentData)
+    expect(upload).not.toHaveBeenCalled()
+  })
+
+  test('imports legacy JSON and retains the fallback for unnamed agents', async () => {
+    const { ctx, create } = importContext()
+    const { name: _name, ...data } = agentData
+
+    expect(await importFromJson(ctx, { data })).toEqual({
+      id: importedAgentId,
+      name: 'Imported agent',
+    })
+    expect(create.mock.calls[0]?.[1]).toEqual({
+      ...data,
+      name: 'Imported agent',
+    })
+  })
+
+  test('rejects unsupported JSON archive versions before creating an agent', async () => {
+    const { ctx, create } = importContext()
+
+    await expect(
+      importFromJson(ctx, { data: { version: 2, agent: agentData } }),
+    ).rejects.toThrow('Unsupported agent archive version: 2')
+    expect(create).not.toHaveBeenCalled()
   })
 
   test('decodes base64 payloads without Node Buffer', () => {
@@ -94,6 +150,12 @@ describe('agent export I/O', () => {
     expect(imported).toEqual({
       data,
       avatarStorageId: 'avatar-storage-id',
+    })
+    const { ctx, create } = importContext()
+    await importFromJson(ctx, { data: imported.data })
+    expect(create.mock.calls[0]?.[1]).toMatchObject({
+      ...agentData,
+      prompts: [{ content: 'こんにちは Привет مرحبا 🌍' }],
     })
     expect(
       extractChunks(uploadedPng).some((chunk) => chunk.name === 'iTXt'),

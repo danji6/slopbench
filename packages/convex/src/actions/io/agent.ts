@@ -53,10 +53,7 @@ export async function importFromImage(
 
   await ctx.storage.delete(storageId)
 
-  const agentId = await ctx.runMutation(
-    api.agents.create,
-    agentArchiveToCreateArgs(data),
-  )
+  const { id: agentId } = await importFromJson(ctx, { data })
 
   let thumbStorageId: Id<'_storage'> | undefined
   try {
@@ -78,4 +75,14 @@ export async function importFromImage(
     throw err
   }
   return agentId
+}
+
+export async function importFromJson(
+  ctx: ActionCtx,
+  { data }: { data: unknown },
+): Promise<{ id: Id<'agents'>; name: string }> {
+  const args = agentArchiveToCreateArgs(data)
+  const name = args.name ?? 'Imported agent'
+  const id = await ctx.runMutation(api.agents.create, { ...args, name })
+  return { id, name }
 }
