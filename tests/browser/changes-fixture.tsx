@@ -9,7 +9,8 @@ import { useState } from 'react'
 const listeners = new Set<() => void>()
 const cache = new Map<string, unknown>()
 const subscriptions = new Map<string, number>()
-const delayed = new URLSearchParams(location.search).has('delayed')
+const params = new URLSearchParams(location.search)
+const delayed = params.has('delayed')
 const ready = new Set<string>()
 const files = Array.from({ length: 8 }, (_, index) => ({
   key: `file-${index + 1}`,
@@ -105,6 +106,8 @@ function result(name: string, args: Record<string, unknown>) {
     }
   }
   if (name === 'chat:changeDiff') {
+    if (params.has('networkDiff'))
+      return `${location.origin}/diff/${args.fileKey}.patch`
     const lines = Array.from(
       { length: 120 },
       (_, index) => ` context ${index}`,

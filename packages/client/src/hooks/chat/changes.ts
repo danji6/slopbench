@@ -1,3 +1,4 @@
+import { normalizeBrowserUrl } from '@/lib/auth/site-url'
 import { readTextPreview } from '@/lib/text-file-preview'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
@@ -62,10 +63,11 @@ export function useChangeDiff(
   const key = `${changeSetId}:${fileKey}`
   const [result, setResult] = useState<DiffResult>()
   const cached = diffCache.get(key)
-  const url = useQuery(
+  const storageUrl = useQuery(
     api.chat.changeDiff,
     active && cached === undefined ? { changeSetId, fileKey } : 'skip',
   )
+  const url = storageUrl ? normalizeBrowserUrl(storageUrl) : storageUrl
   useEffect(() => {
     if (!active || cached !== undefined || !url) return
     const controller = new AbortController()
