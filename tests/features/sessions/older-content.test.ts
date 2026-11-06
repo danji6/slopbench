@@ -55,6 +55,12 @@ test.each<Part>([
   tool('task', 'subagent'),
   { type: 'file', mediaType: 'image/png', url: 'attachment:image' },
   { type: 'file-link', path: 'a.ts' } as unknown as Part,
+])('stops at visible older body content: %j', (part) => {
+  expect(visible([entry(1, [part])])).toBe(true)
+})
+
+test.each<Part>([
+  tool('shell', 'shell'),
   {
     type: 'shell-report',
     jobId: 'job',
@@ -62,19 +68,18 @@ test.each<Part>([
     status: 'done',
     text: 'done',
   } as unknown as Part,
-])('stops at visible older body content: %j', (part) => {
-  expect(visible([entry(1, [part])])).toBe(true)
-})
-
-test('counts expanded work and promoted waiting terminals', () => {
-  const older = entry(1, [tool('shell', 'shell')])
-  syncPage(store, [older, boundaryEntry])
+])('counts work only when expanded: %j', (part) => {
+  const older = entry(1, [part])
+  expect(visible([older])).toBe(false)
   const work = store.getRows().find((row) => row.kind === 'work')!
   expect(
     visible([older], new Set([work.kind === 'work' ? work.work.id : ''])),
   ).toBe(true)
+})
+
+test('counts promoted waiting terminals', () => {
   expect(
-    visible([older], new Set(), [
+    visible([entry(1, [tool('shell', 'shell')])], new Set(), [
       {
         jobId: 'job',
         command: 'sleep 60',

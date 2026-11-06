@@ -70,7 +70,7 @@ export function setup() {
         sessionId: 's',
         agentId: 'agent',
         items: [],
-        tools: [{ name: 'old' }],
+        tools: { contextId: 'context', names: ['shell'] },
         workspaceRevision: '["a",1,["/a"]]',
       },
     ],
