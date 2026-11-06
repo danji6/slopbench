@@ -5,7 +5,11 @@ import {
   isToolUIPart,
 } from 'ai'
 
-import { type PartGroup, isRenderablePartGroup } from './parts'
+import {
+  type PartGroup,
+  type ShellReportPart,
+  isRenderablePartGroup,
+} from './parts'
 import type { SegmentGroups } from './rows'
 import type { MessageRecord } from './types'
 
@@ -13,11 +17,17 @@ export type GroupAddress = { segmentIndex: number; groupIndex: number }
 
 export type ReasoningAddress = GroupAddress & { messageId: string }
 
+export type WorkShellReport = Pick<
+  ShellReportPart,
+  'jobId' | 'status' | 'exitCode'
+>
+
 export type WorkGroup = {
   id: string
   groups: GroupAddress[]
   toolCallIds: string[]
   partial: boolean
+  reports?: WorkShellReport[]
 }
 
 export type LayoutGroup = GroupAddress & { group: PartGroup; workId?: string }

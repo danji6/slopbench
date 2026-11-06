@@ -321,7 +321,16 @@ export function useSeek(
       const toolRow = target.toolCallId
         ? resolveToolRow(target.id, target.toolCallId)
         : undefined
-      const hiddenRow = toolRow ?? savedRow
+      const hasVisibleBody = rows.some(
+        (row) => row.messageId === target.id && row.kind !== 'footer',
+      )
+      const hiddenMessageRow = hasVisibleBody
+        ? undefined
+        : storedRows.find(
+            (row) =>
+              row.messageId === target.id && row.kind === 'group' && row.workId,
+          )
+      const hiddenRow = toolRow ?? savedRow ?? hiddenMessageRow
       const hiddenWorkId =
         hiddenRow?.kind === 'group' ? hiddenRow.workId : undefined
       const workCollapsed =

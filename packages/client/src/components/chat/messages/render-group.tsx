@@ -25,12 +25,10 @@ import { FileBlock } from './file-block'
 import { FileLinkBlock } from './file-link-block'
 import { PlanLinkBlock } from './plan-link-block'
 import { ReasoningBlock } from './reasoning-block'
-import { ShellReportBlock } from './shell-report-block'
 import { SummaryBlock } from './summary-block'
 import { TextBlock } from './text-block'
 import { ReadAttachmentBlock } from './tools/read-attachment-block'
 import { ReadFileBlock } from './tools/read-file-block'
-import { ShellBlock } from './tools/shell-block'
 import { ShellGroupBlock } from './tools/shell-group-block'
 import { SubagentGroupBlock } from './tools/subagent-group-block'
 import { ToolPartBlock } from './tools/tool-part-block'
@@ -57,23 +55,12 @@ export const RenderGroup = memo(function RenderGroup(props: RenderGroupProps) {
 
   if (group.type === 'tools') {
     if (group.toolName === 'shell') {
-      // No "Ran N commands" framing for user commands
-      if (props.message.role === 'user') {
-        return group.parts.map((part) => (
-          <ShellBlock
-            key={part.toolCallId}
-            part={part}
-            messageId={props.message.id}
-            forceError={partMeta?.toolErrors?.includes(part.toolCallId)}
-            alwaysExpand
-          />
-        ))
-      }
       return (
         <ShellGroupBlock
           parts={group.parts}
           messageId={props.message.id}
           toolErrors={partMeta?.toolErrors}
+          alwaysExpand={props.message.role === 'user'}
         />
       )
     }
@@ -114,7 +101,12 @@ export const RenderGroup = memo(function RenderGroup(props: RenderGroupProps) {
   }
 
   if (isShellReportPart(part)) {
-    return <ShellReportBlock part={part as ShellReportPart} />
+    return (
+      <ShellGroupBlock
+        parts={[part as ShellReportPart]}
+        messageId={props.message.id}
+      />
+    )
   }
 
   if (isReasoningUIPart(part)) {

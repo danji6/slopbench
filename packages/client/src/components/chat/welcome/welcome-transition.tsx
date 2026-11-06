@@ -16,15 +16,25 @@ export function WelcomeTransition({
   viewKey,
   children,
 }: WelcomeTransitionProps) {
-  const [readyView, setReadyView] = useState({ viewKey, children })
+  const [readyView, setReadyView] = useState({
+    viewKey,
+    children,
+    animateEnter: false,
+  })
   const loading = viewKey === null
   const viewChanged =
     viewKey !== readyView.viewKey || children !== readyView.children
-  if (!loading && viewChanged) setReadyView({ viewKey, children })
+  if (!loading && viewChanged) {
+    setReadyView({
+      viewKey,
+      children,
+      animateEnter: readyView.animateEnter || viewKey !== readyView.viewKey,
+    })
+  }
 
   return (
     <div aria-busy={loading || undefined} inert={loading}>
-      <AnimatePresence initial={false} mode="wait">
+      <AnimatePresence mode="wait">
         {readyView.viewKey === null ? (
           <div
             key="loading"
@@ -32,7 +42,10 @@ export function WelcomeTransition({
             aria-label="Loading welcome"
           />
         ) : (
-          <WelcomeTransitionContent key={readyView.viewKey}>
+          <WelcomeTransitionContent
+            key={readyView.viewKey}
+            animateEnter={readyView.animateEnter}
+          >
             {readyView.children}
           </WelcomeTransitionContent>
         )}
@@ -41,14 +54,22 @@ export function WelcomeTransition({
   )
 }
 
-function WelcomeTransitionContent({ children }: { children: ReactNode }) {
+type WelcomeTransitionContentProps = {
+  children: ReactNode
+  animateEnter: boolean
+}
+
+function WelcomeTransitionContent({
+  children,
+  animateEnter,
+}: WelcomeTransitionContentProps) {
   const present = useIsPresent()
   const reducedMotion = useReducedMotion()
 
   return (
     <motion.div
       inert={!present}
-      initial={{ opacity: 0 }}
+      initial={{ opacity: animateEnter ? 0 : 1 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: reducedMotion ? 0 : 0.16, ease: 'easeInOut' }}

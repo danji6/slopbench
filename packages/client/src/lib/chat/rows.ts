@@ -9,6 +9,7 @@ import {
   groupPartsCached,
 } from './parts'
 import { messageSenderKey, senderGroupDurations } from './sender-groups'
+import { groupShellReportRows } from './shell-work-reports'
 import type { MessageRecord, PartMetadata } from './types'
 import {
   type ReasoningAddress,
@@ -247,7 +248,15 @@ export function buildRows(
     }
   }
 
-  return groupNoteRows(rows)
+  return groupNoteRows(
+    groupShellReportRows(rows, {
+      getMessage,
+      getMetadata: getMessageMetadata,
+      getSegments: segmentGroupsFor,
+      groupBySender,
+      resolveWorkId,
+    }),
+  )
 }
 
 /**

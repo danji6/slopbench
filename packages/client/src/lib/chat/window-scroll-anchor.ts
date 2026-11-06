@@ -56,6 +56,7 @@ function sameContent(before: MessageRow, after: MessageRow): boolean {
     )
   }
   if (before.kind === 'work' && after.kind === 'work') {
+    if (!before.work.toolCallIds.length) return before.work.id === after.work.id
     return before.work.toolCallIds.some((id) =>
       after.work.toolCallIds.includes(id),
     )

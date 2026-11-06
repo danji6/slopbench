@@ -65,23 +65,25 @@ function noteExtra(type?: NoteType) {
 }
 
 const params = new URLSearchParams(location.search)
-let messages = params.has('tailWork')
-  ? tailWorkMessages()
-  : params.has('groupedWork')
-    ? groupedWorkMessages()
-    : [
-        ...Array.from({ length: 35 }, (_, i) => message(`before${i}`, i)),
-        message('mcp', 40, 'mcp'),
-        message('workspace', 41, 'workspace'),
-        message('skills', 42, 'skills'),
-        message('command', 43, 'command'),
-        ...Array.from(
-          { length: Number(params.get('extraNotes') ?? 0) },
-          (_, i) => message(`note${i}`, 44 + i / 1000, 'skills'),
-        ),
-        ...(params.has('work') ? [message('work', 45)] : []),
-        ...Array.from({ length: 35 }, (_, i) => message(`after${i}`, 50 + i)),
-      ]
+let messages = initialMessages()
+
+function initialMessages() {
+  if (params.has('shellReports')) return shellMessages()
+  if (params.has('tailWork')) return tailWorkMessages()
+  if (params.has('groupedWork')) return groupedWorkMessages()
+  return [
+    ...Array.from({ length: 35 }, (_, i) => message(`before${i}`, i)),
+    message('mcp', 40, 'mcp'),
+    message('workspace', 41, 'workspace'),
+    message('skills', 42, 'skills'),
+    message('command', 43, 'command'),
+    ...Array.from({ length: Number(params.get('extraNotes') ?? 0) }, (_, i) =>
+      message(`note${i}`, 44 + i / 1000, 'skills'),
+    ),
+    ...(params.has('work') ? [message('work', 45)] : []),
+    ...Array.from({ length: 35 }, (_, i) => message(`after${i}`, 50 + i)),
+  ]
+}
 
 function tailWorkMessages() {
   const work = message('work', 45)
@@ -115,12 +117,80 @@ function groupedWorkMessages() {
     metadata: { duration: 8300 },
   }))
 }
+
+function shellMessages() {
+  const shell = (id: string) => ({
+    type: 'tool-shell',
+    toolCallId: id,
+    state: 'output-available',
+    input: { command: `printf ${id}` },
+    output:
+      id === 'agent2'
+        ? {
+            jobId: 'job',
+            status: 'background',
+            exitCode: null,
+            text: '',
+            term: '',
+            termOffset: 0,
+          }
+        : `${id} output`,
+  })
+  const parts = [
+    [shell('user')],
+    [
+      shell('agent1'),
+      { type: 'step-start' },
+      shell('agent2'),
+      { type: 'text', text: 'Agent progress' },
+    ],
+    [
+      {
+        type: 'shell-report',
+        jobId: 'job',
+        command: 'bun lint',
+        status: 'done',
+        exitCode: 0,
+        text: 'Lint passed',
+      },
+    ],
+    [
+      {
+        type: 'tool-shell_output',
+        toolCallId: 'poll',
+        state: 'output-available',
+        input: { jobId: 'job' },
+        output: 'Command output',
+      },
+      { type: 'text', text: 'Finished' },
+    ],
+  ] as unknown as UIMessage['parts'][]
+
+  return parts.map((parts, index) => ({
+    ...message('work', index),
+    _id: `shell${index}`,
+    role: index === 0 || index === 2 ? 'user' : 'assistant',
+    sender: {
+      type: index === 0 ? 'user' : 'agent',
+      id: index === 0 ? 'owner' : 'agent',
+    },
+    senderName: index === 0 ? 'User' : 'Code',
+    metadata: { duration: index === 1 ? 109000 : index === 3 ? 37000 : 0 },
+    segments: [{ segmentIndex: 0, parts, sizeBytes: 100 }],
+  }))
+}
 const cache = new Map<string, unknown>()
 const listeners = new Set<() => void>()
 
 function query(name: string, args: Record<string, unknown>) {
   const readOnly = new URLSearchParams(location.search).has('readOnly')
-  if (name === 'settings:get') return DEFAULT_SETTINGS
+  if (name === 'settings:get')
+    return {
+      ...DEFAULT_SETTINGS,
+      groupBySender: params.has('ungrouped')
+        ? false
+        : DEFAULT_SETTINGS.groupBySender,
+    }
   if (name === 'users:getProfile')
     return { _id: readOnly ? 'viewer' : 'owner', role: 'user' }
   if (name === 'sessions:get')

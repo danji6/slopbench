@@ -16,6 +16,7 @@ import {
 } from '@/lib/chat'
 import type { MessageRecord, PartMetadata } from '@/lib/chat'
 import { type MessageRow, segmentGroupsFor } from '@/lib/chat/rows'
+import { messageDisplayRole } from '@/lib/chat/sender-groups'
 import { cn, formatDuration, isTouchDevice } from '@/lib/utils'
 import { toDisplayName } from '@sb/core/utils/names'
 import { type UIMessage, isReasoningUIPart } from 'ai'
@@ -135,11 +136,11 @@ function RowShell({ message, messageMeta, row, children }: RowShellProps) {
     [message.id, canEdit, content],
   )
 
-  const { look, code } = useMessageAppearance(message.role, messageMeta)
+  const role = messageDisplayRole(message, messageMeta)
+  const { look, code } = useMessageAppearance(role, messageMeta)
   const appearanceClass = useScopedAppearance(look)
 
-  const roleClass =
-    message.role === 'user' ? 'user' : message.role === 'system' ? 'sys' : 'ai'
+  const roleClass = role === 'user' ? 'user' : role === 'system' ? 'sys' : 'ai'
 
   const inner = (
     <MessageContextMenu
@@ -150,7 +151,7 @@ function RowShell({ message, messageMeta, row, children }: RowShellProps) {
     >
       <div
         data-slot="message-row"
-        data-role={message.role}
+        data-role={role}
         data-message-id={message.id}
         className={cn(
           'relative z-10 flex min-w-0 flex-col items-start',
@@ -193,6 +194,7 @@ type HeaderRowProps = {
 
 function HeaderRow({ row, message, messageMeta }: HeaderRowProps) {
   const registerElement = useMessageHighlight()?.registerElement
+  const role = messageDisplayRole(message, messageMeta)
 
   const highlightTarget = useMemo(
     () => ({ messageId: message.id, segmentIndex: null, groupIndex: null }),
@@ -211,7 +213,7 @@ function HeaderRow({ row, message, messageMeta }: HeaderRowProps) {
   const sender = {
     name: toDisplayName(
       messageMeta?.senderName,
-      message.role === 'system' ? 'System' : undefined,
+      role === 'system' ? 'System' : undefined,
     ),
     avatarId: messageMeta?.senderAvatarId,
   }
@@ -225,7 +227,7 @@ function HeaderRow({ row, message, messageMeta }: HeaderRowProps) {
       {reasoning ? (
         <ReasoningHeader
           sender={sender}
-          role={message.role}
+          role={role}
           openKey={`${row.messageId}:v${messageMeta?.selectedVersion ?? 1}:header-reasoning`}
           part={reasoning.part}
           messageId={message.id}
@@ -233,7 +235,7 @@ function HeaderRow({ row, message, messageMeta }: HeaderRowProps) {
           groupIndex={reasoning.groupIndex}
         />
       ) : (
-        <MessageHeader sender={sender} role={message.role} gutter />
+        <MessageHeader sender={sender} role={role} gutter />
       )}
     </div>
   )

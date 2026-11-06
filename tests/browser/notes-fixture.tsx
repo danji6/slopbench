@@ -28,6 +28,7 @@ import { appendNote, isNoteRow, notesClient } from './notes-client'
 const noop = () => {}
 const groupedWork = new URLSearchParams(location.search).has('groupedWork')
 const tailWork = new URLSearchParams(location.search).has('tailWork')
+const shellReports = new URLSearchParams(location.search).has('shellReports')
 
 function NoteRow({ row }: { row: MessageRow }) {
   const { message, messageMeta } = useChatMessage(row.messageId)
@@ -97,6 +98,11 @@ function Transcript() {
       }}
     >
       <nav className="bg-background fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-2 px-2 text-xs">
+        {shellReports && (
+          <button onClick={() => requestScrollToMessage('shell2', 2)}>
+            Seek report
+          </button>
+        )}
         {groupedWork && (
           <button onClick={() => setHideDuration(true)}>Hide duration</button>
         )}
@@ -144,7 +150,7 @@ function Transcript() {
             onLoadNewer: () => {},
             virtuaRef,
             renderRow: (row) =>
-              groupedWork || tailWork ? (
+              groupedWork || tailWork || shellReports ? (
                 <MessageRowView
                   row={
                     hideDuration && row.kind === 'footer'

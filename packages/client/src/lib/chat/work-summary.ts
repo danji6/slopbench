@@ -1,9 +1,14 @@
+import type { ShellToolOutput } from '@sb/core/types/tools'
 import { type ToolUIPart, isReasoningUIPart } from 'ai'
 
 import { type PartGroup, getToolStatus } from './parts'
 import type { SegmentGroups } from './rows'
 import { parseOutputValue } from './tool-output'
-import { type WorkGroup, toolsInGroup } from './work-layout'
+import {
+  type WorkGroup,
+  type WorkShellReport,
+  toolsInGroup,
+} from './work-layout'
 
 /** Summarizes the loaded activity; file categories count distinct paths. */
 export function summarizeWork(
@@ -22,10 +27,8 @@ export function summarizeWork(
       groups.flatMap(toolsInGroup).map((part) => [part.toolCallId, part]),
     ).values(),
   ]
-  const statuses = tools.map((part) =>
-    errors.includes(part.toolCallId) ? 'error' : getToolStatus(part),
-  )
-  const label = activityLabel(tools)
+  const { statuses, reportCommands } = workStatuses(tools, work.reports, errors)
+  const label = activityLabel(tools, reportCommands)
 
   return {
     label: label[0].toUpperCase() + label.slice(1),
@@ -36,6 +39,27 @@ export function summarizeWork(
   }
 }
 
+/** Applies completion outcomes without counting their commands a second time. */
+function workStatuses(
+  tools: ToolUIPart[],
+  reports: WorkShellReport[] = [],
+  errors: string[],
+) {
+  const byJob = new Map(reports.map((report) => [report.jobId, report]))
+  const unmatched = new Map(byJob)
+
+  const statuses = tools.map((part) => {
+    const jobId = shellJobId(part)
+    const report = jobId ? byJob.get(jobId) : undefined
+    if (report) unmatched.delete(report.jobId)
+    if (errors.includes(part.toolCallId)) return 'error'
+    return report ? reportStatus(report) : getToolStatus(part)
+  })
+  statuses.push(...[...unmatched.values()].map(reportStatus))
+
+  return { statuses, reportCommands: unmatched.size }
+}
+
 function isThinking(group: PartGroup): boolean {
   return (
     group.type === 'single' &&
@@ -44,11 +68,22 @@ function isThinking(group: PartGroup): boolean {
   )
 }
 
-function activityLabel(tools: ToolUIPart[]): string {
+function shellJobId(part: ToolUIPart): string | undefined {
+  if (part.type !== 'tool-shell') return
+  return parseOutputValue<ShellToolOutput>(part.output)?.jobId
+}
+
+function reportStatus(report: WorkShellReport): 'complete' | 'error' {
+  return report.status === 'done' && (report.exitCode ?? 0) === 0
+    ? 'complete'
+    : 'error'
+}
+
+function activityLabel(tools: ToolUIPart[], reportCommands = 0): string {
   const reads = new Set<string>()
   let attachmentReadCalls = 0
   const changes = new Set<string>()
-  let commands = 0
+  let commands = reportCommands
   let listedSkills = false
   let other = 0
 

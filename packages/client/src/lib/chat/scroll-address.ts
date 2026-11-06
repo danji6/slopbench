@@ -22,9 +22,16 @@ export function scrollRowAddress(
     }
   }
   if (row.kind !== 'work') return
+
   const toolCallId = row.work.toolCallIds[0]
+  if (!toolCallId) {
+    const group = row.work.groups[0]
+    return group ? { kind: 'group', ...group } : undefined
+  }
+
   const message = reader.getMessage(row.messageId)
-  if (!toolCallId || !message) return
+  if (!message) return
+
   const segment = segmentGroupsFor(
     message,
     reader.getMessageMetadata(row.messageId),
@@ -32,6 +39,7 @@ export function scrollRowAddress(
     slice.groups.some((group) => groupHasToolCall(group, toolCallId)),
   )
   if (!segment) return
+
   return { kind: 'work', segmentIndex: segment.segmentIndex, toolCallId }
 }
 
@@ -41,17 +49,32 @@ export function findScrollContentRow(
   messageId: string,
   address: ScrollRowAddress,
 ): MessageRow | undefined {
-  return rows.find((row) => {
-    if (row.messageId !== messageId) return false
+  let reportWork: MessageRow | undefined
+
+  for (const row of rows) {
+    if (row.messageId !== messageId) continue
+
     if (address.kind === 'group') {
-      return (
+      if (row.kind === 'work' && !row.work.toolCallIds.length) {
+        const containsReport = row.work.groups.some(
+          (group) =>
+            group.segmentIndex === address.segmentIndex &&
+            group.groupIndex === address.groupIndex,
+        )
+        if (containsReport) reportWork = row
+      }
+      const matchesGroup =
         row.kind === 'group' &&
         row.segmentIndex === address.segmentIndex &&
         row.groupIndex === address.groupIndex
-      )
+      if (matchesGroup) return row
+      continue
     }
-    return (
+
+    const matchesWork =
       row.kind === 'work' && row.work.toolCallIds.includes(address.toolCallId)
-    )
-  })
+    if (matchesWork) return row
+  }
+
+  return reportWork
 }

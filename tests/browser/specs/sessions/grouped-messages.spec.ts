@@ -1,5 +1,76 @@
 import { expect, test } from '@playwright/test'
 
+for (const grouped of [true, false]) {
+  test(`shell commands and reports share shell groups (grouped=${grouped})`, async ({
+    page,
+  }) => {
+    await page.goto(
+      `/?fixture=notes&id=notes&shellReports${grouped ? '' : '&ungrouped'}`,
+    )
+    await expect(page.locator('[data-slot="message-header"]')).toHaveCount(
+      grouped ? 2 : 4,
+    )
+    const report = page.locator(
+      '[data-slot="message-row"][data-message-id="shell2"]',
+    )
+    await expect(
+      report.locator('[data-slot="shell-report-block"]'),
+    ).toHaveCount(0)
+    const work = page.locator('[data-slot="work-block"]')
+    await expect(work).toHaveCount(grouped ? 2 : 3)
+    await expect(work.first()).toContainText('Ran 2 commands')
+    for (const block of await work.all()) await block.click()
+    await expect(report.first()).toHaveAttribute('data-role', 'assistant')
+
+    const groups = page.locator('[data-slot="shell-group"]')
+    await expect(groups).toHaveCount(4)
+    await expect(groups.nth(0)).toContainText('Ran 1 command')
+    await expect(groups.nth(1)).toContainText('Ran 2 commands')
+    await expect(groups.nth(2)).toContainText('Ran 1 command')
+    await expect(groups.nth(3)).toContainText('Read 1 command output')
+    await expect(groups.nth(0)).toContainText('user output')
+    await expect(groups.nth(2).getByText('Lint passed')).toBeHidden()
+    await groups.nth(2).getByRole('button').click()
+    await expect(groups.nth(2).getByText('Lint passed')).toBeVisible()
+    if (grouped) {
+      await expect
+        .poll(async () => {
+          const reportBox = await groups.nth(2).boundingBox()
+          const progressBox = await page
+            .getByText('Agent progress', { exact: true })
+            .boundingBox()
+          return reportBox && progressBox
+            ? progressBox.y - reportBox.y - reportBox.height
+            : Infinity
+        })
+        .toBeLessThanOrEqual(24)
+    }
+    await work.first().click()
+    if (grouped) {
+      await expect(
+        report.locator('[data-slot="shell-report-block"]'),
+      ).toHaveCount(0)
+      await expect(work.first()).toContainText('Ran 2 commands')
+      await page.getByRole('button', { name: 'Seek report' }).click()
+      await expect(work.first()).toHaveAttribute('aria-expanded', 'true')
+      await expect(
+        report.locator('[data-slot="shell-report-block"]'),
+      ).toBeVisible()
+    }
+    await expect(
+      page.locator(
+        '[data-slot="shell-block"]:not([data-slot="shell-group"] *)',
+      ),
+    ).toHaveCount(0)
+    if (grouped) {
+      await expect(page.locator('[data-slow="message-footer"]')).toHaveCount(1)
+      await expect(page.locator('[data-slow="message-footer"]')).toContainText(
+        '146.0s',
+      )
+    }
+  })
+}
+
 for (const emptyChanges of [false, true]) {
   test(`completed grouped messages leave no blank space between collapsed work summaries (emptyChanges=${emptyChanges})`, async ({
     page,

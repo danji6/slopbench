@@ -37,6 +37,7 @@ export function ReasoningBlock({
       shimmer={isStreaming}
       open={open}
       onOpenChange={onOpenChange}
+      dense
       surface
     >
       <div

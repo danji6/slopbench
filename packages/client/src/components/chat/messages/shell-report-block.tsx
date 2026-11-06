@@ -1,6 +1,5 @@
 import { useCollapsible } from '@/hooks/chat/collapsible'
 import type { ShellReportPart } from '@/lib/chat/parts'
-import { SquareTerminalIcon } from 'lucide-react'
 
 import { CollapsibleBlock } from './collapsible-block'
 import { HighlightedCommand } from './tools/highlighted-command'
@@ -23,9 +22,7 @@ export function ShellReportBlock({ part }: { part: ShellReportPart }) {
       open={open}
       onOpenChange={onOpenChange}
       surface
-      leadingIcon={
-        <SquareTerminalIcon className="text-muted-foreground size-3.5 shrink-0" />
-      }
+      dense
       label={
         <span className="font-mono">
           <span className="text-foreground/70">$</span>{' '}
@@ -38,7 +35,7 @@ export function ShellReportBlock({ part }: { part: ShellReportPart }) {
           </span>
         </span>
       }
-      className="px-2 pt-1.5 pb-2"
+      className="px-0 data-[open=true]:my-1 data-[open=true]:py-2"
     >
       <pre className="max-h-72 overflow-auto px-2.5 pb-1 font-mono text-xs whitespace-pre-wrap">
         {part.text}

@@ -1,6 +1,19 @@
 import type { UIMessage } from 'ai'
 
+import { isShellReportPart } from './parts'
 import type { MessageRecord, PartMetadata } from './types'
+
+/** Presents background shell reports as activity from their owning agent. */
+export function messageDisplayRole(
+  message: UIMessage,
+  record: MessageRecord | undefined,
+): UIMessage['role'] {
+  const isAgentReport =
+    message.role === 'user' &&
+    record?.sender.type === 'agent' &&
+    message.parts.some(isShellReportPart)
+  return isAgentReport ? 'assistant' : message.role
+}
 
 /** Identifies messages that can share a sender header. */
 export function messageSenderKey(
@@ -8,7 +21,8 @@ export function messageSenderKey(
   record: MessageRecord | undefined,
 ): string | null {
   if (!record?.sender || record.type) return null
-  return `${message.role}:${record.sender.type}:${record.sender.id}`
+  const role = messageDisplayRole(message, record)
+  return `${role}:${record.sender.type}:${record.sender.id}`
 }
 
 type FooterDurationOptions = {

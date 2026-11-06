@@ -2,7 +2,6 @@ import { Accordion, Button } from '@/components/ui'
 import { Collapsible, useCollapsible } from '@/components/ui/collapsible'
 import { useScrollIntoView } from '@/hooks/chat/scroll-into-view'
 import { cn } from '@/lib/utils'
-import { useReducedMotion } from 'motion/react'
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 
 import { useGrowOnly } from './grow-only'
@@ -311,21 +310,29 @@ function Content({
   topPadding?: number
 }) {
   const { isOpen } = useCollapsible()
-  const reducedMotion = useReducedMotion()
+  const contentRef = useRef<HTMLDivElement>(null)
   const [present, setPresent] = useState(isOpen)
   const [expanded, setExpanded] = useState(isOpen)
+  const beginShrink = useGrowOnly()?.beginShrink
 
-  // Let the enclosing grow-only row shrink back as this block collapses
-  const release = useGrowOnly()?.release
-  const wasOpen = useRef(isOpen)
-  useEffect(() => {
-    if (wasOpen.current && !isOpen) release?.()
-    wasOpen.current = isOpen
-  }, [isOpen, release])
+  useLayoutEffect(() => {
+    if (isOpen || !present) return
+    const finishShrink = beginShrink?.()
+    let cancelled = false
+    const animations = contentRef.current?.getAnimations() ?? []
+    void Promise.allSettled(
+      animations.map((animation) => animation.finished),
+    ).then(() => {
+      if (!cancelled) setPresent(false)
+    })
+    return () => {
+      cancelled = true
+      finishShrink?.()
+    }
+  }, [isOpen, present, beginShrink])
 
   if (isOpen && !present) setPresent(true)
   if (!isOpen && expanded) setExpanded(false)
-  if (!isOpen && present && reducedMotion) setPresent(false)
 
   useEffect(() => {
     if (!isOpen) return
@@ -347,6 +354,7 @@ function Content({
 
   return (
     <div
+      ref={contentRef}
       id={id}
       inert={!isOpen}
       aria-hidden={!isOpen || undefined}
@@ -355,15 +363,6 @@ function Content({
         expanded ? 'opacity-100' : 'pointer-events-none opacity-0',
       )}
       style={{ gridTemplateRows: expanded ? '1fr' : '0fr' }}
-      onTransitionEnd={(event) => {
-        if (
-          event.target === event.currentTarget &&
-          event.propertyName === 'grid-template-rows' &&
-          !isOpen
-        ) {
-          setPresent(false)
-        }
-      }}
     >
       <div className="min-h-0 overflow-hidden">{children}</div>
     </div>

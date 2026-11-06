@@ -264,7 +264,7 @@ test('starters fill the composer, disable during drafting, and switching preserv
   ).toBeEnabled()
 })
 
-test('agent selection keeps the ripple centered and the pressed card still until the welcome fades out', async ({
+test('agent selection expands the ripple without moving its center or the pressed card until the welcome fades out', async ({
   page,
 }) => {
   await page.goto('/?fixture=empty-chat&noAgent&deferSelection')
@@ -280,11 +280,17 @@ test('agent selection keeps the ripple centered and the pressed card still until
         let frames = 0
         let centerError = 0
         let movement = 0
+        let minRippleWidth = Infinity
+        let maxRippleWidth = 0
         function sample() {
           const ripple = button.querySelector(
             ':scope > span.pointer-events-none',
           )
           const bounds = ripple?.getBoundingClientRect()
+          if (bounds) {
+            minRippleWidth = Math.min(minRippleWidth, bounds.width)
+            maxRippleWidth = Math.max(maxRippleWidth, bounds.width)
+          }
           if (bounds && bounds.width > 0) {
             centerError = Math.max(
               centerError,
@@ -302,6 +308,7 @@ test('agent selection keeps the ripple centered and the pressed card still until
           button.dataset.rippleFrames = String(++frames)
           button.dataset.rippleCenterError = String(centerError)
           button.dataset.cardMovement = String(movement)
+          button.dataset.rippleGrowth = String(maxRippleWidth - minRippleWidth)
           if (frames < 16) requestAnimationFrame(sample)
         }
         requestAnimationFrame(sample)
@@ -325,6 +332,9 @@ test('agent selection keeps the ripple centered and the pressed card still until
     Number(await card.getAttribute('data-ripple-center-error')),
   ).toBeLessThan(1)
   expect(Number(await card.getAttribute('data-card-movement'))).toBeLessThan(1)
+  expect(Number(await card.getAttribute('data-ripple-growth'))).toBeGreaterThan(
+    bounds.width / 2,
+  )
 
   const inertWhileExiting = await page.evaluate(
     () =>
@@ -352,7 +362,7 @@ test('agent selection keeps the ripple centered and the pressed card still until
   )
   expect(inertWhileExiting).toBe(true)
   await expect(
-    page.getByText('A few ways to get going with Agent 3.'),
+    page.getByText('A few ways to get started with Agent 3.'),
   ).toBeVisible()
   await expect(
     page.locator('section[aria-label="Choose an agent"]'),
