@@ -1,23 +1,57 @@
-import { Code } from '@/components/ui'
+import { Code, Popover } from '@/components/ui'
 import { useChangeDiff } from '@/hooks/chat/changes'
 import { languageFromPath } from '@/lib/chat/tool-output'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import type { ChangedFile } from '@sb/core/types/changes'
 
-export function ChangeDiff({
-  changeSetId,
-  file,
-  active,
-}: {
+type ChangeDiffProps = {
   changeSetId: Id<'changeSets'>
   file: ChangedFile
   active: boolean
-}) {
-  const { text, error } = useChangeDiff(changeSetId, file.key, active)
+}
+
+type ChangeDiffContentProps = {
+  file: ChangedFile
+  text?: string
+  error?: string
+}
+
+export function ChangeDiff({ changeSetId, file, active }: ChangeDiffProps) {
+  const result = useChangeDiff(changeSetId, file.key, active)
 
   if (!active) {
     return null
   }
+
+  return <ChangeDiffContent file={file} {...result} />
+}
+
+/** Positions the hover preview using the loaded diff's dimensions. */
+export function ChangeDiffPreview({
+  changeSetId,
+  file,
+  active,
+}: ChangeDiffProps) {
+  const result = useChangeDiff(changeSetId, file.key, active)
+  if (result.text === undefined && !result.error) return null
+
+  return (
+    <Popover.Content
+      side="top"
+      align="start"
+      className="ring-input bg-m3-surface-container w-[min(720px,calc(100dvw-2rem))] gap-0 overflow-hidden p-2"
+    >
+      <div className="px-1 pt-1 pb-2 font-mono text-xs break-all">
+        {file.path}
+      </div>
+      <div className="border-border overflow-hidden rounded-md border">
+        <ChangeDiffContent file={file} {...result} />
+      </div>
+    </Popover.Content>
+  )
+}
+
+function ChangeDiffContent({ file, text, error }: ChangeDiffContentProps) {
   if (error) {
     return (
       <p role="alert" className="text-destructive p-3 text-sm">

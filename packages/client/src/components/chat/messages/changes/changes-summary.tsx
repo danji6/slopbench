@@ -19,7 +19,7 @@ import { useEffect, useState } from 'react'
 
 import { useGrowOnly } from '../grow-only'
 import { usePendingMessageLayout } from '../message-list/message-list-context'
-import { ChangeDiff } from './change-diff'
+import { ChangeDiff, ChangeDiffPreview } from './change-diff'
 import { ChangeNotice } from './change-notice'
 
 export function ChangesSummary({
@@ -206,6 +206,7 @@ function ChangedFileRow({
   hovered,
   onHover,
 }: ChangedFileRowProps) {
+  const [pointerInside, setPointerInside] = useState(false)
   const slash = file.path.lastIndexOf('/')
   const directory = file.path.slice(0, slash + 1)
   const filename = file.path.slice(slash + 1)
@@ -234,6 +235,8 @@ function ChangedFileRow({
           tabIndex={-1}
           role="presentation"
           render={<div className="w-full" />}
+          onMouseEnter={() => setPointerInside(true)}
+          onMouseLeave={() => setPointerInside(false)}
         >
           <Accordion.Trigger
             render={<Button variant="plain" />}
@@ -267,19 +270,11 @@ function ChangedFileRow({
             />
           </Accordion.Trigger>
         </Popover.Trigger>
-        <Popover.Content
-          side="top"
-          align="start"
-          className="ring-input bg-m3-surface-container w-[min(720px,calc(100dvw-2rem))] gap-0 overflow-hidden p-2"
-        >
-          <div className="px-1 pt-1 pb-2 font-mono text-xs break-all">
-            {file.path}
-          </div>
-          {/* The portal unmounts the diff after the popover finishes closing. */}
-          <div className="border-border overflow-hidden rounded-md border">
-            <ChangeDiff changeSetId={changeSetId} file={file} active />
-          </div>
-        </Popover.Content>
+        <ChangeDiffPreview
+          changeSetId={changeSetId}
+          file={file}
+          active={!expanded && (hovered || pointerInside)}
+        />
       </Popover>
       <Accordion.Content className="rounded-none! border-0 pt-0 pb-0">
         <div className="border-border mb-2 overflow-hidden rounded-md border">

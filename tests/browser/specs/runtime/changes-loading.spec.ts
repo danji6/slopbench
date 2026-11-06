@@ -1,5 +1,71 @@
 import { expect, test } from '@playwright/test'
 
+for (const side of ['top', 'bottom']) {
+  test(`positions a slow hover diff on the ${side} using its loaded size`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    let resolveDiff!: () => void
+    const diffReady = new Promise<void>((resolve) => {
+      resolveDiff = resolve
+    })
+    await page.route('**/diff/file-1.patch', async (route) => {
+      await diffReady
+      await route.fulfill({
+        contentType: 'text/plain',
+        body: `--- file.ts\n+++ file.ts\n@@ -1 +1,120 @@\n-before\n${'+after\n'.repeat(120)}`,
+      })
+    })
+    try {
+      await page.goto('/?fixture=changes&networkDiff')
+      if (side === 'top') {
+        await page.addStyleTag({ content: 'main { margin-top: 450px; }' })
+      }
+      const first = page.getByRole('button', { name: /src\/file-1.ts/ })
+      const request = page.waitForRequest('**/diff/file-1.patch')
+      await first.hover()
+      await request
+      const trigger = page.locator('[data-slot="popover-trigger"]').first()
+      await expect(trigger).toHaveAttribute('data-popup-open', '')
+      const preview = page.getByRole('dialog')
+      await expect(preview).toHaveCount(0)
+
+      resolveDiff()
+      await expect(preview).toBeVisible()
+      await expect(preview).toHaveAttribute('data-side', side)
+      await expect(preview.locator('.diff-add').first()).toContainText('after')
+      const popup = (await preview.boundingBox())!
+      const anchor = (await first.boundingBox())!
+      if (side === 'top') {
+        expect(popup.y + popup.height).toBeLessThanOrEqual(anchor.y)
+      } else {
+        expect(popup.y).toBeGreaterThanOrEqual(anchor.y + anchor.height)
+      }
+    } finally {
+      resolveDiff()
+    }
+  })
+}
+
+test('cancels a pending hover diff when the pointer leaves the file', async ({
+  page,
+}) => {
+  await page.route('**/diff/file-1.patch', () => {})
+  await page.goto('/?fixture=changes&networkDiff')
+  const request = page.waitForRequest('**/diff/file-1.patch')
+  await page.getByRole('button', { name: /src\/file-1.ts/ }).hover()
+  await request
+  const trigger = page.locator('[data-slot="popover-trigger"]').first()
+  await expect(trigger).toHaveAttribute('data-popup-open', '')
+  const cancelled = page.waitForEvent('requestfailed', {
+    predicate: (request) => request.url().endsWith('/diff/file-1.patch'),
+  })
+  await page.mouse.move(0, 0)
+  await cancelled
+  await expect(trigger).not.toHaveAttribute('data-popup-open', '')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
 for (const width of [480, 1280]) {
   test(`reserves file-list space and retains loaded changes across remounts (width=${width})`, async ({
     page,
