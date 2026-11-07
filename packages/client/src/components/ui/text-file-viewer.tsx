@@ -58,7 +58,7 @@ export function TextFileViewer({
     >
       <Dialog.Trigger
         aria-label={`Preview ${item.file.name}`}
-        className="focus-visible:ring-ring size-full cursor-pointer rounded-lg text-left outline-none focus-visible:ring-2"
+        className="file-preview-focus size-full cursor-pointer rounded-lg text-left"
       >
         {children}
       </Dialog.Trigger>

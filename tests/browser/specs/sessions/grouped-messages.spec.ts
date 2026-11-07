@@ -260,6 +260,11 @@ for (const grouped of [true, false]) {
     await expect(groups.nth(0)).toContainText('Ran 1 command')
     await expect(groups.nth(1)).toContainText('Ran 2 commands')
     await expect(groups.nth(2)).toContainText('Ran 1 command')
+    const commandTriggers = groups.nth(1).locator('[data-block-trigger]')
+    await expect(commandTriggers.first().locator('.shiki .line')).toBeVisible()
+    await commandTriggers.first().focus()
+    await page.keyboard.press('Tab')
+    await expect(commandTriggers.nth(1)).toBeFocused()
     const output = page.locator('[data-tool-call-id="poll"]')
     const nextOutput = page.locator('[data-tool-call-id="poll-next"]')
     await expect(output.getByRole('button')).toHaveText(

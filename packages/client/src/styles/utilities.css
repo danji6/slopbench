@@ -43,3 +43,19 @@
   );
 }
 /* ----------------- */
+
+@utility file-preview-focus {
+  position: relative;
+  outline: none;
+
+  &:focus-visible::after {
+    content: '';
+    position: absolute;
+    z-index: 10;
+    inset: 0;
+    border-radius: inherit;
+    outline: 2px solid var(--base-ring);
+    outline-offset: -2px;
+    pointer-events: none;
+  }
+}

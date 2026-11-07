@@ -89,7 +89,7 @@ export function ReasoningHeader({
             aria-label="Toggle latest thinking"
             data-slot="reasoning-highlight"
             data-reasoning-address=""
-            className="flex min-h-0 min-w-0 items-center justify-start gap-1 rounded-none py-0 text-left focus-visible:ring-0"
+            className="chat-header-focus flex min-h-0 min-w-0 items-center justify-start gap-1 px-2 py-1.5 text-left focus-visible:ring-0"
           >
             <span
               className={cn(

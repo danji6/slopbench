@@ -7,9 +7,6 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { useGrowOnly } from './grow-only'
 import { useMessageList } from './message-list/message-list-context'
 
-const TRIGGER_FOCUS =
-  'has-[>div>[data-block-trigger]:focus-visible]:border-ring'
-
 export type CollapsibleBlockProps = React.ComponentPropsWithoutRef<'div'> & {
   label: React.ReactNode
   leadingIcon?: React.ReactNode
@@ -105,8 +102,7 @@ export function CollapsibleBlock({
   )
 
   const shellClassName = cn(
-    'group overflow-x-auto rounded-none border border-transparent transition-all',
-    TRIGGER_FOCUS,
+    'group overflow-x-auto rounded-none border border-transparent motion-safe:transition-[padding,background-color,border-color,border-radius]',
     dense ? 'mb-0' : 'mb-2',
     fullWidth ? 'w-full' : 'w-fit max-w-full',
     surface &&
@@ -170,17 +166,17 @@ export function CollapsibleBlock({
         >
           <div
             className={cn(
-              'flex items-center px-(--work-body-padding)',
+              'chat-header-focus flex items-center rounded-3xl px-(--work-body-padding)',
               rowMinH,
-              insetSurface && 'p-0',
+              insetSurface &&
+                'p-0 in-data-[open=true]:px-2 in-data-[open=true]:py-1.5',
               open && 'chat-block-header-expanded',
               headerClassName,
             )}
           >
             <Trigger
               className={cn(
-                insetSurface &&
-                  'py-0 focus-visible:ring-1 focus-visible:ring-inset',
+                insetSurface && 'py-0',
                 insetRow && 'py-(--work-header-padding-y)',
                 triggerClassName,
               )}

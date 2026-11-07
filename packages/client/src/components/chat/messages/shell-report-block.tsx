@@ -22,6 +22,8 @@ export function ShellReportBlock({ part }: { part: ShellReportPart }) {
       open={open}
       onOpenChange={onOpenChange}
       surface="inset"
+      headerClassName="in-data-[open=false]:p-2"
+      triggerClassName="px-2 py-1"
       fullWidth
       dense
       label={

@@ -68,7 +68,7 @@ export function WorkBlock({ row, message, record, partMeta }: WorkBlockProps) {
       aria-expanded={open}
       aria-label={`${open ? 'Collapse' : 'Expand'} work: ${summary.label}`}
       onClick={toggle}
-      className="chat-summary-row text-muted-foreground flex max-w-full items-center justify-start gap-2 text-left text-xs whitespace-normal"
+      className="chat-header-focus chat-summary-row text-muted-foreground flex max-w-full items-center justify-start gap-2 text-left text-xs whitespace-normal focus-visible:ring-0"
     >
       <span
         className={cn(

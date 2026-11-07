@@ -262,7 +262,9 @@ function ChangedFileRow({
             className="hover:text-primary h-auto min-h-10 min-w-0 gap-2 rounded-none! border-0 bg-transparent px-0 py-2 text-sm font-normal hover:bg-transparent focus-visible:ring-0 has-[>svg]:px-0"
           >
             <span className="flex min-w-0 flex-1 flex-col text-left sm:flex-row sm:items-baseline sm:gap-2">
-              <span className="max-w-full truncate">{filename}</span>
+              <span className="group-focus-visible/accordion-trigger:text-primary max-w-full truncate underline-offset-2 group-focus-visible/accordion-trigger:underline">
+                {filename}
+              </span>
               {directory && (
                 <span className="text-muted-foreground min-w-0 truncate text-xs">
                   {directory}

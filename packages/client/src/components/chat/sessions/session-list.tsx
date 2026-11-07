@@ -262,6 +262,7 @@ export const SessionListView = memo(function SessionListView() {
                       <RippleButton
                         variant="stealth"
                         size="icon"
+                        className="focus-visible:ring-inset"
                         aria-label="Collapse all folders"
                         onClick={() => {
                           collapseAll()

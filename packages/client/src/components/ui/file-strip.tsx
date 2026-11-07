@@ -104,7 +104,7 @@ export function FileStrip(props: FileStripProps) {
         const { preview, media } = previewsById.get(item.id)!
         return (
           <div
-            className="relative shrink-0"
+            className="relative isolate shrink-0"
             style={{ width: size, height: size }}
           >
             {media ? (
@@ -286,7 +286,7 @@ function MediaThumbnail({ src, video, alt, onOpen }: MediaThumbnailProps) {
     <button
       type="button"
       aria-label={`Open ${alt}`}
-      className="border-input focus-visible:ring-ring block size-full cursor-zoom-in overflow-hidden rounded-lg border focus-visible:ring-2"
+      className="file-preview-focus border-input block size-full cursor-zoom-in overflow-hidden rounded-lg border"
       onClick={(event) => onOpen(event.currentTarget)}
     >
       {content}

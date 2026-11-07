@@ -15,6 +15,7 @@ import { useTerminalFeed } from '@/hooks/terminal-feed'
 import type { ShellToolOutput } from '@/lib/chat'
 import { parseOutputValue } from '@/lib/chat/tool-output'
 import { toast } from '@/lib/notifications'
+import { cn } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { needsEmulator } from '@sb/core/shell/ansi'
@@ -191,6 +192,8 @@ export function ShellBlock({
       revealOnOpen="manual"
       fullWidth
       surface={outputRead ? 'inset-row' : 'inset'}
+      headerClassName={outputRead ? undefined : 'in-data-[open=false]:p-2'}
+      triggerClassName={outputRead ? undefined : 'px-2 py-1'}
       noErrorText={hasTerminal || Boolean(fallbackText)}
       dense={dense}
       leadingIcon={outputRead ? undefined : null}
@@ -239,7 +242,7 @@ export function ShellBlock({
             </pre>
           )}
           {hasActions && (
-            <div className="flex w-full items-center gap-2">
+            <div className="flex w-full items-center gap-2 [&_button:focus-visible]:ring-inset">
               {showLiveActions && jobId && (
                 <>
                   <KillButton
@@ -363,7 +366,7 @@ function ShellTerminal({
   return (
     <div
       data-slot="terminal-wrapper"
-      className="bg-m3-surface-container-lowest rounded-(--work-surface-inner-radius) border p-2"
+      className="bg-m3-surface-container-lowest rounded-(--work-surface-inner-radius) border p-2 has-focus-visible:outline-1 has-[:focus-visible]:-outline-offset-1"
     >
       {emulator ? (
         <Terminal
@@ -380,7 +383,10 @@ function ShellTerminal({
         <TerminalText
           ref={handleRef}
           onReady={resetFeed}
-          className={fixedHeight ? 'h-72' : 'max-h-72'}
+          className={cn(
+            'focus-visible:outline-hidden',
+            fixedHeight ? 'h-72' : 'max-h-72',
+          )}
         />
       )}
     </div>
