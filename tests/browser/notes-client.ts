@@ -246,6 +246,22 @@ function tailWorkMessages() {
     },
     { type: 'reasoning' as const, text: 'Checking the implementation.' },
   ]).flat()
+  if (params.has('singleEdit')) {
+    work.segments[0].parts = [
+      {
+        type: 'tool-edit_file',
+        toolCallId: 'edit',
+        state: 'output-available',
+        input: { path: 'file.ts' },
+        output: { path: 'file.ts', diff: '-old\n+new' },
+      },
+      {
+        type: 'reasoning',
+        text: 'Checking the edit.',
+        state: 'done',
+      },
+    ]
+  }
   work.segments[0].parts.push({
     type: 'text',
     text: 'Regression checks passed.\n\n'.repeat(10),

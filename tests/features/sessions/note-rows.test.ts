@@ -114,7 +114,7 @@ describe('note rows', () => {
     expect(projectNoteRows(rows, state.getSnapshot())).toHaveLength(3)
   })
 
-  test('retains only mounted notes until the group finishes closing', async () => {
+  test('retains only mounted notes until the group finishes closing', () => {
     const rows = rowsFor(['a', 'b', 'c'])
     const state = createNoteExpansionStore()
     const project = () =>
@@ -124,13 +124,7 @@ describe('note rows', () => {
     state.setOpen('notes:a', false, new Set(['hid:a']))
     expect(project()).toEqual([rows[0], rows[1]])
     expect(project()[1]).toBe(rows[1])
-    await new Promise<void>((resolve) => {
-      const unsubscribe = state.subscribe(() => {
-        if (state.getTransitions().size) return
-        unsubscribe()
-        resolve()
-      })
-    })
+    state.finishClosing('notes:a', state.getTransitions().get('notes:a')!)
     expect(project()).toEqual([rows[0]])
     expect(state.getSnapshot().has(noteContentKey('a'))).toBe(true)
   })

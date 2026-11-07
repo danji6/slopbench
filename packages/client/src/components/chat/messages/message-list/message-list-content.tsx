@@ -15,6 +15,8 @@ import {
   createContext,
   useContext,
   useEffect,
+  useMemo,
+  useRef,
   useState,
 } from 'react'
 import {
@@ -191,10 +193,22 @@ function MessageRows({
   renderRow,
   virtuaRef,
 }: MessageRowsProps) {
-  const layout = useVirtualizedLayout({ rows, virtualizer: virtuaRef })
-  const workTransitions = useRowTransitions(workExpansion)
-  const noteTransitions = useRowTransitions(noteExpansion)
-  const transitions = new Map([...workTransitions, ...noteTransitions])
+  const root = useRef<HTMLDivElement>(null)
+  const transitionLayout = { rows, root, virtualizer: virtuaRef }
+  const workTransitions = useRowTransitions(workExpansion, transitionLayout)
+  const noteTransitions = useRowTransitions(noteExpansion, transitionLayout)
+
+  const transitions = useMemo(
+    () => new Map([...workTransitions, ...noteTransitions]),
+    [workTransitions, noteTransitions],
+  )
+
+  const layout = useVirtualizedLayout({
+    rows,
+    transitions,
+    virtualizer: virtuaRef,
+  })
+
   return (
     <>
       {hasHeaderContainer && (
@@ -218,6 +232,7 @@ function MessageRows({
         </div>
       )}
       <div
+        ref={root}
         className="mx-auto"
         style={
           hasHeaderContainer

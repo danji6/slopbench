@@ -1,9 +1,17 @@
-import type {
-  RowTransition,
-  createRowExpansionStore,
+import {
+  MAX_COLLAPSED_ROW_HEIGHT,
+  type RowTransition,
+  type createRowExpansionStore,
 } from '@/lib/chat/row-expansion-state'
+import type { MessageRow } from '@/lib/chat/rows'
 import { cn } from '@/lib/utils'
-import { type ReactNode, useLayoutEffect, useSyncExternalStore } from 'react'
+import {
+  type ReactNode,
+  type RefObject,
+  useLayoutEffect,
+  useSyncExternalStore,
+} from 'react'
+import type { WindowVirtualizerHandle } from 'virtua'
 
 import { usePendingMessageLayout } from './message-list/message-list-context'
 
@@ -37,9 +45,16 @@ export function VirtualizedRowTransition({
   )
 }
 
-/** Lets children mount and Virtua measure them before starting the reveal. */
+type TransitionLayout = {
+  rows: readonly MessageRow[]
+  root: RefObject<HTMLDivElement | null>
+  virtualizer: RefObject<WindowVirtualizerHandle | null>
+}
+
+/** Coordinates row animations with the virtualizer's measurements. */
 export function useRowTransitions(
   store: ReturnType<typeof createRowExpansionStore>,
+  layout: TransitionLayout,
 ) {
   const transitions = useSyncExternalStore(
     store.subscribe,
@@ -58,7 +73,60 @@ export function useRowTransitions(
     })
     return () => cancelAnimationFrame(frame)
   }, [store, transitions])
+
+  useClosingRows(store, transitions, layout)
   return transitions
+}
+
+function useClosingRows(
+  store: ReturnType<typeof createRowExpansionStore>,
+  transitions: ReadonlyMap<string, RowTransition>,
+  { rows, root, virtualizer }: TransitionLayout,
+) {
+  useLayoutEffect(() => {
+    let closing = [...transitions].filter(
+      ([, transition]) => transition.phase === 'closing',
+    )
+    const container = root.current
+    const instance = virtualizer.current
+    if (!closing.length || !container || !instance) return
+
+    const indices = new Map(rows.map((row, index) => [row.key, index]))
+    const isSettled = (key: string) =>
+      closingRowSettled(container, instance, key, indices.get(key))
+
+    let frame: number
+    const check = () => {
+      closing = closing.filter(([id, transition]) => {
+        if (![...transition.mountedRows].every(isSettled)) return true
+        store.finishClosing(id, transition)
+        return false
+      })
+      if (closing.length) frame = requestAnimationFrame(check)
+    }
+    frame = requestAnimationFrame(check)
+
+    return () => cancelAnimationFrame(frame)
+  }, [rows, root, store, transitions, virtualizer])
+}
+
+/** An unmounted row has no animation left for the viewport to display. */
+function closingRowSettled(
+  root: HTMLElement,
+  virtualizer: WindowVirtualizerHandle,
+  key: string,
+  index?: number,
+) {
+  if (index === undefined) return true
+
+  const row = root.querySelector(
+    `[data-row-key="${CSS.escape(key)}"] > [data-slot="virtualized-row-transition"][data-state="closing"]`,
+  )
+  if (!row) return true
+  if (virtualizer.getItemSize(index) > MAX_COLLAPSED_ROW_HEIGHT) return false
+  return row
+    .getAnimations()
+    .every((animation) => animation.playState === 'finished')
 }
 
 /** Limits closing animations to mounted rows and respects reduced motion. */

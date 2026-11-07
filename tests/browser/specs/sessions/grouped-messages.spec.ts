@@ -320,6 +320,87 @@ for (const finishOpening of [true, false]) {
   })
 }
 
+test('closing work at the expanded bottom waits for the rows to finish shrinking', async ({
+  page,
+}) => {
+  await page.clock.install()
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto('/?fixture=notes&id=notes&tailWork&singleEdit')
+  const work = page.locator('[data-slot="work-block"]')
+  const rows = page.locator('[data-work-id]')
+  await work.evaluate((button) => (button as HTMLButtonElement).click())
+  await expect(rows).toHaveCount(2)
+  await expect(rows.getByRole('button', { expanded: false })).toHaveCount(2)
+  await expect(
+    rows.locator('[data-slot="virtualized-row-transition"][data-state]'),
+  ).toHaveCount(0)
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const height = document.documentElement.scrollHeight
+        window.scrollTo(0, height)
+        return document.documentElement.scrollHeight - innerHeight - scrollY
+      }),
+    )
+    .toBeLessThanOrEqual(1)
+  await expect(work).toBeInViewport({ ratio: 1 })
+
+  const closing = rows.locator(
+    '[data-slot="virtualized-row-transition"][data-state="closing"]',
+  )
+  const paused = await pauseWorkCollapse(work)
+  expect(paused).toBe(2)
+  await page.clock.runFor(300)
+  await expect(closing).toHaveCount(2)
+
+  const { removalY, settledY, distanceFromBottom } =
+    await finishWorkCollapse(closing)
+  expect(distanceFromBottom).toBeLessThanOrEqual(1)
+  expect(removalY).toBeGreaterThanOrEqual(settledY - 1)
+})
+
+async function pauseWorkCollapse(work: Locator) {
+  return work.evaluate(async (button) => {
+    ;(button as HTMLButtonElement).click()
+    await new Promise(requestAnimationFrame)
+    const closing = document.querySelectorAll('[data-state="closing"]')
+    return [...closing].filter((row) => {
+      const animations = row.getAnimations()
+      for (const animation of animations) {
+        animation.pause()
+        animation.currentTime = 50
+      }
+      return animations.length > 0
+    }).length
+  })
+}
+
+async function finishWorkCollapse(closing: Locator) {
+  return closing.first().evaluate(async (row) => {
+    const list = row.closest('[data-work-id]')!.parentElement!
+    const removed = new Promise<number>((resolve) => {
+      const observer = new MutationObserver(() => {
+        if (list.querySelector('[data-work-id]')) return
+        observer.disconnect()
+        resolve(window.scrollY)
+      })
+      observer.observe(list, { childList: true })
+    })
+    for (const child of list.querySelectorAll('[data-state="closing"]')) {
+      for (const animation of child.getAnimations()) animation.play()
+    }
+    const removalY = await removed
+    await new Promise(requestAnimationFrame)
+    await new Promise(requestAnimationFrame)
+    return {
+      removalY,
+      settledY: window.scrollY,
+      distanceFromBottom:
+        document.documentElement.scrollHeight - innerHeight - scrollY,
+    }
+  })
+}
+
 /** Checks the visible inset and corner relationship after expansion settles. */
 async function expectEvenInset(block: Locator, innerSelector: string) {
   await expect

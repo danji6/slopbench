@@ -27,28 +27,34 @@ function project(store: ReturnType<typeof createWorkExpansionStore>) {
   })
 }
 
-test('retains original rows while closing and removes them after the animation', async () => {
+test('retains original rows until the virtualizer finishes closing', () => {
   const store = createWorkExpansionStore()
   store.setOpen('work', true)
   store.setOpen('work', false, new Set(['tool']))
   expect(store.getSnapshot().has('work')).toBe(false)
   expect(project(store)[0]).toBe(rows[0])
-  expect(store.getTransitions().get('work')?.phase).toBe('closing')
-  await Bun.sleep(WORK_TRANSITION_MS + 50)
+  const closing = store.getTransitions().get('work')!
+  expect(closing.phase).toBe('closing')
+  store.finishClosing('work', closing)
   expect(project(store)).toEqual([])
   expect(store.getTransitions().size).toBe(0)
 })
 
-test('reversing a close keeps work open after both animation deadlines', async () => {
+test('a delayed close cannot remove work after reopening or during a later close', () => {
   const store = createWorkExpansionStore()
   store.setOpen('work', true)
   store.setOpen('work', false, new Set(['tool']))
+  const firstClose = store.getTransitions().get('work')!
   store.setOpen('work', true, new Set(['tool']))
+  store.finishClosing('work', firstClose)
   expect(project(store)[0]).toBe(rows[0])
   expect(store.getTransitions().get('work')?.phase).toBe('opening')
-  await Bun.sleep(WORK_TRANSITION_MS + 50)
-  expect(store.getSnapshot().has('work')).toBe(true)
-  expect(project(store)).toEqual(rows)
+  store.setOpen('work', false, new Set(['tool']))
+  const secondClose = store.getTransitions().get('work')!
+  store.finishClosing('work', firstClose)
+  expect(project(store)[0]).toBe(rows[0])
+  store.finishClosing('work', secondClose)
+  expect(project(store)).toEqual([])
   expect(store.getTransitions().size).toBe(0)
 })
 
@@ -65,6 +71,7 @@ test('closing does not mount offscreen work rows', () => {
   store.setOpen('work', true)
   store.setOpen('work', false, new Set())
   expect(project(store)).toEqual([])
+  expect(store.getTransitions().size).toBe(0)
   store.setOpen('work', true)
 })
 

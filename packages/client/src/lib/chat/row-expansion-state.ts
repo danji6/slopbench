@@ -1,4 +1,5 @@
 export const ROW_TRANSITION_MS = 200
+export const MAX_COLLAPSED_ROW_HEIGHT = 1
 export type RowTransition = {
   phase: 'preparing' | 'opening' | 'closing'
   mountedRows: ReadonlySet<string>
@@ -13,15 +14,21 @@ export function createRowExpansionStore() {
 
   const notify = () => listeners.forEach((listener) => listener())
 
-  const finishLater = (id: string) => {
+  const finishTransition = (id: string, expected: RowTransition) => {
+    if (transitions.get(id) !== expected) return
+    transitions = new Map(transitions)
+    transitions.delete(id)
+    timers.delete(id)
+    notify()
+  }
+
+  const finishOpeningLater = (id: string, transition: RowTransition) => {
     timers.set(
       id,
-      setTimeout(() => {
-        transitions = new Map(transitions)
-        transitions.delete(id)
-        timers.delete(id)
-        notify()
-      }, ROW_TRANSITION_MS + 32),
+      setTimeout(
+        () => finishTransition(id, transition),
+        ROW_TRANSITION_MS + 32,
+      ),
     )
   }
 
@@ -50,17 +57,16 @@ export function createRowExpansionStore() {
       transitions = new Map(transitions)
       transitions.delete(id)
 
-      if (mountedRows && previousPhase !== 'preparing') {
+      const animate = mountedRows && (value || mountedRows.size > 0)
+      if (animate && previousPhase !== 'preparing') {
         const phase = value
           ? previousPhase === 'closing'
             ? 'opening'
             : 'preparing'
           : 'closing'
-        transitions.set(id, {
-          phase,
-          mountedRows,
-        })
-        if (phase !== 'preparing') finishLater(id)
+        const transition: RowTransition = { phase, mountedRows }
+        transitions.set(id, transition)
+        if (phase === 'opening') finishOpeningLater(id, transition)
       }
 
       notify()
@@ -69,10 +75,15 @@ export function createRowExpansionStore() {
     startOpening(id: string, expected: RowTransition) {
       if (transitions.get(id) !== expected || expected.phase !== 'preparing')
         return
+      const transition: RowTransition = { ...expected, phase: 'opening' }
       transitions = new Map(transitions)
-      transitions.set(id, { ...expected, phase: 'opening' })
-      finishLater(id)
+      transitions.set(id, transition)
+      finishOpeningLater(id, transition)
       notify()
+    },
+    /** Removes closing rows once their animation and measurement have settled. */
+    finishClosing(id: string, expected: RowTransition) {
+      if (expected.phase === 'closing') finishTransition(id, expected)
     },
   }
 }
