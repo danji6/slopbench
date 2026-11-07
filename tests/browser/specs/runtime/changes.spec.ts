@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('shows five files, previews on hover and keeps only one accordion expanded', async ({
+test('previews collapsed files while other diffs stay expanded', async ({
   page,
 }) => {
   await page.goto('/?fixture=changes')
@@ -20,7 +20,22 @@ test('shows five files, previews on hover and keeps only one accordion expanded'
   await expect(preview).not.toBeVisible()
   await expect(first).toHaveAttribute('aria-expanded', 'true')
   const second = page.getByRole('button', { name: /src\/file-2.ts/ })
+  await second.hover()
+  await expect(
+    preview.getByText('before file-2', { exact: true }),
+  ).toBeVisible()
   await second.click()
+  await expect(preview).not.toBeVisible()
+  await expect(first).toHaveAttribute('aria-expanded', 'true')
+  await expect(second).toHaveAttribute('aria-expanded', 'true')
+  const summary = page.getByRole('region', { name: 'Agent changes' })
+  await expect(
+    summary.getByText('before file-1', { exact: true }),
+  ).toBeVisible()
+  await expect(
+    summary.getByText('before file-2', { exact: true }),
+  ).toBeVisible()
+  await first.click()
   await expect(first).toHaveAttribute('aria-expanded', 'false')
   await expect(second).toHaveAttribute('aria-expanded', 'true')
   await page.getByRole('button', { name: 'Show 3 more files' }).click()
@@ -39,21 +54,65 @@ test('shows five files, previews on hover and keeps only one accordion expanded'
     .toBeLessThan(expandedHeight)
 })
 
+test('toggles all listed diffs from the summary footer', async ({ page }) => {
+  await page.goto('/?fixture=changes')
+  const summary = page.getByRole('region', { name: 'Agent changes' })
+  const expandAll = summary.getByRole('button', { name: 'Expand all' })
+  const collapseAll = summary.getByRole('button', { name: 'Collapse all' })
+  const expanded = summary.getByRole('button', {
+    name: /src\/file-/,
+    expanded: true,
+  })
+
+  await expect(expandAll).toBeVisible()
+  await summary.getByRole('button', { name: 'src/file-1.ts' }).click()
+  await expect(expanded).toHaveCount(1)
+  await collapseAll.click()
+  await expect(expanded).toHaveCount(0)
+
+  await expandAll.click()
+  await expect(expanded).toHaveCount(5)
+  await expect(
+    summary.getByText('before file-5', { exact: true }),
+  ).toBeVisible()
+  await collapseAll.click()
+  await expect(expanded).toHaveCount(0)
+  await expect(expandAll).toBeVisible()
+  await expect(
+    summary.getByRole('button', { name: 'Show 3 more files' }),
+  ).toBeVisible()
+})
+
 test('updates revert/reapply reactively and reports conflicting files', async ({
   page,
 }) => {
   await page.goto('/?fixture=changes')
+  const summary = page.getByRole('region', { name: 'Agent changes' })
+  const revertedStatus = summary.getByText('Changes reverted', { exact: true })
+  const appliedStatus = summary.getByText('Applied', { exact: true })
+  const row = page.getByTestId('summary-row')
+  const rowHeight = () =>
+    row.evaluate((element) => element.getBoundingClientRect().height)
+  await expect(summary).toBeVisible()
+  await expect(appliedStatus).toHaveCount(0)
+  const appliedHeight = await rowHeight()
+
   await page.getByRole('button', { name: 'Revert changes' }).click()
   await expect(page.getByRole('button', { name: 'Applying…' })).toBeDisabled()
   await page.getByRole('button', { name: 'Complete operation' }).click()
   await expect(
     page.getByRole('button', { name: 'Reapply changes' }),
   ).toBeEnabled()
+  await expect(revertedStatus).toBeVisible()
+  await expect.poll(rowHeight).toBeGreaterThan(appliedHeight)
   await page.getByRole('button', { name: 'Reapply changes' }).click()
   await page.getByRole('button', { name: 'Complete operation' }).click()
   await expect(
     page.getByRole('button', { name: 'Revert changes' }),
   ).toBeEnabled()
+  await expect(revertedStatus).toHaveCount(0)
+  await expect(appliedStatus).toHaveCount(0)
+  await expect.poll(rowHeight).toBeCloseTo(appliedHeight)
   await page.getByRole('button', { name: 'Revert changes' }).click()
   await page.getByRole('button', { name: 'Report conflict' }).click()
   await expect(page.getByRole('alert')).toContainText('No files were changed')

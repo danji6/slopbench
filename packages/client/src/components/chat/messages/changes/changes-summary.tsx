@@ -10,9 +10,10 @@ import { useScrollIntoView } from '@/hooks/chat/scroll-into-view'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import type { ChangedFile } from '@sb/core/types/changes'
 import {
-  CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  ChevronsDownIcon,
+  ChevronsUpIcon,
   Redo2Icon,
   Undo2Icon,
 } from 'lucide-react'
@@ -40,7 +41,8 @@ export function ChangesSummary({
   const growOnly = useGrowOnly()
   const messageList = useMessageList()
   const [showAll, setShowAll] = useState(false)
-  const [expanded, setExpanded] = useState<string>()
+  const [expandedKeys, setExpandedKeys] = useState<string[]>([])
+  const [revealKey, setRevealKey] = useState<string>()
   const [hovered, setHovered] = useState<string>()
   const loadsFiles =
     summary?.phase === 'ready' || summary?.phase === 'restoring'
@@ -53,7 +55,7 @@ export function ChangesSummary({
 
   useEffect(() => {
     growOnly?.release()
-  }, [expanded, showAll, summary?.phase, growOnly])
+  }, [expandedKeys, showAll, summary?.phase, summary?.state, growOnly])
 
   if (!summary) return null
   if (summary.phase === 'ready' && !summary.fileCount) return null
@@ -65,6 +67,17 @@ export function ChangesSummary({
   const visible = showAll ? files : files.slice(0, 5)
   const remaining = summary.fileCount - 5
   const problem = error ?? summary.error
+  const hasVisibleFiles = visible.length > 0
+  const hasExpandedFiles = expandedKeys.length > 0
+
+  const updateExpandedFiles = (keys: string[], keyToReveal?: string) => {
+    messageList?.onLayoutChange()
+    setExpandedKeys(keys)
+    setRevealKey(keyToReveal)
+    setHovered((current) =>
+      current !== undefined && keys.includes(current) ? undefined : current,
+    )
+  }
 
   return (
     <section
@@ -111,12 +124,11 @@ export function ChangesSummary({
       <Accordion
         aria-busy={loadingFiles}
         className="border-border ml-1 w-auto border-l pl-5"
-        multiple={false}
-        value={expanded ? [expanded] : []}
-        onValueChange={(value) => {
-          messageList?.onLayoutChange()
-          setExpanded(value[0] as string | undefined)
-          setHovered(undefined)
+        multiple
+        value={expandedKeys}
+        onValueChange={(value: string[]) => {
+          const openedKey = value.find((key) => !expandedKeys.includes(key))
+          updateExpandedFiles(value, openedKey)
         }}
       >
         {loadingFiles && (
@@ -127,44 +139,72 @@ export function ChangesSummary({
             key={file.key}
             changeSetId={summary._id}
             file={file}
-            expanded={expanded === file.key}
-            hovered={!expanded && hovered === file.key}
-            onHover={(open) => setHovered(open ? file.key : undefined)}
+            expanded={expandedKeys.includes(file.key)}
+            revealOnOpen={revealKey === file.key}
+            hovered={hovered === file.key}
+            onHover={(open) => {
+              if (open) {
+                setHovered(file.key)
+              } else {
+                setHovered((current) =>
+                  current === file.key ? undefined : current,
+                )
+              }
+            }}
           />
         ))}
       </Accordion>
-      {remaining > 0 && (
-        <RippleButton
-          variant="stealth"
-          size="sm"
-          className="text-muted-foreground mt-1 ml-6 text-xs font-normal"
-          onClick={() => {
-            messageList?.onLayoutChange()
-            setShowAll(!showAll)
-            setExpanded(undefined)
-            setHovered(undefined)
-          }}
-        >
-          {showAll
-            ? 'Show fewer files'
-            : `Show ${remaining} more ${remaining === 1 ? 'file' : 'files'}`}
-          <ChevronDownIcon
-            aria-hidden
-            className={`size-4 ${showAll ? 'rotate-180' : ''}`}
-          />
-        </RippleButton>
+      {(remaining > 0 || hasVisibleFiles) && (
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+          {remaining > 0 && (
+            <RippleButton
+              variant="stealth"
+              size="sm"
+              className="text-muted-foreground text-xs font-normal"
+              onClick={() => {
+                updateExpandedFiles([])
+                setShowAll(!showAll)
+                setHovered(undefined)
+              }}
+            >
+              {showAll
+                ? 'Show fewer files'
+                : `Show ${remaining} more ${remaining === 1 ? 'file' : 'files'}`}
+              <ChevronDownIcon
+                aria-hidden
+                className={`size-4 ${showAll ? 'rotate-180' : ''}`}
+              />
+            </RippleButton>
+          )}
+          {hasVisibleFiles && (
+            <RippleButton
+              variant="stealth"
+              size="sm"
+              className="text-muted-foreground ml-auto text-xs font-normal"
+              onClick={() => {
+                const keys = hasExpandedFiles
+                  ? []
+                  : visible.map((file) => file.key)
+                updateExpandedFiles(keys)
+              }}
+            >
+              {hasExpandedFiles ? 'Collapse all' : 'Expand all'}
+              {hasExpandedFiles ? (
+                <ChevronsUpIcon aria-hidden className="size-4" />
+              ) : (
+                <ChevronsDownIcon aria-hidden className="size-4" />
+              )}
+            </RippleButton>
+          )}
+        </div>
       )}
-      {summary.phase === 'ready' && summary.fileCount > 0 && (
+      {summary.phase === 'ready' && reverted && (
         <p
           aria-live="polite"
           className="text-muted-foreground mt-3 flex items-center gap-1.5 text-xs"
         >
-          {reverted ? (
-            <Undo2Icon aria-hidden className="size-3" />
-          ) : (
-            <CheckIcon aria-hidden className="size-3" />
-          )}
-          {reverted ? 'Changes reverted' : 'Applied'}
+          <Undo2Icon aria-hidden className="size-3" />
+          Changes reverted
         </p>
       )}
       {summary.issues.length > 0 && (
@@ -202,6 +242,7 @@ type ChangedFileRowProps = {
   changeSetId: Id<'changeSets'>
   file: ChangedFile
   expanded: boolean
+  revealOnOpen: boolean
   hovered: boolean
   onHover: (open: boolean) => void
 }
@@ -210,6 +251,7 @@ function ChangedFileRow({
   changeSetId,
   file,
   expanded,
+  revealOnOpen,
   hovered,
   onHover,
 }: ChangedFileRowProps) {
@@ -218,7 +260,7 @@ function ChangedFileRow({
   const blockRef = useRef<HTMLDivElement>(null)
 
   usePendingMessageLayout(animating)
-  useScrollIntoView({ active: expanded, blockRef })
+  useScrollIntoView({ active: expanded && revealOnOpen, blockRef })
 
   const slash = file.path.lastIndexOf('/')
   const directory = file.path.slice(0, slash + 1)
@@ -235,11 +277,15 @@ function ChangedFileRow({
         className="bg-muted-foreground ring-m3-surface-container-low group-data-open/accordion-item:bg-primary absolute top-4.5 -left-5.75 size-1.5 rounded-full ring-4"
       />
       <Popover
-        open={hovered}
+        open={hovered && !expanded}
         onOpenChange={(open, details) => {
           if (details.reason === 'trigger-press') {
             details.cancel()
             onHover(false)
+            return
+          }
+          if (open && expanded) {
+            details.cancel()
             return
           }
           onHover(open)
