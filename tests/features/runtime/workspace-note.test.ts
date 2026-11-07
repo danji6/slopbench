@@ -43,7 +43,11 @@ describe('workspace note', () => {
     expect(content).toContain(
       'Relative file paths resolve from the primary source',
     )
-    expect(content).toContain('/srv/new (Primary)')
+    expect(content).toContain(
+      'The shell working directory defaults to the primary source.',
+    )
+    expect(content.split('/srv/new')).toHaveLength(2)
+    expect(content).not.toContain('Other accessible source directories')
     // Nothing was resolved earlier, so it must not read like a re-bind.
     expect(content).not.toContain('previously')
     expect(content).not.toContain('is now')
@@ -59,7 +63,7 @@ describe('workspace note', () => {
   })
 })
 
-test('reminders enumerate all source roots and identify only the first as primary', () => {
+test('reminders state the primary source once and list the other source roots', () => {
   const context = {
     ...ws('project'),
     sources: [
@@ -68,7 +72,8 @@ test('reminders enumerate all source roots and identify only the first as primar
     ],
   }
   const note = buildWorkspaceNoteContent(undefined, context)
-  expect(note).toContain('- /srv/project (Primary)')
+  expect(note).toContain('Primary source: /srv/project')
+  expect(note.split('/srv/project')).toHaveLength(2)
   expect(note).toContain('- /srv/library')
   expect(note).toContain('Use absolute paths for other source directories')
 })

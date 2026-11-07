@@ -284,25 +284,28 @@ function workspaceNoteBody(
 
   if (next.agentOnly) return personal
 
+  const otherSources = (next.sources ?? []).filter(
+    (source) => source.path !== next.path,
+  )
+
   return [
     ...personal,
     ...(previous?.agentHome && !next.agentHome
       ? ['Your personal folder is no longer available.']
       : []),
     `Folder: "${next.label}". Primary source: ${next.path}.`,
-    ...(files
-      ? [`Relative file paths resolve from the primary source (${next.path}).`]
-      : []),
+    ...(files ? ['Relative file paths resolve from the primary source.'] : []),
     ...(shell
+      ? ['The shell working directory defaults to the primary source.']
+      : []),
+    ...(otherSources.length
       ? [
-          `The shell working directory defaults to the primary source (${next.path}).`,
+          'Other accessible source directories:',
+          ...otherSources.map((source) => `- ${source.path}`),
+          'Use absolute paths for other source directories.',
         ]
       : []),
-    'Accessible source directories:',
-    ...(next.sources ?? [{ path: next.path, label: next.label }]).map(
-      (s, i) => `- ${s.path}${i === 0 ? ' (Primary)' : ''}`,
-    ),
-    'Use absolute paths for other source directories. Existing tool and path approval rules still apply.',
+    'Existing tool and path approval rules still apply.',
     ...(previous ? [WORKSPACE_CHANGE_GUIDANCE] : []),
   ]
 }
