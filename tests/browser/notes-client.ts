@@ -203,7 +203,8 @@ function compactionMessages() {
   ]
 }
 
-function fileChangeMessages() {
+function fileChangeMessages(waitingForInput = false) {
+  const longShell = params.has('longShell')
   const work = message('work', 0)
   work.segments[0].parts = [
     {
@@ -235,15 +236,20 @@ function fileChangeMessages() {
       input: { command: 'bun test', description: 'Verify file changes.' },
       output: {
         jobId: 'verify-job',
-        status: 'done',
-        exitCode: 0,
-        term: 'All checks passed.\r\n',
+        status: waitingForInput ? 'running' : 'done',
+        exitCode: waitingForInput ? null : 0,
+        waiting: waitingForInput,
+        term: 'All checks passed.\r\n'.repeat(longShell ? 30 : 1),
         termOffset: 0,
       },
     },
     { type: 'text', text: 'File changes finished.' },
   ]
-  return [work]
+  if (!longShell) return [work]
+  const history = Array.from({ length: 16 }, (_, index) =>
+    message(`before${index}`, index - 16),
+  )
+  return [...history, work]
 }
 
 function tailWorkMessages() {
@@ -379,6 +385,8 @@ function query(name: string, args: Record<string, unknown>) {
     return { _id: readOnly ? 'viewer' : 'owner', role: 'user' }
   if (name === 'sessions:get')
     return { _id: 'notes', ownerId: 'owner', settings: { disabled: readOnly } }
+  if (name === 'tools:list' && params.has('longShell'))
+    return [{ name: 'shell' }]
   if (name === 'chat:messagesWindow') {
     const unloaded =
       new URLSearchParams(location.search).has('unloaded') && !args.anchor
@@ -414,6 +422,11 @@ export const notesClient = {
       journal: () => undefined,
     }
   },
+  async action(reference: FunctionReference<'action'>) {
+    if (getFunctionName(reference) === 'actions/terminals:list') {
+      return { jobs: [] }
+    }
+  },
   async mutation(
     reference: FunctionReference<'mutation'>,
     args: { messageId: string },
@@ -428,6 +441,12 @@ export const notesClient = {
     listeners.forEach((listener) => listener())
   },
 } as unknown as ConvexReactClient
+
+export function waitForShellInput() {
+  messages = fileChangeMessages(true)
+  cache.clear()
+  listeners.forEach((listener) => listener())
+}
 
 export function appendNote() {
   const index = messages.findIndex((m) => m._id === 'command')

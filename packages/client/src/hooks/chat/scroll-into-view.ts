@@ -19,11 +19,8 @@ type ScrollIntoViewParams = {
   align?: 'end' | 'start'
   behavior?: ScrollBehavior
   blockRef: React.RefObject<HTMLElement | null>
-  scrollRef?: React.RefObject<HTMLElement | null>
-  /** Callback used to release any active follows before scrolling into view. */
-  onBeforeScroll?: () => void
-  bottomPadding?: number
-  topPadding?: number
+  /** Measures the end of a block whose body spans separate virtual rows. */
+  getBlockBottom?: (block: HTMLElement) => number | undefined
 }
 
 /** Scrolls a block into view once layout settles. */
@@ -33,19 +30,16 @@ export function useScrollIntoView({
   align = 'end',
   behavior = 'smooth',
   blockRef,
-  scrollRef,
-  onBeforeScroll,
-  bottomPadding = 0,
-  topPadding = 0,
+  getBlockBottom,
 }: ScrollIntoViewParams) {
-  const coordinator = useMessageList()?.scrollCoordinator
+  const messageList = useMessageList()
+  const coordinator = messageList?.scrollCoordinator
+  const scrollRef = messageList?.scrollRef
   const prevActive = useRef(revealOnMount ? false : active)
-  const paddingRef = useRef({ bottomPadding, topPadding })
-  const onBeforeScrollRef = useRef(onBeforeScroll)
+  const listRef = useRef(messageList)
 
   useEffect(() => {
-    paddingRef.current = { bottomPadding, topPadding }
-    onBeforeScrollRef.current = onBeforeScroll
+    listRef.current = messageList
   })
 
   useEffect(() => {
@@ -59,7 +53,7 @@ export function useScrollIntoView({
     if (!scrollEl || !blockEl) return
 
     // Stop following if start-aligned
-    if (align === 'start') onBeforeScrollRef.current?.()
+    if (align === 'start') listRef.current?.releaseFollow()
 
     // The layout hold owns the viewport until the expansion settles.
     const layoutIsCurrent =
@@ -70,6 +64,11 @@ export function useScrollIntoView({
       isDocScroll
         ? document.documentElement.scrollHeight
         : scrollEl.scrollHeight
+
+    const getBlockBounds = () => {
+      const rect = blockEl.getBoundingClientRect()
+      return { top: rect.top, bottom: getBlockBottom?.(blockEl) ?? rect.bottom }
+    }
 
     let rafId = 0
     let frames = 0
@@ -83,14 +82,14 @@ export function useScrollIntoView({
     }
 
     const scrollBy = (top: number) => {
-      onBeforeScrollRef.current?.()
+      listRef.current?.releaseFollow()
       const opts: ScrollToOptions = { top, behavior }
       if (isDocScroll) window.scrollBy(opts)
       else scrollEl.scrollBy(opts)
     }
 
     const reveal = () => {
-      const { bottomPadding, topPadding } = paddingRef.current
+      const { bottomPadding = 0, topPadding = 0 } = listRef.current ?? {}
       const spacingPx =
         parseFloat(getComputedStyle(scrollEl).getPropertyValue('--spacing')) *
           16 || 4
@@ -98,7 +97,7 @@ export function useScrollIntoView({
       const scrollRect = isDocScroll
         ? new DOMRect(0, 0, window.innerWidth, window.innerHeight)
         : scrollEl.getBoundingClientRect()
-      const blockRect = blockEl.getBoundingClientRect()
+      const { top, bottom } = getBlockBounds()
       const visibleBottom = scrollRect.bottom - bottomPadding - EXTRA_PADDING
 
       if (align === 'start') {
@@ -106,20 +105,17 @@ export function useScrollIntoView({
         // Leave the block alone only when it's already aligned at the top or
         // entirely on screen
         const alreadyReadable =
-          blockRect.top >= targetTop - 1 &&
-          (blockRect.top <= targetTop + 1 || blockRect.bottom <= visibleBottom)
+          top >= targetTop - 1 &&
+          (top <= targetTop + 1 || bottom <= visibleBottom)
         if (alreadyReadable) return
-        scrollBy(blockRect.top - targetTop)
+        scrollBy(top - targetTop)
         return
       }
 
-      if (blockRect.bottom <= visibleBottom) return
+      if (bottom <= visibleBottom) return
 
-      const overflowAmount = blockRect.bottom - visibleBottom + 16
-      const maxScroll = Math.max(
-        0,
-        blockRect.top - scrollRect.top - topPaddingPx - 16,
-      )
+      const overflowAmount = bottom - visibleBottom + 16
+      const maxScroll = Math.max(0, top - scrollRect.top - topPaddingPx - 16)
       const scrollAmount = Math.min(overflowAmount, maxScroll)
       if (scrollAmount > 0) scrollBy(scrollAmount)
     }
@@ -133,7 +129,8 @@ export function useScrollIntoView({
 
       const scrollHeight = getScrollHeight()
       // A short page can keep the same scrollHeight while the block expands
-      const blockHeight = blockEl.getBoundingClientRect().height
+      const { top, bottom } = getBlockBounds()
+      const blockHeight = bottom - top
       const layoutUnchanged =
         scrollHeight === prevScrollHeight && blockHeight === prevBlockHeight
       stableFrames = layoutUnchanged ? stableFrames + 1 : 0
@@ -159,5 +156,13 @@ export function useScrollIntoView({
     rafId = requestAnimationFrame(waitForSettle)
 
     return cleanup
-  }, [active, align, behavior, blockRef, scrollRef, coordinator])
+  }, [
+    active,
+    align,
+    behavior,
+    blockRef,
+    scrollRef,
+    coordinator,
+    getBlockBottom,
+  ])
 }

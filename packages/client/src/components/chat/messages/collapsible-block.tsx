@@ -21,8 +21,8 @@ export type CollapsibleBlockProps = React.ComponentPropsWithoutRef<'div'> & {
   shimmer?: boolean
   /** When it turns true, scrolls the block into view above the dock. */
   reveal?: boolean
-  /** Scroll the block into view whenever it opens. Disable to reveal only via `reveal`. */
-  revealOnOpen?: boolean
+  /** Reveal on every open by default, or use 'manual' for header toggles only. */
+  revealOnOpen?: boolean | 'manual'
   /** Inset surfaces pad header and body together; inset-row keeps collapsed row alignment. */
   surface?: boolean | 'inset' | 'inset-row'
   /** Compact header height and no outer margin, for stacking inside a group. */
@@ -70,12 +70,14 @@ export function CollapsibleBlock({
   children,
   ...rest
 }: CollapsibleBlockProps) {
+  const [openedManually, setOpenedManually] = useState(false)
   const blockRef = useRef<HTMLDivElement>(null)
   const contentId = useId()
   const messageList = useMessageList()
   const releaseHeight = useGrowOnly()?.release
-  const bottomPadding = messageList?.bottomPadding ?? 0
-  const topPadding = messageList?.topPadding ?? 0
+  const revealExpansion = revealOnOpen === 'manual' ? openedManually : revealOnOpen // prettier-ignore
+
+  if (open === false && openedManually) setOpenedManually(false)
 
   // Re-measure retained row heights when the header density changes.
   useLayoutEffect(() => {
@@ -85,10 +87,6 @@ export function CollapsibleBlock({
   useScrollIntoView({
     active: reveal,
     blockRef,
-    scrollRef: messageList?.scrollRef,
-    onBeforeScroll: messageList?.releaseFollow,
-    bottomPadding,
-    topPadding,
   })
 
   const insetRow = surface === 'inset-row'
@@ -162,6 +160,7 @@ export function CollapsibleBlock({
           open={open}
           onOpenChange={(next) => {
             messageList?.onLayoutChange()
+            if (revealOnOpen === 'manual') setOpenedManually(next)
             onOpenChange?.(next)
             if (next) onExpand?.()
           }}
@@ -199,12 +198,8 @@ export function CollapsibleBlock({
           </div>
           <Content
             id={contentId}
-            scrollRef={messageList?.scrollRef}
             blockRef={blockRef}
-            releaseFollow={messageList?.releaseFollow}
-            revealOnOpen={revealOnOpen}
-            bottomPadding={bottomPadding}
-            topPadding={topPadding}
+            revealOnOpen={revealExpansion}
           >
             {body}
           </Content>
@@ -334,21 +329,13 @@ function Trigger({
 function Content({
   id,
   children,
-  scrollRef,
   blockRef,
-  releaseFollow,
   revealOnOpen = true,
-  bottomPadding = 0,
-  topPadding = 0,
 }: {
   id: string
   children?: React.ReactNode
-  scrollRef?: React.RefObject<HTMLElement | null>
   blockRef: React.RefObject<HTMLDivElement | null>
-  releaseFollow?: () => void
   revealOnOpen?: boolean
-  bottomPadding?: number
-  topPadding?: number
 }) {
   const { isOpen } = useCollapsible()
   const contentRef = useRef<HTMLDivElement>(null)
@@ -383,12 +370,7 @@ function Content({
 
   useScrollIntoView({
     active: isOpen && revealOnOpen,
-    align: 'start',
     blockRef,
-    scrollRef,
-    onBeforeScroll: releaseFollow,
-    bottomPadding,
-    topPadding,
   })
 
   if (!present) return null

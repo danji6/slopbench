@@ -23,13 +23,19 @@ import { ConvexProvider } from 'convex/react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { WindowVirtualizerHandle } from 'virtua'
 
-import { appendNote, isNoteRow, notesClient } from './notes-client'
+import {
+  appendNote,
+  isNoteRow,
+  notesClient,
+  waitForShellInput,
+} from './notes-client'
 
 const noop = () => {}
 const groupedWork = new URLSearchParams(location.search).has('groupedWork')
 const tailWork = new URLSearchParams(location.search).has('tailWork')
 const shellReports = new URLSearchParams(location.search).has('shellReports')
 const fileChanges = new URLSearchParams(location.search).has('fileChanges')
+const longShell = new URLSearchParams(location.search).has('longShell')
 const compaction = new URLSearchParams(location.search).has('compaction')
 const thinkingWork = new URLSearchParams(location.search).has('thinkingWork')
 const reminderWork = new URLSearchParams(location.search).has('reminderWork')
@@ -110,6 +116,9 @@ function Transcript() {
       }}
     >
       <nav className="bg-background fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-2 px-2 text-xs">
+        {longShell && (
+          <button onClick={waitForShellInput}>Wait for terminal input</button>
+        )}
         {shellReports && (
           <button onClick={() => requestScrollToMessage('shell2', 2)}>
             Seek report

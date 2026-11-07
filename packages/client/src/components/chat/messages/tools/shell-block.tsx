@@ -188,7 +188,7 @@ export function ShellBlock({
       forceError={forceError}
       autoExpand={interactive || Boolean(alwaysExpand)}
       reveal={revealTerminal}
-      revealOnOpen={false}
+      revealOnOpen="manual"
       fullWidth
       surface={outputRead ? 'inset-row' : 'inset'}
       noErrorText={hasTerminal || Boolean(fallbackText)}

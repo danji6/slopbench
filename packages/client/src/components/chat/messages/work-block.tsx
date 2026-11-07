@@ -1,4 +1,5 @@
 import { Accordion, Button } from '@/components/ui'
+import { useScrollIntoView } from '@/hooks/chat/scroll-into-view'
 import { useIsMessageStreaming } from '@/hooks/chat/stream'
 import type { MessageRecord, PartMetadata } from '@/lib/chat'
 import { type MessageRow, segmentGroupsFor } from '@/lib/chat/rows'
@@ -6,7 +7,13 @@ import { workExpansion } from '@/lib/chat/work-state'
 import { summarizeWork } from '@/lib/chat/work-summary'
 import { cn } from '@/lib/utils'
 import type { UIMessage } from 'ai'
-import { useMemo, useSyncExternalStore } from 'react'
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 
 import { useMessageList } from './message-list/message-list-context'
 import { getMountedTransitionRows } from './virtualized-row-transition'
@@ -20,11 +27,19 @@ type WorkBlockProps = {
 
 /** Toggles virtualized work rows without mounting a second scrolling container. */
 export function WorkBlock({ row, message, record, partMeta }: WorkBlockProps) {
+  const workId = row.work.id
   const open = useSyncExternalStore(workExpansion.subscribe, () =>
-    workExpansion.getSnapshot().has(row.work.id),
+    workExpansion.getSnapshot().has(workId),
   )
   const list = useMessageList()
   const isStreaming = useIsMessageStreaming(message.id)
+  const blockRef = useRef<HTMLButtonElement>(null)
+  const [revealOnOpen, setRevealOnOpen] = useState(false)
+  const getBlockBottom = useCallback(
+    (trigger: HTMLElement) => getWorkBottom(trigger, workId),
+    [workId],
+  )
+  useScrollIntoView({ active: open && revealOnOpen, blockRef, getBlockBottom })
 
   const summary = useMemo(
     () =>
@@ -38,12 +53,14 @@ export function WorkBlock({ row, message, record, partMeta }: WorkBlockProps) {
 
   const toggle = () => {
     list?.onLayoutChange()
-    const mountedRows = getMountedTransitionRows('data-work-id', row.work.id)
-    workExpansion.setOpen(row.work.id, !open, mountedRows)
+    const mountedRows = getMountedTransitionRows('data-work-id', workId)
+    setRevealOnOpen(!open)
+    workExpansion.setOpen(workId, !open, mountedRows)
   }
 
   return (
     <Button
+      ref={blockRef}
       data-slot="work-block"
       data-open={open}
       variant="plain"
@@ -68,4 +85,13 @@ export function WorkBlock({ row, message, record, partMeta }: WorkBlockProps) {
       <Accordion.Icon isExpanded={open} className="shrink-0" />
     </Button>
   )
+}
+
+/** Work details are sibling rows. The last mounted one bounds the visible group. */
+function getWorkBottom(trigger: HTMLElement, workId: string) {
+  const row = trigger.closest('[data-row-kind="work"]')
+  const details = row?.parentElement?.querySelectorAll(
+    `[data-work-id="${CSS.escape(workId)}"]`,
+  )
+  return details && details[details.length - 1]?.getBoundingClientRect().bottom
 }

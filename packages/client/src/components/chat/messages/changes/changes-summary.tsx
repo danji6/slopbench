@@ -6,6 +6,7 @@ import {
   Skeleton,
 } from '@/components/ui'
 import { useTurnChanges } from '@/hooks/chat/changes'
+import { useScrollIntoView } from '@/hooks/chat/scroll-into-view'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import type { ChangedFile } from '@sb/core/types/changes'
 import {
@@ -15,7 +16,7 @@ import {
   Redo2Icon,
   Undo2Icon,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { useGrowOnly } from '../grow-only'
 import {
@@ -214,12 +215,21 @@ function ChangedFileRow({
 }: ChangedFileRowProps) {
   const [pointerInside, setPointerInside] = useState(false)
   const [animating, setAnimating] = useState(false)
+  const blockRef = useRef<HTMLDivElement>(null)
+
   usePendingMessageLayout(animating)
+  useScrollIntoView({ active: expanded, blockRef })
+
   const slash = file.path.lastIndexOf('/')
   const directory = file.path.slice(0, slash + 1)
   const filename = file.path.slice(slash + 1)
+
   return (
-    <Accordion.Item value={file.key} className="relative min-w-0">
+    <Accordion.Item
+      ref={blockRef}
+      value={file.key}
+      className="relative min-w-0"
+    >
       <span
         aria-hidden
         className="bg-muted-foreground ring-m3-surface-container-low group-data-open/accordion-item:bg-primary absolute top-4.5 -left-5.75 size-1.5 rounded-full ring-4"

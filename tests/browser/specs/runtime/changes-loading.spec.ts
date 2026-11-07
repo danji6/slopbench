@@ -206,9 +206,11 @@ test('expands to newly loaded content smoothly and renders diff markers before s
 })
 
 for (const delayedDiff of [false, true]) {
-  test(`keeps an expanded file in view in the transcript (delayed diff=${delayedDiff})`, async ({
+  test(`reveals an expanded file after its diff settles (delayed diff=${delayedDiff})`, async ({
     page,
   }) => {
+    const height = 530
+    await page.setViewportSize({ width: 1100, height })
     let resolveDiff!: () => void
     const diffReady = new Promise<void>((resolve) => {
       resolveDiff = resolve
@@ -237,25 +239,51 @@ for (const delayedDiff of [false, true]) {
           ),
         )
         .toBeLessThan(2)
-      await sampleFilePosition(first, false)
+      // Place the file near the dock with enough transcript below it to scroll.
+      const initial = (await first.boundingBox())!.y
+      await page.mouse.move(10, height / 2)
+      await page.mouse.wheel(0, initial - (height - 120))
+      await expect
+        .poll(() =>
+          first.evaluate((button) => {
+            const { left, top, width, height } = button.getBoundingClientRect()
+            const hit = document.elementFromPoint(
+              left + width / 2,
+              top + height / 2,
+            )
+            return top > innerHeight - 145 && button.contains(hit)
+          }),
+        )
+        .toBe(true)
+      const before = (await first.boundingBox())!
+      const x = before.x + before.width / 2
+      const y = before.y + before.height / 2
       if (!delayedDiff) {
-        await first.hover()
+        await page.mouse.move(x, y)
         await expect(page.getByRole('dialog')).toBeVisible()
       }
-      const before = (await first.boundingBox())!.y
-      await first.click()
+      await page.mouse.click(x, y)
       if (delayedDiff) {
         await expect(
           page.getByRole('status').filter({ hasText: 'Loading diff' }),
         ).toBeVisible()
-        await sampleFilePosition(first, false)
+        const positions = await sampleFilePosition(first)
+        expect(
+          Math.max(...positions.map((top) => Math.abs(top - before.y))),
+        ).toBeLessThanOrEqual(2)
         resolveDiff()
       }
-      const positions = await sampleFilePosition(first, true)
-      expect(
-        Math.max(...positions.map((top) => Math.abs(top - before))),
-      ).toBeLessThanOrEqual(2)
-      await expect(first).toBeInViewport()
+      const panel = page.locator('[data-slot="accordion-content"]')
+      await expect(panel.locator('.diff-add').first()).toBeVisible()
+      await expect
+        .poll(async () => {
+          const box = await panel.boundingBox()
+          return box ? box.y + box.height : Infinity
+        })
+        .toBeLessThanOrEqual(height - 80)
+      const settled = (await sampleFilePosition(first)).at(-1)!
+      expect(settled).toBeLessThan(before.y - 20)
+      expect(settled).toBeGreaterThanOrEqual(64)
     } finally {
       resolveDiff()
     }
@@ -263,9 +291,9 @@ for (const delayedDiff of [false, true]) {
 }
 
 /** Samples the viewport until virtual measurements and the accordion settle. */
-function sampleFilePosition(trigger: Locator, loaded: boolean) {
+function sampleFilePosition(trigger: Locator) {
   return trigger.evaluate(
-    (trigger, loaded) =>
+    (trigger) =>
       new Promise<number[]>((resolve, reject) => {
         const positions: number[] = []
         const start = performance.now()
@@ -282,8 +310,7 @@ function sampleFilePosition(trigger: Locator, loaded: boolean) {
           const documentHeight = document.documentElement.scrollHeight
           const unchanged =
             positions.at(-1) === top && lastHeight === documentHeight
-          const settled =
-            Math.abs(height - content) < 1 && (!loaded || content > 100)
+          const settled = Math.abs(height - content) < 1
           stable = unchanged && settled ? stable + 1 : 0
           positions.push(top)
           lastHeight = documentHeight
@@ -294,6 +321,5 @@ function sampleFilePosition(trigger: Locator, loaded: boolean) {
         }
         requestAnimationFrame(sample)
       }),
-    loaded,
   )
 }

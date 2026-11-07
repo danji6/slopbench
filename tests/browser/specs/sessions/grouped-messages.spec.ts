@@ -1,4 +1,4 @@
-import { type Locator, expect, test } from '@playwright/test'
+import { type Locator, type Page, expect, test } from '@playwright/test'
 
 test('opening a long summary at the bottom brings its start below the nav', async ({
   page,
@@ -89,6 +89,80 @@ test('compaction keeps a smaller incoming gap and separates thinking from its su
       })
       .toBe(8)
   }
+})
+
+async function showShellAtBottom(page: Page, height: number) {
+  await page.setViewportSize({ width: 1100, height })
+  await page.goto('/?fixture=notes&id=notes&fileChanges&longShell')
+  await page.locator('[data-slot="work-block"]').click()
+  await expect(
+    page.locator('[data-slot="virtualized-row-transition"][data-state]'),
+  ).toHaveCount(0)
+  const shell = page.locator('[data-slot="shell-block"]')
+  const trigger = shell.locator('[data-block-trigger]')
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        window.scrollTo(0, document.documentElement.scrollHeight)
+        return document.documentElement.scrollHeight - scrollY - innerHeight
+      }),
+    )
+    .toBeLessThanOrEqual(1)
+  await expect(trigger).toBeInViewport({ ratio: 1 })
+  return { shell, trigger }
+}
+
+test('opening a shell command scrolls only enough to reveal its output', async ({
+  page,
+}) => {
+  const height = 760
+  const { shell, trigger } = await showShellAtBottom(page, height)
+  // Leave room to scroll farther than necessary after revealing the output.
+  await page.locator('main').evaluate((main) => {
+    main.style.paddingBottom = '100vh'
+  })
+  await page.evaluate(() => {
+    // Apply the requested distance immediately so the test measures its destination.
+    const scrollBy = window.scrollBy.bind(window)
+    window.scrollBy = (options?: ScrollToOptions | number, y?: number) => {
+      if (typeof options === 'object') {
+        scrollBy({ ...options, behavior: 'instant' })
+        if (options.behavior === 'smooth') {
+          document.documentElement.dataset.shellReveal = 'done'
+        }
+      } else {
+        scrollBy(options ?? 0, y ?? 0)
+      }
+    }
+  })
+
+  await trigger.click()
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+  await expect(page.locator('html')).toHaveAttribute(
+    'data-shell-reveal',
+    'done',
+  )
+  const terminal = shell.locator('[data-slot="terminal-wrapper"]')
+  const output = (await terminal.boundingBox())!
+  expect(output.y + output.height).toBeLessThanOrEqual(height - 80)
+  expect((await trigger.boundingBox())!.y).toBeGreaterThan(140)
+})
+
+test('a live shell waiting for input still reveals the terminal automatically', async ({
+  page,
+}) => {
+  const { shell, trigger } = await showShellAtBottom(page, 760)
+  await page.getByRole('button', { name: 'Wait for terminal input' }).click()
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+  const terminal = shell.locator('[data-slot="terminal-wrapper"]')
+  await expect
+    .poll(async () => {
+      const box = await terminal.boundingBox()
+      return box ? box.y + box.height : Infinity
+    })
+    .toBeLessThanOrEqual(680)
+  expect((await trigger.boundingBox())!.y).toBeGreaterThan(120)
 })
 
 test('file changes share a list with independent, persistent diff toggles', async ({
@@ -288,6 +362,59 @@ test('releases footer height when its duration disappears', async ({
   await expect
     .poll(async () => (await footer.boundingBox())?.height ?? Infinity)
     .toBeLessThanOrEqual(1)
+})
+
+test('opening work at the bottom holds the viewport, then reveals its details', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1100, height: 530 })
+  await page.goto('/?fixture=notes&id=notes&fileChanges&longShell')
+  const work = page.locator('[data-slot="work-block"]')
+  await expect(work).toBeInViewport({ ratio: 1 })
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.scrollHeight - innerHeight - scrollY,
+      ),
+    )
+    .toBeLessThanOrEqual(1)
+
+  const { start, frames } = await work.evaluate(async (button) => {
+    const start = scrollY
+    const frames: { y: number; opening: boolean }[] = []
+    const deadline = performance.now() + 5000
+    let stable = 0
+    ;(button as HTMLButtonElement).click()
+    while (performance.now() < deadline) {
+      await new Promise(requestAnimationFrame)
+      const opening = Boolean(
+        document.querySelector(
+          '[data-work-id] [data-slot="virtualized-row-transition"][data-state]',
+        ),
+      )
+      const last = Array.from(document.querySelectorAll('[data-work-id]')).at(
+        -1,
+      )
+      const bottom = last?.getBoundingClientRect().bottom ?? Infinity
+      const revealed = !opening && bottom <= innerHeight - 80
+      stable = revealed && frames.at(-1)?.y === scrollY ? stable + 1 : 0
+      frames.push({ y: scrollY, opening })
+      if (stable >= 5) return { start, frames }
+    }
+    throw new Error('The work details did not scroll into view')
+  })
+
+  const opening = frames.filter((frame) => frame.opening)
+  expect(opening.length).toBeGreaterThan(0)
+  expect(opening.every((frame) => Math.abs(frame.y - start) <= 1)).toBe(true)
+  expect(
+    frames.every((frame, i) => i === 0 || frame.y >= frames[i - 1].y - 1),
+  ).toBe(true)
+  expect(frames.at(-1)!.y).toBeGreaterThan(start + 20)
+  const nav = (await page.getByRole('navigation').boundingBox())!
+  expect((await work.boundingBox())!.y).toBeGreaterThanOrEqual(
+    nav.y + nav.height,
+  )
 })
 
 for (const finishOpening of [true, false]) {

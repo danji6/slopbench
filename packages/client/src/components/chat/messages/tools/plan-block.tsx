@@ -115,10 +115,6 @@ function PresentedPlan({
     align: 'start',
     behavior: 'smooth',
     blockRef,
-    scrollRef: messageList?.scrollRef,
-    onBeforeScroll: messageList?.releaseFollow,
-    bottomPadding: messageList?.bottomPadding ?? 0,
-    topPadding: messageList?.topPadding ?? 0,
   })
 
   return (

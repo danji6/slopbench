@@ -174,6 +174,21 @@ describe('following streamed output', () => {
     content.dispatchEvent(new WheelEvent('wheel', { deltaY: 100 }))
     expect(scroller.autoScrolling).toBe(true)
   })
+
+  test('keeps follow paused during a reveal near the bottom', () => {
+    content.scrollTop = 1000
+    content.dispatchEvent(new Event('scroll'))
+    scroller.holdPosition()
+
+    content.scrollTop = 1150
+    content.dispatchEvent(new Event('scroll'))
+    expect(scroller.autoScrolling).toBe(false)
+
+    content.dispatchEvent(new WheelEvent('wheel', { deltaY: 100 }))
+    content.scrollTop = 1200
+    content.dispatchEvent(new Event('scroll'))
+    expect(scroller.autoScrolling).toBe(true)
+  })
 })
 
 describe('pagination scroll holds', () => {
@@ -201,6 +216,15 @@ describe('pagination scroll holds', () => {
 })
 
 describe('collapsing layout ownership', () => {
+  test('a user toggle supersedes an in-progress scroll restore', () => {
+    const restore = scroller.coordinator.begin('restore')!
+    scroller.holdLayoutPosition()
+
+    expect(restore.isCurrent()).toBe(false)
+    expect(scroller.coordinator.kind).toBe('layout')
+    expect(content.style.overflowAnchor).toBe('none')
+  })
+
   test('restores the offset after temporary shrinkage and releases on user input', () => {
     scroller.holdLayoutPosition()
     expect(scroller.coordinator.kind).toBe('layout')

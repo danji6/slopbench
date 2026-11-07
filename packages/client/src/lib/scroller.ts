@@ -394,6 +394,8 @@ export class Scroller {
 
   /** Holds the viewport through a user-triggered expansion or collapse. */
   holdLayoutPosition = () => {
+    // An explicit toggle supersedes a saved position that is still settling.
+    if (this.coordinator.kind === 'restore') this.coordinator.cancel()
     this.holdPosition()
     const target = this.target
     if (!target) return
@@ -555,8 +557,8 @@ export class Scroller {
 
           if (this.isFollowing) return
 
-          // Resume on any downward arrival near the bottom
-          if (nearBottom && scrollingDown) {
+          // A reveal can scroll down after explicitly releasing follow.
+          if (nearBottom && scrollingDown && this._userScrollIntent !== 'up') {
             this._resumeAtBottom()
           }
         },
