@@ -24,10 +24,10 @@ test('approval settings are visible and editable in the Approvals tab', async ({
   await expect(panel).toBeVisible()
   await panel.getByRole('checkbox', { name: 'write_file', exact: true }).check()
   await panel
-    .getByRole('textbox', { name: 'Command pattern', exact: true })
+    .getByRole('textbox', { name: 'Command prefix', exact: true })
     .fill('bun test')
   await panel
-    .getByRole('button', { name: 'Add command pattern', exact: true })
+    .getByRole('button', { name: 'Add command prefix', exact: true })
     .click()
   await expect(
     panel.getByRole('textbox', { name: 'Path', exact: true }),

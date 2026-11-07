@@ -137,7 +137,7 @@ export function ChangesSummary({
         <RippleButton
           variant="stealth"
           size="sm"
-          className="text-muted-foreground mt-1 ml-6 h-auto max-w-[calc(100%-1.5rem)] justify-start rounded-md px-1 py-2 text-xs font-normal whitespace-normal has-[>svg]:px-1"
+          className="text-muted-foreground mt-1 ml-6 text-xs font-normal"
           onClick={() => {
             messageList?.onLayoutChange()
             setShowAll(!showAll)

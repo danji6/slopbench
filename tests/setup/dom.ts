@@ -11,7 +11,11 @@ import { afterAll, beforeAll } from 'bun:test'
  */
 export function setupDom(): void {
   beforeAll(() => {
+    const NativeResponse = globalThis.Response
     GlobalRegistrator.register()
+    // Shiki reads its compressed WASM with Response.bytes(), which Happy DOM lacks.
+    globalThis.Response = NativeResponse
+
     // Wouter patches history once at import time; every fresh DOM needs the same events.
     const patchKey = Symbol.for('wouter_v3')
     for (const method of ['pushState', 'replaceState'] as const) {

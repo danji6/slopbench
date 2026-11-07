@@ -1,5 +1,12 @@
-import { expect, test } from '@playwright/test'
+import { type Page, expect, test } from '@playwright/test'
 import { APP_ID } from '@sb/core/const'
+
+async function expectWelcomeForAgent(page: Page, agentNumber: number) {
+  const welcome = page.getByRole('region', { name: 'Welcome' })
+  await expect(
+    welcome.getByText(new RegExp(`\\bAgent ${agentNumber}\\b`)),
+  ).toBeVisible()
+}
 
 test('provider setup overrides prompts and selection, and updates after setup', async ({
   page,
@@ -44,9 +51,7 @@ test('agent grid loads four, expands, and searches beyond loaded names and descr
   await expect(grid.getByRole('button', { name: /^Agent 29/ })).toBeVisible()
   await expect(grid.getByRole('button', { name: /^Agent \d/ })).toHaveCount(1)
   await grid.getByRole('button', { name: /^Agent 29/ }).click()
-  await expect(
-    page.getByText('A few ways to get going with Agent 29.'),
-  ).toBeVisible()
+  await expectWelcomeForAgent(page, 29)
   await page.getByRole('button', { name: 'Choose another agent' }).click()
   await expect(grid.getByRole('button', { name: /^Agent \d/ })).toHaveCount(4)
   await expect(
@@ -181,9 +186,7 @@ test('clipped descriptions stay inside cards and open independently of agent sel
     await expect(card).toBeEnabled()
   }
   await card.click()
-  await expect(
-    page.getByText('A few ways to get going with Agent 1.'),
-  ).toBeVisible()
+  await expectWelcomeForAgent(page, 1)
 })
 
 test('holding an agent card reveals its description without selecting it on release', async ({
@@ -219,9 +222,7 @@ test('holding an agent card reveals its description without selecting it on rele
     await expect(page.getByRole('tooltip')).toBeVisible()
     await page.keyboard.press('Escape')
     await card.tap()
-    await expect(
-      page.getByText('A few ways to get going with Agent 1.'),
-    ).toBeVisible()
+    await expectWelcomeForAgent(page, 1)
   } finally {
     await context.close()
   }
@@ -247,9 +248,7 @@ test('starters fill the composer, disable during drafting, and switching preserv
   ).toBeVisible()
   await expect(editor).toHaveText('Help me improve this draft:')
   await page.getByRole('button', { name: /^Agent 1 / }).click()
-  await expect(
-    page.getByText('A few ways to get going with Agent 1.'),
-  ).toBeVisible()
+  await expectWelcomeForAgent(page, 1)
   await expect(
     page.getByRole('button', { name: 'Improve a draft' }),
   ).toBeDisabled()
@@ -361,9 +360,7 @@ test('agent selection expands the ripple without moving its center or the presse
       }),
   )
   expect(inertWhileExiting).toBe(true)
-  await expect(
-    page.getByText('A few ways to get started with Agent 3.'),
-  ).toBeVisible()
+  await expectWelcomeForAgent(page, 3)
   await expect(
     page.locator('section[aria-label="Choose an agent"]'),
   ).toHaveCount(0)

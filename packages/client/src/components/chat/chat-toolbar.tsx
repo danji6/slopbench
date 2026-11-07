@@ -1,4 +1,5 @@
 import { AnimatedToolbar } from '@/components/ui/animated-toolbar'
+import { cn } from '@/lib/utils'
 import { ChevronDownIcon, KeyboardIcon, SaveIcon, XIcon } from 'lucide-react'
 
 import { ChatPill, type ChatPillProps } from './chat-pill'
@@ -36,7 +37,10 @@ export function ChatToolbar({
         <ChatPill.Button
           onClick={onScrollToBottom}
           aria-label="Scroll to bottom"
-          className="relative"
+          className={cn(
+            'rounded-s-full',
+            !pinnable && !editing && 'rounded-e-full',
+          )}
         >
           <ChevronDownIcon />
           {activity && (
@@ -49,6 +53,7 @@ export function ChatToolbar({
             variant={pinned ? 'secondary' : 'stealth'}
             onClick={() => onPinChange?.(!pinned)}
             aria-label="Pin chat input"
+            className={cn(!editing && 'rounded-e-full')}
           >
             <KeyboardIcon />
           </ChatPill.Button>
@@ -58,11 +63,19 @@ export function ChatToolbar({
         <ChatPill.Separator />
       </AnimatedToolbar.Item>
       <AnimatedToolbar.Item visible={editing}>
-        <ChatPill.Button onClick={onEditCancel} aria-label="Cancel edit">
+        <ChatPill.Button
+          onClick={onEditCancel}
+          aria-label="Cancel edit"
+          className={cn(!showScroll && 'rounded-s-full')}
+        >
           <XIcon />
         </ChatPill.Button>
         <ChatPill.Separator />
-        <ChatPill.Button onClick={onEditSave} aria-label="Save edit">
+        <ChatPill.Button
+          onClick={onEditSave}
+          aria-label="Save edit"
+          className="rounded-e-full"
+        >
           <SaveIcon />
         </ChatPill.Button>
       </AnimatedToolbar.Item>

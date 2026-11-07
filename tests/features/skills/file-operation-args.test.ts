@@ -54,6 +54,9 @@ test('the registered mutation unwraps the command before reserving filesystem wo
           tokenIdentifier: 'fixture:owner',
           issuer: 'fixture',
         }),
+        signJwt: async () => {
+          throw new Error('Skill file operations do not sign JWTs')
+        },
       },
     },
     { operation: { kind: 'ensure', agentId } },

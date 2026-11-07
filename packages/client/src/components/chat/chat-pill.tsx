@@ -26,7 +26,10 @@ function ChatPillButton({ className, ...props }: RippleButtonProps) {
   return (
     <RippleButton
       variant="stealth"
-      className={cn('h-full w-16 flex-1 focus-visible:ring-inset', className)}
+      className={cn(
+        'h-full w-16 flex-1 rounded-none focus-visible:ring-inset',
+        className,
+      )}
       {...props}
     />
   )
