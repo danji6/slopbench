@@ -28,6 +28,7 @@ export function ChangesTranscript({ children }: { children: React.ReactNode }) {
     <MessageListContext
       value={{
         scrollRef: docScrollRef,
+        scrollCoordinator: coordinator,
         onLayoutChange: holdLayoutPosition,
         releaseFollow: holdPosition,
         resumeFollow: () => unlockScroll(true),

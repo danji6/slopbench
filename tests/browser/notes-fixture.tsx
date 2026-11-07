@@ -99,7 +99,8 @@ function Transcript() {
   return (
     <MessageListContext
       value={{
-        scrollRef,
+        scrollRef: docScrollRef,
+        scrollCoordinator: scroller.coordinator,
         onLayoutChange: scroller.holdLayoutPosition,
         trackPendingLayout: scroller.coordinator.trackPendingLayout,
         releaseFollow: holdPosition,

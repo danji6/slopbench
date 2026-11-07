@@ -159,6 +159,7 @@ function thinkingWorkMessages() {
 }
 
 function compactionMessages() {
+  const longSummary = params.has('longSummary')
   const command = {
     ...message('command', 0, 'command'),
     extra: { name: 'compact', argument: '', status: 'done' },
@@ -175,11 +176,22 @@ function compactionMessages() {
             type: 'reasoning' as const,
             text: 'Checking completed task status.',
           },
-          { type: 'text' as const, text: 'Summary of the completed work.' },
+          {
+            type: 'text' as const,
+            text: longSummary
+              ? 'Summary of the completed work.\n\n'.repeat(24)
+              : 'Summary of the completed work.',
+          },
         ],
         sizeBytes: 100,
       },
     ],
+  }
+  if (longSummary) {
+    const history = Array.from({ length: 16 }, (_, index) =>
+      message(`before${index}`, index - 16),
+    )
+    return [...history, command, summary]
   }
   return [
     command,

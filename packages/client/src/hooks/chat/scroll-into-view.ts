@@ -1,3 +1,4 @@
+import { useMessageList } from '@/components/chat/messages/message-list/message-list-context'
 import { useEffect, useRef } from 'react'
 
 const EXTRA_PADDING = 48
@@ -37,6 +38,7 @@ export function useScrollIntoView({
   bottomPadding = 0,
   topPadding = 0,
 }: ScrollIntoViewParams) {
+  const coordinator = useMessageList()?.scrollCoordinator
   const prevActive = useRef(revealOnMount ? false : active)
   const paddingRef = useRef({ bottomPadding, topPadding })
   const onBeforeScrollRef = useRef(onBeforeScroll)
@@ -59,6 +61,9 @@ export function useScrollIntoView({
     // Stop following if start-aligned
     if (align === 'start') onBeforeScrollRef.current?.()
 
+    // The layout hold owns the viewport until the expansion settles.
+    const layoutIsCurrent =
+      coordinator?.kind === 'layout' ? coordinator.checkpoint() : null
     const isDocScroll = scrollEl === document.documentElement
 
     const getScrollHeight = () =>
@@ -120,7 +125,11 @@ export function useScrollIntoView({
     }
 
     const waitForSettle = () => {
-      if (cancelled) return cleanup()
+      if (cancelled || layoutIsCurrent?.() === false) return cleanup()
+      if (layoutIsCurrent && coordinator?.kind === 'layout') {
+        rafId = requestAnimationFrame(waitForSettle)
+        return
+      }
 
       const scrollHeight = getScrollHeight()
       // A short page can keep the same scrollHeight while the block expands
@@ -150,5 +159,5 @@ export function useScrollIntoView({
     rafId = requestAnimationFrame(waitForSettle)
 
     return cleanup
-  }, [active, align, behavior, blockRef, scrollRef])
+  }, [active, align, behavior, blockRef, scrollRef, coordinator])
 }

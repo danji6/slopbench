@@ -1,5 +1,34 @@
 import { type Locator, expect, test } from '@playwright/test'
 
+test('opening a long summary at the bottom brings its start below the nav', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1100, height: 600 })
+  await page.goto('/?fixture=notes&id=notes&compaction&longSummary')
+  const summary = page.getByRole('button', { name: /^Summary\b/ })
+  await expect(summary).toBeInViewport({ ratio: 1 })
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          scrollY > 0 &&
+          document.documentElement.scrollHeight - scrollY - innerHeight <= 1,
+      ),
+    )
+    .toBe(true)
+  expect((await summary.boundingBox())!.y).toBeGreaterThan(120)
+
+  await summary.click()
+  await expect(summary).toHaveAttribute('aria-expanded', 'true')
+  await expect
+    .poll(async () => (await summary.boundingBox())?.y ?? Infinity)
+    .toBeLessThan(120)
+  const nav = (await page.getByRole('navigation').boundingBox())!
+  expect((await summary.boundingBox())!.y).toBeGreaterThanOrEqual(
+    nav.y + nav.height,
+  )
+})
+
 for (const mixed of [false, true]) {
   test(`work sums thinking durations and reveals every thinking block (mixed=${mixed})`, async ({
     page,

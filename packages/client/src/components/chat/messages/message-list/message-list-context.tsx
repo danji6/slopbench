@@ -1,8 +1,10 @@
 import { createOptionalContext } from '@/hooks/context'
+import type { ScrollCoordinator } from '@/lib/scroll-coordinator'
 import { useLayoutEffect } from 'react'
 
 type MessageListContextValue = {
   scrollRef: React.RefObject<HTMLElement | null>
+  scrollCoordinator?: ScrollCoordinator
   onLayoutChange: () => void
   onIntoViewSettle?: () => void
   releaseFollow: () => void

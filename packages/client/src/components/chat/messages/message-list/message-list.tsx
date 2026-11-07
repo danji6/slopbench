@@ -426,6 +426,7 @@ export function MessageList({
   const messageListCtxValue = useMemo(
     () => ({
       scrollRef: docScrollRef as React.RefObject<HTMLElement | null>,
+      scrollCoordinator: coordinator,
       onLayoutChange: holdLayoutPosition,
       onIntoViewSettle,
       releaseFollow: holdPosition,
