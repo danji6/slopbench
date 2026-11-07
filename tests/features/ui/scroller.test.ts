@@ -11,6 +11,7 @@ let scrollHeight: number
 let mutate: () => void
 let resize: () => void
 let intersect: () => void
+let scrollFrame: FrameRequestCallback | null
 let restore: () => void
 
 function mockContentObservers() {
@@ -62,11 +63,17 @@ function mockIntersectionObserver() {
 function mockScrollObservers() {
   const restoreContent = mockContentObservers()
   const restoreIntersection = mockIntersectionObserver()
-  const animation = spyOn(globalThis, 'requestAnimationFrame').mockReturnValue(
-    1,
-  )
+  const animation = spyOn(
+    globalThis,
+    'requestAnimationFrame',
+  ).mockImplementation((callback) => {
+    scrollFrame = callback
+    return 1
+  })
   const cancel = spyOn(globalThis, 'cancelAnimationFrame').mockImplementation(
-    () => {},
+    () => {
+      scrollFrame = null
+    },
   )
   return () => {
     restoreContent()
@@ -134,6 +141,38 @@ describe('streaming scroll holds', () => {
     mutate()
     expect(content.scrollTop).toBe(900)
     expect(scroller.autoScrolling).toBe(false)
+  })
+})
+
+describe('following streamed output', () => {
+  test('keeps following after an extra downward wheel event at the bottom', async () => {
+    scroller.setImmediate(true)
+    intersect()
+    await Promise.resolve()
+
+    content.dispatchEvent(new WheelEvent('wheel', { deltaY: -300 }))
+    content.scrollTop = 900
+    content.dispatchEvent(new Event('scroll'))
+    expect(scroller.autoScrolling).toBe(false)
+
+    content.dispatchEvent(new WheelEvent('wheel', { deltaY: 300 }))
+    content.scrollTop = 1200
+    content.dispatchEvent(new Event('scroll'))
+    expect(scroller.autoScrolling).toBe(true)
+
+    content.dispatchEvent(new WheelEvent('wheel', { deltaY: 100 }))
+    scrollHeight += 240
+    resize()
+    scrollFrame?.(performance.now())
+
+    expect(scroller.autoScrolling).toBe(true)
+    expect(content.scrollTop).toBe(1440)
+  })
+
+  test('resumes paused follow on downward wheel input at the bottom without movement', () => {
+    scroller.holdPosition()
+    content.dispatchEvent(new WheelEvent('wheel', { deltaY: 100 }))
+    expect(scroller.autoScrolling).toBe(true)
   })
 })
 
@@ -222,17 +261,20 @@ describe('bottom navigation ownership', () => {
     },
   )
 
-  test('wheel input releases exclusive navigation and browser anchoring', () => {
-    const operation = scroller.coordinator.begin('navigate', {
-      exclusive: true,
-    })!
-    scroller.scrollToBottom(true)
-    content.dispatchEvent(new WheelEvent('wheel', { deltaY: -100 }))
-    expect(operation.isCurrent()).toBe(false)
-    expect(scroller.coordinator.exclusive).toBe(false)
-    expect(content.style.overflowAnchor).toBe('')
-    expect(scroller.autoScrolling).toBe(false)
-  })
+  test.each([-100, 100])(
+    'wheel input (%d) releases exclusive navigation and browser anchoring',
+    (deltaY) => {
+      const operation = scroller.coordinator.begin('navigate', {
+        exclusive: true,
+      })!
+      scroller.scrollToBottom(true)
+      content.dispatchEvent(new WheelEvent('wheel', { deltaY }))
+      expect(operation.isCurrent()).toBe(false)
+      expect(scroller.coordinator.exclusive).toBe(false)
+      expect(content.style.overflowAnchor).toBe('')
+      expect(scroller.autoScrolling).toBe(false)
+    },
+  )
 })
 
 describe('keyboard bottom compensation', () => {

@@ -22,8 +22,17 @@ const LAYOUT_SHIFT_SETTLE_MS = 250
 /** How close to the bottom (px) before autoscroll should trigger again. */
 const FOLLOW_RESUME_DISTANCE = 80
 
+/** Accounts for rounded scroll metrics when a downward gesture cannot move. */
+const BOTTOM_EDGE_TOLERANCE = 1
+
 /** Bottom tolerance for preserving the tail when the dock or keyboard grows. */
 const BOTTOM_ANCHOR_TOLERANCE = 20
+
+function getDistanceFromBottom(target: ScrollTarget) {
+  return (
+    target.getScrollHeight() - target.getScrollTop() - target.getClientHeight()
+  )
+}
 
 export class Scroller {
   private target: ScrollTarget | null = null
@@ -178,14 +187,10 @@ export class Scroller {
     const target = this.target
     if (!target || !this._enabled) return
     if (this.coordinator.exclusive) return
-    if (this._shiftInProgress) return
+    if (this._shiftInProgress || this._manualScrollActive) return
     if (this.isFollowing || this._stopCondition !== null) return
 
-    const distanceFromBottom =
-      target.getScrollHeight() -
-      target.getScrollTop() -
-      target.getClientHeight()
-    if (distanceFromBottom >= FOLLOW_RESUME_DISTANCE) return
+    if (getDistanceFromBottom(target) >= FOLLOW_RESUME_DISTANCE) return
 
     this._userScrollIntent = null
     this.coordinator.resumeFollow()
@@ -362,6 +367,25 @@ export class Scroller {
     this._stopFollowing(true)
   }
 
+  private _handleScrollDirection(direction: 1 | -1) {
+    if (direction === -1) {
+      this.pauseFollow(-1)
+      if (this._enabled) this.onFollowRelease?.()
+      return
+    }
+
+    if (this.isFollowing && this._stopCondition === null) return
+
+    const hadScrollOperation = this.coordinator.kind !== null
+    this.pauseFollow(1)
+    if (hadScrollOperation || !this.target) return
+
+    // A downward gesture at the bottom may produce no scroll event.
+    if (getDistanceFromBottom(this.target) <= BOTTOM_EDGE_TOLERANCE) {
+      this._resumeAtBottom()
+    }
+  }
+
   holdPosition = () => {
     this._userScrollIntent = 'up'
     this._stopCondition = null
@@ -516,9 +540,7 @@ export class Scroller {
             return
           }
 
-          const distanceFromBottom =
-            t.getScrollHeight() - t.getScrollTop() - t.getClientHeight()
-          const nearBottom = distanceFromBottom < FOLLOW_RESUME_DISTANCE
+          const nearBottom = getDistanceFromBottom(t) < FOLLOW_RESUME_DISTANCE
 
           if (
             !this.isFollowing &&
@@ -549,13 +571,7 @@ export class Scroller {
           this._manualScrollActive = false
           this._resumeAtBottom()
         },
-        direction: (direction) => {
-          this.coordinator.interrupt()
-          if (direction === -1) {
-            this.pauseFollow(-1)
-            if (this._enabled) this.onFollowRelease?.()
-          } else this._userScrollIntent = 'down'
-        },
+        direction: (direction) => this._handleScrollDirection(direction),
       },
     )
     queueMicrotask(() => {
