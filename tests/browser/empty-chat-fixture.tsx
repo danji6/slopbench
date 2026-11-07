@@ -2,6 +2,7 @@ import { ChatSidebars } from '@/components/chat/chat-sidebars'
 import { EmptyChat } from '@/components/chat/empty-chat'
 import { NotificationProvider } from '@/components/chat/notifications/notification-provider'
 import { ChatSearchProvider } from '@/components/chat/search'
+import { LightboxProvider } from '@/components/ui/lightbox'
 import '@/globals.css'
 import { StreamStoreProvider } from '@/hooks/chat/stream'
 import { applyTheme, exportSchemeCss } from '@/lib/theme'
@@ -15,7 +16,11 @@ const { css } = exportSchemeCss(sourceColor, true, 0)
 applyTheme({ sourceColor, mode: 'dark', contrast: 0, css })
 
 export function EmptyChatFixture() {
-  const chat = <EmptyChat onFirstMessage={() => {}} />
+  const chat = (
+    <LightboxProvider>
+      <EmptyChat onFirstMessage={() => {}} />
+    </LightboxProvider>
+  )
   return (
     <ConvexProvider client={emptyChatClient}>
       <ConvexQueryCacheProvider>

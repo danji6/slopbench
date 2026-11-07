@@ -450,6 +450,7 @@ export function ChatSessionView({
                       fileIndex={fileIndex}
                       passiveSend={passiveSend}
                       sendDisabled={sendDisabled}
+                      fileDropDisabled={isEditing || showInteractionPicker}
                       shellAvailable={canUseWorkspace}
                       draftKey={session?._id}
                       restoreMessage={restoreMessage}

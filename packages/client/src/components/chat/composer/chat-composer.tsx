@@ -1,5 +1,8 @@
 import { useInvertSend } from '@/hooks/chat'
-import { useComposerAttachments } from '@/hooks/chat/composer-attachments'
+import {
+  type ComposerFileBatch,
+  useComposerAttachments,
+} from '@/hooks/chat/composer-attachments'
 import { useComposerEditor } from '@/hooks/chat/composer-editor'
 import type { ComposerHandle } from '@/hooks/chat/composer-editor'
 import { useComposerMentions } from '@/hooks/chat/composer-mentions'
@@ -12,6 +15,7 @@ import type {
   CommandDefinition,
 } from '@/lib/chat/commands'
 import { handleSelectAllDelete } from '@/lib/editor-clear'
+import { isCovered } from '@/lib/focus-return'
 import { toastError } from '@/lib/notifications'
 import { pasteCollapsedText } from '@/lib/tiptap/paste'
 import { serializeBlocksToMarkdown } from '@/lib/tiptap/serialize'
@@ -26,7 +30,6 @@ import { Suspense, lazy, useEffect, useRef } from 'react'
 import type { DropZoneHandle, InputGroupProps } from '../../ui'
 import {
   DropZone,
-  FilePickerOverlay,
   FileStrip,
   FullscreenEditor,
   InputGroup,
@@ -37,6 +40,7 @@ import { useChatShortcuts } from '../shortcuts'
 import { TokenWidget } from '../widgets/token-widget'
 import { FileMentionPicker } from '../workspace'
 import { CommandPicker } from './command-picker'
+import { ComposerFileDrop } from './composer-file-drop'
 import {
   ComposerLayoutProvider,
   useMeasuredComposerLayout,
@@ -86,6 +90,8 @@ export type ChatComposerProps = Omit<InputGroupProps, 'onSubmit'> & {
   passiveSend?: boolean
   /** Whether sending messages should be disabled. */
   sendDisabled?: boolean
+  /** Whether another interaction temporarily owns the chat surface. */
+  fileDropDisabled?: boolean
   /** Whether shell commands can run (admin with a bound workspace). */
   shellAvailable?: boolean
   /**
@@ -116,6 +122,7 @@ export function ChatComposer({
   fileIndex,
   passiveSend = false,
   sendDisabled = false,
+  fileDropDisabled = false,
   shellAvailable = false,
   draftKey,
   restoreMessage,
@@ -321,11 +328,12 @@ export function ChatComposer({
     return editor ? pasteCollapsedText(editor, e) : false
   }
 
-  async function handleFilePick(picked: File[]) {
-    if (await attachments.addFiles(picked)) {
-      dropZoneRef.current?.clear()
-      editorRef.current?.commands.focus('end')
-    }
+  async function handleFilePick(picked: ComposerFileBatch) {
+    if (!(await attachments.addFiles(picked))) return
+    dropZoneRef.current?.clear()
+    const editor = editorRef.current
+    if (!editor || editor.isDestroyed || props.inert) return
+    if (!isCovered(editor.view.dom)) editor.commands.focus('end')
   }
 
   const placeholder =
@@ -345,6 +353,8 @@ export function ChatComposer({
         <DropZone
           ref={dropZoneRef}
           onDrop={handleFilePick}
+          noDrag // file drags belong to the viewport
+          preventDropOnDocument={false}
           noPaste // pasting is owned by the editor
           noInputEvents
           noFocus
@@ -356,6 +366,12 @@ export function ChatComposer({
           )}
           style={style}
         >
+          <ComposerFileDrop
+            disabled={fileDropDisabled}
+            draftKey={draftKey}
+            pickerRef={dropZoneRef}
+            onDrop={handleFilePick}
+          />
           {isTypingCommandName && (
             <CommandPicker
               query={commandName}
@@ -374,7 +390,6 @@ export function ChatComposer({
             />
           )}
           {shellHint && <Hint>{shellHint}</Hint>}
-          <FilePickerOverlay className="rounded-3xl" />
           <InputGroup
             data-slot="chat-box"
             className={cn(

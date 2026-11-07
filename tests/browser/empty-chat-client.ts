@@ -138,8 +138,7 @@ function query(name: string, args: Record<string, unknown>): unknown {
         ? undefined
         : { path: '/project', workspaceId: args.folderId, revision: 0 },
     }
-  if (name === 'sessionFolders:picker' || name === 'notifications:pendingPage')
-    return { page: [], isDone: true, continueCursor: '' }
+  if (args.paginationOpts) return { page: [], isDone: true, continueCursor: '' }
   if (name === 'tools:list') return [{ name: 'shell' }, { name: 'read_file' }]
   if (name === 'skills:getHome') return null
   if (name === 'avatars:thumbnail') return null

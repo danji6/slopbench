@@ -10,10 +10,21 @@ import type { PendingFilePart, PendingMessage } from '@/lib/chat/types'
 import { toastError } from '@/lib/notifications'
 import { generateId } from '@/lib/utils'
 import type { Editor } from '@tiptap/react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import type { RefObject } from 'react'
 
 type PastedText = NonNullable<PendingMessage['pastedText']>
+
+export type ComposerFileBatch = File[] | Promise<File[]>
+
+type AttachmentQueue = { signal: AbortSignal; tail: Promise<unknown> }
 
 type UseComposerAttachmentsOptions = {
   draftKey?: string
@@ -31,6 +42,16 @@ export function useComposerAttachments({
   const [restoredDraftKey, setRestoredDraftKey] = useState<string | null>(null)
   const pasteIndexRef = useRef(0)
   const filePartsRef = useRef(fileParts)
+  const attachmentQueue = useRef<AttachmentQueue | null>(null)
+
+  useLayoutEffect(() => {
+    const controller = new AbortController()
+    attachmentQueue.current = {
+      signal: controller.signal,
+      tail: Promise.resolve(),
+    }
+    return () => controller.abort()
+  }, [draftKey])
 
   useEffect(() => {
     filePartsRef.current = fileParts
@@ -97,49 +118,81 @@ export function useComposerAttachments({
     if (draftKey) void clearComposerAttachmentDraft(draftKey)
   }, [draftKey])
 
-  const addFiles = useCallback(async (picked: File[]): Promise<boolean> => {
-    for (const file of picked) {
-      try {
-        const { part, originalFile } = await processComposerFile(file)
-        setFileParts((previous) => [...previous, part])
-        if (originalFile) {
-          setOriginalFiles((previous) => ({
-            ...previous,
-            [part.id]: originalFile,
-          }))
+  // Keep later picks and pastes from overtaking files still being processed.
+  const enqueueAttachment = useCallback(
+    <T>(add: (signal: AbortSignal) => Promise<T>, canceled: T) => {
+      const queue = attachmentQueue.current
+      if (!queue) return Promise.resolve(canceled)
+      const { signal } = queue
+      const result = queue.tail.then(() =>
+        signal.aborted ? canceled : add(signal),
+      )
+      queue.tail = result.catch(() => undefined)
+      return result
+    },
+    [],
+  )
+
+  const addFiles = useCallback(
+    (picked: ComposerFileBatch) => {
+      // Read the drop immediately, but commit it in the same queue as picks and pastes.
+      const batch = Promise.resolve(picked).then(
+        (files) => ({ files }),
+        (error: unknown) => ({ error }),
+      )
+      return enqueueAttachment(async (signal) => {
+        try {
+          const result = await batch
+          if (signal.aborted) return false
+          if ('error' in result) throw result.error
+          for (const file of result.files) {
+            const { part, originalFile } = await processComposerFile(file)
+            if (signal.aborted) return false
+            setFileParts((previous) => [...previous, part])
+            if (originalFile) {
+              setOriginalFiles((previous) => ({
+                ...previous,
+                [part.id]: originalFile,
+              }))
+            }
+          }
+          return result.files.length > 0
+        } catch (error) {
+          if (!signal.aborted) toastError(error, 'Failed to process file')
+          return false
         }
-      } catch (error) {
-        toastError(error, 'Failed to process file')
-        return false
-      }
-    }
-    return true
-  }, [])
+      }, false)
+    },
+    [enqueueAttachment],
+  )
 
   const addLargeTextPaste = useCallback(
-    async (text: string, position: number) => {
+    (text: string, position: number) => {
       const index = ++pasteIndexRef.current
       const stamp = new Date().toISOString().replace(/[:.]/g, '-')
       const file = new File([text], `pasted-text-${stamp}-${index}.txt`, {
         type: 'text/plain;charset=utf-8',
       })
 
-      try {
-        const { part, originalFile } = await processComposerFile(file)
-        setFileParts((previous) => [...previous, part])
-        setOriginalFiles((previous) => ({
-          ...previous,
-          [part.id]: originalFile ?? file,
-        }))
-        setPastedText((previous) => ({
-          ...previous,
-          [part.id]: { text, position },
-        }))
-      } catch (error) {
-        toastError(error, 'Failed to attach pasted text')
-      }
+      return enqueueAttachment(async (signal) => {
+        try {
+          const { part, originalFile } = await processComposerFile(file)
+          if (signal.aborted) return
+          setFileParts((previous) => [...previous, part])
+          setOriginalFiles((previous) => ({
+            ...previous,
+            [part.id]: originalFile ?? file,
+          }))
+          setPastedText((previous) => ({
+            ...previous,
+            [part.id]: { text, position },
+          }))
+        } catch (error) {
+          if (!signal.aborted) toastError(error, 'Failed to attach pasted text')
+        }
+      }, undefined)
     },
-    [],
+    [enqueueAttachment],
   )
 
   const removeFile = useCallback((id: string) => {

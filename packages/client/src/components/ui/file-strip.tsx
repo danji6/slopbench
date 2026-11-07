@@ -1,8 +1,10 @@
 import {
   type FileItem,
+  type FilePreview,
   isTextFileItem,
   useFilePreviews,
 } from '@/hooks/file-previews'
+import { ACCEPTED_VIDEO_TYPES, isDisplayableUrl } from '@/lib/io'
 import { toast, toastError } from '@/lib/notifications'
 import { cn } from '@/lib/utils'
 import {
@@ -16,13 +18,15 @@ import {
   FileIcon,
   LinkIcon,
   TextCursorInputIcon,
+  VideoIcon,
   XIcon,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef } from 'react'
 
-import { FilterableList, RippleButton, Skeleton, useLightbox } from '../ui'
+import { FilterableList, RippleButton, Skeleton } from '../ui'
 import type { FilterableListProps } from '../ui'
+import { type LightboxEntry, useLightbox } from './lightbox'
 import { TextFileViewer } from './text-file-viewer'
 
 const DEFAULT_SIZE = 120
@@ -49,6 +53,16 @@ export function FileStrip(props: FileStripProps) {
     ...rest
   } = props
   const previews = useFilePreviews(files)
+  const lightbox = useLightbox()
+  const previewsById = new Map(
+    files.map((item, index) => {
+      const preview = previews[index]
+      return [item.id, { preview, media: galleryEntry(item, preview) }]
+    }),
+  )
+  const gallery = [...previewsById.values()].flatMap(({ media }) =>
+    media ? [media] : [],
+  )
   const listRef = useRef<HTMLUListElement>(null)
 
   useEffect(() => {
@@ -61,7 +75,7 @@ export function FileStrip(props: FileStripProps) {
     <FilterableList<FileItem>
       data-slot="file-strip"
       ref={listRef}
-      items={[...files].reverse()}
+      items={files}
       keys={(item) => item.id}
       empty={() => null}
       placeholder={[
@@ -87,19 +101,29 @@ export function FileStrip(props: FileStripProps) {
             }
       }
       render={(item) => {
-        const preview = previews?.find((p) => p.previewUrl === item.url)
+        const { preview, media } = previewsById.get(item.id)!
         return (
           <div
             className="relative shrink-0"
             style={{ width: size, height: size }}
           >
-            {preview?.thumbnailUrl ? (
-              <Thumbnail
-                src={preview.url}
-                thumbnailSrc={preview.thumbnailUrl}
+            {media ? (
+              <MediaThumbnail
+                src={
+                  media.kind === 'video'
+                    ? media.poster
+                    : (preview?.thumbnailUrl ?? undefined)
+                }
+                video={media.kind === 'video'}
                 alt={item.file.name}
+                onOpen={
+                  lightbox
+                    ? (trigger) =>
+                        lightbox.openGallery(gallery, item.id, trigger)
+                    : undefined
+                }
               />
-            ) : preview?.isThumbnailable ? (
+            ) : preview.isThumbnailable && !preview.thumbnailUrl ? (
               <Skeleton className="size-full shrink-0 rounded-lg" />
             ) : isTextFileItem(item) ? (
               <TextFileViewer item={item}>
@@ -207,25 +231,66 @@ function FileActions({
   )
 }
 
-function Thumbnail({
-  src,
-  thumbnailSrc,
-  alt,
-}: {
-  src: string
-  thumbnailSrc: string
-  alt: string
-}) {
-  const lightbox = useLightbox()
+function galleryEntry(
+  item: FileItem,
+  preview: FilePreview,
+): LightboxEntry | null {
+  if (!isDisplayableUrl(preview.url) || isTextFileItem(item)) return null
 
+  const mime = item.file.type.split(';', 1)[0]
+  const filename = item.file.name.toLowerCase()
+  const unknownType = !mime || mime === 'application/octet-stream'
+  const matchesExtension = (extension: string) =>
+    filename.endsWith(`.${extension}`)
+  const video = ACCEPTED_VIDEO_TYPES.some(
+    ({ mime: type, extensions }) =>
+      mime === type || (unknownType && extensions.some(matchesExtension)),
+  )
+  const { url: src, thumbnailUrl } = preview
+  const entry = { id: item.id, src, alt: item.file.name }
+
+  if (video) {
+    const poster =
+      thumbnailUrl !== item.url ? (thumbnailUrl ?? undefined) : undefined
+    return { ...entry, kind: 'video', poster }
+  }
+  if (
+    mime.startsWith('image/') ||
+    (thumbnailUrl && !mime.startsWith('video/'))
+  ) {
+    return { ...entry, kind: 'image' }
+  }
+  return null
+}
+
+type MediaThumbnailProps = {
+  src?: string
+  video: boolean
+  alt: string
+  onOpen?: (trigger: HTMLElement) => void
+}
+
+function MediaThumbnail({ src, video, alt, onOpen }: MediaThumbnailProps) {
+  const content = src ? (
+    <img src={src} alt={alt} className="size-full object-cover" />
+  ) : video ? (
+    <span className="bg-m3-surface-container-high flex size-full items-center justify-center">
+      <VideoIcon />
+    </span>
+  ) : (
+    <Skeleton className="size-full rounded-lg" />
+  )
+
+  if (!onOpen) return content
   return (
-    // biome-ignore lint/performance/noImgElement: local
-    <img
-      src={thumbnailSrc}
-      alt={alt}
-      onClick={() => lightbox?.open(src, alt)}
-      className="border-input size-full shrink-0 cursor-zoom-in rounded-lg border object-cover"
-    />
+    <button
+      type="button"
+      aria-label={`Open ${alt}`}
+      className="border-input focus-visible:ring-ring block size-full cursor-zoom-in overflow-hidden rounded-lg border focus-visible:ring-2"
+      onClick={(event) => onOpen(event.currentTarget)}
+    >
+      {content}
+    </button>
   )
 }
 

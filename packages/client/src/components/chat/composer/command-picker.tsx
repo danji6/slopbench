@@ -1,6 +1,7 @@
 import { Command } from '@/components/ui/command'
 import type { CommandDefinition } from '@/lib/chat/commands/types'
-import { useEffect, useState } from 'react'
+import { isCovered } from '@/lib/focus-return'
+import { useEffect, useRef, useState } from 'react'
 
 export type CommandPickerProps = {
   query: string
@@ -17,6 +18,7 @@ export function CommandPicker({
   onAutocomplete,
   onDismiss,
 }: CommandPickerProps) {
+  const pickerRef = useRef<HTMLDivElement>(null)
   const normalizedQuery = query.toLowerCase()
   const filtered = commands.filter((c) =>
     [c.name, ...(c.aliases ?? [])].some((name) =>
@@ -34,7 +36,7 @@ export function CommandPicker({
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (!filtered.length) return
+      if (!filtered.length || isCovered(pickerRef.current)) return
 
       if (e.key === 'ArrowDown') {
         e.preventDefault()
@@ -69,6 +71,7 @@ export function CommandPicker({
 
   return (
     <div
+      ref={pickerRef}
       data-slot="command-picker"
       className="bg-m3-surface-container-low absolute right-0 bottom-full left-0 mb-1 overflow-hidden rounded-xl border shadow-lg"
     >

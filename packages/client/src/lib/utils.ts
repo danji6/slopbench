@@ -85,10 +85,11 @@ export async function blobToBase64(blob: Blob): Promise<string> {
   })
 }
 
-export async function fileToDataUrl(file: File): Promise<string> {
-  const buffer = await file.arrayBuffer()
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)))
-  return `data:${file.type || 'application/octet-stream'};base64,${base64}`
+export function fileToDataUrl(file: File): Promise<string> {
+  const blob = file.type
+    ? file
+    : file.slice(0, file.size, 'application/octet-stream')
+  return blobToBase64(blob)
 }
 
 export function dataUrlToFile(dataUrl: string, filename = 'file'): File {

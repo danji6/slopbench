@@ -1,6 +1,7 @@
 /// <reference types="bun-types" />
 import type { useComposerAttachments } from '@/hooks/chat/composer-attachments'
 import * as draftStore from '@/lib/chat/composer-attachment-draft-store'
+import * as chatIO from '@/lib/chat/io'
 import type { PendingMessage } from '@/lib/chat/types'
 import { editorKit } from '@/lib/tiptap/kit'
 import { Editor } from '@tiptap/core'
@@ -53,22 +54,111 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
-async function mount(draftKey?: string) {
+async function mount(initialDraftKey?: string) {
   const editorRef = createRef<Editor>()
   editorRef.current = editor
-  function Harness() {
+  function Harness({ draftKey }: { draftKey?: string }) {
     attachments = useAttachments({ draftKey, editorRef })
     return null
   }
   const container = document.createElement('div')
   document.body.append(container)
   root = createRoot(container)
-  await act(async () => root?.render(<Harness />))
+  const renderDraft = async (draftKey?: string) => {
+    await act(async () => root?.render(<Harness draftKey={draftKey} />))
+    if (!attachments.isRestored) {
+      const { happyDOM } = window as unknown as {
+        happyDOM: { waitUntilComplete: () => Promise<void> }
+      }
+      await act(() => happyDOM.waitUntilComplete())
+    }
+    expect(attachments.isRestored).toBe(true)
+  }
+  await renderDraft(initialDraftKey)
+  return renderDraft
 }
 
 function file(name = 'same.txt') {
   return new File(['identical content'], name, { type: 'text/plain' })
 }
+
+test('preparing a video preserves bytes beyond the JavaScript argument limit', async () => {
+  const bytes = new Uint8Array(1024 * 1024).fill(0xab)
+  const video = new File([bytes], 'clip.webm', { type: 'video/webm' })
+  const { part, originalFile } = await chatIO.processFileForUpload(video)
+  const prefix = 'data:video/webm;base64,'
+
+  expect(originalFile).toBe(video)
+  expect(part.url.startsWith(prefix)).toBe(true)
+  const decoded = Buffer.from(part.url.slice(prefix.length), 'base64')
+  expect(decoded.equals(Buffer.from(bytes))).toBe(true)
+})
+
+test('overlapping file additions and text pastes append in invocation order', async () => {
+  await mount()
+  const first = file('first.txt')
+  const ready = Promise.withResolvers<void>()
+  const { part } = await chatIO.processFileForUpload(first)
+  const process = spyOn(chatIO, 'processFileForUpload').mockImplementation(
+    async (picked) => {
+      if (picked === first) await ready.promise
+      return { part: { ...part, filename: picked.name }, originalFile: picked }
+    },
+  )
+  const pending: Promise<unknown>[] = []
+  try {
+    await act(async () => {
+      pending.push(
+        attachments.addFiles([first]),
+        attachments.addLargeTextPaste('pasted text', 0),
+        attachments.addFiles([file('last.txt')]),
+      )
+    })
+    await act(async () => {
+      ready.resolve()
+      await Promise.all(pending)
+    })
+
+    const [firstPart, pastedPart, lastPart] = attachments.fileParts
+    expect(firstPart?.filename).toBe('first.txt')
+    expect(attachments.pastedText[pastedPart?.id]?.text).toBe('pasted text')
+    expect(lastPart?.filename).toBe('last.txt')
+  } finally {
+    process.mockRestore()
+  }
+})
+
+test('a drop reserves its position before its files have been read', async () => {
+  await mount()
+  const drop = Promise.withResolvers<File[]>()
+  await act(async () => {
+    const first = attachments.addFiles(drop.promise)
+    const second = attachments.addFiles([file('picked.txt')])
+    drop.resolve([file('dropped.txt')])
+    await Promise.all([first, second])
+  })
+
+  expect(attachments.fileParts.map((part) => part.filename)).toEqual([
+    'dropped.txt',
+    'picked.txt',
+  ])
+})
+
+test('pending drops cannot attach to or hold up the next draft', async () => {
+  const renderDraft = await mount('first-draft')
+  const drop = Promise.withResolvers<File[]>()
+  const pending = attachments.addFiles(drop.promise)
+  await renderDraft('next-draft')
+  await act(async () => {
+    await attachments.addFiles([file('picked.txt')])
+    drop.resolve([file('stale.txt')])
+    expect(await pending).toBe(false)
+  })
+
+  expect(attachments.fileParts.map((part) => part.filename)).toEqual([
+    'picked.txt',
+  ])
+})
 
 test('removing one of three identical attachments preserves the other occurrences', async () => {
   await mount()

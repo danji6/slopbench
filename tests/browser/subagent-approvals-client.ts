@@ -112,7 +112,39 @@ function messageWindow(sessionId: string) {
         },
       ]
     : []
-  return { page, hasOlder: false, hasNewer: false, atTail: true }
+  const history = new URLSearchParams(location.search).has('history')
+    ? historyMessages(sessionId)
+    : []
+  return {
+    page: [...history, ...page],
+    hasOlder: false,
+    hasNewer: false,
+    atTail: true,
+  }
+}
+
+function historyMessages(sessionId: string) {
+  return Array.from({ length: 32 }, (_, index) => ({
+    _id: `history-${index}`,
+    _creationTime: index + 1,
+    sessionId,
+    role: 'user',
+    sender: { type: 'user', id: 'owner' },
+    senderName: 'Owner',
+    status: 'done',
+    selectedVersion: 1,
+    versionCount: 1,
+    segments: [
+      {
+        segmentIndex: 0,
+        parts: [{ type: 'text', text: `History message ${index + 1}` }],
+        sizeBytes: 64,
+      },
+    ],
+    sizeBytes: 64,
+    hasOlderSegments: false,
+    hasNewerSegments: false,
+  }))
 }
 
 function query(name: string, args: Record<string, unknown>) {

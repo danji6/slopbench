@@ -12,7 +12,7 @@ import {
 import { useImperativeHandle, useMemo, useState } from 'react'
 import { useDropzone as _useDropzone } from 'react-dropzone'
 
-import { Overlay, T } from '.'
+import { T } from '.'
 
 const [DropZoneContext, useDropZone] = createUsableContext<
   ReturnType<typeof _useDropzone> & {
@@ -39,23 +39,6 @@ export type DropZoneHandle = {
   clear: () => void
   open: () => void // opens the file picker dialog
   input: HTMLInputElement | null
-}
-
-export function FilePickerOverlay({ className }: { className?: string }) {
-  const { isDragActive, isDragAccept, isDragReject } = useDropZone()
-
-  return (
-    <Overlay
-      show={isDragActive}
-      className={cn(
-        'bg-m3-surface-container-low/50 outline-ring z-39 rounded-2xl outline-2 outline-offset-1 backdrop-blur-sm outline-dashed *:select-none',
-        className,
-      )}
-    >
-      {isDragAccept && <DropToUploadMessage className="text-m3-on-surface" />}
-      {isDragReject && <NotSupportedMessage className="text-m3-on-surface" />}
-    </Overlay>
-  )
 }
 
 export function FilePickerBox({
@@ -239,9 +222,7 @@ function PickedMessage({
             {truncated}
           </li>
         ))}
-        {files.length > 3 && (
-          <li className="text-center tracking-widest">…</li>
-        )}
+        {files.length > 3 && <li className="text-center tracking-widest">…</li>}
       </ul>
     </Message>
   )

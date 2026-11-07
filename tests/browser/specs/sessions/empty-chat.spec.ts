@@ -433,26 +433,28 @@ test('restored drafts disable task cards and delayed settings do not flash setup
   ).toBeDisabled()
 })
 
-test('file starter uses existing upload flow and attachments disable task cards', async ({
+test('file starter appends attachments in selection order and disables task cards', async ({
   page,
 }) => {
   await page.goto('/?fixture=empty-chat')
   const chooser = page.waitForEvent('filechooser')
   await page.getByRole('button', { name: 'Work with a file' }).click()
-  await (
-    await chooser
-  ).setFiles({
-    name: 'notes.txt',
+  const textFile = (name: string) => ({
+    name,
     mimeType: 'text/plain',
-    buffer: Buffer.from('Review these notes.'),
+    buffer: Buffer.from(name),
   })
-  await expect(
-    page.getByText('notes.txt', { exact: true }).first(),
-  ).toBeVisible()
+  await (await chooser).setFiles([textFile('notes.txt'), textFile('plan.txt')])
+  const files = page.getByText(/^(notes|plan|draft)\.txt$/)
+  await expect(files).toHaveText(['notes.txt', 'plan.txt'])
   await expect(
     page.getByRole('button', { name: 'Work with a file' }),
   ).toBeDisabled()
   await expect(page.locator('[contenteditable="true"]').first()).toBeFocused()
+  await page
+    .locator('input[type="file"][name="attachment"]')
+    .setInputFiles(textFile('draft.txt'))
+  await expect(files).toHaveText(['notes.txt', 'plan.txt', 'draft.txt'])
 })
 
 test('empty and unmatched agent libraries offer useful next steps', async ({
