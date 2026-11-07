@@ -23,7 +23,7 @@ export type ShellToolOutput = {
   jobId: string
   status: ShellJobStatus
   exitCode: number | null
-  /** Full plain text output. Empty on preliminary updates. */
+  /** Plain text output; one page when range is present. Empty on preliminary updates. */
   text: string
   /** Raw output tail. May contain ANSI escapes. */
   term: string
@@ -34,6 +34,24 @@ export type ShellToolOutput = {
    * Only meaningful while the job is running.
    */
   waiting?: boolean
+  /** Bounded output delivered by a shell_output call or completion report. */
+  range?: ShellOutputRange
+}
+
+export type ShellAnsiState =
+  'text' | 'escape' | 'charset' | 'csi' | 'osc' | 'oscEscape'
+
+export type ShellOutputSpan = { start: number; end: number }
+
+export type ShellOutputRange = {
+  requestedOffset: number
+  startOffset: number
+  nextOffset: number
+  bufferEnd: number
+  hasMore: boolean
+  replay: boolean
+  unavailable: ShellOutputSpan[]
+  ansiState: ShellAnsiState
 }
 
 export type ShellModelToolOutput = {

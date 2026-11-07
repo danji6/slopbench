@@ -10,6 +10,7 @@ import type { SenderIdentity } from './chat/identities'
 import { senderIdentity } from './chat/identities'
 import { removeForMessage as removeMcpOperations } from './mcpOperations'
 import { isContextEligible, searchTextFromParts } from './messages'
+import { removeDeliveriesForMessage } from './shellOutputDeliveries'
 import { collectToolOutputStorageIds } from './stream/toolOutput'
 
 /** A message doc joined with its selected version's parts (concatenated segments). */
@@ -348,6 +349,8 @@ export async function replaceSelectedContent(
   const head = segments[0]
   if (!head) error('Version not found', 404)
 
+  await removeDeliveriesForMessage(ctx, message._id, message.selectedVersion)
+
   await ctx.db.patch(head._id, {
     segmentIndex: 0,
     parts,
@@ -405,6 +408,7 @@ export async function deleteVersions(
   ctx: MutationCtx,
   messageId: Id<'messages'>,
 ) {
+  await removeDeliveriesForMessage(ctx, messageId)
   await removeMcpOperations(ctx, messageId)
   const rows = await listAllRows(ctx, messageId)
   for (const row of rows) {

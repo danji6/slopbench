@@ -49,6 +49,10 @@ export type PollResult = {
   exitCode: number | null
   background: boolean
   waiting: boolean
+  /** Present on sidecars supporting bounded output reads. */
+  bufferEnd?: number
+  term?: string
+  termOffset?: number
 }
 
 export type ShellStreamEvent =

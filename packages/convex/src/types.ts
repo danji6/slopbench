@@ -290,3 +290,4 @@ export type SaveProviderContinuityArgs = Infer<typeof StreamsV.saveProviderConti
 export type RecordCacheDiagnosticArgs = Infer<typeof StreamsV.recordCacheDiagnosticArgsValidator> // prettier-ignore
 export type PrepareCapabilitiesArgs = Infer<typeof V.prepareCapabilitiesArgsValidator> // prettier-ignore
 export type AssertToolAccessArgs = Infer<typeof V.assertToolAccessArgsValidator>
+export type ShellDeliveryPositionArgs = Infer<typeof V.shellDeliveryPositionArgsValidator> // prettier-ignore

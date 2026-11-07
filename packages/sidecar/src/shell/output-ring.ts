@@ -18,6 +18,10 @@ export class OutputRing {
   private startOffset = 0
   private listeners = new Set<ChunkListener>()
 
+  get endOffset(): number {
+    return this.startOffset + this.buffer.length
+  }
+
   append(text: string) {
     this.buffer += text
     if (this.buffer.length > MAX_BUFFER_CHARS) {
@@ -28,12 +32,14 @@ export class OutputRing {
     for (const listener of this.listeners) listener(text)
   }
 
-  read(from: number): RingSnapshot {
-    const start = Math.max(from, this.startOffset)
+  read(from: number, limit?: number): RingSnapshot {
+    const bufferEnd = this.endOffset
+    const start = Math.min(Math.max(from, this.startOffset), bufferEnd)
+    const end = Math.min(bufferEnd, start + (limit ?? this.buffer.length))
     return {
-      text: this.buffer.slice(start - this.startOffset),
+      text: this.buffer.slice(start - this.startOffset, end - this.startOffset),
       start,
-      end: this.startOffset + this.buffer.length,
+      end,
     }
   }
 

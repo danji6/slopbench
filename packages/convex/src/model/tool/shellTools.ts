@@ -81,13 +81,30 @@ export async function createShellOutputTool(context: WorkspaceToolContext) {
     inputSchema: z.object({
       jobId: z.string().describe('Job id returned by shell'),
       wait_seconds: z.number().optional(),
+      offset: z
+        .number()
+        .int()
+        .nonnegative()
+        .optional()
+        .describe('Omit for automatic reads. Set only to replay output.'),
     }),
     toModelOutput: shellToModelOutput,
     execute: async function* (input, { abortSignal, toolCallId }) {
+      const readPosition = await context.readShellPosition?.(
+        input.jobId,
+        input.offset,
+      )
       yield* trackJob(
-        executeShellOutput(workspaceArgs(context), input, { abortSignal }),
+        executeShellOutput(workspaceArgs(context), input, {
+          abortSignal,
+          readPosition,
+        }),
         context,
-        { command: `shell_output ${input.jobId}`, toolCallId },
+        {
+          command: `shell_output ${input.jobId}`,
+          toolCallId,
+          deferRelease: !!context.readShellPosition,
+        },
       )
     },
   })
@@ -115,7 +132,7 @@ export async function createKillShellTool(context: WorkspaceToolContext) {
 export async function* trackJob(
   outputs: AsyncGenerator<ShellToolOutput>,
   context: WorkspaceToolContext,
-  ref: Omit<WatchedJobRef, 'jobId'>,
+  ref: Omit<WatchedJobRef, 'jobId'> & { deferRelease?: boolean },
 ): AsyncGenerator<ShellToolOutput> {
   let last: ShellToolOutput | undefined
   for await (const output of outputs) {
@@ -125,8 +142,12 @@ export async function* trackJob(
 
   if (!last?.jobId) return
   if (last.status === 'background') {
-    await context.watchJob?.({ ...ref, jobId: last.jobId })
-  } else {
+    await context.watchJob?.({
+      command: ref.command,
+      toolCallId: ref.toolCallId,
+      jobId: last.jobId,
+    })
+  } else if (!ref.deferRelease) {
     await context.releaseJob?.(last.jobId)
   }
 }

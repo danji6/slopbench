@@ -1,3 +1,4 @@
+import { formatOutputPage } from '@sb/core/shell/output-page'
 import type { ShellToolOutput } from '@sb/core/types/tools'
 
 import type { Doc } from '../_generated/dataModel'
@@ -7,10 +8,12 @@ import {
   type ShellReportPart,
   type ShellReportStatus,
 } from '../lib/shellReport'
+import { sharedSessionId } from '../lib/subagent'
 import { agentIdentity } from './chat/identities'
 import { insertMessage } from './messageContents'
 import { getSessionWithWorkspace } from './session/folderContext'
 import { getActiveStream } from './session/memberships'
+import { recordDelivery } from './shellOutputDeliveries'
 import { reserveInvokeTurn } from './stream/lifecycle'
 
 /** Outcome delivered by a completed watcher window. */
@@ -32,6 +35,21 @@ export async function deliverShellReport(
   if (!session) return
 
   const { messageId } = await insertShellReport(ctx, row, { output, errorText })
+  const reportedOutput = errorText ? undefined : output
+  if (reportedOutput?.range && !row.userKilled) {
+    await recordDelivery(
+      ctx,
+      {
+        sessionId: row.sessionId,
+        agentId: row.agentId,
+        workspaceId: session.workspace?.workspaceId ?? sharedSessionId(session),
+        messageId,
+        version: 1,
+        partId: 'shell-report',
+      },
+      reportedOutput,
+    )
+  }
 
   // A live turn consumes the report at its end via the follow-up gate
   if (await getActiveStream(ctx, row.sessionId)) return
@@ -62,7 +80,9 @@ function resolveReport(
 
   return {
     status: reportStatus(output),
-    text: truncateReport(output.text) || '(no output)',
+    text:
+      (output.range ? formatOutputPage(output) : truncateReport(output.text)) ||
+      '(no output)',
     ...(output.exitCode != null && { exitCode: output.exitCode }),
   }
 }

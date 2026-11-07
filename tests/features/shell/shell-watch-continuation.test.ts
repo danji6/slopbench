@@ -128,6 +128,15 @@ describe('trackJob', () => {
     expect(released).toEqual(['shell-1'])
   })
 
+  test('defers releasing agent reads until their output has been saved', async () => {
+    const { context, released } = tracker()
+    for await (const _ of trackJob(yields(output()), context, {
+      ...ref,
+      deferRelease: true,
+    }));
+    expect(released).toEqual([])
+  })
+
   test('ignores a call that never got a job', async () => {
     const { context, watched, released } = tracker()
     const outputs = yields(output({ jobId: '', status: 'killed' }))

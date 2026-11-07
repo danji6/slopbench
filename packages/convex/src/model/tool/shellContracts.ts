@@ -1,3 +1,4 @@
+import type { ShellAnsiState, ShellOutputSpan } from '@sb/core/types/tools'
 import type { FolderWorkspace } from '@sb/core/types/workspace'
 
 import { type ShellStreamEvent } from '../sidecar'
@@ -29,6 +30,13 @@ export type ShellJobInput = {
 export type ShellOutputInput = {
   jobId: string
   wait_seconds?: number
+  offset?: number
+}
+
+export type ShellReadPosition = {
+  offset: number
+  ansiState: ShellAnsiState
+  covered: ShellOutputSpan[]
 }
 
 export type PostSidecar = <T>(path: string, body: unknown) => Promise<T>
@@ -51,6 +59,7 @@ export type ShellJobOptions = {
   openStream?: OpenStream
   pollIntervalMs?: number
   heartbeatMs?: number
+  readPosition?: ShellReadPosition
 }
 
 /** Picks up a job another watcher left running, continuing its scrollback. */

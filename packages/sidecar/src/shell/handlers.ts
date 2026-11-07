@@ -1,4 +1,8 @@
 import { shellLabel } from '@sb/core/shell/name'
+import {
+  SHELL_PAGE_CHARS,
+  SHELL_TERM_TAIL_CHARS,
+} from '@sb/core/shell/output-page'
 import type { Context, Handler } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { ZodError, z } from 'zod'
@@ -50,21 +54,40 @@ const startSchema = z.strictObject({
   allowInteractiveShells: z.boolean().optional(),
 })
 
-const pollSchema = z.object({ ...jobFields, offset: z.number().min(0) })
+const pollSchema = z.object({
+  ...jobFields,
+  offset: z.number().int().nonnegative(),
+  limit: z.number().int().nonnegative().max(SHELL_PAGE_CHARS).optional(),
+  tailChars: z
+    .number()
+    .int()
+    .nonnegative()
+    .max(SHELL_TERM_TAIL_CHARS)
+    .optional(),
+})
+
 const streamSchema = z.object({
   ...jobFields,
   offset: z.coerce.number().min(0).default(0),
   // Ends the SSE response once this many payload bytes have been sent
   maxBytes: z.coerce.number().min(0).optional(),
 })
-const stdinSchema = z.object({ ...jobFields, data: z.string() })
+
+const stdinSchema = z.object({
+  ...jobFields,
+  data: z.string(),
+})
+
 const killSchema = z.object(jobFields)
+
 const resizeSchema = z.object({
   ...jobFields,
   cols: z.number().int().min(20).max(500),
   rows: z.number().int().min(5).max(300),
 })
+
 const sessionSchema = z.object({ sessionId: z.string() })
+
 const killSessionSchema = z.object({
   sessionId: z.string(),
   owner: z.string().optional(),
@@ -136,7 +159,9 @@ export const startShell: Handler = async (c) => {
 export const pollShell: Handler = async (c) => {
   try {
     const input = pollSchema.parse(await c.req.json())
-    return c.json(pollShellJob(input.jobId, input.sessionId, input.offset))
+    return c.json(
+      pollShellJob(input.jobId, input.sessionId, input.offset, input),
+    )
   } catch (err: unknown) {
     return jobError(c, err)
   }

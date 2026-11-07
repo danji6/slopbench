@@ -1,4 +1,8 @@
 import { stripTerminalCodes } from '@sb/core/shell/ansi'
+import {
+  SHELL_TERM_TAIL_CHARS,
+  formatOutputPage,
+} from '@sb/core/shell/output-page'
 import type { Tool, ToolSet } from 'ai'
 
 import type {
@@ -10,7 +14,7 @@ import { type ShellJobResume } from './shellContracts'
 import { type WatchState } from './shellWatch'
 
 // Caps keep parts well under the Convex 1MB document limit
-export const TERM_TAIL_CHARS = 48_000
+export const TERM_TAIL_CHARS = SHELL_TERM_TAIL_CHARS
 
 export const TEXT_HEAD_CHARS = 10_000
 
@@ -29,7 +33,7 @@ export function shellToModelOutput({
   const value =
     output.status === 'running'
       ? `(command is still running, job ${output.jobId})`
-      : output.text
+      : formatOutputPage(output)
 
   return { type: 'text', value }
 }

@@ -154,6 +154,7 @@ describe('executeShellJob', () => {
     const final = outputs.at(-1)
     // Detaches at the background meta event; never reaches the 'done' event.
     expect(final?.status).toBe('background')
+    expect(final?.range).toBeUndefined()
     expect(final?.text).toContain('still running')
   })
 

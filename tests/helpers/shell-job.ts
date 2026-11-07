@@ -85,6 +85,15 @@ export function mockSidecar(frames: Frame[]) {
     calls.push({ path, body })
     if (path === '/shell/start') return { jobId: 'job-1', mode: 'pipe' } as T
     if (path === '/shell/kill') return { ok: true } as T
+    // Legacy response exercises compatibility in the existing stream tests.
+    if (path === '/shell/poll')
+      return {
+        chunk: '',
+        nextOffset: 0,
+        bufferStart: 0,
+        status: 'running',
+        exitCode: null,
+      } as T
     throw new Error(`Unexpected path ${path}`)
   }
 

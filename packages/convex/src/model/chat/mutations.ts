@@ -16,6 +16,7 @@ import {
 import { scheduleMessageEval } from '../messages'
 import { cancelByMessage } from '../scheduledEvents'
 import * as Memberships from '../session/memberships'
+import { removeDeliveriesForParts } from '../shellOutputDeliveries'
 import { collectToolOutputStorageIds } from '../stream/toolOutput'
 import { clearAnnouncedMode } from './notes'
 
@@ -113,6 +114,12 @@ export async function deleteMessageParts(
   }
 
   await deleteToolOutput(ctx, removed)
+
+  await removeDeliveriesForParts(ctx, {
+    messageId: message._id,
+    version: message.selectedVersion,
+    parts: removed,
+  })
 
   for (const { row, kept } of plans) {
     if (kept.length === row.parts.length) continue

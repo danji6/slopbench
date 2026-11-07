@@ -6,7 +6,9 @@ import { type ShellOutputInput } from './shellContracts'
 import { type PostSidecar } from './shellContracts'
 import { type ShellJobOptions } from './shellContracts'
 import { type ShellJobResume } from './shellContracts'
-import { watchJob } from './shellWatch'
+import { TermOutputAccumulator, lostOutput } from './shellOutput'
+import { readShellPage } from './shellPage'
+import { isJobNotFound, watchJob } from './shellWatch'
 
 export type { ShellJobContext } from './shellContracts'
 export type { ShellJobInput } from './shellContracts'
@@ -17,10 +19,6 @@ export type { ShellJobOptions } from './shellContracts'
 export type { ShellJobResume } from './shellContracts'
 export { shellToModelOutput } from './shellOutput'
 export { shellHistoryTools } from './shellOutput'
-
-const DEFAULT_OUTPUT_WAIT_S = 30
-
-const MAX_OUTPUT_WAIT_S = 600
 
 type StartResponse = { jobId: string; mode: string }
 
@@ -105,15 +103,12 @@ export async function* executeShellOutput(
   input: ShellOutputInput,
   options: ShellJobOptions = {},
 ): AsyncGenerator<ShellToolOutput> {
-  const waitSeconds = Math.min(
-    Math.max(input.wait_seconds ?? DEFAULT_OUTPUT_WAIT_S, 0),
-    MAX_OUTPUT_WAIT_S,
-  )
-  yield* watchJob(context, input.jobId, {
-    ...options,
-    post: options.post ?? postSidecar,
-    waitDeadline: Date.now() + waitSeconds * 1000,
-  })
+  try {
+    yield* readShellPage(context, input, options)
+  } catch (error) {
+    if (!isJobNotFound(error)) throw error
+    yield lostOutput(input.jobId, new TermOutputAccumulator())
+  }
 }
 
 export async function killShell(

@@ -38,10 +38,8 @@ const jobs = new Map<string, ShellJob>()
 
 let sweeper: ReturnType<typeof setInterval> | undefined
 
-let jobCounter = 0
-
 function nextJobId(): string {
-  return `shell-${++jobCounter}`
+  return `shell-${crypto.randomUUID()}`
 }
 
 function ensureSweeper() {
@@ -170,9 +168,15 @@ export function pollShellJob(
   jobId: string,
   sessionId: string,
   offset: number,
+  options: { limit?: number; tailChars?: number } = {},
 ): PollResult {
   const job = requireJob(jobId, sessionId)
-  const { text, start, end } = job.ring.read(offset)
+  const { text, start, end } = job.ring.read(offset, options.limit)
+  const bufferEnd = job.ring.endOffset
+  const tail =
+    options.tailChars === undefined
+      ? undefined
+      : job.ring.read(Math.max(0, bufferEnd - options.tailChars))
   return {
     chunk: text,
     nextOffset: end,
@@ -181,6 +185,8 @@ export function pollShellJob(
     exitCode: job.exitCode,
     background: job.background,
     waiting: job.waiting,
+    bufferEnd,
+    ...(tail && { term: tail.text, termOffset: tail.start }),
   }
 }
 

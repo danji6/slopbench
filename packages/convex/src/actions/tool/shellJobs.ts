@@ -6,11 +6,50 @@ import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { sanitizeChatError } from '../../errors'
-import type { ShellJobOptions } from '../../model/tool/shell'
+import type { ShellJobContext, ShellJobOptions } from '../../model/tool/shell'
 
 export type WatchShellJobArgs = {
   shellJobId: Id<'shellJobs'>
   generation: number
+}
+
+type CompletionRead = {
+  ctx: ActionCtx
+  args: WatchShellJobArgs
+  job: ShellJobContext
+  jobId: string
+  options: ShellJobOptions
+}
+
+/** Fetches only the recipient's unread completion page while the watch is owned. */
+async function completionPage({
+  ctx,
+  args,
+  job,
+  jobId,
+  options,
+}: CompletionRead) {
+  const readPosition = await ctx.runQuery(
+    internal.shellOutputDeliveries._reportPosition,
+    args,
+  )
+  if (!readPosition) return
+  const { executeShellOutput } = await import('../../model/tool/shell')
+
+  let output: ShellToolOutput | undefined
+  for await (const next of executeShellOutput(
+    job,
+    { jobId, wait_seconds: 0 },
+    {
+      ...options,
+      windowDeadline: undefined,
+      readPosition,
+    },
+  )) {
+    output = next
+  }
+
+  return output
 }
 
 /**
@@ -41,6 +80,16 @@ export async function _watch(
       ...options,
     })
     for await (const next of outputs) output = next
+    if (output && output.status !== 'running') {
+      output = await completionPage({
+        ctx,
+        args,
+        job,
+        jobId: resume.jobId,
+        options,
+      })
+      if (!output) return
+    }
   } catch (err) {
     errorText = sanitizeChatError(err)
   }

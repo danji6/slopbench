@@ -72,6 +72,41 @@ describe('job stream', () => {
 })
 
 describe('GET /shell/stream route', () => {
+  test('poll snapshots bound output independently of status and terminal tail', async () => {
+    const shellRoutes = await getShellRoutes()
+    const { jobId } = await start('printf abcdefghij')
+    await waitForExit(jobId)
+    expect(jobId).toMatch(/^shell-[0-9a-f-]{36}$/)
+    const request = (offset: number, limit: number) =>
+      shellRoutes.request('/shell/poll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: session.sessionId,
+          jobId,
+          offset,
+          limit,
+          tailChars: 4,
+        }),
+      })
+    const first = await (await request(0, 4)).json()
+    expect(first).toMatchObject({
+      chunk: 'abcd',
+      nextOffset: 4,
+      bufferEnd: 10,
+      status: 'done',
+      term: 'ghij',
+      termOffset: 6,
+    })
+    const end = await (await request(4, 0)).json()
+    expect(end).toMatchObject({
+      chunk: '',
+      nextOffset: 4,
+      bufferEnd: 10,
+      status: 'done',
+    })
+  })
+
   test('streams SSE chunk and end events for a job', async () => {
     const shellRoutes = await getShellRoutes()
     const { jobId } = await start('echo route-hello')

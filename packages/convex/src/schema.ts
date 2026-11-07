@@ -231,4 +231,9 @@ export default defineSchema({
     .index('by_sessionId', ['sessionId'])
     .index('by_sessionId_jobId', ['sessionId', 'jobId'])
     .index('by_heartbeatAt', ['heartbeatAt']),
+
+  shellOutputDeliveries: defineTable(V.shellOutputDeliverySchema)
+    .index('by_sessionId', ['sessionId'])
+    .index('by_reader_job', ['sessionId', 'agentId', 'workspaceId', 'jobId'])
+    .index('by_source', ['messageId', 'version', 'partId']),
 }, { schemaValidation })

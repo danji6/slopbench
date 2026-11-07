@@ -38,6 +38,29 @@ export const terminalPollArgsValidator = v.object({
   offset: v.number(),
 })
 
+export const shellOutputSpanValidator = v.object({
+  start: v.number(),
+  end: v.number(),
+})
+
+export const shellOutputRangeValidator = v.object({
+  requestedOffset: v.number(),
+  startOffset: v.number(),
+  nextOffset: v.number(),
+  bufferEnd: v.number(),
+  hasMore: v.boolean(),
+  replay: v.boolean(),
+  unavailable: v.array(shellOutputSpanValidator),
+  ansiState: v.union(
+    v.literal('text'),
+    v.literal('escape'),
+    v.literal('charset'),
+    v.literal('csi'),
+    v.literal('osc'),
+    v.literal('oscEscape'),
+  ),
+})
+
 /** Mirrors `ShellToolOutput` from `@sb/core/types/tools`. */
 export const shellToolOutputValidator = v.object({
   jobId: v.string(),
@@ -47,6 +70,25 @@ export const shellToolOutputValidator = v.object({
   term: v.string(),
   termOffset: v.number(),
   waiting: v.optional(v.boolean()),
+  range: v.optional(shellOutputRangeValidator),
+})
+
+export const shellDeliveryPositionArgsValidator = v.object({
+  streamId: v.id('streams'),
+  generation: v.number(),
+  jobId: v.string(),
+  offset: v.optional(v.number()),
+})
+
+export const shellOutputDeliverySchema = v.object({
+  sessionId: v.id('sessions'),
+  agentId: v.id('agents'),
+  workspaceId: v.string(),
+  jobId: v.string(),
+  messageId: v.id('messages'),
+  version: v.number(),
+  partId: v.string(),
+  range: shellOutputRangeValidator,
 })
 
 export const userShellPatchArgsValidator = v.object({

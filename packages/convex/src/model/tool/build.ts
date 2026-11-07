@@ -6,6 +6,7 @@ import type { ToolSet } from 'ai'
 import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
+import { error } from '../../errors'
 import { TASK_TOOL_NAME, sharedSessionId } from '../../lib/subagent'
 import { mergeToolApprovals } from '../../lib/tool/approval'
 import type { Session, StreamExecutionArgs } from '../../types'
@@ -100,6 +101,21 @@ export async function getEnabledTools(
           // Plan mode can be entered or approved mid-turn
           isPlanMode: ctx ? () => isPlanMode(ctx, sessionId) : undefined,
           ...jobWatch(session, options),
+          readShellPosition:
+            ctx && options?.execution
+              ? async (jobId, offset) => {
+                  const position = await ctx.runQuery(
+                    internal.shellOutputDeliveries._position,
+                    {
+                      ...options.execution!,
+                      jobId,
+                      offset,
+                    },
+                  )
+                  if (!position) error('Shell output execution changed', 409)
+                  return position
+                }
+              : undefined,
         }
       : undefined
 

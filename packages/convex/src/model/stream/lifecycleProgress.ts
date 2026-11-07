@@ -27,6 +27,10 @@ import {
   scheduleMessageEval,
 } from '../messages'
 import { advanceStepCount } from '../session/state'
+import {
+  newShellReadResults,
+  recordToolDeliveries,
+} from '../shellOutputDeliveries'
 import { ownsExecution } from './execution'
 import { STREAM_LEASE_MS, renewStreamLease } from './lease'
 
@@ -40,13 +44,10 @@ export async function _patchMessage(
   const row = await getProcessingSegmentRow(ctx, stream)
   if (!row) return false
 
-  await patchSegmentParts(
-    ctx,
-    stream.state.processingMessageId,
-    row,
-    await mergeOperationParts(ctx, row._id, parts),
-  )
-
+  const merged = await mergeOperationParts(ctx, row._id, parts)
+  const reads = newShellReadResults(row.parts, merged)
+  await patchSegmentParts(ctx, stream.state.processingMessageId, row, merged)
+  await recordToolDeliveries(ctx, stream, row, reads)
   await renewStreamLease(ctx, stream)
 
   return true

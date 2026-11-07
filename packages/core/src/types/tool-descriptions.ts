@@ -50,8 +50,12 @@ export function shellToolDescription(
 }
 
 const shell_output = inline`
-  Read output from a shell job started with run_in_background. Waits up to
-  wait_seconds (default 30) for the job to finish.`
+  Omit offset to automatically read the next unread page of shell output.
+  If more output is available, call again without offset, even after the job
+  exits. Waits up to wait_seconds (default 30, maximum 600), returning early
+  when a page fills. Use offset only for deliberate replay. Set it to 0 to
+  replay from the oldest retained output, then use the returned next offset
+  to continue replay. Replay leaves the automatic read position unchanged.`
 
 const kill_shell = 'Kill a running shell job.'
 
