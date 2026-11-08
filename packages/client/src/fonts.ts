@@ -150,6 +150,9 @@ export function getFontFamily(font: string): string {
   if (WEB_SAFE[font]) return WEB_SAFE[font]
   if (WEB_SAFE_MONO[font]) return WEB_SAFE_MONO[font]
   if (discovered.has(font)) return `${JSON.stringify(font)}, sans-serif`
+  if (font === 'Inter' || font === 'Source Serif 4') {
+    return `${JSON.stringify(font)}, Roboto, ${SYSTEM_FONT}`
+  }
   return font
 }
 

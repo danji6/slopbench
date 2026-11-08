@@ -132,14 +132,17 @@ test('uses a blurred video placeholder until the first frame loads', async ({
   await thumbnail.click()
 
   const preview = viewer(page).locator('[data-slot="lightbox-video-preview"]')
+  const loading = viewer(page).getByRole('progressbar', { name: 'Loading' })
   const video = viewer(page).locator('video')
   try {
     await expect(video).toHaveAttribute('src', '/delayed-clip.webm')
+    await expect(loading).toBeVisible()
     await expect(preview).toHaveCSS('filter', /blur\(/)
     await expect(preview).toHaveCSS('opacity', '1')
   } finally {
     releaseVideo()
   }
+  await expect(loading).toBeHidden()
   await expect(preview).toHaveCSS('opacity', '0')
   await expect(video).toHaveCSS('filter', 'none')
 })

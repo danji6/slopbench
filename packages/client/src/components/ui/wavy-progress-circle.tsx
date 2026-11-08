@@ -62,6 +62,8 @@ function arcPath(
 type WavyProgressCircleProps = {
   /** Progress from 0 to 1. Omit to play fake loading. */
   value?: number
+  /** Rotate a partial arc until the loading indicator unmounts. */
+  indeterminate?: boolean
   size?: number
   strokeWidth?: number
   /** Peak wave amplitude in px. */
@@ -77,6 +79,7 @@ type WavyProgressCircleProps = {
 
 function WavyProgressCircle({
   value,
+  indeterminate = false,
   size = 40,
   strokeWidth = 4,
   amplitude = 2,
@@ -95,16 +98,20 @@ function WavyProgressCircle({
   const center = size / 2
   const radius = (size - strokeWidth) / 2 - amplitude
   const gapAngle = (strokeWidth * 2) / radius
+  const fakeLoading = !indeterminate && value === undefined
 
   useAnimationFrame((time) => {
-    if (settledRef.current && value === undefined) return
+    if (settledRef.current && fakeLoading) return
 
     startTimeRef.current ??= time
     const elapsed = (time - startTimeRef.current) / 1000
 
     let fakeElapsed = 0
     let progress: number
-    if (value !== undefined) {
+    if (indeterminate) {
+      fakeStartRef.current = null
+      progress = 0.25
+    } else if (value !== undefined) {
       // Replay from the start if control is handed back
       fakeStartRef.current = null
       progress = clamp01(value)
@@ -116,14 +123,17 @@ function WavyProgressCircle({
 
     const amp = amplitude * waveEnvelope(progress)
     const phase = -elapsed * speed
-    const fillEnd = START_ANGLE + Math.max(progress * TWO_PI, 0.02)
+    const fillStart = indeterminate
+      ? START_ANGLE + elapsed * Math.PI
+      : START_ANGLE
+    const fillEnd = fillStart + Math.max(progress * TWO_PI, 0.02)
     fillRef.current?.setAttribute(
       'd',
-      arcPath(center, radius, amp, waves, phase, START_ANGLE, fillEnd),
+      arcPath(center, radius, amp, waves, phase, fillStart, fillEnd),
     )
 
     const trackFrom = fillEnd + gapAngle
-    const trackTo = START_ANGLE + TWO_PI - gapAngle
+    const trackTo = fillStart + TWO_PI - gapAngle
     trackRef.current?.setAttribute(
       'd',
       trackTo - trackFrom > 0.05
@@ -131,7 +141,7 @@ function WavyProgressCircle({
         : '',
     )
 
-    settledRef.current = value === undefined && fakeElapsed >= FAKE_DURATION
+    settledRef.current = fakeLoading && fakeElapsed >= FAKE_DURATION
   })
 
   return (
@@ -140,10 +150,13 @@ function WavyProgressCircle({
       width={size}
       height={size}
       role="progressbar"
+      aria-label={indeterminate ? 'Loading' : undefined}
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={
-        value !== undefined ? Math.round(clamp01(value) * 100) : undefined
+        !indeterminate && value !== undefined
+          ? Math.round(clamp01(value) * 100)
+          : undefined
       }
       className={className}
       initial={{ opacity: 0, scale: 0.65 }}

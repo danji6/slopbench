@@ -19,17 +19,6 @@ export async function sleep(ms: number): Promise<void> {
   return await new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-export function shuffle<T>(array: readonly T[]): T[] {
-  const result = [...array]
-
-  for (let index = result.length - 1; index > 0; index--) {
-    const randomIndex = Math.floor(Math.random() * (index + 1))
-    ;[result[index], result[randomIndex]] = [result[randomIndex], result[index]]
-  }
-
-  return result
-}
-
 export function debounce<TArgs extends unknown[]>(
   fn: (...args: TArgs) => void,
   wait: number,

@@ -1,10 +1,31 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { readFile } from 'node:fs/promises'
 import path from 'path'
-import { defineConfig } from 'vite'
+import { glob } from 'tinyglobby'
+import { type Plugin, defineConfig } from 'vite'
 
 // `__dirname` is unavailable under Vite's native config loader
 const root = import.meta.dirname
+
+function fontLicenses(): Plugin {
+  return {
+    name: 'font-licenses',
+    apply: 'build',
+    async generateBundle() {
+      const cwd = path.resolve(root, 'src/assets/fonts')
+      const licenses = await glob('**/LICENSE.txt', { cwd })
+
+      for (const license of licenses) {
+        this.emitFile({
+          type: 'asset',
+          fileName: `assets/fonts/${license}`,
+          source: await readFile(path.join(cwd, license)),
+        })
+      }
+    },
+  }
+}
 
 function allowedHosts(): string[] {
   const values = [
@@ -32,7 +53,7 @@ export default defineConfig({
   },
   // Prevents cold starts / page reloads when the first xterm is mounted
   optimizeDeps: { include: ['@xterm/xterm', '@xterm/addon-fit'] },
-  plugins: [tailwindcss(), react()],
+  plugins: [tailwindcss(), react(), fontLicenses()],
   preview: { allowedHosts: allowedHosts() },
   server: { allowedHosts: allowedHosts() },
   resolve: {

@@ -144,3 +144,12 @@ bun typecheck
 bun lint
 bun run build
 ```
+
+## Credits
+
+This project uses some licensed assets:
+
+- [**Roboto**](https://github.com/googlefonts/roboto-3-classic) as the default UI font · [SIL Open Font License 1.1](packages/client/src/assets/fonts/Roboto/LICENSE.txt)
+- [**Maple Mono**](https://github.com/subframe7536/maple-font) as the default mono font · [SIL Open Font License 1.1](packages/client/src/assets/fonts/Maple%20Mono/LICENSE.txt)
+- [**KaTeX fonts**](https://github.com/KaTeX/KaTeX) used to render math · [SIL Open Font License 1.1](https://openfontlicense.org/open-font-license-official-text/)
+- **Lucide** icons · [License notices](https://lucide.dev/license)
