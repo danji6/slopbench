@@ -119,8 +119,16 @@ export const _getApprovals = internalQuery({
 })
 
 export const _getTitleContext = internalQuery({
-  args: { sessionId: v.id('sessions') },
+  args: {
+    sessionId: v.id('sessions'),
+    assistantText: v.optional(v.string()),
+  },
   handler: SessionTitles._getTitleContext,
+})
+
+export const _getRegenerateTitleContext = internalQuery({
+  args: { sessionId: v.id('sessions'), subject: v.string() },
+  handler: SessionTitles._getRegenerateTitleContext,
 })
 
 export const _patchTitle = internalMutation({

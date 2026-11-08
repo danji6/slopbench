@@ -123,6 +123,7 @@ export const saveStreamMetaArgsValidator = v.object({
   warnings: v.array(v.string()),
   usage: tokenUsageValidator,
   providerRequestId: v.optional(v.string()),
+  titleText: v.optional(v.string()),
 })
 
 export const scheduleStreamRetryArgsValidator = v.object({

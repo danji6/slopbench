@@ -11,6 +11,7 @@ import { internal } from '../../_generated/api'
 import type { ActionCtx } from '../../_generated/server'
 import { minRole } from '../../lib/roles'
 import { sharedSessionId } from '../../lib/subagent'
+import { hasSavedTitle } from '../../model/messages'
 import { applyPromptCaching } from '../../model/provider/cache'
 import { getProviderOptions } from '../../model/provider/options'
 import { findCredentialsForModel } from '../../model/provider/providers'
@@ -250,6 +251,8 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
     workspace: data.session.workspace,
     workspaceSessionId: sharedSessionId(data.session),
     isSubagent: !!data.session.parent,
+    needsTitle:
+      data.stream.command.kind === 'invoke' && !hasSavedTitle(data.session),
     evalResult,
     systemPrompt: request.systemPrompt,
     messages: request.messages,

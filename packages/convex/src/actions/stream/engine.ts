@@ -55,6 +55,7 @@ export async function _stream(ctx: ActionCtx, execution: StreamExecutionArgs) {
 
       const {
         shouldContinue,
+        titleText,
         hasOutput,
         usage,
         awaitingApproval,
@@ -79,6 +80,7 @@ export async function _stream(ctx: ActionCtx, execution: StreamExecutionArgs) {
         warnings: hasOutput.warnings,
         usage,
         providerRequestId: setup.cacheDiagnostics?.requestId(),
+        titleText,
       })
 
       const pendingMcp = await ctx.runQuery(

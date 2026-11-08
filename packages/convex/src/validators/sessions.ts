@@ -83,6 +83,7 @@ export const importSessionArgsValidator = v.object({
 export const sessionSchema = v.object({
   ownerId: v.id('users'),
   title: v.optional(v.string()),
+  titleGenerationJobId: v.optional(v.id('_scheduled_functions')),
   activeAgentId: v.optional(v.id('agents')),
   mode: v.optional(sessionModeValidator),
   /** Mode the transcript states. */

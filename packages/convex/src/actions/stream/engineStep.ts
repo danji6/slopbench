@@ -1,5 +1,6 @@
 'use node'
 
+import { truncateTitleExcerpt } from '@sb/core/title-generation'
 import { hasPendingQuestions } from '@sb/core/utils/ask'
 import type { UIMessage } from 'ai'
 
@@ -260,8 +261,13 @@ export async function consumeProviderStep(
       lastStep?.response,
     )
 
+    const needsTitle = setup.needsTitle && finishReason !== 'error'
+    const titleText =
+      needsTitle && lastStep ? truncateTitleExcerpt(lastStep.text.trim()) : ''
+
     return {
       shouldContinue: finishReason === 'tool-calls',
+      titleText: titleText || undefined,
       awaitingApproval,
       awaitingQuestions,
       awaitingTasks,

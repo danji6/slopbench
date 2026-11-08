@@ -52,12 +52,19 @@ export function listSegments(
   messageId: Id<'messages'>,
   version: number,
 ) {
+  return queryMessageSegments(ctx, messageId, version).collect()
+}
+
+export function queryMessageSegments(
+  ctx: QueryCtx,
+  messageId: Id<'messages'>,
+  version: number,
+) {
   return ctx.db
     .query('messageContents')
     .withIndex('by_messageId_version_segment', (q) =>
       q.eq('messageId', messageId).eq('version', version),
     )
-    .collect()
 }
 
 export function listSelectedSegments(ctx: QueryCtx, message: Doc<'messages'>) {

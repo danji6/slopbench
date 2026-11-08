@@ -10,6 +10,7 @@ import type {
 import type { SaveStreamMetaArgs } from '../../types'
 import type { TokenUsage } from '../../types'
 import { getProcessingSegmentRow, saveSegmentMeta } from '../messageContents'
+import { scheduleTitle } from '../messages'
 import { _save } from '../session/cache'
 import { _patchSessionLog } from '../session/sessionWorkspace'
 import { getState, patchState } from '../session/state'
@@ -25,6 +26,7 @@ export async function _saveMeta(
     warnings,
     usage,
     providerRequestId,
+    titleText,
   }: SaveStreamMetaArgs,
 ) {
   const stream = await ctx.db.get(streamId)
@@ -44,6 +46,10 @@ export async function _saveMeta(
   }
 
   await accumulateSessionUsage(ctx, stream.sessionId, usage, providerRequestId)
+
+  if (row && stream.command.kind === 'invoke' && titleText?.trim()) {
+    await scheduleTitle(ctx, stream.sessionId, titleText)
+  }
 }
 
 export type MetaDelta = {

@@ -18,13 +18,31 @@ const PREVIEW_LENGTH = 140
 export async function scheduleTitle(
   ctx: MutationCtx,
   sessionId: Id<'sessions'>,
+  assistantText?: string,
 ) {
   const session = await ctx.db.get(sessionId)
-  if (!session || session.title) return
+  if (!session || hasSavedTitle(session)) return
 
-  await ctx.scheduler.runAfter(0, internal.actions.sessions._generateTitle, {
-    sessionId,
-  })
+  if (session.titleGenerationJobId) {
+    const job = await ctx.db.system.get(
+      '_scheduled_functions',
+      session.titleGenerationJobId,
+    )
+    if (job?.state.kind === 'pending' || job?.state.kind === 'inProgress')
+      return
+  }
+
+  const titleGenerationJobId = await ctx.scheduler.runAfter(
+    0,
+    internal.actions.sessions._generateTitle,
+    { sessionId, ...(assistantText === undefined ? {} : { assistantText }) },
+  )
+  await ctx.db.patch(sessionId, { titleGenerationJobId })
+}
+
+/** An explicit title save, including an empty title, takes precedence. */
+export function hasSavedTitle(session: Pick<Doc<'sessions'>, 'title'>) {
+  return session.title !== undefined
 }
 
 /** Denormalizes the latest activity onto the session and its membership rows. */
@@ -59,16 +77,19 @@ export async function syncActivity(
 
 export function textFromParts(parts: unknown[]) {
   return parts
-    .filter(
-      (part): part is { type: 'text'; text: string } =>
-        typeof part === 'object' &&
-        part !== null &&
-        'type' in part &&
-        part.type === 'text' &&
-        'text' in part,
-    )
+    .filter(isTextPart)
     .map((part) => part.text)
     .join(' ')
+}
+
+export function isTextPart(
+  part: unknown,
+): part is { type: 'text'; text: string } {
+  return (
+    isMessagePartRecord(part) &&
+    part.type === 'text' &&
+    typeof part.text === 'string'
+  )
 }
 
 const SEARCH_TEXT_LIMIT = 10_000

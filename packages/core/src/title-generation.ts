@@ -1,3 +1,10 @@
+export const TITLE_EXCERPT_LENGTH = 500
+
+/** Truncate an excerpt without splitting a surrogate pair. */
+export function truncateTitleExcerpt(text: string) {
+  return text.slice(0, TITLE_EXCERPT_LENGTH).replace(/[\uD800-\uDBFF]$/, '')
+}
+
 /** Default system instructions for generating session titles. */
 export const DEFAULT_TITLE_SYSTEM_PROMPT = [
   'Your task is to generate a concise title for a chat conversation.',

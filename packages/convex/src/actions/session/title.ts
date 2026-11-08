@@ -3,6 +3,8 @@
 import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
+import { getSubject } from '../../functions'
+import type { _getTitleContext } from '../../model/session/title'
 import { fallbackTitle, sanitizeTitle } from '../../model/session/title'
 
 /** Regenerates a title without persisting it. */
@@ -10,15 +12,24 @@ export async function regenerateTitle(
   ctx: ActionCtx,
   args: { sessionId: Id<'sessions'> },
 ): Promise<string | undefined> {
-  return composeTitle(ctx, args)
+  const subject = await getSubject(ctx)
+  const resolved = await ctx.runQuery(
+    internal.sessions._getRegenerateTitleContext,
+    {
+      sessionId: args.sessionId,
+      subject,
+    },
+  )
+  return composeTitle(resolved, args.sessionId)
 }
 
 /** Generates and persists a title for the given session. */
 export async function generateTitle(
   ctx: ActionCtx,
-  args: { sessionId: Id<'sessions'> },
+  args: { sessionId: Id<'sessions'>; assistantText?: string },
 ): Promise<string | undefined> {
-  const title = await composeTitle(ctx, args)
+  const resolved = await ctx.runQuery(internal.sessions._getTitleContext, args)
+  const title = await composeTitle(resolved, args.sessionId)
   if (title) {
     await ctx.runMutation(internal.sessions._patchTitle, {
       sessionId: args.sessionId,
@@ -29,18 +40,10 @@ export async function generateTitle(
 }
 
 async function composeTitle(
-  ctx: ActionCtx,
-  { sessionId }: { sessionId: Id<'sessions'> },
+  resolved: Awaited<ReturnType<typeof _getTitleContext>>,
+  sessionId: Id<'sessions'>,
 ): Promise<string | undefined> {
-  const resolved = await ctx.runQuery(internal.sessions._getTitleContext, {
-    sessionId,
-  })
-  if (!resolved?.exchange) {
-    console.warn(
-      `composeTitle: no message exchange found for session ${sessionId}, skipping`,
-    )
-    return
-  }
+  if (!resolved?.exchange) return
 
   const fallback = fallbackTitle(resolved.exchange)
 

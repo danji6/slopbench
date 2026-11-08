@@ -38,6 +38,9 @@ export const importOne = action({
 })
 
 export const _generateTitle = internalAction({
-  args: { sessionId: v.id('sessions') },
+  args: {
+    sessionId: v.id('sessions'),
+    assistantText: v.optional(v.string()),
+  },
   handler: SessionTitles.generateTitle,
 })
