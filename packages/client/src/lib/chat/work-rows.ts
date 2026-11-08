@@ -5,7 +5,7 @@ import { type MessageRow, segmentGroupsFor } from './rows'
 import { findShellJob } from './shell-jobs-store'
 import { parseOutputValue } from './tool-output'
 import type { MessageRecord } from './types'
-import { toolsInGroup } from './work-layout'
+import { type ReasoningAddress, toolsInGroup } from './work-layout'
 import type { WorkTransition } from './work-state'
 
 type ProjectionOptions = {
@@ -16,13 +16,28 @@ type ProjectionOptions = {
   getMetadata: (id: string) => MessageRecord | undefined
 }
 
-/** Keeps work children virtualized and promotes only terminals awaiting input. */
+/** Folds work children and lets the sender header represent a lone thought. */
 export function projectWorkRows(
   rows: MessageRow[],
   options: ProjectionOptions,
 ): MessageRow[] {
-  return rows.flatMap((row) => {
+  const headerThinking = new Map(
+    rows.flatMap((row) =>
+      row.kind === 'header' && row.reasoning
+        ? [[row.reasoning.messageId, row.reasoning] as const]
+        : [],
+    ),
+  )
+  return rows.flatMap<MessageRow>((entry, index) => {
+    const reasoning = headerThinking.get(entry.messageId)
+    if (isHeaderOnlyThought(entry, reasoning)) return []
+
+    const previous = rows[index - 1]
+    const continuesSenderGroup =
+      previous?.grouped && isHeaderOnlyThought(previous, reasoning)
+    const row = continuesSenderGroup ? { ...entry, grouped: true } : entry
     if (row.kind !== 'group' || !row.workId) return [row]
+
     const transition = options.transitions?.get(row.workId)
     if (options.open.has(row.workId)) return [row]
     const promotedToolCallIds = waitingTools(row, options)
@@ -32,6 +47,19 @@ export function projectWorkRows(
       ? [row]
       : []
   })
+}
+
+function isHeaderOnlyThought(
+  row: MessageRow,
+  reasoning: ReasoningAddress | undefined,
+): boolean {
+  return (
+    row.kind === 'group' &&
+    !row.workId &&
+    reasoning?.messageId === row.messageId &&
+    reasoning.segmentIndex === row.segmentIndex &&
+    reasoning.groupIndex === row.groupIndex
+  )
 }
 
 function waitingTools(

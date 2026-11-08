@@ -194,6 +194,11 @@ export function buildRows(
     const slices = segmentGroupsFor(message, meta)
     const reasoning = !meta?.type ? latestReasoning(id, slices) : undefined
     const layout = buildWorkLayout(message, meta, slices, resolveWorkId)
+    const summarizedWork = new Map(
+      layout.work
+        .filter((work) => work.groups.length > 1 || work.toolCallIds.length > 0)
+        .map((work) => [work.id, work]),
+    )
     if (!grouped) senderHeader = undefined
     if (grouped && senderHeader && reasoning) senderHeader.reasoning = reasoning
 
@@ -215,8 +220,8 @@ export function buildRows(
 
     const emitted = new Set<string>()
     for (const entry of layout.groups) {
-      if (entry.workId && !emitted.has(entry.workId)) {
-        const work = layout.work.find((work) => work.id === entry.workId)!
+      const work = entry.workId ? summarizedWork.get(entry.workId) : undefined
+      if (work && !emitted.has(work.id)) {
         rows.push({
           kind: 'work',
           key: firstKey(`w:${work.id}`),
@@ -236,7 +241,7 @@ export function buildRows(
         segmentIndex: entry.segmentIndex,
         groupIndex: entry.groupIndex,
         ...(meta?.type === 'summary' && { summary: true }),
-        ...(entry.workId && { workId: entry.workId }),
+        ...(work && { workId: work.id }),
         ...(first && grouped && { grouped }),
       })
       first = false

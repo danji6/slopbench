@@ -140,12 +140,16 @@ function thinkingWorkMessages() {
               state: 'done',
               duration: 10_000,
             },
-            {
-              type: 'reasoning',
-              text: 'Second thinking block.',
-              state: 'done',
-              duration: 62_000,
-            },
+            ...(params.get('thinkingWork') === 'single'
+              ? []
+              : [
+                  {
+                    type: 'reasoning',
+                    text: 'Second thinking block.',
+                    state: 'done',
+                    duration: 62_000,
+                  },
+                ]),
             ...(params.has('mixedThinking')
               ? message('work', 0).segments[0].parts
               : []),

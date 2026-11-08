@@ -51,6 +51,20 @@ export type SeekTargetOptions = {
 /** Row index and element to measure for alignment. */
 type AlignTarget = { index: number; selector: string }
 
+function isReasoningHeaderForMessage(row: MessageRow, id: string): boolean {
+  return row.kind === 'header' && row.reasoning?.messageId === id
+}
+
+function findVisibleMessageRowIndex(rows: MessageRow[], id: string): number {
+  const index = rows.findIndex(
+    (row) => row.messageId === id && row.kind !== 'note-group',
+  )
+  if (index >= 0 && rows[index].kind !== 'footer') return index
+
+  const header = rows.findIndex((row) => isReasoningHeaderForMessage(row, id))
+  return header >= 0 ? header : index
+}
+
 /** Resolves the row to align to, preferring the exact saved row over the message. */
 function resolveAlignTarget(
   rows: MessageRow[],
@@ -75,9 +89,7 @@ function resolveAlignTarget(
       }
     }
   }
-  const messageIndex = rows.findIndex(
-    (row) => row.messageId === id && row.kind !== 'note-group',
-  )
+  const messageIndex = findVisibleMessageRowIndex(rows, id)
   if (messageIndex < 0) return null
   return {
     index: messageIndex,
@@ -185,7 +197,7 @@ export function useSeek(
       const operation = coordinator.begin('navigate')
       if (!operation) return
       holdPosition()
-      const index = rows.findIndex((row) => row.messageId === id)
+      const index = findVisibleMessageRowIndex(rows, id)
       if (index < 0) {
         operation.finish()
         return
@@ -322,7 +334,9 @@ export function useSeek(
         ? resolveToolRow(target.id, target.toolCallId)
         : undefined
       const hasVisibleBody = rows.some(
-        (row) => row.messageId === target.id && row.kind !== 'footer',
+        (row) =>
+          (row.messageId === target.id && row.kind !== 'footer') ||
+          isReasoningHeaderForMessage(row, target.id),
       )
       const hiddenMessageRow = hasVisibleBody
         ? undefined

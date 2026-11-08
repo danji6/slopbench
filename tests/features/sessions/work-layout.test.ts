@@ -4,6 +4,7 @@ import {
   rowKeysEqual,
   segmentGroupsFor,
 } from '@/lib/chat/rows'
+import { findScrollContentRow } from '@/lib/chat/scroll-address'
 import type { MessageRecord } from '@/lib/chat/types'
 import { buildWorkLayout, createWorkIdentity } from '@/lib/chat/work-layout'
 import { projectWorkRows } from '@/lib/chat/work-rows'
@@ -114,34 +115,22 @@ describe('work stretches', () => {
     expect(project(msg).map((row) => row.kind)).toEqual(['header', 'group'])
   })
 
-  test('thinking-only stretches keep expandable work and their original addresses', () => {
+  test('a lone thought stays inline when a later thought takes the header', () => {
     const msg = message([thinking('old'), text(), thinking('latest')])
-    expect(layout(msg).work).toHaveLength(2)
-    expect(project(msg).map((row) => row.kind)).toEqual([
+    const projected = project(msg)
+    expect(projected.map((row) => row.kind)).toEqual([
       'header',
-      'work',
       'group',
-      'work',
+      'group',
     ])
-    const open = new Set(layout(msg).work.map((work) => work.id))
     expect(
-      project(msg, open)
+      projected
         .filter((row) => row.kind === 'group')
         .map((row) => row.groupIndex),
-    ).toEqual([0, 1, 2])
-    expect(rows(msg)[0]).toMatchObject({
+    ).toEqual([0, 1])
+    expect(projected[0]).toMatchObject({
       reasoning: { messageId: 'm', segmentIndex: 0, groupIndex: 2 },
     })
-    const mixed = message([
-      thinking('isolated'),
-      text(),
-      thinking('kept'),
-      tool('shell', 's'),
-    ])
-    expect(layout(mixed).work.map((work) => work.groups.length)).toEqual([1, 2])
-    expect(layout(mixed).groups.map((group) => group.groupIndex)).toEqual([
-      0, 1, 2, 3,
-    ])
   })
 
   test('tools need no preceding text and streaming empty thinking still updates the header', () => {
@@ -417,7 +406,7 @@ describe('work visibility and identity', () => {
   test('shared sender header follows the latest source, without changing its key', () => {
     const msgs = [
       message([thinking('first')], 'a'),
-      message([thinking('second')], 'b'),
+      message([thinking('second'), text('Reply')], 'b'),
     ]
     const record = { sender: { type: 'agent', id: 'agent' } } as MessageRecord
     const grouped = buildRows(
@@ -432,6 +421,20 @@ describe('work visibility and identity', () => {
       messageId: 'a',
       reasoning: { messageId: 'b', segmentIndex: 0, groupIndex: 0 },
     })
+    const projected = projectWorkRows(grouped, {
+      open: new Set(),
+      jobs: [],
+      getMessage: (id) => msgs.find((msg) => msg.id === id) ?? null,
+      getMetadata: () => record,
+    })
+    expect(projected).toMatchObject([
+      { kind: 'header', messageId: 'a' },
+      { kind: 'group', messageId: 'a', groupIndex: 0 },
+      { kind: 'group', messageId: 'b', groupIndex: 1, grouped: true },
+    ])
+    const address = { kind: 'group', segmentIndex: 0, groupIndex: 0 } as const
+    expect(findScrollContentRow(grouped, 'b', address)?.kind).toBe('group')
+    expect(findScrollContentRow(projected, 'b', address)).toBe(projected[0])
     const changed = message([thinking('first'), text(), thinking('last')])
     expect(rows(changed)[0].key).toBe(
       rows(message([thinking('first'), text()]))[0].key,

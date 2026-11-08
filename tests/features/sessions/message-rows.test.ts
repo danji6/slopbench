@@ -251,14 +251,16 @@ describe('segment rows', () => {
       () => message([reasoning, part('answer')]),
       () => named(true),
     )
-    // The header keeps the latest thought while partial work remains expandable.
+    // Keep the source address without creating a summary for the lone thought.
     expect(partial[0]).toMatchObject({
       kind: 'header',
       key: 'h:message-1',
       reasoning: { messageId: 'message-1', segmentIndex: 1, groupIndex: 0 },
     })
-    expect(partial[1]).toMatchObject({ kind: 'work', work: { partial: true } })
-    expect(partial[2]).toMatchObject({ kind: 'group', segmentIndex: 1 })
+    expect(partial.slice(1)).toMatchObject([
+      { kind: 'group', segmentIndex: 1, groupIndex: 0 },
+      { kind: 'group', segmentIndex: 1, groupIndex: 1 },
+    ])
   })
 })
 

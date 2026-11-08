@@ -7,9 +7,45 @@ import {
   type Part,
   layout,
   message,
+  project,
+  text,
   thinking,
   tool,
 } from '~/tests/helpers/work-layout'
+
+test('a lone thought appears only in the header, even after a reply arrives', () => {
+  const streaming = { type: 'reasoning', text: '', state: 'streaming' } as const
+  for (const part of [streaming, { ...streaming, text: 'Streaming thought' }]) {
+    expect(project(message([part]))).toMatchObject([
+      { kind: 'header', reasoning: { groupIndex: 0 } },
+    ])
+  }
+
+  expect(project(message([thinking(), text('Reply')]))).toMatchObject([
+    { kind: 'header', reasoning: { groupIndex: 0 } },
+    { kind: 'group', groupIndex: 1 },
+  ])
+})
+
+test.each([tool('shell', 's'), thinking('second')])(
+  'shows a summary as soon as another activity row joins: %j',
+  (part) => {
+    const initial = thinking('first')
+    const msg = message([initial, text(''), { type: 'step-start' }, part])
+    const folded = project(msg)
+    expect(folded.map((row) => row.kind)).toEqual(['header', 'work'])
+    expect(folded[1]).toMatchObject({
+      work: { groups: [{ groupIndex: 0 }, { groupIndex: 3 }] },
+    })
+
+    const [work] = layout(msg).work
+    const opened = project(msg, new Set([work.id]))
+    expect(opened.slice(2)).toMatchObject([
+      { kind: 'group', groupIndex: 0, workId: work.id },
+      { kind: 'group', groupIndex: 3, workId: work.id },
+    ])
+  },
+)
 
 test('sums thinking time and retains streaming and unknown-duration labels', () => {
   const label = (parts: Part[]) => {

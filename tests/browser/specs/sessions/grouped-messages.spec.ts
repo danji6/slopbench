@@ -29,6 +29,27 @@ test('opening a long summary at the bottom brings its start below the nav', asyn
   )
 })
 
+test('opens a lone thought directly from the sender header', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=notes&id=notes&thinkingWork=single')
+
+  const header = page.getByRole('button', { name: 'Toggle latest thinking' })
+  await expect(
+    header.getByText('Thought for 10.0s', { exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.getByText('Thought for 10.0s', { exact: true }),
+  ).toHaveCount(1)
+  await expect(page.locator('[data-slot="work-block"]')).toHaveCount(0)
+  await expect(page.locator('[data-slot="reasoning-block"]')).toHaveCount(0)
+  await expect(page.getByText('Finished thinking.')).toBeVisible()
+
+  await header.click()
+  await expect(header).toHaveAttribute('aria-expanded', 'true')
+  await expect(page.getByText('First thinking block.')).toBeVisible()
+})
+
 for (const mixed of [false, true]) {
   test(`work sums thinking durations and reveals every thinking block (mixed=${mixed})`, async ({
     page,

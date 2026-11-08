@@ -50,8 +50,19 @@ export function findScrollContentRow(
   address: ScrollRowAddress,
 ): MessageRow | undefined {
   let reportWork: MessageRow | undefined
+  let reasoningHeader: MessageRow | undefined
 
   for (const row of rows) {
+    if (row.kind === 'header' && address.kind === 'group') {
+      const reasoning = row.reasoning
+      if (
+        reasoning?.messageId === messageId &&
+        reasoning.segmentIndex === address.segmentIndex &&
+        reasoning.groupIndex === address.groupIndex
+      ) {
+        reasoningHeader = row
+      }
+    }
     if (row.messageId !== messageId) continue
 
     if (address.kind === 'group') {
@@ -76,5 +87,5 @@ export function findScrollContentRow(
     if (matchesWork) return row
   }
 
-  return reportWork
+  return reportWork ?? reasoningHeader
 }
