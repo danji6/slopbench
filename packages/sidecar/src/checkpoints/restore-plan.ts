@@ -1,7 +1,4 @@
-import {
-  assertPersonalScope,
-  selectFileWorkspace,
-} from '@sb/core/workspace/personal'
+import { assertPersonalScope } from '@sb/core/workspace/personal'
 import path from 'node:path'
 
 import {
@@ -9,6 +6,7 @@ import {
   isOutside,
   resolveToolPath,
 } from '../mcp/workspace/access'
+import { selectFileToolScope } from '../mcp/workspace/file-path'
 import { requireWorkspace } from '../mcp/workspace/resolve-workspace'
 import { isFilePermissionError } from './errors'
 import { captureFile, sameFile } from './snapshot'
@@ -66,13 +64,10 @@ async function authorizeTarget(file: CheckpointFile, input: RestoreInput) {
     (workspace) =>
       workspace.agentHome && !isOutside(workspace.agentHome.path, file.target),
   )
-  const source = personal ?? input.workspace
-  const selected = selectFileWorkspace(
-    source,
-    personal
-      ? `agent://${path.relative(personal.agentHome!.path, file.target)}`
-      : file.target,
-  )
+  const { workspace: selected } = selectFileToolScope({
+    workspace: personal ?? input.workspace,
+    filePath: personal ? 'agent://' : file.target,
+  })
   const workspace = await requireWorkspace(
     input.sessionId,
     selected.workspaceId,

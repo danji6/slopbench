@@ -8,10 +8,7 @@ import {
   restoreLineEndings,
   stripBom,
 } from '@sb/core/workspace/edit'
-import {
-  assertPersonalScope,
-  selectFileWorkspace,
-} from '@sb/core/workspace/personal'
+import { assertPersonalScope } from '@sb/core/workspace/personal'
 import { mkdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
@@ -23,7 +20,7 @@ import { resolveShellDirectory } from '../../shell/directory'
 import { assertCheckpointTarget, resolveToolPath } from './access'
 import { runCommand } from './command'
 import { withFilesystemOperation, workspaceContextSchema } from './context'
-import { resolveFileToolPath } from './file-path'
+import { resolveFileToolPath, selectFileToolScope } from './file-path'
 import { requireWorkspace } from './resolve-workspace'
 import { checkScopedPaths } from './scoped-checks'
 
@@ -352,7 +349,7 @@ export function readWorkspaceFile(
   input: Parameters<typeof readWorkspaceFileImpl>[0],
 ) {
   return withFilesystemOperation(input, () =>
-    readWorkspaceFileImpl(fileOperationInput(input)),
+    readWorkspaceFileImpl(selectFileToolScope(input)),
   )
 }
 
@@ -361,7 +358,7 @@ export function writeWorkspaceFile(
 ) {
   return withFilesystemOperation(input, () =>
     checkpoints().write(input.sessionId, input.workspace, () =>
-      writeWorkspaceFileImpl(fileOperationInput(input)),
+      writeWorkspaceFileImpl(selectFileToolScope(input)),
     ),
   )
 }
@@ -371,7 +368,7 @@ export function editWorkspaceFile(
 ) {
   return withFilesystemOperation(input, () =>
     checkpoints().write(input.sessionId, input.workspace, () =>
-      editWorkspaceFileImpl(fileOperationInput(input)),
+      editWorkspaceFileImpl(selectFileToolScope(input)),
     ),
   )
 }
@@ -380,7 +377,7 @@ export function previewWorkspaceDiff(
   input: Parameters<typeof previewWorkspaceDiffImpl>[0],
 ) {
   return withFilesystemOperation(input, () =>
-    previewWorkspaceDiffImpl(fileOperationInput(input)),
+    previewWorkspaceDiffImpl(selectFileToolScope(input)),
   )
 }
 
@@ -398,17 +395,4 @@ export function checkFlaggedPaths(
   input: Parameters<typeof checkScopedPaths>[0],
 ) {
   return withFilesystemOperation(input, () => checkScopedPaths(input))
-}
-
-type FileOperationInput = {
-  workspace?: FolderWorkspace
-  filePath: string
-}
-
-function fileOperationInput<T extends FileOperationInput>(input: T): T {
-  if (!input.workspace) return input
-  return {
-    ...input,
-    workspace: selectFileWorkspace(input.workspace, input.filePath),
-  }
 }

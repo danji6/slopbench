@@ -89,6 +89,12 @@ function context(sessionId = 'scoped') {
   }
 }
 
+function personalContext(sessionId?: string) {
+  const input = context(sessionId)
+  const workspace = withAgentHome(undefined, input.workspace.agentHome!)
+  return { ...input, workspaceId: workspace.workspaceId, workspace }
+}
+
 async function request(url: string, body: unknown) {
   return app.request(url, {
     method: 'POST',
@@ -126,32 +132,40 @@ test('file tools and prompt helpers share prefixed paths without URL decoding', 
   expect(() => read(path.join(home, 'note'))).toThrow()
 })
 
-test('writes, previews, edits and checkpoint restoration retain the agent prefix', async () => {
-  const input = { ...context('checkpoint'), filePath: 'agent://draft' }
-  expect(
-    await files.previewWorkspaceDiff({ ...input, content: 'draft one' }),
-  ).toMatchObject({ path: 'agent://draft' })
-  await writeFile(path.join(home, 'draft'), 'original')
-  const capture = await workspaceCheckpoint(input)
-  try {
+test.each([
+  ['agent://draft', context],
+  ['draft', personalContext],
+] as const)(
+  'writes, previews, edits and checkpoint restoration retain personal scope for %s',
+  async (filePath, makeContext) => {
+    const input = { ...makeContext('checkpoint'), filePath }
     expect(
-      await files.writeWorkspaceFile({ ...input, content: 'draft one' }),
+      await files.previewWorkspaceDiff({ ...input, content: 'draft one' }),
     ).toMatchObject({ path: 'agent://draft' })
-    expect(
-      await files.editWorkspaceFile({
-        ...input,
-        edits: [{ oldText: 'one', newText: 'two' }],
-      }),
-    ).toMatchObject({ path: 'agent://draft' })
-    expect(await readFile(path.join(home, 'draft'), 'utf8')).toBe('draft two')
-    const result = await capture.finish()
-    expect(result.publication?.files).toMatchObject([{ path: 'agent://draft' }])
-    await capture.restore()
-    expect(await readFile(path.join(home, 'draft'), 'utf8')).toBe('original')
-  } finally {
-    await capture.cleanup()
-  }
-})
+    await writeFile(path.join(home, 'draft'), 'original')
+    const capture = await workspaceCheckpoint(input)
+    try {
+      expect(
+        await files.writeWorkspaceFile({ ...input, content: 'draft one' }),
+      ).toMatchObject({ path: 'agent://draft' })
+      expect(
+        await files.editWorkspaceFile({
+          ...input,
+          edits: [{ oldText: 'one', newText: 'two' }],
+        }),
+      ).toMatchObject({ path: 'agent://draft' })
+      expect(await readFile(path.join(home, 'draft'), 'utf8')).toBe('draft two')
+      const result = await capture.finish()
+      expect(result.publication?.files).toMatchObject([
+        { path: 'agent://draft' },
+      ])
+      await capture.restore()
+      expect(await readFile(path.join(home, 'draft'), 'utf8')).toBe('original')
+    } finally {
+      await capture.cleanup()
+    }
+  },
+)
 
 test('prefixes cannot escape through traversal or symlinks even with an external grant', async () => {
   await symlink(outside, path.join(home, 'escape'))
@@ -195,6 +209,23 @@ test('prefixes cannot escape through traversal or symlinks even with an external
       })
     ).content,
   ).toBe('external note')
+})
+
+test('relative personal paths cannot escape the home or select a missing project', async () => {
+  await symlink(outside, path.join(home, 'external-link'))
+  const input = { ...personalContext(), allowedPaths: [outside] }
+  for (const filePath of [
+    '../outside/note',
+    'external-link/note',
+    'workspace://note',
+  ]) {
+    await expect(
+      files.readWorkspaceFile({ ...input, filePath }),
+    ).rejects.toThrow()
+    await expect(
+      files.checkFlaggedPaths({ ...input, paths: [filePath], literal: true }),
+    ).rejects.toThrow()
+  }
 })
 
 test('approval paths use cwd, include cwd itself, and preserve the original grant base', async () => {
@@ -394,6 +425,30 @@ test('real MCP tools agree with execution for prefixed files and external cwd ap
       path: 'agent://note',
       content: 'personal note',
     })
+    const { workspace, workspaceId } = personalContext()
+    const personalRead = await createReadFileTool({
+      ...input,
+      workspace,
+      workspaceId,
+    })
+    for (const [filePath, displayPath] of [
+      ['note', 'agent://note'],
+      [path.join(home, 'note'), 'note'],
+    ] as const) {
+      expect(await needs(personalRead, { path: filePath })).toBe(false)
+      const personalOutput = await personalRead.execute!(
+        { path: filePath },
+        {
+          toolCallId: 'personal-read',
+          messages: [],
+          context: undefined as never,
+        },
+      )
+      expect(JSON.parse(personalOutput as string)).toMatchObject({
+        path: displayPath,
+        content: 'personal note',
+      })
+    }
     const write = await createWriteFileTool(input)
     expect(await needs(write, { path: 'agent://new', content: 'new' })).toBe(
       false,

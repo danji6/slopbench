@@ -82,7 +82,7 @@ async function rememberPaths(
 ) {
   const supportsPathGrants =
     matched.toolName === 'shell' || isFileTool(matched.toolName)
-  if (!supportsPathGrants || !session.workspace) return
+  if (!supportsPathGrants) return
 
   if (matched.paths?.length) {
     await allowToolPaths(ctx, {
@@ -92,7 +92,7 @@ async function rememberPaths(
     return
   }
 
-  if (matched.toolName !== 'shell') return
+  if (matched.toolName !== 'shell' || !session.workspace) return
   const command = (matched.input as { command?: string } | undefined)?.command
   if (!command) return
 

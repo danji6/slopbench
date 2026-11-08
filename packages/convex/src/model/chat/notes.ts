@@ -274,10 +274,13 @@ function workspaceNoteBody(
     ]
   }
 
+  const personalFileGuidance = next.agentOnly
+    ? 'Use agent:// paths, relative paths, or absolute paths for personal files.'
+    : 'Use agent:// paths for personal files.'
   const personal = next.agentHome
     ? [
         'Your persistent personal folder is agent://.',
-        ...(files ? ['Use agent:// paths for personal files.'] : []),
+        ...(files ? [personalFileGuidance] : []),
         ...(shell ? ['Use cwd: "agent://" for shell commands.'] : []),
       ]
     : ['No personal folder is currently available.']

@@ -13,6 +13,7 @@ import {
 } from '@sb/convex/model/tool/files'
 import { callMcpTool } from '@sb/convex/model/tool/mcp'
 import type { ToolApprovals } from '@sb/core/types'
+import { withAgentHome } from '@sb/core/workspace/personal'
 import { afterAll, beforeAll, expect, test } from 'bun:test'
 import { Hono } from 'hono'
 import {
@@ -143,38 +144,64 @@ test('unrestricted file execution reaches external files without a saved path gr
   }
 })
 
-async function sessionApprovalFixture() {
+async function sessionApprovalFixture(scope: 'project' | 'personal') {
   const database = skillsDatabase()
-  await database.db.insert('sessionFolders', {
-    _id: context.workspaceId,
-    ownerId: 'owner',
-    name: 'Project',
-    revision: 0,
-    sources: context.workspace!.sources,
-  })
+  const hasProject = scope === 'project'
+  if (hasProject) {
+    await database.db.insert('sessionFolders', {
+      _id: context.workspaceId,
+      ownerId: 'owner',
+      name: 'Project',
+      revision: 0,
+      sources: context.workspace!.sources,
+    })
+  }
   await database.db.insert('sessions', {
     _id: context.sessionId,
     ownerId: 'owner',
-    folderId: context.workspaceId,
+    ...(hasProject && { folderId: context.workspaceId }),
   })
   const session = await getSessionWithWorkspace(database.ctx, context.sessionId)
   const liveApprovals = () => getApprovals(database.ctx, context.sessionId)
+  const workspace = hasProject
+    ? context.workspace!
+    : withAgentHome(undefined, {
+        agentId: 'agent',
+        ownerId: 'owner',
+        path: project,
+        revision: 0,
+      })
   return {
     ...database,
     session: session!,
     liveApprovals,
-    toolContext: { ...context, approvals: liveApprovals },
+    toolContext: {
+      ...context,
+      workspace,
+      workspaceId: workspace.workspaceId,
+      approvals: liveApprovals,
+    },
   }
 }
 
-test.each(['read_file', 'write_file', 'edit_file', 'shell'])(
-  '%s session approval remembers the external path without broadening access',
-  async (toolName) => {
-    const fixture = await sessionApprovalFixture()
+test.each([
+  ['read_file', 'project'],
+  ['write_file', 'project'],
+  ['edit_file', 'project'],
+  ['shell', 'project'],
+  ['read_file', 'personal'],
+] as const)(
+  '%s approval remembers the external path without broadening access (%s)',
+  async (toolName, scope) => {
+    const fixture = await sessionApprovalFixture(scope)
     const folderApproval = toolName === 'shell'
+    const filePath =
+      scope === 'personal'
+        ? path.join(project, 'external/note')
+        : 'external/note'
     const input = folderApproval
       ? { command: 'ls', cwd: outside }
-      : { path: 'external/note' }
+      : { path: filePath }
     const grant = folderApproval ? outside : path.join(outside, 'note')
     const unapprovedPath = folderApproval
       ? path.join(root, 'outside-sibling', 'note')
@@ -182,7 +209,7 @@ test.each(['read_file', 'write_file', 'edit_file', 'shell'])(
     const setup = {
       stream: { sessionId: context.sessionId },
       workspaceSessionId: context.sessionId,
-      workspace: context.workspace,
+      workspace: fixture.toolContext.workspace,
       agent: {},
     } as Parameters<typeof attachApprovalPreviews>[1]
     const action = {
@@ -220,7 +247,7 @@ test.each(['read_file', 'write_file', 'edit_file', 'shell'])(
       createWriteFileTool(fixture.toolContext),
       createEditFileTool(fixture.toolContext),
     ])) {
-      expect(await needsApproval(tool, { path: 'external/note' })).toBe(false)
+      expect(await needsApproval(tool, { path: filePath })).toBe(false)
       expect(await needsApproval(tool, { path: unapprovedPath })).toBe(true)
       if (folderApproval) {
         expect(

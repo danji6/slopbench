@@ -1,3 +1,4 @@
+import { withAgentHome } from '@sb/core/workspace/personal'
 import type * as Workspace from '@sb/sidecar/mcp/workspace/workspace'
 /// <reference types="bun-types" />
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
@@ -169,87 +170,99 @@ describe('previewWorkspaceDiff', () => {
 
     await rm(root, { recursive: true, force: true })
   })
-  test('parent-relative grants enable external file tools, previews and undo', async () => {
-    const { root, workspaceId, workspace } =
-      await boundWorkspace('external-files')
-    const external = await mkdtemp(path.join(tmpdir(), 'external-files-'))
-    const filePath = path.join(external, 'file.txt')
-    const args = {
-      sessionId: 'external-files',
-      workspaceId,
-      workspace,
-      filePath,
-    }
-    const granted = { ...args, allowedPaths: [path.relative(root, external)] }
-    const capture = await workspaceCheckpoint(args)
-    try {
-      await writeFile(filePath, 'original\n')
-      await expect(workspaceModule.readWorkspaceFile(args)).rejects.toThrow(
-        'escapes',
-      )
-      await expect(
-        workspaceModule.writeWorkspaceFile({ ...args, content: 'blocked' }),
-      ).rejects.toThrow('escapes')
-      await expect(
-        workspaceModule.editWorkspaceFile({
-          ...args,
-          edits: [{ oldText: 'original', newText: 'blocked' }],
-        }),
-      ).rejects.toThrow('escapes')
-      expect(
-        await workspaceModule.previewWorkspaceDiff({
-          ...args,
-          content: 'blocked',
-        }),
-      ).toEqual({ diff: '' })
-      expect((await workspaceModule.readWorkspaceFile(granted)).path).toBe(
+  test.each(['project', 'personal'])(
+    'parent-relative grants enable external file tools, previews and undo (%s)',
+    async (scope) => {
+      const sessionId = `external-files-${scope}`
+      const { root, workspace: project } = await boundWorkspace(sessionId)
+      const workspace =
+        scope === 'personal'
+          ? withAgentHome(undefined, {
+              ownerId: 'owner',
+              agentId: 'agent',
+              path: root,
+              revision: 0,
+            })
+          : project
+      const external = await mkdtemp(path.join(tmpdir(), 'external-files-'))
+      const filePath = path.join(external, 'file.txt')
+      const args = {
+        sessionId,
+        workspaceId: workspace.workspaceId,
+        workspace,
         filePath,
-      )
-      const preview = await workspaceModule.previewWorkspaceDiff({
-        ...granted,
-        content: 'changed\n',
-      })
-      expect(preview.path).toBe(filePath)
-      expect(preview.diff).toContain('+changed')
-      const write = await workspaceModule.writeWorkspaceFile({
-        ...granted,
-        content: 'changed\n',
-      })
-      expect(write.path).toBe(filePath)
-      expect(write.diff).toBe(preview.diff)
-      await workspaceModule.editWorkspaceFile({
-        ...granted,
-        edits: [{ oldText: 'changed', newText: 'edited' }],
-      })
-      expect(await readFile(filePath, 'utf8')).toBe('edited\n')
-      const newPath = path.join(external, 'new', 'created.txt')
-      await workspaceModule.writeWorkspaceFile({
-        ...granted,
-        filePath: newPath,
-        content: 'new',
-      })
-      await capture.finish()
-      await expect(capture.restore()).rejects.toThrow('escapes')
-      await capture.restore({ allowedPaths: granted.allowedPaths })
-      expect(await readFile(filePath, 'utf8')).toBe('original\n')
-      expect(await Bun.file(newPath).exists()).toBe(false)
-      await capture.restore({
-        allowedPaths: granted.allowedPaths,
-        direction: 'reapply',
-        revision: 1,
-      })
-      expect(await readFile(filePath, 'utf8')).toBe('edited\n')
-      expect(await readFile(newPath, 'utf8')).toBe('new')
-      // Mentions never receive these grants.
-      await expect(
-        workspaceModule.resolveExistingPath(root, filePath),
-      ).rejects.toThrow('escapes')
-    } finally {
-      await capture.cleanup()
-      await rm(root, { recursive: true, force: true })
-      await rm(external, { recursive: true, force: true })
-    }
-  })
+      }
+      const granted = { ...args, allowedPaths: [path.relative(root, external)] }
+      const capture = await workspaceCheckpoint(args)
+      try {
+        await writeFile(filePath, 'original\n')
+        await expect(workspaceModule.readWorkspaceFile(args)).rejects.toThrow(
+          'escapes',
+        )
+        await expect(
+          workspaceModule.writeWorkspaceFile({ ...args, content: 'blocked' }),
+        ).rejects.toThrow('escapes')
+        await expect(
+          workspaceModule.editWorkspaceFile({
+            ...args,
+            edits: [{ oldText: 'original', newText: 'blocked' }],
+          }),
+        ).rejects.toThrow('escapes')
+        expect(
+          await workspaceModule.previewWorkspaceDiff({
+            ...args,
+            content: 'blocked',
+          }),
+        ).toEqual({ diff: '' })
+        expect((await workspaceModule.readWorkspaceFile(granted)).path).toBe(
+          filePath,
+        )
+        const preview = await workspaceModule.previewWorkspaceDiff({
+          ...granted,
+          content: 'changed\n',
+        })
+        expect(preview.path).toBe(filePath)
+        expect(preview.diff).toContain('+changed')
+        const write = await workspaceModule.writeWorkspaceFile({
+          ...granted,
+          content: 'changed\n',
+        })
+        expect(write.path).toBe(filePath)
+        expect(write.diff).toBe(preview.diff)
+        await workspaceModule.editWorkspaceFile({
+          ...granted,
+          edits: [{ oldText: 'changed', newText: 'edited' }],
+        })
+        expect(await readFile(filePath, 'utf8')).toBe('edited\n')
+        const newPath = path.join(external, 'new', 'created.txt')
+        await workspaceModule.writeWorkspaceFile({
+          ...granted,
+          filePath: newPath,
+          content: 'new',
+        })
+        await capture.finish()
+        await expect(capture.restore()).rejects.toThrow('escapes')
+        await capture.restore({ allowedPaths: granted.allowedPaths })
+        expect(await readFile(filePath, 'utf8')).toBe('original\n')
+        expect(await Bun.file(newPath).exists()).toBe(false)
+        await capture.restore({
+          allowedPaths: granted.allowedPaths,
+          direction: 'reapply',
+          revision: 1,
+        })
+        expect(await readFile(filePath, 'utf8')).toBe('edited\n')
+        expect(await readFile(newPath, 'utf8')).toBe('new')
+        // Mentions never receive these grants.
+        await expect(
+          workspaceModule.resolveExistingPath(root, filePath),
+        ).rejects.toThrow('escapes')
+      } finally {
+        await capture.cleanup()
+        await rm(root, { recursive: true, force: true })
+        await rm(external, { recursive: true, force: true })
+      }
+    },
+  )
 
   test('checkpoint restore rejects a replaced external target symlink', async () => {
     const { root, workspaceId, workspace } =

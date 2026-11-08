@@ -1,9 +1,6 @@
 import type { FolderWorkspace } from '@sb/core/types/workspace'
 import type { PathCheckResult } from '@sb/core/workspace/path-policy'
-import {
-  assertPersonalScope,
-  selectFileWorkspace,
-} from '@sb/core/workspace/personal'
+import { assertPersonalScope } from '@sb/core/workspace/personal'
 import {
   parseScopedPath,
   scopedDisplayPath,
@@ -11,6 +8,7 @@ import {
 
 import { inspectShellDirectory } from '../../shell/directory'
 import { checkPaths } from './check-paths'
+import { selectFileToolScope } from './file-path'
 import { assertInside } from './paths'
 import { requireWorkspace } from './resolve-workspace'
 
@@ -41,10 +39,11 @@ export async function checkScopedPaths(
   return result
 }
 
-async function checkFilePath(input: CheckInput, filePath: string) {
-  const selected = input.workspace
-    ? selectFileWorkspace(input.workspace, filePath)
-    : undefined
+async function checkFilePath(input: CheckInput, candidate: string) {
+  const { workspace: selected, filePath } = selectFileToolScope({
+    workspace: input.workspace,
+    filePath: candidate,
+  })
   const workspace = await requireWorkspace(
     input.sessionId,
     input.workspaceId,
