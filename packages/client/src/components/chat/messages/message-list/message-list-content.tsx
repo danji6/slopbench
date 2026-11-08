@@ -233,7 +233,8 @@ function MessageRows({
       )}
       <div
         ref={root}
-        className="mx-auto"
+        // The minimum reserves row height. Top padding is additional.
+        className="mx-auto box-content"
         style={
           hasHeaderContainer
             ? { ...innerStyle, minHeight: layout.minHeight }

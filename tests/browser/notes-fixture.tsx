@@ -31,6 +31,7 @@ import {
 } from './notes-client'
 
 const noop = () => {}
+const TOP_PADDING = 16
 const groupedWork = new URLSearchParams(location.search).has('groupedWork')
 const tailWork = new URLSearchParams(location.search).has('tailWork')
 const shellReports = new URLSearchParams(location.search).has('shellReports')
@@ -80,7 +81,7 @@ function Transcript() {
     virtuaRef,
     docScrollRef,
     metaRef,
-    topPadding: 16,
+    topPadding: TOP_PADDING,
   }
   const { requestScrollToMessage } = useSeek(deps, {
     rows,
@@ -112,7 +113,7 @@ function Transcript() {
         releaseFollow: holdPosition,
         resumeFollow: noop,
         bottomPadding: 80,
-        topPadding: 16,
+        topPadding: TOP_PADDING,
       }}
     >
       <nav className="bg-background fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-2 px-2 text-xs">
@@ -153,7 +154,7 @@ function Transcript() {
       </nav>
       <main
         ref={scrollRef as React.RefObject<HTMLDivElement | null>}
-        className="mx-auto w-full max-w-xl px-3 pt-16 pb-24"
+        className="mx-auto w-full max-w-xl px-3 pb-24"
       >
         <MessageListContent
           revealed
@@ -163,7 +164,9 @@ function Transcript() {
           messages={{
             rows,
             hasHeaderContainer: false,
-            topPaddingStyle: {},
+            topPaddingStyle: {
+              paddingTop: `calc(var(--spacing)*${TOP_PADDING})`,
+            },
             hasMore: false,
             hasNewer: false,
             shiftItems: false,

@@ -481,7 +481,7 @@ for (const finishOpening of [true, false]) {
   })
 }
 
-test('closing work at the expanded bottom waits for the rows to finish shrinking', async ({
+test('closing work at the expanded bottom waits for rows without a scroll jump', async ({
   page,
 }) => {
   await page.clock.install()
