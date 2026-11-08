@@ -144,10 +144,10 @@ function LightboxDialog({
         )}
         <RippleButton
           ref={closeRef}
-          variant="ghost"
+          variant="stealth"
           size="icon"
           aria-label="Close"
-          className="absolute top-4 right-4 rounded-full bg-black/30 text-white hover:bg-black/60 hover:text-white"
+          className="absolute top-4 right-4"
           onClick={() => onChange(null)}
         >
           <XIcon className="size-5" />
@@ -168,12 +168,12 @@ function GalleryArrow({ direction, disabled, onClick }: GalleryArrowProps) {
   const Icon = previous ? ChevronLeftIcon : ChevronRightIcon
   return (
     <RippleButton
-      variant="ghost"
+      variant="stealth"
       size="icon"
       aria-label={previous ? 'Previous media' : 'Next media'}
       aria-disabled={disabled}
       className={cn(
-        'absolute top-1/2 -translate-y-1/2 rounded-full bg-black/30 text-white hover:bg-black/60 hover:text-white aria-disabled:opacity-40',
+        'absolute top-1/2 -translate-y-1/2 aria-disabled:opacity-40',
         previous ? 'left-2 sm:left-4' : 'right-2 sm:right-4',
       )}
       onClick={disabled ? undefined : onClick}
