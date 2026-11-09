@@ -1,22 +1,29 @@
-import { RippleButton } from '@/components/ui'
+import { RippleButton, SettingsList } from '@/components/ui'
 import { useProjectToolkits } from '@/hooks/chat/project-toolkits'
 import type { Id } from '@sb/convex/_generated/dataModel'
 
-type Props = { sessionId: Id<'sessions'> }
+type Props = { sessionId: Id<'sessions'>; hasEnabledSources: boolean }
 
-/** Discovers opted-in project roots, with separate explicit registration. */
-export function ProjectToolkits({ sessionId }: Props) {
+/** Discovers project toolkits and offers separate registration. */
+export function ProjectToolkits({ sessionId, hasEnabledSources }: Props) {
   const { admin, rows, busy, message, scan, register } = useProjectToolkits(sessionId) // prettier-ignore
 
   if (!admin) return null
   return (
-    <div className="flex flex-col gap-2 p-2">
-      <RippleButton variant="input" disabled={busy} onClick={scan}>
+    <SettingsList.Item
+      orientation="vertical"
+      unclickable
+      label="Toolkits"
+      description="Discover skills and MCP tools in sources with discovery enabled."
+    >
+      <RippleButton
+        variant="input"
+        size="sm"
+        disabled={busy || !hasEnabledSources}
+        onClick={scan}
+      >
         Discover
       </RippleButton>
-      <p className="text-muted-foreground text-xs">
-        Only sources with “Discover toolkits” enabled are inspected.
-      </p>
       {rows.map((row) => (
         <div key={row.root} className="flex flex-col gap-1 text-xs">
           <span>
@@ -38,6 +45,6 @@ export function ProjectToolkits({ sessionId }: Props) {
           {message}
         </p>
       )}
-    </div>
+    </SettingsList.Item>
   )
 }

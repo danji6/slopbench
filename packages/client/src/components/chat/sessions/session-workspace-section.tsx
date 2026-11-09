@@ -2,12 +2,18 @@ import { RippleButton, SettingsList } from '@/components/ui'
 import { useActiveSession, useIsSessionOwner } from '@/hooks/chat'
 import { useState } from 'react'
 
+import { ProjectToolkits } from '../toolkits/project-toolkits'
 import { SessionFolderDialog } from './session-folder-dialog'
 
 export function SessionWorkspaceSection() {
   const session = useActiveSession()
   const isOwner = useIsSessionOwner()
   const [moving, setMoving] = useState(false)
+  const hasEnabledSources =
+    session?.workspace?.sources?.some(
+      (source) => source.discoverToolkits === true,
+    ) ?? false
+
   return (
     <SettingsList>
       <SettingsList.Item
@@ -51,6 +57,13 @@ export function SessionWorkspaceSection() {
           />
         )}
       </SettingsList.Item>
+      {session && (
+        <ProjectToolkits
+          key={`${session._id}:${session.workspace?.folderId ?? ''}`}
+          sessionId={session._id}
+          hasEnabledSources={hasEnabledSources}
+        />
+      )}
     </SettingsList>
   )
 }

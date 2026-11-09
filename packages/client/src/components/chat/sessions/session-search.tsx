@@ -46,7 +46,6 @@ function SessionSearchHelp() {
       />
       <Popover.Content align="end" className="w-80 gap-3 p-4 text-sm">
         <Popover.Title className="font-semibold">Search filters</Popover.Title>
-        <p>Narrow results with filters:</p>
         <dl className="grid gap-2">
           {Object.entries(SESSION_SEARCH_FILTERS).map(([key, filter]) => (
             <div key={key}>

@@ -7,6 +7,7 @@ import { requireRole } from '../../functions'
 import type { ToolkitListArgs } from '../../types'
 import * as Credentials from '../credentials'
 import { getSessionWithWorkspace } from '../session/folderContext'
+import { getMembership } from '../session/memberships'
 import {
   availableToolkits,
   ownedToolkit,
@@ -67,8 +68,18 @@ export async function sources(
   args: { sessionId: Id<'sessions'> },
 ) {
   const session = await getSessionWithWorkspace(ctx, args.sessionId)
-  if (!session?.activeAgentId) return []
-  await requireSelectionAccess(ctx, session.activeAgentId, args.sessionId)
+  if (!session) return []
+
+  if (session.ownerId === ctx.userId) {
+    requireRole(ctx.role, 'admin')
+    const membership = await getMembership(ctx, session._id, ctx.userId)
+    if (membership?.role !== 'owner') error('Session not found', 404)
+    if (session.contextLock) error('Folder sources are being updated', 409)
+  } else {
+    if (!session.activeAgentId) return []
+    await requireSelectionAccess(ctx, session.activeAgentId, args.sessionId)
+  }
+
   return (
     session.workspace?.sources?.filter(
       (source) => source.discoverToolkits === true,

@@ -87,7 +87,7 @@ export function JoinSession({ open, onOpenChange }: JoinSessionProps) {
         <Dialog.Header>
           <Dialog.Title>Join a session</Dialog.Title>
           <Dialog.Description className="text-muted-foreground">
-            Paste an invite token to join a shared session.
+            Paste an invite token to join another user's session.
           </Dialog.Description>
         </Dialog.Header>
         <div className="py-4">
