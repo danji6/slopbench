@@ -25,12 +25,6 @@ export const chatGPTAccount = {
     postSidecar('/providers/chatgpt/disconnect', key(c)),
   cancel: (c: ModelProviderConfig) =>
     postSidecar('/providers/chatgpt/cancel', key(c)),
-  setup: async (c: ModelProviderConfig) =>
-    JSON.stringify(
-      await postSidecar('/providers/chatgpt/prepare-transfer', key(c)),
-      null,
-      2,
-    ),
   modelsFetch: (c: ModelProviderConfig) =>
     (async () =>
       new Response(

@@ -69,14 +69,6 @@ export const cancelSignIn = action({
   },
 })
 
-export const remoteSetup = action({
-  args: connectionArgs,
-  handler: async (ctx, args): Promise<string> => {
-    const service = await import('../model/provider/connectionActions')
-    return service.remoteSetup(ctx, args)
-  },
-})
-
 export const _disconnectRemoved = internalAction({
   args: removedConnectionArgsValidator.fields,
   handler: async (ctx, args): Promise<void> => {

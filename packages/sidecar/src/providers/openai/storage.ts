@@ -4,10 +4,8 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod'
 
-export const registrationSchema = z.object({
+const registrationSchema = z.object({
   authRevision: z.string().optional(),
-  transferNonce: z.string().optional(),
-  transferExpiresAt: z.number().optional(),
   hostId: z.string(),
   clientId: z.string().optional(),
   subject: z.string().optional(),
@@ -39,7 +37,7 @@ function recordPath(key: ConnectionKey) {
 }
 
 /** Replaces an owner-only record atomically, without exposing partial rotating credentials. */
-export async function writeProtected(path: string, value: unknown) {
+async function writeProtected(path: string, value: unknown) {
   const temporary = `${path}.${randomUUID()}.tmp`
   try {
     await writeFile(temporary, JSON.stringify(value), {
@@ -73,7 +71,7 @@ export async function saveRegistration(
   await writeProtected(recordPath(key), record)
 }
 
-/** Serializes sidecar and helper writes, including rotating refresh tokens. */
+/** Serializes registration updates, including refresh token rotation. */
 export async function withRegistrationLock<T>(
   key: ConnectionKey,
   run: () => Promise<T>,
@@ -123,9 +121,4 @@ export async function hostId(): Promise<string> {
       return id
     },
   )
-}
-
-/** Removes a temporary helper record after its credential transfer is saved. */
-export async function removeRegistration(key: ConnectionKey) {
-  await rm(recordPath(key), { force: true })
 }

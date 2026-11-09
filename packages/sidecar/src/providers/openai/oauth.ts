@@ -26,7 +26,7 @@ export function cancelSignIn(key: ConnectionKey) {
 }
 
 /** Reserves an attempt before awaiting I/O so replacement and disconnect always cancel it. */
-export async function startSignIn(key: ConnectionKey, targetHostId?: string) {
+export async function startSignIn(key: ConnectionKey) {
   cancelSignIn(key)
   const cancellation = new AbortController()
   const id = keyId(key)
@@ -35,7 +35,7 @@ export async function startSignIn(key: ConnectionKey, targetHostId?: string) {
   return withRegistrationLock(key, async () => {
     cancellation.signal.throwIfAborted()
     const previous = (await readRegistration(key)) ?? {
-      hostId: targetHostId ?? (await hostId()),
+      hostId: await hostId(),
       scopes: [],
     }
     const pending: PendingAuthorization = {

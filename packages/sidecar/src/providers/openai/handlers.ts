@@ -8,11 +8,9 @@ import {
   turnRoutingHeaders,
 } from './continuity'
 import { cancelSignIn, connectionStatus, startSignIn } from './oauth'
-import { hostId } from './storage'
 import type { ConnectionKey } from './storage'
 import { requireCompletedStream } from './stream'
 import { accessContext, accessToken, disconnect } from './tokens'
-import { prepareTransfer } from './transfer'
 
 const keySchema = z.object({
   ownerId: z.string().min(1),
@@ -25,9 +23,6 @@ function keyId(key: ConnectionKey) {
   return JSON.stringify([key.ownerId, key.connectionId])
 }
 
-export const prepareChatGPTTransfer: Handler = async (c) =>
-  c.json(await prepareTransfer(keySchema.parse(await c.req.json())))
-
 export const startChatGPTSignIn: Handler = async (c) =>
   c.json(await startSignIn(keySchema.parse(await c.req.json())))
 
@@ -38,9 +33,6 @@ export const cancelChatGPTSignIn: Handler = async (c) => {
   cancelSignIn(keySchema.parse(await c.req.json()))
   return c.json({ ok: true })
 }
-
-export const chatGPTHost: Handler = async (c) =>
-  c.json({ hostId: await hostId() })
 
 export const disconnectChatGPT: Handler = async (c) => {
   const key = keySchema.parse(await c.req.json())

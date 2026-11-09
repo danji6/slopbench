@@ -61,12 +61,10 @@ import {
 } from './mcp/workspace/context'
 import {
   cancelChatGPTSignIn,
-  chatGPTHost,
   chatGPTModels,
   chatGPTResponses,
   chatGPTStatus,
   disconnectChatGPT,
-  prepareChatGPTTransfer,
   startChatGPTSignIn,
 } from './providers/openai/handlers'
 import {
@@ -94,11 +92,9 @@ export function createApp(authenticate: MiddlewareHandler) {
   app.route('/toolkits', toolkitRoutes())
   app.route('/checkpoints', checkpointRoutes)
 
-  app.post('/providers/chatgpt/prepare-transfer', prepareChatGPTTransfer)
   app.post('/providers/chatgpt/start', startChatGPTSignIn)
   app.post('/providers/chatgpt/status', chatGPTStatus)
   app.post('/providers/chatgpt/cancel', cancelChatGPTSignIn)
-  app.post('/providers/chatgpt/host', chatGPTHost)
   app.post('/providers/chatgpt/disconnect', disconnectChatGPT)
   app.post('/providers/chatgpt/models', chatGPTModels)
   app.post('/providers/chatgpt/responses', chatGPTResponses)

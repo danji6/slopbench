@@ -191,14 +191,6 @@ export async function cancelSignIn(
   await adapter.cancel(connection)
 }
 
-export async function remoteSetup(
-  ctx: ActionCtx,
-  { providerId }: ConnectionArgs,
-): Promise<string> {
-  const { connection, adapter } = await ownedAccount(ctx, providerId)
-  return adapter.setup(connection)
-}
-
 export async function _disconnectRemoved(
   _ctx: ActionCtx,
   args: RemovedConnectionArgs,

@@ -9,10 +9,6 @@ import {
   withRegistrationLock,
 } from '@sb/sidecar/providers/openai/storage'
 import { accessToken, disconnect } from '@sb/sidecar/providers/openai/tokens'
-import {
-  importTransfer,
-  prepareTransfer,
-} from '@sb/sidecar/providers/openai/transfer'
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { SignJWT, exportJWK, generateKeyPair } from 'jose'
 import { mkdtemp, readdir, rm, stat } from 'node:fs/promises'
@@ -170,56 +166,6 @@ describe('ChatGPT OAuth lifecycle', () => {
     scope =
       'openid profile email offline_access resource.invoke chatgpt.tokens.use.direct'
     cancelSignIn(key)
-  })
-  test('remote import is bound to a host, connection and expiring one-time ticket', async () => {
-    const key = { ownerId: 'fixture-owner', connectionId: 'remote' }
-    const setup = await prepareTransfer(key)
-    const record = (await readRegistration({
-      ownerId: 'fixture-owner',
-      connectionId: 'a',
-    }))!
-    await expect(
-      importTransfer({
-        setup,
-        registration: { ...record, hostId: 'another-host' },
-      }),
-    ).rejects.toThrow('host identifier')
-    const registration = { ...record, hostId: setup.hostId }
-    await expect(
-      importTransfer({ setup: { ...setup, nonce: 'replaced' }, registration }),
-    ).rejects.toThrow('ticket')
-    await expect(
-      importTransfer({
-        setup,
-        registration: { ...registration, refreshToken: undefined },
-      }),
-    ).rejects.toThrow('Incomplete transferred registration')
-    await expect(
-      importTransfer({
-        setup,
-        registration: { ...registration, subject: 'another-account' },
-      }),
-    ).rejects.toThrow('identity does not match')
-    expect((await readRegistration(key))?.transferNonce).toBe(setup.nonce)
-    await importTransfer({ setup, registration })
-    expect((await connectionStatus(key)).status).toBe('connected')
-    expect((await readRegistration(key))?.authRevision).not.toBe(
-      record.authRevision,
-    )
-    await expect(
-      importTransfer({ setup, registration: record }),
-    ).rejects.toThrow('ticket')
-  })
-  test('expired transfer tickets leave the pending registration untouched', async () => {
-    const key = { ownerId: 'fixture-owner', connectionId: 'expired' }
-    const setup = await prepareTransfer(key)
-    const pending = (await readRegistration(key))!
-    const expired = { ...pending, transferExpiresAt: Date.now() - 1 }
-    await withRegistrationLock(key, () => saveRegistration(key, expired))
-    await expect(
-      importTransfer({ setup, registration: setup.registration }),
-    ).rejects.toThrow('ticket')
-    expect(await readRegistration(key)).toEqual(expired)
   })
   test('disconnect clears renewable credentials but retains the registration', async () => {
     const key = { ownerId: 'fixture-owner', connectionId: 'a' }

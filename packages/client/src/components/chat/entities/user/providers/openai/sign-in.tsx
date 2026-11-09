@@ -1,4 +1,4 @@
-import { RippleButton } from '@/components/ui'
+import { RippleButton, Spoiler } from '@/components/ui'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import type { AccountStatus } from '@sb/convex/model/provider/openai/account'
@@ -17,7 +17,6 @@ export function ChatGPTConnection({
   ensureConnection,
   onConnected,
 }: Props) {
-  const remoteSetup = useAction(api.actions.providerConnections.remoteSetup)
   const start = useAction(api.actions.providerConnections.signIn)
   const getStatus = useAction(api.actions.providerConnections.status)
   const disconnect = useAction(api.actions.providerConnections.disconnect)
@@ -99,34 +98,33 @@ export function ChatGPTConnection({
     }
   }
 
-  async function downloadSetup() {
-    try {
-      const id = providerId ?? (await ensureConnection())
-      const contents = await remoteSetup({ providerId: id })
-      const url = URL.createObjectURL(
-        new Blob([contents], { type: 'application/json' }),
-      )
-      const link = document.createElement('a')
-      link.href = url
-      link.download = 'slopbench-chatgpt-setup.json'
-      link.click()
-      setTimeout(() => URL.revokeObjectURL(url), 1000)
-      toast.info(
-        'Remote setup file downloaded. Follow the ChatGPT remote setup guide in the project documentation.',
-      )
-    } catch {
-      toast.error('Could not prepare remote setup. Check the sidecar.')
-    }
-  }
-
   return (
     <div className="flex flex-col gap-2 text-sm">
       <p>
-        {status?.status === 'connected'
-          ? `Connected as ${status.email ?? 'ChatGPT account'}`
-          : status?.status === 'pending'
-            ? 'Complete sign-in in your browser.'
-            : 'Sign in to use your eligible ChatGPT subscription.'}
+        {status?.status === 'connected' ? (
+          <>
+            Connected as{' '}
+            {status.email ? (
+              <Spoiler key={`${providerId}:${status.email}`} label="email">
+                {status.email}
+              </Spoiler>
+            ) : (
+              'ChatGPT account'
+            )}
+            <a
+              href="https://chatgpt.com/settings/usage"
+              target="_blank"
+              rel="noreferrer"
+              className="ml-2 font-semibold underline"
+            >
+              View usage
+            </a>
+          </>
+        ) : status?.status === 'pending' ? (
+          'Complete sign-in in your browser.'
+        ) : (
+          'Sign in to use your eligible ChatGPT subscription.'
+        )}
       </p>
       {status?.status === 'connected' && !status.planEnabled && (
         <p role="alert">
@@ -135,14 +133,16 @@ export function ChatGPTConnection({
       )}
       {status?.message && <p role="alert">{status.message}</p>}
       <div className="flex flex-wrap gap-2">
-        <RippleButton
-          size="sm"
-          variant="input"
-          disabled={busy}
-          onClick={() => void signIn()}
-        >
-          Continue with ChatGPT
-        </RippleButton>
+        {status?.status !== 'connected' && (
+          <RippleButton
+            size="sm"
+            variant="input"
+            disabled={busy}
+            onClick={() => void signIn()}
+          >
+            Sign in
+          </RippleButton>
+        )}
         {status?.status === 'pending' && (
           <RippleButton
             size="sm"
@@ -161,7 +161,7 @@ export function ChatGPTConnection({
         {status?.status === 'connected' && (
           <RippleButton
             size="sm"
-            variant="stealth"
+            variant="input"
             disabled={busy}
             onClick={() => void signOut()}
           >
@@ -169,21 +169,6 @@ export function ChatGPTConnection({
           </RippleButton>
         )}
       </div>
-      <a
-        href="https://chatgpt.com/settings/usage"
-        target="_blank"
-        rel="noreferrer"
-        className="underline"
-      >
-        Manage usage and access in ChatGPT
-      </a>
-      <RippleButton
-        size="sm"
-        variant="stealth"
-        onClick={() => void downloadSetup()}
-      >
-        Set up on a remote server
-      </RippleButton>
     </div>
   )
 }

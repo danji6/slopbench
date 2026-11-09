@@ -1,4 +1,4 @@
-import { Input, RippleButton } from '@/components/ui'
+import { Input, QuickTooltip, RippleButton } from '@/components/ui'
 import { providerInput } from '@/lib/provider-settings'
 import { generateId } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
@@ -7,6 +7,7 @@ import { modelMetadata } from '@sb/core/discovered-model'
 import type { DiscoveredModel } from '@sb/core/model-discovery'
 import { providerFeatures } from '@sb/core/provider-registry'
 import { useAction, useMutation, useQuery } from 'convex/react'
+import { RefreshCwIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { AccountControls } from './providers/account-controls'
@@ -126,6 +127,8 @@ export function ProviderDiscovery({ provider, onChange }: Props) {
   const choices = (source ?? []).filter(
     (model) => !provider.models.some((row) => row.id === model.id),
   )
+  const hasChoices = choices.length > 0
+  const refreshing = busy || !!catalog?.refreshing
   const filtered = choices.filter((model) =>
     `${model.label ?? ''} ${model.id}`
       .toLowerCase()
@@ -182,18 +185,41 @@ export function ProviderDiscovery({ provider, onChange }: Props) {
       />
       {features.discovery && (
         <>
-          <RippleButton
-            variant="input"
-            size="sm"
-            disabled={
-              busy ||
-              catalog?.refreshing ||
-              (!providerId && features.accountSignIn)
-            }
-            onClick={() => void refresh()}
-          >
-            {busy || catalog?.refreshing ? 'Refreshing…' : 'Refresh models'}
-          </RippleButton>
+          <div className="mt-3 flex items-center gap-2">
+            <Input
+              aria-label="Search discovered models"
+              className="flex-1"
+              disabled={!hasChoices}
+              value={search}
+              placeholder={
+                hasChoices
+                  ? `Search ${choices.length} discovered models…`
+                  : 'Search discovered models…'
+              }
+              onChange={(event) => {
+                setSearch(event.target.value)
+                setLimit(50)
+              }}
+            />
+            <QuickTooltip text="Refresh models">
+              <RippleButton
+                variant="input"
+                size="icon"
+                className="size-11"
+                aria-label="Refresh models"
+                aria-busy={refreshing}
+                disabled={refreshing || (!providerId && features.accountSignIn)}
+                onClick={() => void refresh()}
+              >
+                <RefreshCwIcon
+                  aria-hidden
+                  className={
+                    refreshing ? 'motion-safe:animate-spin' : undefined
+                  }
+                />
+              </RippleButton>
+            </QuickTooltip>
+          </div>
           {!!catalog?.refreshedAt && (
             <p className="text-muted-foreground text-xs">
               Last refreshed: {new Date(catalog.refreshedAt).toLocaleString()}
@@ -204,16 +230,8 @@ export function ProviderDiscovery({ provider, onChange }: Props) {
               {failure} Cached models are preserved.
             </p>
           )}
-          {!!choices.length && (
+          {hasChoices && (
             <>
-              <Input
-                value={search}
-                placeholder={`Search ${choices.length} discovered models…`}
-                onChange={(event) => {
-                  setSearch(event.target.value)
-                  setLimit(50)
-                }}
-              />
               <div className="flex max-h-64 flex-wrap gap-1 overflow-auto">
                 {filtered.slice(0, limit).map((model) => (
                   <RippleButton
@@ -239,7 +257,7 @@ export function ProviderDiscovery({ provider, onChange }: Props) {
               )}
             </>
           )}
-          {!!source && !choices.length && (
+          {!!source && !hasChoices && (
             <p className="text-muted-foreground text-xs">
               All discovered models are configured, or the provider returned an
               empty catalog.

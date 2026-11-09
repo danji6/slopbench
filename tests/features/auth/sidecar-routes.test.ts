@@ -5,7 +5,6 @@ import { beforeAll, expect, spyOn, test } from 'bun:test'
 let app: ReturnType<typeof createApp>
 const authorization = 'Bearer fixture-secret'
 const providerPaths = [
-  'prepare-transfer',
   'start',
   'status',
   'cancel',
@@ -24,7 +23,6 @@ test('central routes require authentication before reaching shell or provider ha
   expect((await app.request('/health')).status).toBe(200)
   const paths = [
     ...providerPaths.map((path) => `/providers/chatgpt/${path}`),
-    '/providers/chatgpt/host',
     '/shell/start',
     '/shell/stream',
   ]
