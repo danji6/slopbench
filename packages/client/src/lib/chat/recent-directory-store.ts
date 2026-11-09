@@ -17,6 +17,10 @@ export function getRecentDirectories(): string[] {
   return store.get().paths ?? EMPTY_DIRECTORIES
 }
 
+export function clearRecentDirectories(): void {
+  store.set({ paths: undefined })
+}
+
 /** Remembers a confirmed directory, placing it before earlier selections. */
 export function rememberDirectory(path: string): void {
   store.set({
