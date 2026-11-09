@@ -21,11 +21,12 @@ import { useComposerCloseGuard } from './composer-close-guard'
 
 const INTERACTIVE = 'a,button,img,input,select,textarea,[contenteditable]'
 
+// Only one composer is mounted, so it shares a fixed fullscreen view id.
+export const COMPOSER_FULLSCREEN_ID = 'composer'
+
 /** Imperative handle exposed to parents for focusing the composer. */
 export type ComposerHandle = {
   focus: (options?: FocusOptions) => void
-  /** Replaces the editor content from a markdown string. */
-  setContent: (markdown: string) => void
   /** Inserts a starter only while the composer is empty and restored. */
   insertStarter: (markdown: string) => void
   openAttachments: () => void
@@ -105,10 +106,6 @@ export function useComposerEditor({
     inputRef,
     () => ({
       focus: (options) => editorRef.current?.view.dom.focus(options),
-      setContent: (markdown) => {
-        const editor = editorRef.current
-        if (editor) applyMarkdown(editor, markdown)
-      },
       insertStarter: (markdown) => {
         const editor = editorRef.current
         if (!editor || !canInsertStarter) return

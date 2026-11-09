@@ -5,4 +5,5 @@
 export * from './answer-picker-content'
 export * from './answer-picker'
 export * from './file-mention-picker'
+export * from './review-approval-button'
 export * from './tool-approval-picker'

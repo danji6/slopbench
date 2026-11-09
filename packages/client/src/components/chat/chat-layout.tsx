@@ -1,5 +1,5 @@
 import { FadingGradient } from '@/components/ui'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useElementHeight } from '@/hooks/measure'
 
 import { ChatScrollbar } from './chat-scrollbar'
 
@@ -10,8 +10,8 @@ export type ChatLayoutProps = {
   dock: React.ReactNode
   /** Space at the bottom of the viewport the dock has to stay clear of. */
   bottomInset?: number
-  /** Content above the dock. */
-  dockHeader?: (bottomPadding: number) => React.ReactNode
+  /** Content above the dock or the footer when the dock is hidden. */
+  dockHeader?: (stackHeight: number, footerHeight: number) => React.ReactNode
   /** Content below the dock. */
   dockFooter?: React.ReactNode
   dockFooterWidth?: string
@@ -28,22 +28,8 @@ export function ChatLayout({
   dockHeader,
   scrollbar,
 }: ChatLayoutProps) {
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const [bottomHeight, setBottomHeight] = useState(0)
-
-  useLayoutEffect(() => {
-    const el = bottomRef.current
-    if (!el) return
-    // Synchronous first read before paint, then track subsequent changes
-    setBottomHeight(el.getBoundingClientRect().height)
-    const observer = new ResizeObserver(([entry]) => {
-      setBottomHeight(
-        entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height,
-      )
-    })
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
+  const [bottomRef, bottomHeight] = useElementHeight<HTMLDivElement>()
+  const [footerRef, footerHeight] = useElementHeight<HTMLDivElement>()
 
   return (
     <div
@@ -57,13 +43,16 @@ export function ChatLayout({
         style={{ bottom: bottomInset }}
       >
         {/* Offsets within the docked stack, which the inset already lifted */}
-        {dockHeader?.(bottomHeight)}
+        {dockHeader?.(bottomHeight, footerHeight)}
         <div
           ref={bottomRef}
           className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center"
         >
           {dock}
-          <div className="relative -z-10 flex w-full justify-center pb-1">
+          <div
+            ref={footerRef}
+            className="relative -z-10 flex w-full justify-center pb-1"
+          >
             <FadingGradient className="-top-8 -z-10 h-auto rounded-none" />
             <div
               className="flex min-h-6 items-center px-1 pt-1.5 pb-0.5"

@@ -1,17 +1,7 @@
 import type { ToolApprovalPickerProps } from '@/components/chat/workspace/tool-approval-picker'
-import {
-  useActiveSession,
-  useActiveSessionState,
-  useChatMessage,
-  useIsAdmin,
-  useStreamAwaitingApproval,
-  useStreamProcessingMessageId,
-} from '@/hooks/chat'
-import { useSelectedApprovalAction } from '@/hooks/chat/tool-approval-interaction'
-import { useApprovalKeybinds } from '@/hooks/chat/tool-approval-interaction'
 import type { RememberScope } from '@/lib/chat'
 import { optimisticallyRespondApproval } from '@/lib/chat/approval-optimistic'
-import { useComposerDraft } from '@/lib/chat/composer-draft-store'
+import { createTextDraftStore } from '@/lib/chat/text-draft-store'
 import {
   type ApprovalAction,
   buildApprovalActions,
@@ -24,42 +14,74 @@ import {
 import { api } from '@sb/convex/_generated/api'
 import { alwaysLabel, approvalHold } from '@sb/convex/lib/tool/approvalPolicy'
 import { PLAN_APPROVALS, getDescription } from '@sb/core/approval-presentation'
+import { APP_ID } from '@sb/core/const'
 import { isPendingToolApproval } from '@sb/core/utils/tool-parts'
 import type { PathApprovalStatus } from '@sb/core/workspace/path-policy'
 import type { Editor } from '@tiptap/react'
 import type { ToolUIPart } from 'ai'
 import { useMutation } from 'convex/react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useRef } from 'react'
 
-/** Owns approval mutations, note drafts, keyboard selection, and focus. */
-export function useToolApprovalPicker({
-  restoreFocusRef,
-  onAbort,
+import { useChatMessage } from './messages'
+import { useActiveSession, useActiveSessionState } from './session'
+import { useStreamProcessingMessageId } from './stream'
+
+const notes = createTextDraftStore(`${APP_ID}-approval-note-drafts`)
+
+export type PendingToolApproval = {
+  key: string
+  part: ToolUIPart & { approvalPathStatus?: PathApprovalStatus }
+}
+
+type PendingApprovalOptions = {
+  childApproval?: ToolApprovalPickerProps['childApproval']
+  awaitingApproval: boolean
+  canApproveTools: boolean
+}
+
+export function usePendingToolApproval({
   childApproval,
-}: ToolApprovalPickerProps) {
+  awaitingApproval,
+  canApproveTools,
+}: PendingApprovalOptions): PendingToolApproval | undefined {
   const session = useActiveSession()
-  const state = useActiveSessionState()
-  const approvals = childApproval?.toolApprovals ?? state?.toolApprovals
-  const isAdmin = useIsAdmin()
   const processingMessageId = useStreamProcessingMessageId()
-  const awaitingApproval = useStreamAwaitingApproval()
-  const approveTool = useMutation(api.chat.approveTool).withOptimisticUpdate(
-    optimisticallyRespondApproval,
+  const { message } = useChatMessage(
+    canApproveTools && awaitingApproval ? (processingMessageId ?? '') : '',
   )
-  const { message } = useChatMessage(processingMessageId ?? '')
-  const rootRef = useRef<HTMLDivElement>(null)
-  const noteEditorRef = useRef<Editor | null>(null)
-  const draft = useComposerDraft(childApproval?.sessionId ?? session?._id)
-  const [selectedAction, setSelectedAction] = useState('')
+
+  if (!canApproveTools || !session) return
 
   const part = (childApproval?.parts ?? message?.parts)?.find(
     isPendingToolApproval,
-  ) as (ToolUIPart & { approvalPathStatus?: PathApprovalStatus }) | undefined
-  const toolName = part?.type.replace('tool-', '') ?? ''
+  ) as PendingToolApproval['part'] | undefined
+  if (!part) return
+
+  const sessionId = childApproval?.sessionId ?? session._id
+  return { key: JSON.stringify([sessionId, part.toolCallId]), part }
+}
+
+/** Owns the decision and note for the request currently under review. */
+export function useToolApprovalPicker({
+  request,
+  onAbort,
+  childApproval,
+}: Pick<ToolApprovalPickerProps, 'request' | 'onAbort' | 'childApproval'>) {
+  const session = useActiveSession()
+  const state = useActiveSessionState()
+  const { part, key } = request
+  const approvals = childApproval?.toolApprovals ?? state?.toolApprovals
+  const approveTool = useMutation(api.chat.approveTool).withOptimisticUpdate(
+    optimisticallyRespondApproval,
+  )
+  const noteEditorRef = useRef<Editor | null>(null)
+  const responding = useRef(false)
+
+  const toolName = part.type.replace('tool-', '')
   const planApproval = PLAN_APPROVALS[toolName]
-  const description = getDescription(part?.input)
+  const description = getDescription(part.input)
   const hold =
-    session && part && !planApproval
+    session && !planApproval
       ? approvalHold(
           toolName,
           part.input,
@@ -68,117 +90,64 @@ export function useToolApprovalPicker({
         )
       : null
   const rememberLabel =
-    session && part && !planApproval && hold !== 'forbidden'
+    session && !planApproval && hold !== 'forbidden'
       ? alwaysLabel(toolName, part.input, approvals)
       : null
-  const visible =
-    isAdmin &&
-    Boolean(childApproval || awaitingApproval) &&
-    Boolean(session && part)
 
-  const respond = useCallback(
-    async (approved: boolean, remember?: RememberScope, note?: string) => {
-      if (!session || !part) return
-      draft.clear()
-      try {
-        const childSessionId =
-          childApproval?.sessionId ?? (session.parent ? session._id : undefined)
-        await approveTool({
-          sessionId: session.parent?.sessionId ?? session._id,
-          ...(childSessionId ? { childSessionId } : {}),
-          toolCallId: part.toolCallId,
-          approved,
-          ...(remember ? { remember } : {}),
-          ...(!approved ? { reason: 'Denied by user.' } : {}),
-          ...(note ? { note } : {}),
-        })
-        // Still mounted when further approvals are pending in the same turn
-        const editor = noteEditorRef.current
-        if (editor && !editor.isDestroyed) editor.commands.clearContent(true)
-      } catch (err) {
-        // The rolled back picker remounts its editor from the draft
-        if (note) draft.flush(note)
-        toastError(err)
-      }
-    },
-    [approveTool, part, session, draft, childApproval],
-  )
-
-  const actions = useMemo(
-    () =>
-      buildApprovalActions(
-        Boolean(isAdmin && session && part),
-        rememberLabel,
-        hold,
-        planApproval,
-      ),
-    [isAdmin, part, hold, planApproval, rememberLabel, session],
-  )
-
-  const selectAction = useCallback(
-    (action: ApprovalAction) => {
+  async function respond(approved: boolean, remember?: RememberScope) {
+    if (!session || responding.current) return
+    responding.current = true
+    try {
       const editor = noteEditorRef.current
-      const note = editor ? serializeBlocksToMarkdown(editor).trim() : ''
-      if (action.abort) {
-        // Preserve the note so it reappears in the composer after the abort
-        draft.flush(note)
-        onAbort?.()
-        return
-      }
-      void respond(action.approved, action.remember, note || undefined)
-    },
-    [respond, onAbort, draft],
-  )
+      const note = (editor ? serializeBlocksToMarkdown(editor) : notes.read(key)).trim() // prettier-ignore
+      const childSessionId =
+        childApproval?.sessionId ?? (session.parent ? session._id : undefined)
+      await approveTool({
+        sessionId: session.parent?.sessionId ?? session._id,
+        ...(childSessionId ? { childSessionId } : {}),
+        toolCallId: part.toolCallId,
+        approved,
+        ...(remember ? { remember } : {}),
+        ...(!approved ? { reason: 'Denied by user.' } : {}),
+        ...(note ? { note } : {}),
+      })
+      notes.clear(key)
+    } catch (err) {
+      toastError(err)
+    } finally {
+      responding.current = false
+    }
+  }
+
+  function selectAction(action: ApprovalAction) {
+    if (action.abort) onAbort?.()
+    else void respond(action.approved, action.remember)
+  }
 
   const handleNoteReady = useCallback(
     (editor: Editor) => {
+      if (noteEditorRef.current === editor) return
       noteEditorRef.current = editor
-      editor.on('update', () => draft.save(serializeBlocksToMarkdown(editor)))
-      const saved = draft.read()
+      const saved = notes.read(key)
       if (saved) setEditorMarkdown(editor, saved)
+      editor.on('update', () => {
+        notes.write(key, serializeBlocksToMarkdown(editor))
+      })
     },
-    [draft],
+    [key],
   )
-
-  useSelectedApprovalAction(actions, setSelectedAction)
-
-  useEffect(() => {
-    if (!visible || !restoreFocusRef) return
-    const restoreFocusTarget = restoreFocusRef.current
-    return () => restoreFocusTarget?.focus({ preventScroll: true })
-  }, [restoreFocusRef, visible])
-
-  // Keep the picker focused as it appears and as the request changes
-  useEffect(() => {
-    if (visible) rootRef.current?.focus({ preventScroll: true })
-  }, [visible, part?.toolCallId])
-
-  const focusNote = useCallback(
-    () => noteEditorRef.current?.commands.focus(),
-    [],
-  )
-
-  useApprovalKeybinds({
-    actions,
-    onSelect: selectAction,
-    selectedAction,
-    setSelectedAction,
-    visible,
-    rootRef,
-    focusNote,
-  })
 
   return {
-    visible,
-    part,
-    rootRef,
     planApproval,
     toolName,
     description,
     hold,
-    actions,
-    selectedAction,
-    setSelectedAction,
+    actions: buildApprovalActions(
+      Boolean(session),
+      rememberLabel,
+      hold,
+      planApproval,
+    ),
     selectAction,
     handleNoteReady,
   }

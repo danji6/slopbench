@@ -36,7 +36,19 @@ const part = (id: string): Part => ({
   approval: { id },
 })
 
+const hasLocalApproval = new URLSearchParams(location.search).has('localApproval') // prettier-ignore
+
 let requests = [
+  ...(hasLocalApproval
+    ? [
+        {
+          sessionId: 'parent',
+          title: 'Parent',
+          agentName: 'Writer',
+          parts: [part('local')],
+        },
+      ]
+    : []),
   {
     sessionId: 'child',
     title: 'Explore task',
@@ -81,7 +93,8 @@ function pendingParts(sessionId: string) {
 }
 
 function stream(sessionId: string) {
-  if (sessionId === 'parent' || stopped.includes(sessionId)) return null
+  if (sessionId === 'parent' && (!hasLocalApproval || !approvalsReady)) return null // prettier-ignore
+  if (stopped.includes(sessionId)) return null
   return {
     _id: `${sessionId}_stream`,
     sessionId,
@@ -186,7 +199,11 @@ function query(name: string, args: Record<string, unknown>) {
   }
   if (name === 'subagents:pendingApprovals')
     return (approvalsReady ? requests : [])
-      .filter((request) => !stopped.includes(request.sessionId))
+      .filter(
+        (request) =>
+          request.sessionId !== 'parent' &&
+          !stopped.includes(request.sessionId),
+      ) // prettier-ignore
       .map((request) => ({
         ...request,
         toolApprovals: {},
@@ -218,7 +235,10 @@ async function respond(
   args: Record<string, unknown>,
   update?: OptimisticUpdate<FunctionArgs<typeof api.chat.approveTool>>,
 ) {
-  if (args.sessionId !== 'parent' || !args.childSessionId) {
+  if (
+    args.sessionId !== 'parent' ||
+    (!args.childSessionId && !hasLocalApproval)
+  ) {
     throw new Error(
       'Child approvals must use the parent/child mutation arguments',
     )
@@ -237,8 +257,9 @@ async function respond(
     notify()
     throw new Error('Fixture approval failure')
   }
+  const owningSession = args.childSessionId ?? args.sessionId
   requests = requests.map((request) =>
-    request.sessionId === args.childSessionId
+    request.sessionId === owningSession
       ? {
           ...request,
           parts: request.parts.map((part) =>
@@ -296,7 +317,10 @@ export const approvalFixtureClient = {
     mutations.push({ name, args })
     if (name === 'chat:approveTool')
       await respond(args, options?.optimisticUpdate)
-    else if (name === 'chat:stopStream' || name === 'subagents:stop') {
+    else if (name === 'chat:sendMessage') {
+      notify()
+      return 'sent-message'
+    } else if (name === 'chat:stopStream' || name === 'subagents:stop') {
       stopped = [...stopped, String(args.childSessionId ?? args.sessionId)]
     } else if (!name.startsWith('typing:'))
       throw new Error(`Unexpected mutation: ${name}`)

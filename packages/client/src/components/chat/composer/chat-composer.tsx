@@ -3,7 +3,10 @@ import {
   type ComposerFileBatch,
   useComposerAttachments,
 } from '@/hooks/chat/composer-attachments'
-import { useComposerEditor } from '@/hooks/chat/composer-editor'
+import {
+  COMPOSER_FULLSCREEN_ID,
+  useComposerEditor,
+} from '@/hooks/chat/composer-editor'
 import type { ComposerHandle } from '@/hooks/chat/composer-editor'
 import { useComposerMentions } from '@/hooks/chat/composer-mentions'
 import type { WorkspaceFileIndex } from '@/hooks/chat/workspace'
@@ -60,9 +63,6 @@ const ComposerEditor = lazy(() =>
 /** Keeps the slash hint intact when the agent name is long. */
 const PLACEHOLDER_NAME_MAX = 24
 
-// Only one composer is ever mounted, so a fixed id is enough to identify it.
-const COMPOSER_FULLSCREEN_ID = 'composer'
-
 export type ChatComposerProps = Omit<InputGroupProps, 'onSubmit'> & {
   onSubmit: (message: PendingMessage) => void | Promise<void>
   onStop?: () => void
@@ -76,6 +76,8 @@ export type ChatComposerProps = Omit<InputGroupProps, 'onSubmit'> & {
   activeAgentName?: string
   /** Optional content rendered in the action bar, left of the attach button. */
   startContent?: React.ReactNode
+  /** Notice above the editor that also follows it into fullscreen. */
+  notice?: React.ReactNode
   /** Session mode exposed through the attach menu. */
   mode?: ComposerToolbarMode
   onContentChange?: (hasContent: boolean, draftReady: boolean) => void
@@ -114,6 +116,7 @@ export function ChatComposer({
   hideTokenWidget,
   activeAgentName,
   startContent,
+  notice,
   mode,
   onContentChange,
   onTyping,
@@ -399,6 +402,7 @@ export function ChatComposer({
             {...props}
             onMouseDown={handleSurfaceMouseDown}
           >
+            {notice}
             <FileStrip
               files={attachments.files}
               onRemove={attachments.removeFile}

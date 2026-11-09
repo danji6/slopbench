@@ -1,110 +1,101 @@
-import { type ApprovalAction } from '@/lib/chat/tool-approval-policy'
-import { useEffect, useState } from 'react'
+import type { ApprovalAction } from '@/lib/chat/tool-approval-policy'
+import type { KeyboardEvent, RefObject } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 
-export function useSelectedApprovalAction(
-  actions: ApprovalAction[],
-  setSelectedAction: (value: string) => void,
-) {
-  const actionSignature = actions.map((action) => action.id).join('|')
-  const [prevActionSignature, setPrevActionSignature] =
-    useState(actionSignature)
+type ApprovalInteractionOptions = {
+  actions: ApprovalAction[]
+  selectAction: (action: ApprovalAction) => void
+  focusOnOpen: boolean
+  restoreFocusRef?: RefObject<{ focus(options?: FocusOptions): void } | null>
+}
 
-  if (prevActionSignature !== actionSignature) {
-    setPrevActionSignature(actionSignature)
-    setSelectedAction(actions[0]?.id ?? '')
+export function useApprovalInteraction({
+  actions,
+  selectAction,
+  focusOnOpen,
+  restoreFocusRef,
+}: ApprovalInteractionOptions) {
+  const rootRef = useRef<HTMLDivElement>(null)
+  const actionsRef = useRef<HTMLDivElement>(null)
+  const [selection, setSelectedAction] = useState('')
+  const selected = actions.find((action) => action.id === selection) ?? actions[0] // prettier-ignore
+
+  const restoreFocus = useCallback(() => {
+    if (document.activeElement === document.body) {
+      restoreFocusRef?.current?.focus({ preventScroll: true })
+    }
+  }, [restoreFocusRef])
+
+  useLayoutEffect(() => {
+    if (!focusOnOpen) return
+
+    const frame = requestAnimationFrame(() =>
+      actionsRef.current?.focus({ preventScroll: true }),
+    )
+    return () => cancelAnimationFrame(frame)
+  }, [focusOnOpen])
+
+  useLayoutEffect(() => {
+    const root = rootRef.current
+    return () => {
+      if (root?.contains(document.activeElement)) {
+        requestAnimationFrame(restoreFocus)
+      }
+    }
+  }, [restoreFocus])
+
+  function handleActionKey(event: KeyboardEvent<HTMLDivElement>) {
+    if (isComposing(event) || (event.key === 'Escape' && event.repeat)) {
+      event.stopPropagation()
+      return
+    }
+
+    const action = findKeyboardAction(event, actions, selected)
+    if (!action) return
+
+    event.preventDefault()
+    event.stopPropagation()
+    if (!event.repeat) selectAction(action)
+  }
+
+  function handleNoteKey(event: KeyboardEvent<HTMLDivElement>) {
+    if (isComposing(event)) {
+      if (event.key === 'Escape') event.stopPropagation()
+      return
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      event.stopPropagation()
+      actionsRef.current?.focus({ preventScroll: true })
+    } else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault()
+      event.stopPropagation()
+      if (selected && !event.repeat) selectAction(selected)
+    }
+  }
+
+  return {
+    rootRef,
+    actionsRef,
+    selectedAction: selected?.id ?? '',
+    setSelectedAction,
+    handleActionKey,
+    handleNoteKey,
   }
 }
 
-export function useApprovalKeybinds({
-  actions,
-  onSelect,
-  selectedAction,
-  setSelectedAction,
-  visible,
-  rootRef,
-  focusNote,
-}: {
-  actions: ApprovalAction[]
-  onSelect: (action: ApprovalAction) => void
-  selectedAction: string
-  setSelectedAction: (value: string) => void
-  visible: boolean
-  rootRef: React.RefObject<HTMLDivElement | null>
-  focusNote: () => void
-}) {
-  useEffect(() => {
-    if (!visible || actions.length === 0) return
+function isComposing(event: KeyboardEvent) {
+  return event.nativeEvent.isComposing || event.keyCode === 229
+}
 
-    function handleKeyDown(e: KeyboardEvent) {
-      const root = rootRef.current
-      if (!root || !root.contains(document.activeElement)) return
-
-      // While typing a note, let the editor own its keys. Ctrl/Cmd+Enter still
-      // submits the highlighted action; Escape hands focus back to the list.
-      const typingNote =
-        (document.activeElement as HTMLElement | null)?.isContentEditable ===
-        true
-      if (typingNote) {
-        // Tab/Escape leave the note and hand focus to the options list
-        if (e.key === 'Tab' || e.key === 'Escape') {
-          e.preventDefault()
-          e.stopPropagation()
-          root.focus({ preventScroll: true })
-        } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-          e.preventDefault()
-          e.stopPropagation()
-          const action =
-            actions.find((item) => item.id === selectedAction) ?? actions[0]
-          if (action) onSelect(action)
-        }
-        return
-      }
-
-      // From the options, Tab/Shift+Tab moves into the note editor
-      if (e.key === 'Tab') {
-        e.preventDefault()
-        e.stopPropagation()
-        focusNote()
-        return
-      }
-
-      if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.length === 1) {
-        const key = e.key.toLowerCase()
-        const action = actions.find((item) => item.shortcut === key)
-        if (action) {
-          e.preventDefault()
-          onSelect(action)
-          return
-        }
-      }
-
-      if (e.key === 'ArrowDown') {
-        e.preventDefault()
-        const idx = actions.findIndex((action) => action.id === selectedAction)
-        setSelectedAction(actions[(idx + 1) % actions.length]!.id)
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault()
-        const idx = actions.findIndex((action) => action.id === selectedAction)
-        setSelectedAction(
-          actions[(idx - 1 + actions.length) % actions.length]!.id,
-        )
-      } else if (e.key === 'Enter') {
-        e.preventDefault()
-        const action = actions.find((item) => item.id === selectedAction)
-        if (action) onSelect(action)
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown, { capture: true })
-    return () =>
-      window.removeEventListener('keydown', handleKeyDown, { capture: true })
-  }, [
-    actions,
-    onSelect,
-    rootRef,
-    selectedAction,
-    setSelectedAction,
-    visible,
-    focusNote,
-  ])
+function findKeyboardAction(
+  event: KeyboardEvent,
+  actions: ApprovalAction[],
+  selected: ApprovalAction | undefined,
+) {
+  if (event.key === 'Enter') return selected
+  if (event.altKey || event.ctrlKey || event.metaKey) return
+  const key = event.key.toLowerCase()
+  return actions.find((action) => action.shortcut === key)
 }

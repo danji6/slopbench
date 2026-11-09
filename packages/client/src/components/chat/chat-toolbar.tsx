@@ -1,8 +1,11 @@
 import { AnimatedToolbar } from '@/components/ui/animated-toolbar'
 import { cn } from '@/lib/utils'
 import { ChevronDownIcon, KeyboardIcon, SaveIcon, XIcon } from 'lucide-react'
+import { AnimatePresence } from 'motion/react'
 
 import { ChatPill, type ChatPillProps } from './chat-pill'
+
+const DOCK_HEADER_GAP = 16
 
 export type ChatToolbarProps = ChatPillProps & {
   /** Scroll/Pin group, shown when the viewport isn't at the bottom. */
@@ -80,5 +83,58 @@ export function ChatToolbar({
         </ChatPill.Button>
       </AnimatedToolbar.Item>
     </ChatPill>
+  )
+}
+
+type ChatDockHeaderProps = {
+  dockWidth: string
+  docked: boolean
+  stackHeight: number
+  footerHeight: number
+  widgetsHeight: number
+  alertHeight: number
+  toolbar?: ChatToolbarProps
+  review?: React.ReactNode
+}
+
+function dockHeaderBottom({
+  docked,
+  stackHeight,
+  footerHeight,
+  widgetsHeight,
+  alertHeight,
+}: ChatDockHeaderProps) {
+  if (!docked) return footerHeight + DOCK_HEADER_GAP
+  // The toolbar shares the widgets' row, which already clears the alert.
+  if (widgetsHeight) return stackHeight - widgetsHeight
+  return stackHeight + alertHeight + DOCK_HEADER_GAP
+}
+
+export function ChatDockHeader(props: ChatDockHeaderProps) {
+  const { dockWidth, toolbar, review } = props
+  const bottom = dockHeaderBottom(props)
+  const sideInset = `calc((100% - (${dockWidth})) / 2 + var(--spacing))`
+
+  return (
+    <AnimatePresence>
+      {review && (
+        <div
+          key="review-approval"
+          className="absolute"
+          style={{ bottom, left: sideInset }}
+        >
+          {review}
+        </div>
+      )}
+      {toolbar && (
+        <ChatToolbar
+          key="chat-toolbar"
+          {...toolbar}
+          bottom={bottom}
+          className="pointer-events-auto absolute"
+          style={{ right: sideInset }}
+        />
+      )}
+    </AnimatePresence>
   )
 }

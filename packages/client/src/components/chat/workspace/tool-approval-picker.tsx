@@ -1,4 +1,8 @@
-import { useToolApprovalPicker } from '@/hooks/chat/tool-approval'
+import {
+  type PendingToolApproval,
+  useToolApprovalPicker,
+} from '@/hooks/chat/tool-approval'
+import { useApprovalInteraction } from '@/hooks/chat/tool-approval-interaction'
 import { cn } from '@/lib/utils'
 import { type api } from '@sb/convex/_generated/api'
 import { HOLD_HINTS } from '@sb/convex/lib/tool/approvalPolicy'
@@ -6,7 +10,7 @@ import { summarizeInput, toolDisplayName } from '@sb/core/approval-presentation'
 import type { FunctionReturnType } from 'convex/server'
 import { type RefObject, Suspense, lazy } from 'react'
 
-import { Code, T } from '../../ui'
+import { Button, Code, T } from '../../ui'
 import { Command } from '../../ui/command'
 
 const ComposerEditor = lazy(() =>
@@ -20,33 +24,44 @@ export type SubagentApproval = FunctionReturnType<
 >[number]
 
 export function ToolApprovalPicker({
+  request,
   className,
+  focusOnOpen = false,
   restoreFocusRef,
   onAbort,
+  onHide,
   childApproval,
 }: ToolApprovalPickerProps) {
+  const { part } = request
+
   const {
-    visible,
-    part,
-    rootRef,
     planApproval,
     toolName,
     description,
     hold,
     actions,
-    selectedAction,
-    setSelectedAction,
     selectAction,
     handleNoteReady,
-  } = useToolApprovalPicker({ restoreFocusRef, onAbort, childApproval })
+  } = useToolApprovalPicker({ request, onAbort, childApproval })
 
-  if (!visible || !part) return null
+  const {
+    rootRef,
+    actionsRef,
+    selectedAction,
+    setSelectedAction,
+    handleActionKey,
+    handleNoteKey,
+  } = useApprovalInteraction({
+    actions,
+    selectAction,
+    focusOnOpen,
+    restoreFocusRef,
+  })
 
   return (
     <div
       data-slot="tool-approval-picker"
       ref={rootRef}
-      tabIndex={-1}
       className={cn(
         'bg-m3-surface-container-low w-full overflow-hidden rounded-xl border shadow-lg outline-none',
         className,
@@ -62,18 +77,25 @@ export function ToolApprovalPicker({
             {childApproval.title && ` · ${childApproval.title}`}
           </div>
         )}
-        {planApproval ? (
-          <div className="text-foreground text-sm font-medium">
-            {planApproval.heading}
-          </div>
-        ) : (
-          <div className="text-sm">
-            <span className="text-muted-foreground ml-1">Approve:</span>{' '}
-            <span className="text-foreground font-medium">
-              {toolDisplayName(toolName, part.input, part.title)}
-            </span>
-          </div>
-        )}
+        <div className="flex min-h-8 items-center justify-between gap-2">
+          {planApproval ? (
+            <div className="text-foreground text-sm font-medium">
+              {planApproval.heading}
+            </div>
+          ) : (
+            <div className="text-sm">
+              <span className="text-muted-foreground ml-1">Approve:</span>{' '}
+              <span className="text-foreground font-medium">
+                {toolDisplayName(toolName, part.input, part.title)}
+              </span>
+            </div>
+          )}
+          {onHide && (
+            <Button size="sm" variant="stealth" onClick={onHide}>
+              Hide
+            </Button>
+          )}
+        </div>
         {!planApproval && (
           <>
             <Code
@@ -98,9 +120,17 @@ export function ToolApprovalPicker({
           </div>
         )}
         <Command
+          ref={actionsRef}
+          tabIndex={0}
+          role="group"
+          aria-label="Approval actions"
+          disablePointerSelection
+          loop
           shouldFilter={false}
           value={selectedAction}
           onValueChange={setSelectedAction}
+          onKeyDownCapture={handleActionKey}
+          className="focus-visible:ring-ring focus-visible:ring-1"
         >
           <Command.CommandList>
             {actions.map((action) => (
@@ -125,6 +155,7 @@ export function ToolApprovalPicker({
         </Command>
         <div
           data-slot="approval-note"
+          onKeyDownCapture={handleNoteKey}
           className="bg-background/60 max-h-32 overflow-y-auto rounded-lg border px-3 py-1.5"
           style={{
             fontFamily: 'var(--chat-font-family)',
@@ -146,8 +177,11 @@ export function ToolApprovalPicker({
 }
 
 export type ToolApprovalPickerProps = {
+  request: PendingToolApproval
   className?: string
+  focusOnOpen?: boolean
   restoreFocusRef?: RefObject<{ focus(options?: FocusOptions): void } | null>
   onAbort?: () => void
+  onHide?: () => void
   childApproval?: SubagentApproval
 }

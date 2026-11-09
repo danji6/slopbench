@@ -14,21 +14,17 @@ import {
   useUnseenTailActivity,
 } from '@/hooks/chat'
 import type { useChatStatus, useWorkspaceFileIndex } from '@/hooks/chat'
+import { useApprovalReview } from '@/hooks/chat/approval-review'
 import { useHasElapsed } from '@/hooks/expiry'
 import { useAtBottomSticky } from '@/hooks/scroll'
 import type { PendingMessage } from '@/lib/chat'
-import { getDraft } from '@/lib/chat/composer-draft-store'
 import {
   avatarGutter,
   avatarVars,
   columnWidth,
 } from '@/lib/chat/message-geometry'
 import { isOngoingStream } from '@/lib/chat/stream'
-import { toastError } from '@/lib/notifications'
 import { cn } from '@/lib/utils'
-import { api } from '@sb/convex/_generated/api'
-import { useMutation, useQuery } from 'convex/react'
-import { AnimatePresence } from 'motion/react'
 import {
   useCallback,
   useEffect,
@@ -42,7 +38,8 @@ import { SlowModeLabel } from './chat-countdowns'
 import { ChatDock } from './chat-dock'
 import { ChatLayout } from './chat-layout'
 import { ChatPrompts } from './chat-prompts'
-import { ChatToolbar } from './chat-toolbar'
+import { ChatDockHeader, ChatToolbar } from './chat-toolbar'
+import type { ChatToolbarProps } from './chat-toolbar'
 import { ActivityIndicator } from './composer/activity-indicator'
 import { ChatComposer } from './composer/chat-composer'
 import type { ComposerHandle } from './composer/chat-composer'
@@ -57,24 +54,10 @@ import { ChatShortcutsProvider } from './shortcuts'
 import { SubagentBanner } from './subagents/subagent-banner'
 import { DockWidgets } from './widgets/dock-widgets'
 import { AnswerPicker } from './workspace/answer-picker'
+import { ReviewApprovalButton } from './workspace/review-approval-button'
 import { ToolApprovalPicker } from './workspace/tool-approval-picker'
 
 const DOCK_HIDE_DISTANCE = 160
-/** Gap between the dock and the toolbar sitting above it. */
-const DOCK_HEADER_GAP = 16
-
-/** Bottom offset that keeps the toolbar just above the dock's contents. */
-function toolbarBottom(
-  docked: boolean,
-  dockHeight: number,
-  widgetsHeight: number,
-  alertHeight: number,
-) {
-  if (!docked) return DOCK_HEADER_GAP
-  // The toolbar shares the widgets' row, which already clears the alert
-  if (widgetsHeight) return dockHeight - widgetsHeight
-  return dockHeight + alertHeight + DOCK_HEADER_GAP
-}
 
 type ChatSessionViewProps = {
   dockWidth: string
@@ -127,6 +110,8 @@ export function ChatSessionView({
   const sendDisabled = !!cooldownUntil && !cooldownElapsed
   const [isPinned, setPinned] = useState(false)
   const [hasContent, setHasContent] = useState(false)
+  const [draftReady, setDraftReady] = useState(false)
+  const [composerFocused, setComposerFocused] = useState(false)
 
   // Message editing
   const editCtx = useMessageEdit()
@@ -142,19 +127,6 @@ export function ChatSessionView({
   const { mode, setMode } = useSessionMode()
   const approval = useSessionApprovalMode()
   const canUseWorkspace = canApproveTools && workspaceAvailable
-  const childApprovals = useQuery(
-    api.subagents.pendingApprovals,
-    session && !subagentParent && canApproveTools
-      ? { sessionId: session._id }
-      : 'skip',
-  )
-  const stopSubagent = useMutation(api.subagents.stop)
-  const childApproval =
-    !awaitingApproval && !awaitingAnswer ? childApprovals?.[0] : undefined
-  const showApproval =
-    (awaitingApproval || Boolean(childApproval)) && canApproveTools
-  const showAnswerPicker = awaitingAnswer
-  const showInteractionPicker = showApproval || showAnswerPicker
 
   // Search
   const { open: openSearch } = useChatSearch()
@@ -206,8 +178,36 @@ export function ChatSessionView({
   const unseenActivity = useUnseenTailActivity(isAtBottom)
   const hasActivity = isOngoingStream(status) || unseenActivity
   const agentWaiting = awaitingApproval || awaitingAnswer
+  const composerDocked = !isEditing && (isPinned || isAtBottom || hasContent)
 
-  const showDock = !isEditing && (isPinned || (isAtBottom && !isPinned) || hasContent) // prettier-ignore
+  const review = useApprovalReview({
+    awaitingApproval,
+    awaitingAnswer,
+    canApproveTools,
+    composerDocked,
+    composerIdle: draftReady && !hasContent && !composerFocused,
+    reviewBlocked: isEditing || searchOpen,
+  })
+
+  const showDock = composerDocked || review.showApproval
+  const showInteractionPicker = review.showApproval || awaitingAnswer
+  const showToolbar = !isAtBottom || isEditing
+  const showReviewAction = review.showReviewButton && !review.fullscreen && !isEditing // prettier-ignore
+  const reviewInDock = showReviewAction && showDock && !showInteractionPicker
+
+  function openReview() {
+    if (!showDock) messageListRef.current?.followToBottom()
+    setComposerFocused(false)
+    review.review()
+  }
+
+  function hideReview() {
+    review.hide()
+    requestAnimationFrame(() =>
+      composerRef.current?.focus({ preventScroll: true }),
+    )
+  }
+
   const pendingFocusRef = useRef(false)
   const pinToBottom = useCallback(() => {
     messageListRef.current?.followToBottom()
@@ -221,18 +221,6 @@ export function ChatSessionView({
       composerRef.current?.focus({ preventScroll: true })
     }
   }, [showDock])
-
-  // When an approval closes, the note draft becomes the composer content
-  const prevShowApprovalRef = useRef(showApproval)
-  useEffect(() => {
-    const wasShowing = prevShowApprovalRef.current
-    prevShowApprovalRef.current = showApproval
-    if (!wasShowing || showApproval || !session) return
-
-    const text = getDraft(session._id)
-    composerRef.current?.setContent(text)
-    if (text) pendingFocusRef.current = true
-  }, [showApproval, session])
 
   const handledEditRevisionRef = useRef(completedEditRevision)
   // Refocus composer after editing a message
@@ -257,8 +245,9 @@ export function ChatSessionView({
   )
 
   const handleContentChange = useCallback(
-    (has: boolean) => {
+    (has: boolean, ready: boolean) => {
       setHasContent(has)
+      setDraftReady(ready)
       // Emptying the composer cancels a pending heartbeat or clears the
       // indicator after a short grace window
       if (!has) stopTyping()
@@ -277,6 +266,43 @@ export function ChatSessionView({
       pendingFocusRef.current = true
     }
   }, [onStop, showDock, showInteractionPicker])
+
+  function handleComposerFocus() {
+    setComposerFocused(true)
+  }
+
+  function handleComposerBlur(event: React.FocusEvent) {
+    const target = event.relatedTarget
+    if (
+      target instanceof Element &&
+      target.closest('[data-slot="chat-box"], [data-slot="review-approval"]')
+    ) {
+      return
+    }
+    setComposerFocused(false)
+  }
+
+  const toolbar: ChatToolbarProps = {
+    showScroll: !isAtBottom,
+    activity: hasActivity,
+    onScrollToBottom: pinToBottom,
+    pinnable: !isEditing,
+    pinned: isPinned,
+    onPinChange: setPinned,
+    editing: isEditing,
+    onEditSave: editCtx?.onSave,
+    onEditCancel: editCtx?.onCancel,
+  }
+
+  const reviewAction = showReviewAction && (
+    <ReviewApprovalButton
+      compact
+      onClick={openReview}
+      onFocus={handleComposerFocus}
+      onBlur={handleComposerBlur}
+      className="pointer-events-auto"
+    />
+  )
 
   return (
     <ChatShortcutsProvider
@@ -304,38 +330,20 @@ export function ChatSessionView({
                 onInitialPositionSettled={handleInitialPositionSettled}
               />
             )}
-            dockHeader={(bottomPadding) => {
-              const dockTop = toolbarBottom(
-                showDock,
-                bottomPadding,
-                widgetsHeight,
-                alertHeight,
+            dockHeader={(stackHeight, footerHeight) =>
+              !reviewInDock && (
+                <ChatDockHeader
+                  dockWidth={dockWidth}
+                  docked={showDock}
+                  stackHeight={stackHeight}
+                  footerHeight={footerHeight}
+                  widgetsHeight={widgetsHeight}
+                  alertHeight={alertHeight}
+                  toolbar={showToolbar ? toolbar : undefined}
+                  review={!showDock && reviewAction}
+                />
               )
-              return (
-                <AnimatePresence>
-                  {(!isAtBottom || isEditing) && (
-                    <ChatToolbar
-                      key="chat-toolbar"
-                      bottom={dockTop}
-                      showScroll={!isAtBottom}
-                      activity={hasActivity}
-                      onScrollToBottom={pinToBottom}
-                      pinnable={!isEditing}
-                      pinned={isPinned}
-                      onPinChange={setPinned}
-                      editing={isEditing}
-                      onEditSave={editCtx?.onSave}
-                      onEditCancel={editCtx?.onCancel}
-                      className="pointer-events-auto absolute"
-                      style={{
-                        // Mirrors the widgets' inset on the other end of the row
-                        right: `calc((100% - (${dockWidth})) / 2 + var(--spacing))`,
-                      }}
-                    />
-                  )}
-                </AnimatePresence>
-              )
-            }}
+            }
             dockFooter={
               <div className="flex h-4 w-full min-w-0 items-center">
                 <ActivityIndicator
@@ -379,25 +387,21 @@ export function ChatSessionView({
                     }
                   />
                 )}
-                {showApproval && (
+                {review.showApproval && review.request && (
                   <ToolApprovalPicker
-                    key={childApproval?.sessionId ?? session?._id}
-                    childApproval={childApproval}
+                    key={review.request.key}
+                    request={review.request}
+                    childApproval={review.childApproval}
+                    focusOnOpen={review.focusOnOpen}
                     restoreFocusRef={composerRef}
                     onAbort={
-                      childApproval && session
-                        ? () => {
-                            void stopSubagent({
-                              sessionId: session._id,
-                              childSessionId: childApproval.sessionId,
-                            }).catch(toastError)
-                          }
-                        : handleAbort
+                      review.childApproval ? review.abortChild : handleAbort
                     }
+                    onHide={subagentParent ? undefined : hideReview}
                     className="pointer-events-auto w-full"
                   />
                 )}
-                {!subagentParent && showAnswerPicker && (
+                {!subagentParent && awaitingAnswer && (
                   <AnswerPicker
                     restoreFocusRef={composerRef}
                     onAbort={handleAbort}
@@ -410,6 +414,19 @@ export function ChatSessionView({
                     <DockWidgets
                       ref={widgetsRef}
                       className={cn(showInteractionPicker && 'hidden')}
+                      actions={
+                        reviewInDock && (
+                          <>
+                            {reviewAction}
+                            {showToolbar && (
+                              <ChatToolbar
+                                {...toolbar}
+                                className="pointer-events-auto shrink-0"
+                              />
+                            )}
+                          </>
+                        )
+                      }
                     />
                     <ChatComposer
                       onSubmit={handleSubmit}
@@ -444,6 +461,17 @@ export function ChatSessionView({
                         set: setMode,
                       }}
                       onContentChange={handleContentChange}
+                      onFocus={handleComposerFocus}
+                      onBlur={handleComposerBlur}
+                      notice={
+                        review.showReviewButton &&
+                        review.fullscreen && (
+                          <ReviewApprovalButton
+                            onClick={openReview}
+                            className="order-first w-full px-4 pt-1"
+                          />
+                        )
+                      }
                       status={status}
                       inputRef={composerRef}
                       focusOnMount={focusComposerOnMount ?? false}

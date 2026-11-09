@@ -1,8 +1,10 @@
 import { ChatSessionView } from '@/components/chat/chat-session-view'
 import { ChatSearchProvider } from '@/components/chat/search/chat-search-context'
+import { Toaster } from '@/components/ui/sonner'
 import '@/globals.css'
 import { useAbortStream } from '@/hooks/chat/message-actions'
 import { ChatMessagesProvider } from '@/hooks/chat/messages'
+import { useSendMessage } from '@/hooks/chat/send'
 import { useActiveSessionId } from '@/hooks/chat/session'
 import { StreamStoreProvider, useChatStatus } from '@/hooks/chat/stream'
 import { useWorkspaceFileIndex } from '@/hooks/chat/workspace'
@@ -23,7 +25,7 @@ function View() {
       topPadding={80}
       status={useChatStatus()}
       error={null}
-      onSubmit={() => {}}
+      onSubmit={useSendMessage()}
       onStop={useAbortStream()}
       onRunCommand={async () => {}}
       onContinueAgent={() => {}}
@@ -98,6 +100,7 @@ export function SubagentApprovalsFixture() {
     <ConvexProvider client={approvalFixtureClient}>
       <ConvexQueryCacheProvider>
         <Session />
+        <Toaster />
       </ConvexQueryCacheProvider>
     </ConvexProvider>
   )

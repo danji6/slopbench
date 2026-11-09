@@ -256,7 +256,7 @@ test('appends file drops from the chat and desktop sidebar and ignores link drag
   await expect(files).toHaveCount(3)
 })
 
-test('accepts drops with the dock offscreen and blocks them during approvals', async ({
+test('keeps attachment-only drafts and blocks drops only during review', async ({
   page,
 }) => {
   await page.goto(
@@ -280,10 +280,96 @@ test('accepts drops with the dock offscreen and blocks them during approvals', a
   await page.evaluate(() =>
     window.dispatchEvent(new Event('release-approvals')),
   )
-  await expect(page.locator('[data-slot="tool-approval-picker"]')).toBeVisible()
+  const review = page.getByRole('button', {
+    name: 'Review approval',
+    exact: true,
+  })
+  const picker = page.locator('[data-slot="tool-approval-picker"]')
+  await expect(review).toBeVisible()
+  await expect(picker).toHaveCount(0)
+
+  const deferred = await textTransfer(page, ['deferred.txt'])
+  await target.dispatchEvent('drop', { dataTransfer: deferred })
+  await expect(
+    composer.getByRole('button', { name: 'Preview deferred.txt' }),
+  ).toBeInViewport()
+  await review.click()
+  await expect(picker).toBeVisible()
   const blocked = await textTransfer(page, ['blocked.txt'])
   await target.dispatchEvent('dragenter', { dataTransfer: blocked })
   await expect(dropOverlay(page)).toBeHidden()
   await target.dispatchEvent('drop', { dataTransfer: blocked })
   await expect(page.getByText('blocked.txt', { exact: true })).toHaveCount(0)
+
+  await picker.getByRole('button', { name: 'Hide', exact: true }).click()
+  await expect(
+    composer.getByRole('button', { name: 'Preview offscreen.txt' }),
+  ).toBeInViewport()
+  await expect(
+    composer.getByRole('button', { name: 'Preview deferred.txt' }),
+  ).toBeInViewport()
+})
+
+test('keeps pending approval aligned with the toolbar with the dock hidden or visible', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(
+    '/?fixture=subagent-approvals&id=parent&history&delayedApprovals&typing=5',
+  )
+  const composer = page.locator('[data-slot="chat-box"]')
+  await expect(composer).toBeInViewport()
+  await page.mouse.move(200, 300)
+  await page.mouse.wheel(0, -4000)
+  await expect(composer).toHaveAttribute('inert', '')
+
+  await page.evaluate(() =>
+    window.dispatchEvent(new Event('release-approvals')),
+  )
+  const review = page.getByRole('button', {
+    name: 'Review approval',
+    exact: true,
+  })
+  await expect(review).toBeInViewport()
+  const toolbar = page.locator('[data-slot="chat-toolbar"]')
+  async function expectToolbarAlignment() {
+    await expect(toolbar).toBeInViewport()
+    await expect(async () => {
+      const reviewBounds = (await review.boundingBox())!
+      const toolbarBounds = (await toolbar.boundingBox())!
+      expect(reviewBounds.y).toBeCloseTo(toolbarBounds.y, 0)
+      expect(reviewBounds.height).toBeCloseTo(toolbarBounds.height, 0)
+      expect(reviewBounds.x + reviewBounds.width).toBeLessThan(toolbarBounds.x)
+    }).toPass({ timeout: 3000 })
+  }
+  await expectToolbarAlignment()
+
+  const activity = page.getByRole('status', {
+    name: 'Alice, Bob, Carol, Dave, Eve are typing',
+  })
+  await expect(activity).toBeInViewport()
+  const reviewBounds = (await review.boundingBox())!
+  const activityBounds = (await activity.boundingBox())!
+  expect(reviewBounds.y + reviewBounds.height).toBeLessThanOrEqual(
+    activityBounds.y,
+  )
+  await review.click()
+  const picker = page.locator('[data-slot="tool-approval-picker"]')
+  await expect(picker).toBeInViewport()
+  await picker.getByRole('button', { name: 'Hide', exact: true }).click()
+  const editor = composer.locator('[contenteditable="true"]')
+  await expect(editor).toBeFocused()
+
+  await editor.fill('Keep the composer docked')
+  await page.mouse.move(200, 300)
+  await page.mouse.wheel(0, -4000)
+  await expect(composer).toBeInViewport()
+  const dockRow = page.locator('[data-slot="dock-widgets"]')
+  await expect(
+    dockRow.getByRole('button', { name: 'Review approval' }),
+  ).toBeInViewport()
+  await expect(
+    dockRow.getByRole('button', { name: 'Scroll to bottom' }),
+  ).toBeInViewport()
+  await expectToolbarAlignment()
 })

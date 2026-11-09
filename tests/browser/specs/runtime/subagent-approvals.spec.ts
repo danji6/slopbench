@@ -3,14 +3,26 @@ import { type Page, expect, test } from '@playwright/test'
 const picker = (page: Page) =>
   page.locator('[data-slot="tool-approval-picker"]')
 const note = (page: Page) => picker(page).locator('[contenteditable="true"]')
+const composer = (page: Page) =>
+  page.locator('[data-slot="chat-box"] [contenteditable="true"]')
+const review = (page: Page) =>
+  page.getByRole('button', { name: 'Review approval', exact: true })
+const actions = (page: Page) => picker(page).locator('[data-slot="command"]')
+
+async function releaseApprovals(page: Page) {
+  await page.evaluate(() =>
+    window.dispatchEvent(new Event('release-approvals')),
+  )
+}
 
 async function mutations(page: Page) {
-  return JSON.parse(
+  const calls = JSON.parse(
     (await page.getByTestId('approval-mutations').textContent()) ?? '[]',
   ) as {
     name: string
     args: Record<string, unknown>
   }[]
+  return calls.filter(({ name }) => !name.startsWith('typing:'))
 }
 
 async function resolveApproval(page: Page) {
@@ -33,6 +45,7 @@ test('approves locally with a note and keeps the parent queue synchronized', asy
   await note(page).fill('Use the test remote')
   await note(page).press('ControlOrMeta+Enter')
   await expect(picker(page)).toContainText('git push origin second')
+  await expect(note(page)).toHaveText('')
   expect((await mutations(page))[0]).toEqual({
     name: 'chat:approveTool',
     args: {
@@ -68,12 +81,6 @@ test('preserves child note drafts when moving between views', async ({
 }) => {
   await page.goto('/?fixture=subagent-approvals&id=child')
   await note(page).fill('Shared child note')
-  // Wait for the existing debounced draft autosave before leaving the editor.
-  await expect
-    .poll(() =>
-      page.evaluate(() => localStorage.getItem('slopbench-composer-drafts')),
-    )
-    .toContain('Shared child note')
   await page.getByRole('button', { name: 'View parent', exact: true }).click()
   await expect(note(page)).toHaveText('Shared child note')
   await page.getByRole('button', { name: 'View child', exact: true }).click()
@@ -180,58 +187,158 @@ test('restores the request and note after an approval fails', async ({
   await expect(note(page)).toHaveText('Retain this note')
 })
 
+test('a failed decision stays deferred when the composer is active again', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=subagent-approvals&id=parent&delayedApprovals')
+  const editor = composer(page)
+  await editor.fill('Keep drafting')
+  await releaseApprovals(page)
+  await review(page).click()
+  await page
+    .getByRole('button', { name: 'Fail next approval', exact: true })
+    .click()
+  await note(page).fill('Retry this note')
+  await note(page).press('ControlOrMeta+Enter')
+  await expect(editor).toBeFocused()
+  await resolveApproval(page)
+  await expect(page.getByText('Fixture approval failure')).toBeVisible()
+  await expect(picker(page)).toHaveCount(0)
+  await expect(editor).toHaveText('Keep drafting')
+
+  await review(page).click()
+  await expect(picker(page)).toContainText('git push origin first')
+  await expect(note(page)).toHaveText('Retry this note')
+})
+
 test('keeps approval controls unavailable to non-admins', async ({ page }) => {
   await page.goto('/?fixture=subagent-approvals&id=child&nonAdmin')
   await expect(page.locator('[data-slot="subagent-banner"]')).toBeVisible()
   await expect(picker(page)).toHaveCount(0)
 })
 
-test('hands focus from the full-screen composer to a new approval without locking the app', async ({
+test('keeps typing and sends chat messages independently of the current approval', async ({
+  page,
+}) => {
+  await page.goto(
+    '/?fixture=subagent-approvals&id=parent&localApproval&delayedApprovals',
+  )
+  const editor = composer(page)
+  await editor.fill('Keep this draft')
+  await page.keyboard.press('End')
+  await releaseApprovals(page)
+  await expect(review(page)).toBeVisible()
+  await expect(picker(page)).toHaveCount(0)
+  await expect(editor).toBeFocused()
+  await page.keyboard.press('1')
+  await expect(editor).toHaveText('Keep this draft1')
+  expect(await mutations(page)).toEqual([])
+
+  await review(page).click()
+  await expect(picker(page)).toContainText('git push origin local')
+  await expect(actions(page)).toBeFocused()
+  await expect(note(page)).toHaveText('')
+  await note(page).fill('Use the test remote')
+
+  const hide = picker(page).getByRole('button', { name: 'Hide', exact: true })
+  await hide.focus()
+  await page.keyboard.press('Enter')
+  await expect(editor).toBeFocused()
+  await expect(editor).toHaveText('Keep this draft1')
+  await page.getByRole('button', { name: 'Send', exact: true }).click()
+  await expect(editor).toHaveText('')
+  await page.getByRole('button', { name: 'Stop typing', exact: true }).focus()
+  await expect(review(page)).toBeVisible()
+  await expect(picker(page)).toHaveCount(0)
+  expect(await mutations(page)).toEqual([
+    {
+      name: 'chat:sendMessage',
+      args: { sessionId: 'parent', content: 'Keep this draft1' },
+    },
+  ])
+
+  await review(page).click()
+  await expect(picker(page)).toContainText('git push origin local')
+  await expect(actions(page)).toBeFocused()
+  await expect(note(page)).toHaveText('Use the test remote')
+  await actions(page).dispatchEvent('keydown', { key: 'Enter', repeat: true })
+  await actions(page).dispatchEvent('keydown', { key: '1', isComposing: true })
+  await note(page).focus()
+  await note(page).dispatchEvent('keydown', {
+    key: 'Escape',
+    isComposing: true,
+  })
+  expect(await mutations(page)).toHaveLength(1)
+  await picker(page).getByRole('option', { name: /^Deny/ }).hover()
+  await note(page).press('ControlOrMeta+Enter')
+  await expect
+    .poll(() => mutations(page))
+    .toContainEqual({
+      name: 'chat:approveTool',
+      args: {
+        sessionId: 'parent',
+        toolCallId: 'local',
+        approved: true,
+        note: 'Use the test remote',
+      },
+    })
+  await resolveApproval(page)
+})
+
+test('automatically shows the request once the empty composer loses focus', async ({
   page,
 }) => {
   await page.goto('/?fixture=subagent-approvals&id=parent&delayedApprovals')
-  const composer = page.locator(
-    '[data-slot="chat-box"] [contenteditable="true"]',
-  )
-  await composer.fill('Keep this draft')
-  await expect
-    .poll(() =>
-      page.evaluate(() => localStorage.getItem('slopbench-composer-drafts')),
-    )
-    .toContain('Keep this draft')
-  await page.getByRole('button', { name: 'Full screen', exact: true }).click()
-  await expect(
-    page.getByRole('dialog', { name: 'Expanded editor' }),
-  ).toBeVisible()
-
-  await page.evaluate(() =>
-    window.dispatchEvent(new Event('release-approvals')),
-  )
-  await expect(
-    page.getByRole('dialog', { name: 'Expanded editor' }),
-  ).toHaveCount(0)
-  await expect(picker(page)).toBeFocused()
-  await expect(page).not.toHaveURL(/full%3Acomposer|full:composer/)
-  await note(page).fill('Use the test remote')
-  await note(page).press('ControlOrMeta+Enter')
-  await expect(picker(page)).toContainText('git push origin second')
-  await resolveApproval(page)
-  await picker(page)
-    .getByRole('option', { name: /^Abort/ })
-    .click()
-  await expect(picker(page)).toContainText('git push origin sibling')
-  await picker(page)
-    .getByRole('option', { name: /^Abort/ })
-    .click()
-
+  await composer(page).focus()
+  await releaseApprovals(page)
+  await expect(review(page)).toBeVisible()
   await expect(picker(page)).toHaveCount(0)
-  await expect(composer).toBeVisible()
-  await expect(composer).toHaveText('Keep this draft')
-  await composer.fill('The app is interactive')
+
+  await review(page).focus()
+  await expect(review(page)).toBeFocused()
+  await expect(picker(page)).toHaveCount(0)
+
+  const outside = page.getByRole('button', { name: 'Stop typing', exact: true })
+  await outside.focus()
+  await expect(picker(page)).toBeVisible()
+  await expect(outside).toBeFocused()
+  await expect(review(page)).toHaveCount(0)
+})
+
+test('keeps the fullscreen draft open until the user chooses to review', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'slopbench-composer-drafts',
+      JSON.stringify({
+        parent: { text: 'Keep this draft', updatedAt: Date.now() },
+      }),
+    )
+  })
+  await page.goto('/?fixture=subagent-approvals&id=parent&delayedApprovals')
+  const editor = composer(page)
+  await expect(editor).toHaveText('Keep this draft')
   await page.getByRole('button', { name: 'Full screen', exact: true }).click()
-  await expect(
-    page.getByRole('dialog', { name: 'Expanded editor' }),
-  ).toBeVisible()
+  const expanded = page.getByRole('dialog', { name: 'Expanded editor' })
+  await expect(expanded).toBeVisible()
+
+  await releaseApprovals(page)
+  const expandedReview = expanded.getByRole('button', {
+    name: 'Review approval',
+  })
+  await expect(expandedReview).toBeVisible()
+  await expect(picker(page)).toHaveCount(0)
+  await expandedReview.click()
+  await expect(expanded).toHaveCount(0)
+  await expect(actions(page)).toBeFocused()
+
+  await picker(page).getByRole('button', { name: 'Hide', exact: true }).click()
+  await expect(picker(page)).toHaveCount(0)
+  await expect(editor).toBeFocused()
+  await expect(editor).toHaveText('Keep this draft')
+  await page.getByRole('button', { name: 'Full screen', exact: true }).click()
+  await expect(expandedReview).toBeVisible()
 })
 
 test('dispatched shell approvals display target arguments and submit the original call ID', async ({
