@@ -6,11 +6,14 @@ import { useSettings } from '@/hooks/chat/settings'
 import { generateId } from '@/lib'
 import { normalizeBrowserUrl } from '@/lib/auth/site-url'
 import type { MessageRole, PendingMessage } from '@/lib/chat'
+import {
+  type StagedAttachment,
+  keepAttachmentSendPreviews,
+} from '@/lib/chat/attachment-send-previews'
 import { api } from '@sb/convex/_generated/api'
 import type { Doc, Id } from '@sb/convex/_generated/dataModel'
 import type { ResolvedSettings } from '@sb/convex/model/defaults'
 import { attachmentReferences } from '@sb/core/attachments'
-import type { AttachmentReference } from '@sb/core/attachments'
 import { parseFileMentions } from '@sb/core/mentions/parse'
 import { parseShellCommand, unescapeShellPrefix } from '@sb/core/shell/command'
 import type { WorkspaceLinkSnapshot } from '@sb/core/types/workspace'
@@ -18,7 +21,7 @@ import { toDisplayName } from '@sb/core/utils/names'
 import type { FileUIPart } from 'ai'
 import type { OptimisticLocalStore } from 'convex/browser'
 import { useAction, useMutation } from 'convex/react'
-import type { FunctionReturnType } from 'convex/server'
+import type { FunctionArgs, FunctionReturnType } from 'convex/server'
 import { useCallback } from 'react'
 
 import { useIsWorkspaceAdmin } from './tools'
@@ -27,20 +30,12 @@ type WindowMessage = FunctionReturnType<
   typeof api.chat.messagesWindow
 >['page'][number]
 
-type StagedAttachment = { id: Id<'attachments'>; data?: string }
 type ResolvedFileLink = {
   path: string
   snapshot?: WorkspaceLinkSnapshot<Id<'_storage'>>
 }
 
-type SendArgs = {
-  sessionId: Id<'sessions'>
-  content: string
-  role?: MessageRole
-  attachments?: StagedAttachment[]
-  attachmentLinks?: AttachmentReference[]
-  fileLinks?: ResolvedFileLink[]
-}
+type SendArgs = FunctionArgs<typeof api.chat.sendMessage>
 
 type UploadMeta = { mediaType: string; filename: string }
 
@@ -69,14 +64,11 @@ export function useSendMessage() {
   const resolveFileLinks = useAction(api.actions.workspaces.resolveFileLinks)
   const isWorkspaceAdmin = useIsWorkspaceAdmin()
 
-  const sendMutation = useMutation(api.chat.sendMessage).withOptimisticUpdate(
-    (store, args) =>
-      optimisticallyInsertMessage(store, args, profile, settings, agent),
-  )
+  const sendMutation = useMutation(api.chat.sendMessage)
 
   return useCallback(
     async (pending: PendingMessage, role?: MessageRole) => {
-      if (!session) return
+      if (!session) throw new Error('Chat session is unavailable')
       const content = pending.content.trim()
       const messageRole = role ?? pending.role ?? 'user'
 
@@ -104,8 +96,9 @@ export function useSendMessage() {
         parseShellCommand(content) === null
 
       let attachments: StagedAttachment[] = []
+      let releasePreviews: ((sent: boolean) => void) | undefined
       try {
-        const result = await Promise.all([
+        const [uploads, links] = await Promise.allSettled([
           uploadFiles(
             pending.files,
             pending.originalFiles,
@@ -120,19 +113,37 @@ export function useSendMessage() {
             resolveFileLinks,
           ),
         ])
-        attachments = result[0]
-        const fileLinks = result[1]
+        if (uploads.status === 'rejected') throw uploads.reason
+        attachments = uploads.value
+        if (links.status === 'rejected') throw links.reason
+        const fileLinks = links.value
         const attachmentLinks = attachmentReferences(content)
-        await sendMutation({
+        if (attachments.length > 0)
+          releasePreviews = keepAttachmentSendPreviews(attachments)
+        const args: SendArgs = {
           sessionId: session._id,
           content,
           ...(messageRole !== 'user' ? { role: messageRole } : {}),
           ...(pending.silent ? { silent: true } : {}),
-          ...(attachments.length > 0 ? { attachments } : {}),
+          ...(attachments.length > 0 && {
+            attachments: attachments.map(({ id }) => ({ id })),
+          }),
           ...(attachmentLinks.length > 0 ? { attachmentLinks } : {}),
           ...(fileLinks !== undefined ? { fileLinks } : {}),
-        })
+        }
+        const optimistic = buildOptimisticMessage(
+          args,
+          attachments,
+          profile,
+          settings,
+          agent,
+        )
+        await sendMutation.withOptimisticUpdate((store) => {
+          if (optimistic) optimisticallyInsertMessage(store, optimistic)
+        })(args)
+        releasePreviews?.(true)
       } catch (error) {
+        releasePreviews?.(false)
         await Promise.allSettled(
           attachments.map(({ id }) => removeAttachment({ attachmentId: id })),
         )
@@ -147,6 +158,9 @@ export function useSendMessage() {
       removeAttachment,
       resolveFileLinks,
       isWorkspaceAdmin,
+      profile,
+      settings,
+      agent,
     ],
   )
 }
@@ -176,8 +190,12 @@ async function uploadFiles(
         previewStorageId,
         ...meta,
       })
-      // Reuse the resized data for the optimistic update
-      return isImage ? { id, data: part.url } : { id }
+      return {
+        id,
+        ...meta,
+        byteLength: blob.size,
+        preview: isImage ? part.url : blob,
+      }
     }),
   )
   const uploaded = settled.flatMap((result) =>
@@ -218,28 +236,22 @@ async function resolveMentionedFileLinks(
   return resolveFileLinks({ sessionId, paths })
 }
 
-function optimisticallyInsertMessage(
-  store: OptimisticLocalStore,
+function buildOptimisticMessage(
   args: SendArgs,
+  attachments: StagedAttachment[],
   profile: Doc<'users'> | null,
   settings: ResolvedSettings | undefined,
   agent: ActiveAgent | null,
 ) {
   const content = unescapeShellPrefix(args.content).trim()
-  const fileParts = (args.attachments ?? []).flatMap((attachment) =>
-    attachment.data
-      ? [
-          {
-            type: 'file',
-            url: attachment.data,
-            mediaType:
-              attachment.data.match(/^data:([^;,]+)/)?.[1] ?? 'image/jpeg',
-            attachmentId: attachment.id,
-          },
-        ]
-      : [],
-  )
-  if (!content && (args.attachments ?? []).length === 0) return
+  const fileParts = attachments.map(({ id, mediaType, filename }) => ({
+    type: 'file',
+    url: `attachment:${id}`,
+    attachmentId: id,
+    mediaType,
+    filename,
+  }))
+  if (!content && fileParts.length === 0) return
 
   const role = args.role ?? 'user'
   const id = generateId() as unknown as Id<'messages'>
@@ -255,7 +267,7 @@ function optimisticallyInsertMessage(
         },
       ]
     : [...fileParts, ...(content ? [{ type: 'text', text: content }] : [])]
-  const item = {
+  return {
     _id: id,
     _creationTime: Date.now(),
     sessionId: args.sessionId,
@@ -268,12 +280,16 @@ function optimisticallyInsertMessage(
     sizeBytes: 0,
     hasOlderSegments: false,
     hasNewerSegments: false,
-  }
+  } as unknown as WindowMessage
+}
 
-  // Append to the live message window(s) for this session (anchor === null).
-  const doc = item as unknown as WindowMessage
+/** Append to the live message windows for this session. */
+function optimisticallyInsertMessage(
+  store: OptimisticLocalStore,
+  doc: WindowMessage,
+) {
   for (const query of store.getAllQueries(api.chat.messagesWindow)) {
-    if (query.args.sessionId !== args.sessionId || query.args.anchor !== null) {
+    if (query.args.sessionId !== doc.sessionId || query.args.anchor !== null) {
       continue
     }
     const value = query.value

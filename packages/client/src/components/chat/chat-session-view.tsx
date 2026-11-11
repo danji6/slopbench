@@ -76,7 +76,6 @@ type ChatSessionViewProps = {
   activeAgentName?: string
   activeAgentDisplay?: AgentItem
   focusComposerOnMount?: boolean
-  restoreMessage?: PendingMessage | null
   onDismissError: () => void
   fileIndex: ReturnType<typeof useWorkspaceFileIndex>
 }
@@ -94,7 +93,6 @@ export function ChatSessionView({
   activeAgentName,
   activeAgentDisplay,
   focusComposerOnMount,
-  restoreMessage,
   onDismissError,
   fileIndex,
 }: ChatSessionViewProps) {
@@ -481,7 +479,6 @@ export function ChatSessionView({
                       fileDropDisabled={isEditing || showInteractionPicker}
                       shellAvailable={canUseWorkspace}
                       draftKey={session?._id}
-                      restoreMessage={restoreMessage}
                       className={cn(
                         'w-full',
                         showInteractionPicker && 'hidden',

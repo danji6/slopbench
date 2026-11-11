@@ -33,6 +33,146 @@ function textTransfer(page: Page, filenames: string[]) {
   }, filenames)
 }
 
+const composer = (page: Page) => page.locator('[data-slot="chat-box"]')
+const sendButton = (page: Page) =>
+  composer(page).getByRole('button', { name: 'Send', exact: true })
+const sendingButton = (page: Page) =>
+  composer(page).getByRole('button', { name: 'Sending message' })
+
+async function openSendFixture(page: Page) {
+  await page.goto(
+    'http://localhost:4178/?fixture=subagent-approvals&id=parent&deferSend',
+  )
+  return composer(page).locator('[contenteditable="true"]')
+}
+
+function completeSend(page: Page, success: boolean) {
+  return page.evaluate((detail) => {
+    window.dispatchEvent(new CustomEvent('complete-send', { detail }))
+  }, success)
+}
+
+test('clears on upload and keeps mixed attachments visible through confirmation', async ({
+  page,
+}) => {
+  const upload = Promise.withResolvers<void>()
+  await page.route('**/composer-upload', async (route) => {
+    await upload.promise
+    await route.fulfill({ json: { storageId: 'staged' } })
+  })
+  const editor = await openSendFixture(page)
+  const image = await imageFile(page)
+  await picker(page).setInputFiles([
+    image,
+    { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('notes') },
+  ])
+  await expect(
+    composer(page).getByRole('button', { name: 'Preview notes.txt' }),
+  ).toBeVisible()
+  const submitted = page.getByText('Send these files', { exact: true })
+  try {
+    await editor.fill('Send these files')
+    await sendButton(page).click()
+    await expect(sendingButton(page)).toBeDisabled()
+    await expect(editor).toHaveText('')
+    await expect(
+      composer(page).locator('[data-slot="file-strip"]'),
+    ).toHaveCount(0)
+    await expect(submitted).toHaveCount(0)
+  } finally {
+    upload.resolve()
+  }
+
+  const files = page.locator('[data-slot="file-block"]')
+  await expect(submitted).toHaveCount(1)
+  await expect(files.getByRole('img', { name: 'screen.png' })).toBeVisible()
+  await expect(
+    files.getByRole('button', { name: 'Preview notes.txt' }),
+  ).toBeVisible()
+
+  await completeSend(page, true)
+  await expect(
+    page.locator('[data-message-id="sent-0"]').first(),
+  ).toBeAttached()
+  const preview = files.getByRole('img', { name: 'screen.png' })
+  await expect(preview).toHaveAttribute('src', /^data:image/)
+  await expect(
+    files.getByRole('button', { name: 'Preview notes.txt' }),
+  ).toBeVisible()
+  await expect(sendingButton(page)).toHaveCount(0)
+  await expect(submitted).toHaveCount(1)
+
+  const remote = Promise.withResolvers<void>()
+  await page.route('**/composer-file/*', async (route) => {
+    await remote.promise
+    await route.fulfill({ contentType: image.mimeType, body: image.buffer })
+  })
+  try {
+    await page.evaluate(() =>
+      window.dispatchEvent(new Event('release-attachment-urls')),
+    )
+    await expect(files.getByLabel('Download screen.png')).toBeVisible()
+    await expect(preview).toHaveAttribute('src', /^data:image/)
+  } finally {
+    remote.resolve()
+  }
+  await expect(preview).toHaveAttribute('src', /^blob:/)
+})
+
+test('restores an attachment-only draft when its send fails', async ({
+  page,
+}) => {
+  await page.route('**/composer-upload', (route) =>
+    route.fulfill({ json: { storageId: 'staged' } }),
+  )
+  await openSendFixture(page)
+  await picker(page).setInputFiles({
+    name: 'restore.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('restore'),
+  })
+  await sendButton(page).click()
+  const file = page.getByRole('button', { name: 'Preview restore.txt' })
+  await expect(file).toBeVisible()
+  await expect(
+    composer(page).getByRole('button', { name: 'Preview restore.txt' }),
+  ).toHaveCount(0)
+  await completeSend(page, false)
+  await expect(file).toHaveCount(1)
+  await expect(
+    composer(page).getByRole('button', { name: 'Preview restore.txt' }),
+  ).toBeVisible()
+  await expect(sendButton(page)).toBeEnabled()
+})
+
+test('retries a failed send without replacing newer composer text', async ({
+  page,
+}) => {
+  const editor = await openSendFixture(page)
+  await editor.fill('Original message')
+  await sendButton(page).click()
+  const original = page.getByText('Original message', { exact: true })
+  await expect(original).toHaveCount(1)
+  await expect(editor).toHaveText('')
+  await editor.fill('New draft')
+  await editor.press('Enter')
+  await expect(sendingButton(page)).toBeDisabled()
+  await completeSend(page, false)
+
+  await expect(original).toHaveCount(0)
+  await expect(editor).toHaveText('New draft')
+  const retry = composer(page).getByRole('button', {
+    name: 'Retry',
+    exact: true,
+  })
+  await retry.click()
+  await expect(original).toHaveCount(1)
+  await completeSend(page, true)
+  await expect(retry).toHaveCount(0)
+  await expect(original).toHaveCount(1)
+  await expect(editor).toHaveText('New draft')
+})
+
 test('navigates a mixed gallery in strip order and stops at both ends', async ({
   page,
 }) => {

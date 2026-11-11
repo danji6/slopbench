@@ -2,9 +2,11 @@ import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
 
 import { RippleButton, type RippleButtonProps } from './ripple-button'
+import { Spinner } from './spinner'
 
 export type SendButtonProps = Omit<RippleButtonProps, 'children'> & {
   isStop?: boolean
+  sending?: boolean
 }
 
 const arrowPath = 'M 5 12 L 12 5 L 19 12 L 12 5 L 5 12 M 12 19 L 12 5'
@@ -15,7 +17,12 @@ const transition = {
   duration: 0.2,
 } as const
 
-export function SendButton({ isStop, className, ...props }: SendButtonProps) {
+export function SendButton({
+  isStop,
+  sending,
+  className,
+  ...props
+}: SendButtonProps) {
   const borderRadius = isStop ? '12px' : '20px'
 
   return (
@@ -30,25 +37,29 @@ export function SendButton({ isStop, className, ...props }: SendButtonProps) {
       )}
       {...props}
     >
-      <motion.svg
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="flex items-center justify-center overflow-visible"
-        layoutId="send-button-icon"
-      >
-        <motion.path
-          initial={false}
-          animate={{ d: isStop ? squarePath : arrowPath }}
-          transition={transition}
-          style={{ fill: 'currentColor' }}
-        />
-      </motion.svg>
+      {sending ? (
+        <Spinner variant="circle" className="size-5" aria-hidden />
+      ) : (
+        <motion.svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="flex items-center justify-center overflow-visible"
+          layoutId="send-button-icon"
+        >
+          <motion.path
+            initial={false}
+            animate={{ d: isStop ? squarePath : arrowPath }}
+            transition={transition}
+            style={{ fill: 'currentColor' }}
+          />
+        </motion.svg>
+      )}
     </RippleButton>
   )
 }

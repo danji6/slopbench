@@ -5,6 +5,7 @@ import { ContextMenu, SendButton as SendButtonPrimitive, T } from '../../ui'
 
 type SendButton = {
   isStop: boolean
+  sending: boolean
   disabled: boolean
   canSendSilently: boolean
   canContinueAgent: boolean
@@ -19,6 +20,7 @@ type SendButton = {
  */
 export function SendButton({
   isStop,
+  sending,
   disabled,
   canSendSilently,
   canContinueAgent,
@@ -31,22 +33,24 @@ export function SendButton({
 
   return (
     <ContextMenu
-      disabled={!canSendSilently && !canContinueAgent}
+      disabled={sending || (!canSendSilently && !canContinueAgent)}
       onOpen={() => {
         suppressClickUntil.current = Date.now() + 700
       }}
     >
       <ContextMenu.Trigger>
         <SendButtonPrimitive
-          isStop={isStop}
-          disabled={disabled}
+          isStop={!sending && isStop}
+          sending={sending}
+          disabled={sending || disabled}
           onClick={() => {
-            if (Date.now() < suppressClickUntil.current) return
+            if (sending || Date.now() < suppressClickUntil.current) return
             if (isStop) onStop?.()
             else if (!disabled) onSend(false)
           }}
           size="icon"
-          aria-label="Send"
+          aria-label={sending ? 'Sending message' : 'Send'}
+          aria-busy={sending || undefined}
           className="mr-1.5 ml-2 size-10"
         />
       </ContextMenu.Trigger>

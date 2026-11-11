@@ -41,6 +41,7 @@ export function useComposerAttachments({
   const [pastedText, setPastedText] = useState<PastedText>({})
   const [restoredDraftKey, setRestoredDraftKey] = useState<string | null>(null)
   const pasteIndexRef = useRef(0)
+  const revision = useRef(0)
   const filePartsRef = useRef(fileParts)
   const attachmentQueue = useRef<AttachmentQueue | null>(null)
 
@@ -64,6 +65,7 @@ export function useComposerAttachments({
     void restoreAttachmentDraft(draftKey).then((restored) => {
       if (cancelled) return
       if (filePartsRef.current.length === 0 && restored) {
+        revision.current++
         setFileParts(restored.fileParts)
         setOriginalFiles(restored.originalFiles)
         setPastedText(restored.pastedText)
@@ -101,6 +103,7 @@ export function useComposerAttachments({
   )
 
   const restoreAttachments = useCallback((message: PendingMessage) => {
+    revision.current++
     filePartsRef.current = message.files
     setFileParts(message.files)
     setOriginalFiles(message.originalFiles ?? {})
@@ -108,6 +111,7 @@ export function useComposerAttachments({
   }, [])
 
   const resetAttachments = useCallback(() => {
+    revision.current++
     filePartsRef.current = []
     setFileParts([])
     setOriginalFiles({})
@@ -148,6 +152,7 @@ export function useComposerAttachments({
           for (const file of result.files) {
             const { part, originalFile } = await processComposerFile(file)
             if (signal.aborted) return false
+            revision.current++
             setFileParts((previous) => [...previous, part])
             if (originalFile) {
               setOriginalFiles((previous) => ({
@@ -178,6 +183,7 @@ export function useComposerAttachments({
         try {
           const { part, originalFile } = await processComposerFile(file)
           if (signal.aborted) return
+          revision.current++
           setFileParts((previous) => [...previous, part])
           setOriginalFiles((previous) => ({
             ...previous,
@@ -196,6 +202,7 @@ export function useComposerAttachments({
   )
 
   const removeFile = useCallback((id: string) => {
+    revision.current++
     setFileParts((previous) => previous.filter((item) => item.id !== id))
     setOriginalFiles((previous) => omitKey(previous, id))
     setPastedText((previous) => omitKey(previous, id))
@@ -227,6 +234,7 @@ export function useComposerAttachments({
     clearAttachmentDraft,
     fileParts,
     files,
+    getRevision: () => revision.current,
     insertInline,
     originalFiles,
     pastedText,

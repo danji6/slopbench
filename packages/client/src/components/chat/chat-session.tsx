@@ -13,6 +13,7 @@ import {
   useSessionMode,
   useWorkspaceFileIndex,
 } from '@/hooks/chat'
+import { useComposerSubmission } from '@/hooks/chat/composer-submission'
 import { useNavPadding } from '@/hooks/nav-padding'
 import type { PendingMessage } from '@/lib/chat'
 import { ChatError, ChatWarning, RateLimitError } from '@/lib/chat/errors'
@@ -33,7 +34,7 @@ import { ShortcutsDialog } from './shortcuts'
 type ChatSessionProps = Pick<ChatProps, 'width' | 'onError'> & {
   sessionId: string
   pendingMessage: PendingMessage | null
-  onPendingSent: () => void
+  onPendingStarted: () => void
   activeAgentName?: string
   activeAgentDisplay?: AgentItem
 }
@@ -72,7 +73,7 @@ function EvalCompletionNotifier({
 
 function ChatSessionContent({
   pendingMessage,
-  onPendingSent,
+  onPendingStarted,
   activeAgentName,
   activeAgentDisplay,
   width,
@@ -98,7 +99,7 @@ function ChatSessionContent({
   const autoCompact = useMutation(api.chat.autoCompact)
   const resetSessionCache = useMutation(api.chat.resetSessionCache)
   const pendingProcessed = useRef(false)
-  const [failedPending, setFailedPending] = useState<PendingMessage | null>(null) // prettier-ignore
+  const [focusComposerOnMount] = useState(Boolean(pendingMessage))
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [dismissedKeys, setDismissedKeys] = useState(() => new Set<string>())
   const [pendingEvalRequestIds, setPendingEvalRequestIds] = useState<string[]>([]) // prettier-ignore
@@ -131,34 +132,29 @@ function ChatSessionContent({
     )
   }, [])
 
-  // EmptyChat creates the session first, then this sends the queued message.
-  useEffect(() => {
-    if (!pendingMessage || pendingProcessed.current || !session) return
-    pendingProcessed.current = true
-    sendMessage(pendingMessage)
-      .then(onPendingSent)
-      .catch((error) => {
-        setFailedPending(pendingMessage)
-        handleError(error)
-      })
-  }, [pendingMessage, sendMessage, onPendingSent, session, handleError])
-
   const handleSubmit = useCallback(
     async (msg: PendingMessage) => {
       setLocalError(null)
       try {
         await sendMessage(msg)
-        if (failedPending) {
-          setFailedPending(null)
-          onPendingSent()
-        }
       } catch (error) {
         handleError(error)
         throw error
       }
     },
-    [sendMessage, handleError, failedPending, onPendingSent],
+    [sendMessage, handleError],
   )
+
+  const { send, isSending } = useComposerSubmission(session?._id, handleSubmit)
+
+  // EmptyChat creates the session first, then transfers its draft to this send.
+  useEffect(() => {
+    if (!pendingMessage || pendingProcessed.current || !session) return
+    if (isSending()) return
+    pendingProcessed.current = true
+    void send(pendingMessage, { restoreWhenEmpty: true })
+    onPendingStarted()
+  }, [pendingMessage, onPendingStarted, send, isSending, session])
 
   const handleAbort = useCallback(() => {
     abort()
@@ -282,8 +278,7 @@ function ChatSessionContent({
         hasActiveAgent={Boolean(session?.activeAgentId)}
         activeAgentName={activeAgentName}
         activeAgentDisplay={activeAgentDisplay}
-        focusComposerOnMount={Boolean(pendingMessage)}
-        restoreMessage={failedPending}
+        focusComposerOnMount={focusComposerOnMount}
         onDismissError={handleDismissError}
         fileIndex={fileIndex}
       />

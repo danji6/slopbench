@@ -36,7 +36,7 @@ type EmptyChatProps = React.ComponentProps<'div'> & {
   width?: string
   layoutConstraint?: 'dvw' | '%'
   onError?: (error: Error) => void
-  onFirstMessage: (msg: PendingMessage) => void
+  onFirstMessage: (msg: PendingMessage, sessionId: string) => void
   activeAgentName?: string
   activeAgentDisplay?: AgentItem
 }
@@ -125,7 +125,7 @@ export function EmptyChat({
         mode: mode === 'normal' ? undefined : mode,
         approvalMode: approvalMode === 'ask' ? undefined : approvalMode,
       })
-      onFirstMessage(message)
+      onFirstMessage(message, sessionId)
       navigate(`/?id=${sessionId}`, { replace: true })
     },
     [

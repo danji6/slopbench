@@ -38,7 +38,6 @@ type UseComposerEditorOptions = {
   inputRef?: Ref<ComposerHandle>
   onRestoreMessage: (message: PendingMessage) => void
   onTyping?: () => void
-  restoreMessage?: PendingMessage | null
   canInsertStarter?: boolean
   onAddFiles?: () => void
 }
@@ -50,7 +49,6 @@ export function useComposerEditor({
   inputRef,
   onRestoreMessage,
   onTyping,
-  restoreMessage,
   canInsertStarter = false,
   onAddFiles,
 }: UseComposerEditorOptions) {
@@ -146,23 +144,16 @@ export function useComposerEditor({
     if (editor) restoreDraft(editor)
   }, [editorRef, restoreDraft])
 
-  const restoredMessageRef = useRef<PendingMessage | null>(null)
-  const restoreFailedMessage = useCallback(
-    (editor: Editor) => {
-      if (!restoreMessage || restoredMessageRef.current === restoreMessage) {
-        return
-      }
-      restoredMessageRef.current = restoreMessage
-      applyMarkdown(editor, restoreMessage.content)
-      onRestoreMessageRef.current(restoreMessage)
+  const restorePendingMessage = useCallback(
+    (message: PendingMessage) => {
+      const editor = editorRef.current
+      if (!editor || editor.isDestroyed) return false
+      applyMarkdown(editor, message.content)
+      onRestoreMessageRef.current(message)
+      return true
     },
-    [applyMarkdown, restoreMessage],
+    [applyMarkdown, editorRef],
   )
-
-  useEffect(() => {
-    const editor = editorRef.current
-    if (editor) restoreFailedMessage(editor)
-  }, [editorRef, restoreFailedMessage])
 
   const handleEditorReady = useCallback(
     (editor: Editor) => {
@@ -180,11 +171,10 @@ export function useComposerEditor({
       })
       editor.on('selectionUpdate', () => syncFromEditor(editor))
       restoreDraft(editor)
-      restoreFailedMessage(editor)
       syncFromEditor(editor)
       setIsReady(true)
     },
-    [editorRef, restoreDraft, restoreFailedMessage, syncFromEditor],
+    [editorRef, restoreDraft, syncFromEditor],
   )
 
   const handleSurfaceMouseDown = useCallback(
@@ -223,6 +213,7 @@ export function useComposerEditor({
     handleSurfaceMouseDown,
     message,
     isReady,
+    restorePendingMessage,
     setEditorText,
     shellCommand,
   }

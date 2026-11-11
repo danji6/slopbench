@@ -18,8 +18,10 @@ import { ChatSearchProvider } from './search'
 
 export type { ChatProps } from './chat-types'
 
+type FirstMessage = { sessionId: string; message: PendingMessage }
+
 export function Chat(props: ChatProps) {
-  const [pendingMessage, setPendingMessage] = useState<PendingMessage | null>(null) // prettier-ignore
+  const [firstMessage, setFirstMessage] = useState<FirstMessage | null>(null)
   const { activeSessionId, activeAgentName, activeAgentDisplay, style } =
     useChatShellState(props.layoutConstraint)
   const { codeBlockHighlighting, codeBlockLineNumbers } = useResolvedSettings()
@@ -42,8 +44,16 @@ export function Chat(props: ChatProps) {
           {activeSessionId ? (
             <ChatSession
               sessionId={activeSessionId}
-              pendingMessage={pendingMessage}
-              onPendingSent={() => setPendingMessage(null)}
+              pendingMessage={
+                firstMessage?.sessionId === activeSessionId
+                  ? firstMessage.message
+                  : null
+              }
+              onPendingStarted={() =>
+                setFirstMessage((current) =>
+                  current === firstMessage ? null : current,
+                )
+              }
               activeAgentName={activeAgentName}
               activeAgentDisplay={activeAgentDisplay}
               width={props.width}
@@ -51,7 +61,9 @@ export function Chat(props: ChatProps) {
             />
           ) : (
             <EmptyChat
-              onFirstMessage={setPendingMessage}
+              onFirstMessage={(message, sessionId) =>
+                setFirstMessage({ sessionId, message })
+              }
               activeAgentName={activeAgentName}
               activeAgentDisplay={activeAgentDisplay}
               {...props}

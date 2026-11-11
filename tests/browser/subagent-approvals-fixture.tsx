@@ -2,6 +2,7 @@ import { ChatSessionView } from '@/components/chat/chat-session-view'
 import { ChatSearchProvider } from '@/components/chat/search/chat-search-context'
 import { Toaster } from '@/components/ui/sonner'
 import '@/globals.css'
+import { AttachmentUrlProvider } from '@/hooks/chat/attachment-urls'
 import { useAbortStream } from '@/hooks/chat/message-actions'
 import { ChatMessagesProvider } from '@/hooks/chat/messages'
 import { useSendMessage } from '@/hooks/chat/send'
@@ -99,6 +100,7 @@ export function SubagentApprovalsFixture() {
   return (
     <ConvexProvider client={approvalFixtureClient}>
       <ConvexQueryCacheProvider>
+        <AttachmentUrlProvider />
         <Session />
         <Toaster />
       </ConvexQueryCacheProvider>

@@ -1,12 +1,9 @@
-import type { api } from '@sb/convex/_generated/api'
+import { api } from '@sb/convex/_generated/api'
+import type { WindowMessage } from '@sb/convex/model/chat/queries'
 import { DEFAULT_SETTINGS } from '@sb/convex/model/defaults'
-import type { OptimisticLocalStore, OptimisticUpdate } from 'convex/browser'
+import type { OptimisticLocalStore } from 'convex/browser'
 import type { ConvexReactClient } from 'convex/react'
-import {
-  type FunctionArgs,
-  type FunctionReference,
-  getFunctionName,
-} from 'convex/server'
+import { type FunctionReference, getFunctionName } from 'convex/server'
 
 type Part = {
   type: 'tool-shell'
@@ -37,6 +34,7 @@ const part = (id: string): Part => ({
 })
 
 const hasLocalApproval = new URLSearchParams(location.search).has('localApproval') // prettier-ignore
+const deferSend = new URLSearchParams(location.search).has('deferSend')
 
 let requests = [
   ...(hasLocalApproval
@@ -73,6 +71,9 @@ type Entry = {
 }
 const cache = new Map<string, Entry>()
 const listeners = new Set<() => void>()
+const sent: WindowMessage[] = []
+let attachmentCount = 0
+let attachmentUrlsReady = false
 let typingCount = Number(
   new URLSearchParams(location.search).get('typing') ?? 0,
 )
@@ -83,6 +84,12 @@ const key = (reference: FunctionReference<'query'>, args: unknown) =>
 function notify() {
   for (const listener of listeners) listener()
 }
+
+window.addEventListener('release-attachment-urls', () => {
+  attachmentUrlsReady = true
+  cache.clear()
+  notify()
+})
 
 function pendingParts(sessionId: string) {
   return (
@@ -129,7 +136,11 @@ function messageWindow(sessionId: string) {
     ? historyMessages(sessionId)
     : []
   return {
-    page: [...history, ...page],
+    page: [
+      ...history,
+      ...page,
+      ...sent.filter((message) => message.sessionId === sessionId),
+    ],
     hasOlder: false,
     hasNewer: false,
     atTail: true,
@@ -185,6 +196,18 @@ function query(name: string, args: Record<string, unknown>) {
   if (name === 'sessions:getState') return { toolApprovals: {} }
   if (name === 'chat:getActiveStream') return stream(sessionId)
   if (name === 'chat:messagesWindow') return messageWindow(sessionId)
+  if (name === 'attachments:getUrlMap') {
+    if (!attachmentUrlsReady) return {}
+    return Object.fromEntries(
+      (args.ids as string[]).map((id) => [
+        id,
+        {
+          url: `${location.origin}/composer-file/${id}`,
+          previewUrl: `${location.origin}/composer-file/${id}`,
+        },
+      ]),
+    )
+  }
   if (name === 'chat:processingMessageSegments') {
     const request = requests.find((request) => request.sessionId === sessionId)
     return request
@@ -198,7 +221,7 @@ function query(name: string, args: Record<string, unknown>) {
       : []
   }
   if (name === 'subagents:pendingApprovals')
-    return (approvalsReady ? requests : [])
+    return (approvalsReady && !deferSend ? requests : [])
       .filter(
         (request) =>
           request.sessionId !== 'parent' &&
@@ -231,9 +254,49 @@ const optimisticStore = {
   },
 } as unknown as OptimisticLocalStore
 
+type FixtureOptimisticUpdate = (
+  store: OptimisticLocalStore,
+  args: Record<string, unknown>,
+) => void
+
+async function sendMessage(
+  args: Record<string, unknown>,
+  update?: FixtureOptimisticUpdate,
+) {
+  update?.(optimisticStore, args)
+  const windowQuery = optimisticStore
+    .getAllQueries(api.chat.messagesWindow)
+    .find(
+      (query) =>
+        query.args.sessionId === args.sessionId && query.args.anchor === null,
+    )
+  const pending = windowQuery?.value?.page.at(-1)
+  notify()
+
+  const success = await new Promise<boolean>((resolve) => {
+    window.addEventListener(
+      'complete-send',
+      (event) => {
+        resolve((event as CustomEvent<boolean>).detail)
+      },
+      { once: true },
+    )
+  })
+  if (success && pending) {
+    sent.push({
+      ...pending,
+      _id: `sent-${sent.length}` as WindowMessage['_id'],
+    })
+  }
+  cache.clear()
+  notify()
+  if (!success) throw new Error('Fixture send failure')
+  return 'sent-message'
+}
+
 async function respond(
   args: Record<string, unknown>,
-  update?: OptimisticUpdate<FunctionArgs<typeof api.chat.approveTool>>,
+  update?: FixtureOptimisticUpdate,
 ) {
   if (
     args.sessionId !== 'parent' ||
@@ -244,7 +307,7 @@ async function respond(
     )
   }
   const snapshot = new Map(cache)
-  update?.(optimisticStore, args as never)
+  update?.(optimisticStore, args)
   notify()
   await new Promise<void>((resolve) => {
     resolvePending = resolve
@@ -308,9 +371,7 @@ export const approvalFixtureClient = {
     reference: FunctionReference<'mutation'>,
     args: Record<string, unknown>,
     options?: {
-      optimisticUpdate?: OptimisticUpdate<
-        FunctionArgs<typeof api.chat.approveTool>
-      >
+      optimisticUpdate?: FixtureOptimisticUpdate
     },
   ) {
     const name = getFunctionName(reference)
@@ -318,8 +379,15 @@ export const approvalFixtureClient = {
     if (name === 'chat:approveTool')
       await respond(args, options?.optimisticUpdate)
     else if (name === 'chat:sendMessage') {
+      if (deferSend) return sendMessage(args, options?.optimisticUpdate)
       notify()
       return 'sent-message'
+    } else if (name === 'attachments:generateUploadUrl') {
+      return `${location.origin}/composer-upload`
+    } else if (name === 'attachments:confirm') {
+      return `attachment-${++attachmentCount}`
+    } else if (name === 'attachments:remove') {
+      return
     } else if (name === 'chat:stopStream' || name === 'subagents:stop') {
       stopped = [...stopped, String(args.childSessionId ?? args.sessionId)]
     } else if (!name.startsWith('typing:'))

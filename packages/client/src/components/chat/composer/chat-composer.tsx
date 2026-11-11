@@ -9,6 +9,7 @@ import {
 } from '@/hooks/chat/composer-editor'
 import type { ComposerHandle } from '@/hooks/chat/composer-editor'
 import { useComposerMentions } from '@/hooks/chat/composer-mentions'
+import { useComposerSubmission } from '@/hooks/chat/composer-submission'
 import type { WorkspaceFileIndex } from '@/hooks/chat/workspace'
 import { useFullscreenView } from '@/hooks/fullscreen'
 import type { PendingMessage } from '@/lib/chat'
@@ -19,7 +20,6 @@ import type {
 } from '@/lib/chat/commands'
 import { handleSelectAllDelete } from '@/lib/editor-clear'
 import { isCovered } from '@/lib/focus-return'
-import { toastError } from '@/lib/notifications'
 import { pasteCollapsedText } from '@/lib/tiptap/paste'
 import { serializeBlocksToMarkdown } from '@/lib/tiptap/serialize'
 import { cn } from '@/lib/utils'
@@ -48,6 +48,7 @@ import {
   ComposerLayoutProvider,
   useMeasuredComposerLayout,
 } from './composer-layout'
+import { ComposerSendFailure } from './composer-send-failure'
 import { ComposerActions } from './composer-toolbar'
 import type { ComposerToolbarMode } from './composer-toolbar'
 import { SendButton } from './send-button'
@@ -101,8 +102,6 @@ export type ChatComposerProps = Omit<InputGroupProps, 'onSubmit'> & {
    * Omit to disable persistence.
    */
   draftKey?: string
-  /** Restores a first message whose upload failed after session creation. */
-  restoreMessage?: PendingMessage | null
 }
 
 export function ChatComposer({
@@ -128,7 +127,6 @@ export function ChatComposer({
   fileDropDisabled = false,
   shellAvailable = false,
   draftKey,
-  restoreMessage,
   className,
   style,
   ...props
@@ -138,9 +136,13 @@ export function ChatComposer({
   const fullscreen = useFullscreenView(COMPOSER_FULLSCREEN_ID)
   const dropZoneRef = useRef<DropZoneHandle>(null)
   const editorRef = useRef<Editor | null>(null)
+  const recoveredMessage = useRef<PendingMessage | null>(null)
 
-  const attachments = useComposerAttachments({ draftKey, editorRef })
   const { compact, layout, toolbarRef } = useMeasuredComposerLayout()
+  const attachments = useComposerAttachments({ draftKey, editorRef })
+  const { sending, failed, isSending, send, discardFailed } =
+    useComposerSubmission(draftKey, onSubmit)
+
   const {
     caret,
     clearEditor,
@@ -148,6 +150,7 @@ export function ChatComposer({
     handleSurfaceMouseDown,
     message,
     isReady,
+    restorePendingMessage,
     setEditorText,
     shellCommand,
   } = useComposerEditor({
@@ -156,7 +159,6 @@ export function ChatComposer({
     inputRef,
     onRestoreMessage: attachments.restoreAttachments,
     onTyping,
-    restoreMessage,
     canInsertStarter:
       attachments.isRestored && attachments.fileParts.length === 0,
     onAddFiles: () => dropZoneRef.current?.open(),
@@ -169,6 +171,29 @@ export function ChatComposer({
   useEffect(() => {
     onContentChange?.(hasContent, isReady && attachments.isRestored)
   }, [hasContent, isReady, attachments.isRestored, onContentChange])
+
+  useEffect(() => {
+    if (
+      !failed?.restoreWhenEmpty ||
+      recoveredMessage.current === failed.message
+    )
+      return
+    if (!isReady || !attachments.isRestored || sending) return
+    recoveredMessage.current = failed.message
+    const canRestore =
+      !hasContent && !failed.message.role && !failed.message.silent
+    if (canRestore && restorePendingMessage(failed.message)) {
+      discardFailed(failed.message)
+    }
+  }, [
+    failed,
+    isReady,
+    attachments.isRestored,
+    sending,
+    hasContent,
+    restorePendingMessage,
+    discardFailed,
+  ])
 
   function clearComposer() {
     clearEditor()
@@ -203,7 +228,8 @@ export function ChatComposer({
     message,
   })
 
-  async function handleSubmit(silent = false) {
+  function handleSubmit(silent = false) {
+    if (isSending()) return
     if (!hasContent) {
       if (canContinue) onContinueAgent?.()
       return
@@ -214,29 +240,33 @@ export function ChatComposer({
     }
     if (sendDisabled || shellBlocked) return
 
-    try {
-      await onSubmit({
-        content: editorRef.current
-          ? serializeBlocksToMarkdown(editorRef.current)
-          : message,
-        files: attachments.fileParts,
-        ...(silent && { silent: true }),
-        ...(Object.keys(attachments.originalFiles).length > 0 && {
-          originalFiles: attachments.originalFiles,
-        }),
-        ...(Object.keys(attachments.pastedText).length > 0 && {
-          pastedText: attachments.pastedText,
-        }),
-      })
-
-      clearComposer()
-      attachments.resetAttachments()
-    } catch (error) {
-      toastError(error, 'Failed to send message')
+    const editor = editorRef.current
+    const pending: PendingMessage = {
+      content: editor ? serializeBlocksToMarkdown(editor) : message,
+      files: attachments.fileParts,
+      originalFiles: attachments.originalFiles,
+      pastedText: attachments.pastedText,
+      ...(silent && { silent: true }),
     }
+    void send(pending, {
+      clearDraft: () => {
+        clearComposer()
+        attachments.resetAttachments()
+        const clearedDoc = editor?.state.doc
+        const clearedAttachments = attachments.getRevision()
+        return () => {
+          const sameDocument =
+            editorRef.current === editor && editor?.state.doc === clearedDoc
+          if (!sameDocument || attachments.getRevision() !== clearedAttachments)
+            return false
+          return restorePendingMessage(pending)
+        }
+      },
+    })
   }
 
   function handleCommandSelect(command: CommandDefinition, silent = false) {
+    if (isSending()) return
     if (!onRunCommand) return
     if (command.requiresArgument && !commandArgument) {
       handleCommandAutocomplete(command)
@@ -403,10 +433,19 @@ export function ChatComposer({
             onMouseDown={handleSurfaceMouseDown}
           >
             {notice}
+            {failed && (
+              <ComposerSendFailure
+                sendDisabled={sendDisabled}
+                sending={sending}
+                onRetry={() => void send(failed.message)}
+                onDismiss={() => discardFailed(failed.message)}
+              />
+            )}
             <FileStrip
               files={attachments.files}
               onRemove={attachments.removeFile}
               onInsertInline={attachments.insertInline}
+              noAnimation={sending}
             />
             <FullscreenEditor.Toolbar className="mr-1 self-stretch group-data-fullscreen/fullscreen:mr-0" />
             <div
@@ -452,6 +491,7 @@ export function ChatComposer({
                 {!hideTokenWidget && <TokenWidget />}
                 <SendButton
                   isStop={isStop}
+                  sending={sending}
                   disabled={
                     (!isStop && !hasContent && !canContinue) ||
                     (sendDisabled && hasContent) ||

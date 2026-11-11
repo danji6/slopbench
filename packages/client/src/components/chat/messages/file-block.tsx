@@ -1,5 +1,6 @@
 import { useAttachmentUrls } from '@/hooks/chat'
 import { buildFileItemFromPart } from '@/lib/chat'
+import { getAttachmentSendPreview } from '@/lib/chat/attachment-send-previews'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import type { FileUIPart } from 'ai'
 import { useMemo } from 'react'
@@ -26,14 +27,18 @@ export function FileBlock({ parts, attachmentIds }: FileBlockProps) {
       parts.map((part, index) => {
         const attachmentId = attachmentIds?.[part.url]
         const resolved = attachmentId ? urls[attachmentId] : undefined
-        return buildFileItemFromPart(
+        const local = attachmentId
+          ? getAttachmentSendPreview(attachmentId)
+          : undefined
+        const file = buildFileItemFromPart(
           part,
           `${index}:${attachmentId ?? part.url}`,
           resolved?.url ?? undefined,
-          resolved?.previewUrl ?? undefined,
+          resolved?.previewUrl ?? local?.preview.url,
           resolved?.permaUrl ?? undefined,
-          resolved?.byteLength ?? undefined,
+          resolved?.byteLength ?? local?.byteLength,
         )
+        return { ...file, localPreview: local?.preview }
       }),
     [parts, attachmentIds, urls],
   )
