@@ -16,6 +16,7 @@ export async function prepareContextNote(
   ctx: MutationCtx,
   args: PrepareContextNoteArgs,
   type: ContextType,
+  additionalNote?: string,
 ) {
   const stream = await ctx.db.get(args.streamId)
   if (!ownsExecution(stream, args)) return false
@@ -29,7 +30,13 @@ export async function prepareContextNote(
   const previous = await latestContext(ctx, stream, type, args.contextId)
   const unchanged = matchesContext(previous, stream.agentId, args.fingerprint)
   if (args.contextId && unchanged) return true
-  const content = contextNoteContent(args.content, type, previous)
+
+  const content = contextNoteContent(
+    args.content,
+    type,
+    previous,
+    additionalNote,
+  )
   const noteId = unchanged
     ? undefined
     : await insertContextNote(ctx, stream, agent, { ...args, content }, type)
@@ -76,20 +83,16 @@ function contextPatch(
   }
 }
 
-/** Adds guidance for capability updates and previously read context. */
+/** Formats a context note and any related guidance. */
 function contextNoteContent(
   content: string,
   type: ContextType,
   previous: Doc<'messages'> | null,
+  additionalNote?: string,
 ) {
   const note = systemNote(content)
 
-  // Capability notes are emitted only after the initial snapshot changes.
-  if (type === 'capabilities') {
-    return `${note}\n\n${systemNote(
-      'Use get_tool({ name }) to read the current input contract. Use call_tool({ name, arguments }) for newly enabled or updated tools that are absent from, or differ from, your initial native tool definitions. Unchanged native tools remain directly callable.',
-    )}`
-  }
+  if (additionalNote) return `${note}\n\n${systemNote(additionalNote)}`
 
   if (!previous) return note
 

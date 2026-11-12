@@ -23,6 +23,56 @@ async function fixture() {
   }
 }
 
+test('a tool-free chat refreshes configuration and prompts without capability notes', async () => {
+  const f = await fixture()
+  try {
+    await f.db.patch('session', { folderId: undefined, title: 'Fixture' })
+    const first = (await f.nextTurn())!
+    const source = () => f.rows('sessionCache')[0]!.capabilitySource
+    const initialSource = source()
+    expect(first.toolRuntime!.current.names).toEqual([])
+
+    f.rows('mcpServers').push({
+      _id: 'unselected',
+      ownerId: 'owner',
+      key: 'unselected',
+      label: 'Unselected',
+      transport: 'http',
+      url: 'http://fixture',
+      enabled: true,
+    })
+    expect((await f.repeat())!.messages).toEqual(first.messages)
+    const refreshedSource = source()
+    expect(refreshedSource).not.toBe(initialSource)
+
+    f.agent.tools = ['shell']
+    const blocked = (await f.repeat())!
+    expect(blocked.toolRuntime!.current.names).toEqual([])
+    expect(blocked.messages).toEqual(first.messages)
+    expect(source()).not.toBe(refreshedSource)
+
+    const prompt = f.rows('prompts')[0]!.item as { content: string }
+    let contextId = first.toolRuntime!.frozen.contextId
+    for (const content of ['Updated instructions', 'New instructions']) {
+      await _complete(f.ctx, f.execution)
+      prompt.content = content
+      expect(
+        await resetSessionCache(f.ctx, { sessionId: 'session' as never }),
+      ).toEqual({ queued: false })
+      const refreshed = (await f.nextTurn())!
+      expect(refreshed.systemPrompt).toBe(content)
+      expect(refreshed.toolRuntime!.current.names).toEqual([])
+      expect(refreshed.toolRuntime!.frozen.contextId).not.toBe(contextId)
+      contextId = refreshed.toolRuntime!.frozen.contextId
+    }
+    expect(
+      f.rows('messages').filter((row) => row.type === 'capabilities'),
+    ).toHaveLength(0)
+  } finally {
+    await f.dispose()
+  }
+})
+
 test('live selections append updates while OpenAI and Anthropic keep their tool prefix frozen', async () => {
   const f = await fixture()
   try {
@@ -74,12 +124,36 @@ test('live selections append updates while OpenAI and Anthropic keep their tool 
     expect(third.messages.slice(0, second.messages.length)).toEqual(
       second.messages,
     )
-    expect(JSON.stringify(third.messages.at(-1))).toContain(
-      'Disabled or unavailable: write_todo, edit_todo',
-    )
+    const removal = JSON.stringify(third.messages.at(-1))
+    expect(removal).toContain('Disabled or unavailable: write_todo, edit_todo')
+    expect(removal).toContain('Available targets: none.')
+    expect(removal).not.toMatch(/get_tool|call_tool/)
     await expect(
       second.tools.write_todo.execute!({ todos: [] }, {} as never),
     ).rejects.toThrow('no longer enabled')
+  } finally {
+    await f.dispose()
+  }
+})
+
+test('contract changes include dispatcher guidance until the native contract is restored', async () => {
+  const f = await fixture()
+  try {
+    f.agent.tools = ['shell']
+    const first = (await f.nextTurn())!
+    await f.db.patch('agent', { shell: '/bin/zsh' })
+    const updated = (await f.repeat())!
+    expect(updated.toolRuntime!.frozen).toEqual(first.toolRuntime!.frozen)
+    const update = JSON.stringify(updated.messages.at(-1))
+    expect(update).toContain('Updated: shell.')
+    expect(update).toContain('Use get_tool({ name })')
+    expect(update).toContain('Use call_tool({ name, arguments })')
+
+    await f.db.patch('agent', { shell: undefined })
+    const restored = (await f.repeat())!
+    const restoration = JSON.stringify(restored.messages.at(-1))
+    expect(restoration).toContain('Updated: shell.')
+    expect(restoration).not.toMatch(/get_tool|call_tool/)
   } finally {
     await f.dispose()
   }
@@ -300,9 +374,9 @@ test('toolkit selections and updates are announced without enabling companion to
     const selected = (await f.repeat())!
     expect(selected.toolRuntime!.current.names).toEqual([])
     expect(selected.toolRuntime!.frozen).toEqual(first.toolRuntime!.frozen)
-    expect(JSON.stringify(selected.messages.at(-1))).toContain(
-      'Toolkits enabled: Toolkit',
-    )
+    const selection = JSON.stringify(selected.messages.at(-1))
+    expect(selection).toContain('Toolkits enabled: Toolkit')
+    expect(selection).not.toMatch(/get_tool|call_tool/)
     await publish(f.ctx, {
       subject: 'owner',
       toolkitId,
@@ -313,9 +387,9 @@ test('toolkit selections and updates are announced without enabling companion to
       connections: [],
     })
     const updated = (await f.repeat())!
-    expect(JSON.stringify(updated.messages.at(-1))).toContain(
-      'Toolkits updated: Updated toolkit',
-    )
+    const update = JSON.stringify(updated.messages.at(-1))
+    expect(update).toContain('Toolkits updated: Updated toolkit')
+    expect(update).not.toMatch(/get_tool|call_tool/)
     await select(f.ctx, {
       agentId: f.agent._id as never,
       toolkitId,
