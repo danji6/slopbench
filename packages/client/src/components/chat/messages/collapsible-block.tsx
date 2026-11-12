@@ -104,7 +104,6 @@ export function CollapsibleBlock({
 
   const shellClassName = cn(
     'group overflow-x-auto rounded-none border border-transparent motion-safe:transition-[padding,background-color,border-color,border-radius]',
-    dense ? 'mb-0' : 'mb-2',
     fullWidth ? 'w-full' : 'w-fit max-w-full',
     surface &&
       'data-[open=true]:bg-m3-surface-container-low data-[open=true]:border-border rounded-2xl',

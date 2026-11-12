@@ -13,7 +13,8 @@
       0px,
       var(--work-surface-radius) - var(--work-surface-padding) - 1px
     );
-    --message-section-gap: --spacing(2);
+    --message-block-gap: --spacing(4);
+    --message-compact-block-gap: calc(var(--message-block-gap) / 2);
     --message-sender-gap: --spacing(10);
     --message-compaction-gap: calc(var(--message-sender-gap) / 2);
     --message-group-inset: --spacing(3);
@@ -92,12 +93,12 @@
     );
   }
 
-  /* The work boundary owns trailing space, regardless of its final block type. */
   .chat-work-row {
     --work-list-bottom-padding: 0px;
   }
 
-  .chat-work-end {
+  /* Match the collapsed work summary's inset before a transcript note. */
+  .chat-work-before-note {
     padding-bottom: var(--message-summary-padding-y);
   }
 
@@ -108,13 +109,13 @@
   }
 }
 
-/* A file already provides the gap before a following code block. */
-[data-slot='virtualized-item']:has([data-slot='file-block'])
-  + [data-slot='virtualized-item']
-  [data-slot='text-block']
-  > div
-  > [data-slot='code-container']:first-child {
-  margin-top: 0;
+/* Match row spacing inside Markdown while preserving nested typography. */
+.chat-markdown > * {
+  margin-block: 0;
+}
+
+.chat-markdown > * + * {
+  margin-block-start: var(--message-block-gap);
 }
 
 /* --- Streaming caret --- */

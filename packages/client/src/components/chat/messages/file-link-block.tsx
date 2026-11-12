@@ -10,7 +10,7 @@ export function FileLinkBlock({ path }: FileLinkBlockProps) {
   return (
     <span
       data-slot="file-link-block"
-      className="bg-m3-surface-container text-muted-foreground mb-1 inline-flex max-w-full items-center gap-1.5 rounded-md px-2 py-1 align-middle font-mono text-xs"
+      className="bg-m3-surface-container text-muted-foreground inline-flex max-w-full items-center gap-1.5 rounded-md px-2 py-1 align-middle font-mono text-xs"
       title={path}
     >
       {isDir ? (

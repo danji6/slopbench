@@ -187,7 +187,7 @@ function SmoothTextComponent({ part }: SmoothTextProps) {
 
   return (
     <MarkdownContext.Provider value={{ isViewer: true }}>
-      <div className={streamingCursor}>
+      <div className={cn('chat-markdown', streamingCursor)}>
         {committed && (
           <CommittedMarkdown
             text={committed}

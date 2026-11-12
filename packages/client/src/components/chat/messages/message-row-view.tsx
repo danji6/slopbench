@@ -228,7 +228,7 @@ function HeaderRow({ row, message, messageMeta }: HeaderRowProps) {
     <div
       ref={highlightRef}
       data-slot="message-highlight-target"
-      className="mb-2 w-fit max-w-full min-w-0"
+      className="w-fit max-w-full min-w-0"
     >
       {reasoning ? (
         <ReasoningHeader

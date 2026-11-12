@@ -21,7 +21,7 @@ export function SubagentReportBlock({ part }: { part: SubagentReportPart }) {
       data-slot="subagent-report-block"
       onClick={() => navigate(`/?id=${part.sessionId}`)}
       title="Open the sub-agent session"
-      className="bg-m3-surface-container text-muted-foreground hover:text-foreground group mb-1 inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 align-middle font-mono text-xs transition-colors"
+      className="bg-m3-surface-container text-muted-foreground hover:text-foreground group inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 align-middle font-mono text-xs transition-colors"
     >
       <BotIcon className="size-3.5 shrink-0" />
       <span className="truncate">

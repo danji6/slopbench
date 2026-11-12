@@ -125,7 +125,7 @@ const MessageContent = memo(function MessageContent({
   return (
     <Surface
       className={cn(
-        'flex max-w-full flex-col gap-3 py-3 wrap-break-word',
+        'flex max-w-full flex-col gap-(--message-block-gap) py-3 wrap-break-word',
         isUser ? 'w-fit' : 'w-full',
         message.role !== 'user' && 'border-0 bg-transparent',
       )}

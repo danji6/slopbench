@@ -48,7 +48,7 @@ export function FileBlock({ parts, attachmentIds }: FileBlockProps) {
       data-slot="file-block"
       files={files}
       size={128}
-      className="my-4 p-0"
+      className="gap-(--message-block-gap) p-0"
       noAnimation
     />
   )

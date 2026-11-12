@@ -309,22 +309,20 @@ function getRowSpacing(row?: MessageRow, previousRow?: MessageRow) {
     row.kind === 'group' && row.workId && !row.promotedToolCallIds
   if (isWorkRow) return 'h-(--work-row-gap)'
   if (!previousRow) return
-  if (isSummary) return 'h-(--message-section-gap)'
+  const bordersNote = isNoteBoundaryRow(row) || isNoteBoundaryRow(previousRow)
+  if (isSummary || bordersNote) return 'h-(--message-compact-block-gap)'
 
-  const bordersNote = row.kind === 'hidden' || previousRow.kind === 'hidden'
-  if (bordersNote) return 'h-(--message-section-gap)'
+  // Adjacent work summaries already provide their own header padding.
+  const stacksWorkSummaries =
+    row.kind === 'work' &&
+    (previousRow.kind === 'work' || previousRow.kind === 'footer')
+  if (stacksWorkSummaries) return
 
-  const startsNotes = row.kind === 'note-group'
-  if (startsNotes) return 'h-(--message-section-gap)'
+  return 'h-(--message-block-gap)'
+}
 
-  const startsContent = row.kind === 'group' && !row.workId
-  const followsContent = previousRow.kind === 'group' && !previousRow.workId
-  const followsWork =
-    previousRow.kind === 'work' ||
-    (previousRow.kind === 'group' && !!previousRow.workId)
-  const contentBoundary =
-    (startsContent && followsWork) || (row.kind === 'work' && followsContent)
-  if (contentBoundary) return 'h-(--message-section-gap)'
+function isNoteBoundaryRow(row?: MessageRow) {
+  return row?.kind === 'hidden' || row?.kind === 'note-group'
 }
 
 function VirtualizedItem({
@@ -337,13 +335,7 @@ function VirtualizedItem({
   const transitions = useContext(RowTransitionsContext)
   const row = rows[index]
   const previousRow = rows[index - 1]
-  const nextRow = rows[index + 1]
-  const continuesWork =
-    nextRow?.kind === 'group' &&
-    row?.kind === 'group' &&
-    nextRow.workId === row.workId &&
-    !nextRow.promotedToolCallIds
-
+  const precedesNote = isNoteBoundaryRow(rows[index + 1])
   const spacing = getRowSpacing(row, previousRow)
   const content = (
     <>
@@ -381,9 +373,12 @@ function VirtualizedItem({
             content
           ) : (
             <div
-              className={cn('chat-work-row', !continuesWork && 'chat-work-end')}
+              className={cn(
+                'chat-work-row border-border/60 border-l',
+                precedesNote && 'chat-work-before-note',
+              )}
             >
-              <div className="border-border/60 border-l">{content}</div>
+              {content}
             </div>
           )}
         </VirtualizedRowTransition>

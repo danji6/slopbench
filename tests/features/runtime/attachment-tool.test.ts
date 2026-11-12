@@ -216,15 +216,17 @@ async function attachmentTool(blob: Blob, options: FixtureOptions = {}) {
     const [, start, inclusiveEnd] = /^bytes=(\d+)-(\d+)$/.exec(range ?? '')!
     const end = Number(inclusiveEnd) + 1
     ranges.push([Number(start), end])
-    return (
-      respond?.(Number(start), end) ??
-      new Response(blob.slice(Number(start), end), {
-        status: 206,
-        headers: {
-          'Content-Range': `bytes ${start}-${inclusiveEnd}/${blob.size}`,
-        },
-      })
-    )
+    const response = respond?.(Number(start), end)
+    if (response) return response
+
+    // Bun 1.3.14 streams past the end of a sliced Blob in a Response.
+    const bytes = await blob.slice(Number(start), end).arrayBuffer()
+    return new Response(bytes, {
+      status: 206,
+      headers: {
+        'Content-Range': `bytes ${start}-${inclusiveEnd}/${blob.size}`,
+      },
+    })
   }
   fetchMock = spyOn(globalThis, 'fetch').mockImplementation(
     Object.assign(fetchRange, { preconnect: fetch.preconnect }),
