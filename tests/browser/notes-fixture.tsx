@@ -8,6 +8,7 @@ import { MessageRowView } from '@/components/chat/messages/message-row-view'
 import { NoteGroupBlock } from '@/components/chat/messages/note-group-block'
 import { WorkBlock } from '@/components/chat/messages/work-block'
 import { ChatSearchProvider } from '@/components/chat/search/chat-search-context'
+import { SessionPlanSection } from '@/components/chat/sessions/session-plan-section'
 import '@/globals.css'
 import { useScrollPersistence } from '@/hooks/chat/message-list/scroll-persistence'
 import { useSeek } from '@/hooks/chat/message-list/seek'
@@ -251,7 +252,9 @@ export function NotesFixture() {
   return (
     <ConvexProvider client={notesClient}>
       <ConvexQueryCacheProvider>
-        {composerParams.has('contextReset') ? (
+        {composerParams.has('plan') ? (
+          <SessionPlanSection />
+        ) : composerParams.has('contextReset') ? (
           <ChatSearchProvider>
             <ChatSession
               sessionId="notes"

@@ -68,6 +68,7 @@ function noteExtra(type?: NoteType) {
 
 const params = new URLSearchParams(location.search)
 let messages = initialMessages()
+let planContent = 'Original plan'
 let submittedShell: ReturnType<typeof message> | undefined
 
 function initialMessages() {
@@ -418,6 +419,9 @@ function query(name: string, args: Record<string, unknown>) {
         workspace: { workspaceId: 'workspace', folderId: 'folder' },
       }),
     }
+  if (name === 'plans:get' && params.has('plan')) {
+    return { status: 'draft', content: planContent }
+  }
   if (
     name === 'tools:list' &&
     (params.has('longShell') ||
@@ -475,6 +479,11 @@ export const notesClient = {
     args: { messageId?: string; content?: string },
   ) {
     const name = getFunctionName(reference)
+    if (name === 'plans:update' && params.has('plan')) {
+      planContent = args.content ?? ''
+      refresh()
+      return
+    }
     if (name === 'chat:resetContext' && params.has('contextReset')) {
       messages = [
         ...messages,

@@ -71,3 +71,30 @@ test('the context menu remains disabled for a message being edited', async ({
   await page.getByTestId('message').click({ button: 'right' })
   await expect(page.getByRole('menu')).toHaveCount(0)
 })
+
+test('pasting external text into a message keeps its editable blank lines on save', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: 'Start editing', exact: true }).click()
+  const editor = page.getByTestId('message').locator('.ProseMirror')
+  await expect(editor).toBeFocused()
+  await editor.press('ControlOrMeta+a')
+  const source =
+    'First line\ncontinued\n\nSecond paragraph\n\n\n\nThird paragraph'
+  await editor.evaluate((element, text) => {
+    const clipboardData = new DataTransfer()
+    clipboardData.setData('text/plain', text.replaceAll('\n', '\r\n'))
+    element.dispatchEvent(
+      new ClipboardEvent('paste', {
+        clipboardData,
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+  }, source)
+
+  await expect(editor.locator('br')).toHaveCount(7)
+  await editor.press('ControlOrMeta+s')
+  const saved = page.getByLabel('Saved message markdown')
+  await expect.poll(() => saved.textContent()).toBe(source)
+})

@@ -10,6 +10,7 @@ import {
   sourceDelimiterRanges,
 } from '@/lib/tiptap/inline-source'
 import { editorKit } from '@/lib/tiptap/kit'
+import { pasteTextLines } from '@/lib/tiptap/paste'
 import { serializeDocumentToMarkdown } from '@/lib/tiptap/serialize'
 import { cn } from '@/lib/utils'
 import type { EditorView } from '@tiptap/pm/view'
@@ -99,8 +100,11 @@ export function InlineEditor({
         }
         return handleKeyDownRef.current?.(view, event) ?? false
       },
-      handlePaste: (view, event) =>
-        handlePasteRef.current?.(view, event) ?? false,
+      handlePaste: (view, event) => {
+        if (handlePasteRef.current?.(view, event)) return true
+        const current = editorRef.current
+        return current ? pasteTextLines(current, event) : false
+      },
     },
   })
 

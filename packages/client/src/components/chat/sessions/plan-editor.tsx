@@ -10,13 +10,14 @@ import type { MathMode } from '@/lib/chat'
 import { normalizeMathDelimiters } from '@/lib/markdown/helpers'
 import { setEditorMathMode } from '@/lib/tiptap/decorations'
 import { editorKit } from '@/lib/tiptap/kit'
+import { pasteTextLines } from '@/lib/tiptap/paste'
 import {
   serializeDocumentToMarkdown,
   setEditorMarkdown,
 } from '@/lib/tiptap/serialize'
 import { cn } from '@/lib/utils'
 import type { JSONContent } from '@tiptap/core'
-import { useEditor } from '@tiptap/react'
+import { type Editor, useEditor } from '@tiptap/react'
 import { useEffect, useImperativeHandle, useRef } from 'react'
 
 /**
@@ -63,6 +64,7 @@ export function PlanEditor({
   ref,
 }: PlanEditorProps) {
   const mathMode = useMathMode()
+  const editorRef = useRef<Editor | null>(null)
   const onChangeRef = useRef(onChange)
   const onSaveRef = useRef(onSave)
   const baseline = useEditorBaseline(onBaseline)
@@ -102,6 +104,10 @@ export function PlanEditor({
         onSaveRef.current()
         return true
       },
+      handlePaste: (_view, event) => {
+        const current = editorRef.current
+        return current ? pasteTextLines(current, event) : false
+      },
     },
   })
 
@@ -118,8 +124,8 @@ export function PlanEditor({
     [editor, mathMode],
   )
 
-  // Dispatch later changes to the editor
   useEffect(() => {
+    editorRef.current = editor
     if (editor) setEditorMathMode(editor, mathMode)
   }, [editor, mathMode])
 

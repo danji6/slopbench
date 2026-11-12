@@ -41,8 +41,7 @@ export function pasteCollapsedText(
 }
 
 /**
- * Paste handler for editors where a line break is still a line break (prompt
- * editor).
+ * Paste handler for editors that preserve paragraph spacing.
  *
  * @returns true when it handled the paste.
  */

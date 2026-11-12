@@ -1,9 +1,11 @@
+import { EditableText } from '@/components/chat/messages/editor/editable-text'
 import { ScriptManager } from '@/components/chat/messages/editor/menu/script-manager'
 import { ScriptToolbarContent } from '@/components/chat/messages/editor/menu/script-toolbar'
 import {
   MessageEditProvider,
   useMessageEdit,
 } from '@/components/chat/messages/editor/message-edit-context'
+import { MessageContext } from '@/components/chat/messages/message-context'
 import { MessageContextMenu } from '@/components/chat/messages/message-context-menu'
 import '@/globals.css'
 import { ChatMessagesProvider } from '@/hooks/chat/messages'
@@ -52,6 +54,7 @@ function Menus() {
   const [readOnly, setReadOnly] = useState(false)
   const [actions, setActions] = useState(0)
   const edit = useMessageEdit()
+  const [part] = message.parts
   return (
     <main className="flex flex-col items-start gap-8 p-8">
       <label>
@@ -72,7 +75,21 @@ function Menus() {
           data-testid="message"
           className="border p-8"
         >
-          Fixture text
+          <MessageContext.Provider
+            value={{
+              id: message.id,
+              canEdit: !readOnly,
+              content: 'Fixture text',
+            }}
+          >
+            {part?.type === 'text' ? (
+              <EditableText part={part} index={0}>
+                {part.text}
+              </EditableText>
+            ) : (
+              'Fixture text'
+            )}
+          </MessageContext.Provider>
         </div>
       </MessageContextMenu>
       <button onClick={() => edit?.startEditing(message.id, 'Fixture text')}>
@@ -93,12 +110,16 @@ function Menus() {
 
 /** Exercises the production menus, script manager, and view navigation together. */
 export function ScriptMenusFixture() {
+  const [savedMarkdown, setSavedMarkdown] = useState('')
   return (
     <ConvexProvider client={client}>
       <ConvexQueryCacheProvider>
         <ChatMessagesProvider>
-          <MessageEditProvider onEdit={() => {}}>
+          <MessageEditProvider
+            onEdit={(_id, content) => setSavedMarkdown(content)}
+          >
             <Menus />
+            <output aria-label="Saved message markdown">{savedMarkdown}</output>
           </MessageEditProvider>
         </ChatMessagesProvider>
       </ConvexQueryCacheProvider>
