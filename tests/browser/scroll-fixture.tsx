@@ -134,7 +134,7 @@ export function ScrollFixture() {
         }}
       >
         <button onClick={followToTop}>Top</button>
-        <button onClick={followToBottom}>Bottom</button>
+        <button onClick={() => followToBottom()}>Bottom</button>
         {trimWindow && (
           <button onClick={() => setWindowPhase('trimmed')}>
             Resolve window

@@ -136,7 +136,7 @@ function ChatSessionContent({
     async (msg: PendingMessage) => {
       setLocalError(null)
       try {
-        await sendMessage(msg)
+        return await sendMessage(msg)
       } catch (error) {
         handleError(error)
         throw error

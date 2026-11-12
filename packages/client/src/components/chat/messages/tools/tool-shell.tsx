@@ -48,6 +48,7 @@ export function ToolShell({
   collapsible = true,
   autoExpand = false,
   reveal: revealProp,
+  revealComposerMessageId,
   revealOnOpen,
   fullWidth = false,
   surface = false,
@@ -77,6 +78,11 @@ export function ToolShell({
       collapsible={collapsible}
       shimmer={status === 'running'}
       reveal={revealProp ?? isAwaitingApproval}
+      revealComposerMessageId={
+        hasBody && open && userOpen === null
+          ? revealComposerMessageId
+          : undefined
+      }
       revealOnOpen={revealOnOpen}
       open={hasBody && open}
       onOpenChange={setUserOpen}

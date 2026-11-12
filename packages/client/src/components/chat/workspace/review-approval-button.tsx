@@ -6,16 +6,12 @@ type ReviewApprovalButtonProps = {
   onClick: () => void
   compact?: boolean
   className?: string
-  onFocus?: React.FocusEventHandler<HTMLDivElement>
-  onBlur?: React.FocusEventHandler<HTMLDivElement>
 }
 
 export function ReviewApprovalButton({
   onClick,
   compact = false,
   className,
-  onFocus,
-  onBlur,
 }: ReviewApprovalButtonProps) {
   const notice = 'Agent is waiting for a decision'
 
@@ -23,8 +19,6 @@ export function ReviewApprovalButton({
     <div
       data-slot="review-approval"
       className={cn('flex items-center justify-between gap-2', className)}
-      onFocus={onFocus}
-      onBlur={onBlur}
     >
       <span
         role="status"

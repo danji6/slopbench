@@ -76,6 +76,18 @@ test('approves locally with a note and keeps the parent queue synchronized', asy
   })
 })
 
+test('opens approval when the empty composer is focused', async ({ page }) => {
+  await page.goto('/?fixture=subagent-approvals&id=parent&delayedApprovals')
+  const editor = composer(page)
+  await editor.focus()
+  await expect(editor).toBeFocused()
+  await expect(editor).toHaveText('')
+
+  await releaseApprovals(page)
+  await expect(picker(page)).toBeVisible()
+  await expect(review(page)).toHaveCount(0)
+})
+
 test('preserves child note drafts when moving between views', async ({
   page,
 }) => {

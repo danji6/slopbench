@@ -36,11 +36,8 @@ export function useMessageReveal(
   const revealFrame = useRef(0)
   useEffect(() => () => cancelAnimationFrame(revealFrame.current), [])
 
-  const revealResolvedMessage = useCallback(
-    (
-      resolveMessageId: () => string | undefined,
-      kind: 'follow' | 'navigate' = 'follow',
-    ) => {
+  const revealMessage = useCallback(
+    (messageId: string, kind: 'follow' | 'navigate' = 'follow') => {
       if (kind === 'follow' && coordinator.kind === 'follow') return
       const operation = coordinator.begin(kind)
       if (!operation) return
@@ -51,11 +48,7 @@ export function useMessageReveal(
 
       const tryReveal = () => {
         if (!operation.isCurrent()) return
-        const messageId = resolveMessageId()
-        const index =
-          messageId === undefined
-            ? -1
-            : firstMessageRowIndex(rowsRef.current, messageId)
+        const index = firstMessageRowIndex(rowsRef.current, messageId)
         const virtualizer = virtuaRef.current
 
         if (index >= 0 && virtualizer) {
@@ -78,22 +71,13 @@ export function useMessageReveal(
     [topPadding, rowsRef, virtuaRef, coordinator, holdPosition],
   )
 
-  const revealMessage = useCallback(
-    (messageId: string) => revealResolvedMessage(() => messageId),
-    [revealResolvedMessage],
+  const revealSentMessage = useCallback(
+    (messageId: string) => {
+      if (!metaRef.current.isAtLiveTail) returnToLatest()
+      revealMessage(messageId, 'navigate')
+    },
+    [returnToLatest, revealMessage, metaRef],
   )
-
-  // Bring the latest message into view once it lands
-  const revealLatest = useCallback(() => {
-    const baselineLength = rowsRef.current.length
-    if (!metaRef.current.isAtLiveTail) returnToLatest()
-    revealResolvedMessage(() => {
-      const current = rowsRef.current
-      return current.length > baselineLength
-        ? current[current.length - 1]?.messageId
-        : undefined
-    }, 'navigate')
-  }, [returnToLatest, revealResolvedMessage, rowsRef, metaRef])
 
   const remoteRevealReadyRef = useRef(false)
   const previousRemoteRevealIdsRef = useRef(messageIds)
@@ -133,5 +117,5 @@ export function useMessageReveal(
     revealMessage,
   ])
 
-  return { revealLatest }
+  return { revealSentMessage }
 }

@@ -9,7 +9,7 @@ type Submission = {
 
 type FailedSubmission = { message: PendingMessage; restoreWhenEmpty?: boolean }
 type DraftKey = string | symbol
-type Submit = (message: PendingMessage) => void | Promise<void>
+type Submit = (message: PendingMessage) => void | Promise<unknown>
 type SendOptions = {
   clearDraft?: () => () => boolean
   restoreWhenEmpty?: boolean

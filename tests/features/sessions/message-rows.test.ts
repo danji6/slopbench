@@ -109,18 +109,20 @@ describe('message rows', () => {
     expect(rows.map((row) => row.key)).toContain('f:message-1')
   })
 
-  test('a user-invoked shell command is one renderable group row', () => {
+  test('a completed user shell renders its tool row without a duration footer', () => {
     const shellPart = {
       type: 'tool-shell',
       toolCallId: 'call-1',
-      state: 'input-available',
+      state: 'output-available',
       input: { command: 'ls -la' },
+      output: 'index.html',
     } as unknown as UIMessage['parts'][number]
 
     const rows = buildRows(
       ['message-1'],
       () => ({ ...message([shellPart]), role: 'user' }),
-      () => undefined,
+      () => ({ sender: { type: 'user', id: 'user_1' } }) as MessageRecord,
+      () => ({ duration: 1200 }),
     )
 
     expect(rows.map((row) => row.key)).toEqual([

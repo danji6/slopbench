@@ -15,6 +15,8 @@ import {
 } from '@/hooks/chat'
 import type { useChatStatus, useWorkspaceFileIndex } from '@/hooks/chat'
 import { useApprovalReview } from '@/hooks/chat/approval-review'
+import { useComposerReveal } from '@/hooks/chat/composer-reveal'
+import { useRestoreShellFocus } from '@/hooks/chat/shell-focus'
 import { useHasElapsed } from '@/hooks/expiry'
 import { useAtBottomSticky } from '@/hooks/scroll'
 import type { PendingMessage } from '@/lib/chat'
@@ -25,6 +27,7 @@ import {
 } from '@/lib/chat/message-geometry'
 import { isOngoingStream } from '@/lib/chat/stream'
 import { cn } from '@/lib/utils'
+import { parseShellCommand } from '@sb/core/shell/command'
 import {
   useCallback,
   useEffect,
@@ -64,7 +67,7 @@ type ChatSessionViewProps = {
   topPadding: number
   status: ReturnType<typeof useChatStatus>
   error: Error | null
-  onSubmit: (msg: PendingMessage) => void | Promise<void>
+  onSubmit: (msg: PendingMessage) => Promise<string>
   onStop: () => void
   onRunCommand: (
     name: string,
@@ -109,7 +112,6 @@ export function ChatSessionView({
   const [isPinned, setPinned] = useState(false)
   const [hasContent, setHasContent] = useState(false)
   const [draftReady, setDraftReady] = useState(false)
-  const [composerFocused, setComposerFocused] = useState(false)
 
   // Message editing
   const editCtx = useMessageEdit()
@@ -173,6 +175,13 @@ export function ChatSessionView({
     [],
   )
 
+  const {
+    visible: keepComposerVisible,
+    begin: holdComposerForReveal,
+    clear: clearComposerReveal,
+    keepVisible: revealComposerForFocus,
+  } = useComposerReveal(session?._id, isAtBottom)
+
   const unseenActivity = useUnseenTailActivity(isAtBottom)
   const hasActivity = isOngoingStream(status) || unseenActivity
   const agentWaiting = awaitingApproval || awaitingAnswer
@@ -183,19 +192,26 @@ export function ChatSessionView({
     awaitingAnswer,
     canApproveTools,
     composerDocked,
-    composerIdle: draftReady && !hasContent && !composerFocused,
+    composerIdle: draftReady && !hasContent,
     reviewBlocked: isEditing || searchOpen,
   })
 
-  const showDock = composerDocked || review.showApproval
+  const showDock = composerDocked || review.showApproval || (!isEditing && keepComposerVisible) // prettier-ignore
   const showInteractionPicker = review.showApproval || awaitingAnswer
   const showToolbar = !isAtBottom || isEditing
   const showReviewAction = review.showReviewButton && !review.fullscreen && !isEditing // prettier-ignore
   const reviewInDock = showReviewAction && showDock && !showInteractionPicker
 
+  const restoreComposerFocus = useRestoreShellFocus({
+    composerRef,
+    available:
+      !subagentParent && !isEditing && !searchOpen && !showInteractionPicker,
+    dockVisible: showDock,
+    revealComposer: revealComposerForFocus,
+  })
+
   function openReview() {
     if (!showDock) messageListRef.current?.followToBottom()
-    setComposerFocused(false)
     review.review()
   }
 
@@ -235,9 +251,14 @@ export function ChatSessionView({
 
   const handleSubmit = useCallback(
     async (msg: PendingMessage) => {
-      await onSubmit(msg)
+      const messageId = await onSubmit(msg)
       clearTyping()
-      messageListRef.current?.revealLatest()
+      const isUserMessage = !msg.role || msg.role === 'user'
+      const isShellCommand =
+        isUserMessage && parseShellCommand(msg.content.trim()) !== null
+      messageListRef.current?.revealSentMessage(messageId, {
+        intoView: isShellCommand,
+      })
     },
     [onSubmit, clearTyping],
   )
@@ -265,21 +286,6 @@ export function ChatSessionView({
     }
   }, [onStop, showDock, showInteractionPicker])
 
-  function handleComposerFocus() {
-    setComposerFocused(true)
-  }
-
-  function handleComposerBlur(event: React.FocusEvent) {
-    const target = event.relatedTarget
-    if (
-      target instanceof Element &&
-      target.closest('[data-slot="chat-box"], [data-slot="review-approval"]')
-    ) {
-      return
-    }
-    setComposerFocused(false)
-  }
-
   const toolbar: ChatToolbarProps = {
     showScroll: !isAtBottom,
     activity: hasActivity,
@@ -296,8 +302,6 @@ export function ChatSessionView({
     <ReviewApprovalButton
       compact
       onClick={openReview}
-      onFocus={handleComposerFocus}
-      onBlur={handleComposerBlur}
       className="pointer-events-auto"
     />
   )
@@ -313,6 +317,7 @@ export function ChatSessionView({
         <MessageHighlightProvider>
           <ChatLayout
             scrollbar
+            onScrollbarNavigate={clearComposerReveal}
             bottomInset={keyboardInset}
             mainContent={(bottomPadding) => (
               <MessageList
@@ -326,6 +331,12 @@ export function ChatSessionView({
                 onScrollChange={onMessageListScroll}
                 onIntoViewSettle={releaseSticky}
                 onInitialPositionSettled={handleInitialPositionSettled}
+                onTranscriptNavigate={clearComposerReveal}
+                holdComposerForReveal={holdComposerForReveal}
+                restoreComposerFocus={restoreComposerFocus}
+                shellFocusBlocked={
+                  isEditing || searchOpen || showInteractionPicker || hasContent
+                }
               />
             )}
             dockHeader={(stackHeight, footerHeight) =>
@@ -459,8 +470,6 @@ export function ChatSessionView({
                         set: setMode,
                       }}
                       onContentChange={handleContentChange}
-                      onFocus={handleComposerFocus}
-                      onBlur={handleComposerBlur}
                       notice={
                         review.showReviewButton &&
                         review.fullscreen && (

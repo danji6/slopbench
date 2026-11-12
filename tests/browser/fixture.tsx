@@ -25,6 +25,12 @@ const NotesFixture = lazy(() =>
   })),
 )
 
+const AppearanceFixture = lazy(() =>
+  import('./appearance-fixture').then((module) => ({
+    default: module.AppearanceFixture,
+  })),
+)
+
 const MessagePaginationFixture = lazy(() =>
   import('./message-pagination-fixture').then((module) => ({
     default: module.MessagePaginationFixture,
@@ -234,6 +240,10 @@ createRoot(document.getElementById('root')!).render(
   ) : new URLSearchParams(location.search).get('fixture') === 'skills' ? (
     <Suspense fallback={<p>Loading skills fixture…</p>}>
       <SkillsFixture />
+    </Suspense>
+  ) : new URLSearchParams(location.search).get('fixture') === 'appearance' ? (
+    <Suspense fallback={<p>Loading appearance…</p>}>
+      <AppearanceFixture />
     </Suspense>
   ) : new URLSearchParams(location.search).get('fixture') === 'notes' ? (
     <Suspense fallback={<p>Loading notes…</p>}>

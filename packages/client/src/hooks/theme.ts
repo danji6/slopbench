@@ -1,7 +1,6 @@
 import { useWorker } from '@/hooks/worker'
 import {
   type ThemeMode,
-  actualThemeMode,
   applyTheme,
   hexColorOrNull,
   isDarkModePreferred,
@@ -16,6 +15,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -36,6 +36,20 @@ export function useTheme(
 ) {
   const [override, setOverride] = useState<string | null | undefined>(undefined)
   const sourceColor = override !== undefined ? override : hexColorOrNull(color)
+  const systemIsDark = useIsDarkModePreferred()
+  const requestedMode = mode ?? 'system'
+  const isDark = requestedMode === 'system' ? systemIsDark : requestedMode === 'dark' // prettier-ignore
+  const appliesDocumentMode = mode != null
+
+  useLayoutEffect(() => {
+    if (!appliesDocumentMode) return
+
+    const root = document.documentElement
+    root.classList.toggle('dark', isDark)
+    return () => {
+      root.classList.toggle('dark', isDarkModePreferred())
+    }
+  }, [appliesDocumentMode, isDark])
 
   useClassName(sourceColor ? className : null)
 
@@ -50,8 +64,7 @@ export function useTheme(
     }
 
     let cancelled = false
-    const resolvedMode = mode ?? 'system'
-    const isDark = actualThemeMode(resolvedMode) === 'dark'
+    const resolvedMode = isDark ? 'dark' : 'light'
 
     generateThemeCss(sourceColor, isDark).then(({ css }) => {
       if (cancelled) return
@@ -64,33 +77,9 @@ export function useTheme(
     return () => {
       cancelled = true
     }
-  }, [sourceColor, className, mode])
+  }, [sourceColor, className, isDark])
 
   useEffect(() => () => removeTheme(className), [className])
-
-  const appModeRef = useRef<ThemeMode>('system')
-  useEffect(() => {
-    if (!mode || !sourceColor) return
-
-    const root = document.documentElement
-    const sync = () => {
-      const isDark =
-        mode === 'dark' || (mode === 'system' && isDarkModePreferred())
-      root.classList.toggle('dark', isDark)
-    }
-
-    sync()
-    window.addEventListener('stylechange', sync)
-
-    return () => {
-      window.removeEventListener('stylechange', sync)
-      const isDark =
-        appModeRef.current === 'dark' ||
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        (appModeRef.current === 'system' && isDarkModePreferred())
-      root.classList.toggle('dark', isDark)
-    }
-  }, [mode, sourceColor])
 
   return [sourceColor, apply] as const
 }
@@ -174,7 +163,10 @@ export function useScopedTheme(
   const className = `theme-${id}`
   const sourceColor = hexColorOrNull(color)
   const documentIsDark = useIsDarkMode()
-  const isDark = mode ? actualThemeMode(mode) === 'dark' : documentIsDark
+  const systemIsDark = useIsDarkModePreferred()
+  const isDark = mode
+    ? mode === 'dark' || (mode === 'system' && systemIsDark)
+    : documentIsDark
 
   // Asynchronous guard while the worker generates the theme
   const [installed, setInstalled] = useState<'light' | 'dark'>()
@@ -255,23 +247,16 @@ export function useIsDarkMode(): boolean {
   )
 }
 
+function subscribeToColorScheme(listener: () => void) {
+  const media = matchDarkMode()
+  media.addEventListener('change', listener)
+  return () => media.removeEventListener('change', listener)
+}
+
 export function useIsDarkModePreferred() {
-  const [isDark, setDark] = useState(() =>
-    typeof window !== 'undefined' ? isDarkModePreferred() : false,
+  return useSyncExternalStore(
+    subscribeToColorScheme,
+    isDarkModePreferred,
+    () => false,
   )
-
-  useEffect(() => {
-    function handleChange(e: MediaQueryListEvent) {
-      setDark(e.matches)
-    }
-
-    const m = matchDarkMode()
-    m.addEventListener('change', handleChange)
-
-    return () => {
-      m.removeEventListener('change', handleChange)
-    }
-  }, [])
-
-  return isDark
 }

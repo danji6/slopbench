@@ -109,23 +109,26 @@ export function useFollowEdges(
     [coordinator],
   )
 
-  // Reload the live tail and scroll to the bottom, unloading older pages
-  const followToBottom = useCallback(() => {
-    beginNavigation(true)
-    scrollToBottom(true)
-    setFollowOverride(isOngoingStream(status))
-    if (!metaRef.current.isAtLiveTail) pendingBottomRef.current = true
-    returnToLatest()
-    settleToBottom()
-  }, [
-    settleToBottom,
-    status,
-    returnToLatest,
-    setFollowOverride,
-    metaRef,
-    beginNavigation,
-    scrollToBottom,
-  ])
+  const followToBottom = useCallback(
+    ({ preserveHistory = false } = {}) => {
+      beginNavigation(true)
+      scrollToBottom(true)
+      setFollowOverride(isOngoingStream(status))
+      const atLiveTail = metaRef.current.isAtLiveTail
+      if (!atLiveTail) pendingBottomRef.current = true
+      if (!atLiveTail || !preserveHistory) returnToLatest()
+      settleToBottom()
+    },
+    [
+      settleToBottom,
+      status,
+      returnToLatest,
+      setFollowOverride,
+      metaRef,
+      beginNavigation,
+      scrollToBottom,
+    ],
+  )
 
   // Ensure the list is at the very bottom when the live tail reloads
   useEffect(() => {

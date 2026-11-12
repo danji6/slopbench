@@ -138,10 +138,11 @@ export function useSendMessage() {
           settings,
           agent,
         )
-        await sendMutation.withOptimisticUpdate((store) => {
+        const messageId = await sendMutation.withOptimisticUpdate((store) => {
           if (optimistic) optimisticallyInsertMessage(store, optimistic)
         })(args)
         releasePreviews?.(true)
+        return messageId
       } catch (error) {
         releasePreviews?.(false)
         await Promise.allSettled(

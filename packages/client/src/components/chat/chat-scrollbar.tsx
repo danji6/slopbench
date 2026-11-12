@@ -20,7 +20,12 @@ type Geometry = {
   trackHeight: number
 }
 
-export function ChatScrollbar({ className }: { className?: string }) {
+type ChatScrollbarProps = {
+  className?: string
+  onNavigate?: () => void
+}
+
+export function ChatScrollbar({ className, onNavigate }: ChatScrollbarProps) {
   const trackRef = useRef<HTMLDivElement>(null)
   const geo = useScrollGeometry(trackRef)
   const [dragging, setDragging] = useState(false)
@@ -57,6 +62,7 @@ export function ChatScrollbar({ className }: { className?: string }) {
   const beginDrag = useCallback(
     (event: React.PointerEvent, startScroll: number) => {
       event.preventDefault()
+      onNavigate?.()
 
       dragCleanupRef.current?.()
 
@@ -99,7 +105,7 @@ export function ChatScrollbar({ className }: { className?: string }) {
       window.addEventListener('blur', cleanup)
       el.addEventListener('lostpointercapture', cleanup)
     },
-    [maxScroll, travel],
+    [maxScroll, onNavigate, travel],
   )
 
   const onThumbPointerDown = useCallback(

@@ -1,3 +1,4 @@
+import { ChatSessionView } from '@/components/chat/chat-session-view'
 import { HiddenChip } from '@/components/chat/messages/hidden-chip'
 import type { ScrollDeps } from '@/components/chat/messages/message-list/deps'
 import { MessageListContent } from '@/components/chat/messages/message-list/message-list-content'
@@ -5,6 +6,7 @@ import { MessageListContext } from '@/components/chat/messages/message-list/mess
 import { MessageRowView } from '@/components/chat/messages/message-row-view'
 import { NoteGroupBlock } from '@/components/chat/messages/note-group-block'
 import { WorkBlock } from '@/components/chat/messages/work-block'
+import { ChatSearchProvider } from '@/components/chat/search/chat-search-context'
 import '@/globals.css'
 import { useScrollPersistence } from '@/hooks/chat/message-list/scroll-persistence'
 import { useSeek } from '@/hooks/chat/message-list/seek'
@@ -15,7 +17,9 @@ import {
   useMessageStore,
   useWindowControls,
 } from '@/hooks/chat/messages'
-import { StreamStoreProvider } from '@/hooks/chat/stream'
+import { useSendMessage } from '@/hooks/chat/send'
+import { StreamStoreProvider, useChatStatus } from '@/hooks/chat/stream'
+import { useWorkspaceFileIndex } from '@/hooks/chat/workspace'
 import { useScroller } from '@/hooks/scroller'
 import type { MessageRow } from '@/lib/chat/rows'
 import { ConvexQueryCacheProvider } from 'convex-helpers/react/cache'
@@ -25,8 +29,10 @@ import type { WindowVirtualizerHandle } from 'virtua'
 
 import {
   appendNote,
+  appendWaitingShellOutput,
   isNoteRow,
   notesClient,
+  publishSubmittedShellOutput,
   waitForShellInput,
 } from './notes-client'
 
@@ -40,6 +46,9 @@ const longShell = new URLSearchParams(location.search).has('longShell')
 const compaction = new URLSearchParams(location.search).has('compaction')
 const thinkingWork = new URLSearchParams(location.search).has('thinkingWork')
 const reminderWork = new URLSearchParams(location.search).has('reminderWork')
+const composerParams = new URLSearchParams(location.search)
+const showComposer =
+  composerParams.has('shellComposer') || composerParams.has('composer')
 
 function NoteRow({ row }: { row: MessageRow }) {
   const { message, messageMeta } = useChatMessage(row.messageId)
@@ -118,7 +127,12 @@ function Transcript() {
     >
       <nav className="bg-background fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-2 px-2 text-xs">
         {longShell && (
-          <button onClick={waitForShellInput}>Wait for terminal input</button>
+          <>
+            <button onClick={waitForShellInput}>Wait for terminal input</button>
+            <button onClick={appendWaitingShellOutput}>
+              Append terminal output
+            </button>
+          </>
         )}
         {shellReports && (
           <button onClick={() => requestScrollToMessage('shell2', 2)}>
@@ -201,6 +215,36 @@ function Transcript() {
   )
 }
 
+function Composer() {
+  useEffect(() => {
+    window.addEventListener(
+      'publish-submitted-shell-output',
+      publishSubmittedShellOutput,
+    )
+    return () =>
+      window.removeEventListener(
+        'publish-submitted-shell-output',
+        publishSubmittedShellOutput,
+      )
+  }, [])
+
+  return (
+    <ChatSessionView
+      dockWidth="min(95%, 800px)"
+      topPadding={16}
+      status={useChatStatus()}
+      error={null}
+      onSubmit={useSendMessage()}
+      onStop={noop}
+      onRunCommand={async () => {}}
+      onContinueAgent={noop}
+      hasActiveAgent={false}
+      onDismissError={noop}
+      fileIndex={useWorkspaceFileIndex(undefined, false)}
+    />
+  )
+}
+
 /** Uses production note rendering, row projection, virtualization, and seeking. */
 export function NotesFixture() {
   return (
@@ -208,7 +252,13 @@ export function NotesFixture() {
       <ConvexQueryCacheProvider>
         <ChatMessagesProvider>
           <StreamStoreProvider>
-            <Transcript />
+            {showComposer ? (
+              <ChatSearchProvider>
+                <Composer />
+              </ChatSearchProvider>
+            ) : (
+              <Transcript />
+            )}
           </StreamStoreProvider>
         </ChatMessagesProvider>
       </ConvexQueryCacheProvider>

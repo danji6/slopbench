@@ -17,6 +17,7 @@ export type ChatLayoutProps = {
   dockFooterWidth?: string
   /** Whether to render a custom scrollbar. */
   scrollbar?: boolean
+  onScrollbarNavigate?: () => void
 }
 
 export function ChatLayout({
@@ -27,6 +28,7 @@ export function ChatLayout({
   dockFooterWidth,
   dockHeader,
   scrollbar,
+  onScrollbarNavigate,
 }: ChatLayoutProps) {
   const [bottomRef, bottomHeight] = useElementHeight<HTMLDivElement>()
   const [footerRef, footerHeight] = useElementHeight<HTMLDivElement>()
@@ -36,7 +38,7 @@ export function ChatLayout({
       data-slot="chat-layout"
       className="relative flex min-h-dvh flex-1 flex-col overflow-y-clip"
     >
-      {scrollbar && <ChatScrollbar />}
+      {scrollbar && <ChatScrollbar onNavigate={onScrollbarNavigate} />}
       {mainContent(bottomHeight + bottomInset)}
       <div
         className="pointer-events-none sticky inset-x-0 bottom-0 z-10 h-0"

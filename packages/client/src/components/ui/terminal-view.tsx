@@ -13,6 +13,7 @@ export type TerminalHandle = {
   write: (data: string) => void
   clear: () => void
   fit: () => void
+  focus?: () => void
 }
 
 export type TerminalProps = {
@@ -69,6 +70,9 @@ export function TerminalView({
         termRef.current?.clear()
       },
       fit: () => fitRef.current?.fit(),
+      focus: () => {
+        if (!readOnlyRef.current) termRef.current?.focus()
+      },
     }),
     [],
   )

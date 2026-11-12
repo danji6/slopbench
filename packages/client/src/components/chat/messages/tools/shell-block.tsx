@@ -1,21 +1,14 @@
 import { Button } from '@/components/ui'
-import {
-  Terminal,
-  type TerminalHandle,
-  prefetchTerminal,
-} from '@/components/ui/terminal'
-import { TerminalText } from '@/components/ui/terminal-text'
+import { prefetchTerminal } from '@/components/ui/terminal'
 import { useIsWorkspaceAdmin } from '@/hooks/chat'
 import { useActiveSessionId } from '@/hooks/chat/session'
 import { useJobTail, useLiveShellJob } from '@/hooks/chat/terminals'
 import { useToolOutput } from '@/hooks/chat/tool-output'
-import { useDebouncedCallback } from '@/hooks/debounce'
 import { useLatch } from '@/hooks/latch'
-import { useTerminalFeed } from '@/hooks/terminal-feed'
 import type { ShellToolOutput } from '@/lib/chat'
+import type { SourceMessagePart } from '@/lib/chat/combine'
 import { parseOutputValue } from '@/lib/chat/tool-output'
 import { toast } from '@/lib/notifications'
-import { cn } from '@/lib/utils'
 import { api } from '@sb/convex/_generated/api'
 import type { Id } from '@sb/convex/_generated/dataModel'
 import { needsEmulator } from '@sb/core/shell/ansi'
@@ -24,9 +17,12 @@ import { useAction } from 'convex/react'
 import { ArrowDownFromLineIcon, BanIcon } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
+import { useMessageList } from '../message-list/message-list-context'
 import { HighlightedCommand } from './highlighted-command'
 import { LoadFullOutput } from './load-full-output'
+import { ShellExitFocus } from './shell-exit-focus'
 import { useShellGroup } from './shell-group-block'
+import { ShellTerminal } from './shell-terminal'
 import { ToolShell } from './tool-shell'
 
 type ShellBlockProps = {
@@ -75,6 +71,8 @@ export function ShellBlock({
 
   const sessionId = useActiveSessionId() as Id<'sessions'> | null
   const isAdmin = useIsWorkspaceAdmin()
+  const terminalRef = useRef<HTMLDivElement>(null)
+  const restoreComposerFocus = useMessageList()?.restoreComposerFocus
 
   // Optimistic flags
   const [detached, setDetached] = useState(false)
@@ -111,11 +109,10 @@ export function ShellBlock({
   const attestedStatus = (tailing ? tail.status : undefined) ?? liveJob?.status
   const liveStatus = attestedStatus ?? output?.status
   const isLive = liveStatus === 'running' || liveStatus === 'background'
-  const terminated =
-    killed ||
-    liveStatus === 'killed' ||
-    liveStatus === 'timeout' ||
-    liveStatus === 'lost'
+  const endedAbnormally =
+    liveStatus === 'killed' || liveStatus === 'timeout' || liveStatus === 'lost'
+  const exited = liveStatus === 'done' || endedAbnormally
+  const terminated = killed || endedAbnormally
 
   // A persisted status may be stale, while this one comes directly from the sidecar
   const confirmedLive =
@@ -126,8 +123,8 @@ export function ShellBlock({
     shellGroup?.reportRunning(part.toolCallId, confirmedLive)
   }, [shellGroup, part.toolCallId, confirmedLive])
 
-  const waiting =
-    (tailing ? tail.waiting : undefined) ?? liveJob?.waiting ?? output?.waiting
+  const attestedWaiting = tailing ? tail.waiting : liveJob?.waiting
+  const waiting = attestedWaiting ?? output?.waiting
   const interactiveShellAllowed =
     liveJob?.allowInteractiveShells ?? Boolean(waiting)
   const canAcceptInput = isLive && !killed && liveJob?.mode !== 'pipe'
@@ -136,6 +133,11 @@ export function ShellBlock({
   // Auto-expand only when the sidecar reports the job is waiting on terminal input
   const interactive =
     Boolean(waiting) && isLive && !isBackground && isAdmin && sessionId !== null
+  const confirmedWaiting = confirmedLive && attestedWaiting === true
+  const focusWhenReady =
+    interactive && confirmedWaiting && inputAllowed && !detached && !outputRead
+  const sourceMessageId =
+    (part as SourceMessagePart).sourceMessageId ?? messageId
   const displayTerm =
     fullOutput?.term ?? (tailing ? tail.term : undefined) ?? output?.term
   const hasTerminalText =
@@ -143,6 +145,10 @@ export function ShellBlock({
   // A live job always gets a terminal, even before any output was persisted
   const hasTerminal = Boolean(jobId) && (isLive || hasTerminalText)
   const latchKey = `${messageId}\0${part.toolCallId}`
+  const wasInteractive = useLatch(
+    `shell-input:${latchKey}\0${jobId ?? ''}`,
+    inputAllowed && isAdmin && sessionId !== null,
+  )
 
   // Reveal an interactive terminal only the first time it goes live
   const revealTerminal = useLatch(
@@ -185,7 +191,7 @@ export function ShellBlock({
     Boolean(!hasTerminal && fullOutput?.text) ||
     hasActions
 
-  return (
+  const block = (
     <ToolShell
       data-slot="shell-block"
       part={part}
@@ -193,6 +199,9 @@ export function ShellBlock({
       forceError={forceError}
       autoExpand={interactive || Boolean(alwaysExpand)}
       reveal={revealTerminal}
+      revealComposerMessageId={
+        alwaysExpand && !outputRead ? sourceMessageId : undefined
+      }
       revealOnOpen="manual"
       fullWidth
       surface={outputRead ? 'inset-row' : 'inset'}
@@ -221,7 +230,10 @@ export function ShellBlock({
         <>
           {hasTerminal && jobId && (
             <ShellTerminal
+              key={jobId}
               jobId={jobId}
+              wrapperRef={terminalRef}
+              focusWhenReady={focusWhenReady}
               term={displayTerm ?? ''}
               termOffset={
                 fullOutput?.termOffset ??
@@ -273,6 +285,18 @@ export function ShellBlock({
       )}
     </ToolShell>
   )
+
+  return (
+    <ShellExitFocus
+      jobId={jobId}
+      exited={exited}
+      wasInteractive={wasInteractive}
+      terminalRef={terminalRef}
+      onExitWithFocus={outputRead ? undefined : restoreComposerFocus}
+    >
+      {block}
+    </ShellExitFocus>
+  )
 }
 
 type ShellLabelProps = {
@@ -321,82 +345,6 @@ function ShellLabel({
         <span className="text-muted-foreground text-[11px]">{description}</span>
       )}
     </span>
-  )
-}
-
-type ShellTerminalProps = {
-  jobId: string
-  term: string
-  termOffset: number
-  live: boolean
-  inputAllowed: boolean
-  showingFull: boolean
-  emulator: boolean
-  fixedHeight: boolean
-}
-
-function ShellTerminal({
-  jobId,
-  term,
-  termOffset,
-  live,
-  inputAllowed,
-  showingFull,
-  emulator,
-  fixedHeight,
-}: ShellTerminalProps) {
-  const sessionId = useActiveSessionId() as Id<'sessions'> | null
-  const isAdmin = useIsWorkspaceAdmin()
-  const handleRef = useRef<TerminalHandle>(null)
-  const writeTerminal = useAction(api.actions.terminals.write)
-  const resizeTerminal = useAction(api.actions.terminals.resize)
-  const sentDimensionsRef = useRef<[number, number] | null>(null)
-
-  const interactive = live && inputAllowed && isAdmin && sessionId !== null
-  const resetFeed = useTerminalFeed(handleRef, term, termOffset)
-
-  useEffect(() => {
-    if (!showingFull) return
-    resetFeed()
-  }, [showingFull, resetFeed])
-
-  const resize = useDebouncedCallback((cols: number, rows: number) => {
-    if (!live || !isAdmin || !sessionId) return
-    const sent = sentDimensionsRef.current
-    // Skip dimensions already sent. A redundant pty resize raises SIGWINCH,
-    // the program redraws, and the new output goes back into fit, causing a loop.
-    if (sent && sent[0] === cols && sent[1] === rows) return
-    sentDimensionsRef.current = [cols, rows]
-    void resizeTerminal({ sessionId, jobId, cols, rows }).catch(() => {})
-  }, 500)
-
-  return (
-    <div
-      data-slot="terminal-wrapper"
-      className="bg-m3-surface-container-lowest rounded-(--work-surface-inner-radius) border p-2 has-focus-visible:outline-1 has-[:focus-visible]:-outline-offset-1"
-    >
-      {emulator ? (
-        <Terminal
-          ref={handleRef}
-          readOnly={!interactive}
-          onReady={resetFeed}
-          onData={(data) => {
-            if (!interactive) return
-            void writeTerminal({ sessionId, jobId, data }).catch(() => {})
-          }}
-          onResize={resize.run}
-        />
-      ) : (
-        <TerminalText
-          ref={handleRef}
-          onReady={resetFeed}
-          className={cn(
-            'focus-visible:outline-hidden',
-            fixedHeight ? 'h-72' : 'max-h-72',
-          )}
-        />
-      )}
-    </div>
   )
 }
 

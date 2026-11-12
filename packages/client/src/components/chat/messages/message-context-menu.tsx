@@ -112,6 +112,10 @@ export function MessageContextMenu({
     () => getMessageContextMenuState(message, slices, record, scope, canMutate),
     [message, slices, record, scope, canMutate],
   )
+  const hasEdit = menu.edit.submenu || Boolean(menu.edit.messageText)
+  const hasCopy =
+    menu.copy.blockText !== undefined || Boolean(menu.copy.messageText)
+  const hasEditOrCopy = hasEdit || hasCopy
 
   // Resolve which block the menu acts on from where it was opened
   function handleOpen({ x, y }: ContextMenuPoint) {
@@ -174,7 +178,7 @@ export function MessageContextMenu({
                 <RotateCcwIcon />
                 Retry
               </ContextMenu.Item>
-              <ContextMenu.Separator />
+              {hasEditOrCopy && <ContextMenu.Separator />}
             </>
           )}
           <EditMenu
@@ -183,13 +187,15 @@ export function MessageContextMenu({
             onEditMessage={startEditMessage}
           />
           <CopyMenu copy={menu.copy} />
-          {menu.delete.message && <ContextMenu.Separator />}
           {menu.delete.message && (
-            <DeleteMenu
-              deleteState={menu.delete}
-              onDeleteBlock={() => setConfirm('part')}
-              onDeleteMessage={() => setConfirm('message')}
-            />
+            <>
+              {(menu.retry || hasEditOrCopy) && <ContextMenu.Separator />}
+              <DeleteMenu
+                deleteState={menu.delete}
+                onDeleteBlock={() => setConfirm('part')}
+                onDeleteMessage={() => setConfirm('message')}
+              />
+            </>
           )}
         </ContextMenu.Content>
       </ContextMenu>

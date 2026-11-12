@@ -33,7 +33,7 @@ type FooterDurationOptions = {
   groupBySender: boolean
 }
 
-/** Places each completed sender group's total duration on its last message. */
+/** Places each completed agent group's total duration on its last message. */
 export function senderGroupDurations({
   ids,
   getMessage,
@@ -68,7 +68,9 @@ export function senderGroupDurations({
     }
     previousKey = key
     lastId = id
-    duration += Math.max(0, getPartMetadata(id)?.duration ?? 0)
+    if (messageDisplayRole(message, record) === 'assistant') {
+      duration += Math.max(0, getPartMetadata(id)?.duration ?? 0)
+    }
     processing ||= (message as { status?: string }).status === 'processing'
   }
 

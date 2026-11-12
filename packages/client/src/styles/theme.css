@@ -238,6 +238,7 @@
 
 :root,
 .theme-scope.light {
+  color-scheme: light;
   --harmony: 30%;
 
   --chart-1: color-mix(
@@ -289,6 +290,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --harmony: 70%;
 
   --source-color: #8a771d;

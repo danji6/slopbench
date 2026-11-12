@@ -15,10 +15,15 @@ import { type FunctionReference, getFunctionName } from 'convex/server'
 import { useState } from 'react'
 
 const scripts: unknown[] = []
+const attachmentOnly = new URLSearchParams(location.search).get(
+  'attachmentOnly',
+)
 const message: UIMessage = {
   id: 'fixture',
-  role: 'user',
-  parts: [{ type: 'text', text: 'Fixture text' }],
+  role: attachmentOnly === 'assistant' ? 'assistant' : 'user',
+  parts: attachmentOnly
+    ? [{ type: 'file', mediaType: 'image/svg+xml', url: '/favicon.svg' }]
+    : [{ type: 'text', text: 'Fixture text' }],
 }
 
 /** Supplies stable query results while failing any accidental write. */

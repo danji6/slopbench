@@ -14,6 +14,9 @@ for (const readOnly of [false, true]) {
     await expect(
       page.getByRole('menuitem', { name: 'Copy Message', exact: true }),
     ).toBeVisible()
+    await expect(page.getByRole('menu').getByRole('separator')).toHaveCount(
+      readOnly ? 0 : 1,
+    )
     await expect(
       page.getByRole('menuitem', { name: 'Scripts', exact: true }),
     ).toHaveCount(0)
@@ -25,6 +28,22 @@ for (const readOnly of [false, true]) {
       '0',
     )
     expect(new URL(page.url()).searchParams.has('view')).toBe(false)
+  })
+}
+
+for (const role of ['user', 'assistant'] as const) {
+  test(`separates the visible action groups for an attachment-only ${role} message`, async ({
+    page,
+  }) => {
+    await page.goto(`/?fixture=script-menus&attachmentOnly=${role}`)
+    await page.getByTestId('message').click({ button: 'right' })
+
+    const menu = page.getByRole('menu')
+    const hasRetry = role === 'assistant'
+    await expect(menu.getByRole('menuitem')).toHaveText(
+      hasRetry ? ['Retry', 'Delete Message'] : ['Delete Message'],
+    )
+    await expect(menu.getByRole('separator')).toHaveCount(hasRetry ? 1 : 0)
   })
 }
 

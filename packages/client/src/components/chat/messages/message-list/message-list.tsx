@@ -19,7 +19,7 @@ import { useInitialPosition } from '@/hooks/chat/message-list/initial-position'
 import { useMessageReveal } from '@/hooks/chat/message-list/message-reveal'
 import { usePageScroll } from '@/hooks/chat/message-list/page-scroll'
 import { useScrollPersistence } from '@/hooks/chat/message-list/scroll-persistence'
-import { type SeekTargetOptions, useSeek } from '@/hooks/chat/message-list/seek'
+import { useSeek } from '@/hooks/chat/message-list/seek'
 import {
   useConditionalFollow,
   useConditionalScroll,
@@ -34,7 +34,6 @@ import { isOngoingStream } from '@/lib/chat/stream'
 import {
   useCallback,
   useEffect,
-  useImperativeHandle,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -48,7 +47,16 @@ import { useMessageEdit } from '../editor/message-edit-context'
 import { MessageRowView } from '../message-row-view'
 import type { ScrollDeps, WindowMeta } from './deps'
 import { MessageListContent } from './message-list-content'
-import { MessageListContext } from './message-list-context'
+import {
+  type FinishComposerReveal,
+  MessageListContext,
+} from './message-list-context'
+import {
+  type MessageListHandle,
+  useMessageListHandle,
+} from './message-list-handle'
+
+export type { MessageListHandle } from './message-list-handle'
 
 const LOADING_INDICATOR_DELAY_MS = 150
 
@@ -65,25 +73,10 @@ export type MessageListProps = Omit<React.ComponentProps<'div'>, 'ref'> & {
   onScrollChange?: (e?: Event, autoScrolling?: boolean) => void
   onIntoViewSettle?: () => void
   onInitialPositionSettled?: () => void
-}
-
-export type MessageListHandle = {
-  /** Returns to the live tail (loading it if needed) and scrolls to the bottom. */
-  followToBottom: () => void
-  /** Returns to the conversation start (loading it if needed) and scrolls to the top. */
-  followToTop: () => void
-  /** Reveals the newest message at the top of the viewport without auto-following. */
-  revealLatest: () => void
-  lockScroll: () => void
-  scrollByPage: (direction: 1 | -1) => void
-  scrollToMessage: (id: string) => void
-  /** Scrolls to a message, locating it by creationTime if outside the loaded window. */
-  requestScrollToMessage: (
-    id: string,
-    creationTime?: number,
-    segmentIndex?: number,
-    options?: SeekTargetOptions,
-  ) => void
+  onTranscriptNavigate?: () => void
+  holdComposerForReveal?: () => FinishComposerReveal | undefined
+  shellFocusBlocked?: boolean
+  restoreComposerFocus?: (input: HTMLElement) => void
 }
 
 export function MessageList({
@@ -97,6 +90,10 @@ export function MessageList({
   onScrollChange,
   onIntoViewSettle,
   onInitialPositionSettled,
+  onTranscriptNavigate,
+  holdComposerForReveal,
+  shellFocusBlocked,
+  restoreComposerFocus,
   ...rest
 }: MessageListProps) {
   const messageIds = useMessageIds()
@@ -267,7 +264,7 @@ export function MessageList({
     setFollowOverride,
   })
 
-  const { revealLatest } = useMessageReveal(deps, {
+  const { revealSentMessage } = useMessageReveal(deps, {
     returnToLatest,
     messageIds,
     messageStore,
@@ -276,6 +273,14 @@ export function MessageList({
     isAtBottom,
     isAtLiveTail,
   })
+
+  const handleSentMessage = useCallback<MessageListHandle['revealSentMessage']>(
+    (id, { intoView = false } = {}) => {
+      if (autoScroll && !intoView) followToBottom({ preserveHistory: true })
+      else revealSentMessage(id)
+    },
+    [autoScroll, followToBottom, revealSentMessage],
+  )
 
   const { scrollByPage } = usePageScroll(deps, slide)
 
@@ -303,26 +308,18 @@ export function MessageList({
     if (prev !== 'ready' && status === 'ready') setFollowOverride(false)
   }, [status])
 
-  useImperativeHandle(
+  useMessageListHandle(
     ref,
-    () => ({
+    {
       followToBottom,
       followToTop,
-      revealLatest,
+      revealSentMessage: handleSentMessage,
       lockScroll,
       scrollByPage,
       scrollToMessage,
       requestScrollToMessage,
-    }),
-    [
-      followToBottom,
-      followToTop,
-      revealLatest,
-      lockScroll,
-      scrollByPage,
-      scrollToMessage,
-      requestScrollToMessage,
-    ],
+    },
+    onTranscriptNavigate,
   )
 
   useEffect(() => {
@@ -423,6 +420,16 @@ export function MessageList({
   // Fade the swapped content for a smoother transition
   useVersionCrossfade(messageIds, messageStore)
 
+  const holdLocalComposer = useCallback(
+    (messageId: string) => {
+      const sender = messageStore.getMessageMetadata(messageId)?.sender
+      if (sender?.type === 'user' && sender.id === profile?._id) {
+        return holdComposerForReveal?.()
+      }
+    },
+    [holdComposerForReveal, messageStore, profile?._id],
+  )
+
   const messageListCtxValue = useMemo(
     () => ({
       scrollRef: docScrollRef as React.RefObject<HTMLElement | null>,
@@ -432,6 +439,9 @@ export function MessageList({
       releaseFollow: holdPosition,
       resumeFollow: () => unlockScroll(true),
       trackPendingLayout: coordinator.trackPendingLayout,
+      holdComposerForReveal: holdLocalComposer,
+      shellFocusBlocked,
+      restoreComposerFocus,
       bottomPadding: bottomPadding ?? 0,
       topPadding: topPad,
     }),
@@ -441,6 +451,9 @@ export function MessageList({
       holdPosition,
       unlockScroll,
       coordinator,
+      holdLocalComposer,
+      shellFocusBlocked,
+      restoreComposerFocus,
       bottomPadding,
       topPad,
     ],

@@ -19,6 +19,8 @@ export type CollapsibleBlockProps = React.ComponentPropsWithoutRef<'div'> & {
   shimmer?: boolean
   /** When it turns true, scrolls the block into view above the dock. */
   reveal?: boolean
+  /** Source message whose automatic reveal requests a visible composer. */
+  revealComposerMessageId?: string
   /** Reveal on every open by default, or use 'manual' for header toggles only. */
   revealOnOpen?: boolean | 'manual'
   /** Inset surfaces pad header and body together; inset-row keeps collapsed row alignment. */
@@ -49,6 +51,7 @@ export function CollapsibleBlock({
   collapsible = true,
   shimmer = false,
   reveal = false,
+  revealComposerMessageId,
   revealOnOpen = true,
   surface = false,
   dense = false,
@@ -85,6 +88,7 @@ export function CollapsibleBlock({
   useScrollIntoView({
     active: reveal,
     blockRef,
+    revealComposerMessageId,
   })
 
   const insetRow = surface === 'inset-row'

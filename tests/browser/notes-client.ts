@@ -1,5 +1,6 @@
 import type { MessageRow } from '@/lib/chat/rows'
 import { DEFAULT_SETTINGS } from '@sb/convex/model/defaults'
+import { parseShellCommand } from '@sb/core/shell/command'
 import type { UIMessage } from 'ai'
 import type { ConvexReactClient } from 'convex/react'
 import { type FunctionReference, getFunctionName } from 'convex/server'
@@ -66,8 +67,14 @@ function noteExtra(type?: NoteType) {
 
 const params = new URLSearchParams(location.search)
 let messages = initialMessages()
+let submittedShell: ReturnType<typeof message> | undefined
 
 function initialMessages() {
+  if (params.has('shellComposer') || params.has('composer')) {
+    return Array.from({ length: 32 }, (_, index) =>
+      message(`history${index}`, index),
+    )
+  }
   if (params.has('reminderWork')) return reminderWorkMessages()
   if (params.has('thinkingWork')) return thinkingWorkMessages()
   if (params.has('compaction')) return compactionMessages()
@@ -207,7 +214,7 @@ function compactionMessages() {
   ]
 }
 
-function fileChangeMessages(waitingForInput = false) {
+function fileChangeMessages(waitingForInput = false, extraOutput = '') {
   const longShell = params.has('longShell')
   const work = message('work', 0)
   work.segments[0].parts = [
@@ -243,7 +250,7 @@ function fileChangeMessages(waitingForInput = false) {
         status: waitingForInput ? 'running' : 'done',
         exitCode: waitingForInput ? null : 0,
         waiting: waitingForInput,
-        term: 'All checks passed.\r\n'.repeat(longShell ? 30 : 1),
+        term: 'All checks passed.\r\n'.repeat(longShell ? 30 : 1) + extraOutput,
         termOffset: 0,
       },
     },
@@ -390,17 +397,30 @@ function query(name: string, args: Record<string, unknown>) {
   if (name === 'settings:get')
     return {
       ...DEFAULT_SETTINGS,
+      ...(params.has('intoView') && { scrollMode: 'into-view' }),
       groupBySender: params.has('ungrouped')
         ? false
         : DEFAULT_SETTINGS.groupBySender,
     }
   if (name === 'users:getProfile')
-    return { _id: readOnly ? 'viewer' : 'owner', role: 'user' }
+    return {
+      _id: readOnly ? 'viewer' : 'owner',
+      role: params.has('shellComposer') ? 'admin' : 'user',
+    }
   if (name === 'sessions:get')
-    return { _id: 'notes', ownerId: 'owner', settings: { disabled: readOnly } }
+    return {
+      _id: 'notes',
+      ownerId: 'owner',
+      settings: { disabled: readOnly },
+      ...(params.has('shellComposer') && {
+        workspace: { workspaceId: 'workspace', folderId: 'folder' },
+      }),
+    }
   if (
     name === 'tools:list' &&
-    (params.has('longShell') || params.has('interactiveShell'))
+    (params.has('longShell') ||
+      params.has('interactiveShell') ||
+      params.has('shellComposer'))
   )
     return [{ name: 'shell' }]
   if (name === 'chat:messagesWindow') {
@@ -442,7 +462,7 @@ export const notesClient = {
     const name = getFunctionName(reference)
     if (name === 'actions/terminals:list')
       return {
-        jobs: params.has('interactiveShell') ? [interactiveShellJob] : [],
+        jobs: terminalJobs(),
       }
     if (name === 'actions/terminals:write')
       document.body.dataset.terminalInput =
@@ -450,16 +470,46 @@ export const notesClient = {
   },
   async mutation(
     reference: FunctionReference<'mutation'>,
-    args: { messageId: string },
+    args: { messageId?: string; content?: string },
   ) {
     const name = getFunctionName(reference)
+    if (name === 'chat:sendMessage' && params.has('composer')) {
+      const sent = {
+        ...message(`sent-${messages.length}`, Date.now()),
+        sender: { type: 'user', id: 'owner' },
+      }
+      sent.segments[0].parts = [{ type: 'text', text: args.content ?? '' }]
+      messages = [...messages, sent]
+      refresh()
+      return sent._id
+    }
+    if (name === 'chat:sendMessage' && params.has('shellComposer')) {
+      const command = parseShellCommand(args.content ?? '')
+      if (!command) throw new Error('Expected a shell command')
+      const shell = {
+        ...message('submitted-shell', Date.now()),
+        sender: { type: 'user', id: 'owner' },
+        status: 'processing',
+      }
+      shell.segments[0].parts = [
+        {
+          type: 'tool-shell',
+          toolCallId: 'submitted-shell',
+          state: 'input-available',
+          input: { command },
+        },
+      ]
+      submittedShell = shell
+      messages = [...messages, shell]
+      refresh()
+      return shell._id
+    }
     const anchor = messages.find((m) => m._id === args.messageId)
     if (name === 'chat:deleteMessage')
       messages = messages.filter((m) => m._id !== args.messageId)
     if (name === 'chat:deleteMessagesFrom' && anchor)
       messages = messages.filter((m) => m._creationTime < anchor._creationTime)
-    cache.clear()
-    listeners.forEach((listener) => listener())
+    refresh()
   },
 } as unknown as ConvexReactClient
 
@@ -472,8 +522,65 @@ const interactiveShellJob = {
   mode: 'script',
 }
 
+let verifyWaiting = false
+let submittedShellWaiting = false
+
+function terminalJobs() {
+  if (params.has('interactiveShell')) return [interactiveShellJob]
+  if (verifyWaiting)
+    return [{ ...interactiveShellJob, jobId: 'verify-job', waiting: true }]
+  if (submittedShellWaiting)
+    return [{ ...interactiveShellJob, jobId: 'submitted-job', waiting: true }]
+  return []
+}
+
 export function waitForShellInput() {
+  verifyWaiting = true
   messages = fileChangeMessages(true)
+  refresh()
+}
+
+export function appendWaitingShellOutput() {
+  messages = fileChangeMessages(true, 'More output.\r\n')
+  refresh()
+}
+
+export function publishSubmittedShellOutput(event: Event) {
+  const shell = submittedShell
+  const part = shell?.segments[0].parts[0]
+  if (!shell || part?.type !== 'tool-shell') return
+  const result = (event as CustomEvent<boolean | 'empty-exit'>).detail
+  submittedShellWaiting = result === true
+  const segments: typeof shell.segments = [
+    {
+      segmentIndex: 0,
+      sizeBytes: 500,
+      parts: [
+        {
+          type: part.type,
+          toolCallId: part.toolCallId,
+          input: part.input,
+          state: 'output-available',
+          output: {
+            jobId: 'submitted-job',
+            status: submittedShellWaiting ? 'running' : 'done',
+            exitCode: submittedShellWaiting ? null : 0,
+            waiting: submittedShellWaiting,
+            term:
+              result === 'empty-exit' ? '' : 'Command output\r\n'.repeat(30),
+          },
+        },
+      ],
+    },
+  ]
+  const status = submittedShellWaiting ? 'processing' : 'done'
+  const updated = { ...shell, status, segments }
+  submittedShell = updated
+  messages = messages.map((entry) => (entry === shell ? updated : entry))
+  refresh()
+}
+
+function refresh() {
   cache.clear()
   listeners.forEach((listener) => listener())
 }

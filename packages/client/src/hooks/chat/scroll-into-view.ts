@@ -19,6 +19,7 @@ type ScrollIntoViewParams = {
   align?: 'end' | 'start'
   behavior?: ScrollBehavior
   blockRef: React.RefObject<HTMLElement | null>
+  revealComposerMessageId?: string
   /** Measures the end of a block whose body spans separate virtual rows. */
   getBlockBottom?: (block: HTMLElement) => number | undefined
 }
@@ -30,6 +31,7 @@ export function useScrollIntoView({
   align = 'end',
   behavior = 'smooth',
   blockRef,
+  revealComposerMessageId,
   getBlockBottom,
 }: ScrollIntoViewParams) {
   const messageList = useMessageList()
@@ -51,6 +53,10 @@ export function useScrollIntoView({
     const scrollEl = scrollRef?.current
     const blockEl = blockRef.current
     if (!scrollEl || !blockEl) return
+
+    const finishComposerReveal = revealComposerMessageId
+      ? listRef.current?.holdComposerForReveal?.(revealComposerMessageId)
+      : undefined
 
     // Stop following if start-aligned
     if (align === 'start') listRef.current?.releaseFollow()
@@ -76,12 +82,15 @@ export function useScrollIntoView({
     let prevScrollHeight = -1
     let prevBlockHeight = -1
     let cancelled = false
+    let finished = false
+    let scrolled = false
 
     const cancel = () => {
       cancelled = true
     }
 
     const scrollBy = (top: number) => {
+      scrolled = true
       listRef.current?.releaseFollow()
       const opts: ScrollToOptions = { top, behavior }
       if (isDocScroll) window.scrollBy(opts)
@@ -146,9 +155,12 @@ export function useScrollIntoView({
     }
 
     const cleanup = () => {
+      if (finished) return
+      finished = true
       cancelAnimationFrame(rafId)
       window.removeEventListener('wheel', cancel)
       window.removeEventListener('touchmove', cancel)
+      finishComposerReveal?.(scrolled)
     }
 
     window.addEventListener('wheel', cancel, { passive: true })
@@ -164,5 +176,6 @@ export function useScrollIntoView({
     scrollRef,
     coordinator,
     getBlockBottom,
+    revealComposerMessageId,
   ])
 }

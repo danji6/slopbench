@@ -5,6 +5,8 @@ test('forwards input for a user shell without a wait signal', async ({
 }) => {
   await page.goto('/?fixture=notes&id=notes&shellReports&interactiveShell')
   const shell = page.locator('[data-slot="shell-block"]').first()
+  await expect(shell.locator('.xterm')).toBeVisible()
+  await expect(shell.locator('.xterm-helper-textarea')).not.toBeFocused()
   await shell.locator('.xterm').click()
   await page.keyboard.insertText('dummy')
   await page.keyboard.press('Enter')
@@ -153,11 +155,12 @@ test('opening a shell command scrolls only enough to reveal its output', async (
 }) => {
   const height = 760
   const { shell, trigger } = await showShellAtBottom(page, height)
-  // Leave room to scroll farther than necessary after revealing the output.
-  await page.locator('main').evaluate((main) => {
-    main.style.paddingBottom = '100vh'
-  })
-  await page.evaluate(() => {
+  await trigger.evaluate((button) => {
+    const triggerButton = button as HTMLButtonElement
+    // Leave room to scroll past the output and preserve the starting viewport.
+    const scrollTop = window.scrollY
+    button.closest('main')!.style.paddingBottom = '100vh'
+    document.scrollingElement!.scrollTop = scrollTop
     // Apply the requested distance immediately so the test measures its destination.
     const scrollBy = window.scrollBy.bind(window)
     window.scrollBy = (options?: ScrollToOptions | number, y?: number) => {
@@ -170,9 +173,9 @@ test('opening a shell command scrolls only enough to reveal its output', async (
         scrollBy(options ?? 0, y ?? 0)
       }
     }
+    triggerButton.click()
   })
 
-  await trigger.click()
   await expect(trigger).toHaveAttribute('aria-expanded', 'true')
   await expect(page.locator('html')).toHaveAttribute(
     'data-shell-reveal',
@@ -187,10 +190,39 @@ test('opening a shell command scrolls only enough to reveal its output', async (
 test('a live shell waiting for input still reveals the terminal automatically', async ({
   page,
 }) => {
+  let allowTerminal!: () => void
+  let terminalRequested!: () => void
+  const request = new Promise<void>((resolve) => {
+    terminalRequested = resolve
+  })
+  const release = new Promise<void>((resolve) => {
+    allowTerminal = resolve
+  })
+  await page.route(/\/assets\/terminal-view-[^/]+\.js$/, async (route) => {
+    terminalRequested()
+    await release
+    await route.continue()
+  })
   const { shell, trigger } = await showShellAtBottom(page, 760)
-  await page.getByRole('button', { name: 'Wait for terminal input' }).click()
-  await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+  await page.evaluate(() => (document.activeElement as HTMLElement)?.blur())
+  try {
+    await page
+      .getByRole('button', { name: 'Wait for terminal input' })
+      .evaluate((button) => (button as HTMLButtonElement).click())
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+    await request
+    await expect(shell.locator('.xterm')).toHaveCount(0)
+  } finally {
+    allowTerminal()
+  }
   const terminal = shell.locator('[data-slot="terminal-wrapper"]')
+  await expect(terminal.locator('.xterm-helper-textarea')).toBeFocused()
+  await page.keyboard.insertText('dummy')
+  await page.keyboard.press('Enter')
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-terminal-input',
+    'dummy\r',
+  )
   await expect
     .poll(async () => {
       const box = await terminal.boundingBox()
@@ -198,6 +230,188 @@ test('a live shell waiting for input still reveals the terminal automatically', 
     })
     .toBeLessThanOrEqual(680)
   expect((await trigger.boundingBox())!.y).toBeGreaterThan(120)
+
+  const otherControl = page.getByRole('button', {
+    name: 'Append terminal output',
+  })
+  await otherControl.focus()
+  await otherControl.evaluate((button) => (button as HTMLButtonElement).click())
+  await expect(otherControl).toBeFocused()
+})
+
+async function submitShell(page: Page) {
+  await page.setViewportSize({ width: 1100, height: 760 })
+  await page.goto('/?fixture=notes&id=notes&shellComposer')
+  const composer = page.locator('[data-slot="chat-box"]')
+  const editor = composer.locator('[contenteditable="true"]')
+  await expect(composer).toBeInViewport({ ratio: 1 })
+  await editor.fill('$ cat index.html')
+  await composer.getByRole('button', { name: 'Send', exact: true }).click()
+  await expect(editor).toHaveText('')
+  const shell = page.locator('[data-slot="shell-block"]')
+  const trigger = shell.locator('[data-block-trigger]')
+  await expect(trigger).toBeAttached()
+  await page.evaluate(() => {
+    const doc = document.scrollingElement!
+    doc.scrollTop = doc.scrollHeight
+  })
+  await expect(trigger).toBeInViewport({ ratio: 1 })
+  return { composer, editor, shell, trigger }
+}
+
+async function publishShellOutput(
+  page: Page,
+  { cancel = false, waiting = false } = {},
+) {
+  await page.evaluate(
+    ({ cancel, waiting }) => {
+      const list = document.querySelector<HTMLElement>(
+        '[data-slot="message-list"]',
+      )!
+      list.style.paddingBottom = '100vh'
+      const scrollBy = window.scrollBy.bind(window)
+      window.scrollBy = (options?: ScrollToOptions | number, y?: number) => {
+        if (typeof options === 'object' && options.behavior === 'smooth') {
+          document.documentElement.dataset.shellReveal = 'scrolled'
+          scrollBy({ ...options, behavior: 'instant' })
+        } else if (typeof options === 'object') {
+          scrollBy(options)
+        } else {
+          scrollBy(options ?? 0, y ?? 0)
+        }
+      }
+      if (cancel) {
+        const shell = list.querySelector('[data-slot="shell-block"]')!
+        const observer = new MutationObserver(() => {
+          if (shell.getAttribute('data-open') !== 'true') return
+          observer.disconnect()
+          requestAnimationFrame(() => {
+            list.dispatchEvent(
+              new WheelEvent('wheel', { bubbles: true, deltaY: -100 }),
+            )
+            document.documentElement.dataset.shellReveal = 'cancelled'
+          })
+        })
+        observer.observe(shell, {
+          attributes: true,
+          attributeFilter: ['data-open'],
+        })
+      }
+      window.dispatchEvent(
+        new CustomEvent('publish-submitted-shell-output', { detail: waiting }),
+      )
+    },
+    { cancel, waiting },
+  )
+}
+
+test('a submitted shell reveals output and keeps the empty composer docked until scrolling', async ({
+  page,
+}) => {
+  const { composer, shell } = await submitShell(page)
+  await publishShellOutput(page)
+  await expect(page.locator('html')).toHaveAttribute(
+    'data-shell-reveal',
+    'scrolled',
+  )
+  await expect(shell.locator('[data-slot="terminal-wrapper"]')).toBeInViewport({
+    ratio: 1,
+  })
+  await expect(composer).toBeInViewport({ ratio: 1 })
+  await expect(
+    page.getByRole('button', { name: 'Scroll to bottom' }),
+  ).toBeVisible()
+  await page.mouse.move(120, 320)
+  await page.mouse.wheel(0, -380)
+  await expect(composer).not.toBeInViewport()
+})
+
+test('a cancelled shell reveal releases the composer override', async ({
+  page,
+}) => {
+  const { composer, trigger } = await submitShell(page)
+  await publishShellOutput(page, { cancel: true })
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+  await expect(composer).not.toBeInViewport()
+  await expect(page.locator('html')).toHaveAttribute(
+    'data-shell-reveal',
+    'cancelled',
+  )
+})
+
+for (const newerDraft of [false, true]) {
+  test(`a submitted waiting shell respects composer focus (newerDraft=${newerDraft})`, async ({
+    page,
+  }) => {
+    const { editor, shell } = await submitShell(page)
+    if (newerDraft) await editor.fill('Next message')
+    await publishShellOutput(page, { waiting: true })
+    const input = shell.locator('.xterm-helper-textarea')
+    await expect(input).toBeAttached()
+    await expect(page.locator('html')).toHaveAttribute(
+      'data-shell-reveal',
+      'scrolled',
+    )
+    if (newerDraft) {
+      await page.keyboard.insertText(' draft')
+      await expect(editor).toHaveText('Next message draft')
+    } else {
+      await expect(input).toBeFocused()
+      await exitSubmittedShell(page)
+      await expect(editor).toBeFocused()
+      await page.keyboard.insertText('Next message')
+      await expect(editor).toHaveText('Next message')
+    }
+  })
+}
+
+async function exitSubmittedShell(page: Page, empty = false) {
+  await page.evaluate((empty) => {
+    window.dispatchEvent(
+      new CustomEvent('publish-submitted-shell-output', {
+        detail: empty ? 'empty-exit' : false,
+      }),
+    )
+  }, empty)
+}
+
+test('a focused shell can restore a hidden composer when its terminal disappears', async ({
+  page,
+}) => {
+  const { composer, editor, shell } = await submitShell(page)
+  await publishShellOutput(page, { waiting: true })
+  const input = shell.locator('.xterm-helper-textarea')
+  await expect(input).toBeFocused()
+  await expect(
+    page.getByRole('button', { name: 'Scroll to bottom' }),
+  ).toBeVisible()
+  await page.mouse.move(120, 320)
+  await page.mouse.wheel(0, -32)
+  await expect(composer).not.toBeInViewport()
+  await expect(input).toBeFocused()
+
+  await exitSubmittedShell(page, true)
+  await expect(input).toHaveCount(0)
+  await expect(editor).toBeFocused()
+  await expect(composer).toBeInViewport({ ratio: 1 })
+  await expect(
+    page.getByRole('button', { name: 'Scroll to bottom' }),
+  ).toBeVisible()
+})
+
+test('a shell exit leaves focus on the control the user moved to', async ({
+  page,
+}) => {
+  const { shell, trigger } = await submitShell(page)
+  await publishShellOutput(page, { waiting: true })
+  const input = shell.locator('.xterm-helper-textarea')
+  await expect(input).toBeFocused()
+  await trigger.focus()
+  await exitSubmittedShell(page)
+  await expect(
+    shell.getByRole('button', { name: 'Kill Terminal' }),
+  ).toHaveCount(0)
+  await expect(trigger).toBeFocused()
 })
 
 test('file changes share a list with independent, persistent diff toggles', async ({
