@@ -46,7 +46,6 @@ export function ReasoningBlock({
       onOpenChange={onOpenChange}
       dense
       surface="inset-row"
-      triggerClassName="in-data-[open=false]:py-2"
     >
       <div
         className="wrap-break-word whitespace-pre-wrap opacity-70"

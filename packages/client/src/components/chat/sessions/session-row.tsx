@@ -164,7 +164,7 @@ export const SessionRow = memo(function SessionRow({
                     </span>
                   </span>
 
-                  {(item.pinned || showFolder) && (
+                  {!item.pinned && showFolder && (
                     <span className="text-muted-foreground truncate text-start text-xs">
                       {item.folderPath ?? item.folderName ?? 'No folder'}
                     </span>

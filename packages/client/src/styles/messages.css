@@ -108,6 +108,15 @@
   }
 }
 
+/* A file already provides the gap before a following code block. */
+[data-slot='virtualized-item']:has([data-slot='file-block'])
+  + [data-slot='virtualized-item']
+  [data-slot='text-block']
+  > div
+  > [data-slot='code-container']:first-child {
+  margin-top: 0;
+}
+
 /* --- Streaming caret --- */
 .streaming-cursor::after,
 .streaming-cursor-code
