@@ -1,5 +1,19 @@
 import { type Locator, type Page, expect, test } from '@playwright/test'
 
+test('forwards input for a user shell without a wait signal', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=notes&id=notes&shellReports&interactiveShell')
+  const shell = page.locator('[data-slot="shell-block"]').first()
+  await shell.locator('.xterm').click()
+  await page.keyboard.insertText('dummy')
+  await page.keyboard.press('Enter')
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-terminal-input',
+    'dummy\r',
+  )
+})
+
 test('opening a long summary at the bottom brings its start below the nav', async ({
   page,
 }) => {

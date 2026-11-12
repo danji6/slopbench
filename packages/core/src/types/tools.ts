@@ -1,6 +1,8 @@
 import type * as V from '@sb/convex/validators'
 import type { Infer } from 'convex/values'
 
+import type { ShellJobSummary as SidecarShellJobSummary } from '../shell/job-protocol'
+
 export type RememberScope = Infer<typeof V.rememberScopeValidator>
 
 export type ToolApprovals = Infer<typeof V.toolApprovalsValidator>
@@ -68,15 +70,8 @@ export type ShellJobRef = {
 }
 
 /** Summary of a sidecar job, surfaced to the user for live monitoring/control. */
-export type ShellJobSummary = ShellJobRef & {
-  jobId: string
-  command: string
+export type ShellJobSummary = Omit<SidecarShellJobSummary, 'status'> & {
   status: ShellJobStatus
-  exitCode: number | null
-  background: boolean
-  waiting: boolean
-  startedAt: number
-  exitedAt?: number
 }
 
 /** Incremental output read from a running sidecar shell job. */

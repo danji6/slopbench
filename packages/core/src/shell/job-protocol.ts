@@ -36,6 +36,7 @@ export type ShellJobSummary = {
   exitCode: number | null
   background: boolean
   waiting: boolean
+  allowInteractiveShells?: boolean
   startedAt: number
   exitedAt?: number
   mode: PtyMode

@@ -17,6 +17,7 @@ function job(overrides: Partial<ShellJobSummary> = {}): ShellJobSummary {
     exitCode: null,
     background: false,
     waiting: false,
+    mode: 'script',
     startedAt: 0,
     ...overrides,
   }

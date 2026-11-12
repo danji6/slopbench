@@ -312,16 +312,25 @@ function shellMessages() {
     state: 'output-available',
     input: { command: `printf ${id}` },
     output:
-      id === 'agent2'
+      id === 'user' && params.has('interactiveShell')
         ? {
-            jobId: 'job',
-            status: 'background',
+            jobId: 'user-job',
+            status: 'running',
             exitCode: null,
-            text: '',
-            term: '',
+            waiting: false,
+            term: 'Test input: ',
             termOffset: 0,
           }
-        : `${id} output`,
+        : id === 'agent2'
+          ? {
+              jobId: 'job',
+              status: 'background',
+              exitCode: null,
+              text: '',
+              term: '',
+              termOffset: 0,
+            }
+          : `${id} output`,
   })
   const parts = [
     [shell('user')],
@@ -389,7 +398,10 @@ function query(name: string, args: Record<string, unknown>) {
     return { _id: readOnly ? 'viewer' : 'owner', role: 'user' }
   if (name === 'sessions:get')
     return { _id: 'notes', ownerId: 'owner', settings: { disabled: readOnly } }
-  if (name === 'tools:list' && params.has('longShell'))
+  if (
+    name === 'tools:list' &&
+    (params.has('longShell') || params.has('interactiveShell'))
+  )
     return [{ name: 'shell' }]
   if (name === 'chat:messagesWindow') {
     const unloaded =
@@ -426,10 +438,15 @@ export const notesClient = {
       journal: () => undefined,
     }
   },
-  async action(reference: FunctionReference<'action'>) {
-    if (getFunctionName(reference) === 'actions/terminals:list') {
-      return { jobs: [] }
-    }
+  async action(reference: FunctionReference<'action'>, args: { data: string }) {
+    const name = getFunctionName(reference)
+    if (name === 'actions/terminals:list')
+      return {
+        jobs: params.has('interactiveShell') ? [interactiveShellJob] : [],
+      }
+    if (name === 'actions/terminals:write')
+      document.body.dataset.terminalInput =
+        (document.body.dataset.terminalInput ?? '') + args.data
   },
   async mutation(
     reference: FunctionReference<'mutation'>,
@@ -445,6 +462,15 @@ export const notesClient = {
     listeners.forEach((listener) => listener())
   },
 } as unknown as ConvexReactClient
+
+const interactiveShellJob = {
+  jobId: 'user-job',
+  status: 'running',
+  background: false,
+  waiting: false,
+  allowInteractiveShells: true,
+  mode: 'script',
+}
 
 export function waitForShellInput() {
   messages = fileChangeMessages(true)

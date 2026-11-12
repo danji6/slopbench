@@ -134,7 +134,9 @@ function sameJobs(a: ShellJobSummary[], b: ShellJobSummary[]): boolean {
         job.jobId === other.jobId &&
         job.status === other.status &&
         job.waiting === other.waiting &&
-        job.background === other.background
+        job.background === other.background &&
+        job.mode === other.mode &&
+        job.allowInteractiveShells === other.allowInteractiveShells
       )
     })
   )

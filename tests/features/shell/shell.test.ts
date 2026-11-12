@@ -21,6 +21,18 @@ process.env.CHAT_JOB_MODE = 'script'
 process.env.CHAT_SIDECAR_DATA_DIR ??= process.cwd()
 
 describe('job registry', () => {
+  test('blocks keyboard writes to a running job when interactivity is disabled', async () => {
+    const { jobId } = await startReady()
+    try {
+      expect(() => writeStdin(jobId, session.sessionId, 'ping\n')).toThrow(
+        'Interactive shells are disabled',
+      )
+    } finally {
+      killShellJob(jobId, session.sessionId)
+      await waitForExit(jobId)
+    }
+  })
+
   test('kills a running job', async () => {
     const { jobId } = await startReady()
     killShellJob(jobId, session.sessionId)
@@ -174,6 +186,26 @@ describe('job registry', () => {
     expect(result.status).toBe('done')
     expect(result.exitCode).toBe(0)
     expect(result.output).toContain('got:ping')
+  })
+
+  test('detects a no-echo prompt reading directly from /dev/tty', async () => {
+    const { jobId } = await start(
+      'bash -c \'read -r -s -u 3 -p "Test input: " value 3</dev/tty; ' +
+        'printf "\\nReceived %d characters\\n" "${#value}"\'',
+      { allowInteractiveShells: true },
+    )
+
+    try {
+      await waitFor(() => pollShellJob(jobId, session.sessionId, 0).waiting)
+      writeStdin(jobId, session.sessionId, 'dummy\r')
+
+      const result = await waitForExit(jobId)
+      expect(result.exitCode).toBe(0)
+      expect(result.output).toContain('Received 5 characters')
+      expect(result.output).not.toContain('dummy')
+    } finally {
+      killShellJob(jobId, session.sessionId)
+    }
   })
 
   test('reports waiting when a job enters the alternate screen', async () => {

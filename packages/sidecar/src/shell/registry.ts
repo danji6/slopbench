@@ -251,6 +251,9 @@ export function backgroundShellJob(jobId: string, sessionId: string) {
 export function writeStdin(jobId: string, sessionId: string, data: string) {
   const job = requireJob(jobId, sessionId)
   if (job.status !== 'running') throw new Error('Job is not running')
+  if (!job.allowInteractiveShells) {
+    throw new Error('Interactive shells are disabled for this job')
+  }
   job.proc.write(data)
 }
 
@@ -284,6 +287,7 @@ export function listShellJobs(sessionId: string): ShellJobSummary[] {
       exitCode: job.exitCode,
       background: job.background,
       waiting: job.waiting,
+      allowInteractiveShells: job.allowInteractiveShells,
       startedAt: job.startedAt,
       exitedAt: job.exitedAt,
       mode: job.proc.mode,

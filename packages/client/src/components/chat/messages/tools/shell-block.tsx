@@ -128,6 +128,10 @@ export function ShellBlock({
 
   const waiting =
     (tailing ? tail.waiting : undefined) ?? liveJob?.waiting ?? output?.waiting
+  const interactiveShellAllowed =
+    liveJob?.allowInteractiveShells ?? Boolean(waiting)
+  const canAcceptInput = isLive && !killed && liveJob?.mode !== 'pipe'
+  const inputAllowed = interactiveShellAllowed && canAcceptInput
 
   // Auto-expand only when the sidecar reports the job is waiting on terminal input
   const interactive =
@@ -146,14 +150,14 @@ export function ShellBlock({
     interactive || (Boolean(alwaysExpand) && hasTerminal),
   )
 
-  // Emulate only if the shell is interactive or redraws with cursor addressing
+  // An interactive PTY can accept input before the wait probe detects a prompt.
   const cursorAddressed = useMemo(
     () => needsEmulator(displayTerm ?? ''),
     [displayTerm],
   )
   const emulator = useLatch(
     `emulator:${latchKey}`,
-    Boolean(waiting) || cursorAddressed,
+    inputAllowed || Boolean(waiting) || cursorAddressed,
   )
 
   // A live job may block on input at any moment, so warm the chunk behind it
@@ -226,6 +230,7 @@ export function ShellBlock({
                 0
               }
               live={isLive}
+              inputAllowed={inputAllowed}
               showingFull={fullOutput !== undefined}
               emulator={emulator}
               fixedHeight={isFixedHeight}
@@ -324,6 +329,7 @@ type ShellTerminalProps = {
   term: string
   termOffset: number
   live: boolean
+  inputAllowed: boolean
   showingFull: boolean
   emulator: boolean
   fixedHeight: boolean
@@ -334,6 +340,7 @@ function ShellTerminal({
   term,
   termOffset,
   live,
+  inputAllowed,
   showingFull,
   emulator,
   fixedHeight,
@@ -345,7 +352,7 @@ function ShellTerminal({
   const resizeTerminal = useAction(api.actions.terminals.resize)
   const sentDimensionsRef = useRef<[number, number] | null>(null)
 
-  const interactive = live && isAdmin && sessionId !== null
+  const interactive = live && inputAllowed && isAdmin && sessionId !== null
   const resetFeed = useTerminalFeed(handleRef, term, termOffset)
 
   useEffect(() => {

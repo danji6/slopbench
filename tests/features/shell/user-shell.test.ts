@@ -192,6 +192,7 @@ describe('_beginUserShellWindow', () => {
       workspaceId: 'ws-1',
       command: 'ls -la',
       toolCallId: TOOL_CALL_ID,
+      allowInteractiveShells: true,
     })
     // The first window has no job to pick up
     expect(claim?.resume).toBeUndefined()

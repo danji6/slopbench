@@ -84,13 +84,24 @@ function ptyDevice(pid: number, fd: number): number | undefined {
   const path = `/proc/${pid}/fd/${fd}`
   try {
     const target = readlinkSync(path)
-    if (target !== '/dev/tty' && !target.startsWith('/dev/pts/')) {
-      return undefined
-    }
+    if (target === '/dev/tty') return controllingTerminalDevice(pid)
+    if (!target.startsWith('/dev/pts/')) return undefined
     return statSync(path).rdev
   } catch {
     return undefined
   }
+}
+
+/** Resolves the /dev/tty alias through field 7 (tty_nr) of /proc/<pid>/stat. */
+function controllingTerminalDevice(pid: number): number | undefined {
+  const stat = readFileSync(`/proc/${pid}/stat`, 'ascii')
+  const fields = stat
+    .slice(stat.lastIndexOf(')') + 1)
+    .trim()
+    .split(/\s+/)
+  const device = Number(fields[4])
+  // Linux reports the encoded device number as a signed 32-bit integer.
+  return device ? device >>> 0 : undefined
 }
 
 // Alternate-screen toggles mark full-screen interactive programs that wait in

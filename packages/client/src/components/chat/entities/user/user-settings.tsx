@@ -420,8 +420,8 @@ function ChatSettingsDialog() {
                     name="allowInteractiveShells"
                     render={({ field }) => (
                       <SettingsList.Switch
-                        label="Allow interactive shells"
-                        description="Allow shell commands to wait for your input."
+                        label="Allow interactive shells for agents"
+                        description="Allow commands run by agents to wait for your input."
                         checked={field.value}
                         onCheckedChange={field.onChange}
                       />
