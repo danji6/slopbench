@@ -50,6 +50,16 @@ describe('durable attachment links', () => {
     ])
   })
 
+  test('extracts adjacent links with parentheses in their filenames', () => {
+    const url = `https://example.test${attachmentPath('one', 'image ((1)).png')}`
+    const copied = attachmentMarkdownLink('two', 'image ).png')
+
+    expect(attachmentReferences(`[one](${url})${copied}`)).toEqual([
+      { token: 'one', filename: 'image ((1)).png' },
+      { token: 'two', filename: 'image ).png' },
+    ])
+  })
+
   test('ignores mismatched fence markers and malformed tokens', () => {
     const text = [
       '````text',

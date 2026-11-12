@@ -17,12 +17,19 @@ export function shouldAttachTextPaste(
 
 /** Builds the stable HTTP path for a bearer attachment token. */
 export function attachmentPath(token: string, filename: string): string {
-  return `/attachments/${encodeURIComponent(token)}/${encodeURIComponent(filename)}`
+  return `/attachments/${encodeURIComponent(token)}/${encodeAttachmentFilename(filename)}`
 }
 
 /** Builds a host-independent attachment reference. */
 export function attachmentRef(token: string, filename: string): string {
-  return `${ATTACHMENT_SCHEME}${encodeURIComponent(token)}/${encodeURIComponent(filename)}`
+  return `${ATTACHMENT_SCHEME}${encodeURIComponent(token)}/${encodeAttachmentFilename(filename)}`
+}
+
+/** Escapes filename characters that also delimit Markdown link targets. */
+function encodeAttachmentFilename(filename: string): string {
+  return encodeURIComponent(filename)
+    .replaceAll('(', '%28')
+    .replaceAll(')', '%29')
 }
 
 /** Builds a clickable Markdown attachment reference for copying. */
