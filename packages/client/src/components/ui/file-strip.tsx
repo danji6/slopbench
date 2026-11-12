@@ -4,6 +4,7 @@ import {
   isTextFileItem,
   useFilePreviews,
 } from '@/hooks/file-previews'
+import { downloadAttachment } from '@/lib/chat/attachment-download'
 import { ACCEPTED_VIDEO_TYPES, isDisplayableUrl } from '@/lib/io'
 import { toast, toastError } from '@/lib/notifications'
 import { cn } from '@/lib/utils'
@@ -22,7 +23,7 @@ import {
   XIcon,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { FilterableList, RippleButton, Skeleton } from '../ui'
 import type { FilterableListProps } from '../ui'
@@ -178,7 +179,8 @@ function FileActions({
   item: FileItem
   onInsertInline?: (id: string) => void
 }) {
-  const downloadUrl = item.permaUrl ?? item.originalUrl
+  const [downloading, setDownloading] = useState(false)
+  const downloadUrl = item.originalUrl ?? item.permaUrl
   const reference = item.permaUrl ? attachmentReference(item.permaUrl) : null
   const copyText = reference
     ? attachmentMarkdownLink(reference.token, reference.filename)
@@ -222,7 +224,20 @@ function FileActions({
           variant="surface"
           className="size-7 rounded-full"
           aria-label={`Download ${item.file.name}`}
-          render={<a href={downloadUrl} download={item.file.name} />}
+          disabled={downloading}
+          aria-busy={downloading}
+          onClick={async () => {
+            setDownloading(true)
+            try {
+              await downloadAttachment(
+                downloadUrl,
+                reference?.filename ?? item.file.name,
+                { shared: !item.originalUrl },
+              )
+            } finally {
+              setDownloading(false)
+            }
+          }}
         >
           <DownloadIcon className="size-3" />
         </RippleButton>

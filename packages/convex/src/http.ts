@@ -155,21 +155,27 @@ const avatarUploadHandler = httpAction(async (ctx, req) => {
 /** Resolves a stable bearer URL to the current Convex storage URL. */
 const attachmentDownloadHandler = httpAction(async (ctx, req) => {
   const reference = attachmentReference(req.url)
-  if (!reference) return new Response('Not found', { status: 404 })
+  const headers = {
+    ...corsHeaders(allowedOrigin(req)),
+    'Cache-Control': 'private, no-store',
+  }
+  const notFound = () => new Response('Not found', { status: 404, headers })
+  if (!reference) return notFound()
 
   const file = await ctx.runQuery(internal.attachments._getSharedFile, {
     token: reference.token,
   })
-  if (!file || file.filename !== reference.filename) {
-    return new Response('Not found', { status: 404 })
-  }
+  if (!file || file.filename !== reference.filename) return notFound()
 
-  if (file.byteLength > 0 && file.byteLength <= ATTACHMENT_BODY_BUDGET) {
+  const resolveUrl = new URL(req.url).searchParams.get('resolve') === '1'
+  const canServeBody =
+    file.byteLength > 0 && file.byteLength <= ATTACHMENT_BODY_BUDGET
+  if (!resolveUrl && canServeBody) {
     const blob = await ctx.storage.get(file.storageId)
-    if (!blob) return new Response('Not found', { status: 404 })
+    if (!blob) return notFound()
     return new Response(blob, {
       headers: {
-        'Cache-Control': 'private, no-store',
+        ...headers,
         'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
         'Content-Type': file.mediaType || 'application/octet-stream',
         'X-Content-Type-Options': 'nosniff',
@@ -178,13 +184,14 @@ const attachmentDownloadHandler = httpAction(async (ctx, req) => {
   }
 
   const storageUrl = await ctx.storage.getUrl(file.storageId)
-  if (!storageUrl) return new Response('Not found', { status: 404 })
+  if (!storageUrl) return notFound()
+  if (resolveUrl) return Response.json({ url: storageUrl }, { headers })
 
   return new Response(null, {
     status: 302,
     headers: {
+      ...headers,
       Location: storageUrl,
-      'Cache-Control': 'private, no-store',
     },
   })
 })

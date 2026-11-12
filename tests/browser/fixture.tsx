@@ -2,6 +2,7 @@ import { usePromptPreviews } from '@/hooks/chat/prompt-previews'
 import { Suspense, lazy, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 
+import { AttachmentDownloadFixture } from './attachment-download-fixture'
 import { ChangesFixture } from './changes-fixture'
 import { CheckboxFixture } from './checkbox-fixture'
 import { CodeFixture } from './code-fixture'
@@ -158,6 +159,9 @@ function PreviewFixture() {
 createRoot(document.getElementById('root')!).render(
   new URLSearchParams(location.search).get('fixture') === 'code' ? (
     <CodeFixture />
+  ) : new URLSearchParams(location.search).get('fixture') ===
+    'attachment-download' ? (
+    <AttachmentDownloadFixture />
   ) : new URLSearchParams(location.search).get('fixture') ===
     'message-pagination' ? (
     <Suspense fallback={<p>Loading pagination…</p>}>
