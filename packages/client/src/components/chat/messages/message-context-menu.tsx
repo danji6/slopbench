@@ -192,6 +192,7 @@ export function MessageContextMenu({
               {(menu.retry || hasEditOrCopy) && <ContextMenu.Separator />}
               <DeleteMenu
                 deleteState={menu.delete}
+                contextReset={record?.type === 'contextReset'}
                 onDeleteBlock={() => setConfirm('part')}
                 onDeleteMessage={() => setConfirm('message')}
               />
@@ -229,7 +230,7 @@ export function MessageContextMenu({
         open={confirm === 'message'}
         onOpenChange={(open) => !open && setConfirm(null)}
         variant="destructive"
-        title="Delete this message?"
+        title={record?.type ? 'Delete this block?' : 'Delete this message?'}
         description={
           hasNewer
             ? '"Delete all" also removes every later message in this session. This action cannot be undone.'
@@ -342,12 +343,14 @@ function CopyMenu({ copy: copyState }: CopyMenuProps) {
 
 type DeleteMenuProps = {
   deleteState: MenuState['delete']
+  contextReset?: boolean
   onDeleteBlock: () => void
   onDeleteMessage: () => void
 }
 
 function DeleteMenu({
   deleteState,
+  contextReset,
   onDeleteBlock,
   onDeleteMessage,
 }: DeleteMenuProps) {
@@ -375,7 +378,7 @@ function DeleteMenu({
   return (
     <ContextMenu.Item variant="destructive" onSelect={onDeleteMessage}>
       <Trash2Icon />
-      Delete Message
+      {contextReset ? 'Delete' : 'Delete Message'}
     </ContextMenu.Item>
   )
 }
@@ -421,7 +424,10 @@ function getMessageContextMenuState(
   scope: GroupScope | null,
   canMutate: boolean,
 ): MenuState {
-  const messageText = extractTextFromMessage(message) || undefined
+  const messageText =
+    record?.type === 'contextReset'
+      ? '/new'
+      : extractTextFromMessage(message) || undefined
 
   const slice = scope
     ? slices.find((candidate) => candidate.segmentIndex === scope.segmentIndex)

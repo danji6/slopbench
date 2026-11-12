@@ -8,6 +8,11 @@ import { agentIdentity } from '../chat/identities'
 import { WORKSPACE_CHANGE_GUIDANCE } from '../chat/notes'
 import { insertMessage, withParts } from '../messageContents'
 import { ownsExecution } from '../stream/execution'
+import {
+  historyUpperBound,
+  latestContextReset,
+  resolveHistoryBoundary,
+} from './historyBoundary'
 
 type ContextType = 'skills' | 'workspace' | 'mcp' | 'capabilities'
 
@@ -160,13 +165,16 @@ async function latestContext(
   contextId?: string,
 ) {
   if (contextId) {
+    const upper = historyUpperBound(stream)
+    const reset = await latestContextReset(ctx, stream.sessionId, upper)
     return ctx.db
       .query('messages')
       .withIndex('by_sessionId_type_status', (q) =>
         q
           .eq('sessionId', stream.sessionId)
           .eq('type', type)
-          .eq('status', 'done'),
+          .eq('status', 'done')
+          .gt('_creationTime', reset?._creationTime ?? 0),
       )
       .filter((q) =>
         q.and(
@@ -179,8 +187,8 @@ async function latestContext(
       .first()
   }
 
-  const upper = stream.contextBoundaryCreationTime ?? Number.MAX_SAFE_INTEGER
-  const floor = await summaryFloor(ctx, stream.sessionId, upper)
+  const { floor, upper } = await resolveHistoryBoundary(ctx, stream)
+  if (floor >= upper) return null
 
   return ctx.db
     .query('messages')
@@ -196,27 +204,6 @@ async function latestContext(
     )
     .order('desc')
     .first()
-}
-
-async function summaryFloor(
-  ctx: MutationCtx,
-  sessionId: Id<'sessions'>,
-  upper: number,
-) {
-  const summary = await ctx.db
-    .query('messages')
-    .withIndex('by_sessionId_type_status', (q) =>
-      q.eq('sessionId', sessionId).eq('type', 'summary').eq('status', 'done'),
-    )
-    .filter((q) =>
-      q.and(
-        q.eq(q.field('contextEligible'), true),
-        q.lte(q.field('_creationTime'), upper),
-      ),
-    )
-    .order('desc')
-    .first()
-  return summary?.summaryBoundaryCreationTime ?? summary?._creationTime ?? 0
 }
 
 /** Removes local ordering references when copying an already ordered transcript. */

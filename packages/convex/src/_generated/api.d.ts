@@ -280,6 +280,7 @@ import type * as model_stream_contextNotes from "../model/stream/contextNotes.js
 import type * as model_stream_execution from "../model/stream/execution.js";
 import type * as model_stream_expiry from "../model/stream/expiry.js";
 import type * as model_stream_generatedFiles from "../model/stream/generatedFiles.js";
+import type * as model_stream_historyBoundary from "../model/stream/historyBoundary.js";
 import type * as model_stream_lease from "../model/stream/lease.js";
 import type * as model_stream_lifecycle from "../model/stream/lifecycle.js";
 import type * as model_stream_lifecycleClaims from "../model/stream/lifecycleClaims.js";
@@ -715,6 +716,7 @@ declare const fullApi: ApiFromModules<{
   "model/stream/execution": typeof model_stream_execution;
   "model/stream/expiry": typeof model_stream_expiry;
   "model/stream/generatedFiles": typeof model_stream_generatedFiles;
+  "model/stream/historyBoundary": typeof model_stream_historyBoundary;
   "model/stream/lease": typeof model_stream_lease;
   "model/stream/lifecycle": typeof model_stream_lifecycle;
   "model/stream/lifecycleClaims": typeof model_stream_lifecycleClaims;

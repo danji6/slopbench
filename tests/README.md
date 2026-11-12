@@ -86,6 +86,12 @@ PRs run smoke, lint, typecheck, and build. Manual CI dispatch selects a Bun suit
 Only browser runs install Chromium/WebKit dependencies. Tagged releases run
 `test:all` before publishing.
 
-For local browser runs, install the supported browsers and host dependencies with
+On CachyOS and other Arch-based systems, run `bun run test:browser <feature>`
+with a local Docker daemon accessible to your user. For headless runs that
+include WebKit, the runner uses the Docker image matching the installed
+Playwright version. Docker pulls the image on first use. Use `--project chromium`
+to run Chromium locally and `bun x playwright install chromium` to install it.
+
+On supported Linux distributions, install browsers and host dependencies with
 `bun x playwright install --with-deps chromium webkit`. Browser flags pass through,
 for example `bun run test:browser editor --project chromium --workers 2`.

@@ -63,6 +63,12 @@ export type MessageRow =
       grouped?: boolean
     }
   | {
+      kind: 'context-reset'
+      key: string
+      messageId: string
+      grouped?: boolean
+    }
+  | {
       kind: 'hidden'
       key: string
       messageId: string
@@ -169,8 +175,14 @@ export function buildRows(
     if (!message) continue
 
     const meta = getMessageMetadata(id)
+    if (meta?.type === 'contextReset') {
+      previousSenderKey = null
+      senderHeader = undefined
+      rows.push({ kind: 'context-reset', key: `reset:${id}`, messageId: id })
+      continue
+    }
+
     // Hidden messages render as a single compact chip (styled by type).
-    // Leaving the sender key untouched keeps grouping stable across them.
     if (meta?.hidden) {
       const grouped = groupBySender && previousSenderKey !== null
       rows.push({

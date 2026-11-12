@@ -462,6 +462,27 @@ describe('sender grouping', () => {
     })
   })
 
+  test('a context reset is a separate row and breaks sender grouping', () => {
+    const resetMeta = {
+      ...agentMeta,
+      hidden: true,
+      type: 'contextReset',
+    } as unknown as MessageRecord
+    const rows = rowsFor(
+      {
+        'message-1': agentMeta,
+        'message-2': resetMeta,
+        'message-3': agentMeta,
+      },
+      true,
+    )
+
+    expect(rows.filter((row) => row.messageId === 'message-2')).toEqual([
+      { kind: 'context-reset', key: 'reset:message-2', messageId: 'message-2' },
+    ])
+    expect(rows.map((row) => row.key)).toContain('h:message-3')
+  })
+
   test('a summary breaks the group on both sides', () => {
     const rows = rowsFor(
       {

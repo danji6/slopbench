@@ -154,10 +154,9 @@ export function HiddenChip({ message, record, placement }: HiddenChipProps) {
   const highlight = useMessageHighlight()
   const [confirm, setConfirm] = useState(false)
   const ownsHighlightRef = useRef(false)
-  const [open, setOpen] = useNoteExpansion(noteContentKey(message.id))
-
   const canMutate = canMutateMessage(message, record, session, profile)
-  const { icon: Icon, label, noun, copyText } = chipPresentation(record)
+  const presentation = chipPresentation(record)
+  const { noun, copyText } = presentation
 
   const highlightTarget = useMemo(
     () => ({ messageId: message.id, segmentIndex: null, groupIndex: null }),
@@ -192,28 +191,12 @@ export function HiddenChip({ message, record, placement }: HiddenChipProps) {
         isTouchDevice() && '[-webkit-touch-callout:none]',
       )}
     >
-      <CollapsibleBlock
-        label={label}
-        leadingIcon={
-          <Icon className="text-muted-foreground size-3.5 shrink-0" />
-        }
-        open={open}
-        onOpenChange={setOpen}
-        revealOnOpen={false}
-        dense
-        surface={placement === 'inline' ? 'inset' : 'inset-row'}
-        triggerClassName="py-(--work-header-padding-y)"
-      >
-        <div
-          className="wrap-anywhere select-text"
-          style={{
-            fontFamily: 'var(--chat-font-family)',
-            fontSize: 'var(--chat-font-size)',
-          }}
-        >
-          <HiddenNoteContent message={message} record={record} />
-        </div>
-      </CollapsibleBlock>
+      <HiddenChipContent
+        message={message}
+        record={record}
+        placement={placement}
+        presentation={presentation}
+      />
     </div>
   )
 
@@ -268,5 +251,38 @@ export function HiddenChip({ message, record, placement }: HiddenChipProps) {
         onConfirm={() => deleteMessage(message.id)}
       />
     </>
+  )
+}
+
+function HiddenChipContent({
+  message,
+  record,
+  placement,
+  presentation,
+}: HiddenChipProps & { presentation: ChipPresentation }) {
+  const [open, setOpen] = useNoteExpansion(noteContentKey(message.id))
+  const { icon: Icon, label } = presentation
+
+  return (
+    <CollapsibleBlock
+      label={label}
+      leadingIcon={<Icon className="text-muted-foreground size-3.5 shrink-0" />}
+      open={open}
+      onOpenChange={setOpen}
+      revealOnOpen={false}
+      dense
+      surface={placement === 'inline' ? 'inset' : 'inset-row'}
+      triggerClassName="py-(--work-header-padding-y)"
+    >
+      <div
+        className="wrap-anywhere select-text"
+        style={{
+          fontFamily: 'var(--chat-font-family)',
+          fontSize: 'var(--chat-font-size)',
+        }}
+      >
+        <HiddenNoteContent message={message} record={record} />
+      </div>
+    </CollapsibleBlock>
   )
 }

@@ -429,3 +429,36 @@ test('Delete all removes later messages and leaves the earlier note as a singlet
   await note(page, 'mcp').getByRole('button').click()
   await expect(note(page, 'mcp')).toContainText('Content for mcp')
 })
+
+test('/new inserts a deletable context marker without an active agent', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=notes&id=notes&contextReset')
+  const editor = page.locator('[data-slot="chat-box"] [contenteditable="true"]')
+  await editor.fill('/new')
+  await expect(page.getByRole('option', { name: /\/new/ })).toBeVisible()
+  await editor.press('Enter')
+
+  const marker = page.locator('[data-slot="context-reset"]')
+  await expect(marker.getByText('Context reset', { exact: true })).toBeVisible()
+  await expect(marker.getByRole('button')).toHaveCount(0)
+  await editor.fill('Message after reset')
+  await editor.press('Enter')
+  await expect(
+    page.getByText('Message after reset', { exact: true }),
+  ).toBeVisible()
+
+  await marker.click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'Delete', exact: true }).click()
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Delete', exact: true })
+    .click()
+  await expect(marker).toHaveCount(0)
+  await expect(
+    page.getByText('Content for before-reset', { exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.getByText('Message after reset', { exact: true }),
+  ).toBeVisible()
+})

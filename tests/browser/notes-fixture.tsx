@@ -1,3 +1,4 @@
+import { ChatSession } from '@/components/chat/chat-session'
 import { ChatSessionView } from '@/components/chat/chat-session-view'
 import { HiddenChip } from '@/components/chat/messages/hidden-chip'
 import type { ScrollDeps } from '@/components/chat/messages/message-list/deps'
@@ -250,17 +251,27 @@ export function NotesFixture() {
   return (
     <ConvexProvider client={notesClient}>
       <ConvexQueryCacheProvider>
-        <ChatMessagesProvider>
-          <StreamStoreProvider>
-            {showComposer ? (
-              <ChatSearchProvider>
-                <Composer />
-              </ChatSearchProvider>
-            ) : (
-              <Transcript />
-            )}
-          </StreamStoreProvider>
-        </ChatMessagesProvider>
+        {composerParams.has('contextReset') ? (
+          <ChatSearchProvider>
+            <ChatSession
+              sessionId="notes"
+              pendingMessage={null}
+              onPendingStarted={noop}
+            />
+          </ChatSearchProvider>
+        ) : (
+          <ChatMessagesProvider>
+            <StreamStoreProvider>
+              {showComposer ? (
+                <ChatSearchProvider>
+                  <Composer />
+                </ChatSearchProvider>
+              ) : (
+                <Transcript />
+              )}
+            </StreamStoreProvider>
+          </ChatMessagesProvider>
+        )}
       </ConvexQueryCacheProvider>
     </ConvexProvider>
   )

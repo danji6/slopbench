@@ -26,6 +26,7 @@ The `package.json` contains most scripts you will need, including running tests.
 - `bun run tests <feature>` - Run a feature's Bun tests (see `tests/README.md`)
 - `bun run test:all` - Run all Bun tests; browser tests remain separate
 - `bun run test:browser <feature>` - Explicitly run a feature's browser tests
+  (WebKit uses Docker automatically on some systems)
 - `bun codegen` - Skip this; the server runs on hot reload
 
 ## Coding Principles

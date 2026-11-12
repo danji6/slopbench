@@ -23,6 +23,7 @@ import { type UIMessage, isReasoningUIPart } from 'ai'
 import { memo, useCallback, useMemo } from 'react'
 
 import { ChangesSummary } from './changes/changes-summary'
+import { ContextDivider } from './context-divider'
 import { ErrorBlock } from './error-block'
 import { GrowOnly } from './grow-only'
 import { HiddenChip } from './hidden-chip'
@@ -65,7 +66,9 @@ export const MessageRowView = memo(function MessageRowView({
 
   return (
     <RowShell message={message} messageMeta={messageMeta} row={row}>
-      {row.kind === 'header' ? (
+      {row.kind === 'context-reset' ? (
+        <ContextResetRow messageId={message.id} />
+      ) : row.kind === 'header' ? (
         <HeaderRow row={row} message={message} messageMeta={messageMeta} />
       ) : row.kind === 'group' ? (
         <GroupRow
@@ -92,6 +95,29 @@ export const MessageRowView = memo(function MessageRowView({
     </RowShell>
   )
 })
+
+function ContextResetRow({ messageId }: { messageId: string }) {
+  const registerElement = useMessageHighlight()?.registerElement
+  const target = useMemo(
+    () => ({ messageId, segmentIndex: null, groupIndex: null }),
+    [messageId],
+  )
+  const ref = useCallback(
+    (element: HTMLDivElement | null) => registerElement?.(target, element),
+    [registerElement, target],
+  )
+
+  return (
+    <div
+      ref={ref}
+      data-slot="context-reset"
+      data-message-id={messageId}
+      className="w-full"
+    >
+      <ContextDivider label="Context reset" />
+    </div>
+  )
+}
 
 type RowShellProps = {
   message: UIMessage

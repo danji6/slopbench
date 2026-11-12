@@ -4,6 +4,7 @@ import type { UIMessage } from 'ai'
 import { isTextUIPart } from 'ai'
 
 import { CollapsibleBlock } from './collapsible-block'
+import { ContextDivider } from './context-divider'
 import { EditableText } from './editor/editable-text'
 import { useMessageList } from './message-list/message-list-context'
 import { SmoothText } from './smooth-text'
@@ -32,11 +33,10 @@ export function SummaryBlock({ message }: { message: UIMessage }) {
       floatingChevron
       footer={
         !isStreaming ? (
-          <div className="text-muted-foreground/50 flex items-center gap-3 text-xs">
-            <div className="h-px flex-1 bg-current opacity-30" />
-            <span>Compacted</span>
-            <div className="h-px flex-1 bg-current opacity-30" />
-          </div>
+          <ContextDivider
+            label="Compacted"
+            className="mt-(--message-compact-block-gap)"
+          />
         ) : undefined
       }
     >

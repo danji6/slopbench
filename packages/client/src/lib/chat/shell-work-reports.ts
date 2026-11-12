@@ -40,6 +40,13 @@ export function groupShellReportRows(
   for (const row of rows) {
     const message = options.getMessage(row.messageId)
     const record = options.getMetadata(row.messageId)
+    if (row.kind === 'context-reset') {
+      state.jobs.clear()
+      previousMessageId = undefined
+      previousSenderKey = null
+      state.rows.push(row)
+      continue
+    }
     if (!message || record?.hidden) {
       state.rows.push(row)
       continue

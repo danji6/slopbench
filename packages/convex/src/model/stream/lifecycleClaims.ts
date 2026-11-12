@@ -1,4 +1,4 @@
-import type { Doc, Id } from '../../_generated/dataModel'
+import type { Doc } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import type { StreamExecutionArgs } from '../../types'
 import { streamOutputIdentity } from '../chat/identities'
@@ -7,6 +7,7 @@ import { injectDueReminders } from '../chat/reminders'
 import { getProcessingSegmentRow, insertMessage } from '../messageContents'
 import { matchesExecution, ownsExecution } from './execution'
 import { scheduleStream, startExecution } from './execution'
+import { latestHistoryAnchor } from './historyBoundary'
 import { renewStreamLease } from './lease'
 import { consumeInterjections } from './lifecycleProgress'
 import { honorSoftStop } from './stop'
@@ -44,11 +45,12 @@ export async function _claim(
   let processingContentId = stream.state.processingContentId
 
   const preserveContextBoundary =
-    stream.command.kind === 'compact' && stream.command.preserveContextBoundary
+    (stream.command.kind === 'compact' || stream.command.kind === 'invoke') &&
+    stream.command.preserveContextBoundary
 
   if (fresh && !preserveContextBoundary) {
     // Only compute the context boundary for a fresh segment to preserve tool approvals
-    const boundary = await latestContextMessage(ctx, stream.sessionId)
+    const boundary = await latestHistoryAnchor(ctx, stream.sessionId)
     boundaryId = boundary?._id
     boundaryCreationTime = boundary?._creationTime
   } else if (stream.command.kind === 'invoke') {
@@ -125,7 +127,7 @@ export async function claimFreshTurn(ctx: MutationCtx, stream: Doc<'streams'>) {
     stream.command.kind === 'compact' && stream.command.preserveContextBoundary
   const boundary = preserveContextBoundary
     ? null
-    : await latestContextMessage(ctx, stream.sessionId)
+    : await latestHistoryAnchor(ctx, stream.sessionId)
   const boundaryId = preserveContextBoundary
     ? stream.contextBoundaryMessageId
     : boundary?._id
@@ -161,20 +163,4 @@ export async function claimFreshTurn(ctx: MutationCtx, stream: Doc<'streams'>) {
       contextBoundaryCreationTime: boundaryCreationTime,
     },
   )
-}
-
-export function latestContextMessage(
-  ctx: MutationCtx,
-  sessionId: Id<'sessions'>,
-) {
-  return ctx.db
-    .query('messages')
-    .withIndex('by_sessionId_status_contextEligible', (q) =>
-      q
-        .eq('sessionId', sessionId)
-        .eq('status', 'done')
-        .eq('contextEligible', true),
-    )
-    .order('desc')
-    .first()
 }

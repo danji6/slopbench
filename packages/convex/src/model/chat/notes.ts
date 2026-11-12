@@ -8,6 +8,7 @@ import type { Session } from '../../types'
 import type { MessageExtra, SessionMode } from '../../types'
 import { deleteVersions, insertMessage } from '../messageContents'
 import { scheduleMessageEval } from '../messages'
+import { removeForSession as removeSessionCache } from '../session/cache'
 import { sessionToolNames } from '../tool/selection'
 import type { SenderIdentity } from './identities'
 import { agentIdentity } from './identities'
@@ -227,6 +228,15 @@ export async function clearAnnouncedMode(
   sessionId: Id<'sessions'>,
 ) {
   await ctx.db.patch(sessionId, { announcedMode: undefined })
+}
+
+/** Refreshes the request prefix and mode after the history floor changes. */
+export async function refreshHistoryContext(
+  ctx: MutationCtx,
+  sessionId: Id<'sessions'>,
+) {
+  await clearAnnouncedMode(ctx, sessionId)
+  await removeSessionCache(ctx, sessionId)
 }
 
 /** The newest message, when it is a mode chip nothing has answered yet. */

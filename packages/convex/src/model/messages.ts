@@ -203,6 +203,10 @@ type MessageFilter = FilterBuilder<NamedTableInfo<DataModel, 'messages'>>
 export const notACommandChip = (q: MessageFilter) =>
   q.neq(q.field('type'), 'command')
 
+/** Skips transcript markers when looking for user input or interjections. */
+export const notATranscriptMarker = (q: MessageFilter) =>
+  q.and(notACommandChip(q), q.neq(q.field('type'), 'contextReset'))
+
 /** Excludes prepared provider context from messages that interrupt a turn. */
 export const notAContextNote = (q: MessageFilter) =>
   q.and(...CONTEXT_NOTE_TYPES.map((type) => q.neq(q.field('type'), type)))

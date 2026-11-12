@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { readFile } from 'node:fs/promises'
+import { buffer } from 'node:stream/consumers'
 
 const cors = { 'Access-Control-Allow-Origin': '*' }
 
@@ -50,7 +50,7 @@ test('downloads original files from attachment buttons and Markdown links', asyn
     const download = await event
 
     expect(download.suggestedFilename()).toBe(filename)
-    expect(await readFile(await download.path())).toEqual(bytes)
+    expect(await buffer(await download.createReadStream())).toEqual(bytes)
     expect(page.url()).toBe(url)
     expect(context.pages()).toHaveLength(1)
   }

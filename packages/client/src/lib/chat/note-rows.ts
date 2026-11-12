@@ -13,7 +13,7 @@ export function groupNoteRows(rows: MessageRow[]): MessageRow[] {
       continue
     }
     let end = index + 1
-    while (rows[end]?.kind === 'hidden') end++
+    while (isGroupableNote(rows[end])) end++
     const count = end - index
     if (count === 1) {
       const continuesSenderGroup = first.grouped && rows[end]?.grouped
@@ -39,6 +39,10 @@ export function groupNoteRows(rows: MessageRow[]): MessageRow[] {
     index = end
   }
   return result
+}
+
+function isGroupableNote(row: MessageRow | undefined) {
+  return row?.kind === 'hidden'
 }
 
 /** Hides collapsed groups' children while retaining individual message rows. */

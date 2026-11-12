@@ -7,7 +7,7 @@ import { settleAbandonedTaskParts } from '../../lib/subagent'
 import type { FailStreamArgs, StreamExecutionArgs } from '../../types'
 import { cleanUpGeneratedAttachments } from '../attachments'
 import { finishChanges } from '../changes'
-import { clearAnnouncedMode } from '../chat/notes'
+import { refreshHistoryContext } from '../chat/notes'
 import { handleStreamEnd } from '../chat/scheduling'
 import { cancelForStream } from '../mcpOperations'
 import {
@@ -28,7 +28,6 @@ import {
   notifyAgentEvent,
 } from '../notifications'
 import { createPlanLinkPart, getBySession as getPlan } from '../plans'
-import { removeForSession } from '../session/cache'
 import { ownsExecution } from './execution'
 import { cleanUpOffloadedOutputs } from './lifecycleCleanup'
 import { killSessionJobs } from './lifecycleControl'
@@ -52,8 +51,6 @@ export async function _complete(
   if (stream.command.kind === 'compact') {
     const plan = await getPlan(ctx, stream.sessionId)
     if (plan) parts.push(createPlanLinkPart(plan))
-    // The mode note is behind the new boundary, state it again on the next turn
-    await clearAnnouncedMode(ctx, stream.sessionId)
   }
 
   if (row && message) {
@@ -68,7 +65,7 @@ export async function _complete(
   }
 
   if (stream.command.kind === 'compact') {
-    await removeForSession(ctx, stream.sessionId)
+    await refreshHistoryContext(ctx, stream.sessionId)
   }
 
   await discardStream(ctx, streamId)

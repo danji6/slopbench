@@ -1,7 +1,10 @@
 /// <reference types="bun-types" />
-import { importOne } from '@sb/convex/model/session/archive'
+import type { Id } from '@sb/convex/_generated/dataModel'
+import { insertMessage } from '@sb/convex/model/messageContents'
+import { exportOne, importOne } from '@sb/convex/model/session/archive'
 import type { SessionArchive } from '@sb/convex/model/session/archive'
 import { describe, expect, test } from 'bun:test'
+import { skillsDatabase } from '~/tests/helpers/skills-db'
 
 type Row = Record<string, unknown> & { _id: string }
 
@@ -111,5 +114,49 @@ describe('session archive import', () => {
     expect(tables.messages[0].senderAvatarId).toBeUndefined()
     expect(tables.messages[1].senderName).toBeUndefined()
     expect(tables.messages[1].role).toBe('user')
+  })
+
+  test('round-trips a context reset in transcript order', async () => {
+    const { ctx, rows } = skillsDatabase()
+    const sessionId = 'session' as Id<'sessions'>
+    const ownerId = 'owner' as Id<'users'>
+    const sender = { type: 'user' as const, id: ownerId }
+    const fields = { sessionId, sender, status: 'done' as const }
+    rows('users').push({ _id: ownerId, subject: 'owner' })
+    rows('sessions').push({ _id: sessionId, ownerId })
+    rows('userSessions').push({
+      _id: 'member',
+      sessionId,
+      userId: ownerId,
+      role: 'owner',
+    })
+
+    await insertMessage(ctx, { ...fields, role: 'user' }, [
+      { type: 'text', text: 'Before' },
+    ])
+    await insertMessage(
+      ctx,
+      { ...fields, role: 'system', type: 'contextReset', hidden: true },
+      [],
+    )
+    await insertMessage(ctx, { ...fields, role: 'user' }, [
+      { type: 'text', text: 'After' },
+    ])
+    const exported = await exportOne(ctx, { sessionId, subject: 'owner' })
+    const imported = await importOne(ctx, {
+      payload: exported.archive,
+      subject: 'owner',
+      avatars: {},
+    })
+
+    const messages = rows('messages').filter(
+      (row) => row.sessionId === imported.sessionId,
+    )
+    expect(messages.map((row) => row.role)).toEqual(['user', 'system', 'user'])
+    expect(messages[1]).toMatchObject({
+      type: 'contextReset',
+      hidden: true,
+      contextEligible: false,
+    })
   })
 })

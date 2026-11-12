@@ -18,6 +18,7 @@ export const senderIdentityFields = {
 
 export const messageTypeValidator = v.union(
   v.literal('summary'),
+  v.literal('contextReset'),
   v.literal('reminder'),
   v.literal('todo'),
   v.literal('workspace'),

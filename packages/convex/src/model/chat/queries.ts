@@ -17,7 +17,7 @@ import {
   listSelectedSegments,
   withParts,
 } from '../messageContents'
-import { notACommandChip, textFromParts } from '../messages'
+import { notATranscriptMarker, textFromParts } from '../messages'
 import * as Memberships from '../session/memberships'
 import { hasOutputRef } from '../stream/toolOutput'
 import { activeStreamView } from '../stream/view'
@@ -469,7 +469,7 @@ export async function listFirstHumanMessage(
     .withIndex('by_sessionId_senderType', (q) =>
       q.eq('sessionId', sessionId).eq('sender.type', 'user'),
     )
-    .filter(notACommandChip)
+    .filter(notATranscriptMarker)
     .order('asc')
     .first()
   if (!message) return null

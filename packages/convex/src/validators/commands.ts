@@ -5,6 +5,7 @@ export const deferredCommandNameValidator = v.union(
   v.literal('compact'),
   v.literal('eval'),
   v.literal('impersonate'),
+  v.literal('new'),
   v.literal('resume'),
 )
 

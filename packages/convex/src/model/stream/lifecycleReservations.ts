@@ -4,7 +4,7 @@ import { agentIdentity } from '../chat/identities'
 import { injectModeNote } from '../chat/notes'
 import { injectDueReminders } from '../chat/reminders'
 import { insertMessage } from '../messageContents'
-import { notACommandChip, notAUserKilledReport } from '../messages'
+import { notATranscriptMarker, notAUserKilledReport } from '../messages'
 import { getSessionWithWorkspace } from '../session/folderContext'
 import { scheduleStream } from './execution'
 import { STREAM_LEASE_MS } from './lifecycleClaims'
@@ -43,7 +43,7 @@ export async function earliestUnconsumedMessage(
         .eq('sender.type', 'user')
         .gt('_creationTime', boundary),
     )
-    .filter(notACommandChip)
+    .filter(notATranscriptMarker)
     .order('asc')
     .first()
 

@@ -97,6 +97,7 @@ function ChatSessionContent({
   const impersonate = useMutation(api.chat.impersonate)
   const timeout = useMutation(api.chat.timeout)
   const autoCompact = useMutation(api.chat.autoCompact)
+  const resetContext = useMutation(api.chat.resetContext)
   const resetSessionCache = useMutation(api.chat.resetSessionCache)
   const pendingProcessed = useRef(false)
   const [focusComposerOnMount] = useState(Boolean(pendingMessage))
@@ -183,6 +184,9 @@ function ChatSessionContent({
         case 'compact':
           await compact(argument).catch(handleError)
           break
+        case 'new':
+          await resetContext({ sessionId: session._id }).catch(handleError)
+          break
         case 'timeout':
           await timeout({ sessionId: session._id, duration: argument }).catch(
             handleError,
@@ -239,6 +243,7 @@ function ChatSessionContent({
     [
       session,
       compact,
+      resetContext,
       timeout,
       autoCompact,
       toggleMode,

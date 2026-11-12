@@ -32,6 +32,11 @@ import { hasStoredMcpOutput } from '../tool/availabilityRead'
 import { availableToolkits } from '../toolkits/access'
 import { toolkitSkillFingerprint } from '../toolkits/skillContext'
 import { ownsExecution } from './execution'
+import {
+  historyUpperBound,
+  latestContextReset,
+  resolveHistoryBoundary,
+} from './historyBoundary'
 
 /** Returns a list of session ids that have ongoing streams. */
 export async function activeSessionIds(
@@ -159,38 +164,10 @@ export async function _getProviderHistory(
   const stream = await ctx.db.get(streamId)
   if (!ownsExecution(stream, { streamId, generation })) return []
 
-  const summary = await ctx.db
-    .query('messages')
-    .withIndex('by_sessionId_type_status', (q) =>
-      q
-        .eq('sessionId', stream.sessionId)
-        .eq('type', 'summary')
-        .eq('status', 'done'),
-    )
-    .filter((q) => q.eq(q.field('contextEligible'), true))
-    .order('desc')
-    .first()
+  const { upper, floor, summary } = await resolveHistoryBoundary(ctx, stream)
+  const messages = await listDoneHistory(ctx, stream.sessionId, floor, upper)
 
-  const upper = stream.contextBoundaryCreationTime ?? Number.MAX_SAFE_INTEGER
-  const summaryFloor = summary
-    ? (summary.summaryBoundaryCreationTime ?? summary._creationTime)
-    : 0
-  const summaryApplies = summary !== null && summaryFloor <= upper
-
-  const messages = await ctx.db
-    .query('messages')
-    .withIndex('by_sessionId_status_contextEligible', (q) =>
-      q
-        .eq('sessionId', stream.sessionId)
-        .eq('status', 'done')
-        .eq('contextEligible', true)
-        .gt('_creationTime', summaryApplies ? summaryFloor : 0)
-        .lte('_creationTime', upper),
-    )
-    .order('asc')
-    .collect()
-
-  const ordered = summaryApplies
+  const ordered = summary
     ? [summary, ...messages.filter((message) => message._id !== summary._id)]
     : messages
 
@@ -207,6 +184,7 @@ export async function _getProviderHistory(
     for (const note of notes) {
       if (
         note.contextEligible &&
+        note._creationTime > floor &&
         !ordered.some((message) => message._id === note._id)
       ) {
         ordered.push(note)
@@ -237,6 +215,27 @@ export async function _getProviderHistory(
   return orderContextNotes(history)
 }
 
+function listDoneHistory(
+  ctx: QueryCtx,
+  sessionId: Id<'sessions'>,
+  floor: number,
+  upper: number,
+) {
+  if (floor >= upper) return []
+  return ctx.db
+    .query('messages')
+    .withIndex('by_sessionId_status_contextEligible', (q) =>
+      q
+        .eq('sessionId', sessionId)
+        .eq('status', 'done')
+        .eq('contextEligible', true)
+        .gt('_creationTime', floor)
+        .lte('_creationTime', upper),
+    )
+    .order('asc')
+    .collect()
+}
+
 export async function _isActive(
   ctx: QueryCtx,
   { streamId, generation }: StreamExecutionArgs,
@@ -257,15 +256,17 @@ async function getActiveMediaState(ctx: QueryCtx, stream: Doc<'streams'>) {
 
   if (!stream.contextBoundaryMessageId) return false
 
+  const upper = historyUpperBound(stream)
+  const reset = await latestContextReset(ctx, stream.sessionId, upper)
+  if (reset?._creationTime === upper) return false
+
   const history = await ctx.db
     .query('messages')
     .withIndex('by_sessionId', (q) =>
       q
         .eq('sessionId', stream.sessionId)
-        .lte(
-          '_creationTime',
-          stream.contextBoundaryCreationTime ?? Number.MAX_SAFE_INTEGER,
-        ),
+        .gt('_creationTime', reset?._creationTime ?? 0)
+        .lte('_creationTime', upper),
     )
     .order('asc')
     .collect()

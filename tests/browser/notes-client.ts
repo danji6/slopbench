@@ -5,7 +5,8 @@ import type { UIMessage } from 'ai'
 import type { ConvexReactClient } from 'convex/react'
 import { type FunctionReference, getFunctionName } from 'convex/server'
 
-type NoteType = 'skills' | 'mcp' | 'workspace' | 'command' | 'todo'
+type NoteType =
+  'skills' | 'mcp' | 'workspace' | 'command' | 'todo' | 'contextReset'
 
 function message(id: string, time: number, type?: NoteType) {
   const text = noteText(id)
@@ -20,7 +21,7 @@ function message(id: string, time: number, type?: NoteType) {
             output: 'File contents',
           },
         ]
-      : type === 'command'
+      : type === 'command' || type === 'contextReset'
         ? []
         : [{ type: 'text', text }]
   return {
@@ -70,6 +71,7 @@ let messages = initialMessages()
 let submittedShell: ReturnType<typeof message> | undefined
 
 function initialMessages() {
+  if (params.has('contextReset')) return [message('before-reset', 1)]
   if (params.has('shellComposer') || params.has('composer')) {
     return Array.from({ length: 32 }, (_, index) =>
       message(`history${index}`, index),
@@ -473,7 +475,19 @@ export const notesClient = {
     args: { messageId?: string; content?: string },
   ) {
     const name = getFunctionName(reference)
-    if (name === 'chat:sendMessage' && params.has('composer')) {
+    if (name === 'chat:resetContext' && params.has('contextReset')) {
+      messages = [
+        ...messages,
+        {
+          ...message('context-reset', Date.now(), 'contextReset'),
+          sender: { type: 'user', id: 'owner' },
+        },
+      ]
+      refresh()
+      return { queued: false }
+    }
+    const canSend = params.has('composer') || params.has('contextReset')
+    if (name === 'chat:sendMessage' && canSend) {
       const sent = {
         ...message(`sent-${messages.length}`, Date.now()),
         sender: { type: 'user', id: 'owner' },

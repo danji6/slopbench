@@ -132,7 +132,7 @@ describe('sessions.duplicate', () => {
     expect(tables.messages.find((row) => row._id === textId)).toBeTruthy()
   })
 
-  test('skips command chips and processing leftovers', async () => {
+  test('copies context resets while skipping command chips and processing leftovers', async () => {
     const { ctx, tables } = makeCtx()
     seedSession(tables)
     seedMessage(tables, { sessionId: 'session_1' }, [
@@ -141,6 +141,16 @@ describe('sessions.duplicate', () => {
     seedMessage(
       tables,
       { sessionId: 'session_1', type: 'command', extra: { status: 'ran' } },
+      [],
+    )
+    seedMessage(
+      tables,
+      {
+        sessionId: 'session_1',
+        type: 'contextReset',
+        role: 'system',
+        hidden: true,
+      },
       [],
     )
     seedMessage(tables, { sessionId: 'session_1', status: 'processing' }, [
@@ -154,8 +164,16 @@ describe('sessions.duplicate', () => {
     const contents = tables.messageContents.filter(
       (row) => row.sessionId === sessionId,
     )
-    expect(contents).toHaveLength(1)
+    expect(contents).toHaveLength(2)
     expect(contents[0].parts).toEqual([{ type: 'text', text: 'a' }])
+    expect(contents[1].parts).toEqual([])
+    expect(
+      tables.messages.find((row) => row._id === contents[1].messageId),
+    ).toMatchObject({
+      type: 'contextReset',
+      hidden: true,
+      contextEligible: false,
+    })
   })
 
   test('copies referenced media, remaps part ids and re-parents the copy', async () => {

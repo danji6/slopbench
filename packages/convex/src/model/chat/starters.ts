@@ -19,6 +19,7 @@ export async function maybeInsertStarters(
   const existing = await ctx.db
     .query('messages')
     .withIndex('by_sessionId', (q) => q.eq('sessionId', session._id))
+    .filter((q) => q.neq(q.field('type'), 'contextReset'))
     .first()
   if (existing) return
 

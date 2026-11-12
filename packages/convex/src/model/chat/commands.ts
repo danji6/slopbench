@@ -3,10 +3,12 @@ import type { MutationCtx } from '../../_generated/server'
 import { error, sanitizeChatError } from '../../errors'
 import type { AuthMutationCtx, AuthQueryCtx } from '../../functions'
 import type { DeferredCommandName, QueuedCommand } from '../../types'
+import { deleteVersions, insertMessage } from '../messageContents'
 import * as Memberships from '../session/memberships'
 import { getState, patchState } from '../session/state'
 import { insertCommandChip, markCommandChip } from './commandChips'
 import { executeEval } from './controls'
+import { refreshHistoryContext } from './notes'
 import { executeCompact, executeImpersonate, executeResume } from './send'
 
 /** How many commands a session may keep waiting for an idle moment. */
@@ -29,6 +31,13 @@ export function compact(
     name: 'compact',
     argument: extraInstructions,
   })
+}
+
+export function resetContext(
+  ctx: AuthMutationCtx,
+  { sessionId }: { sessionId: Id<'sessions'> },
+) {
+  return invokeCommand(ctx, sessionId, { name: 'new' })
 }
 
 export function impersonate(
@@ -90,7 +99,7 @@ async function invokeCommand(
     error('Too many commands are already waiting', 409)
   }
 
-  const messageId = commandCreatesMessage(command.name)
+  const messageId = needsCommandChip(command.name, defer)
     ? await insertCommandChip(
         ctx,
         session,
@@ -114,9 +123,10 @@ async function invokeCommand(
   return { queued: false }
 }
 
-/** Whether the command creates a new message after its invocation boundary. */
-function commandCreatesMessage(name: DeferredCommandName) {
-  return name === 'compact' || name === 'impersonate'
+function needsCommandChip(name: DeferredCommandName, defer: boolean) {
+  return (
+    name === 'compact' || name === 'impersonate' || (name === 'new' && defer)
+  )
 }
 
 /** Runs everything that has been waiting, until the session gets busy again. */
@@ -149,7 +159,9 @@ async function runQueuedCommand(
 
   try {
     await executeCommand(ctx, session, entry)
-    if (entry.messageId) await markCommandChip(ctx, entry.messageId, 'ran')
+    if (entry.messageId && entry.name !== 'new') {
+      await markCommandChip(ctx, entry.messageId, 'ran')
+    }
   } catch (err) {
     if (entry.messageId) {
       await markCommandChip(
@@ -165,11 +177,13 @@ async function runQueuedCommand(
 function executeCommand(
   ctx: MutationCtx,
   session: Doc<'sessions'>,
-  { name, argument, invokedBy }: QueuedCommand,
+  { name, argument, invokedBy, messageId }: QueuedCommand,
 ) {
   switch (name) {
     case 'compact':
       return executeCompact(ctx, session, invokedBy, argument)
+    case 'new':
+      return executeContextReset(ctx, session._id, invokedBy, messageId)
     case 'impersonate':
       return executeImpersonate(ctx, session, invokedBy, argument)
     case 'resume':
@@ -177,4 +191,30 @@ function executeCommand(
     case 'eval':
       return executeEval(ctx, session)
   }
+}
+
+async function executeContextReset(
+  ctx: MutationCtx,
+  sessionId: Id<'sessions'>,
+  invokedBy: Id<'users'>,
+  queuedChipId?: Id<'messages'>,
+) {
+  await refreshHistoryContext(ctx, sessionId)
+  if (queuedChipId) {
+    await deleteVersions(ctx, queuedChipId)
+    await ctx.db.delete(queuedChipId)
+  }
+
+  await insertMessage(
+    ctx,
+    {
+      sessionId,
+      sender: { type: 'user', id: invokedBy },
+      role: 'system',
+      status: 'done',
+      type: 'contextReset',
+      hidden: true,
+    },
+    [],
+  )
 }

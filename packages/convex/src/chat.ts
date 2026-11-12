@@ -108,6 +108,11 @@ export const compact = authMutation({
   handler: Chat.compact,
 })
 
+export const resetContext = authMutation({
+  args: { sessionId: v.id('sessions') },
+  handler: Chat.resetContext,
+})
+
 export const timeout = authMutation({
   args: { sessionId: v.id('sessions'), duration: v.string() },
   handler: Chat.timeout,

@@ -298,7 +298,8 @@ function getRowSpacing(row?: MessageRow, previousRow?: MessageRow) {
 
   const startsSenderGroup =
     previousRow && !row.grouped && previousRow.messageId !== row.messageId
-  const isSummary = row.kind === 'group' && row.summary
+  const isSummary =
+    row.kind === 'context-reset' || (row.kind === 'group' && row.summary)
   if (startsSenderGroup) {
     return isSummary
       ? 'h-(--message-compaction-gap)'

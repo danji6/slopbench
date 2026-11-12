@@ -19,6 +19,7 @@ import {
 } from '../plans'
 import * as Memberships from '../session/memberships'
 import { get as getSettings } from '../settings'
+import { latestHistoryAnchor } from '../stream/historyBoundary'
 import { resolveSender } from './identities'
 import { injectDueReminders } from './reminders'
 import {
@@ -371,17 +372,7 @@ export async function latestMessageBefore(
   sessionId: Id<'sessions'>,
   creationTime: number,
 ) {
-  return ctx.db
-    .query('messages')
-    .withIndex('by_sessionId_status_contextEligible', (q) =>
-      q
-        .eq('sessionId', sessionId)
-        .eq('status', 'done')
-        .eq('contextEligible', true)
-        .lt('_creationTime', creationTime),
-    )
-    .order('desc')
-    .first()
+  return latestHistoryAnchor(ctx, sessionId, creationTime)
 }
 
 /** Milliseconds the member must still wait before sending again under slow mode. */

@@ -130,6 +130,8 @@ export function skillsDatabase(indexes: Record<string, string[]> = {}) {
         neq: (a: FilterValue, b: FilterValue) =>
           comparison(a, b, (n) => n !== 0),
         gt: (a: FilterValue, b: FilterValue) => comparison(a, b, (n) => n > 0),
+        gte: (a: FilterValue, b: FilterValue) =>
+          comparison(a, b, (n) => n >= 0),
         lte: (a: FilterValue, b: FilterValue) =>
           comparison(a, b, (n) => n <= 0),
         or:

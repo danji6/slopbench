@@ -8,6 +8,7 @@ import { getSessionWithWorkspace } from '../session/folderContext'
 import * as Memberships from '../session/memberships'
 import { assertAgentAvailable } from '../skills/access'
 import { scheduleStream } from '../stream/execution'
+import { latestHistoryAnchor } from '../stream/historyBoundary'
 import { STREAM_LEASE_MS } from '../stream/lifecycle'
 import { agentIdentity } from './identities'
 
@@ -129,7 +130,11 @@ function canDebounceInvoke(
   stream: Doc<'streams'> | null,
 ): stream is Doc<'streams'> {
   if (!stream) return false
-  return stream.state.phase === 'pending' && stream.command.kind === 'invoke'
+  return (
+    stream.state.phase === 'pending' &&
+    stream.command.kind === 'invoke' &&
+    !stream.command.preserveContextBoundary
+  )
 }
 
 /** Reschedules a pending stream invocation (debounce). */
@@ -214,10 +219,11 @@ export async function reserveResumableStream(
       processingContentId: active?._id,
     },
     contextBoundaryMessageId: boundary?._id,
-    contextBoundaryCreationTime: boundary?._creationTime,
+    contextBoundaryCreationTime: boundary?._creationTime ?? 0,
     command: {
       kind: 'invoke',
       mode: session?.mode === 'plan' ? session.mode : undefined,
+      preserveContextBoundary: true,
     },
     attempt: 0,
     leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
@@ -274,7 +280,7 @@ export async function reserveRetryStream(
       processingContentId: contentId,
     },
     contextBoundaryMessageId: boundary?._id,
-    contextBoundaryCreationTime: boundary?._creationTime,
+    contextBoundaryCreationTime: boundary?._creationTime ?? 0,
     command: { kind: 'retry', previousVersion: retryPreviousVersion },
     attempt: 0,
     leaseExpiresAt: Date.now() + STREAM_LEASE_MS,
@@ -289,16 +295,5 @@ export async function latestMessageId(
   ctx: MutationCtx,
   sessionId: Id<'sessions'>,
 ) {
-  return (
-    await ctx.db
-      .query('messages')
-      .withIndex('by_sessionId_status_contextEligible', (q) =>
-        q
-          .eq('sessionId', sessionId)
-          .eq('status', 'done')
-          .eq('contextEligible', true),
-      )
-      .order('desc')
-      .first()
-  )?._id
+  return (await latestHistoryAnchor(ctx, sessionId))?._id
 }

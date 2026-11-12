@@ -51,6 +51,7 @@ export function hasVisibleOlderContent(
         return isExposedGroup(row, record, reader, openWork)
       case 'hidden':
       case 'note-group':
+      case 'context-reset':
         return true
       case 'footer':
         return Boolean(record.metadata?.error)

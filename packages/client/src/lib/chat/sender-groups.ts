@@ -57,6 +57,7 @@ export function senderGroupDurations({
     const message = getMessage(id)
     if (!message) continue
     const record = getMetadata(id)
+    if (record?.type === 'contextReset') previousKey = null
     if (record?.hidden) continue
 
     const key = messageSenderKey(message, record)

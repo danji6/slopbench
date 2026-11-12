@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { readFile } from 'node:fs/promises'
+import { json } from 'node:stream/consumers'
 
 test('mixed MCP content renders literally, reports errors, and never fetches resource links', async ({
   page,
@@ -48,8 +48,7 @@ test('mixed MCP content renders literally, reports errors, and never fetches res
   const event = page.waitForEvent('download')
   await download.click()
   const artifact = await event
-  const path = await artifact.path()
-  const fullBlock = JSON.parse(await readFile(path!, 'utf8'))
+  const fullBlock = await json(await artifact.createReadStream())
   expect(fullBlock).toEqual({
     type: 'future-block',
     payload: 'Preserved unknown format',

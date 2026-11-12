@@ -21,8 +21,8 @@ import {
   sealSegment,
 } from '../messageContents'
 import {
-  notACommandChip,
   notAContextNote,
+  notATranscriptMarker,
   notAUserKilledReport,
   scheduleMessageEval,
 } from '../messages'
@@ -32,6 +32,7 @@ import {
   recordToolDeliveries,
 } from '../shellOutputDeliveries'
 import { ownsExecution } from './execution'
+import { isHistoricalTurn } from './historyBoundary'
 import { STREAM_LEASE_MS, renewStreamLease } from './lease'
 
 export async function _patchMessage(
@@ -63,7 +64,8 @@ export async function consumeInterjections(
   ctx: MutationCtx,
   stream: Doc<'streams'>,
 ) {
-  if (stream.command.kind === 'compact') return false
+  const command = stream.command
+  if (command.kind === 'compact' || isHistoricalTurn(command)) return false
   if (!stream.state.processingMessageId) return false
 
   const current = await ctx.db.get(stream.state.processingMessageId)
@@ -90,7 +92,7 @@ export async function consumeInterjections(
         .eq('sessionId', stream.sessionId)
         .gt('_creationTime', current._creationTime),
     )
-    .filter(notACommandChip)
+    .filter(notATranscriptMarker)
     .filter(notAContextNote)
     .filter(notAUserKilledReport)
     .order('desc')

@@ -36,6 +36,7 @@ export const streamCommandValidator = v.union(
   v.object({
     kind: v.literal('invoke'),
     mode: v.optional(sessionModeValidator),
+    preserveContextBoundary: v.optional(v.boolean()),
   }),
   v.object({
     kind: v.literal('compact'),

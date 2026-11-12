@@ -141,7 +141,9 @@ export async function deleteMessage(
   ctx: AuthMutationCtx,
   args: { messageId: Id<'messages'> },
 ) {
-  const { message } = await requireMessageMutation(ctx, args.messageId)
+  const { message } = await requireMessageMutation(ctx, args.messageId, {
+    allowResetCancellation: true,
+  })
   await deleteMessageDoc(ctx, message)
   await forgetDeletedModeNotes(ctx, message.sessionId, [message])
 }
@@ -267,6 +269,7 @@ function isEditablePart(
 async function requireMessageMutation(
   ctx: AuthMutationCtx,
   messageId: Id<'messages'>,
+  options?: { allowResetCancellation?: boolean },
 ) {
   const message = await ctx.db.get(messageId)
   if (!message) error('Not found', 404)
@@ -277,7 +280,9 @@ async function requireMessageMutation(
     ctx.userId,
   )
 
-  await Memberships.requireNonBlockingStream(ctx, message.sessionId)
+  if (!options?.allowResetCancellation || !isQueuedContextReset(message)) {
+    await Memberships.requireNonBlockingStream(ctx, message.sessionId)
+  }
 
   if (session.settings?.disabled && session.ownerId !== ctx.userId) {
     error('Session is disabled', 409)
@@ -290,6 +295,16 @@ async function requireMessageMutation(
   requireDeletableSender(ctx, message, session)
 
   return { message, session }
+}
+
+function isQueuedContextReset({ type, extra }: Doc<'messages'>) {
+  return (
+    type === 'command' &&
+    extra &&
+    'status' in extra &&
+    extra.name === 'new' &&
+    extra.status === 'queued'
+  )
 }
 
 function requireDeletableSender(

@@ -36,6 +36,10 @@ function historyCtx(fixture: HistoryFixture) {
               fn({
                 field: (name: string) => row[name],
                 eq: (a: unknown, b: unknown) => a === b,
+                gte: (a: number, b: number) => a >= b,
+                lte: (a: number, b: number) => a <= b,
+                and: (...values: boolean[]) => values.every(Boolean),
+                or: (...values: boolean[]) => values.some(Boolean),
               }),
             ),
           )
@@ -45,7 +49,12 @@ function historyCtx(fixture: HistoryFixture) {
       order: () => obj,
       first: async () =>
         table === 'messages' && index === 'by_sessionId_type_status'
-          ? summary && matches(summary)
+          ? summary?.type === captured.type &&
+            summary &&
+            (summary._creationTime as number) > (captured.gt as number) &&
+            (summary._creationTime as number) <=
+              ((captured.lte as number | undefined) ?? Infinity) &&
+            matches(summary)
             ? summary
             : null
           : null,
