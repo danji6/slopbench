@@ -10,9 +10,12 @@ const read_file = inline`Read a bounded text page. Use this instead of cat/sed
   Paths default to the project workspace.`
 
 const read_attachment = inline`
-  Read a bounded UTF-8 byte range from an attachment reference. Use the returned
-  nextOffset to continue without loading the entire file at once. You may call
-  this tool in parallel with disjoint offsets when several ranges are needed.`
+  Read or search an attachment. Start with reference. Use pattern (Go regexp
+  using RE2 syntax) to find matching lines. If done is false, pass only
+  operationId to continue. Search hits include a preview, byteOffset for the match,
+  and lineStartOffset for the beginning of the line. Line numbers count from the
+  start (line) or the end (lineFromEnd). To inspect a hit in context, start a
+  plain read with reference and set offset to lineStartOffset.`
 
 const write_file = inline`
   Create or overwrite a text file in the selected filesystem scope. Prefer

@@ -97,8 +97,8 @@ function shellJobId(part: ToolUIPart): string | undefined {
 
 function activityLabel(tools: ToolUIPart[], reportCommands = 0): string {
   const reads = new Set<string>()
-  let attachmentReadCalls = 0
   const changes = new Set<string>()
+  let attachmentCalls = 0
   let commands = reportCommands
   let listedSkills = false
   let other = 0
@@ -108,7 +108,7 @@ function activityLabel(tools: ToolUIPart[], reportCommands = 0): string {
     if (part.type === 'tool-read_file' && path) {
       reads.add(path)
     } else if (part.type === 'tool-read_attachment') {
-      attachmentReadCalls++
+      attachmentCalls++
     } else if (
       ['tool-write_file', 'tool-edit_file'].includes(part.type) &&
       path
@@ -126,7 +126,8 @@ function activityLabel(tools: ToolUIPart[], reportCommands = 0): string {
   return (
     [
       countLabel(reads.size, 'Read', 'file'),
-      attachmentReadLabel(attachmentReadCalls),
+      attachmentCalls === 1 ? 'read attachment' : '',
+      attachmentCalls > 1 ? `read attachment ×${attachmentCalls}` : '',
       countLabel(changes.size, 'edited', 'file'),
       countLabel(commands, 'ran', 'command'),
       listedSkills ? 'listed skills' : '',
@@ -135,11 +136,6 @@ function activityLabel(tools: ToolUIPart[], reportCommands = 0): string {
       .filter(Boolean)
       .join(', ') || 'Tool activity'
   )
-}
-
-function attachmentReadLabel(reads: number): string {
-  if (!reads) return ''
-  return reads === 1 ? 'read attachment' : `read attachment ×${reads}`
 }
 
 function countLabel(count: number, verb: string, noun: string): string {

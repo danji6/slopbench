@@ -56,18 +56,27 @@ test('clears on upload and keeps mixed attachments visible through confirmation'
   page,
 }) => {
   const upload = Promise.withResolvers<void>()
+  let logContentType: string | undefined
   await page.route('**/composer-upload', async (route) => {
+    const request = route.request()
+    if (request.postData() === 'notes') {
+      logContentType = request.headers()['content-type']
+    }
     await upload.promise
     await route.fulfill({ json: { storageId: 'staged' } })
   })
   const editor = await openSendFixture(page)
   const image = await imageFile(page)
-  await picker(page).setInputFiles([
-    image,
-    { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('notes') },
-  ])
+  const input = picker(page)
+  await input.setInputFiles(image)
+  await input.evaluate((element: HTMLInputElement) => {
+    const transfer = new DataTransfer()
+    transfer.items.add(new File(['notes'], 'notes.log'))
+    element.files = transfer.files
+    element.dispatchEvent(new Event('change', { bubbles: true }))
+  })
   await expect(
-    composer(page).getByRole('button', { name: 'Preview notes.txt' }),
+    composer(page).getByRole('button', { name: 'Preview notes.log' }),
   ).toBeVisible()
   const submitted = page.getByText('Send these files', { exact: true })
   try {
@@ -85,9 +94,10 @@ test('clears on upload and keeps mixed attachments visible through confirmation'
 
   const files = page.locator('[data-slot="file-block"]')
   await expect(submitted).toHaveCount(1)
+  expect(logContentType).toBe('application/octet-stream')
   await expect(files.getByRole('img', { name: 'screen.png' })).toBeVisible()
   await expect(
-    files.getByRole('button', { name: 'Preview notes.txt' }),
+    files.getByRole('button', { name: 'Preview notes.log' }),
   ).toBeVisible()
 
   await completeSend(page, true)
@@ -97,7 +107,7 @@ test('clears on upload and keeps mixed attachments visible through confirmation'
   const preview = files.getByRole('img', { name: 'screen.png' })
   await expect(preview).toHaveAttribute('src', /^data:image/)
   await expect(
-    files.getByRole('button', { name: 'Preview notes.txt' }),
+    files.getByRole('button', { name: 'Preview notes.log' }),
   ).toBeVisible()
   await expect(sendingButton(page)).toHaveCount(0)
   await expect(submitted).toHaveCount(1)

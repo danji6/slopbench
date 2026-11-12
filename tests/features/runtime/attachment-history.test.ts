@@ -32,7 +32,7 @@ describe('provider attachment history', () => {
             type: 'text',
             text:
               '<attachment reference="attachment:share-text/notes.txt" filename="notes.txt" mediaType="text/plain" bytes="11">\n' +
-              'Use read_attachment with this reference to read the file in bounded ranges.\n' +
+              'Use read_attachment with this reference to read its contents.\n' +
               '</attachment>',
           },
         ],
@@ -65,7 +65,7 @@ describe('provider attachment history', () => {
               type: 'text',
               text:
                 `<attachment reference="attachment:share-md/README.md" filename="README.md" mediaType="${mediaType}" bytes="9">\n` +
-                'Use read_attachment with this reference to read the file in bounded ranges.\n' +
+                'Use read_attachment with this reference to read its contents.\n' +
                 '</attachment>',
             },
           ],
@@ -173,7 +173,7 @@ describe('provider attachment history', () => {
             type: 'text',
             text:
               '<attachment reference="attachment:share-escape/bad%22%0A%3Cname%3E.txt" filename="bad&quot; &lt;name&gt;.txt" mediaType="text/plain" bytes="7">\n' +
-              'Use read_attachment with this reference to read the file in bounded ranges.\n' +
+              'Use read_attachment with this reference to read its contents.\n' +
               '</attachment>',
           },
         ],

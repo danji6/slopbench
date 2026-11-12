@@ -3,23 +3,46 @@ import { z } from 'zod'
 import { ATTACHMENT_READ_MAX_BYTES } from '../const'
 
 export const readAttachmentFields = {
-  reference: z.string().describe('Attachment reference to read'),
+  reference: z
+    .string()
+    .optional()
+    .describe('Attachment reference for a new read or search'),
+  operationId: z
+    .string()
+    .length(12)
+    .optional()
+    .describe('Pass alone to continue an attachment operation'),
+  pattern: z
+    .string()
+    .min(1)
+    .max(1024)
+    .optional()
+    .describe(
+      'Go regexp (RE2 syntax) to search line by line. Ignores case by default. Prefix with (?-i) to match case.',
+    ),
+  from: z
+    .literal('end')
+    .optional()
+    .describe('Start at the end and page backward'),
   offset: z
     .number()
     .int()
     .nonnegative()
     .optional()
-    .describe('Zero-based UTF-8 byte offset'),
+    .describe('Zero-based UTF-8 byte offset for a targeted plain read'),
   limit: z
     .number()
     .int()
     .positive()
-    .max(ATTACHMENT_READ_MAX_BYTES)
     .optional()
     .describe(
-      `Maximum UTF-8 bytes to return (default and max ${ATTACHMENT_READ_MAX_BYTES})`,
+      `UTF-8 text budget per page (defaults to and is capped at ${ATTACHMENT_READ_MAX_BYTES})`,
     ),
 } as const
+
+export type ReadAttachmentInput = z.infer<
+  z.ZodObject<typeof readAttachmentFields>
+>
 
 export const readFileFields = {
   path: z.string().describe('Relative or absolute path to read'),

@@ -8,11 +8,17 @@ export type TextPreview = {
   truncated: boolean
 }
 
+/** Shows malformed UTF-8 as replacement characters in the attachment viewer. */
+export function readAttachmentTextPreview(url: string, signal: AbortSignal) {
+  return readTextPreview(url, signal, MAX_TEXT_PREVIEW_BYTES, { fatal: false })
+}
+
 /** Reads at most one browser-safe preview window from a URL. */
 export async function readTextPreview(
   url: string,
   signal: AbortSignal,
   maxBytes = MAX_TEXT_PREVIEW_BYTES,
+  { fatal = true }: { fatal?: boolean } = {},
 ): Promise<TextPreview> {
   const response = await fetch(url, { signal })
   if (!response.ok)
@@ -21,7 +27,7 @@ export async function readTextPreview(
   const reader = response.body?.getReader()
   if (!reader) {
     const bytes = new Uint8Array(await response.arrayBuffer())
-    return decodePreview(bytes, maxBytes, bytes.length > maxBytes)
+    return decodePreview(bytes, maxBytes, bytes.length > maxBytes, fatal)
   }
 
   const readLimit = maxBytes + 4
@@ -50,6 +56,7 @@ export async function readTextPreview(
     joinBytes(chunks, byteLength),
     maxBytes,
     !done || byteLength > maxBytes,
+    fatal,
   )
 }
 
@@ -57,8 +64,9 @@ function decodePreview(
   bytes: Uint8Array,
   maxBytes: number,
   truncated: boolean,
+  fatal: boolean,
 ): TextPreview {
-  const range = readUtf8Range(bytes, 0, Math.max(1, maxBytes))
+  const range = readUtf8Range(bytes, 0, maxBytes, { fatal })
   return {
     text: range.content,
     shownBytes: range.endOffset,

@@ -1,4 +1,5 @@
-import { Accordion, Button } from '@/components/ui'
+import { Accordion } from '@/components/ui/accordion'
+import { Button } from '@/components/ui/button'
 import { Collapsible, useCollapsible } from '@/components/ui/collapsible'
 import { useScrollIntoView } from '@/hooks/chat/scroll-into-view'
 import { cn } from '@/lib/utils'

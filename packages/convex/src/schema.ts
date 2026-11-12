@@ -223,6 +223,16 @@ export default defineSchema({
     .index('by_storageId', ['storageId'])
     .index('by_shareToken', ['shareToken']),
 
+  attachmentCursors: defineTable(V.attachmentCursorSchema)
+    .index('by_operationId', ['operationId'])
+    .index('by_sessionId', ['sessionId'])
+    .index('by_expiresAt', ['expiresAt']),
+
+  attachmentCursorReceipts: defineTable(V.attachmentCursorReceiptSchema)
+    .index('by_call', ['messageId', 'callId'])
+    .index('by_sessionId', ['sessionId'])
+    .index('by_expiresAt', ['expiresAt']),
+
   offloadedOutputs: defineTable(V.offloadedOutputSchema)
     .index('by_streamId', ['streamId']),
 

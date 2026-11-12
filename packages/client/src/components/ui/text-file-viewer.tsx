@@ -1,7 +1,10 @@
 import type { FileItem } from '@/hooks/file-previews'
 import { languageFromPath } from '@/lib/chat/tool-output'
 import { extractErrorMessage } from '@/lib/errors'
-import { type TextPreview, readTextPreview } from '@/lib/text-file-preview'
+import {
+  type TextPreview,
+  readAttachmentTextPreview,
+} from '@/lib/text-file-preview'
 import { formatByteLength } from '@sb/core/utils/size'
 import { useEffect, useState } from 'react'
 
@@ -33,7 +36,7 @@ export function TextFileViewer({
     if (!open) return
 
     const controller = new AbortController()
-    void readTextPreview(sourceUrl, controller.signal)
+    void readAttachmentTextPreview(sourceUrl, controller.signal)
       .then((result) => setPreview({ status: 'loaded', ...result }))
       .catch((error: unknown) => {
         if (controller.signal.aborted) return

@@ -159,6 +159,21 @@ export type RunningStream = Omit<Doc<'streams'>, 'state'> & {
   state: Extract<StreamState, { phase: 'streaming' }>
 }
 
+export type PartAddress = Infer<typeof V.partAddressValidator>
+
+export type FolderCommand = Infer<typeof V.folderCommandValidator>
+export type FolderCommitPlan = Infer<typeof V.folderCommitPlanValidator>
+
+export type ProviderDiscovery = Infer<typeof V.providerDiscoveryValidator>
+export type NotificationRequest = Infer<typeof V.notificationRequestValidator>
+export type NotificationRequestState = Infer<typeof V.notificationRequestStateValidator> // prettier-ignore
+
+export type CacheDiagnostic = Infer<typeof ProviderRequestsV.cacheDiagnosticValidator> // prettier-ignore
+export type ProviderContinuityScope = Infer<typeof ProviderRequestsV.providerContinuityScopeValidator> // prettier-ignore
+
+export type AttachmentCursorCall = Infer<typeof V.attachmentCursorCall>
+export type AttachmentCursorSettings = Infer<typeof V.attachmentCursorSettings>
+
 export type SaveSessionCacheArgs = Infer<typeof V.saveSessionCacheArgsValidator>
 export type SendMessageArgs = Infer<typeof V.sendMessageArgsValidator>
 export type ConfirmAttachmentArgs = Infer<typeof V.confirmAttachmentArgsValidator> // prettier-ignore
@@ -178,15 +193,12 @@ export type TerminalSessionArgs = Infer<typeof V.terminalSessionArgsValidator>
 export type TerminalPollArgs = Infer<typeof V.terminalPollArgsValidator>
 export type ImportSessionArgs = Infer<typeof V.importSessionArgsValidator>
 export type MessageWindowArgs = Infer<typeof V.messagesWindowArgsValidator>
-export type PartAddress = Infer<typeof V.partAddressValidator>
 export type EditMessagePartArgs = Infer<typeof V.editMessagePartArgsValidator>
 export type DeleteMessagePartsArgs = Infer<typeof V.deleteMessagePartsArgsValidator> // prettier-ignore
 export type FolderTransitionArgs = Infer<typeof V.folderTransitionArgs>
 export type FolderCreateArgs = Infer<typeof V.folderCreateArgs>
 export type FolderCreateBasicArgs = Infer<typeof V.folderCreateBasicArgs>
 export type FolderMoveArgs = Infer<typeof V.folderMoveArgs>
-export type FolderCommand = Infer<typeof V.folderCommandValidator>
-export type FolderCommitPlan = Infer<typeof V.folderCommitPlanValidator>
 export type FolderCommitArgs = Infer<typeof V.folderCommitArgs>
 export type FolderCancelArgs = Infer<typeof V.folderCancelArgs>
 export type FolderLockTarget = Infer<typeof V.folderLockTargetValidator>
@@ -229,9 +241,6 @@ export type StorePreviewArgs = Infer<typeof V.storePreviewArgsValidator>
 export type PreviewModelDetailsArgs = Infer<typeof V.previewModelDetailsArgsValidator> // prettier-ignore
 export type RemovedConnectionArgs = Infer<typeof V.removedConnectionArgsValidator> // prettier-ignore
 export type DetailTargetsArgs = Infer<typeof V.detailTargetsArgsValidator>
-export type ProviderDiscovery = Infer<typeof V.providerDiscoveryValidator>
-export type NotificationRequest = Infer<typeof V.notificationRequestValidator>
-export type NotificationRequestState = Infer<typeof V.notificationRequestStateValidator> // prettier-ignore
 export type McpExecutionArgs = Infer<typeof V.mcpExecutionArgsValidator>
 export type DiscoverMcpToolsArgs = Infer<typeof V.discoverMcpToolsArgsValidator>
 export type McpRuntimeArgs = Infer<typeof V.mcpRuntimeArgsValidator>
@@ -283,11 +292,10 @@ export type RestoreChangesResultArgs = Infer<typeof ChangesV.restoreChangesResul
 export type AppendChangesArgs = Infer<typeof ChangesV.appendChangesArgsValidator> // prettier-ignore
 export type ReservePublicationArgs = Infer<typeof ChangesV.reservePublicationArgsValidator> // prettier-ignore
 export type AgentPageArgs = Infer<typeof V.agentPageArgsValidator>
-export type CacheDiagnostic = Infer<typeof ProviderRequestsV.cacheDiagnosticValidator> // prettier-ignore
-export type ProviderContinuityScope = Infer<typeof ProviderRequestsV.providerContinuityScopeValidator> // prettier-ignore
 export type PrepareProviderRequestArgs = Infer<typeof StreamsV.prepareProviderRequestArgsValidator> // prettier-ignore
 export type SaveProviderContinuityArgs = Infer<typeof StreamsV.saveProviderContinuityArgsValidator> // prettier-ignore
 export type RecordCacheDiagnosticArgs = Infer<typeof StreamsV.recordCacheDiagnosticArgsValidator> // prettier-ignore
 export type PrepareCapabilitiesArgs = Infer<typeof V.prepareCapabilitiesArgsValidator> // prettier-ignore
 export type AssertToolAccessArgs = Infer<typeof V.assertToolAccessArgsValidator>
 export type ShellDeliveryPositionArgs = Infer<typeof V.shellDeliveryPositionArgsValidator> // prettier-ignore
+export type SaveAttachmentCursorArgs = Infer<typeof V.saveAttachmentCursorArgs>

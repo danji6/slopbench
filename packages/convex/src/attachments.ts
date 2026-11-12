@@ -2,10 +2,13 @@ import { v } from 'convex/values'
 
 import { internalMutation, internalQuery } from './_generated/server'
 import { authMutation, authQuery } from './functions'
+import * as Cursors from './model/attachmentCursors'
 import * as Attachments from './model/attachments'
 import {
+  attachmentCursorCall,
   confirmAttachmentArgsValidator,
   createGeneratedAttachmentArgsValidator,
+  saveAttachmentCursorArgs,
 } from './validators/attachments'
 
 export const generateUploadUrl = authMutation({
@@ -66,4 +69,19 @@ export const getUrlMap = authQuery({
 export const pruneOrphans = internalMutation({
   args: {},
   handler: Attachments.pruneOrphans,
+})
+
+export const _readCursor = internalQuery({
+  args: attachmentCursorCall.fields,
+  handler: Cursors.read,
+})
+
+export const _saveCursor = internalMutation({
+  args: saveAttachmentCursorArgs.fields,
+  handler: Cursors.save,
+})
+
+export const _pruneCursors = internalMutation({
+  args: {},
+  handler: Cursors.prune,
 })

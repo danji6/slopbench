@@ -44,3 +44,61 @@ export const attachmentFileSchema = v.object({
   byteLength: v.number(),
   shareToken: v.string(),
 })
+
+const attachmentCursorScope = {
+  sessionId: v.id('sessions'),
+  agentId: v.id('agents'),
+  userId: v.id('users'),
+}
+
+export const attachmentCursorPosition = v.object({
+  position: v.number(),
+  line: v.number(),
+  done: v.boolean(),
+})
+
+export const attachmentCursorSettings = v.object({
+  fileId: v.id('attachmentFiles'),
+  storageId: v.id('_storage'),
+  reference: v.string(),
+  pattern: v.optional(v.string()),
+  backward: v.boolean(),
+  limit: v.number(),
+})
+
+export const attachmentCursorSchema = v.object({
+  ...attachmentCursorScope,
+  ...attachmentCursorSettings.fields,
+  ...attachmentCursorPosition.fields,
+  operationId: v.string(),
+  revision: v.number(),
+  expiresAt: v.number(),
+})
+
+export const attachmentCursorReceiptSchema = v.object({
+  ...attachmentCursorScope,
+  messageId: v.id('messages'),
+  callId: v.string(),
+  request: v.string(),
+  operationId: v.string(),
+  page: v.string(),
+  expiresAt: v.number(),
+})
+
+export const attachmentCursorCall = v.object({
+  streamId: v.id('streams'),
+  generation: v.number(),
+  callId: v.string(),
+  request: v.string(),
+  operationId: v.optional(v.string()),
+})
+
+export const saveAttachmentCursorArgs = v.object({
+  ...attachmentCursorCall.fields,
+  next: attachmentCursorPosition,
+  page: v.string(),
+  update: v.union(
+    v.object({ operationId: v.string(), settings: attachmentCursorSettings }),
+    v.object({ revision: v.number() }),
+  ),
+})

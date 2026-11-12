@@ -1,4 +1,4 @@
-import { RippleButton } from '@/components/ui'
+import { RippleButton } from '@/components/ui/ripple-button'
 import { ArrowDownFromLineIcon } from 'lucide-react'
 
 export function LoadFullOutput({

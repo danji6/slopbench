@@ -77,8 +77,8 @@ function attachmentDescriptor(
   return block(
     'attachment',
     readerEnabled
-      ? 'Use read_attachment with this reference to read the file in bounded ranges.'
-      : 'Attachment contents were not loaded.',
+      ? 'Use read_attachment with this reference to read its contents.'
+      : 'Reader unavailable; attachment contents were not loaded.',
     {
       reference: reference ?? 'unavailable',
       filename: attachment.filename,

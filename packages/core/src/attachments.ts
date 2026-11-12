@@ -119,29 +119,32 @@ export function readUtf8Range(
   bytes: Uint8Array,
   requestedOffset: number,
   requestedLimit: number,
+  { fatal = true }: { fatal?: boolean } = {},
 ): Utf8Range {
   let offset = Math.min(Math.max(0, Math.floor(requestedOffset)), bytes.length)
   const limit = Math.max(1, Math.floor(requestedLimit))
-  while (offset < bytes.length && isContinuationByte(bytes[offset]!))
-    offset += 1
+  if (fatal || offset > 0) {
+    while (offset < bytes.length && isUtf8ContinuationByte(bytes[offset]!))
+      offset += 1
+  }
 
   let endOffset = Math.min(bytes.length, offset + limit)
-  while (endOffset > offset && isContinuationByte(bytes[endOffset]!)) {
+  while (endOffset > offset && isUtf8ContinuationByte(bytes[endOffset]!)) {
     endOffset -= 1
   }
   if (endOffset === offset && offset < bytes.length) {
     endOffset += 1
-    while (endOffset < bytes.length && isContinuationByte(bytes[endOffset]!)) {
+    while (
+      endOffset < bytes.length &&
+      isUtf8ContinuationByte(bytes[endOffset]!)
+    ) {
       endOffset += 1
     }
   }
 
-  const content = new TextDecoder('utf-8', { fatal: true }).decode(
-    bytes.subarray(offset, endOffset),
-  )
   const eof = endOffset >= bytes.length
   return {
-    content,
+    content: decodeUtf8Range(bytes, offset, endOffset, fatal),
     offset,
     endOffset,
     nextOffset: eof ? null : endOffset,
@@ -151,6 +154,19 @@ export function readUtf8Range(
   }
 }
 
-function isContinuationByte(byte: number): boolean {
+/** Decodes a range with aligned boundaries, preserving any embedded BOM. */
+export function decodeUtf8Range(
+  bytes: Uint8Array,
+  offset: number,
+  endOffset: number,
+  fatal = true,
+): string {
+  return new TextDecoder('utf-8', {
+    fatal,
+    ignoreBOM: offset > 0,
+  }).decode(bytes.subarray(offset, endOffset))
+}
+
+export function isUtf8ContinuationByte(byte: number): boolean {
   return (byte & 0xc0) === 0x80
 }

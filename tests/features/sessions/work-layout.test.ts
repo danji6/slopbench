@@ -302,6 +302,22 @@ describe('work summaries', () => {
         .label,
     ).toBe('Read 1 file, read attachment')
   })
+
+  test('counts searches, tail reads, and continuations together', () => {
+    const msg = message([
+      tool('read_attachment', 'search', { pattern: 'private pattern' }),
+      tool('read_attachment', 'tail', { from: 'end' }),
+      tool('read_attachment', 'tail-search', {
+        from: 'end',
+        pattern: 'private pattern',
+      }),
+      tool('read_attachment', 'continuation', { operationId: 'private-id' }),
+    ])
+    expect(
+      summarizeWork(layout(msg).work[0], segmentGroupsFor(msg, undefined))
+        .label,
+    ).toBe('Read attachment ×4')
+  })
 })
 
 describe('work visibility and identity', () => {

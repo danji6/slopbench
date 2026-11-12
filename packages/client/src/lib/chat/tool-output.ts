@@ -1,3 +1,4 @@
+import type { ReadAttachmentInput } from '@sb/core/types'
 import type { ToolUIPart } from 'ai'
 
 export type ReadFileOutput = {
@@ -38,6 +39,31 @@ export function parseToolOutput<T extends object>(
 ): T | undefined {
   if (part.state !== 'output-available') return undefined
   return parseOutputValue<T>(part.output)
+}
+
+type AttachmentResult = {
+  kind?: string
+  from?: 'end'
+  offset?: number
+  endOffset?: number
+  content?: string
+  matches?: AttachmentSearchHit[]
+}
+
+export type AttachmentSearchHit = {
+  line?: number
+  lineFromEnd?: number
+  preview: string
+  previewClipped?: boolean
+}
+
+export function attachmentToolActivity(part: ToolUIPart) {
+  const input = part.input as Partial<ReadAttachmentInput> | undefined
+  const output = parseToolOutput<AttachmentResult>(part)
+  const search = output?.kind === 'search' || typeof input?.pattern === 'string'
+  const fromEnd = (output?.from ?? input?.from) === 'end'
+  const action = search ? 'search attachment' : 'read attachment'
+  return { label: fromEnd ? `${action} from end` : action, output }
 }
 
 const EXTENSION_LANGS: Record<string, string> = {

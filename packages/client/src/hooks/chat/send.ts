@@ -211,7 +211,7 @@ async function uploadFiles(
 
 function fileMeta(part: FileUIPart, original: File | undefined): UploadMeta {
   const mediaType =
-    original?.type ?? part.mediaType ?? 'application/octet-stream'
+    original?.type || part.mediaType || 'application/octet-stream'
   const filename =
     original?.name ??
     part.filename ??

@@ -1,6 +1,9 @@
 /// <reference types="bun-types" />
 import { type FileItem, isTextFileItem } from '@/hooks/file-previews'
-import { readTextPreview } from '@/lib/text-file-preview'
+import {
+  readAttachmentTextPreview,
+  readTextPreview,
+} from '@/lib/text-file-preview'
 import { describe, expect, test } from 'bun:test'
 
 function fileItem(
@@ -46,5 +49,17 @@ describe('text file viewer', () => {
       shownBytes: 7,
       truncated: false,
     })
+  })
+
+  test('shows the readable parts of an attachment with malformed UTF-8', async () => {
+    const url = 'data:text/plain,%80first%0Asecond%FF%0Athird'
+    const { signal } = new AbortController()
+
+    expect(await readAttachmentTextPreview(url, signal)).toEqual({
+      text: '�first\nsecond�\nthird',
+      shownBytes: 20,
+      truncated: false,
+    })
+    await expect(readTextPreview(url, signal)).rejects.toBeInstanceOf(TypeError)
   })
 })

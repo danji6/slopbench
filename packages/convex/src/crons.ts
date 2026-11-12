@@ -18,6 +18,12 @@ crons.daily(
 )
 
 crons.interval(
+  'prune expired attachment operations',
+  { hours: 1 },
+  internal.attachments._pruneCursors,
+)
+
+crons.interval(
   'recover expired chat streams',
   { minutes: 1 },
   internal.streams.prune,

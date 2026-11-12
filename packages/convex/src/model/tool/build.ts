@@ -1,3 +1,5 @@
+'use node'
+
 import { ASK_TOOL_NAME } from '@sb/core/const'
 import { READ_ATTACHMENT_TOOL_NAME } from '@sb/core/const'
 import type { WireToolCall } from '@sb/core/tool-dispatch'
@@ -142,6 +144,7 @@ export async function getEnabledTools(
             }
           : undefined,
       planContext,
+      execution: options?.execution,
       mcpApprovals: approvals,
       mcpOperation:
         ctx && options?.execution && options.messageId
@@ -253,6 +256,7 @@ type BuildContext = {
   resources: ToolResources
   workspace?: WorkspaceToolContext
   planContext?: PlanToolContext
+  execution?: StreamExecutionArgs
   mcpFailed?: (
     runtimeId: Id<'mcpRuntimes'>,
     key: string,
@@ -301,7 +305,7 @@ async function createManifestTool(
     case 'web_search':
       return createWebSearchTool(build.resources.settings)
     case READ_ATTACHMENT_TOOL_NAME:
-      return (planContext && (createReadAttachmentTool(planContext.ctx) as Promise<AnyTool>)) // prettier-ignore
+      return (planContext && (createReadAttachmentTool(planContext.ctx, build.execution) as Promise<AnyTool>)) // prettier-ignore
     case 'read_skill':
       return build.skillsContext && createReadSkillTool(build.skillsContext)
     case 'list_skills':

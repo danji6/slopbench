@@ -57,6 +57,8 @@ export async function remove(
     'typing',
     'shellJobs',
     'shellOutputDeliveries',
+    'attachmentCursors',
+    'attachmentCursorReceipts',
     'notifications',
   ] as const
 

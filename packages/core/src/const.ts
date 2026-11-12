@@ -37,7 +37,7 @@ export const READ_ATTACHMENT_TOOL_NAME = 'read_attachment'
 export const LARGE_PASTE_BYTES = 16 * 1024
 
 /** Default and maximum byte windows returned by read_attachment. */
-export const ATTACHMENT_READ_MAX_BYTES = 64 * 1024
+export const ATTACHMENT_READ_MAX_BYTES = 8 * 1024
 export const ATTACHMENT_READ_DEFAULT_BYTES = ATTACHMENT_READ_MAX_BYTES
 
 /** Compact edit_todo statuses mapped to their stored counterparts. */
