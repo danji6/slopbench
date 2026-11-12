@@ -1,3 +1,4 @@
+import { providerForm, providerSaveInput } from '@/lib/provider-settings'
 import { deletePreview, storePreview } from '@sb/convex/model/provider/previews'
 import { ensureConnection, saveProviders } from '@sb/convex/model/provider/save'
 import {
@@ -11,6 +12,59 @@ import { discoveryFingerprint } from '@sb/core/discovery-fingerprint'
 import { modelReference } from '@sb/core/model-reference'
 import { expect, test } from 'bun:test'
 import { providerFixture } from '~/tests/helpers/provider-db'
+
+test('saving an edited model ID updates chat selections for that connection', async () => {
+  const { ctx } = providerFixture()
+  const models = [{ id: 'old' }]
+  const id = await create(ctx, { key: 'openai', enabled: true, models })
+  const other = await create(ctx, {
+    key: 'openai',
+    enabled: true,
+    models: [{ id: 'old' }],
+  })
+  const recent = await ctx.db.insert('settings', {
+    ownerId: ctx.userId,
+    recentModel: modelReference(id, 'old'),
+  })
+  const agentId = await ctx.db.insert('agents', {
+    name: 'Assistant',
+    ownerId: ctx.userId,
+  })
+  async function select(modelId: string) {
+    const sessionId = await ctx.db.insert('sessions', {
+      ownerId: ctx.userId,
+      activeAgentId: agentId,
+      model: { id: modelId },
+    })
+    await ctx.db.insert('sessionAgents', {
+      sessionId,
+      agentId,
+      addedBy: ctx.userId,
+    })
+    return sessionId
+  }
+
+  const selected = await select(modelReference(id, 'old'))
+  const otherSelection = await select(modelReference(other, 'old'))
+  const draft = providerForm((await list(ctx))[0])
+  draft.models[0] = { ...draft.models[0], id: 'new', label: 'New model' }
+
+  await saveProviders(ctx, {
+    connections: [providerSaveInput(draft)],
+    removed: [],
+  })
+
+  expect((await ctx.db.get(selected))?.model).toMatchObject({
+    id: modelReference(id, 'new'),
+    label: 'New model',
+  })
+  expect((await ctx.db.get(otherSelection))?.model?.id).toBe(
+    modelReference(other, 'old'),
+  )
+  expect((await ctx.db.get(recent))?.recentModel).toBe(
+    modelReference(id, 'new'),
+  )
+})
 
 test('global batch save preserves identities and credentials and accepts duplicate default names', async () => {
   const { ctx } = providerFixture()

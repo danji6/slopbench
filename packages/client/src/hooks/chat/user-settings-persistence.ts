@@ -147,6 +147,7 @@ export function useUserSettingsPersistence({
       )!
       return {
         ...row,
+        models: row.models.map((model) => ({ ...model, _savedId: model.id })),
         apiKey: undefined,
         hasKey: row.apiKey !== undefined ? !!row.apiKey : row.hasKey,
         connectionId: saved.providerId,

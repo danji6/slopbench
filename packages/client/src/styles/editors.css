@@ -40,10 +40,6 @@
   @apply leading-7;
 }
 
-.ProseMirror p:not(:first-child) {
-  @apply mt-6;
-}
-
 .ProseMirror blockquote {
   @apply mt-6 border-l-2 pl-6 italic;
 }
@@ -53,11 +49,11 @@
 }
 
 .ProseMirror ul {
-  @apply my-2 ml-6 list-disc;
+  @apply mt-2 ml-6 list-disc;
 }
 
 .ProseMirror ol {
-  @apply my-2 ml-6 list-decimal;
+  @apply mt-2 ml-6 list-decimal;
 }
 
 .ProseMirror li {

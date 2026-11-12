@@ -9,7 +9,9 @@ import type { AuthMutationCtx } from '../../functions'
 import type { EnsureConnectionArgs, SaveProvidersArgs } from '../../types'
 import * as Credentials from '../credentials'
 import * as Providers from '../providers'
+import { refreshForOwner } from '../session/models'
 import { completeDiscovery } from './discoveryState'
+import { addModelRenames } from './modelRenames'
 import { previewModels } from './previews'
 
 type ConnectionInput = SaveProvidersArgs['connections'][number]
@@ -46,6 +48,7 @@ export async function saveProviders(
   args: SaveProvidersArgs,
 ) {
   assertUniqueConnections(args)
+  const renames = new Map<string, string>()
 
   for (const removed of args.removed) {
     const row = await Providers.requireOwned(ctx, removed.providerId)
@@ -56,8 +59,9 @@ export async function saveProviders(
 
   const result = []
   for (const input of args.connections)
-    result.push(await saveConnection(ctx, input))
+    result.push(await saveConnection(ctx, input, renames))
 
+  await refreshForOwner(ctx, ctx.userId, renames)
   return result
 }
 
@@ -67,16 +71,22 @@ async function savedIdentity(ctx: AuthMutationCtx, input: ConnectionInput) {
   return rows.find((row) => row.identityKey === input.clientId)
 }
 
-async function saveConnection(ctx: AuthMutationCtx, input: ConnectionInput) {
+async function saveConnection(
+  ctx: AuthMutationCtx,
+  input: ConnectionInput,
+  renames: Map<string, string>,
+) {
   const {
     clientId,
     providerId: _id,
     previewId,
     configRevision,
+    modelRenames,
     ...fields
   } = input
 
   const saved = await savedIdentity(ctx, input)
+  const previousModels = saved?.models ?? []
   const sameType =
     !saved ||
     (saved.key === fields.key &&
@@ -113,6 +123,9 @@ async function saveConnection(ctx: AuthMutationCtx, input: ConnectionInput) {
     },
     models,
   )
+  if (modelRenames?.length) {
+    addModelRenames(renames, id, previousModels, fields.models, modelRenames)
+  }
   if (!saved) await ctx.db.patch(id, { identityKey: clientId })
   if (previewId) await publishPreview(ctx, id, previewId)
   const row = await ctx.db.get(id)

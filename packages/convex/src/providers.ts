@@ -113,11 +113,7 @@ export const _expireDiscovery = internalMutation({
 
 export const save = authMutation({
   args: V.saveProvidersArgsValidator.fields,
-  handler: async (ctx, args) => {
-    const result = await Save.saveProviders(ctx, args)
-    await SessionModels.refreshForOwner(ctx, ctx.userId)
-    return result
-  },
+  handler: Save.saveProviders,
 })
 
 export const ensureConnection = authMutation({

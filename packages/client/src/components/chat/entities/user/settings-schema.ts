@@ -89,6 +89,7 @@ export const modelEntrySchema = z
   .object({
     id: z.string(),
     _clientId: z.string().optional(),
+    _savedId: z.string().optional(),
     label: z.string().optional(),
     contextWindow: z.number().optional(),
     reasoning: z

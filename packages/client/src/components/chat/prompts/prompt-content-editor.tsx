@@ -139,10 +139,7 @@ export function PromptContentEditor({
         )}
       >
         <FullscreenEditor.Toolbar />
-        <EditorScrollArea
-          className="pr-6! [&_p]:mt-0! [&_p+p]:mt-7!"
-          editor={editor}
-        />
+        <EditorScrollArea className="pr-6!" editor={editor} />
         {completionPopup}
       </div>
     </FullscreenEditor>

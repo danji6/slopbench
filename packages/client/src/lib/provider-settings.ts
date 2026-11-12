@@ -13,12 +13,16 @@ export function providerForm(
     models: connection.models.map((model) => ({
       ...model,
       _clientId: `${connection._id}:${model.id}`,
+      _savedId: model.id,
     })),
   }
 }
 
 export function providerInput(value: ProviderFormValues) {
   const parsed = providerSchema.parse(value)
+  const models = parsed.models.map(
+    ({ _clientId: _, _savedId: _saved, ...model }) => model,
+  )
   return {
     key: parsed.id,
     auth: parsed.auth,
@@ -27,17 +31,23 @@ export function providerInput(value: ProviderFormValues) {
     extraHeaders: parsed.extraHeaders ?? '',
     enabled: parsed.enabled,
     apiKey: parsed.apiKey,
-    models: parsed.models.map(({ _clientId: _, ...model }) => model),
+    models,
   }
 }
 
 export function providerSaveInput(value: ProviderFormValues) {
+  const modelRenames = value.models.flatMap((model) => {
+    const from = model._savedId?.trim()
+    const to = model.id.trim()
+    return from && from !== to ? [{ from, to }] : []
+  })
   return {
     ...providerInput(value),
     clientId: value._clientId ?? value.connectionId!,
     providerId: value.connectionId as Id<'modelProviders'> | undefined,
     configRevision: value.configRevision,
     previewId: value.previewId as Id<'discoveryPreviews'> | undefined,
+    modelRenames: modelRenames.length ? modelRenames : undefined,
   }
 }
 

@@ -45,6 +45,7 @@ export function fakeCtx({
         ),
     eq: (a: unknown, b: unknown) => a === b,
     neq: (a: unknown, b: unknown) => a !== b,
+    and: (...conditions: boolean[]) => conditions.every(Boolean),
   })
 
   const makeQuery = (table: string) => {

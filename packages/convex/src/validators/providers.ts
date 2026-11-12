@@ -159,6 +159,9 @@ export const saveProvidersArgsValidator = v.object({
       providerId: v.optional(v.id('modelProviders')),
       configRevision: v.optional(v.number()),
       previewId: v.optional(v.id('discoveryPreviews')),
+      modelRenames: v.optional(
+        v.array(v.object({ from: v.string(), to: v.string() })),
+      ),
     }),
   ),
   removed: v.array(

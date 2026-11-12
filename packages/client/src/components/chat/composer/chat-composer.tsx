@@ -463,7 +463,7 @@ export function ChatComposer({
                 <ComposerEditor
                   placeholder={placeholder}
                   autoFocus={focusOnMount}
-                  editorClassName="pt-2 [&_p]:mt-0! pr-6! group-data-[fullscreen]/fullscreen:pr-0!"
+                  editorClassName="pt-2 pr-6! group-data-[fullscreen]/fullscreen:pr-0!"
                   onReady={handleEditorReady}
                   handleKeyDown={(_view, event) => handleEditorKeyDown(event)}
                   handlePaste={(_view, event) => handleEditorPaste(event)}

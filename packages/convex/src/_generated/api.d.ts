@@ -193,6 +193,7 @@ import type * as model_provider_mistral_inference from "../model/provider/mistra
 import type * as model_provider_modelDetails from "../model/provider/modelDetails.js";
 import type * as model_provider_modelFactory from "../model/provider/modelFactory.js";
 import type * as model_provider_modelMiddleware from "../model/provider/modelMiddleware.js";
+import type * as model_provider_modelRenames from "../model/provider/modelRenames.js";
 import type * as model_provider_moonshotai_inference from "../model/provider/moonshotai/inference.js";
 import type * as model_provider_ollama_inference from "../model/provider/ollama/inference.js";
 import type * as model_provider_openai_account from "../model/provider/openai/account.js";
@@ -629,6 +630,7 @@ declare const fullApi: ApiFromModules<{
   "model/provider/modelDetails": typeof model_provider_modelDetails;
   "model/provider/modelFactory": typeof model_provider_modelFactory;
   "model/provider/modelMiddleware": typeof model_provider_modelMiddleware;
+  "model/provider/modelRenames": typeof model_provider_modelRenames;
   "model/provider/moonshotai/inference": typeof model_provider_moonshotai_inference;
   "model/provider/ollama/inference": typeof model_provider_ollama_inference;
   "model/provider/openai/account": typeof model_provider_openai_account;

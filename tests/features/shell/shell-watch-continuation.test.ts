@@ -56,13 +56,22 @@ describe('earliestUnconsumedMessage', () => {
   })
 
   test('prefers the earliest of late user messages and reports', async () => {
+    const sender = { type: 'user', id: owner }
     const { ctx } = fakeCtx({
       messages: [
         message({ _id: 'msg_report', _creationTime: 20 }),
+        message({ _id: 'msg_user', _creationTime: 5, sender }),
         message({
-          _id: 'msg_user',
-          _creationTime: 5,
-          sender: { type: 'user', id: owner },
+          _id: 'msg_command',
+          _creationTime: 3,
+          type: 'command',
+          sender,
+        }),
+        message({
+          _id: 'msg_context_reset',
+          _creationTime: 4,
+          type: 'contextReset',
+          sender,
         }),
       ],
     })

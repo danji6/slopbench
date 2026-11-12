@@ -3,6 +3,7 @@ import type { MutationCtx, QueryCtx } from '../../_generated/server'
 import type { ModelSelection } from '../../types'
 import { findModelSelection } from '../provider/providers'
 import { resolve as resolveProviders } from '../providers'
+import { getByOwnerId } from '../settings'
 
 /** Resolves a session selection, preserving unknown model ids. */
 export async function resolveSessionModel(
@@ -16,8 +17,13 @@ export async function resolveSessionModel(
   return findModelSelection(providers, modelId) ?? { id: modelId }
 }
 
-/** Refreshes model metadata for sessions running one of this user's agents. */
-export async function refreshForOwner(ctx: MutationCtx, ownerId: Id<'users'>) {
+/** Refreshes chat model selections after the owner's providers change. */
+export async function refreshForOwner(
+  ctx: MutationCtx,
+  ownerId: Id<'users'>,
+  renames?: ReadonlyMap<string, string>,
+) {
+  if (renames?.size) await refreshRecentModel(ctx, ownerId, renames)
   const providers = await resolveProviders(ctx, ownerId)
 
   const agents = await ctx.db
@@ -34,8 +40,22 @@ export async function refreshForOwner(ctx: MutationCtx, ownerId: Id<'users'>) {
     for (const link of links) {
       const session = await ctx.db.get(link.sessionId)
       if (session?.activeAgentId !== agent._id || !session.model) continue
-      const model = findModelSelection(providers, session.model.id) ?? session.model // prettier-ignore
+      const renamed = renames?.get(session.model.id)
+      const model =
+        findModelSelection(providers, renamed ?? session.model.id) ??
+        (renamed ? { id: renamed } : session.model)
       await ctx.db.patch(session._id, { model })
     }
   }
+}
+
+async function refreshRecentModel(
+  ctx: MutationCtx,
+  ownerId: Id<'users'>,
+  renames: ReadonlyMap<string, string>,
+) {
+  const settings = await getByOwnerId(ctx, ownerId)
+  if (!settings?.recentModel) return
+  const recentModel = renames.get(settings.recentModel)
+  if (recentModel) await ctx.db.patch(settings._id, { recentModel })
 }

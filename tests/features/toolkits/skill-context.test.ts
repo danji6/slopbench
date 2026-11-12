@@ -57,6 +57,7 @@ async function fixture() {
       sessionId,
       invokedBy: 'owner',
       generation: 1,
+      command: { kind: 'invoke' },
       state: { phase: 'streaming', processingMessageId: 'output' },
       skillContextPrepared: true,
       skillToolkitFingerprint: await toolkitSkillFingerprint(

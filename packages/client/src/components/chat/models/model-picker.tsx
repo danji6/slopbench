@@ -7,6 +7,7 @@ import { useModels } from '@/hooks/chat'
 import { useProviderDiscoveryCoordinator } from '@/hooks/chat/provider-discovery'
 import type { UIModel } from '@/lib/chat'
 import { cn } from '@/lib/utils'
+import { parseModelReference } from '@sb/core/model-reference'
 import { useMemo, useState } from 'react'
 
 export type ModelPickerProps = ComboboxTriggerProps & {
@@ -73,14 +74,19 @@ export function ModelPicker({
         <Combobox.DisplayValue placeholder="Select model…">
           {(val) => {
             if (emptyLabel && val === '__empty__') return emptyLabel
-            const m =
-              models.find((candidate) => candidate.id === val) ??
-              (selectedModel?.id === val ? selectedModel : undefined)
-            return m
-              ? `${m.label ?? m.id}${m.available === false ? ' (unavailable)' : ''}`
-              : val
-                ? 'Unavailable model, check your settings'
-                : undefined
+            if (!val) return undefined
+
+            const model = models.find((candidate) => candidate.id === val)
+            if (model) {
+              const label = model.label ?? parseModelReference(val).modelId
+              return model.available === false
+                ? `${label} (unavailable)`
+                : label
+            }
+            if (disabled && selectedModel?.id === val && selectedModel.label) {
+              return selectedModel.label
+            }
+            return 'Unavailable model, check your settings'
           }}
         </Combobox.DisplayValue>
       </Combobox.Trigger>
