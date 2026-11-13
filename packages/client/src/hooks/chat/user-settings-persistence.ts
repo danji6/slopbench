@@ -17,6 +17,7 @@ import {
 import { snapshotTheme } from '@/lib/theme-worker'
 import { api } from '@cv/convex/_generated/api'
 import type { Id } from '@cv/convex/_generated/dataModel'
+import { SOURCE_COLOR } from '@cv/convex/model/defaults'
 import { providerFeatures } from '@cv/core/provider-registry'
 import { useAction, useMutation } from 'convex/react'
 import type { UseFormReturn } from 'react-hook-form'
@@ -57,6 +58,7 @@ export function useUserSettingsPersistence({
     }
     setAvatarCleared(false)
 
+    const themeColor = values.themeColor.toLowerCase()
     await updateSettings({
       patch: {
         displayName: values.displayName,
@@ -81,9 +83,10 @@ export function useUserSettingsPersistence({
         codeBlockLineNumbers: values.codeBlockLineNumbers,
         shell: values.shell.trim(),
         allowInteractiveShells: values.allowInteractiveShells,
-        theme: values.themeColor
-          ? await snapshotTheme(values.themeColor)
-          : undefined,
+        theme:
+          themeColor && themeColor !== SOURCE_COLOR
+            ? await snapshotTheme(themeColor)
+            : null,
         themeMode: values.themeMode,
       },
     })

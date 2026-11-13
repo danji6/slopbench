@@ -10,7 +10,7 @@ export function useSettings(): ResolvedSettings | undefined {
 // TODO debounce the actual db write
 export function useSettingsUpdate() {
   return useMutation(api.settings.update).withOptimisticUpdate(
-    (localStore, { patch }) => {
+    (localStore, { patch: { theme, ...patch } }) => {
       const current = localStore.getQuery(api.settings.get, {})
       if (current !== undefined) {
         localStore.setQuery(
@@ -18,7 +18,8 @@ export function useSettingsUpdate() {
           {},
           {
             ...current,
-            ...(patch as Partial<ResolvedSettings>),
+            ...patch,
+            ...(theme !== undefined && { theme: theme ?? undefined }),
           },
         )
       }

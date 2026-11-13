@@ -6,6 +6,7 @@ import type { SkillCatalogPage, SkillCatalogSlice } from '@cv/core/skills/types'
 export type CatalogRequest = {
   cursor?: string | null
   search?: string
+  exactName?: string
   compact?: boolean
 }
 
@@ -23,11 +24,16 @@ export class CatalogWindow {
     return {
       offset: this.cursor.offset,
       search: this.input.search,
-      limit: this.input.compact ? SKILL_CATALOG_CHARACTERS : SKILL_PAGE_SIZE,
+      exactName: this.input.exactName,
+      limit: this.input.exactName ? 5000 : this.pageLimit(),
       characterBudget: this.input.compact
         ? SKILL_CATALOG_CHARACTERS - 1000
         : undefined,
     }
+  }
+
+  private pageLimit() {
+    return this.input.compact ? SKILL_CATALOG_CHARACTERS : SKILL_PAGE_SIZE
   }
 
   async finish(page?: SkillCatalogSlice): Promise<SkillCatalogPage> {

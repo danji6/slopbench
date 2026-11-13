@@ -11,6 +11,8 @@ import { sessionModeValidator } from './sessionModes'
 import { saveSessionCacheArgsValidator } from './sessions'
 import { toolManifestValidator } from './tools'
 
+const skillAvailabilityValidator = v.object({ skills: v.boolean() })
+
 export const streamStatusValidator = v.union(
   v.literal('pending'),
   v.literal('streaming'),
@@ -152,12 +154,7 @@ export const streamSchema = v.object({
   /** Retry this logical turn without automatically materializing media. */
   omitActiveMedia: v.optional(v.boolean()),
   skillCatalogSource: v.optional(v.string()),
-  skillAvailability: v.optional(
-    v.object({
-      skills: v.boolean(),
-      toolkitSkills: v.boolean(),
-    }),
-  ),
+  skillAvailability: v.optional(skillAvailabilityValidator),
   skillContextPrepared: v.optional(v.boolean()),
   skillToolkitFingerprint: v.optional(v.string()),
   skillContextMessageId: v.optional(v.id('messages')),
@@ -191,12 +188,7 @@ export const prepareCapabilitiesArgsValidator = v.object({
   manifest: toolManifestValidator,
   contextId: v.string(),
   skillCatalogSource: v.optional(v.string()),
-  skillAvailability: v.optional(
-    v.object({
-      skills: v.boolean(),
-      toolkitSkills: v.boolean(),
-    }),
-  ),
+  skillAvailability: v.optional(skillAvailabilityValidator),
 })
 
 export const assertToolAccessArgsValidator = v.object({

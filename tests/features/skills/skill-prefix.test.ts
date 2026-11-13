@@ -1,7 +1,10 @@
 import { rename } from '@cv/convex/model/session/folders'
 import { consumeInterjections } from '@cv/convex/model/stream/lifecycleProgress'
+import { dispatchLanguageModel } from '@cv/convex/model/tool/dispatchTransport'
+import { generateText } from 'ai'
+import { MockLanguageModelV4 } from 'ai/test'
 import { expect, test } from 'bun:test'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { captureRequest } from '~/tests/helpers/provider-request'
@@ -19,6 +22,113 @@ async function writeSkill(
     `---\nname: review\ndescription: ${description}\n---\n${body}`,
   )
 }
+
+test('enabling Skills in an existing chat makes assigned instructions readable through the dispatcher', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'assigned-skill-'))
+  const fixture = skillRequests(root)
+  const previousData = process.env.CHAT_SIDECAR_DATA_DIR
+  process.env.CHAT_SIDECAR_DATA_DIR = path.join(root, 'data')
+  try {
+    await fixture.db.patch('session', { folderId: undefined })
+    fixture.agent.tools = ['read_attachment']
+    fixture.agent.home = { path: root, revision: 1 }
+    const directory = path.join(root, 'skills', 'rewrite')
+    await mkdir(directory, { recursive: true })
+    const instructions =
+      '---\nname: rewrite\ndescription: Revise prose\n---\nInstructions'
+    await writeFile(path.join(directory, 'SKILL.md'), instructions)
+    await fixture.db.insert('agentSkills', {
+      homeId: 'fixture-home',
+      ownerId: 'owner',
+      skillId: 'skill',
+      name: 'rewrite',
+      description: 'Revise prose',
+    })
+
+    const before = (await fixture.nextTurn())!
+    expect(before.toolRuntime!.current.names).toEqual(['read_attachment'])
+    fixture.agent.tools.push('skills')
+    const after = (await fixture.nextTurn('Use rewrite'))!
+    const runtime = after.toolRuntime!
+    expect(runtime.current.names).toEqual([
+      'read_attachment',
+      'list_skills',
+      'read_skill',
+    ])
+    expect(runtime.frozen).toEqual(before.toolRuntime!.frozen)
+    expect(JSON.stringify(after.messages)).toContain('rewrite@agent')
+    expect(JSON.stringify(after.messages)).toContain(
+      'Use read_skill with a skill_id',
+    )
+    const definition = runtime.current.definitions!.find(
+      (tool) => tool.name === 'read_skill',
+    )!
+    const schema = JSON.parse(definition.inputSchema)
+    expect(schema.required).toContain('skill_id')
+    expect(schema.properties).not.toHaveProperty('uri')
+    const catalog = await after.tools.list_skills.execute!({}, {} as never)
+    expect(catalog).toMatchObject({
+      entries: [{ name: 'rewrite', skill_id: 'rewrite@agent' }],
+    })
+    expect(catalog.entries[0]).not.toHaveProperty('path')
+
+    const input = { skill_id: 'rewrite', offset: 0, length: 500 }
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => ({
+        content: [
+          {
+            type: 'tool-call',
+            toolCallId: 'read',
+            toolName: 'call_tool',
+            input: JSON.stringify({ name: 'read_skill', arguments: input }),
+          },
+        ],
+        finishReason: { unified: 'tool-calls', raw: undefined },
+        usage: {
+          inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
+          outputTokens: { total: 1, text: 1, reasoning: 0 },
+        },
+        warnings: [],
+      }),
+    })
+    const result = await generateText({
+      model: await dispatchLanguageModel(model, runtime),
+      prompt: 'Use rewrite',
+      tools: runtime.tools,
+      maxRetries: 0,
+    })
+    expect(result.content.filter((part) => part.type === 'tool-error')).toEqual(
+      [],
+    )
+    expect(result.toolResults).toMatchObject([
+      {
+        toolName: 'read_skill',
+        output: { content: instructions, origin: 'agent' },
+      },
+    ])
+    const read = (resource?: string) =>
+      after.tools.read_skill.execute!(
+        { skill_id: 'rewrite@agent', resource, offset: 0, length: 500 },
+        {} as never,
+      )
+
+    expect(await read()).toMatchObject({ content: instructions })
+
+    await expect(read('../../private.txt')).rejects.toThrow('inside this skill')
+    await symlink(
+      path.join(directory, 'SKILL.md'),
+      path.join(directory, 'link.md'),
+    )
+    await expect(read('link.md')).rejects.toThrow('Symlink')
+    await fixture.db.patch('agent', { disabledSkillIds: ['skill'] })
+    await expect(read()).rejects.toThrow('Agent skill unavailable')
+  } finally {
+    fixture.restore()
+    if (previousData === undefined) delete process.env.CHAT_SIDECAR_DATA_DIR
+    else process.env.CHAT_SIDECAR_DATA_DIR = previousData
+    await rm(root, { recursive: true, force: true })
+  }
+})
 
 test('project edits and discovery toggles append context without rewriting the provider prefix', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'skill-prefix-'))

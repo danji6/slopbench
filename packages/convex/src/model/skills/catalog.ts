@@ -43,7 +43,12 @@ export async function combinedSkillCatalog(
 
   const assigned = []
   if (workspace?.agentHome) {
-    for await (const entry of assignedEntries(ctx, agent, workspace)) {
+    for await (const entry of assignedEntries(
+      ctx,
+      agent,
+      workspace,
+      input.exactName,
+    )) {
       assigned.push(entry)
       if (assigned.length > 5000)
         throw new Error('Assigned skill catalog exceeds 5,000 entries')
@@ -55,6 +60,8 @@ export async function combinedSkillCatalog(
       .map((source) => ({
         root: source.path,
         origin: `Project: ${source.label}`,
+        projectSourceId: source.id,
+        agentDir: workspace?.agentHome?.path,
       })),
     ...toolkits
       .filter((row) => row.skillsEnabled)
@@ -79,6 +86,7 @@ async function* assignedEntries(
   ctx: ActionCtx,
   agent: AgentWithHome,
   workspace: FolderWorkspace,
+  exactName?: string,
 ) {
   let cursor: string | null = null
   while (true) {
@@ -88,14 +96,17 @@ async function* assignedEntries(
         agentId: agent._id,
         paginationOpts: { cursor, numItems: SKILL_PAGE_SIZE },
         enabledOnly: true,
+        ...(exactName && { search: exactName }),
       },
     )
-    const result = await assignedMetadata(
-      agent,
-      workspace,
-      page.page.map((row) => row.name),
-    )
-    for (const entry of result.entries) yield { ...entry, origin: 'Agent' }
+    const names = page.page.map((row) => row.name)
+    const selected = exactName
+      ? names.filter((name) => name === exactName)
+      : names
+    if (selected.length) {
+      const result = await assignedMetadata(agent, workspace, selected)
+      for (const entry of result.entries) yield { ...entry, origin: 'Agent' }
+    }
     if (page.isDone) return
     cursor = page.continueCursor
   }

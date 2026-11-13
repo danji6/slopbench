@@ -5,6 +5,7 @@ export type CatalogSelection = {
   offset: number
   limit: number
   search?: string
+  exactName?: string
   characterBudget?: number
 }
 
@@ -17,6 +18,7 @@ export function selectCatalog(input: CatalogSelection) {
   const search = input.search?.toLowerCase() ?? ''
 
   function add(entry: SkillCatalogEntry) {
+    if (input.exactName && entry.name !== input.exactName) return
     if (search && !entry.name.toLowerCase().includes(search)) return
     const index = total++
     if (index < input.offset || full) return

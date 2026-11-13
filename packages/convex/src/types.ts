@@ -21,6 +21,7 @@ import type * as McpCatalogsV from './validators/mcpCatalogs'
 import type * as McpOperationsV from './validators/mcpOperations'
 import type * as McpProtocolV from './validators/mcpProtocol'
 import type * as ProviderRequestsV from './validators/providerRequests'
+import type * as SkillsV from './validators/skills'
 import type * as StreamsV from './validators/streams'
 import type * as ToolkitsV from './validators/toolkits'
 
@@ -41,7 +42,6 @@ export type StreamContext = {
   toolApprovals?: ToolApprovals
   agent: AgentWithHome
   hasStoredMcpOutput?: boolean
-  hasToolkitSkills?: boolean
   toolkitContext?: Infer<typeof V.toolkitContextValidator>[]
   toolkitSkillRevision?: string
   invoker: Doc<'users'>
@@ -280,7 +280,9 @@ export type ToolkitSelectionArgs = Infer<typeof ToolkitsV.toolkitSelectionValida
 export type ToolkitListArgs = Infer<typeof ToolkitsV.toolkitListValidator> // prettier-ignore
 export type ToolkitComponentArgs = Infer<typeof ToolkitsV.toolkitComponentValidator> // prettier-ignore
 export type ToolkitMissingArgs = Infer<typeof ToolkitsV.toolkitMissingValidator> // prettier-ignore
-export type ToolkitSkillReadArgs = Infer<typeof ToolkitsV.toolkitSkillReadValidator> // prettier-ignore
+export type SkillReadArgs = Infer<typeof SkillsV.skillReadArgsValidator>
+export type ProjectSkillReadArgs = Infer<typeof SkillsV.projectSkillReadArgsValidator> // prettier-ignore
+export type ToolkitSkillReadArgs = Infer<typeof SkillsV.toolkitSkillReadArgsValidator> // prettier-ignore
 export type ToolkitObservationArgs = Infer<typeof ToolkitsV.toolkitObservationValidator> // prettier-ignore
 export type ToolkitSkillsArgs = Infer<typeof ToolkitsV.toolkitSkillsValidator> // prettier-ignore
 export type FolderPageArgs = Infer<typeof V.folderPageArgs>

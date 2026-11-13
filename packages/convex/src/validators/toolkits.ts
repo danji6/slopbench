@@ -77,14 +77,6 @@ export const toolkitMissingValidator = v.object({
   diagnostic: v.string(),
 })
 
-export const toolkitSkillReadValidator = v.object({
-  streamId: v.id('streams'),
-  generation: v.number(),
-  uri: v.string(),
-  offset: v.number(),
-  length: v.number(),
-})
-
 export const toolkitObservationValidator = v.object({
   acceptedRevision: v.string(),
   streamId: v.id('streams'),

@@ -22,9 +22,7 @@ export function contextDependencies(
     )
   }
   if (type === 'skills') {
-    return names.filter((name) =>
-      ['list_skills', 'read_skill', 'read_file'].includes(name),
-    )
+    return names.filter((name) => ['list_skills', 'read_skill'].includes(name))
   }
   return names
     .filter(

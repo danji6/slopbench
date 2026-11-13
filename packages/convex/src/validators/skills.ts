@@ -1,6 +1,26 @@
 import { paginationOptsValidator } from 'convex/server'
 import { v } from 'convex/values'
 
+import { streamExecutionArgsValidator } from './streams'
+
+export const skillReadArgsValidator = v.object({
+  ...streamExecutionArgsValidator.fields,
+  name: v.string(),
+  resource: v.string(),
+  offset: v.number(),
+  length: v.number(),
+})
+
+export const projectSkillReadArgsValidator = v.object({
+  ...skillReadArgsValidator.fields,
+  sourceId: v.string(),
+})
+
+export const toolkitSkillReadArgsValidator = v.object({
+  ...skillReadArgsValidator.fields,
+  toolkitId: v.string(),
+})
+
 export const verifySkillIdsValidator = v.object({
   skillIds: v.array(v.id('skills')),
 })

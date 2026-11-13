@@ -9,6 +9,14 @@ import { inspectHome } from './agent-files/home-state'
 import { importPage } from './agent-files/import-discovery'
 import { homeInfo, runFileOperation } from './agent-files/operations'
 import {
+  projectSkillReadSchema,
+  readProjectSkill,
+} from './agent-files/read-project-skill'
+import {
+  assignedSkillReadSchema,
+  readAssignedSkill,
+} from './agent-files/read-skill'
+import {
   agentLockSchema,
   catalogSchema,
   homeSchema,
@@ -147,6 +155,16 @@ export function createApp(authenticate: MiddlewareHandler) {
   app.post('/agent-files/metadata', async (c) =>
     c.json(await skillMetadata(catalogSchema.parse(await c.req.json()))),
   )
+
+  app.post('/agent-files/read-skill', async (c) => {
+    const input = assignedSkillReadSchema.parse(await c.req.json())
+    return c.json(await readAssignedSkill(input))
+  })
+
+  app.post('/agent-files/read-project-skill', async (c) => {
+    const input = projectSkillReadSchema.parse(await c.req.json())
+    return c.json(await readProjectSkill(input))
+  })
 
   app.post('/agent-files/verify-library', async (c) =>
     c.json(await verifyLibrary(verifyLibrarySchema.parse(await c.req.json()))),

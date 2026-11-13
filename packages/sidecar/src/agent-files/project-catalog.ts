@@ -1,3 +1,4 @@
+import { isSkillName } from '@cv/core/skills/names'
 import { selectCatalog } from '@cv/core/skills/selection'
 import type {
   SkillCatalogEntry,
@@ -18,6 +19,7 @@ export const projectCatalogSchema = z.object({
   offset: z.number().int().nonnegative(),
   limit: z.number().int().min(0).max(10_000),
   search: z.string().max(64).optional(),
+  exactName: z.string().refine(isSkillName).optional(),
   characterBudget: z.number().int().nonnegative().optional(),
 })
 
@@ -35,7 +37,9 @@ export async function projectSkillCatalog(
 
   try {
     await assertPlainPath(root)
-    const names = await skillDirectories(root)
+    const names = input.exactName
+      ? [input.exactName]
+      : await skillDirectories(root)
     for (const name of names) {
       const entry = await projectEntry(root, name, input.label)
       if (!entry) continue

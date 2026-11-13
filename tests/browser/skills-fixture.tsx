@@ -23,6 +23,7 @@ import {
 export function SkillsFixture() {
   const [view, setView] = useState('agent')
   const [agentId, setAgentId] = useState('fixture-agent' as Id<'agents'>)
+  const [skillAccessEnabled, setSkillAccessEnabled] = useState(true)
   const [tab, setTab] = useState('skills')
   const [operation, setOperation] = useState('')
   return (
@@ -69,6 +70,9 @@ export function SkillsFixture() {
         </button>
         <button onClick={toggleBusySkillAgent}>Toggle busy agent</button>
         <button onClick={shareFixtureHome}>Share fixture folder</button>
+        <button onClick={() => setSkillAccessEnabled((enabled) => !enabled)}>
+          Toggle Skills tool
+        </button>
         <output aria-label="Last operation">{operation}</output>
         {view === 'agent' ? (
           <>
@@ -86,7 +90,10 @@ export function SkillsFixture() {
                   title="Skills"
                   className="flex min-h-0 min-w-0 flex-col overflow-hidden"
                 >
-                  <AgentSkills agentId={agentId} />
+                  <AgentSkills
+                    agentId={agentId}
+                    skillAccessEnabled={skillAccessEnabled}
+                  />
                 </SettingsTabs.Content>
               </SettingsTabs>
             )}

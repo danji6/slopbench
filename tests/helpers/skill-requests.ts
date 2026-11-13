@@ -4,7 +4,11 @@ import { prepare } from '@cv/convex/actions/stream/engineSetup'
 import { prepareChanges } from '@cv/convex/model/changes'
 import { reserveStream } from '@cv/convex/model/chat/reserve'
 import { _save, removeForSession } from '@cv/convex/model/session/cache'
-import { prepareSkillContext } from '@cv/convex/model/skills/context'
+import {
+  assignedSkillAccess,
+  prepareSkillContext,
+  projectSkillAccess,
+} from '@cv/convex/model/skills/context'
 import { assignments } from '@cv/convex/model/skills/endpoints'
 import { prepareCapabilities } from '@cv/convex/model/stream/capabilities'
 import { prepareWorkspaceContext } from '@cv/convex/model/stream/contextNotes'
@@ -14,16 +18,27 @@ import { assertToolAccess } from '@cv/convex/model/tool/liveAccess'
 import { availableToolkits } from '@cv/convex/model/toolkits/access'
 import { executionToolkits } from '@cv/convex/model/toolkits/execution'
 import { observe } from '@cv/convex/model/toolkits/observation'
-import { skillContext } from '@cv/convex/model/toolkits/skills'
+import { skillAccess, skillContext } from '@cv/convex/model/toolkits/skills'
 import type {
   PrepareContextNoteArgs,
   StreamExecutionArgs,
 } from '@cv/convex/types'
+import { skillMetadata } from '@cv/sidecar/agent-files/catalog'
+import {
+  projectSkillReadSchema,
+  readProjectSkill,
+} from '@cv/sidecar/agent-files/read-project-skill'
+import {
+  assignedSkillReadSchema,
+  readAssignedSkill,
+} from '@cv/sidecar/agent-files/read-skill'
+import { catalogSchema } from '@cv/sidecar/agent-files/schemas'
 import {
   toolkitCatalogSchema,
   toolkitSkillCatalog,
 } from '@cv/sidecar/toolkits/catalog'
 import { inspectToolkit } from '@cv/sidecar/toolkits/manifest'
+import { readToolkitSkill, toolkitReadSchema } from '@cv/sidecar/toolkits/read'
 import { getFunctionName } from 'convex/server'
 import { type Value, convexToJson, jsonToConvex } from 'convex/values'
 
@@ -151,8 +166,14 @@ export function skillRequests(root: string) {
           )
         case 'toolkits:_skillContext':
           return skillContext(fixture.ctx, args as StreamExecutionArgs)
+        case 'toolkits:_skillAccess':
+          return skillAccess(fixture.ctx, args as never)
         case 'skills:_agent':
           return agent
+        case 'skills:_assignedSkillAccess':
+          return assignedSkillAccess(fixture.ctx, args as never)
+        case 'skills:_projectSkillAccess':
+          return projectSkillAccess(fixture.ctx, args as never)
         case 'skills:_assignments':
           return assignments(fixture.ctx, args as never)
         default:
@@ -282,7 +303,29 @@ export function skillRequests(root: string) {
       return Response.json(input)
     }
     if (String(url).endsWith('/agent-files/metadata'))
-      return Response.json({ entries: [] })
+      return Response.json(
+        await skillMetadata(
+          catalogSchema.parse(JSON.parse(String(init?.body))),
+        ),
+      )
+    if (String(url).endsWith('/agent-files/read-skill'))
+      return Response.json(
+        await readAssignedSkill(
+          assignedSkillReadSchema.parse(JSON.parse(String(init?.body))),
+        ),
+      )
+    if (String(url).endsWith('/agent-files/read-project-skill'))
+      return Response.json(
+        await readProjectSkill(
+          projectSkillReadSchema.parse(JSON.parse(String(init?.body))),
+        ),
+      )
+    if (String(url).endsWith('/toolkits/read'))
+      return Response.json(
+        await readToolkitSkill(
+          toolkitReadSchema.parse(JSON.parse(String(init?.body))),
+        ),
+      )
     throw new Error(`Unexpected fetch ${String(url)}`)
   }) as typeof fetch
 

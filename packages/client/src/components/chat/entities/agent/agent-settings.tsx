@@ -178,6 +178,8 @@ function AgentSettingsDialog() {
   const loading =
     !!agentId && (liveAgent === undefined || promptSets === undefined)
   const editingAgent = useStableValue(liveAgent, loading)
+  const skillAccessEnabled = editingAgent?.tools?.includes('skills') ?? false
+  const mcpAccessEnabled = editingAgent?.tools?.includes('mcp_access') ?? false
 
   useEffect(() => {
     if (!open || loading) return
@@ -389,6 +391,7 @@ function AgentSettingsDialog() {
                 >
                   <AgentSkills
                     agentId={newAgent ? undefined : (agentId ?? undefined)}
+                    skillAccessEnabled={skillAccessEnabled}
                   />
                 </SettingsTabs.Content>
                 <SettingsTabs.Content
@@ -397,6 +400,8 @@ function AgentSettingsDialog() {
                 >
                   <ToolkitSelection
                     agentId={newAgent ? undefined : (agentId ?? undefined)}
+                    skillAccessEnabled={skillAccessEnabled}
+                    mcpAccessEnabled={mcpAccessEnabled}
                   />
                 </SettingsTabs.Content>
                 <SettingsTabs.Content value="appearance">

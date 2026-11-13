@@ -24,8 +24,12 @@ export async function filesystemToolContext(
 
   if (!session || !agent) error('Not found', 404)
   requireEnabled(session)
-  if (agent.fileOperationId || agent.home?.operationId)
+  if (session.contextLock) {
+    error('Folder sources are being updated', 409)
+  }
+  if (agent.fileOperationId || agent.home?.operationId) {
     error('Personal folder is being updated', 409)
+  }
 
   return { agent, workspace: session.workspace }
 }

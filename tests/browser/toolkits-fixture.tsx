@@ -19,12 +19,24 @@ import {
 /** Exercises production components against a reactive configuration fixture. */
 export function ToolkitsFixture() {
   const [events, setEvents] = useState('')
+  const [skills, setSkills] = useState(true)
+  const [mcp, setMcp] = useState(true)
   return (
     <ConvexProvider client={toolkitsClient}>
       <ConvexQueryCacheProvider>
         <main className="mx-auto flex max-w-3xl flex-col gap-4 p-6">
           <ToolkitSettings />
-          <ToolkitSelection agentId={'agent' as Id<'agents'>} />
+          <ToolkitSelection
+            agentId={'agent' as Id<'agents'>}
+            skillAccessEnabled={skills}
+            mcpAccessEnabled={mcp}
+          />
+          <button onClick={() => setSkills((enabled) => !enabled)}>
+            Toggle Skills tool
+          </button>
+          <button onClick={() => setMcp((enabled) => !enabled)}>
+            Toggle MCP access
+          </button>
           <button onClick={changeManifest}>Change manifest on disk</button>
           <button onClick={observeManifestChanges}>
             Observe manifest changes

@@ -1,4 +1,5 @@
 import { cn, debounce } from '@/lib/utils'
+import { SOURCE_COLOR } from '@cv/convex/model/defaults'
 import { getFormat } from 'colord'
 import { useEffect, useMemo, useState } from 'react'
 import { HexColorPicker } from 'react-colorful'
@@ -59,7 +60,7 @@ export function ThemeColorSetting({
   onChange,
   onClear,
 }: ThemeColorSettingProps) {
-  const [pickerColor, setPickerColor] = useState(value || '#6750a4')
+  const [pickerColor, setPickerColor] = useState(value || SOURCE_COLOR)
 
   const emitColor = useMemo(() => debounce(onChange, 150), [onChange])
   useEffect(() => () => emitColor.cancel(), [emitColor])
@@ -74,7 +75,11 @@ export function ThemeColorSetting({
   const hasColor = !!(value && getFormat(value) === 'hex')
 
   return (
-    <Popover>
+    <Popover
+      onOpenChange={(open) => {
+        if (open) setPickerColor(value || SOURCE_COLOR)
+      }}
+    >
       <Popover.Trigger
         render={
           <RippleButton
@@ -109,7 +114,14 @@ export function ThemeColorSetting({
           <ColorInputRow
             value={pickerColor}
             onColorChange={handleColorPick}
-            onReset={onClear}
+            onReset={
+              onClear &&
+              (() => {
+                emitColor.cancel()
+                setPickerColor(SOURCE_COLOR)
+                onClear()
+              })
+            }
           />
         </div>
       </Popover.Content>

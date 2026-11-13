@@ -1,5 +1,4 @@
 import {
-  parseToolkitSkillUri,
   toolkitWorkspaceSettings,
   validateToolkitManifest,
 } from '@cv/core/types/toolkit'
@@ -66,17 +65,6 @@ test('only toolkit.json is accepted and renaming preserves the manifest revision
   expect((await inspectToolkit(root)).revision).toBe(before.revision)
   await writeFile(legacy, 'invalid old manifest')
   expect((await inspectToolkit(root)).manifest.name).toBe('Existing kit')
-})
-
-test('skill links accept only the toolkit scheme', () => {
-  expect(parseToolkitSkillUri('toolkit://kit/skills/review/SKILL.md')).toEqual({
-    toolkitId: 'kit',
-    name: 'review',
-    resource: 'SKILL.md',
-  })
-  expect(
-    parseToolkitSkillUri('integration://kit/skills/review/SKILL.md'),
-  ).toBeUndefined()
 })
 
 test('minimal and skills-only manifests default name/version without launching commands', async () => {
@@ -266,7 +254,7 @@ test('canonical skill directories merge origins before pagination; distinct copi
     (row) => row.origins?.length === 2,
   )!
   expect(merged.origins).toEqual(['Project: toolkit', 'Toolkit: toolkit'])
-  expect(merged.path).toBe('toolkit://one/skills/review/SKILL.md')
+  expect(merged.skill_id).toBe('review@toolkit:one')
   const removed = await toolkitSkillCatalog({
     sources: sources.slice(1),
     assigned: [],
@@ -408,7 +396,7 @@ test('deduplication also merges assigned copies of the same canonical directory'
       {
         name: 'review',
         description: 'Review evidence',
-        path: 'agent://skills/review/SKILL.md',
+        path: path.join(root, '.agents/skills/review/SKILL.md'),
         canonicalDirectory: path.join(root, '.agents/skills/review'),
         origin: 'Agent',
       },

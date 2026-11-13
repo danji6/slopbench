@@ -14,10 +14,15 @@ export function useNotificationPreferences() {
   const settings = useQuery(api.settings.get, {})
 
   const update = useMutation(api.settings.update).withOptimisticUpdate(
-    (store, { patch }) => {
+    (store, { patch: { desktopNotifications } }) => {
       const settings = store.getQuery(api.settings.get, {})
-      if (settings)
-        store.setQuery(api.settings.get, {}, { ...settings, ...patch })
+      if (settings && desktopNotifications !== undefined) {
+        store.setQuery(
+          api.settings.get,
+          {},
+          { ...settings, desktopNotifications },
+        )
+      }
     },
   )
 

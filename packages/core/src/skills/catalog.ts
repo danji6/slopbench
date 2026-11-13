@@ -12,7 +12,8 @@ export function compactDescription(value: string) {
 
 export function catalogEntryText(entry: SkillCatalogEntry) {
   const name = entry.origin ? `${entry.name} [${entry.origin}]` : entry.name
-  return entry.error
-    ? `- ${name}: unavailable (${compactDescription(entry.error)}).`
-    : `- ${name}: ${compactDescription(entry.description)}\n  ${entry.path}`
+  if (entry.error)
+    return `- ${name}: unavailable (${compactDescription(entry.error)}).`
+  const description = `- ${name}: ${compactDescription(entry.description)}`
+  return entry.skill_id ? `${description}\n  ${entry.skill_id}` : description
 }

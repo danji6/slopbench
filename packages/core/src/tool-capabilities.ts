@@ -92,7 +92,7 @@ export const TOOL_CAPABILITIES = [
   {
     name: 'skills',
     label: 'Skills',
-    description: 'Discover selected skills and read toolkit instructions.',
+    description: 'Make use of available skills.',
     category: 'mcp-skills',
     tools: ['list_skills', 'read_skill'],
     requiresAdmin: true,

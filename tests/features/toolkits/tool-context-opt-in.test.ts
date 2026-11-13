@@ -85,23 +85,49 @@ test('reset removes automatic disabled-feature notes from provider history while
   }
 })
 
-test('project skill discovery stays opt-in to the Skills capability and does not imply Read files', async () => {
+test('project skills can be read with Skills alone while their source is enabled', async () => {
   const root = await rootWithSkill()
   const f = skillRequests(root)
   try {
     f.rows('sessionCache').splice(0)
     f.agent.tools = ['skills']
     const request = (await f.nextTurn())!
-    expect(request.toolRuntime!.current.names).toEqual(['list_skills'])
+    expect(request.toolRuntime!.current.names).toEqual([
+      'list_skills',
+      'read_skill',
+    ])
     const text = JSON.stringify(request.messages)
     expect(text).toContain('Review this project')
     expect(text).not.toContain('Use read_file')
-    expect(text).not.toContain('Use read_skill')
+    expect(text).toContain('review@project:root')
+    expect(
+      await request.tools.list_skills.execute!({}, {} as never),
+    ).toMatchObject({
+      entries: [{ name: 'review', skill_id: 'review@project:root' }],
+    })
     expect(
       f.rows('messages').filter((row) => row.type === 'workspace'),
     ).toHaveLength(0)
     const note = f.rows('messages').find((row) => row.type === 'skills')!
-    expect(note.extra).toMatchObject({ capabilities: ['list_skills'] })
+    expect(note.extra).toMatchObject({
+      capabilities: ['list_skills', 'read_skill'],
+    })
+    const read = (skill_id: string, resource?: string) =>
+      request.tools.read_skill.execute!(
+        { skill_id, resource, offset: 0, length: 500 },
+        {} as never,
+      )
+    expect(await read('review')).toMatchObject({
+      content: expect.stringContaining('Instructions'),
+      origin: 'project',
+    })
+    await expect(
+      read('review@project:root', '../../../outside'),
+    ).rejects.toThrow('inside this skill')
+    f.folder.sources[0]!.discoverSkills = false
+    await expect(read('review@project:root')).rejects.toThrow(
+      'Project skill unavailable',
+    )
   } finally {
     f.restore()
     await rm(root, { recursive: true, force: true })
@@ -181,12 +207,49 @@ test('a linked skills-only toolkit exposes its reader through Skills without fil
       'read_skill',
     ])
     expect(JSON.stringify(request.messages)).toContain(
-      `toolkit://${toolkitId}/skills/review/SKILL.md`,
+      `review@toolkit:${toolkitId}`,
     )
+    expect(
+      await request.tools.read_skill.execute!(
+        {
+          skill_id: `review@toolkit:${toolkitId}`,
+          offset: 0,
+          length: 500,
+        },
+        {} as never,
+      ),
+    ).toMatchObject({ origin: 'toolkit' })
     expect(JSON.stringify(request.messages)).not.toContain('Use read_file')
     expect(
       f.rows('messages').filter((row) => row.type === 'workspace'),
     ).toHaveLength(0)
+    const project = path.join(root, 'other-project')
+    const skill = path.join(project, '.agents/skills/review')
+    await mkdir(skill, { recursive: true })
+    await writeFile(
+      path.join(skill, 'SKILL.md'),
+      '---\nname: review\ndescription: Project review\n---\nProject instructions',
+    )
+    await writeFile(path.join(skill, 'details.txt'), 'Project details')
+    f.folder.sources.push({
+      id: 'other',
+      path: project,
+      label: 'Other project',
+      discoverSkills: true,
+    })
+    const read = (skill_id: string, resource?: string) =>
+      request.tools.read_skill.execute!(
+        { skill_id, resource, offset: 0, length: 500 },
+        {} as never,
+      )
+    await expect(read('review')).rejects.toThrow('More than one skill is named')
+    expect(await read(`review@toolkit:${toolkitId}`)).toMatchObject({
+      origin: 'toolkit',
+    })
+    expect(await read('review@project:other', 'details.txt')).toMatchObject({
+      content: 'Project details',
+      origin: 'project',
+    })
   } finally {
     f.restore()
     await rm(root, { recursive: true, force: true })

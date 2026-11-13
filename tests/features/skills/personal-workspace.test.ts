@@ -52,14 +52,16 @@ test('catalog discovery exposes continuation and omits unavailable instructions'
       {
         name: 'review',
         description: 'Review code',
-        path: 'agent://skills/review/SKILL.md',
+        path: '/private/skills/review/SKILL.md',
+        skill_id: 'review@agent',
       },
       { name: 'broken', description: '', path: '', error: 'Missing SKILL.md' },
     ],
     cursor: 'next-page',
     isDone: false,
   })
-  expect(note).toContain('agent://')
+  expect(note).toContain('review@agent')
+  expect(note).not.toContain('/private/skills')
   expect(note).toContain('list_skills')
   expect(note).toContain('next-page')
   expect(note).toContain('broken: unavailable')

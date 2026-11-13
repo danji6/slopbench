@@ -15,7 +15,7 @@ export function SkillVerification({ disabled }: { disabled: boolean }) {
           ? 'Checking skills…'
           : verification.phase === 'removing'
             ? 'Removing missing skills…'
-            : 'Check installed skills'}
+            : 'Run diagnostics'}
       </RippleButton>
       {verification.message && (
         <p role="status" className="text-muted-foreground text-sm">

@@ -238,7 +238,7 @@ test('provider preparation refreshes toolkit notes within a turn and preserves s
       first.messages.slice(0, -1),
     )
     expect(JSON.stringify(second.messages.at(-1))).toContain(
-      `toolkit://${toolkitId}/skills/review/SKILL.md`,
+      `review@toolkit:${toolkitId}`,
     )
     const notes = structuredClone(f.rows('messageContents'))
     expect(notes.slice(0, initialNotes.length)).toEqual(initialNotes)

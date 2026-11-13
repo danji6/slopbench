@@ -174,7 +174,6 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
         skillCatalogSource: availability.source,
         skillAvailability: {
           skills: !!availability.skills,
-          toolkitSkills: !!availability.toolkitSkills,
         },
       },
     )

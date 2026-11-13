@@ -11,7 +11,7 @@ import {
   getConfig,
   projectRoot,
 } from './runner/config'
-import { deriveAdminKey } from './runner/convex'
+import { convexBackendEnvironment, deriveAdminKey } from './runner/convex'
 import { loadEnvFile } from './runner/env-file'
 import { bunx } from './runner/processes'
 import { rebuildDataDirectory } from './runner/prune-data'
@@ -133,7 +133,7 @@ async function withBackend(config: RunnerConfig, fn: () => Promise<void>) {
     cwd: config.projectRoot,
     env: {
       ...process.env,
-      DOCUMENT_RETENTION_DELAY: config.convexDocumentRetentionDelay,
+      ...convexBackendEnvironment(config),
     },
     stdin: 'ignore',
     stdout: 'ignore',

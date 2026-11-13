@@ -1,15 +1,10 @@
 import { z } from 'zod'
 
-import { SKILL_NAME_SOURCE } from '../skills/names'
 import { mcpConnectionSchema } from './mcp'
 import type { McpServer } from './mcp'
 
 export const MAX_TOOLKITS = 32
 export const MAX_TOOLKIT_MANIFEST_BYTES = 128 * 1024
-
-const TOOLKIT_SKILL_URI = new RegExp(
-  `^toolkit://([^/]+)/skills/(${SKILL_NAME_SOURCE})/(.+)$`,
-)
 
 type WorkspaceSettings = Pick<McpServer, 'cwd' | 'args' | 'env'>
 
@@ -45,13 +40,6 @@ export type ToolkitSnapshot = {
   revision: string
   manifest: ToolkitManifest
   diagnostics: string[]
-}
-
-/** Parses a skill resource URI without resolving or reading its contents. */
-export function parseToolkitSkillUri(value: string) {
-  const match = TOOLKIT_SKILL_URI.exec(value)
-  if (!match) return undefined
-  return { toolkitId: match[1], name: match[2], resource: match[3] }
 }
 
 /** Rejects unknown launch settings while allowing descriptive extension fields. */

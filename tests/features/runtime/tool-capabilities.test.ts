@@ -46,7 +46,6 @@ function input(
     spawnableAgents: [{ name: 'Research' }],
     availability: {
       skills: true,
-      toolkitSkills: true,
       storedMcpOutput: true,
     },
     ...extra,
@@ -122,14 +121,14 @@ test('selected MCP access distinguishes missing, undiscovered, empty, and stored
   expect(manifest([], { storedMcpOutput: true })).toEqual(['read_mcp_output'])
 })
 
-test('skills require real valid entries and toolkit readers require the toolkit origin', () => {
+test('skill tools require a readable catalog entry', () => {
   expect(
     resolveToolManifest(input(['skills'], { availability: {} })).names,
   ).toEqual([])
   expect(
     resolveToolManifest(input(['skills'], { availability: { skills: true } }))
       .names,
-  ).toEqual(['list_skills'])
+  ).toEqual(['list_skills', 'read_skill'])
   expect(resolveToolManifest(input(['skills'])).names).toEqual([
     'list_skills',
     'read_skill',

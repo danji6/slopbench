@@ -145,7 +145,6 @@ export async function _getContext(
     ),
     toolkitSkillRevision: await toolkitSkillFingerprint(toolkits),
     toolkitCount: toolkits.length,
-    hasToolkitSkills: toolkits.some((row) => row.skillsEnabled),
     hasStoredMcpOutput:
       invocation && agent.tools?.includes('mcp_access')
         ? await hasStoredMcpOutput(ctx, session._id, agent)

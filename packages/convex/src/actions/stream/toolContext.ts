@@ -105,16 +105,17 @@ async function prepareSkills(
 ) {
   const page = availability?.catalog
   const capabilities = contextDependencies('skills', names)
+  const content = page && names.includes('list_skills') ? catalogNote(page, names) : '' // prettier-ignore
   return ctx.runMutation(internal.streams._prepareSkillContext, {
     ...execution,
     contextId,
     capabilities,
     fingerprint: await sha256(
-      JSON.stringify([page?.fingerprint ?? 'disabled', capabilities]),
+      JSON.stringify([page?.fingerprint ?? 'disabled', capabilities, content]),
     ),
     toolkitFingerprint: page?.toolkitFingerprint,
     content:
-      (page && names.includes('list_skills') ? catalogNote(page, names) : '') ||
+      content ||
       'No skills are currently available. Earlier skill catalogs no longer apply.',
   })
 }

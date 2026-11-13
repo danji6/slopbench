@@ -37,6 +37,7 @@ export async function capabilitySource(data: StreamContext): Promise<string> {
 /** Invalidates skill scans only for configuration that can change the catalog. */
 export function skillCatalogSource(data: StreamContext): string {
   return stableStringify([
+    'skill-ids',
     data.agent.tools,
     data.invoker.role,
     data.agent.disabledSkillIds,

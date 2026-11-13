@@ -134,11 +134,9 @@ export async function getEnabledTools(
       resources: resources ?? EMPTY_TOOL_RESOURCES,
       workspace,
       skillsContext:
-        ctx && options?.agentId && session
+        ctx && options?.execution
           ? {
               ctx,
-              agentId: options.agentId,
-              workspace: session.workspace,
               execution: options.execution,
               toolNames: manifest.names,
             }

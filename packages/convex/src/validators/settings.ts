@@ -78,7 +78,10 @@ export const settingsMutableFields = {
   recentWorkspaces: v.optional(v.array(v.string())),
 }
 
-export const settingsPatchArgsValidator = v.object(settingsMutableFields)
+export const settingsPatchArgsValidator = v.object({
+  ...settingsMutableFields,
+  theme: v.optional(v.union(themeSnapshotValidator, v.null())),
+})
 
 /**
  * The settings field that was requested to be cleared. Needed because Convex

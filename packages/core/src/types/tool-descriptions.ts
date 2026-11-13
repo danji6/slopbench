@@ -118,6 +118,10 @@ const skills = inline`
   skill name or cursor to continue a page. Read the chosen SKILL.md before
   following its instructions.`
 
+const read_skill = inline`
+  Read SKILL.md or a bundled text resource from an available skill. Read
+  SKILL.md before following related instructions.`
+
 const get_tool =
   'Read the current description and complete input schema of an enabled tool.'
 
@@ -172,6 +176,7 @@ export const TOOL_DESCRIPTIONS = {
   ask,
   task,
   skills,
+  read_skill,
   get_tool,
   call_tool,
   search_mcp_tools,

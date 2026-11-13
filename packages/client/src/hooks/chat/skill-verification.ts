@@ -34,13 +34,13 @@ export function useSkillVerification() {
       setMissing(missing)
       const result = missing.length
         ? `${missing.length} skills have missing data.`
-        : 'All checked skills are available.'
+        : 'No issues found.'
       const busy = skipped
-        ? ` ${skipped} busy skills were skipped; check again when their operations finish.`
+        ? ` ${skipped} busy skills were skipped. Try again when their operations finish.`
         : ''
       setMessage(`Checked ${checked} skills. ${result}${busy}`)
     } catch (error) {
-      setMessage('The check could not finish. No skills were removed.')
+      setMessage('Refresh failed.')
       setError(extractErrorMessage(error))
     } finally {
       setPhase(undefined)

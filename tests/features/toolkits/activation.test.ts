@@ -53,7 +53,9 @@ test('unlinking revokes selected agents and queues teardown of live connections'
   await expect(
     skillAccess(f.ctx, {
       ...f.execution,
-      uri: `toolkit://${f.toolkitId}/skills/review/SKILL.md`,
+      toolkitId: f.toolkitId,
+      name: 'review',
+      resource: 'SKILL.md',
       offset: 0,
       length: 100,
     }),
@@ -261,7 +263,9 @@ test('read_skill rechecks role, selection and component controls without grantin
   })
   const input = {
     ...f.execution,
-    uri: `toolkit://${f.toolkitId}/skills/review/SKILL.md`,
+    toolkitId: f.toolkitId,
+    name: 'review',
+    resource: 'SKILL.md',
     offset: 0,
     length: 100,
   }

@@ -23,6 +23,7 @@
     "format": "prettier --write",
     "barrels": "barrelsby -c ./barrels.json",
     "gen:icons": "node scripts/misc/generate-icons-data.mjs",
+    "gen:theme": "bun --no-env-file scripts/generate-theme.ts",
     "server": "bun scripts/sidecar.ts",
     "tests": "bun --no-env-file scripts/test.ts",
     "test:all": "bun --no-env-file scripts/test.ts all",

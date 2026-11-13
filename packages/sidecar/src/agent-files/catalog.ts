@@ -1,4 +1,5 @@
 import { realpath } from 'node:fs/promises'
+import path from 'node:path'
 import type { z } from 'zod'
 
 import { withAgentFiles } from './access'
@@ -17,7 +18,7 @@ export async function skillMetadata(input: z.infer<typeof catalogSchema>) {
     const entries = []
     for (const name of input.names) {
       const absolutePath = skillCopy(home, name)
-      const relativePath = `agent://skills/${name}/SKILL.md`
+      const filename = path.join(absolutePath, 'SKILL.md')
       try {
         const metadata = await readSkillCatalogMetadata(absolutePath)
         if (metadata.name !== name) {
@@ -26,13 +27,13 @@ export async function skillMetadata(input: z.infer<typeof catalogSchema>) {
         entries.push({
           ...metadata,
           canonicalDirectory: await realpath(absolutePath),
-          path: relativePath,
+          path: filename,
         })
       } catch (error) {
         entries.push({
           name,
           description: '',
-          path: relativePath,
+          path: filename,
           error: metadataError(error),
         })
       }

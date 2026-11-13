@@ -22,7 +22,6 @@ export async function prepareToolAvailability(
   const availability: PreparedAvailability = {
     source,
     skills: false,
-    toolkitSkills: false,
     storedMcpOutput: data.hasStoredMcpOutput,
   }
 
@@ -50,14 +49,9 @@ export async function prepareToolAvailability(
 
   availability.catalog = catalog
 
-  const found = catalog.availability ?? {
-    skills: catalog.entries.some((entry) => !entry.error),
-    toolkitSkills: catalog.entries.some(
-      (entry) => !entry.error && entry.path.startsWith('toolkit://'),
-    ),
-  }
-
-  Object.assign(availability, found)
+  availability.skills =
+    catalog.availability?.skills ??
+    catalog.entries.some((entry) => !entry.error)
 
   return availability
 }

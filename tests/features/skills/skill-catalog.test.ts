@@ -61,7 +61,7 @@ async function catalogFixture(
       entries: names.map((name) => ({
         name,
         description: 'A workflow description. '.repeat(5),
-        path: `agent://skills/${name}/SKILL.md`,
+        path: `/home/skills/${name}/SKILL.md`,
       })),
     })
   }) as typeof fetch

@@ -96,8 +96,9 @@ async function currentManifest(
       args.name === 'task' ? await resolveSpawnableAgents(ctx, agent) : [],
     defaultShell: args.manifest.shell,
     availability: {
-      skills: args.manifest.names.includes('list_skills'),
-      toolkitSkills: args.manifest.names.includes('read_skill'),
+      skills:
+        args.manifest.names.includes('list_skills') ||
+        args.manifest.names.includes('read_skill'),
       storedMcpOutput: args.manifest.names.includes('read_mcp_output'),
     },
   })

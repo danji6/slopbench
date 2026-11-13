@@ -4,6 +4,7 @@ import { v } from 'convex/values'
 import { internalMutation, internalQuery } from './_generated/server'
 import { authMutation, authQuery } from './functions'
 import * as Completion from './model/skills/completion'
+import { assignedSkillAccess, projectSkillAccess } from './model/skills/context'
 import * as Endpoints from './model/skills/endpoints'
 import { claimExecution } from './model/skills/execution'
 import * as Homes from './model/skills/homes'
@@ -29,10 +30,12 @@ import {
   continueSkillImportArgsValidator,
   finishSkillImportArgsValidator,
   prepareSkillImportArgsValidator,
+  projectSkillReadArgsValidator,
   removeMissingSkillArgsValidator,
   setSkillEnabledArgsValidator,
   skillAssignmentsArgsValidator,
   skillListArgsValidator,
+  skillReadArgsValidator,
   verifySkillIdsValidator,
 } from './validators/skills'
 
@@ -127,6 +130,16 @@ export const _assignments = internalQuery({
 export const _agent = internalQuery({
   args: { agentId: v.id('agents') },
   handler: Endpoints.agent,
+})
+
+export const _assignedSkillAccess = internalQuery({
+  args: skillReadArgsValidator,
+  handler: assignedSkillAccess,
+})
+
+export const _projectSkillAccess = internalQuery({
+  args: projectSkillReadArgsValidator,
+  handler: projectSkillAccess,
 })
 
 export const _complete = internalMutation({

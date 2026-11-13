@@ -1,5 +1,38 @@
 import { expect, test } from '@playwright/test'
 
+test('agent toolkit warnings identify each disabled capability', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=toolkits')
+  const skillsWarning = page.getByText(
+    'Toolkit skills are off for this agent.',
+    {
+      exact: false,
+    },
+  )
+  const mcpWarning = page.getByText(
+    'Toolkit MCP tools are off for this agent.',
+    {
+      exact: false,
+    },
+  )
+  const skills = page.getByRole('button', { name: 'Toggle Skills tool' })
+  const mcp = page.getByRole('button', { name: 'Toggle MCP access' })
+  await expect(skillsWarning).toHaveCount(0)
+  await expect(mcpWarning).toHaveCount(0)
+  await skills.click()
+  await expect(skillsWarning).toBeVisible()
+  await expect(mcpWarning).toHaveCount(0)
+  await mcp.click()
+  await expect(skillsWarning).toBeVisible()
+  await expect(mcpWarning).toBeVisible()
+  await skills.click()
+  await expect(skillsWarning).toHaveCount(0)
+  await expect(mcpWarning).toBeVisible()
+  await mcp.click()
+  await expect(mcpWarning).toHaveCount(0)
+})
+
 test('agent toolkit actions handle failed saves and long names without horizontal overflow', async ({
   page,
 }) => {

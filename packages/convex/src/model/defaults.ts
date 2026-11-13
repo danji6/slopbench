@@ -8,8 +8,8 @@ import type { ContextOptions } from '../types'
 import type { MathMode } from '../types'
 import type { WebSearchInstance } from '../types'
 
-// sourceColor copied from globals.css :root --md-source
-export const SOURCE_COLOR = '#8a771d'
+// Updated with the CSS palettes by bun run gen:theme.
+export const SOURCE_COLOR = '#30275e'
 
 export const DEFAULT_COMPACTION_PROMPT = inline`
 Your task for this turn is to create a complete summary of the entire

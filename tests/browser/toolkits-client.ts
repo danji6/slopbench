@@ -251,7 +251,8 @@ const client = {
           {
             name: 'review',
             description: 'Review evidence',
-            path: 'toolkit://toolkit/skills/review/SKILL.md',
+            path: '/fixture/toolkit/.agents/skills/review/SKILL.md',
+            skill_id: 'review@toolkit:toolkit',
           },
         ],
         total: 1,

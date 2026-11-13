@@ -269,6 +269,7 @@ import type * as model_skills_operationArgs from "../model/skills/operationArgs.
 import type * as model_skills_operations from "../model/skills/operations.js";
 import type * as model_skills_preferences from "../model/skills/preferences.js";
 import type * as model_skills_preparation from "../model/skills/preparation.js";
+import type * as model_skills_read from "../model/skills/read.js";
 import type * as model_skills_removal from "../model/skills/removal.js";
 import type * as model_skills_runtime from "../model/skills/runtime.js";
 import type * as model_skills_skillListing from "../model/skills/skillListing.js";
@@ -706,6 +707,7 @@ declare const fullApi: ApiFromModules<{
   "model/skills/operations": typeof model_skills_operations;
   "model/skills/preferences": typeof model_skills_preferences;
   "model/skills/preparation": typeof model_skills_preparation;
+  "model/skills/read": typeof model_skills_read;
   "model/skills/removal": typeof model_skills_removal;
   "model/skills/runtime": typeof model_skills_runtime;
   "model/skills/skillListing": typeof model_skills_skillListing;

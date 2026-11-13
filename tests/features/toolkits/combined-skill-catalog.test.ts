@@ -69,7 +69,7 @@ test('combined catalogs preserve origins, page across sources, and reject stale 
       entries: await Promise.all(
         input.names.map(async (name: string) => ({
           ...(await readSkillMetadata(path.join(home, 'skills', name))),
-          path: `agent://skills/${name}/SKILL.md`,
+          path: path.join(home, 'skills', name, 'SKILL.md'),
         })),
       ),
     })

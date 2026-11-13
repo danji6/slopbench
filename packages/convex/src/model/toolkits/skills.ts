@@ -1,5 +1,3 @@
-import { parseToolkitSkillUri } from '@cv/core/types/toolkit'
-
 import type { QueryCtx } from '../../_generated/server'
 import { error } from '../../errors'
 import { requireRole } from '../../functions'
@@ -11,7 +9,7 @@ import { requireEnabled } from '../session/memberships'
 import { filesystemToolContext } from '../tool/filesystemContext'
 import { availableToolkits } from './access'
 
-/** Resolves a read-only URI through current session, role and component policy. */
+/** Resolves a toolkit skill through current session, role and component policy. */
 export async function skillAccess(ctx: QueryCtx, args: ToolkitSkillReadArgs) {
   const stream = await requireExecution(ctx, args)
   const invoker = await ctx.db.get(stream.invokedBy)
@@ -24,21 +22,19 @@ export async function skillAccess(ctx: QueryCtx, args: ToolkitSkillReadArgs) {
   if (!session) error('Skill session unavailable', 404)
   requireEnabled(session)
 
-  const uri = parseToolkitSkillUri(args.uri)
-  if (!uri) error('Invalid toolkit skill URI', 400)
-
+  const { toolkitId, name, resource, offset, length } = args
   const rows = await availableToolkits(ctx, stream.agentId, stream.sessionId)
-  const row = rows.find((row) => row._id === uri.toolkitId)
-  if (!row?.skillsEnabled || row.disabledSkills.includes(uri.name))
+  const row = rows.find((row) => row._id === toolkitId)
+  if (!row?.skillsEnabled || row.disabledSkills.includes(name))
     error('Toolkit skill unavailable', 403)
 
   return {
     root: row.root,
     revision: row.revision,
-    name: uri.name,
-    resource: uri.resource,
-    offset: args.offset,
-    length: args.length,
+    name,
+    resource,
+    offset,
+    length,
   }
 }
 

@@ -4,6 +4,30 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/?fixture=skills')
 })
 
+test('the agent Skills tab warns when the Skills tool is off', async ({
+  page,
+}) => {
+  const warning = page.getByText(
+    'Skill access is currently off for this agent.',
+    {
+      exact: false,
+    },
+  )
+  const toggle = page.getByRole('button', { name: 'Toggle Skills tool' })
+  await expect(warning).toHaveCount(0)
+  await toggle.click()
+  await expect(warning).toBeVisible()
+  await expect(page.getByRole('list', { name: 'Agent skills' })).toBeVisible()
+  await page.getByRole('button', { name: 'Skill library' }).click()
+  await expect(warning).toHaveCount(0)
+  await page
+    .getByRole('button', { name: 'Agent settings', exact: true })
+    .click()
+  await expect(warning).toBeVisible()
+  await toggle.click()
+  await expect(warning).toHaveCount(0)
+})
+
 test('skill toggles persist per agent while sharing assignments and leaving the library unchanged', async ({
   page,
 }) => {

@@ -11,6 +11,7 @@ import { select as selectToolkit } from './model/toolkits/selection'
 import * as Settings from './model/toolkits/settings'
 import { skillAccess, skillContext } from './model/toolkits/skills'
 import * as Views from './model/toolkits/views'
+import { toolkitSkillReadArgsValidator } from './validators/skills'
 import { streamExecutionArgsValidator } from './validators/streams'
 import {
   toolkitComponentValidator,
@@ -21,7 +22,6 @@ import {
   toolkitPublishValidator,
   toolkitSelectionValidator,
   toolkitSettingsValidator,
-  toolkitSkillReadValidator,
 } from './validators/toolkits'
 
 export const list = authQuery({
@@ -76,7 +76,7 @@ export const sources = authQuery({
 })
 
 export const _skillAccess = internalQuery({
-  args: toolkitSkillReadValidator,
+  args: toolkitSkillReadArgsValidator,
   handler: skillAccess,
 })
 

@@ -31,29 +31,34 @@ export async function getByOwnerId(
   ctx: QueryCtx | MutationCtx,
   ownerId: Id<'users'>,
 ) {
-  return await ctx.db
+  const settings = await ctx.db
     .query('settings')
     .withIndex('by_ownerId', (q) => q.eq('ownerId', ownerId))
     .unique()
+
+  // Pre-release settings saves stored the old built-in palette as an override.
+  if (settings?.theme?.source.toLowerCase() === '#8a771d') {
+    return { ...settings, theme: undefined }
+  }
+  return settings
 }
 
 export async function update(
   ctx: AuthMutationCtx,
-  { patch }: { patch: SettingsPatch },
+  { patch: { theme, ...patch } }: { patch: SettingsPatch },
 ) {
   assertCustomCssCap(patch.customCss)
   assertShellPathCap(patch.shell)
   assertWebSearchInstancesCap(patch.webSearchInstances)
 
-  const existing = await ctx.db
-    .query('settings')
-    .withIndex('by_ownerId', (q) => q.eq('ownerId', ctx.userId))
-    .unique()
+  const existing = await get(ctx)
+  const changes =
+    theme === undefined ? patch : { ...patch, theme: theme ?? undefined }
 
   if (existing) {
-    await ctx.db.patch(existing._id, patch)
+    await ctx.db.patch(existing._id, changes)
   } else {
-    await ctx.db.insert('settings', { ownerId: ctx.userId, ...patch })
+    await ctx.db.insert('settings', { ownerId: ctx.userId, ...changes })
   }
 }
 

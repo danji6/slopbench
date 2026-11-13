@@ -1,3 +1,4 @@
+import { isSkillName } from '@cv/core/skills/names'
 import { selectCatalog } from '@cv/core/skills/selection'
 import type { SkillCatalogEntry } from '@cv/core/skills/types'
 import { createHash } from 'node:crypto'
@@ -6,13 +7,15 @@ import path from 'node:path'
 import { z } from 'zod'
 
 import { projectSkillCatalog } from '../agent-files/project-catalog'
-import { assertPlainPath } from '../agent-files/storage'
+import { assertPlainPath, inside } from '../agent-files/storage'
 import { assertToolkitRevision } from './manifest'
 
 const sourceSchema = z.object({
   root: z.string(),
   origin: z.string(),
   toolkitId: z.string().optional(),
+  projectSourceId: z.string().optional(),
+  agentDir: z.string().optional(),
   revision: z.string().optional(),
   disabledSkills: z.array(z.string()).default([]),
 })
@@ -36,6 +39,7 @@ export const toolkitCatalogSchema = z.object({
   offset: z.number().int().nonnegative().default(0),
   limit: z.number().int().min(0).max(10_000),
   search: z.string().max(64).optional(),
+  exactName: z.string().refine(isSkillName).optional(),
   characterBudget: z.number().int().nonnegative().optional(),
 })
 
@@ -50,19 +54,18 @@ export async function toolkitSkillCatalog(input: CatalogInput) {
   const scans = new Map<string, ReturnType<typeof projectSkillCatalog>>()
 
   for (const source of input.sources) {
-    await mergeSource(entries, source, scans)
+    await mergeSource(entries, source, scans, input.exactName)
   }
 
   const selection = selectCatalog(input)
   const hash = createHash('sha256')
   const ordered = [...entries]
 
-  const availability = { skills: false, toolkitSkills: false }
+  const availability = {
+    skills: false,
+  }
   for (const [key, entry] of ordered) {
-    if (!entry.error) {
-      availability.skills = true
-      availability.toolkitSkills ||= entry.path.startsWith('toolkit://')
-    }
+    if (!entry.error) availability.skills = true
     hash.update(JSON.stringify([key, entry]))
     selection.add(entry)
   }
@@ -87,7 +90,11 @@ async function addAssigned(
       if (current !== entry.canonicalDirectory)
         throw new Error('Skill identity changed')
     }
-    entries.set(canonical, { ...entry, origins: [entry.origin ?? 'Agent'] })
+    entries.set(canonical, {
+      ...entry,
+      origins: [entry.origin ?? 'Agent'],
+      ...(!entry.error && { skill_id: `${entry.name}@agent` }),
+    })
   }
 }
 
@@ -95,6 +102,7 @@ async function mergeSource(
   entries: Entries,
   source: CatalogSource,
   scans: Map<string, ReturnType<typeof projectSkillCatalog>>,
+  exactName?: string,
 ) {
   if (source.toolkitId) {
     await assertToolkitRevision({
@@ -104,6 +112,9 @@ async function mergeSource(
   }
 
   const key = path.resolve(source.root)
+  const projectSkills = path.join(key, '.agents', 'skills')
+  if (source.agentDir && inside(path.resolve(source.agentDir), projectSkills))
+    return
   if (!scans.has(key)) {
     scans.set(
       key,
@@ -112,6 +123,7 @@ async function mergeSource(
         label: source.origin,
         offset: 0,
         limit: 5001,
+        exactName,
       }),
     )
   }
@@ -137,19 +149,26 @@ async function mergeEntry(
   const canonical = entry.error
     ? entry.path
     : await canonicalSkillDirectory(entry.path)
+  if (source.agentDir && inside(path.resolve(source.agentDir), canonical))
+    return
   const previous = entries.get(canonical)
   const origins = [
     ...new Set([...(previous?.origins ?? []), source.origin]),
   ].sort()
 
-  const uri =
-    source.toolkitId && !entry.error
-      ? `toolkit://${source.toolkitId}/skills/${entry.name}/SKILL.md`
-      : (previous?.path ?? entry.path)
+  const toolkit = source.toolkitId && !entry.error
+  const projectId =
+    source.projectSourceId && !entry.error
+      ? `${entry.name}@project:${source.projectSourceId}`
+      : undefined
+  const skillId = toolkit
+    ? `${entry.name}@toolkit:${source.toolkitId}`
+    : (previous?.skill_id ?? projectId)
 
   entries.set(canonical, {
     ...entry,
-    path: uri,
+    path: previous?.path ?? entry.path,
+    skill_id: skillId,
     canonicalDirectory: canonical,
     origin: origins.join('; '),
     origins,

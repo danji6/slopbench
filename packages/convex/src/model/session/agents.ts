@@ -1,8 +1,8 @@
 import type { Id } from '../../_generated/dataModel'
 import { error } from '../../errors'
 import type { AuthMutationCtx, AuthQueryCtx } from '../../functions'
-import type { ThemeSnapshot } from '../../types'
 import { rememberSelection } from '../agent/selection'
+import { getByOwnerId } from '../settings'
 import { stopForSession } from '../stream/lifecycle'
 import {
   getMember,
@@ -41,22 +41,11 @@ export async function list(
           chatWidth: agent.chatWidth,
           codeBlockHighlighting: agent.codeBlockHighlighting,
           codeBlockLineNumbers: agent.codeBlockLineNumbers,
-          theme: agent.theme ?? (await getOwnerTheme(ctx, agent.ownerId)),
+          theme: agent.theme ?? (await getByOwnerId(ctx, agent.ownerId))?.theme,
         }
       )
     }),
   ).then((agents) => agents.filter(Boolean))
-}
-
-async function getOwnerTheme(
-  ctx: AuthQueryCtx,
-  ownerId: Id<'users'>,
-): Promise<ThemeSnapshot | undefined> {
-  const settings = await ctx.db
-    .query('settings')
-    .withIndex('by_ownerId', (q) => q.eq('ownerId', ownerId))
-    .unique()
-  return settings?.theme
 }
 
 export async function link(ctx: AuthMutationCtx, args: Args) {

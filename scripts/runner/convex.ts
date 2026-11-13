@@ -72,6 +72,13 @@ export async function deriveAdminKey(
   )
 }
 
+export function convexBackendEnvironment(config: RunnerConfig) {
+  return {
+    DISABLE_BEACON: process.env.DISABLE_BEACON ?? 'true',
+    DOCUMENT_RETENTION_DELAY: config.convexDocumentRetentionDelay,
+  }
+}
+
 export async function startBackend(
   manager: ProcessManager,
   config: RunnerConfig,
@@ -108,7 +115,7 @@ export async function startBackend(
     ],
     {
       env: {
-        DOCUMENT_RETENTION_DELAY: config.convexDocumentRetentionDelay,
+        ...convexBackendEnvironment(config),
         NODE_ACTION_USER_TIMEOUT_SECS: config.convexNodeActionTimeoutSecs,
       },
     },

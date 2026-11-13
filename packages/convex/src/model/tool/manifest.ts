@@ -63,7 +63,6 @@ export type McpManifestEntry = {
 
 export type ToolAvailability = {
   skills?: boolean
-  toolkitSkills?: boolean
   storedMcpOutput?: boolean
 }
 
@@ -174,9 +173,8 @@ function builtinEligible(
     case 'read_mcp_output':
       return hasServer || !!data.availability?.storedMcpOutput
     case 'list_skills':
-      return !!data.availability?.skills
     case 'read_skill':
-      return !!data.availability?.toolkitSkills
+      return !!data.availability?.skills
     default:
       return true
   }

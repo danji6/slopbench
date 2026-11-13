@@ -1,10 +1,24 @@
-import { RippleButton, SearchInput, SelectionListItem } from '@/components/ui'
+import {
+  AlertMessage,
+  RippleButton,
+  SearchInput,
+  SelectionListItem,
+} from '@/components/ui'
 import { useToolkitSelection } from '@/hooks/chat/toolkit-selection'
 import type { ToolkitSelectionContext } from '@/hooks/chat/toolkit-selection'
 import { useState } from 'react'
 
+type ToolkitSelectionProps = ToolkitSelectionContext & {
+  skillAccessEnabled: boolean
+  mcpAccessEnabled: boolean
+}
+
 /** Presents a searchable list of toolkits selected for an agent. */
-export function ToolkitSelection({ agentId }: ToolkitSelectionContext) {
+export function ToolkitSelection({
+  agentId,
+  skillAccessEnabled,
+  mcpAccessEnabled,
+}: ToolkitSelectionProps) {
   const { admin, rows, error, saving, change } = useToolkitSelection({ agentId }) // prettier-ignore
   const [search, setSearch] = useState('')
   const needle = search.trim().toLocaleLowerCase()
@@ -29,6 +43,22 @@ export function ToolkitSelection({ agentId }: ToolkitSelectionContext) {
       className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden p-4"
       aria-label="Toolkit selection"
     >
+      {(!skillAccessEnabled || !mcpAccessEnabled) && (
+        <div className="shrink-0 space-y-2">
+          {!skillAccessEnabled && (
+            <AlertMessage variant="warning" dismissible={false}>
+              Toolkit skills are off for this agent. Enable Skills in the Tools
+              tab.
+            </AlertMessage>
+          )}
+          {!mcpAccessEnabled && (
+            <AlertMessage variant="warning" dismissible={false}>
+              Toolkit MCP tools are off for this agent. Enable MCP access in the
+              Tools tab.
+            </AlertMessage>
+          )}
+        </div>
+      )}
       <SearchInput
         aria-label="Search toolkits"
         placeholder="Search toolkits…"
