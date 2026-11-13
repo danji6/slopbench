@@ -1,5 +1,5 @@
 import { optimisticallyRespondApproval } from '@/lib/chat/approval-optimistic'
-import { api } from '@sb/convex/_generated/api'
+import { api } from '@cv/convex/_generated/api'
 import { expect, test } from 'bun:test'
 import type { OptimisticLocalStore } from 'convex/browser'
 import { type FunctionReference, getFunctionName } from 'convex/server'

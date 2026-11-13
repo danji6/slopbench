@@ -6,7 +6,7 @@ import {
 } from '@/components/chat/messages/editor/apply-script'
 import { SCRIPT_COMPLETIONS } from '@/components/chat/messages/editor/script-completions'
 import { Markdown } from '@/lib/tiptap/extensions/markdown'
-import { javascriptCompletions } from '@sb/core/code-completion/javascript'
+import { javascriptCompletions } from '@cv/core/code-completion/javascript'
 import { Editor } from '@tiptap/react'
 import { StarterKit } from '@tiptap/starter-kit'
 import { afterEach, describe, expect, spyOn, test } from 'bun:test'

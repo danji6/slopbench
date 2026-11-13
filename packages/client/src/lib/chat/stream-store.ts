@@ -1,5 +1,5 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { ActiveStream } from '@sb/convex/types'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { ActiveStream } from '@cv/convex/types'
 
 import { normalizeStatus } from './stream'
 

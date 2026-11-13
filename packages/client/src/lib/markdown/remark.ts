@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { escapeUnknownTags, hasOnlyAllowedTags } from '@/lib/markdown/html-scan'
-import { findMentions } from '@sb/core/mentions/parse'
+import { findMentions } from '@cv/core/mentions/parse'
 import type { Components } from 'react-markdown'
 import { SKIP, visit } from 'unist-util-visit'
 

@@ -1,5 +1,5 @@
-import type { ChangePublication } from '@sb/core/types/changes'
-import type { FolderWorkspace } from '@sb/core/types/workspace'
+import type { ChangePublication } from '@cv/core/types/changes'
+import type { FolderWorkspace } from '@cv/core/types/workspace'
 
 export type FileState = {
   hash: string

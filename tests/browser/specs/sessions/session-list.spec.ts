@@ -172,7 +172,7 @@ test('sidebar edges and empty space do not highlight or move sessions', async ({
   page,
 }) => {
   const source = page.getByRole('button', {
-    name: 'SlopBench chat',
+    name: 'Corvori chat',
     exact: false,
   })
   const sidebar = page.getByTestId('sidebar')
@@ -194,7 +194,7 @@ test('sidebar edges and empty space do not highlight or move sessions', async ({
   await page.mouse.up()
   await expect(
     page.locator('[data-session-page="b"]').getByRole('button', {
-      name: 'SlopBench chat',
+      name: 'Corvori chat',
       exact: false,
     }),
   ).toBeVisible()
@@ -266,7 +266,7 @@ test('unfiled drop highlights stay continuous across the separator and sessions'
   await expect(unfiledSession).toBeVisible()
   await dragTo(
     page,
-    page.getByRole('button', { name: 'SlopBench chat', exact: false }),
+    page.getByRole('button', { name: 'Corvori chat', exact: false }),
     unfiledSession,
   )
   const highlights = page
@@ -279,11 +279,11 @@ test('unfiled drop highlights stay continuous across the separator and sessions'
       return { top, bottom }
     }),
   )
-  await page.screenshot({ path: '/tmp/slopbench-unfiled-drop.png' })
+  await page.screenshot({ path: '/tmp/corvori-unfiled-drop.png' })
   expect(Math.abs(bounds[0]!.bottom - bounds[1]!.top)).toBeLessThan(1)
   await page.mouse.up()
-  await folder(page, 'SlopBench').click()
-  await expect(page.getByText('SlopBench chat', { exact: true })).toBeVisible()
+  await folder(page, 'Corvori').click()
+  await expect(page.getByText('Corvori chat', { exact: true })).toBeVisible()
 })
 
 test('closing unloads the branch after animating and reopening resets pagination', async ({
@@ -474,7 +474,7 @@ test('a few hundred loaded sessions collapse and reset when reopened individuall
   await folder(page, 'Portfolio').click()
   await expect(collapse).toBeEnabled()
   await expect(folder(page, 'Design')).toHaveAttribute('aria-expanded', 'false')
-  for (const name of ['Design', 'Pinned', 'SlopBench']) {
+  for (const name of ['Design', 'Pinned', 'Corvori']) {
     await folder(page, name).click()
   }
   await expect

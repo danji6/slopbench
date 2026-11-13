@@ -1,7 +1,7 @@
 import { createClient } from '@convex-dev/better-auth'
 import type { GenericCtx } from '@convex-dev/better-auth'
 import { convex } from '@convex-dev/better-auth/plugins'
-import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '@sb/core/auth'
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '@cv/core/auth'
 import { betterAuth } from 'better-auth'
 import { username } from 'better-auth/plugins'
 

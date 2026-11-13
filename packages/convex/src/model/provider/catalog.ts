@@ -1,5 +1,5 @@
-import { modelMetadata } from '@sb/core/discovered-model'
-import type { DiscoveredModel } from '@sb/core/model-discovery'
+import { modelMetadata } from '@cv/core/discovered-model'
+import type { DiscoveredModel } from '@cv/core/model-discovery'
 
 import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'

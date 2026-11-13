@@ -322,7 +322,7 @@ test('keeps the fullscreen draft open until the user chooses to review', async (
 }) => {
   await page.addInitScript(() => {
     localStorage.setItem(
-      'slopbench-composer-drafts',
+      'corvori-composer-drafts',
       JSON.stringify({
         parent: { text: 'Keep this draft', updatedAt: Date.now() },
       }),

@@ -1,11 +1,11 @@
-import { isMcpUrl, mcpConnectionSchema } from '@sb/core/types'
-import type { McpRuntimeScope, McpRuntimeStatus } from '@sb/core/types'
-import { McpRegistry } from '@sb/sidecar/mcp/external/registry'
-import { localEnvironment } from '@sb/sidecar/mcp/external/stdio'
+import { isMcpUrl, mcpConnectionSchema } from '@cv/core/types'
+import type { McpRuntimeScope, McpRuntimeStatus } from '@cv/core/types'
+import { McpRegistry } from '@cv/sidecar/mcp/external/registry'
+import { localEnvironment } from '@cv/sidecar/mcp/external/stdio'
 import {
   lockWorkspaces,
   unlockWorkspaces,
-} from '@sb/sidecar/mcp/workspace/context'
+} from '@cv/sidecar/mcp/workspace/context'
 import { afterEach, expect, test } from 'bun:test'
 import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
@@ -216,7 +216,7 @@ test('workspace locks reject new operations', async () => {
   await lockWorkspaces({ sessionIds: ['locked-chat'], token: actual })
   try {
     const { withWorkspaceOperation } =
-      await import('@sb/sidecar/mcp/workspace/context')
+      await import('@cv/sidecar/mcp/workspace/context')
     await expect(
       withWorkspaceOperation('locked-chat', async () => 'unexpected'),
     ).rejects.toThrow('updated')

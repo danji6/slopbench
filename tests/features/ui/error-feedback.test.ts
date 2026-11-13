@@ -1,6 +1,6 @@
 import { extractErrorMessage } from '@/lib/errors'
-import { errorMessage } from '@sb/core/utils/errors'
-import { userErrorMessage } from '@sb/core/utils/user-error'
+import { errorMessage } from '@cv/core/utils/errors'
+import { userErrorMessage } from '@cv/core/utils/user-error'
 import { expect, test } from 'bun:test'
 import { ConvexError } from 'convex/values'
 import { z } from 'zod'

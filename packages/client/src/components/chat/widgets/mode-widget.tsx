@@ -2,7 +2,7 @@ import { QuickTooltip } from '@/components/ui/quick-tooltip'
 import { RippleButton } from '@/components/ui/ripple-button'
 import { Result } from '@/lib/result'
 import { cn } from '@/lib/utils'
-import type { ApprovalMode } from '@sb/convex/types'
+import type { ApprovalMode } from '@cv/convex/types'
 import {
   LightbulbIcon,
   LockKeyholeIcon,

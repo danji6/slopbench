@@ -1,11 +1,11 @@
 import { useMessageWindow } from '@/hooks/chat/message-window'
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { WindowMessage } from '@sb/convex/model/chat/queries'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { WindowMessage } from '@cv/convex/model/chat/queries'
 import {
   MESSAGE_PAGE_BUDGET_BYTES,
   MESSAGE_WINDOW_BUDGET_BYTES,
   MESSAGE_WINDOW_MAX_ROWS,
-} from '@sb/core/const'
+} from '@cv/core/const'
 import { afterEach, expect, test } from 'bun:test'
 import { ConvexProvider } from 'convex/react'
 import { StrictMode, act, useLayoutEffect } from 'react'

@@ -1,4 +1,4 @@
-import type { ModelReasoning, ReasoningEffort } from '@sb/core/types'
+import type { ModelReasoning, ReasoningEffort } from '@cv/core/types'
 import type { LanguageModel } from 'ai'
 
 export type InferenceInput = {

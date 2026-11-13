@@ -1,4 +1,4 @@
-import type { api } from '@sb/convex/_generated/api'
+import type { api } from '@cv/convex/_generated/api'
 import type { FunctionReturnType } from 'convex/server'
 import { useState } from 'react'
 

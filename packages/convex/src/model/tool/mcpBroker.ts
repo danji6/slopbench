@@ -3,8 +3,8 @@ import {
   type McpBrokerSearch,
   mcpBrokerCallSchema,
   mcpBrokerSearchSchema,
-} from '@sb/core/types/mcp-catalog'
-import { TOOL_DESCRIPTIONS } from '@sb/core/types/tool-descriptions'
+} from '@cv/core/types/mcp-catalog'
+import { TOOL_DESCRIPTIONS } from '@cv/core/types/tool-descriptions'
 
 import { internal } from '../../_generated/api'
 import { ToolError } from '../../errors'
@@ -134,7 +134,7 @@ async function searchTools(context: BrokerContext, input: McpBrokerSearch) {
 }
 
 async function validateArguments(schema: string, input: unknown) {
-  const { mcpInputValidator } = await import('@sb/core/mcp-schema-validation')
+  const { mcpInputValidator } = await import('@cv/core/mcp-schema-validation')
   const validate = mcpInputValidator(schema)
   const result = validate(input)
   if (!result.valid)

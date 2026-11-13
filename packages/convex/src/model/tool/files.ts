@@ -4,7 +4,7 @@ import {
   fileToolDescription,
   readFileFields,
   writeFileFields,
-} from '@sb/core/types'
+} from '@cv/core/types'
 
 import { ToolError } from '../../errors'
 import { type WorkspaceToolContext, fileWorkspaceArgs } from './context'

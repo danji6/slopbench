@@ -1,4 +1,4 @@
-import type { ShellToolOutput } from '@sb/convex/types'
+import type { ShellToolOutput } from '@cv/convex/types'
 
 export const context = { sessionId: 'session-1', workspaceId: 'ws-1' }
 

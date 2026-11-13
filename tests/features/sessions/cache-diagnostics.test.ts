@@ -1,8 +1,8 @@
-import type { AuthQueryCtx } from '@sb/convex/functions'
+import type { AuthQueryCtx } from '@cv/convex/functions'
 import {
   getLogUrls,
   getStateView,
-} from '@sb/convex/model/session/sessionQueries'
+} from '@cv/convex/model/session/sessionQueries'
 import { expect, test } from 'bun:test'
 
 import { lifecycleDatabase } from '../../helpers/lifecycle-db'

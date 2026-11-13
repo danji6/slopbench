@@ -1,6 +1,6 @@
 import { RippleButton } from '@/components/ui'
 import type { SessionMember } from '@/lib/chat'
-import { capitalize } from '@sb/core/utils/strings'
+import { capitalize } from '@cv/core/utils/strings'
 import { UserIcon, XIcon } from 'lucide-react'
 
 import { ParticipantRow } from './participant-row'

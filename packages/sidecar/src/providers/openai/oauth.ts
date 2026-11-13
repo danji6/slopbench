@@ -1,4 +1,4 @@
-import { APP_ID } from '@sb/core/const'
+import { APP_ID } from '@cv/core/const'
 import { createHash, randomBytes } from 'node:crypto'
 
 import { type SignInAttempt, listenForAuthorization } from './loopback'

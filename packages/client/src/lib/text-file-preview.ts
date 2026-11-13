@@ -1,4 +1,4 @@
-import { readUtf8Range } from '@sb/core/attachments'
+import { readUtf8Range } from '@cv/core/attachments'
 
 export const MAX_TEXT_PREVIEW_BYTES = 1024 * 1024
 

@@ -1,4 +1,4 @@
-import { toolkitWorkspaceSettings } from '@sb/core/types/toolkit'
+import { toolkitWorkspaceSettings } from '@cv/core/types/toolkit'
 
 import type { Doc } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'

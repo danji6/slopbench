@@ -1,4 +1,4 @@
-import { OutputRing } from '@sb/sidecar/shell/registry'
+import { OutputRing } from '@cv/sidecar/shell/registry'
 import { describe, expect, test } from 'bun:test'
 
 process.env.CHAT_JOB_MODE = 'script'

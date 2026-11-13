@@ -1,4 +1,4 @@
-import { TOOL_DESCRIPTIONS } from '@sb/core/types'
+import { TOOL_DESCRIPTIONS } from '@cv/core/types'
 
 import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'

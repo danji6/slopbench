@@ -1,6 +1,6 @@
 import { useFullscreenView } from '@/hooks/fullscreen'
 import { toastError } from '@/lib/notifications'
-import { api } from '@sb/convex/_generated/api'
+import { api } from '@cv/convex/_generated/api'
 import { useMutation, useQuery } from 'convex/react'
 import { useState } from 'react'
 

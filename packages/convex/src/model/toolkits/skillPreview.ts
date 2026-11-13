@@ -1,6 +1,6 @@
 'use node'
 
-import type { SkillCatalogSlice } from '@sb/core/skills/types'
+import type { SkillCatalogSlice } from '@cv/core/skills/types'
 
 import { api } from '../../_generated/api'
 import type { ActionCtx } from '../../_generated/server'

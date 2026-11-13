@@ -1,11 +1,11 @@
-import { STREAM_LEASE_MS } from '@sb/convex/model/stream/lease'
+import { STREAM_LEASE_MS } from '@cv/convex/model/stream/lease'
 import {
   _heartbeat,
   _honorSoftStop,
   _patchMessage,
-} from '@sb/convex/model/stream/lifecycle'
-import { _getStopState } from '@sb/convex/model/stream/reads'
-import { requestImmediateStop } from '@sb/convex/model/stream/stop'
+} from '@cv/convex/model/stream/lifecycle'
+import { _getStopState } from '@cv/convex/model/stream/reads'
+import { requestImmediateStop } from '@cv/convex/model/stream/stop'
 import { describe, expect, test } from 'bun:test'
 import { fakeCtx } from '~/tests/helpers/stream-lifecycle'
 

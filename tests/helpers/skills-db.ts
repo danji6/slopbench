@@ -1,4 +1,4 @@
-import type { AuthMutationCtx } from '@sb/convex/functions'
+import type { AuthMutationCtx } from '@cv/convex/functions'
 
 type Row = Record<string, unknown> & { _id: string }
 

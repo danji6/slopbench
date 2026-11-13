@@ -70,7 +70,7 @@ export function browserServer() {
     env: {
       PLAYWRIGHT_CORE_DIR: dirname(manifest),
       PLAYWRIGHT_DOCKER_IMAGE: `mcr.microsoft.com/playwright:v${version}-noble`,
-      PLAYWRIGHT_CONTAINER: `slopbench-playwright-${randomUUID()}`,
+      PLAYWRIGHT_CONTAINER: `corvori-playwright-${randomUUID()}`,
     },
     wait: {
       stdout: /Listening on (?<PW_TEST_CONNECT_WS_ENDPOINT>ws:\/\/\S+)\r?\n/,

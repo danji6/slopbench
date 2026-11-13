@@ -1,4 +1,4 @@
-import { api } from '@sb/convex/_generated/api'
+import { api } from '@cv/convex/_generated/api'
 import { useMutation } from 'convex/react'
 import { useCallback } from 'react'
 

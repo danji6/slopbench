@@ -4,7 +4,7 @@ import {
   settleRequest,
   settleStream,
   summary,
-} from '@sb/convex/model/notificationRequests'
+} from '@cv/convex/model/notificationRequests'
 import {
   clearRead,
   discardSession,
@@ -12,7 +12,7 @@ import {
   markRead,
   markSessionRead,
   notifyUserMessage,
-} from '@sb/convex/model/notifications'
+} from '@cv/convex/model/notifications'
 import { describe, expect, test } from 'bun:test'
 import { type Row, fakeCtx } from '~/tests/setup/notifications'
 

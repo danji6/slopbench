@@ -4,8 +4,8 @@ import {
   projectLoadedFolderMove,
 } from '@/lib/chat/folder-moves'
 import { toastError } from '@/lib/notifications'
-import { api } from '@sb/convex/_generated/api'
-import type { FolderMoveArgs, FolderView } from '@sb/convex/types'
+import { api } from '@cv/convex/_generated/api'
+import type { FolderMoveArgs, FolderView } from '@cv/convex/types'
 import { useAction, useQuery } from 'convex/react'
 import { useCallback, useMemo, useRef, useState } from 'react'
 

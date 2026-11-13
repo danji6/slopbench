@@ -1,6 +1,6 @@
 import { SearchInput, SettingsList } from '@/components/ui'
 import { useOwnedAgents } from '@/hooks/chat'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import { useState } from 'react'
 import type { Control } from 'react-hook-form'
 import { useController } from 'react-hook-form'

@@ -22,7 +22,7 @@ import type { MessageRow } from '@/lib/chat/rows'
 import type { UIMetadata } from '@/lib/chat/types'
 import { projectWorkRows } from '@/lib/chat/work-rows'
 import { workExpansion } from '@/lib/chat/work-state'
-import { DEFAULT_SETTINGS } from '@sb/convex/model/defaults'
+import { DEFAULT_SETTINGS } from '@cv/convex/model/defaults'
 import type { UIMessage } from 'ai'
 import {
   type ReactNode,

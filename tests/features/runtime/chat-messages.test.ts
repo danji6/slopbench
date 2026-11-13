@@ -12,7 +12,7 @@ import {
   isEmptyAssistantMessage,
   removeEmptyAssistantMessages,
   shouldSaveSubmittedPrompt,
-} from '@sb/convex/model/messages'
+} from '@cv/convex/model/messages'
 import type { UIMessage } from 'ai'
 import { describe, expect, test } from 'bun:test'
 

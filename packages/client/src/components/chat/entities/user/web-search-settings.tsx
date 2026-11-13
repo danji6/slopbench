@@ -10,7 +10,7 @@ import { generateId } from '@/lib/utils'
 import {
   SUPPORTED_WEB_SEARCH_ENGINES,
   type SearchEngineId,
-} from '@sb/core/types'
+} from '@cv/core/types'
 import { ArrowDownIcon, ArrowUpIcon, PlusIcon, Trash2Icon } from 'lucide-react'
 import type { Control } from 'react-hook-form'
 import { Controller } from 'react-hook-form'

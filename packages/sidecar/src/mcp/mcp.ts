@@ -7,7 +7,7 @@ import {
   webFetchQuerySchema,
   webSearchSchema,
   writeFileFields,
-} from '@sb/core/types'
+} from '@cv/core/types'
 import type { Context } from 'hono'
 import { z } from 'zod'
 

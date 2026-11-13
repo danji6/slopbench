@@ -2,8 +2,8 @@ import {
   _continue,
   _handoff,
   _recordStep,
-} from '@sb/convex/model/stream/lifecycle'
-import { MESSAGE_SPLIT_BUDGET_BYTES } from '@sb/core/const'
+} from '@cv/convex/model/stream/lifecycle'
+import { MESSAGE_SPLIT_BUDGET_BYTES } from '@cv/core/const'
 import { describe, expect, test } from 'bun:test'
 import { fakeCtx } from '~/tests/helpers/stream-lifecycle'
 

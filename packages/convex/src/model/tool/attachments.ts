@@ -1,17 +1,17 @@
 'use node'
 
-import { attachmentRef, attachmentReference } from '@sb/core/attachments'
+import { attachmentRef, attachmentReference } from '@cv/core/attachments'
 import {
   ATTACHMENT_READ_DEFAULT_BYTES,
   ATTACHMENT_READ_MAX_BYTES,
   READ_ATTACHMENT_TOOL_NAME,
-} from '@sb/core/const'
+} from '@cv/core/const'
 import {
   type ReadAttachmentInput,
   TOOL_DESCRIPTIONS,
   readAttachmentFields,
-} from '@sb/core/types'
-import { isKnownTextFile } from '@sb/core/workspace/files'
+} from '@cv/core/types'
+import { isKnownTextFile } from '@cv/core/workspace/files'
 import type { Tool, ToolSet } from 'ai'
 import { randomBytes } from 'node:crypto'
 

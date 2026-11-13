@@ -3,7 +3,7 @@ import { useAgentPrompts } from '@/hooks/chat/agent'
 import type { ComposerHandle } from '@/hooks/chat/composer-editor'
 import { useView } from '@/hooks/view'
 import { resolveWelcomeView } from '@/lib/chat/empty-chat'
-import type { Doc } from '@sb/convex/_generated/dataModel'
+import type { Doc } from '@cv/convex/_generated/dataModel'
 import { PlugZapIcon } from 'lucide-react'
 import type { RefObject } from 'react'
 

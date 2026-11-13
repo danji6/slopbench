@@ -17,9 +17,9 @@ import { type MessageRow, segmentGroupsFor } from '@/lib/chat/rows'
 import { projectWorkRows } from '@/lib/chat/work-rows'
 import { workExpansion } from '@/lib/chat/work-state'
 import { trackHeightSettle } from '@/lib/scroll-settle'
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { WindowMessage } from '@sb/convex/model/chat/queries'
-import { MESSAGE_SPLIT_BUDGET_BYTES } from '@sb/core/const'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { WindowMessage } from '@cv/convex/model/chat/queries'
+import { MESSAGE_SPLIT_BUDGET_BYTES } from '@cv/core/const'
 import { ConvexProvider } from 'convex/react'
 import {
   useCallback,

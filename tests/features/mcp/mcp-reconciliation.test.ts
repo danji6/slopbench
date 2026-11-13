@@ -1,8 +1,8 @@
-import type { Doc, Id } from '@sb/convex/_generated/dataModel'
-import type { ActionCtx } from '@sb/convex/_generated/server'
-import { runtimeScope } from '@sb/convex/model/mcpRuntime'
-import { reconcile } from '@sb/convex/model/mcpRuntimeActions'
-import type { McpRuntimeStatus } from '@sb/core/types'
+import type { Doc, Id } from '@cv/convex/_generated/dataModel'
+import type { ActionCtx } from '@cv/convex/_generated/server'
+import { runtimeScope } from '@cv/convex/model/mcpRuntime'
+import { reconcile } from '@cv/convex/model/mcpRuntimeActions'
+import type { McpRuntimeStatus } from '@cv/core/types'
 import { afterEach, beforeEach, expect, test } from 'bun:test'
 import { getFunctionName } from 'convex/server'
 

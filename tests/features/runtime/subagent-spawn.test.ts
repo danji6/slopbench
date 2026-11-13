@@ -1,5 +1,5 @@
-import { getApprovals } from '@sb/convex/model/session/state'
-import { _suspendStep } from '@sb/convex/model/stream/subagents'
+import { getApprovals } from '@cv/convex/model/session/state'
+import { _suspendStep } from '@cv/convex/model/stream/subagents'
 import { describe, expect, test } from 'bun:test'
 import {
   explorer,

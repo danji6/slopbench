@@ -1,4 +1,4 @@
-import { selectFileWorkspace } from '@sb/core/workspace/personal'
+import { selectFileWorkspace } from '@cv/core/workspace/personal'
 import path from 'node:path'
 
 import { isOutside } from '../mcp/workspace/access'

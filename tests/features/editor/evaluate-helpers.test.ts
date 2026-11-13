@@ -1,6 +1,6 @@
 /// <reference types="bun-types" />
-import { evaluate } from '@sb/core/interpreter/evaluate'
-import type { ReadFileOptions } from '@sb/core/interpreter/types'
+import { evaluate } from '@cv/core/interpreter/evaluate'
+import type { ReadFileOptions } from '@cv/core/interpreter/types'
 import { describe, expect, test } from 'bun:test'
 
 describe('evaluate file helper', () => {

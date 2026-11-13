@@ -1,8 +1,8 @@
-import { getProviderOptions } from '@sb/convex/model/provider/options'
-import { createProviderFetch } from '@sb/convex/model/provider/request'
-import { parseModelExtraParameters } from '@sb/core/model-parameters'
-import { normalizeReasoningEffort } from '@sb/core/model-reasoning'
-import { parseProviderExtraHeaders } from '@sb/core/provider-headers'
+import { getProviderOptions } from '@cv/convex/model/provider/options'
+import { createProviderFetch } from '@cv/convex/model/provider/request'
+import { parseModelExtraParameters } from '@cv/core/model-parameters'
+import { normalizeReasoningEffort } from '@cv/core/model-reasoning'
+import { parseProviderExtraHeaders } from '@cv/core/provider-headers'
 import { describe, expect, test } from 'bun:test'
 import {
   captureFetch,

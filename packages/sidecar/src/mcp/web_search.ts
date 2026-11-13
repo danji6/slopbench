@@ -3,7 +3,7 @@ import type {
   WebSearchInput,
   WebSearchInstance,
   WebSearchQuery,
-} from '@sb/core/types'
+} from '@cv/core/types'
 
 import {
   type SearchContext,

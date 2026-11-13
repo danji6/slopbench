@@ -1,13 +1,13 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { ActionCtx } from '@sb/convex/_generated/server'
-import { resolveOffloadedOutput } from '@sb/convex/actions/stream/historyContent'
-import { makeOutputPreview } from '@sb/convex/model/stream/toolOutput'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { ActionCtx } from '@cv/convex/_generated/server'
+import { resolveOffloadedOutput } from '@cv/convex/actions/stream/historyContent'
+import { makeOutputPreview } from '@cv/convex/model/stream/toolOutput'
 import {
   hasToolResultMedia,
   mcpHistoryTools,
   mcpToModelOutput,
-} from '@sb/convex/model/tool/mcpOutput'
-import { mcpResult, mcpResultPreview } from '@sb/core/types/mcp-result'
+} from '@cv/convex/model/tool/mcpOutput'
+import { mcpResult, mcpResultPreview } from '@cv/core/types/mcp-result'
 import { type UIMessage, convertToModelMessages } from 'ai'
 import { expect, test } from 'bun:test'
 

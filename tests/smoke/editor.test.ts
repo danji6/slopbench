@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import { evaluate } from '@sb/core/interpreter/evaluate'
+import { evaluate } from '@cv/core/interpreter/evaluate'
 import { describe, expect, test } from 'bun:test'
 
 const context = { modelId: 'model-a', modelName: 'Model A' }

@@ -1,15 +1,15 @@
 import { providerForm, providerSaveInput } from '@/lib/provider-settings'
-import { deletePreview, storePreview } from '@sb/convex/model/provider/previews'
-import { ensureConnection, saveProviders } from '@sb/convex/model/provider/save'
+import { deletePreview, storePreview } from '@cv/convex/model/provider/previews'
+import { ensureConnection, saveProviders } from '@cv/convex/model/provider/save'
 import {
   create,
   list,
   resolve,
   setModelInference,
   update,
-} from '@sb/convex/model/providers'
-import { discoveryFingerprint } from '@sb/core/discovery-fingerprint'
-import { modelReference } from '@sb/core/model-reference'
+} from '@cv/convex/model/providers'
+import { discoveryFingerprint } from '@cv/core/discovery-fingerprint'
+import { modelReference } from '@cv/core/model-reference'
 import { expect, test } from 'bun:test'
 import { providerFixture } from '~/tests/helpers/provider-db'
 
@@ -230,7 +230,7 @@ test('subscription models retain custom inference and advanced settings', async 
     extraParameters: '{"max_output_tokens":400}',
   }
   const { begin, stage, finish } =
-    await import('@sb/convex/model/provider/catalog')
+    await import('@cv/convex/model/provider/catalog')
   const run = {
     providerId: id,
     ownerId: ctx.userId,
@@ -255,7 +255,7 @@ test('refreshing a changed endpoint preserves previously configured missing mode
   const { ctx } = providerFixture()
   const id = await create(ctx, { key: 'openai', enabled: true, models: [] })
   const { begin, stage, finish } =
-    await import('@sb/convex/model/provider/catalog')
+    await import('@cv/convex/model/provider/catalog')
   const run = {
     providerId: id,
     ownerId: ctx.userId,

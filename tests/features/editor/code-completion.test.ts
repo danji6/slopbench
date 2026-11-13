@@ -1,13 +1,13 @@
 import {
   collectCompletions,
   staticCompletions,
-} from '@sb/core/code-completion/engine'
-import { javascriptCompletions } from '@sb/core/code-completion/javascript'
+} from '@cv/core/code-completion/engine'
+import { javascriptCompletions } from '@cv/core/code-completion/javascript'
 import type {
   Completion,
   CompletionProvider,
   CompletionRequest,
-} from '@sb/core/code-completion/types'
+} from '@cv/core/code-completion/types'
 import { describe, expect, test } from 'bun:test'
 
 const symbols: Completion[] = [

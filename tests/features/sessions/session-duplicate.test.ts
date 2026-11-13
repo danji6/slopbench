@@ -1,5 +1,5 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { duplicate } from '@sb/convex/model/session/sessions'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import { duplicate } from '@cv/convex/model/session/sessions'
 import { describe, expect, test } from 'bun:test'
 import {
   MEMBER,

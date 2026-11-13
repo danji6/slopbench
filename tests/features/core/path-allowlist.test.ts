@@ -1,8 +1,8 @@
 import {
   canonicalPath,
   resolveToolPath,
-} from '@sb/sidecar/mcp/workspace/access'
-import { checkPaths } from '@sb/sidecar/mcp/workspace/check-paths'
+} from '@cv/sidecar/mcp/workspace/access'
+import { checkPaths } from '@cv/sidecar/mcp/workspace/check-paths'
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'

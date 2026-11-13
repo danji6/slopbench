@@ -5,7 +5,7 @@ import {
   notificationDocumentTitle,
 } from '@/lib/notification-favicon'
 import { chooseNotificationSurface } from '@/lib/notification-presence'
-import { APP_NAME } from '@sb/core/const'
+import { APP_NAME } from '@cv/core/const'
 import { describe, expect, test } from 'bun:test'
 
 const item = {

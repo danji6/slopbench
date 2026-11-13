@@ -1,5 +1,5 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { publish } from '@sb/convex/model/toolkits/publication'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import { publish } from '@cv/convex/model/toolkits/publication'
 import { skillsDatabase } from '~/tests/helpers/skills-db'
 
 export async function fixture() {

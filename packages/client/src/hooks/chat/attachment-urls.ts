@@ -1,6 +1,6 @@
 import { normalizeBrowserUrl } from '@/lib/auth/site-url'
-import { api } from '@sb/convex/_generated/api'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import { api } from '@cv/convex/_generated/api'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import { useEffect, useMemo } from 'react'
 
 import { createMediaUrlStore } from './media-urls'

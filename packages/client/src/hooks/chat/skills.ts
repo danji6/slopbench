@@ -1,8 +1,8 @@
 import { fileOperationStore } from '@/lib/chat/file-operation-store'
 import { extractErrorMessage } from '@/lib/errors'
-import { api } from '@sb/convex/_generated/api'
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { FileOperationArgs } from '@sb/convex/types'
+import { api } from '@cv/convex/_generated/api'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { FileOperationArgs } from '@cv/convex/types'
 import { useMutation, useQuery } from 'convex/react'
 import {
   useEffect,

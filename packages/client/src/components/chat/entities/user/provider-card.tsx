@@ -11,8 +11,8 @@ import {
   type ProviderAuth,
   providerDefinition,
   providerFeatures,
-} from '@sb/core/provider-registry'
-import type { ReasoningTier } from '@sb/core/types'
+} from '@cv/core/provider-registry'
+import type { ReasoningTier } from '@cv/core/types'
 import { useState } from 'react'
 
 import { ProviderExtraHeaders } from './provider-extra-headers'

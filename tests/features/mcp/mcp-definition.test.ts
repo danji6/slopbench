@@ -1,5 +1,5 @@
 import { loadMcpDefinition } from '@/lib/chat/mcp-definition'
-import { MAX_MCP_DEFINITION_BYTES } from '@sb/core/types/mcp-catalog'
+import { MAX_MCP_DEFINITION_BYTES } from '@cv/core/types/mcp-catalog'
 import { expect, test } from 'bun:test'
 
 function definitionUrl(value: unknown) {

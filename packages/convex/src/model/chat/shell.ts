@@ -1,4 +1,4 @@
-import type { ShellToolOutput } from '@sb/core/types/tools'
+import type { ShellToolOutput } from '@cv/core/types/tools'
 
 import { internal } from '../../_generated/api'
 import type { Doc, Id } from '../../_generated/dataModel'

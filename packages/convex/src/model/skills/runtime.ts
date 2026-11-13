@@ -1,9 +1,9 @@
 'use node'
 
-import { catalogEntryText } from '@sb/core/skills/catalog'
-import type { AgentHome, SkillCatalogPage } from '@sb/core/skills/types'
-import type { FolderWorkspace } from '@sb/core/types/workspace'
-import { withAgentHome } from '@sb/core/workspace/personal'
+import { catalogEntryText } from '@cv/core/skills/catalog'
+import type { AgentHome, SkillCatalogPage } from '@cv/core/skills/types'
+import type { FolderWorkspace } from '@cv/core/types/workspace'
+import { withAgentHome } from '@cv/core/workspace/personal'
 
 import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'

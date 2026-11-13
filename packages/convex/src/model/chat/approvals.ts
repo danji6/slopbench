@@ -1,4 +1,4 @@
-import { hasPendingToolApprovals } from '@sb/core/utils/tool-parts'
+import { hasPendingToolApprovals } from '@cv/core/utils/tool-parts'
 
 import type { Doc } from '../../_generated/dataModel'
 import { error } from '../../errors'

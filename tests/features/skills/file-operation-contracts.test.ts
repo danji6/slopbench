@@ -6,12 +6,12 @@ import {
   invalidateAgentHomeArgsValidator,
   operationAttemptArgsValidator,
   reserveHomeArgsValidator,
-} from '@sb/convex/validators/fileOperations'
+} from '@cv/convex/validators/fileOperations'
 import {
   continueSkillImportArgsValidator,
   finishSkillImportArgsValidator,
   prepareSkillImportArgsValidator,
-} from '@sb/convex/validators/skills'
+} from '@cv/convex/validators/skills'
 import { expect, test } from 'bun:test'
 import { validate } from 'convex-helpers/validators'
 

@@ -1,14 +1,14 @@
 /// <reference types="bun-types" />
-import { representMessage } from '@sb/convex/actions/stream/history'
-import { _run } from '@sb/convex/actions/tool/userShell'
-import { toUserShellBlock } from '@sb/convex/lib/userShell'
+import { representMessage } from '@cv/convex/actions/stream/history'
+import { _run } from '@cv/convex/actions/tool/userShell'
+import { toUserShellBlock } from '@cv/convex/lib/userShell'
 import {
   _beginUserShellWindow,
   _finishUserShell,
   _patchUserShell,
   _reapUserShell,
-} from '@sb/convex/model/chat/shell'
-import type { ShellToolOutput } from '@sb/core/types/tools'
+} from '@cv/convex/model/chat/shell'
+import type { ShellToolOutput } from '@cv/core/types/tools'
 import { describe, expect, test } from 'bun:test'
 import {
   TOOL_CALL_ID,

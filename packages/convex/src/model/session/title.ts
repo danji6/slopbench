@@ -2,7 +2,7 @@ import {
   DEFAULT_TITLE_SYSTEM_PROMPT,
   TITLE_EXCERPT_LENGTH,
   truncateTitleExcerpt,
-} from '@sb/core/title-generation'
+} from '@cv/core/title-generation'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../../_generated/server'

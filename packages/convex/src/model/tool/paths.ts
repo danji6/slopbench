@@ -1,4 +1,4 @@
-import type { PathCheckResult } from '@sb/core/workspace/path-policy'
+import type { PathCheckResult } from '@cv/core/workspace/path-policy'
 
 import {
   isToolAutoApproved,

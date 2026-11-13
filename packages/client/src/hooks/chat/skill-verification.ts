@@ -3,7 +3,7 @@ import {
   removeConfirmedSkills,
 } from '@/lib/chat/skill-verification'
 import { extractErrorMessage } from '@/lib/errors'
-import { api } from '@sb/convex/_generated/api'
+import { api } from '@cv/convex/_generated/api'
 import { useAction } from 'convex/react'
 import type { FunctionReturnType } from 'convex/server'
 import { useState } from 'react'

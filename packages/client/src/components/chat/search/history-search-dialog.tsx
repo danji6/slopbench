@@ -4,7 +4,7 @@ import { type MessageSearchResult, useMessageSearch } from '@/hooks/chat/search'
 import { useActiveSessionId } from '@/hooks/chat/session'
 import type { MessageRole } from '@/lib/chat'
 import { cn, formatRelativeTime } from '@/lib/utils'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import { BotIcon, CogIcon, SearchIcon, UserIcon } from 'lucide-react'
 import { type ReactNode, useCallback } from 'react'
 

@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import { createAskTool } from '@sb/convex/model/tool/ask'
+import { createAskTool } from '@cv/convex/model/tool/ask'
 import {
   type ModelMessage,
   type UIMessage,

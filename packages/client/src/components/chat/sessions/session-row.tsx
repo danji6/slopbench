@@ -19,8 +19,8 @@ import { toastError } from '@/lib/notifications'
 import { setSelectedSessionFolder } from '@/lib/ui-settings'
 import { cn } from '@/lib/utils'
 import { useDraggable } from '@dnd-kit/core'
-import { api } from '@sb/convex/_generated/api'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import { api } from '@cv/convex/_generated/api'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import { useAction, useMutation } from 'convex/react'
 import {
   BotIcon,

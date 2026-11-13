@@ -4,7 +4,7 @@ import type {
   ProviderContinuity,
   ProviderResponseMetadata,
   ProviderTransportObserver,
-} from '@sb/core/provider-continuity'
+} from '@cv/core/provider-continuity'
 import type { LanguageModelUsage } from 'ai'
 import { createHash } from 'node:crypto'
 

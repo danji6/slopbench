@@ -1,9 +1,9 @@
 'use node'
 
-import { sha256 } from '@sb/core/sha256'
-import { contextDependencies } from '@sb/core/tool-context'
-import { mcpToolName } from '@sb/core/types'
-import { inline } from '@sb/core/utils/strings'
+import { sha256 } from '@cv/core/sha256'
+import { contextDependencies } from '@cv/core/tool-context'
+import { mcpToolName } from '@cv/core/types'
+import { inline } from '@cv/core/utils/strings'
 
 import { internal } from '../_generated/api'
 import type { ActionCtx } from '../_generated/server'

@@ -1,10 +1,10 @@
-import { selectFileWorkspace, withAgentHome } from '@sb/core/workspace/personal'
-import { runFileOperation } from '@sb/sidecar/agent-files/operations'
-import { managedHome } from '@sb/sidecar/agent-files/storage'
+import { selectFileWorkspace, withAgentHome } from '@cv/core/workspace/personal'
+import { runFileOperation } from '@cv/sidecar/agent-files/operations'
+import { managedHome } from '@cv/sidecar/agent-files/storage'
 import {
   createFileExistsHelper,
   createFileHelper,
-} from '@sb/sidecar/eval/file-helper'
+} from '@cv/sidecar/eval/file-helper'
 import { afterAll, beforeAll, expect, test } from 'bun:test'
 import {
   mkdir,
@@ -110,7 +110,7 @@ test('managed cleanup refuses arbitrary paths and symlink substitutions', async 
 
 test('direct sidecar reads and previews reject home access hidden behind a project symlink', async () => {
   const { readWorkspaceFile, previewWorkspaceDiff, checkFlaggedPaths } =
-    await import('@sb/sidecar/mcp/workspace/workspace')
+    await import('@cv/sidecar/mcp/workspace/workspace')
   await symlink(personal, path.join(project, 'personal-link'))
   const workspace = withAgentHome(
     {

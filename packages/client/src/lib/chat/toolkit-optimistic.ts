@@ -1,6 +1,6 @@
-import { api } from '@sb/convex/_generated/api'
-import type { ToolkitSettingsArgs } from '@sb/convex/types'
-import { updateDisabledSkills } from '@sb/core/skills/names'
+import { api } from '@cv/convex/_generated/api'
+import type { ToolkitSettingsArgs } from '@cv/convex/types'
+import { updateDisabledSkills } from '@cv/core/skills/names'
 import type { OptimisticLocalStore } from 'convex/browser'
 
 /** Projects skill changes into every cached toolkit list until Convex confirms them. */

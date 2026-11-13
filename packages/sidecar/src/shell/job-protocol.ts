@@ -5,4 +5,4 @@ export type {
   ShellJobSummary,
   PollResult,
   ShellStreamEvent,
-} from '@sb/core/shell/job-protocol'
+} from '@cv/core/shell/job-protocol'

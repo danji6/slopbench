@@ -3,9 +3,9 @@ import {
   createDefaultAgent,
   createDefaultCompactionPrompts,
   createDefaultImpersonationPrompts,
-} from '@sb/convex/model/defaults'
-import { ensurePromptMarkers } from '@sb/convex/model/prompt/markers'
-import type { Prompt, PromptItem, PromptMarkerType } from '@sb/convex/types'
+} from '@cv/convex/model/defaults'
+import { ensurePromptMarkers } from '@cv/convex/model/prompt/markers'
+import type { Prompt, PromptItem, PromptMarkerType } from '@cv/convex/types'
 import { describe, expect, test } from 'bun:test'
 
 const AGENT_MARKERS: PromptMarkerType[] = ['message-history', 'system-boundary']

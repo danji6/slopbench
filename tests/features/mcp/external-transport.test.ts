@@ -1,8 +1,8 @@
 /// <reference types="bun-types" />
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
-import { mcpTransportCandidates } from '@sb/core/types'
-import { listExternalTools } from '@sb/sidecar/mcp/external/client'
+import { mcpTransportCandidates } from '@cv/core/types'
+import { listExternalTools } from '@cv/sidecar/mcp/external/client'
 import { afterEach, describe, expect, test } from 'bun:test'
 import { z } from 'zod'
 

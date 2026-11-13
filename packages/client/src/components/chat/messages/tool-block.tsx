@@ -1,8 +1,8 @@
 import { useToolOutput } from '@/hooks/chat/tool-output'
 import { getToolErrorText } from '@/lib/chat'
-import { toolDisplayName } from '@sb/core/approval-presentation'
-import type { McpProgress as Progress } from '@sb/core/types/mcp-operation'
-import { isMcpResult, isMcpResultPreview } from '@sb/core/types/mcp-result'
+import { toolDisplayName } from '@cv/core/approval-presentation'
+import type { McpProgress as Progress } from '@cv/core/types/mcp-operation'
+import { isMcpResult, isMcpResultPreview } from '@cv/core/types/mcp-result'
 import type { ToolUIPart } from 'ai'
 import { memo } from 'react'
 

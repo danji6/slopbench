@@ -1,7 +1,7 @@
 /// <reference types="bun-types" />
 import { evaluatePromptPreview as preview } from '@/lib/chat/prompts'
-import { evaluateRequest } from '@sb/core/interpreter/request'
-import type { EvalContext } from '@sb/core/interpreter/types'
+import { evaluateRequest } from '@cv/core/interpreter/request'
+import type { EvalContext } from '@cv/core/interpreter/types'
 import { describe, expect, test } from 'bun:test'
 
 const evaluatePromptPreview = (text: string, context: EvalContext) =>

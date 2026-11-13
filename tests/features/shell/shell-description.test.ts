@@ -1,11 +1,11 @@
-import type { WorkspaceToolContext } from '@sb/convex/model/tool/context'
+import type { WorkspaceToolContext } from '@cv/convex/model/tool/context'
 import {
   SHELL_DESCRIPTION_REQUIRED,
   shellApprovalPolicy,
-} from '@sb/convex/model/tool/shellApproval'
-import { createShellTool } from '@sb/convex/model/tool/shellTools'
-import type { ToolApprovals } from '@sb/convex/types'
-import type { ShellToolOutput } from '@sb/core/types/tools'
+} from '@cv/convex/model/tool/shellApproval'
+import { createShellTool } from '@cv/convex/model/tool/shellTools'
+import type { ToolApprovals } from '@cv/convex/types'
+import type { ShellToolOutput } from '@cv/core/types/tools'
 import { type ToolSet, streamText } from 'ai'
 import { MockLanguageModelV4 } from 'ai/test'
 import { afterAll, beforeAll, describe, expect, mock, test } from 'bun:test'

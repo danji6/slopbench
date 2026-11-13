@@ -1,9 +1,9 @@
-import type { ChangePublication } from '@sb/core/types/changes'
-import type { FolderWorkspace } from '@sb/core/types/workspace'
+import type { ChangePublication } from '@cv/core/types/changes'
+import type { FolderWorkspace } from '@cv/core/types/workspace'
 import {
   assertPersonalScope,
   selectFileWorkspace,
-} from '@sb/core/workspace/personal'
+} from '@cv/core/workspace/personal'
 
 import { isOutside } from '../mcp/workspace/access'
 import { requireWorkspace } from '../mcp/workspace/resolve-workspace'

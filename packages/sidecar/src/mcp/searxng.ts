@@ -1,4 +1,4 @@
-import type { WebSearchQuery } from '@sb/core/types'
+import type { WebSearchQuery } from '@cv/core/types'
 
 import {
   type RequestContext,

@@ -1,4 +1,4 @@
-import type { BuiltinToolName } from '@sb/core/tool-capabilities'
+import type { BuiltinToolName } from '@cv/core/tool-capabilities'
 import type { LucideIcon } from 'lucide-react'
 import {
   BookOpenTextIcon,

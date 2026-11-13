@@ -2,7 +2,7 @@ import { readTextPreview } from '@/lib/text-file-preview'
 import {
   MAX_MCP_DEFINITION_BYTES,
   mcpDefinitionSchema,
-} from '@sb/core/types/mcp-catalog'
+} from '@cv/core/types/mcp-catalog'
 
 /** Loads a complete stored definition and checks its catalog identity. */
 export async function loadMcpDefinition(

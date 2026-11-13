@@ -2,11 +2,11 @@ import { SCRIPT_COMPLETIONS } from '@/components/chat/messages/editor/script-com
 import { PromptContentEditor } from '@/components/chat/prompts/prompt-content-editor'
 import { CodeEditor } from '@/components/ui/code-editor'
 import '@/globals.css'
-import { completionWord } from '@sb/core/code-completion/engine'
+import { completionWord } from '@cv/core/code-completion/engine'
 import type {
   Completion,
   CompletionProvider,
-} from '@sb/core/code-completion/types'
+} from '@cv/core/code-completion/types'
 import { useState } from 'react'
 
 const symbols: Completion[] = [

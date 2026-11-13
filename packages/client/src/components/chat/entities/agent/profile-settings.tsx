@@ -1,6 +1,6 @@
 import { AvatarPicker } from '@/components/chat/entities/avatar-picker'
 import { Input, Label, SettingsList } from '@/components/ui'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import type { Control } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
 

@@ -25,10 +25,10 @@ import {
 } from '@/lib/chat/question-draft-store'
 import { toastError } from '@/lib/notifications'
 import { cn } from '@/lib/utils'
-import { api } from '@sb/convex/_generated/api'
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { AgentQuestion } from '@sb/core/types'
-import { toDisplayName } from '@sb/core/utils/names'
+import { api } from '@cv/convex/_generated/api'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { AgentQuestion } from '@cv/core/types'
+import { toDisplayName } from '@cv/core/utils/names'
 import { useMutation } from 'convex/react'
 import {
   type RefObject,

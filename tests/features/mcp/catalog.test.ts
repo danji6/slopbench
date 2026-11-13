@@ -1,6 +1,6 @@
-import { CatalogSnapshots } from '@sb/sidecar/mcp/external/catalog-snapshots'
-import { listExternalTools, withClient } from '@sb/sidecar/mcp/external/client'
-import { discoverTools } from '@sb/sidecar/mcp/external/discovery'
+import { CatalogSnapshots } from '@cv/sidecar/mcp/external/catalog-snapshots'
+import { listExternalTools, withClient } from '@cv/sidecar/mcp/external/client'
+import { discoverTools } from '@cv/sidecar/mcp/external/discovery'
 import { expect, test } from 'bun:test'
 import {
   operationFixture,

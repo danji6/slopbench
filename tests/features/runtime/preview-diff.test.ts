@@ -1,5 +1,5 @@
-import { withAgentHome } from '@sb/core/workspace/personal'
-import type * as Workspace from '@sb/sidecar/mcp/workspace/workspace'
+import { withAgentHome } from '@cv/core/workspace/personal'
+import type * as Workspace from '@cv/sidecar/mcp/workspace/workspace'
 /// <reference types="bun-types" />
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import {
@@ -35,7 +35,7 @@ describe('previewWorkspaceDiff', () => {
   beforeAll(async () => {
     dataDir = await mkdtemp(path.join(tmpdir(), 'chat-sidecar-'))
     process.env.CHAT_SIDECAR_DATA_DIR = dataDir
-    workspaceModule = await import('@sb/sidecar/mcp/workspace/workspace')
+    workspaceModule = await import('@cv/sidecar/mcp/workspace/workspace')
   })
 
   afterAll(async () => {
@@ -46,7 +46,7 @@ describe('previewWorkspaceDiff', () => {
 
   test('turn checkpoint routes capture real file tools and reject later conflicts', async () => {
     const { Hono } = await import('hono')
-    const { checkpointRoutes } = await import('@sb/sidecar/checkpoints/routes')
+    const { checkpointRoutes } = await import('@cv/sidecar/checkpoints/routes')
     const { root, workspaceId, workspace } = await boundWorkspace('turn-routes')
     const app = new Hono().route('/checkpoints', checkpointRoutes)
     const request = (endpoint: string, body: unknown) =>
@@ -326,8 +326,8 @@ describe('previewWorkspaceDiff', () => {
   })
   test('the actual MCP route carries grants and literal checks to file tools', async () => {
     const { Hono } = await import('hono')
-    const { handleMcpRequest } = await import('@sb/sidecar/mcp/mcp')
-    const { callMcpTool } = await import('@sb/convex/model/tool/mcp')
+    const { handleMcpRequest } = await import('@cv/sidecar/mcp/mcp')
+    const { callMcpTool } = await import('@cv/convex/model/tool/mcp')
     const { root, workspaceId, workspace } = await boundWorkspace('mcp-grants')
     const external = await mkdtemp(path.join(tmpdir(), 'mcp-external-'))
     const app = new Hono().all('/mcp', handleMcpRequest)
@@ -413,7 +413,7 @@ describe('previewWorkspaceDiff', () => {
         ).content,
       ).toBe('secondary')
       const { listWorkspaceFiles } =
-        await import('@sb/sidecar/mcp/workspace/files')
+        await import('@cv/sidecar/mcp/workspace/files')
       expect((await listWorkspaceFiles(input)).files.sort()).toEqual(
         [path.join(secondary, 'same.txt'), 'same.txt'].sort(),
       )
@@ -466,7 +466,7 @@ describe('previewWorkspaceDiff', () => {
         }),
       ).rejects.toThrow()
       const { checkPaths } =
-        await import('@sb/sidecar/mcp/workspace/check-paths')
+        await import('@cv/sidecar/mcp/workspace/check-paths')
       const checked = await checkPaths(
         root,
         { paths: ['.git/config'], literal: true },
@@ -493,7 +493,7 @@ describe('previewWorkspaceDiff', () => {
       await mkdir(child)
       await writeFile(path.join(child, 'file.txt'), 'text')
       const { validateSources } =
-        await import('@sb/sidecar/mcp/workspace/context')
+        await import('@cv/sidecar/mcp/workspace/context')
       workspace.sources.push(
         { id: 'duplicate', path: root + '/.', label: 'duplicate' },
         { id: 'child', path: child, label: 'child' },
@@ -501,7 +501,7 @@ describe('previewWorkspaceDiff', () => {
       workspace.sources = await validateSources({ sources: workspace.sources })
       expect(workspace.sources).toHaveLength(2)
       const { listWorkspaceFiles } =
-        await import('@sb/sidecar/mcp/workspace/files')
+        await import('@cv/sidecar/mcp/workspace/files')
       expect(
         (
           await listWorkspaceFiles({
@@ -518,7 +518,7 @@ describe('previewWorkspaceDiff', () => {
 
   test('source transitions reject in-flight operations and fence new operations until unlocked', async () => {
     const { lockWorkspaces, unlockWorkspaces, withWorkspaceOperation } =
-      await import('@sb/sidecar/mcp/workspace/context')
+      await import('@cv/sidecar/mcp/workspace/context')
     const input = {
       sessionIds: ['locked-session'],
       token: `${Date.now() + 60000}:test`,

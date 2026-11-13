@@ -1,4 +1,4 @@
-import { SEARCH_ENGINE_IDS } from '@sb/core/types'
+import { SEARCH_ENGINE_IDS } from '@cv/core/types'
 import { v } from 'convex/values'
 
 /** Resolved theme variables as their hex values. */

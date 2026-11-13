@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import { collapseToolError } from '@sb/core/utils/tool-errors'
+import { collapseToolError } from '@cv/core/utils/tool-errors'
 import { describe, expect, test } from 'bun:test'
 
 describe('collapseToolError', () => {

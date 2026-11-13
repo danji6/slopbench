@@ -1,4 +1,4 @@
-import { reserveRetryStream } from '@sb/convex/model/chat/reserve'
+import { reserveRetryStream } from '@cv/convex/model/chat/reserve'
 import {
   EmptyProviderResponseError,
   getAutoCompactRetryDelay,
@@ -7,7 +7,7 @@ import {
   getRateLimitRetryDelay,
   getTransientRetryDelay,
   isProviderRequestSizeError,
-} from '@sb/convex/model/stream/retry'
+} from '@cv/convex/model/stream/retry'
 import { describe, expect, test } from 'bun:test'
 
 describe('getRateLimitRetryDelay', () => {

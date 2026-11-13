@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import { listExternalTools } from '@sb/sidecar/mcp/external/client'
+import { listExternalTools } from '@cv/sidecar/mcp/external/client'
 import { afterEach, describe, expect, test } from 'bun:test'
 
 const encoder = new TextEncoder()

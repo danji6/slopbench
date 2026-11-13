@@ -18,8 +18,8 @@
     "types": ["node"],
     "paths": {
       // TODO rename when we finally find a name for this app
-      "@sb/core/*": ["../../core/src/*"],
-      "@sb/convex/*": ["./*"]
+      "@cv/core/*": ["../../core/src/*"],
+      "@cv/convex/*": ["./*"]
     },
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",

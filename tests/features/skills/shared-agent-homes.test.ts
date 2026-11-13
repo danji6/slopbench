@@ -1,17 +1,17 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { assertAgentAvailable } from '@sb/convex/model/skills/access'
-import { fail } from '@sb/convex/model/skills/completion'
-import { assertHomeDestination } from '@sb/convex/model/skills/destinations'
-import { reserveDestination } from '@sb/convex/model/skills/endpoints'
-import { bindHome, ensureHome, getHome } from '@sb/convex/model/skills/homes'
-import { invalidateHomeCaches } from '@sb/convex/model/skills/invalidation'
-import { assigned, list } from '@sb/convex/model/skills/library'
-import { retry, start } from '@sb/convex/model/skills/operations'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import { assertAgentAvailable } from '@cv/convex/model/skills/access'
+import { fail } from '@cv/convex/model/skills/completion'
+import { assertHomeDestination } from '@cv/convex/model/skills/destinations'
+import { reserveDestination } from '@cv/convex/model/skills/endpoints'
+import { bindHome, ensureHome, getHome } from '@cv/convex/model/skills/homes'
+import { invalidateHomeCaches } from '@cv/convex/model/skills/invalidation'
+import { assigned, list } from '@cv/convex/model/skills/library'
+import { retry, start } from '@cv/convex/model/skills/operations'
 import {
   assertRemovableHome,
   cleanupRecords,
   prepareHomeRemoval,
-} from '@sb/convex/model/skills/removal'
+} from '@cv/convex/model/skills/removal'
 import { expect, test } from 'bun:test'
 import {
   completeFileOperation as complete,

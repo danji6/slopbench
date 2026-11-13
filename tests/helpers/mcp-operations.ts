@@ -1,9 +1,9 @@
-import { mcpConnectionSchema } from '@sb/core/types'
-import type { McpRuntimeScope, McpRuntimeStatus } from '@sb/core/types'
-import { McpOperations } from '@sb/sidecar/mcp/external/operation'
-import type { OperationStart } from '@sb/sidecar/mcp/external/operation'
-import { McpOperationStore } from '@sb/sidecar/mcp/external/operation-store'
-import { McpRegistry } from '@sb/sidecar/mcp/external/registry'
+import { mcpConnectionSchema } from '@cv/core/types'
+import type { McpRuntimeScope, McpRuntimeStatus } from '@cv/core/types'
+import { McpOperations } from '@cv/sidecar/mcp/external/operation'
+import type { OperationStart } from '@cv/sidecar/mcp/external/operation'
+import { McpOperationStore } from '@cv/sidecar/mcp/external/operation-store'
+import { McpRegistry } from '@cv/sidecar/mcp/external/registry'
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -15,7 +15,7 @@ export async function operationServices(
   fixture?: URL,
   fixtureArgs: string[] = [],
 ) {
-  const root = await mkdtemp(path.join(tmpdir(), 'sb-mcp-operation-'))
+  const root = await mkdtemp(path.join(tmpdir(), 'cv-mcp-operation-'))
   const registry = new McpRegistry()
   const scope: McpRuntimeScope = {
     key: randomUUID(),

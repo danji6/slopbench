@@ -1,7 +1,7 @@
 import { RippleButton, SearchableList, SettingsList } from '@/components/ui'
 import { useTools } from '@/hooks/chat'
 import { generateId } from '@/lib/utils'
-import { mcpToolName } from '@sb/core/types'
+import { mcpToolName } from '@cv/core/types'
 import { PlusIcon } from 'lucide-react'
 import { useMemo } from 'react'
 import type { Control } from 'react-hook-form'

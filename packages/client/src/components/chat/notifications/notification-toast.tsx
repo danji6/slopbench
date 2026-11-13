@@ -7,7 +7,7 @@ import {
   notificationToastId,
 } from '@/lib/chat/notification-ui'
 import { toast } from '@/lib/notifications'
-import type { NotificationApprovalAction } from '@sb/core/notification-actions'
+import type { NotificationApprovalAction } from '@cv/core/notification-actions'
 
 import { NotificationApprovalActions } from './notification-approval-actions'
 import { NotificationAvatar } from './notification-avatar'

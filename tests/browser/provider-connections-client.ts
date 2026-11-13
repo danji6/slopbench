@@ -1,5 +1,5 @@
 import type { ProviderFormValues } from '@/components/chat/entities/user/settings-schema'
-import { modelReference } from '@sb/core/model-reference'
+import { modelReference } from '@cv/core/model-reference'
 import type { ConvexReactClient } from 'convex/react'
 import { type FunctionReference, getFunctionName } from 'convex/server'
 import { type Value, convexToJson, jsonToConvex } from 'convex/values'

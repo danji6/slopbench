@@ -1,11 +1,11 @@
-import type { McpRuntimeScope, McpRuntimeStatus } from '@sb/core/types'
-import { sidecarAuthentication } from '@sb/sidecar/auth'
-import { externalMcpRoutes } from '@sb/sidecar/mcp/external/handlers'
-import { mcpRegistry } from '@sb/sidecar/mcp/external/registry'
+import type { McpRuntimeScope, McpRuntimeStatus } from '@cv/core/types'
+import { sidecarAuthentication } from '@cv/sidecar/auth'
+import { externalMcpRoutes } from '@cv/sidecar/mcp/external/handlers'
+import { mcpRegistry } from '@cv/sidecar/mcp/external/registry'
 import {
   lockWorkspaces,
   unlockWorkspaces,
-} from '@sb/sidecar/mcp/workspace/context'
+} from '@cv/sidecar/mcp/workspace/context'
 import { afterEach, expect, test } from 'bun:test'
 import { Hono } from 'hono'
 import { randomUUID } from 'node:crypto'

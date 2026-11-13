@@ -3,7 +3,7 @@ import {
   type WebSearchInstance,
   isMcpUrl,
   isSearchEngineId,
-} from '@sb/core/types'
+} from '@cv/core/types'
 
 import type { Doc } from '../../_generated/dataModel'
 

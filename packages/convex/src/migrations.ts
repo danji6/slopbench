@@ -3,7 +3,7 @@ import {
   Migrations,
   runToCompletion,
 } from '@convex-dev/migrations'
-import { SCHEMA_MIGRATION_VERSION } from '@sb/core/migration-version'
+import { SCHEMA_MIGRATION_VERSION } from '@cv/core/migration-version'
 import { getFunctionName } from 'convex/server'
 import { v } from 'convex/values'
 
@@ -20,6 +20,47 @@ export const migrations = new Migrations<DataModel>(components.migrations, {
 })
 
 export const run = migrations.runner()
+
+// These migrations are run manually on pre-release databases.
+function migrateModelReference(id: string | undefined) {
+  return id?.replace(/^sb-model:(?=[^:]+:.+)/, 'cv-model:')
+}
+
+export const renameSessionModelReferences = migrations.define({
+  table: 'sessions',
+  migrateOne: (_ctx, { model }) => {
+    if (!model) return
+    const id = migrateModelReference(model.id)
+    if (id && id !== model.id) return { model: { ...model, id } }
+  },
+})
+
+export const renameSettingsModelReferences = migrations.define({
+  table: 'settings',
+  migrateOne: (_ctx, settings) => {
+    const recentModel = migrateModelReference(settings.recentModel)
+    const titleModel = migrateModelReference(settings.titleModel)
+    if (
+      recentModel !== settings.recentModel ||
+      titleModel !== settings.titleModel
+    )
+      return { recentModel, titleModel }
+  },
+})
+
+export const renameSubagentModelReferences = migrations.define({
+  table: 'agents',
+  migrateOne: (_ctx, { subAgents }) => {
+    if (!subAgents?.overrides) return
+    const previous = subAgents.overrides
+    const overrides = previous.map((override) => {
+      const modelId = migrateModelReference(override.modelId)
+      return modelId === override.modelId ? override : { ...override, modelId }
+    })
+    if (overrides.some((override, i) => override !== previous[i]))
+      return { subAgents: { ...subAgents, overrides } }
+  },
+})
 
 /**
  * Migrations an install must apply before this release can read its database,

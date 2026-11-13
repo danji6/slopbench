@@ -1,7 +1,7 @@
 /// <reference types="bun-types" />
-import { list as listAgents } from '@sb/convex/model/agents'
-import { list as listSessions } from '@sb/convex/model/session/sessions'
-import { list as listMembers } from '@sb/convex/model/userSessions'
+import { list as listAgents } from '@cv/convex/model/agents'
+import { list as listSessions } from '@cv/convex/model/session/sessions'
+import { list as listMembers } from '@cv/convex/model/userSessions'
 import { describe, expect, test } from 'bun:test'
 import { type Row, makeCtx } from '~/tests/setup/query-rows'
 

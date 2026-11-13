@@ -27,7 +27,7 @@ import {
 } from '@/lib/chat/message-geometry'
 import { isOngoingStream } from '@/lib/chat/stream'
 import { cn } from '@/lib/utils'
-import { parseShellCommand } from '@sb/core/shell/command'
+import { parseShellCommand } from '@cv/core/shell/command'
 import {
   useCallback,
   useEffect,

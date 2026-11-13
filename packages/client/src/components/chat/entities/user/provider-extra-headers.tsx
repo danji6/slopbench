@@ -1,5 +1,5 @@
 import { CodeEditor, HelpPopoverLabel } from '@/components/ui'
-import { parseProviderExtraHeaders } from '@sb/core/provider-headers'
+import { parseProviderExtraHeaders } from '@cv/core/provider-headers'
 
 export function ProviderExtraHeaders({
   editorId,

@@ -1,8 +1,8 @@
-import { shellLabel } from '@sb/core/shell/name'
+import { shellLabel } from '@cv/core/shell/name'
 import {
   SHELL_PAGE_CHARS,
   SHELL_TERM_TAIL_CHARS,
-} from '@sb/core/shell/output-page'
+} from '@cv/core/shell/output-page'
 import type { Context, Handler } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { ZodError, z } from 'zod'

@@ -1,9 +1,9 @@
-import type { ReadFileOptions } from '@sb/core/interpreter/types'
-import { fileBlock } from '@sb/core/workspace/blocks'
+import type { ReadFileOptions } from '@cv/core/interpreter/types'
+import { fileBlock } from '@cv/core/workspace/blocks'
 import {
   type ScopedPath,
   parseScopedPath,
-} from '@sb/core/workspace/scoped-path'
+} from '@cv/core/workspace/scoped-path'
 import {
   closeSync,
   fstatSync,

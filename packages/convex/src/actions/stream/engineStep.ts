@@ -1,7 +1,7 @@
 'use node'
 
-import { truncateTitleExcerpt } from '@sb/core/title-generation'
-import { hasPendingQuestions } from '@sb/core/utils/ask'
+import { truncateTitleExcerpt } from '@cv/core/title-generation'
+import { hasPendingQuestions } from '@cv/core/utils/ask'
 import type { UIMessage } from 'ai'
 
 import { internal } from '../../_generated/api'

@@ -1,10 +1,10 @@
-import type { FolderWorkspace } from '@sb/core/types/workspace'
-import type { PathCheckResult } from '@sb/core/workspace/path-policy'
-import { assertPersonalScope } from '@sb/core/workspace/personal'
+import type { FolderWorkspace } from '@cv/core/types/workspace'
+import type { PathCheckResult } from '@cv/core/workspace/path-policy'
+import { assertPersonalScope } from '@cv/core/workspace/personal'
 import {
   parseScopedPath,
   scopedDisplayPath,
-} from '@sb/core/workspace/scoped-path'
+} from '@cv/core/workspace/scoped-path'
 
 import { inspectShellDirectory } from '../../shell/directory'
 import { checkPaths } from './check-paths'

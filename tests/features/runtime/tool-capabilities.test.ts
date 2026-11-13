@@ -1,17 +1,17 @@
-import { createOperationPlan } from '@sb/convex/actions/stream/operations'
-import { getEnabledTools } from '@sb/convex/model/tool/build'
-import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
-import type { ManifestInput } from '@sb/convex/model/tool/manifest'
+import { createOperationPlan } from '@cv/convex/actions/stream/operations'
+import { getEnabledTools } from '@cv/convex/model/tool/build'
+import { resolveToolManifest } from '@cv/convex/model/tool/manifest'
+import type { ManifestInput } from '@cv/convex/model/tool/manifest'
 import {
   BUILTIN_TOOL_NAMES,
   TOOL_CAPABILITIES,
   normalizeToolSelection,
-} from '@sb/core/tool-capabilities'
+} from '@cv/core/tool-capabilities'
 import {
   canReplayToolContext,
   contextDependencies,
   contextEnabled,
-} from '@sb/core/tool-context'
+} from '@cv/core/tool-context'
 import { expect, test } from 'bun:test'
 
 const server = {

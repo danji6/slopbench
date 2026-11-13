@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import { _getProviderHistory } from '@sb/convex/model/stream/reads'
+import { _getProviderHistory } from '@cv/convex/model/stream/reads'
 import { describe, expect, test } from 'bun:test'
 
 type ContentRow = { _id: string; segmentIndex: number; parts: unknown[] }

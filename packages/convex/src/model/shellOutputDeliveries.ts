@@ -1,4 +1,4 @@
-import type { ShellOutputRange, ShellToolOutput } from '@sb/core/types/tools'
+import type { ShellOutputRange, ShellToolOutput } from '@cv/core/types/tools'
 
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'

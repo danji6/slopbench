@@ -1,8 +1,8 @@
-import { stripTerminalCodes } from '@sb/core/shell/ansi'
+import { stripTerminalCodes } from '@cv/core/shell/ansi'
 import {
   SHELL_TERM_TAIL_CHARS,
   formatOutputPage,
-} from '@sb/core/shell/output-page'
+} from '@cv/core/shell/output-page'
 import type { Tool, ToolSet } from 'ai'
 
 import type {

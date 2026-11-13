@@ -1,4 +1,4 @@
-import type { ShellToolOutput } from '@sb/convex/types'
+import type { ShellToolOutput } from '@cv/convex/types'
 
 export type Row = Record<string, unknown> & { _id: string }
 

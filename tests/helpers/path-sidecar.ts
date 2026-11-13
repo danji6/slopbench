@@ -1,4 +1,4 @@
-import { checkPaths } from '@sb/sidecar/mcp/workspace/check-paths'
+import { checkPaths } from '@cv/sidecar/mcp/workspace/check-paths'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'

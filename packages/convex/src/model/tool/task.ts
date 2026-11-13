@@ -1,4 +1,4 @@
-import { TOOL_DESCRIPTIONS } from '@sb/core/types'
+import { TOOL_DESCRIPTIONS } from '@cv/core/types'
 
 /**
  * Delegates a task to a spawnable sub-agent. The engine spawns a hidden

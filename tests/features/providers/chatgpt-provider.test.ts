@@ -1,7 +1,7 @@
-import { getProviderOptions } from '@sb/convex/model/provider/options'
-import { prepareChatGPTRequest } from '@sb/core/chatgpt-policy'
-import { modelReference } from '@sb/core/model-reference'
-import { requireCompletedStream } from '@sb/sidecar/providers/openai/stream'
+import { getProviderOptions } from '@cv/convex/model/provider/options'
+import { prepareChatGPTRequest } from '@cv/core/chatgpt-policy'
+import { modelReference } from '@cv/core/model-reference'
+import { requireCompletedStream } from '@cv/sidecar/providers/openai/stream'
 import { streamText, tool } from 'ai'
 import { describe, expect, test } from 'bun:test'
 import { z } from 'zod'
@@ -101,7 +101,7 @@ describe('ChatGPT subscription inference', () => {
     expect(body.tools).toEqual([
       expect.objectContaining({
         type: 'namespace',
-        name: 'slopbench',
+        name: 'corvori',
         tools: [expect.objectContaining({ type: 'function', name: 'inspect' })],
       }),
     ])
@@ -176,7 +176,7 @@ test('replays client tool calls with their namespace and full output', async () 
             toolName: 'inspect',
             input: { path: 'a' },
             providerOptions: {
-              openai: { namespace: 'slopbench', itemId: 'stored-function' },
+              openai: { namespace: 'corvori', itemId: 'stored-function' },
             },
           },
         ],
@@ -202,7 +202,7 @@ test('replays client tool calls with their namespace and full output', async () 
   expect(body.input).toContainEqual(
     expect.objectContaining({
       type: 'function_call',
-      namespace: 'slopbench',
+      namespace: 'corvori',
       name: 'inspect',
     }),
   )

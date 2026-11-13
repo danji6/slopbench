@@ -1,5 +1,5 @@
-import type { McpServer } from '@sb/core/types'
-import { mcpApprovalKey, parseMcpInputSchema } from '@sb/core/types/mcp-catalog'
+import type { McpServer } from '@cv/core/types'
+import { mcpApprovalKey, parseMcpInputSchema } from '@cv/core/types/mcp-catalog'
 
 import { ToolError, extractErrorMessage, toolFailure } from '../../errors'
 import { isToolAutoApproved } from '../../lib/tool/approval'
@@ -154,7 +154,7 @@ export async function createExternalMcpTool(
     definition?.inputSchema ?? entry.inputSchema,
   ) as Parameters<typeof jsonSchema>[0]
 
-  const { mcpInputValidator } = await import('@sb/core/mcp-schema-validation')
+  const { mcpInputValidator } = await import('@cv/core/mcp-schema-validation')
   const validate = mcpInputValidator(
     definition?.inputSchema ?? entry.inputSchema!,
   )

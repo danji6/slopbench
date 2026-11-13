@@ -1,7 +1,7 @@
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import type { RequestOptions } from '@modelcontextprotocol/sdk/shared/protocol.js'
-import type { McpProtocolRequest } from '@sb/core/types/mcp-protocol'
-import { MAX_MCP_RESULT_BYTES } from '@sb/core/types/mcp-result'
+import type { McpProtocolRequest } from '@cv/core/types/mcp-protocol'
+import { MAX_MCP_RESULT_BYTES } from '@cv/core/types/mcp-result'
 
 /** Uses only implemented client capabilities; no sampling or elicitation is advertised. */
 export async function requestProtocol(

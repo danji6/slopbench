@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import { slowModeRemainingMs } from '@sb/convex/model/chat/send'
+import { slowModeRemainingMs } from '@cv/convex/model/chat/send'
 import { describe, expect, test } from 'bun:test'
 
 describe('slowModeRemainingMs', () => {

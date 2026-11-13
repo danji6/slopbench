@@ -6,7 +6,7 @@ import {
   serializeBlocksToMarkdown,
   setEditorMarkdown,
 } from '@/lib/tiptap/serialize'
-import { parseShellCommand } from '@sb/core/shell/command'
+import { parseShellCommand } from '@cv/core/shell/command'
 import type { Editor } from '@tiptap/react'
 import {
   useCallback,

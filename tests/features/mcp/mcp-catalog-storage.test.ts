@@ -1,5 +1,5 @@
-import { sweepOrphanDefinitions } from '@sb/convex/model/mcpCatalogCleanup'
-import { MCP_DEFINITION_CONTENT_TYPE } from '@sb/core/types/mcp-catalog'
+import { sweepOrphanDefinitions } from '@cv/convex/model/mcpCatalogCleanup'
+import { MCP_DEFINITION_CONTENT_TYPE } from '@cv/core/types/mcp-catalog'
 import { expect, test } from 'bun:test'
 import { skillsDatabase } from '~/tests/helpers/skills-db'
 

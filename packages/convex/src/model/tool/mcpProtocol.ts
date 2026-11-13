@@ -2,9 +2,9 @@ import {
   mcpOutputReadSchema,
   mcpProtocolApprovalKey,
   mcpProtocolBrokerSchema,
-} from '@sb/core/types/mcp-protocol'
-import type { McpProtocolRequest } from '@sb/core/types/mcp-protocol'
-import { TOOL_DESCRIPTIONS } from '@sb/core/types/tool-descriptions'
+} from '@cv/core/types/mcp-protocol'
+import type { McpProtocolRequest } from '@cv/core/types/mcp-protocol'
+import { TOOL_DESCRIPTIONS } from '@cv/core/types/tool-descriptions'
 
 import { internal } from '../../_generated/api'
 import { ToolError } from '../../errors'

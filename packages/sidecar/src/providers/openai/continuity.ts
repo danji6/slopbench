@@ -1,5 +1,5 @@
-import { CHATGPT_ROUTING_HEADERS } from '@sb/core/chatgpt-routing'
-import { isRoutingHeader } from '@sb/core/provider-continuity'
+import { CHATGPT_ROUTING_HEADERS } from '@cv/core/chatgpt-routing'
+import { isRoutingHeader } from '@cv/core/provider-continuity'
 import { z } from 'zod'
 
 export const continuitySchema = z.object({

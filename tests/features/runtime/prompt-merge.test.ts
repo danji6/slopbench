@@ -4,15 +4,15 @@ import {
   mergePrompts as mergeClientPrompts,
   upsertPrompt,
 } from '@/lib/chat/prompts'
-import { promptItemKey } from '@sb/convex/model/prompt/markers'
+import { promptItemKey } from '@cv/convex/model/prompt/markers'
 import {
   buildPrompts,
   buildSystemPrompt,
   collectStarterPrompts,
   mergePrompts as mergeServerPrompts,
   removeStarterPrompts,
-} from '@sb/convex/model/prompt/prompts'
-import type { OrderedItem, Prompt, PromptItem } from '@sb/convex/types'
+} from '@cv/convex/model/prompt/prompts'
+import type { OrderedItem, Prompt, PromptItem } from '@cv/convex/types'
 import { describe, expect, test } from 'bun:test'
 
 const firstSystem: Prompt = {

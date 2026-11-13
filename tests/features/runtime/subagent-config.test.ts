@@ -2,9 +2,9 @@
 import {
   resolveSpawnableAgents,
   sanitizeSubAgents,
-} from '@sb/convex/model/agent/subagents'
-import { getEnabledTools } from '@sb/convex/model/tool/build'
-import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
+} from '@cv/convex/model/agent/subagents'
+import { getEnabledTools } from '@cv/convex/model/tool/build'
+import { resolveToolManifest } from '@cv/convex/model/tool/manifest'
 import { describe, expect, test } from 'bun:test'
 
 type Row = Record<string, unknown> & { _id: string }

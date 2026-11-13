@@ -1,9 +1,9 @@
-import { EVAL_LIMITS } from '@sb/core/interpreter/limits'
+import { EVAL_LIMITS } from '@cv/core/interpreter/limits'
 import type {
   EvaluationReply,
   EvaluationRequest,
   EvaluationResult,
-} from '@sb/core/interpreter/request'
+} from '@cv/core/interpreter/request'
 
 /** Runs a disposable browser guest, terminating it on cancellation or timeout. */
 export function evaluateInBrowser(

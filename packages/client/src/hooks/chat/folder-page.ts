@@ -1,4 +1,4 @@
-import { api } from '@sb/convex/_generated/api'
+import { api } from '@cv/convex/_generated/api'
 import { usePaginatedQuery } from 'convex-helpers/react/cache/hooks'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 

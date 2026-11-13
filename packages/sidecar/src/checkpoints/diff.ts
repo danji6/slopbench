@@ -1,5 +1,5 @@
-import type { ChangePublication } from '@sb/core/types/changes'
-import { createUnifiedDiff, normalizeToLf } from '@sb/core/workspace/edit'
+import type { ChangePublication } from '@cv/core/types/changes'
+import { createUnifiedDiff, normalizeToLf } from '@cv/core/workspace/edit'
 import { TextDecoder } from 'node:util'
 
 import { sameFile } from './snapshot'

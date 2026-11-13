@@ -3,7 +3,7 @@ import { twMerge } from 'tailwind-merge'
 
 import { PayloadTooLargeError } from './errors'
 
-export { generateId } from '@sb/core/utils/id'
+export { generateId } from '@cv/core/utils/id'
 
 export const safeWindow = getWindow()
 export const safeDocument = getDocument()

@@ -1,4 +1,4 @@
-import { folderTrail } from '@sb/core/utils/folder-tree'
+import { folderTrail } from '@cv/core/utils/folder-tree'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { QueryCtx } from '../../_generated/server'

@@ -1,5 +1,5 @@
-import { CheckpointManager } from '@sb/sidecar/checkpoints/manager'
-import { digest } from '@sb/sidecar/checkpoints/storage'
+import { CheckpointManager } from '@cv/sidecar/checkpoints/manager'
+import { digest } from '@cv/sidecar/checkpoints/storage'
 import { afterEach, expect, test } from 'bun:test'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'

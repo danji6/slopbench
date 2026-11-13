@@ -1,4 +1,4 @@
-import { parseToolkitSkillUri } from '@sb/core/types/toolkit'
+import { parseToolkitSkillUri } from '@cv/core/types/toolkit'
 
 import type { QueryCtx } from '../../_generated/server'
 import { error } from '../../errors'

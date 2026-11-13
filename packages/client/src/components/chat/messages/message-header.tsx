@@ -3,7 +3,7 @@ import { useLightbox } from '@/components/ui/lightbox'
 import { useAvatarUrls } from '@/hooks/chat'
 import type { MessageRole, UIAvatar } from '@/lib/chat'
 import { cn } from '@/lib/utils'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import { BotIcon, CogIcon, UserIcon } from 'lucide-react'
 import { useCallback } from 'react'
 

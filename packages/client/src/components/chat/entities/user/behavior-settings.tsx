@@ -7,7 +7,7 @@ import { SettingsList } from '@/components/ui'
 import {
   createDefaultCompactionPrompts,
   createDefaultImpersonationPrompts,
-} from '@sb/convex/model/defaults'
+} from '@cv/convex/model/defaults'
 import type { Control } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
 

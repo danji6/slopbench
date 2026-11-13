@@ -1,7 +1,7 @@
 import type { FolderDropPlacement } from '@/lib/chat/folder-moves'
 import { cn } from '@/lib/utils'
 import { useDndContext, useDroppable } from '@dnd-kit/core'
-import type { FolderView } from '@sb/convex/types'
+import type { FolderView } from '@cv/convex/types'
 
 /** Gives folder headers separate insertion edges and a nesting center. */
 export function FolderDropTargets({ folder }: { folder: FolderView }) {

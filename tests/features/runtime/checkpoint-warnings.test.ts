@@ -1,4 +1,4 @@
-import { CheckpointManager } from '@sb/sidecar/checkpoints/manager'
+import { CheckpointManager } from '@cv/sidecar/checkpoints/manager'
 import { afterEach, expect, test } from 'bun:test'
 import { execFile } from 'node:child_process'
 import {

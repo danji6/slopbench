@@ -1,6 +1,6 @@
 /// <reference types="bun-types" />
-import { promptItemKey } from '@sb/convex/model/prompt/markers'
-import { mergePrompts } from '@sb/convex/model/prompt/prompts'
+import { promptItemKey } from '@cv/convex/model/prompt/markers'
+import { mergePrompts } from '@cv/convex/model/prompt/prompts'
 import {
   create,
   list,
@@ -8,10 +8,10 @@ import {
   resolveSets,
   seed,
   update,
-} from '@sb/convex/model/prompts'
-import { list as listReminders } from '@sb/convex/model/reminders'
-import type { Prompt, PromptItem, PromptScope } from '@sb/convex/types'
-import { MAX_PROMPT_CONTENT_CHARS, MAX_SCOPE_PROMPTS } from '@sb/core/limits'
+} from '@cv/convex/model/prompts'
+import { list as listReminders } from '@cv/convex/model/reminders'
+import type { Prompt, PromptItem, PromptScope } from '@cv/convex/types'
+import { MAX_PROMPT_CONTENT_CHARS, MAX_SCOPE_PROMPTS } from '@cv/core/limits'
 import { describe, expect, test } from 'bun:test'
 
 const OWNER = 'user_1'

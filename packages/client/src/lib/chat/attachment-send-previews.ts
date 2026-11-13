@@ -1,5 +1,5 @@
 import type { LocalFilePreview } from '@/hooks/file-previews'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 
 export type StagedAttachment = {
   id: Id<'attachments'>

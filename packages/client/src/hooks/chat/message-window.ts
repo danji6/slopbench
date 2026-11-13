@@ -11,13 +11,13 @@ import {
   sliceTailByBudget,
 } from '@/lib/chat/window-math'
 import { scrollDebug } from '@/lib/scroll-debug'
-import { api } from '@sb/convex/_generated/api'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import { api } from '@cv/convex/_generated/api'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import {
   MESSAGE_PAGE_BUDGET_BYTES,
   MESSAGE_WINDOW_BUDGET_BYTES,
   MESSAGE_WINDOW_MAX_ROWS,
-} from '@sb/core/const'
+} from '@cv/core/const'
 import { useQuery } from 'convex/react'
 import type { FunctionReturnType } from 'convex/server'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'

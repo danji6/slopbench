@@ -1,18 +1,18 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { _getExecution } from '@sb/convex/model/mcp'
-import { connected } from '@sb/convex/model/mcpRuntime'
-import { createMcpBrokerTools } from '@sb/convex/model/tool/mcpBroker'
-import type { McpBrokerContext } from '@sb/convex/model/tool/mcpBroker'
-import { createMcpProtocolTools } from '@sb/convex/model/tool/mcpProtocol'
-import { publish } from '@sb/convex/model/toolkits/publication'
-import { select } from '@sb/convex/model/toolkits/selection'
-import { mcpCatalogRoutes } from '@sb/sidecar/mcp/external/catalog-routes'
-import { CatalogSnapshots } from '@sb/sidecar/mcp/external/catalog-snapshots'
-import { mcpOperationRoutes } from '@sb/sidecar/mcp/external/operation-routes'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import { _getExecution } from '@cv/convex/model/mcp'
+import { connected } from '@cv/convex/model/mcpRuntime'
+import { createMcpBrokerTools } from '@cv/convex/model/tool/mcpBroker'
+import type { McpBrokerContext } from '@cv/convex/model/tool/mcpBroker'
+import { createMcpProtocolTools } from '@cv/convex/model/tool/mcpProtocol'
+import { publish } from '@cv/convex/model/toolkits/publication'
+import { select } from '@cv/convex/model/toolkits/selection'
+import { mcpCatalogRoutes } from '@cv/sidecar/mcp/external/catalog-routes'
+import { CatalogSnapshots } from '@cv/sidecar/mcp/external/catalog-snapshots'
+import { mcpOperationRoutes } from '@cv/sidecar/mcp/external/operation-routes'
 import {
   inspectToolkit,
   toolkitConnections,
-} from '@sb/sidecar/toolkits/manifest'
+} from '@cv/sidecar/toolkits/manifest'
 import { expect, test } from 'bun:test'
 import { Hono } from 'hono'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
@@ -27,7 +27,7 @@ test('linked toolkit uses 250 tools without per-call approval and rechecks live 
     new URL('../../fixtures/mcp/catalog.mjs', import.meta.url),
   )
   const original = globalThis.fetch
-  const root = await mkdtemp(path.join(tmpdir(), 'sb-linked-runtime-'))
+  const root = await mkdtemp(path.join(tmpdir(), 'cv-linked-runtime-'))
   const app = new Hono()
   app.onError((cause, c) => c.json({ error: cause.message }, 500))
   app.route(

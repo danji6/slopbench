@@ -10,7 +10,7 @@ import {
   exportSchemeCss,
   suppressNextThemeAnimation,
 } from '@/lib/theme'
-import { api } from '@sb/convex/_generated/api'
+import { api } from '@cv/convex/_generated/api'
 import { ConvexQueryCacheProvider } from 'convex-helpers/react/cache'
 import { ConvexProvider, useQuery } from 'convex/react'
 import { useEffect, useState } from 'react'

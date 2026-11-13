@@ -1,12 +1,12 @@
 import {
   guidanceSnapshot,
   mcpContextInstructions,
-} from '@sb/convex/model/mcpCatalogContext'
-import { catalogNote } from '@sb/convex/model/skills/runtime'
-import { mcpToModelOutput } from '@sb/convex/model/tool/mcpOutput'
-import { publish } from '@sb/convex/model/toolkits/publication'
-import { mcpResult } from '@sb/core/types/mcp-result'
-import { inspectToolkit } from '@sb/sidecar/toolkits/manifest'
+} from '@cv/convex/model/mcpCatalogContext'
+import { catalogNote } from '@cv/convex/model/skills/runtime'
+import { mcpToModelOutput } from '@cv/convex/model/tool/mcpOutput'
+import { publish } from '@cv/convex/model/toolkits/publication'
+import { mcpResult } from '@cv/core/types/mcp-result'
+import { inspectToolkit } from '@cv/sidecar/toolkits/manifest'
 import { expect, test } from 'bun:test'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'

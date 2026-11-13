@@ -1,7 +1,7 @@
 import { AnimatedToolbar } from '@/components/ui/animated-toolbar'
 import type { SessionMode } from '@/lib/chat/modes'
 import { Result } from '@/lib/result'
-import type { ApprovalMode } from '@sb/convex/types'
+import type { ApprovalMode } from '@cv/convex/types'
 import { LightbulbIcon, PaperclipIcon, PlusIcon } from 'lucide-react'
 
 import { DropdownMenu, RippleButton } from '../../ui'

@@ -1,4 +1,4 @@
-import type { FolderWorkspace } from '@sb/core/types/workspace'
+import type { FolderWorkspace } from '@cv/core/types/workspace'
 import {
   applyEdits,
   createUnifiedDiff,
@@ -7,8 +7,8 @@ import {
   normalizeToLf,
   restoreLineEndings,
   stripBom,
-} from '@sb/core/workspace/edit'
-import { assertPersonalScope } from '@sb/core/workspace/personal'
+} from '@cv/core/workspace/edit'
+import { assertPersonalScope } from '@cv/core/workspace/personal'
 import { mkdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'

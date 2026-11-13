@@ -1,6 +1,6 @@
 'use node'
 
-import { INJECTED_BLOCK_PREFIXES } from '@sb/convex/lib/workspace'
+import { INJECTED_BLOCK_PREFIXES } from '@cv/convex/lib/workspace'
 import type { UIMessage } from 'ai'
 
 import type { Doc } from '../../_generated/dataModel'

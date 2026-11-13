@@ -1,8 +1,8 @@
 import {
   checkInstalledSkills,
   removeConfirmedSkills,
-} from '@sb/client/lib/chat/skill-verification'
-import type { Id } from '@sb/convex/_generated/dataModel'
+} from '@cv/client/lib/chat/skill-verification'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import { expect, test } from 'bun:test'
 
 const ids = Array.from({ length: 47 }, (_, i) => `skill-${i}` as Id<'skills'>)

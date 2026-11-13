@@ -2,7 +2,7 @@ import type {
   CompletionItem,
   CompletionParameter,
   SignatureHelp,
-} from '@sb/core/code-completion/types'
+} from '@cv/core/code-completion/types'
 import type { Editor } from '@tiptap/react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'

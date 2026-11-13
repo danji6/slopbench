@@ -1,10 +1,10 @@
-import { internal } from '@sb/convex/_generated/api'
-import { _getContext } from '@sb/convex/model/stream/reads'
+import { internal } from '@cv/convex/_generated/api'
+import { _getContext } from '@cv/convex/model/stream/reads'
 import {
   capabilitySource,
   skillCatalogSource,
-} from '@sb/convex/model/tool/capabilitySource'
-import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
+} from '@cv/convex/model/tool/capabilitySource'
+import { resolveToolManifest } from '@cv/convex/model/tool/manifest'
 import { expect, spyOn, test } from 'bun:test'
 import { getFunctionName } from 'convex/server'
 import { mkdtemp, rm } from 'node:fs/promises'

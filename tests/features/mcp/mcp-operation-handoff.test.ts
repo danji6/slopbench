@@ -1,24 +1,24 @@
 import {
   ProviderStreamFailure,
   consumeProviderStep,
-} from '@sb/convex/actions/stream/engineStep'
-import { STEP_DEADLINE_GRACE_MS } from '@sb/convex/actions/stream/engineWatchdog'
-import { _getExecution } from '@sb/convex/model/mcp'
+} from '@cv/convex/actions/stream/engineStep'
+import { STEP_DEADLINE_GRACE_MS } from '@cv/convex/actions/stream/engineWatchdog'
+import { _getExecution } from '@cv/convex/model/mcp'
 import {
   operationOutput,
   resumeOperations,
   settle,
   waitForOperation,
-} from '@sb/convex/model/mcpOperationActions'
-import { pending, reserve } from '@sb/convex/model/mcpOperations'
-import { connected } from '@sb/convex/model/mcpRuntime'
-import { insertMessage } from '@sb/convex/model/messageContents'
-import { _claim, _continue, _handoff } from '@sb/convex/model/stream/lifecycle'
-import { cleanUpOffloadedOutputs } from '@sb/convex/model/stream/lifecycleCleanup'
-import { _getProviderHistory } from '@sb/convex/model/stream/reads'
-import { createExternalMcpTool } from '@sb/convex/model/tool/mcp'
-import { sidecarAuthentication } from '@sb/sidecar/auth'
-import { mcpOperationRoutes } from '@sb/sidecar/mcp/external/operation-routes'
+} from '@cv/convex/model/mcpOperationActions'
+import { pending, reserve } from '@cv/convex/model/mcpOperations'
+import { connected } from '@cv/convex/model/mcpRuntime'
+import { insertMessage } from '@cv/convex/model/messageContents'
+import { _claim, _continue, _handoff } from '@cv/convex/model/stream/lifecycle'
+import { cleanUpOffloadedOutputs } from '@cv/convex/model/stream/lifecycleCleanup'
+import { _getProviderHistory } from '@cv/convex/model/stream/reads'
+import { createExternalMcpTool } from '@cv/convex/model/tool/mcp'
+import { sidecarAuthentication } from '@cv/sidecar/auth'
+import { mcpOperationRoutes } from '@cv/sidecar/mcp/external/operation-routes'
 import { MockLanguageModelV4 } from 'ai/test'
 import { afterEach, expect, spyOn, test } from 'bun:test'
 import { getFunctionName } from 'convex/server'
@@ -299,7 +299,7 @@ test.each(['store', 'track', 'observe'] as const)(
 test('Stop persists cancellation even with no watcher, including before dispatch', async () => {
   const f = await fixture()
   const operation = await reserve(f.ctx, f.args)
-  const { stopExecution } = await import('@sb/convex/model/stream/stop')
+  const { stopExecution } = await import('@cv/convex/model/stream/stop')
   await stopExecution(f.ctx, (await f.ctx.db.get(f.execution.streamId))!)
   await settle(f.action, { operationId: operation._id })
   const status = await f.sidecar.operations.start({
@@ -373,7 +373,7 @@ test('Stop reaches an already dispatched tool without retaining its original wat
   )
   abort.abort('watcher detached')
   expect(await watcher).toBeNull()
-  const { stopExecution } = await import('@sb/convex/model/stream/stop')
+  const { stopExecution } = await import('@cv/convex/model/stream/stop')
   await stopExecution(f.ctx, (await f.ctx.db.get(f.execution.streamId))!)
   await settle(f.action, { operationId: operation._id })
   await untilOperation(
@@ -445,7 +445,7 @@ test('deleting an owning message reclaims its blobs and sidecar journal through 
       })
     )?.outputRef,
   ).toBeDefined()
-  const { deleteVersions } = await import('@sb/convex/model/messageContents')
+  const { deleteVersions } = await import('@cv/convex/model/messageContents')
   await deleteVersions(f.ctx, f.messageId)
   await settle(f.action, { operationId: operation._id })
   expect(await f.ctx.db.get(operation._id)).toBeNull()

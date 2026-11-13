@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import { errorMessage, errorMessageChain } from '@sb/core/utils/errors'
+import { errorMessage, errorMessageChain } from '@cv/core/utils/errors'
 import { describe, expect, test } from 'bun:test'
 import { ConvexError } from 'convex/values'
 

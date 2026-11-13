@@ -1,4 +1,4 @@
-import type { McpResult } from '@sb/core/types/mcp-result'
+import type { McpResult } from '@cv/core/types/mcp-result'
 
 import { internal } from '../_generated/api'
 import type { ActionCtx } from '../_generated/server'
@@ -23,7 +23,7 @@ export async function outputValidationError(
   })
   if (!definition.outputSchema) return undefined
 
-  const { mcpInputValidator } = await import('@sb/core/mcp-schema-validation')
+  const { mcpInputValidator } = await import('@cv/core/mcp-schema-validation')
   const validate = mcpInputValidator(definition.outputSchema)
   const structured = output.result.structuredContent
   if (!structured && output.result.isError) return undefined

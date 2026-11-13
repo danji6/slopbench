@@ -1,5 +1,5 @@
-import { formatOutputPage } from '@sb/core/shell/output-page'
-import type { ShellToolOutput } from '@sb/core/types/tools'
+import { formatOutputPage } from '@cv/core/shell/output-page'
+import type { ShellToolOutput } from '@cv/core/types/tools'
 
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx } from '../_generated/server'

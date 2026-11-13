@@ -1,21 +1,21 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { ActionCtx } from '@sb/convex/_generated/server'
-import { list } from '@sb/convex/model/skills/library'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { ActionCtx } from '@cv/convex/_generated/server'
+import { list } from '@cv/convex/model/skills/library'
 import {
   removeMissingSkill,
   verificationTargets,
-} from '@sb/convex/model/skills/verification'
+} from '@cv/convex/model/skills/verification'
 import {
   checkLibraryPage,
   removeMissingSkills,
-} from '@sb/convex/model/skills/verificationAction'
+} from '@cv/convex/model/skills/verificationAction'
 import type {
   RemoveMissingSkillArgs,
   SkillListArgs,
   VerifySkillIdsArgs,
-} from '@sb/convex/types'
-import { libraryRoot } from '@sb/sidecar/agent-files/storage'
-import { verifyLibrary } from '@sb/sidecar/agent-files/verify-library'
+} from '@cv/convex/types'
+import { libraryRoot } from '@cv/sidecar/agent-files/storage'
+import { verifyLibrary } from '@cv/sidecar/agent-files/verify-library'
 import { afterAll, beforeAll, expect, test } from 'bun:test'
 import { getFunctionName } from 'convex/server'
 import type { FunctionReference } from 'convex/server'
@@ -34,7 +34,7 @@ beforeAll(async () => {
   root = await mkdtemp(path.join(tmpdir(), 'skill-verification-'))
   process.env.CHAT_SIDECAR_DATA_DIR = root
   process.env.SIDECAR_SECRET = 'verification-fixture'
-  const { createApp } = await import('@sb/sidecar/main')
+  const { createApp } = await import('@cv/sidecar/main')
   const app = createApp(async (_c, next) => next())
   globalThis.fetch = (async (input, init) => {
     if (unavailable) throw new Error('Sidecar unavailable')

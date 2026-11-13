@@ -1,4 +1,4 @@
-import { mcpLaunchSchema } from '@sb/core/types/mcp'
+import { mcpLaunchSchema } from '@cv/core/types/mcp'
 
 import type { Id } from '../../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../../_generated/server'

@@ -1,8 +1,8 @@
 import {
   MAX_TOOLKIT_MANIFEST_BYTES,
   validateToolkitManifest,
-} from '@sb/core/types/toolkit'
-import type { ToolkitSnapshot } from '@sb/core/types/toolkit'
+} from '@cv/core/types/toolkit'
+import type { ToolkitSnapshot } from '@cv/core/types/toolkit'
 import { createHash } from 'node:crypto'
 import { constants } from 'node:fs'
 import { open, realpath, stat } from 'node:fs/promises'

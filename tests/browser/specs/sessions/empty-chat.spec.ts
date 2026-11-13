@@ -1,5 +1,5 @@
 import { type Page, expect, test } from '@playwright/test'
-import { APP_ID } from '@sb/core/const'
+import { APP_ID } from '@cv/core/const'
 
 async function expectWelcomeForAgent(page: Page, agentNumber: number) {
   const welcome = page.getByRole('region', { name: 'Welcome' })

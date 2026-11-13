@@ -1,5 +1,5 @@
-import { orderContextNotes } from '@sb/core/context-notes'
-import type { MessageRole } from '@sb/core/types/roles'
+import { orderContextNotes } from '@cv/core/context-notes'
+import type { MessageRole } from '@cv/core/types/roles'
 import type { Infer } from 'convex/values'
 
 import type { Doc, Id } from '../../_generated/dataModel'

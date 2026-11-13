@@ -1,6 +1,8 @@
 /* global self, caches, URL, Response */
 
-const ACTION_CACHE = 'slopbench-notification-actions-v2'
+// This standalone worker shares its wire values with core/notification-actions.
+const APP_ID = 'corvori'
+const ACTION_CACHE = `${APP_ID}-notification-actions-v2`
 const ACTION_PATH = '/__notification_actions__/'
 const APPROVAL_ACTIONS = new Set(['allow', 'allow-session', 'deny'])
 
@@ -22,7 +24,7 @@ self.addEventListener('notificationclick', (event) => {
     return
   event.waitUntil(
     deliverAction({
-      type: 'slopbench:notification-action',
+      type: `${APP_ID}:notification-action`,
       action,
       notificationId,
       sessionId,
@@ -32,7 +34,7 @@ self.addEventListener('notificationclick', (event) => {
 })
 
 self.addEventListener('message', (event) => {
-  if (event.data?.type !== 'slopbench:notification-action-ack') return
+  if (event.data?.type !== `${APP_ID}:notification-action-ack`) return
   const requestId = event.data.requestId
   if (typeof requestId !== 'string') return
   event.waitUntil(

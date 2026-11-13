@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { DEFAULT_TITLE_SYSTEM_PROMPT } from '@sb/core/title-generation'
+import { DEFAULT_TITLE_SYSTEM_PROMPT } from '@cv/core/title-generation'
 
 for (const titleModel of [false, true]) {
   test(`model search matches display names and ignores opaque references (title=${titleModel})`, async ({
@@ -44,7 +44,7 @@ for (const titleModel of [false, true]) {
     await expect(search).toBeHidden()
     if (!titleModel) {
       await expect(page.getByLabel('Selected reference')).toHaveText(
-        'sb-model:personal:new',
+        'cv-model:personal:new',
       )
     }
     await picker.click()
@@ -242,7 +242,7 @@ test('title models support selection, deselection, and an explicit None option',
   await expect(picker).toHaveText('Same model')
   await page.getByRole('button', { name: 'Save global settings' }).click()
   await expect(page.getByLabel('Saved title model')).toHaveText(
-    'sb-model:personal:same',
+    'cv-model:personal:same',
   )
 
   await picker.click()
@@ -257,7 +257,7 @@ test('title models support selection, deselection, and an explicit None option',
   await page.getByRole('option', { name: 'Same model', exact: true }).click()
   await page.getByRole('button', { name: 'Save global settings' }).click()
   await expect(page.getByLabel('Saved title model')).toHaveText(
-    'sb-model:personal:same',
+    'cv-model:personal:same',
   )
   await picker.click()
   await page.getByRole('option', { name: 'None', exact: true }).click()
@@ -292,7 +292,7 @@ test('provider edits use global save and only manual refresh failures are displa
     .getByRole('option', { name: 'New discovered model', exact: true })
     .click()
   await expect(page.getByLabel('Selected reference')).toHaveText(
-    'sb-model:personal:new',
+    'cv-model:personal:new',
   )
 })
 

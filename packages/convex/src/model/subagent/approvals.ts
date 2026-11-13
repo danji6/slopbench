@@ -1,7 +1,7 @@
 import {
   hasPendingToolApprovals,
   isPendingToolApproval,
-} from '@sb/core/utils/tool-parts'
+} from '@cv/core/utils/tool-parts'
 
 import type { Id } from '../../_generated/dataModel'
 import type { AuthQueryCtx } from '../../functions'

@@ -1,10 +1,10 @@
-import { prefixSenderName } from '@sb/convex/actions/stream/history'
-import { toPlanBlock } from '@sb/convex/lib/workspace'
-import { applyPlanModeTransition } from '@sb/convex/model/chat'
-import { _edit, createPlanLinkPart } from '@sb/convex/model/plans'
-import { getEnabledTools } from '@sb/convex/model/tool/build'
-import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
-import { PLAN_TOOL_TOGGLE } from '@sb/core/const'
+import { prefixSenderName } from '@cv/convex/actions/stream/history'
+import { toPlanBlock } from '@cv/convex/lib/workspace'
+import { applyPlanModeTransition } from '@cv/convex/model/chat'
+import { _edit, createPlanLinkPart } from '@cv/convex/model/plans'
+import { getEnabledTools } from '@cv/convex/model/tool/build'
+import { resolveToolManifest } from '@cv/convex/model/tool/manifest'
+import { PLAN_TOOL_TOGGLE } from '@cv/core/const'
 import { describe, expect, test } from 'bun:test'
 
 describe('plan-link parts', () => {

@@ -28,9 +28,9 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import { api } from '@sb/convex/_generated/api'
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { FolderView } from '@sb/convex/types'
+import { api } from '@cv/convex/_generated/api'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { FolderView } from '@cv/convex/types'
 import { useAction, useMutation } from 'convex/react'
 import { ChevronsDownUpIcon, FolderPlusIcon } from 'lucide-react'
 import { memo, useMemo, useRef, useState } from 'react'

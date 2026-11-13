@@ -4,7 +4,7 @@ import { Surface } from '@/components/ui'
 import { getFontFamily, getMonoFontFamily } from '@/fonts'
 import { useScopedAppearance } from '@/lib/chat'
 import { cn } from '@/lib/utils'
-import { DEFAULT_SETTINGS } from '@sb/convex/model/defaults'
+import { DEFAULT_SETTINGS } from '@cv/convex/model/defaults'
 import type { CSSProperties } from 'react'
 
 const PREVIEW_USER = `What does the quick brown fox do?`

@@ -1,4 +1,4 @@
-import { sha256 } from '@sb/core/sha256'
+import { sha256 } from '@cv/core/sha256'
 
 import type { Doc } from '../../_generated/dataModel'
 

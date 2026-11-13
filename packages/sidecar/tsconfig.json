@@ -6,8 +6,8 @@
     "lib": ["ESNext"],
     "types": ["node", "bun-types"],
     "paths": {
-      "@sb/core/*": ["../core/src/*"],
-      "@sb/sidecar/*": ["./src/*"]
+      "@cv/core/*": ["../core/src/*"],
+      "@cv/sidecar/*": ["./src/*"]
     },
     "strict": true,
     "skipLibCheck": true,

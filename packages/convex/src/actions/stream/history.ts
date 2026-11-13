@@ -1,14 +1,14 @@
 'use node'
 
-import { READ_ATTACHMENT_TOOL_NAME } from '@sb/core/const'
-import { contextNoteSegments } from '@sb/core/context-notes'
-import { selectedBuiltinTools } from '@sb/core/tool-capabilities'
+import { READ_ATTACHMENT_TOOL_NAME } from '@cv/core/const'
+import { contextNoteSegments } from '@cv/core/context-notes'
+import { selectedBuiltinTools } from '@cv/core/tool-capabilities'
 import {
   TOOL_CONTEXT_POLICY_VERSION,
   canReplayToolContext,
-} from '@sb/core/tool-context'
-import { block } from '@sb/core/utils/blocks'
-import { settleUnansweredToolParts } from '@sb/core/utils/tool-parts'
+} from '@cv/core/tool-context'
+import { block } from '@cv/core/utils/blocks'
+import { settleUnansweredToolParts } from '@cv/core/utils/tool-parts'
 import type { UIMessage } from 'ai'
 
 import { internal } from '../../_generated/api'

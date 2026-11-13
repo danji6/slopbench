@@ -1,6 +1,6 @@
 'use node'
 
-import { isUtf8ContinuationByte } from '@sb/core/attachments'
+import { isUtf8ContinuationByte } from '@cv/core/attachments'
 
 import { ToolError } from '../../errors'
 import type { AttachmentRanges } from './attachmentRanges'

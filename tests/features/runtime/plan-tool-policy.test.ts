@@ -1,8 +1,8 @@
-import { isReadOnlyShellCommand } from '@sb/convex/lib/tool/approval'
-import { getEnabledTools } from '@sb/convex/model/tool/build'
-import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
-import { withPlanModeReminders } from '@sb/convex/model/tool/plan'
-import { PLAN_TOOL_TOGGLE } from '@sb/core/const'
+import { isReadOnlyShellCommand } from '@cv/convex/lib/tool/approval'
+import { getEnabledTools } from '@cv/convex/model/tool/build'
+import { resolveToolManifest } from '@cv/convex/model/tool/manifest'
+import { withPlanModeReminders } from '@cv/convex/model/tool/plan'
+import { PLAN_TOOL_TOGGLE } from '@cv/core/const'
 import { describe, expect, test } from 'bun:test'
 import { shellOutput } from '~/tests/helpers/plan-mode'
 

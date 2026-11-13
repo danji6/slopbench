@@ -4,7 +4,7 @@ import {
   isToolAutoApproved,
   isUnrestrictedAccess,
   mergeToolApprovals,
-} from '@sb/convex/lib/tool/approval'
+} from '@cv/convex/lib/tool/approval'
 import { describe, expect, test } from 'bun:test'
 
 describe('mergeToolApprovals', () => {

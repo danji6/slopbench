@@ -1,13 +1,13 @@
-import { api } from '@sb/convex/_generated/api'
-import type { AnswerQuestionsArgs } from '@sb/convex/types'
+import { api } from '@cv/convex/_generated/api'
+import type { AnswerQuestionsArgs } from '@cv/convex/types'
 import type {
   AgentQuestion,
   AskToolInput,
   AskToolOutput,
   UserAnswerDraft,
-} from '@sb/core/types'
-import { deriveAskToolOutput, hasPendingQuestions } from '@sb/core/utils/ask'
-import { hasPendingToolApprovals } from '@sb/core/utils/tool-parts'
+} from '@cv/core/types'
+import { deriveAskToolOutput, hasPendingQuestions } from '@cv/core/utils/ask'
+import { hasPendingToolApprovals } from '@cv/core/utils/tool-parts'
 import type { ToolUIPart } from 'ai'
 import type { OptimisticLocalStore } from 'convex/browser'
 

@@ -1,5 +1,5 @@
-import { SKILL_NAME_PATTERN } from '@sb/core/skills/names'
-import type { AgentHome } from '@sb/core/skills/types'
+import { SKILL_NAME_PATTERN } from '@cv/core/skills/names'
+import type { AgentHome } from '@cv/core/skills/types'
 import { createWriteStream } from 'node:fs'
 import {
   mkdir,

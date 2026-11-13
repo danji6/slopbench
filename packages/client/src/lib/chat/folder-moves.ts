@@ -1,5 +1,5 @@
-import type { FolderMoveArgs, FolderView } from '@sb/convex/types'
-import { folderSiblings } from '@sb/core/utils/folder-tree'
+import type { FolderMoveArgs, FolderView } from '@cv/convex/types'
+import { folderSiblings } from '@cv/core/utils/folder-tree'
 
 import type { GroupRow } from './session-groups'
 

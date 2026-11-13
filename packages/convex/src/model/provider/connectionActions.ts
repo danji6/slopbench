@@ -1,4 +1,4 @@
-import type { DiscoveredModel } from '@sb/core/model-discovery'
+import type { DiscoveredModel } from '@cv/core/model-discovery'
 
 import { api, internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'
@@ -81,7 +81,7 @@ export async function discover(
 
     await ctx.runMutation(internal.providers._finishDiscovery, run)
 
-    const { providerFeatures } = await import('@sb/core/provider-registry')
+    const { providerFeatures } = await import('@cv/core/provider-registry')
     if (providerFeatures(connection.id, connection.auth).modelDetails) {
       await ctx.scheduler.runAfter(
         0,
@@ -127,7 +127,7 @@ export async function preview(
     error('Connection type changed', 400)
   }
 
-  const { providerFeatures } = await import('@sb/core/provider-registry')
+  const { providerFeatures } = await import('@cv/core/provider-registry')
   if (providerFeatures(args.key, args.auth).accountSignIn)
     error('Use the saved account catalog', 400)
 
@@ -138,7 +138,7 @@ export async function preview(
   }
 
   const { discoverModels } = await import('./discovery')
-  const { discoveryFingerprint } = await import('@sb/core/discovery-fingerprint') // prettier-ignore
+  const { discoveryFingerprint } = await import('@cv/core/discovery-fingerprint') // prettier-ignore
 
   try {
     const models = await discoverModels(connection)
@@ -272,7 +272,7 @@ export async function previewDetails(
   }
 
   const { fetchModelDetails } = await import('./modelDetails')
-  const { discoveryFingerprint } = await import('@sb/core/discovery-fingerprint') // prettier-ignore
+  const { discoveryFingerprint } = await import('@cv/core/discovery-fingerprint') // prettier-ignore
   const result = await fetchModelDetails(connection, model)
 
   await ctx.runMutation(internal.providers._enrichPreview, {

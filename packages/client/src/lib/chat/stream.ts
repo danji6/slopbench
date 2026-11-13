@@ -1,4 +1,4 @@
-import type { ActiveStream } from '@sb/convex/types'
+import type { ActiveStream } from '@cv/convex/types'
 import type { ChatStatus } from 'ai'
 
 export function isOngoingStream(status: ChatStatus): boolean {

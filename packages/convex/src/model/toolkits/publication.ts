@@ -1,5 +1,5 @@
-import { validateToolkitManifest } from '@sb/core/types/toolkit'
-import type { ToolkitManifest } from '@sb/core/types/toolkit'
+import { validateToolkitManifest } from '@cv/core/types/toolkit'
+import type { ToolkitManifest } from '@cv/core/types/toolkit'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'

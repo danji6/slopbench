@@ -2,7 +2,7 @@ import {
   type SnippetStop,
   activateSnippet,
 } from '@/lib/tiptap/extensions/snippet-stops'
-import type { CompletionItem } from '@sb/core/code-completion/types'
+import type { CompletionItem } from '@cv/core/code-completion/types'
 import { TextSelection } from '@tiptap/pm/state'
 import type { Editor } from '@tiptap/react'
 

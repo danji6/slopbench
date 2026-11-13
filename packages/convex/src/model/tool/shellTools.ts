@@ -1,5 +1,5 @@
-import { TOOL_DESCRIPTIONS, shellToolDescription } from '@sb/core/types'
-import { parseScopedPath } from '@sb/core/workspace/scoped-path'
+import { TOOL_DESCRIPTIONS, shellToolDescription } from '@cv/core/types'
+import { parseScopedPath } from '@cv/core/workspace/scoped-path'
 
 import {
   analyzeShellPathCandidates,

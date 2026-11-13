@@ -1,6 +1,6 @@
-import type { McpRuntimeScope } from '@sb/core/types'
-import type { McpServer } from '@sb/core/types'
-import { mcpConnectionSchema } from '@sb/core/types'
+import type { McpRuntimeScope } from '@cv/core/types'
+import type { McpServer } from '@cv/core/types'
+import { mcpConnectionSchema } from '@cv/core/types'
 
 import { internal } from '../_generated/api'
 import type { Doc, Id } from '../_generated/dataModel'

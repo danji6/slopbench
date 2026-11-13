@@ -3,7 +3,7 @@ import {
   parseShellCommand,
   shellCommandRange,
   unescapeShellPrefix,
-} from '@sb/core/shell/command'
+} from '@cv/core/shell/command'
 import { describe, expect, test } from 'bun:test'
 
 describe('parseShellCommand', () => {

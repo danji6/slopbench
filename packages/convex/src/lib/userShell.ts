@@ -1,5 +1,5 @@
-import type { ShellToolOutput } from '@sb/core/types/tools'
-import { block } from '@sb/core/utils/blocks'
+import type { ShellToolOutput } from '@cv/core/types/tools'
+import { block } from '@cv/core/utils/blocks'
 
 export const SHELL_TOOL_NAME = 'shell'
 export const SHELL_TOOL_PART_TYPE = `tool-${SHELL_TOOL_NAME}`

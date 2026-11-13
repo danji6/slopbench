@@ -5,7 +5,7 @@ import type {
   LanguageModelV4StreamPart,
   LanguageModelV4ToolCall,
 } from '@ai-sdk/provider'
-import { wireToolCall } from '@sb/core/tool-dispatch'
+import { wireToolCall } from '@cv/core/tool-dispatch'
 import type { LanguageModel, LanguageModelMiddleware, UIMessage } from 'ai'
 
 import { extractErrorMessage } from '../../errors'

@@ -1,14 +1,14 @@
 /// <reference types="bun-types" />
-import { approveTool } from '@sb/convex/model/chat/approvals'
+import { approveTool } from '@cv/convex/model/chat/approvals'
 import {
   getApprovals,
   setApprovalMode,
   setApprovals,
-} from '@sb/convex/model/session/state'
-import { pendingApprovals } from '@sb/convex/model/subagent/approvals'
-import type { WorkspaceToolContext } from '@sb/convex/model/tool/context'
-import { createWriteFileTool } from '@sb/convex/model/tool/files'
-import { createShellTool } from '@sb/convex/model/tool/shellTools'
+} from '@cv/convex/model/session/state'
+import { pendingApprovals } from '@cv/convex/model/subagent/approvals'
+import type { WorkspaceToolContext } from '@cv/convex/model/tool/context'
+import { createWriteFileTool } from '@cv/convex/model/tool/files'
+import { createShellTool } from '@cv/convex/model/tool/shellTools'
 import { describe, expect, test } from 'bun:test'
 import { fakeCtx } from '~/tests/setup/subagents'
 

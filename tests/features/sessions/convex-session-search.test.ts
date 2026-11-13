@@ -1,4 +1,4 @@
-import { list } from '@sb/convex/model/session/sessionQueries'
+import { list } from '@cv/convex/model/session/sessionQueries'
 import { expect, test } from 'bun:test'
 import { type Row, makeCtx } from '~/tests/setup/query-rows'
 

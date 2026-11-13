@@ -1,4 +1,4 @@
-import { MCP_TRANSPORTS } from '@sb/core/types'
+import { MCP_TRANSPORTS } from '@cv/core/types'
 import { paginationOptsValidator } from 'convex/server'
 import { v } from 'convex/values'
 

@@ -2,7 +2,7 @@
  * Recognizes the prompt interpreter's directive syntax within a block of text,
  * i.e. a single editor paragraph.
  *
- * Grammar (mirrors `@sb/core/interpreter/parse`):
+ * Grammar (mirrors `@cv/core/interpreter/parse`):
  * - `#eval`..`#end`         block of JS whose return value is injected
  * - `#if`/`#elif`..`#then`  multiline condition, followed by the branch body
  * - `#if`/`#elif <expr>`    inline condition

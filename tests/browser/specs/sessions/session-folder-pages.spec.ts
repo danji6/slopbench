@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { APP_ID } from '@sb/core/const'
+import { APP_ID } from '@cv/core/const'
 import { folder, loadedPages } from '~/tests/browser/session-folders-helpers'
 
 test('root folders and sessions start at ten while subfolders share their five-item budget', async ({
@@ -222,14 +222,14 @@ test('empty chat waits for the selected folder instead of flashing the welcome h
   ).toBeVisible()
 
   await page
-    .getByRole('button', { name: 'Compose in SlopBench', exact: true })
+    .getByRole('button', { name: 'Compose in Corvori', exact: true })
     .click()
   await expect(picker).toBeDisabled()
   await expect(chat).not.toContainText(genericLabel)
   await expect(chat.getByText('Portfolio', { exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Resolve session queries' }).click()
   await expect(
-    chat.getByText('SlopBench', { exact: true }).first(),
+    chat.getByText('Corvori', { exact: true }).first(),
   ).toBeVisible()
 
   await chat.getByRole('button', { name: 'Clear session folder' }).click()

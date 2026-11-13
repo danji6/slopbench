@@ -1,5 +1,5 @@
-import { parseSessionSearch } from '@sb/core/session-search/parse'
-import { toDisplayName } from '@sb/core/utils/names'
+import { parseSessionSearch } from '@cv/core/session-search/parse'
+import { toDisplayName } from '@cv/core/utils/names'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { QueryCtx } from '../../_generated/server'

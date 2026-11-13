@@ -15,9 +15,9 @@ import {
   setSettingsOverride,
 } from '@/lib/settings-override'
 import { snapshotTheme } from '@/lib/theme-worker'
-import { api } from '@sb/convex/_generated/api'
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { providerFeatures } from '@sb/core/provider-registry'
+import { api } from '@cv/convex/_generated/api'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import { providerFeatures } from '@cv/core/provider-registry'
 import { useAction, useMutation } from 'convex/react'
 import type { UseFormReturn } from 'react-hook-form'
 

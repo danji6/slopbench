@@ -241,7 +241,7 @@ test('only the skills list scrolls while search and filter stay visible', async 
     if (width === 1000) {
       await page.getByRole('button', { name: /^Filter/ }).click()
       await expect(page.getByRole('menu')).toHaveCSS('opacity', '1')
-      await panel.screenshot({ path: '/tmp/slopbench-agent-skills.png' })
+      await panel.screenshot({ path: '/tmp/corvori-agent-skills.png' })
       await page.getByRole('menu').press('Escape')
     }
   }

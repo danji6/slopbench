@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { APP_ID } from '@sb/core/const'
+import { APP_ID } from '@cv/core/const'
 import {
   drag,
   folder,
@@ -138,7 +138,7 @@ test('folder drops pin without reparenting, moves preserve pins, and the separat
     (await folderState(page)).find((entry) => entry._id === 'n')?.parentId,
   ).toBe('a')
   await expect(folder(page, 'Design')).toHaveCount(1)
-  await drag(page, folder(page, 'Design'), folder(page, 'SlopBench'))
+  await drag(page, folder(page, 'Design'), folder(page, 'Corvori'))
   await expect
     .poll(
       async () =>
@@ -178,7 +178,7 @@ test('folder controls retain sibling collapse state and refresh pin actions afte
   page,
 }) => {
   await page.goto('/?fixture=session-folders&manySessions')
-  await folder(page, 'SlopBench').click()
+  await folder(page, 'Corvori').click()
   await expect.poll(async () => (await loadedPages(page)).b).toBeUndefined()
   await folder(page, 'Portfolio').click()
   await expect.poll(async () => (await loadedPages(page)).a).toBeUndefined()
@@ -202,7 +202,7 @@ test('folder controls retain sibling collapse state and refresh pin actions afte
           (await folderState(page)).find((entry) => entry._id === 'a')?.pinned,
       )
       .toBe(pinned)
-    await expect(folder(page, 'SlopBench')).toHaveAttribute(
+    await expect(folder(page, 'Corvori')).toHaveAttribute(
       'aria-expanded',
       'false',
     )
@@ -255,7 +255,7 @@ test('narrow sidebar controls fit in both themes', async ({ page }) => {
     await header.hover({ position: { x: 8, y: 18 } })
     await page.screenshot({
       animations: 'disabled',
-      path: `/tmp/slopbench-session-folders-${dark ? 'dark' : 'light'}.png`,
+      path: `/tmp/corvori-session-folders-${dark ? 'dark' : 'light'}.png`,
     })
   }
 })

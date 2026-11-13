@@ -2,8 +2,8 @@ import {
   getSelectedSessionFolder,
   setSelectedSessionFolder,
 } from '@/lib/ui-settings'
-import { api } from '@sb/convex/_generated/api'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import { api } from '@cv/convex/_generated/api'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import { useQuery } from 'convex/react'
 import { useEffect } from 'react'
 import { useLocation, useSearch } from 'wouter'

@@ -1,3 +1,4 @@
+import { APP_NAME } from '@cv/core/const'
 import { createServer } from 'node:http'
 
 import {
@@ -39,7 +40,9 @@ export async function listenForAuthorization(
             'Cache-Control': 'no-store',
             'Referrer-Policy': 'no-referrer',
           })
-          .end('Connected. You can close this window and return to Slopbench.')
+          .end(
+            `Connected. You can close this window and return to ${APP_NAME}.`,
+          )
       })
       .catch(() => {
         attempt.status = 'error'

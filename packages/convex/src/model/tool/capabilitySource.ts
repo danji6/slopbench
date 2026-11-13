@@ -1,5 +1,5 @@
-import { sha256 } from '@sb/core/sha256'
-import { stableStringify } from '@sb/core/stable-json'
+import { sha256 } from '@cv/core/sha256'
+import { stableStringify } from '@cv/core/stable-json'
 
 import type { StreamContext } from '../../types'
 

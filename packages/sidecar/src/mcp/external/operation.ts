@@ -1,7 +1,7 @@
-import type { McpRuntimeScope } from '@sb/core/types'
-import type { McpProgress } from '@sb/core/types/mcp-operation'
-import type { McpProtocolRequest } from '@sb/core/types/mcp-protocol'
-import type { McpResult } from '@sb/core/types/mcp-result'
+import type { McpRuntimeScope } from '@cv/core/types'
+import type { McpProgress } from '@cv/core/types/mcp-operation'
+import type { McpProtocolRequest } from '@cv/core/types/mcp-protocol'
+import type { McpResult } from '@cv/core/types/mcp-result'
 
 import { withWorkspaceOperation } from '../workspace/context'
 import {

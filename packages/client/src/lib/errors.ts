@@ -1,4 +1,4 @@
-import { userErrorMessage } from '@sb/core/utils/user-error'
+import { userErrorMessage } from '@cv/core/utils/user-error'
 
 export class ServerError extends Error {
   public message: string

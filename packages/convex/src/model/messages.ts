@@ -1,6 +1,6 @@
-import { CONTEXT_NOTE_TYPES } from '@sb/core/context-notes'
-import { hasInterpolation } from '@sb/core/interpreter/parse'
-import { settleUnansweredToolPart } from '@sb/core/utils/tool-parts'
+import { CONTEXT_NOTE_TYPES } from '@cv/core/context-notes'
+import { hasInterpolation } from '@cv/core/interpreter/parse'
+import { settleUnansweredToolPart } from '@cv/core/utils/tool-parts'
 import type { UIMessage } from 'ai'
 import type { FilterBuilder, NamedTableInfo } from 'convex/server'
 

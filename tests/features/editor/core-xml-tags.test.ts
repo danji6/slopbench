@@ -1,4 +1,4 @@
-import { isEmptyXmlTagPair, xmlTagToClose } from '@sb/core/xml-tags'
+import { isEmptyXmlTagPair, xmlTagToClose } from '@cv/core/xml-tags'
 import { describe, expect, test } from 'bun:test'
 
 describe('XML tag recognition', () => {

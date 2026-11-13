@@ -1,13 +1,13 @@
-import { modelMetadata } from '@sb/core/discovered-model'
-import { limitError } from '@sb/core/limit-errors'
-import { MAX_PROVIDER_MODELS } from '@sb/core/limits'
-import { parseModelExtraParameters } from '@sb/core/model-parameters'
-import { parseProviderExtraHeaders } from '@sb/core/provider-headers'
+import { modelMetadata } from '@cv/core/discovered-model'
+import { limitError } from '@cv/core/limit-errors'
+import { MAX_PROVIDER_MODELS } from '@cv/core/limits'
+import { parseModelExtraParameters } from '@cv/core/model-parameters'
+import { parseProviderExtraHeaders } from '@cv/core/provider-headers'
 import {
   providerDefinition,
   providerFeatures,
-} from '@sb/core/provider-registry'
-import type { ModelEntry } from '@sb/core/types'
+} from '@cv/core/provider-registry'
+import type { ModelEntry } from '@cv/core/types'
 
 import type { Doc } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'

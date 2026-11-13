@@ -1,4 +1,4 @@
-import { mcpConnectionSchema } from '@sb/core/types'
+import { mcpConnectionSchema } from '@cv/core/types'
 import { Hono } from 'hono'
 import { z } from 'zod'
 

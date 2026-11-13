@@ -1,6 +1,6 @@
 import { useDebouncedCallback } from '@/hooks/debounce'
-import { api } from '@sb/convex/_generated/api'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import { api } from '@cv/convex/_generated/api'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import { usePaginatedQuery } from 'convex/react'
 import type { FunctionReturnType } from 'convex/server'
 import { useCallback, useState } from 'react'

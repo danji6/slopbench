@@ -1,7 +1,7 @@
 import { T } from '@/components/ui/typography'
 import { convexSiteUrl } from '@/hooks/http'
 import { downloadAttachment } from '@/lib/chat/attachment-download'
-import { attachmentPath, attachmentReference } from '@sb/core/attachments'
+import { attachmentPath, attachmentReference } from '@cv/core/attachments'
 
 /** Resolves an attachment reference when it is clicked. */
 export function AttachmentAnchor({

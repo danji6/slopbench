@@ -1,11 +1,11 @@
-import { positionFromRanges } from '@sb/convex/model/shellOutputDeliveries'
+import { positionFromRanges } from '@cv/convex/model/shellOutputDeliveries'
 import {
   executeShellOutput,
   shellToModelOutput,
-} from '@sb/convex/model/tool/shell'
-import type { ShellReadPosition } from '@sb/convex/model/tool/shellContracts'
-import { SHELL_PAGE_CHARS } from '@sb/core/shell/output-page'
-import type { ShellOutputRange } from '@sb/core/types/tools'
+} from '@cv/convex/model/tool/shell'
+import type { ShellReadPosition } from '@cv/convex/model/tool/shellContracts'
+import { SHELL_PAGE_CHARS } from '@cv/core/shell/output-page'
+import type { ShellOutputRange } from '@cv/core/types/tools'
 import { describe, expect, test } from 'bun:test'
 import { collect, context } from '~/tests/helpers/shell-job'
 import { pageSidecar } from '~/tests/helpers/shell-page'

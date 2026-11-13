@@ -1,5 +1,5 @@
-import type { ShellAnsiState, ShellOutputSpan } from '@sb/core/types/tools'
-import type { FolderWorkspace } from '@sb/core/types/workspace'
+import type { ShellAnsiState, ShellOutputSpan } from '@cv/core/types/tools'
+import type { FolderWorkspace } from '@cv/core/types/workspace'
 
 import { type ShellStreamEvent } from '../sidecar'
 

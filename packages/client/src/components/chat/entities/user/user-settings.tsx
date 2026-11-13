@@ -35,7 +35,7 @@ import { extractErrorMessage } from '@/lib/errors'
 import { getSettingsOverride } from '@/lib/settings-override'
 import { cn } from '@/lib/utils'
 import { ThemeScope } from '@/providers/theme-scope'
-import { api } from '@sb/convex/_generated/api'
+import { api } from '@cv/convex/_generated/api'
 import { useQuery } from 'convex/react'
 import {
   ActivityIcon,

@@ -1,7 +1,7 @@
 import {
   type McpDefinition,
   mcpDefinitionSchema,
-} from '@sb/core/types/mcp-catalog'
+} from '@cv/core/types/mcp-catalog'
 
 import { internal } from '../../_generated/api'
 import type { Doc, Id } from '../../_generated/dataModel'

@@ -3,7 +3,7 @@ import {
   approvalPathSyntaxError,
   isPathAllowed,
   isPathForbidden,
-} from '@sb/core/workspace/path-policy'
+} from '@cv/core/workspace/path-policy'
 import { lstat, realpath } from 'node:fs/promises'
 import path from 'node:path'
 

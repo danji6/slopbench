@@ -16,7 +16,7 @@ test('combines folder descendants, titles, participant kinds, and alternatives',
   await expect.poll(async () => (await loadedPages(page)).search).toBe(2)
   await expect(results(page)).toContainText('Portfolio chat')
   await expect(results(page)).toContainText('Design chat')
-  await expect(results(page)).not.toContainText('SlopBench chat')
+  await expect(results(page)).not.toContainText('Corvori chat')
 
   await search(page).fill(
     'chat folder:Portfolio agent:Missing,"Codebase Explorer" user:Jane',
@@ -35,7 +35,7 @@ test('handles quoted commas, escaped quotes, and unfinished input', async ({
 }) => {
   await search(page).fill('agent:"Code,Codebase Explorer"')
   await expect.poll(async () => (await loadedPages(page)).search).toBe(1)
-  await expect(results(page)).toContainText('SlopBench chat')
+  await expect(results(page)).toContainText('Corvori chat')
 
   await search(page).fill('agent:Code,"Codebase Explorer"')
   await expect.poll(async () => (await loadedPages(page)).search).toBe(2)

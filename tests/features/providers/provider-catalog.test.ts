@@ -3,8 +3,8 @@ import {
   catalog,
   finish,
   stage,
-} from '@sb/convex/model/provider/catalog'
-import { create, list, resolve, update } from '@sb/convex/model/providers'
+} from '@cv/convex/model/provider/catalog'
+import { create, list, resolve, update } from '@cv/convex/model/providers'
 import { expect, test } from 'bun:test'
 import { providerFixture } from '~/tests/helpers/provider-db'
 
@@ -194,7 +194,7 @@ test('discovery respects daily freshness, backoff, Retry-After, and account rese
     },
   })
   expect(await begin(ctx, { ...run, force: true })).toBe(false)
-  const { reset } = await import('@sb/convex/model/provider/catalog')
+  const { reset } = await import('@cv/convex/model/provider/catalog')
   await reset(ctx, { providerId: id })
   expect(await begin(ctx, { ...run, force: false })).toBe(true)
 })

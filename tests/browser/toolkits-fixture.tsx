@@ -1,7 +1,7 @@
 import { ToolkitSelection } from '@/components/chat/toolkits/toolkit-selection'
 import { ToolkitSettings } from '@/components/chat/toolkits/toolkit-settings'
 import '@/globals.css'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import { ConvexQueryCacheProvider } from 'convex-helpers/react/cache'
 import { ConvexProvider } from 'convex/react'
 import { useState } from 'react'

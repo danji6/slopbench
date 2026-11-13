@@ -1,4 +1,4 @@
-import type { McpDefinition } from '@sb/core/types/mcp-catalog'
+import type { McpDefinition } from '@cv/core/types/mcp-catalog'
 import { createHash, randomUUID } from 'node:crypto'
 
 type Snapshot = { tools: McpDefinition[]; expires: number; bytes: number }

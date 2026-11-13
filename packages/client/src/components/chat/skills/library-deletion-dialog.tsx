@@ -1,5 +1,5 @@
 import { ConfirmDialog } from '@/components/ui'
-import { api } from '@sb/convex/_generated/api'
+import { api } from '@cv/convex/_generated/api'
 import { useQuery } from 'convex/react'
 
 import type { SkillListItem } from './skill-list'

@@ -1,6 +1,6 @@
 import { Accordion, Input, RippleButton, Switch } from '@/components/ui'
 import { cn } from '@/lib/utils'
-import { mcpToolAlias } from '@sb/core/types'
+import { mcpToolAlias } from '@cv/core/types'
 import { RotateCcwIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 

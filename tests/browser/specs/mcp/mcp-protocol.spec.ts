@@ -55,7 +55,7 @@ test('mixed MCP content renders literally, reports errors, and never fetches res
   })
   expect(requests).toEqual([])
   await page.screenshot({
-    path: '/tmp/slopbench-stage4-mcp-content.png',
+    path: '/tmp/corvori-stage4-mcp-content.png',
     fullPage: true,
   })
 })
@@ -114,7 +114,7 @@ for (const tool of ['call_mcp_tool', 'mcp_protocol']) {
     if (tool === 'call_mcp_tool') {
       await page
         .getByRole('main')
-        .screenshot({ path: '/tmp/sb-mcp-loaded-output.png' })
+        .screenshot({ path: '/tmp/cv-mcp-loaded-output.png' })
     }
   })
 }

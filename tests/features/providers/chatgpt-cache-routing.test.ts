@@ -1,16 +1,16 @@
-import { createCacheDiagnostics } from '@sb/convex/actions/stream/cacheDiagnostics'
-import { chatGPTFetch } from '@sb/convex/model/provider/openai/chatgpt'
+import { createCacheDiagnostics } from '@cv/convex/actions/stream/cacheDiagnostics'
+import { chatGPTFetch } from '@cv/convex/model/provider/openai/chatgpt'
 import {
   type ProviderOptions,
   getProviderOptions,
-} from '@sb/convex/model/provider/options'
-import { accumulateSessionUsage } from '@sb/convex/model/stream/lifecycleMeta'
-import { resolveUsage } from '@sb/convex/model/stream/usage'
-import type { CacheDiagnostic } from '@sb/convex/types'
-import { sidecarAuthentication } from '@sb/sidecar/auth'
-import { sidecarError } from '@sb/sidecar/http-errors'
-import { chatGPTResponses } from '@sb/sidecar/providers/openai/handlers'
-import { saveRegistration } from '@sb/sidecar/providers/openai/storage'
+} from '@cv/convex/model/provider/options'
+import { accumulateSessionUsage } from '@cv/convex/model/stream/lifecycleMeta'
+import { resolveUsage } from '@cv/convex/model/stream/usage'
+import type { CacheDiagnostic } from '@cv/convex/types'
+import { sidecarAuthentication } from '@cv/sidecar/auth'
+import { sidecarError } from '@cv/sidecar/http-errors'
+import { chatGPTResponses } from '@cv/sidecar/providers/openai/handlers'
+import { saveRegistration } from '@cv/sidecar/providers/openai/storage'
 import { streamText } from 'ai'
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test'
 import { Hono } from 'hono'
@@ -25,7 +25,7 @@ const credentials = { ...key, providerId: 'openai', auth: 'chatgpt' } as const
 const sidecarURL = 'http://sidecar.fixture'
 const route = '/providers/chatgpt/responses'
 const originalEnvironment = {
-  SLOPBENCH_AUTH_DIR: process.env.SLOPBENCH_AUTH_DIR,
+  CORVORI_AUTH_DIR: process.env.CORVORI_AUTH_DIR,
   SIDECAR_URL: process.env.SIDECAR_URL,
 }
 
@@ -44,8 +44,8 @@ let upstreamStatus: number
 let fetchSpy: ReturnType<typeof spyOn<typeof globalThis, 'fetch'>>
 
 beforeEach(async () => {
-  directory = await mkdtemp(join(tmpdir(), 'sb-cache-routing-'))
-  process.env.SLOPBENCH_AUTH_DIR = directory
+  directory = await mkdtemp(join(tmpdir(), 'cv-cache-routing-'))
+  process.env.CORVORI_AUTH_DIR = directory
   process.env.SIDECAR_URL = sidecarURL
   await saveRegistration(key, {
     hostId: 'fixture-host',
@@ -321,7 +321,7 @@ describe('ChatGPT turn routing and diagnostics', () => {
       })
       const responseHeaders = (await result.response).headers
       expect(responseHeaders).not.toHaveProperty('x-codex-turn-state')
-      expect(responseHeaders).not.toHaveProperty('x-slopbench-auth-revision')
+      expect(responseHeaders).not.toHaveProperty('x-corvori-auth-revision')
       expect(responseHeaders).not.toHaveProperty('x-private-upstream')
       expect(JSON.stringify(log)).not.toContain('first-token')
       expect(JSON.stringify(log)).not.toContain('fixture-oauth-token')

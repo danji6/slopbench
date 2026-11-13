@@ -2,16 +2,16 @@ import {
   parseToolkitSkillUri,
   toolkitWorkspaceSettings,
   validateToolkitManifest,
-} from '@sb/core/types/toolkit'
+} from '@cv/core/types/toolkit'
 import {
   toolkitCatalogSchema,
   toolkitSkillCatalog,
-} from '@sb/sidecar/toolkits/catalog'
+} from '@cv/sidecar/toolkits/catalog'
 import {
   inspectToolkit,
   toolkitConnections,
-} from '@sb/sidecar/toolkits/manifest'
-import { readToolkitSkill } from '@sb/sidecar/toolkits/read'
+} from '@cv/sidecar/toolkits/manifest'
+import { readToolkitSkill } from '@cv/sidecar/toolkits/read'
 import { afterEach, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
 import {
@@ -31,7 +31,7 @@ afterEach(async () => {
     await rm(root, { recursive: true, force: true })
 })
 async function toolkit(manifest: unknown = {}) {
-  const root = await mkdtemp(path.join(tmpdir(), 'sb-toolkit-'))
+  const root = await mkdtemp(path.join(tmpdir(), 'cv-toolkit-'))
   roots.push(root)
   await mkdir(path.join(root, '.agents'))
   await writeFile(
@@ -327,9 +327,9 @@ test('project and toolkit discovery switches remain independent in all four comb
   await skill(root)
   const snapshot = await inspectToolkit(root)
   const { combinedSkillCatalog } =
-    await import('@sb/convex/model/skills/catalog')
+    await import('@cv/convex/model/skills/catalog')
   const { projectSkillCatalog } =
-    await import('@sb/sidecar/agent-files/project-catalog')
+    await import('@cv/sidecar/agent-files/project-catalog')
   const original = globalThis.fetch
   const previousSecret = process.env.SIDECAR_SECRET
   process.env.SIDECAR_SECRET = 'toolkit-fixture'

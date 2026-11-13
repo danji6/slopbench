@@ -1,4 +1,4 @@
-import type { PathCheckResult } from '@sb/core/workspace/path-policy'
+import type { PathCheckResult } from '@cv/core/workspace/path-policy'
 import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { glob } from 'tinyglobby'

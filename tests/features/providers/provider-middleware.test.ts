@@ -1,8 +1,8 @@
 import { createMoonshotAI } from '@ai-sdk/moonshotai'
 import type { LanguageModelV3 } from '@ai-sdk/provider'
-import { withModelRoutes } from '@sb/convex/model/provider/modelMiddleware'
-import { getProviderOptions } from '@sb/convex/model/provider/options'
-import { withProviderMiddleware } from '@sb/convex/model/provider/providerMiddleware'
+import { withModelRoutes } from '@cv/convex/model/provider/modelMiddleware'
+import { getProviderOptions } from '@cv/convex/model/provider/options'
+import { withProviderMiddleware } from '@cv/convex/model/provider/providerMiddleware'
 import {
   type UIMessage,
   readUIMessageStream,

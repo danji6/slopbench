@@ -1,7 +1,7 @@
 /// <reference types="bun-types" />
 import { type JobTail, useJobTail } from '@/hooks/chat/terminals'
 import * as http from '@/hooks/http'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import { afterEach, beforeEach, expect, spyOn, test } from 'bun:test'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'

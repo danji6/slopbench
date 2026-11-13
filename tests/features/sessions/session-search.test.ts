@@ -2,8 +2,8 @@ import {
   type SessionSearchClause,
   type SessionSearchTarget,
   matchesSessionSearch,
-} from '@sb/core/session-search/filters'
-import { parseSessionSearch } from '@sb/core/session-search/parse'
+} from '@cv/core/session-search/filters'
+import { parseSessionSearch } from '@cv/core/session-search/parse'
 import { describe, expect, test } from 'bun:test'
 
 describe('session search parsing', () => {

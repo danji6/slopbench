@@ -13,7 +13,7 @@ import { useOperationPromptEditorView } from '@/hooks/chat/prompt-editor'
 import type { Prompt } from '@/lib/chat'
 import { getEditorDraft, promptDraftKey } from '@/lib/chat/editor-draft-store'
 import { newPrompt } from '@/lib/chat/prompts'
-import { normalizeOperationPrompt } from '@sb/core/prompts'
+import { normalizeOperationPrompt } from '@cv/core/prompts'
 import {
   ClipboardPasteIcon,
   CopyIcon,

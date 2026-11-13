@@ -1,8 +1,8 @@
-import type { FolderWorkspace } from '@sb/core/types/workspace'
+import type { FolderWorkspace } from '@cv/core/types/workspace'
 import {
   assertPersonalScope,
   selectFileWorkspace,
-} from '@sb/core/workspace/personal'
+} from '@cv/core/workspace/personal'
 import { stat } from 'node:fs/promises'
 
 import { resolveFileToolPath } from '../mcp/workspace/file-path'

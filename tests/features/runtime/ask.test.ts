@@ -1,12 +1,12 @@
 /// <reference types="bun-types" />
 import { safeValidateTypes } from '@ai-sdk/provider-utils'
-import { answerQuestions, buildAskToolOutput } from '@sb/convex/model/chat/ask'
-import { createAskTool } from '@sb/convex/model/tool/ask'
-import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
+import { answerQuestions, buildAskToolOutput } from '@cv/convex/model/chat/ask'
+import { createAskTool } from '@cv/convex/model/tool/ask'
+import { resolveToolManifest } from '@cv/convex/model/tool/manifest'
 import {
   MAX_ASK_OPTION_LABEL_CHARS,
   MAX_ASK_RESPONSE_CHARS,
-} from '@sb/core/limits'
+} from '@cv/core/limits'
 import { describe, expect, test } from 'bun:test'
 
 const input = {

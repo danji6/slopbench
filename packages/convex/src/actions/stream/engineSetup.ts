@@ -1,11 +1,11 @@
 'use node'
 
-import { stableStringify } from '@sb/core/stable-json'
+import { stableStringify } from '@cv/core/stable-json'
 import {
   hasFilesystemTools,
   selectedBuiltinTools,
-} from '@sb/core/tool-capabilities'
-import { contextEnabled } from '@sb/core/tool-context'
+} from '@cv/core/tool-capabilities'
+import { contextEnabled } from '@cv/core/tool-context'
 
 import { internal } from '../../_generated/api'
 import type { ActionCtx } from '../../_generated/server'

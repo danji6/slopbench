@@ -1,7 +1,7 @@
 'use node'
 
-import { sha256 } from '@sb/core/sha256'
-import { contextDependencies, contextEnabled } from '@sb/core/tool-context'
+import { sha256 } from '@cv/core/sha256'
+import { contextDependencies, contextEnabled } from '@cv/core/tool-context'
 
 import { internal } from '../../_generated/api'
 import type { ActionCtx } from '../../_generated/server'

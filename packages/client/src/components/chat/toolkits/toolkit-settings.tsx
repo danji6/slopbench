@@ -1,7 +1,7 @@
 import { MarkdownRenderer } from '@/components/markdown/renderer'
 import { HelpDialogButton, SearchInput } from '@/components/ui'
 import { useToolkitSettings } from '@/hooks/chat/toolkit-settings'
-import { TOOLKIT_GUIDE } from '@sb/core/toolkits/guide'
+import { TOOLKIT_GUIDE } from '@cv/core/toolkits/guide'
 import { useState } from 'react'
 
 import { ToolkitCard } from './toolkit-card'

@@ -1,9 +1,9 @@
-import { EVAL_LIMITS } from '@sb/core/interpreter/limits'
+import { EVAL_LIMITS } from '@cv/core/interpreter/limits'
 import type {
   EvaluationReply,
   EvaluationRequest,
   EvaluationResult,
-} from '@sb/core/interpreter/request'
+} from '@cv/core/interpreter/request'
 import { Worker } from 'node:worker_threads'
 
 export class EvaluationBusyError extends Error {

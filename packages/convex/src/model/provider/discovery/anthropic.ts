@@ -1,5 +1,5 @@
-import type { DiscoveredModel } from '@sb/core/model-discovery'
-import { REASONING_TIERS } from '@sb/core/types'
+import type { DiscoveredModel } from '@cv/core/model-discovery'
+import { REASONING_TIERS } from '@cv/core/types'
 import { z } from 'zod'
 
 import { positive } from './metadata'

@@ -1,6 +1,6 @@
-import { mcpResultSchema } from '@sb/core/types/mcp-result'
-import { withClient } from '@sb/sidecar/mcp/external/client'
-import { requestProtocol } from '@sb/sidecar/mcp/external/protocol'
+import { mcpResultSchema } from '@cv/core/types/mcp-result'
+import { withClient } from '@cv/sidecar/mcp/external/client'
+import { requestProtocol } from '@cv/sidecar/mcp/external/protocol'
 import { expect, test } from 'bun:test'
 import {
   operationFixture,

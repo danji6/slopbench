@@ -1,4 +1,4 @@
-import { get, page } from '@sb/convex/model/session/folderPages'
+import { get, page } from '@cv/convex/model/session/folderPages'
 import { expect, test } from 'bun:test'
 import { type Row, makeCtx } from '~/tests/setup/query-rows'
 

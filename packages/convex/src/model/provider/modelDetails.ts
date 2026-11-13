@@ -1,8 +1,8 @@
-import { discoveryFingerprint } from '@sb/core/discovery-fingerprint'
+import { discoveryFingerprint } from '@cv/core/discovery-fingerprint'
 import type {
   DiscoveredModel,
   DiscoveryConnection,
-} from '@sb/core/model-discovery'
+} from '@cv/core/model-discovery'
 
 import { discoveryAdapter } from './discovery/factory'
 

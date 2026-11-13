@@ -2,13 +2,13 @@ import { spawn } from 'node:child_process'
 
 /** Owns the launched process tree without interpreting its command as shell code. */
 function supervise() {
-  const launch = JSON.parse(process.env.SLOPBENCH_MCP_LAUNCH ?? '{}') as {
+  const launch = JSON.parse(process.env.CORVORI_MCP_LAUNCH ?? '{}') as {
     command: string
     args: string[]
   }
 
   const env = { ...process.env }
-  delete env.SLOPBENCH_MCP_LAUNCH
+  delete env.CORVORI_MCP_LAUNCH
   delete env.SIDECAR_SECRET
 
   const child = spawn(launch.command, launch.args, {

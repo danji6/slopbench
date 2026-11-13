@@ -1,11 +1,11 @@
-import type { WorkspaceToolContext } from '@sb/convex/model/tool/context'
-import { withAgentHome } from '@sb/core/workspace/personal'
+import type { WorkspaceToolContext } from '@cv/convex/model/tool/context'
+import { withAgentHome } from '@cv/core/workspace/personal'
 import {
   createFileExistsHelper,
   createFileHelper,
-} from '@sb/sidecar/eval/file-helper'
-import type { createApp } from '@sb/sidecar/main'
-import type * as WorkspaceFiles from '@sb/sidecar/mcp/workspace/workspace'
+} from '@cv/sidecar/eval/file-helper'
+import type { createApp } from '@cv/sidecar/main'
+import type * as WorkspaceFiles from '@cv/sidecar/mcp/workspace/workspace'
 import { afterAll, beforeAll, expect, test } from 'bun:test'
 import {
   mkdir,
@@ -51,8 +51,8 @@ beforeAll(async () => {
   await writeFile(path.join(home, 'literal%20?#'), 'literal name')
   process.env.CHAT_SIDECAR_DATA_DIR = path.join(root, 'data')
   process.env.CHAT_JOB_MODE = 'pipe'
-  files = await import('@sb/sidecar/mcp/workspace/workspace')
-  const { createApp } = await import('@sb/sidecar/main')
+  files = await import('@cv/sidecar/mcp/workspace/workspace')
+  const { createApp } = await import('@cv/sidecar/main')
   app = createApp(async (_c, next) => next())
 })
 
@@ -314,7 +314,7 @@ async function shellOutput(body: Record<string, unknown>) {
   })
   expect(response.ok).toBe(true)
   const { jobId } = (await response.json()) as { jobId: string }
-  const { pollShellJob } = await import('@sb/sidecar/shell/registry')
+  const { pollShellJob } = await import('@cv/sidecar/shell/registry')
   for (let attempt = 0; attempt < 100; attempt++) {
     const result = pollShellJob(jobId, 'scoped', 0)
     if (result.status !== 'running') return result.chunk.replaceAll('\r', '')
@@ -403,9 +403,9 @@ test('real MCP tools agree with execution for prefixed files and external cwd ap
   process.env.SIDECAR_URL = `http://127.0.0.1:${server.port}`
   process.env.SIDECAR_SECRET = 'test-secret'
   try {
-    const { createShellTool } = await import('@sb/convex/model/tool/shellTools')
+    const { createShellTool } = await import('@cv/convex/model/tool/shellTools')
     const { createReadFileTool, createWriteFileTool } =
-      await import('@sb/convex/model/tool/files')
+      await import('@cv/convex/model/tool/files')
     const input = {
       ...context(),
       ownerId: 'scoped',

@@ -1,5 +1,5 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { providerFeatures } from '@sb/core/provider-registry'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import { providerFeatures } from '@cv/core/provider-registry'
 import { Suspense, lazy } from 'react'
 
 const ChatGPTConnection = lazy(() =>

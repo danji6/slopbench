@@ -2,7 +2,7 @@ import {
   list as listSubagents,
   stopAll as stopAllSubagents,
   stop as stopSubagent,
-} from '@sb/convex/model/subagent/manage'
+} from '@cv/convex/model/subagent/manage'
 import { describe, expect, test } from 'bun:test'
 import { explorer, owner } from '~/tests/helpers/subagent-lifecycle'
 import { fakeCtx } from '~/tests/setup/subagents'

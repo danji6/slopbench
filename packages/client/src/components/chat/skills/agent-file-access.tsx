@@ -1,5 +1,5 @@
 import { useIsAdmin } from '@/hooks/chat/tools'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import type { ReactNode } from 'react'
 
 type AgentFileAccessProps = {

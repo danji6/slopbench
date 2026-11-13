@@ -1,6 +1,6 @@
 /// <reference types="bun-types" />
 import type { ModelMessage } from '@ai-sdk/provider-utils'
-import { applyPromptCaching } from '@sb/convex/model/provider/cache'
+import { applyPromptCaching } from '@cv/convex/model/provider/cache'
 import { describe, expect, test } from 'bun:test'
 
 const EPHEMERAL = { type: 'ephemeral' }

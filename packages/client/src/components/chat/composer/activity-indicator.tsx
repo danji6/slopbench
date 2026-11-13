@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { toDisplayName } from '@sb/core/utils/names'
+import { toDisplayName } from '@cv/core/utils/names'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 
 /** Character budget for two names before switching to a people count. */

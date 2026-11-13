@@ -1,4 +1,4 @@
-import type { PtyMode } from '@sb/core/shell/job-protocol'
+import type { PtyMode } from '@cv/core/shell/job-protocol'
 import type { IPty } from 'node-pty'
 import { type ChildProcess, spawn } from 'node:child_process'
 import { accessSync, constants } from 'node:fs'
@@ -11,7 +11,7 @@ import {
   shellPath,
 } from './system-shell'
 
-export type { PtyMode } from '@sb/core/shell/job-protocol'
+export type { PtyMode } from '@cv/core/shell/job-protocol'
 
 export type ShellJobProcess = {
   mode: PtyMode

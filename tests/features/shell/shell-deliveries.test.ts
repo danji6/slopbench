@@ -1,20 +1,20 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { MutationCtx } from '@sb/convex/_generated/server'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { MutationCtx } from '@cv/convex/_generated/server'
 import {
   deleteVersions,
   replaceSelectedContent,
-} from '@sb/convex/model/messageContents'
-import { _report } from '@sb/convex/model/shellJobs'
+} from '@cv/convex/model/messageContents'
+import { _report } from '@cv/convex/model/shellJobs'
 import {
   executionPosition,
   positionFromRanges,
   readPosition,
   recordDelivery,
   removeDeliveriesForParts,
-} from '@sb/convex/model/shellOutputDeliveries'
-import { _patchMessage } from '@sb/convex/model/stream/lifecycleProgress'
-import { makeOutputPreview } from '@sb/convex/model/stream/toolOutput'
-import type { ShellOutputRange, ShellToolOutput } from '@sb/core/types/tools'
+} from '@cv/convex/model/shellOutputDeliveries'
+import { _patchMessage } from '@cv/convex/model/stream/lifecycleProgress'
+import { makeOutputPreview } from '@cv/convex/model/stream/toolOutput'
+import type { ShellOutputRange, ShellToolOutput } from '@cv/core/types/tools'
 import { describe, expect, spyOn, test } from 'bun:test'
 import { fakeCtx } from '~/tests/helpers/stream-lifecycle'
 

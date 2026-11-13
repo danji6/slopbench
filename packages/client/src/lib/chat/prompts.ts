@@ -1,9 +1,9 @@
 import type { OrderedItem, Prompt, PromptItem } from '@/lib/chat'
 import type { PromptSource, ReminderPrompt } from '@/lib/chat'
-import { promptItemKey } from '@sb/convex/model/prompt/markers'
-import { mergeOrderedPromptItems } from '@sb/convex/model/prompt/merge'
-import { hasInterpolation } from '@sb/core/interpreter/parse'
-import type { EvalContext } from '@sb/core/interpreter/types'
+import { promptItemKey } from '@cv/convex/model/prompt/markers'
+import { mergeOrderedPromptItems } from '@cv/convex/model/prompt/merge'
+import { hasInterpolation } from '@cv/core/interpreter/parse'
+import type { EvalContext } from '@cv/core/interpreter/types'
 
 import { evaluateInBrowser } from '../evaluation-worker'
 import { generateId } from '../utils'

@@ -1,7 +1,7 @@
 import type {
   DiscoveredModel,
   DiscoveryConnection,
-} from '@sb/core/model-discovery'
+} from '@cv/core/model-discovery'
 
 export type DiscoveryPage = { models: DiscoveredModel[]; next?: string }
 export type DiscoveryAdapter = {

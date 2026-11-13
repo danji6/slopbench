@@ -1,8 +1,8 @@
 import { directoryBrowseError } from '@/lib/chat/directory-browse-error'
 import { toastError } from '@/lib/notifications'
-import { api } from '@sb/convex/_generated/api'
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { FolderView } from '@sb/convex/types'
+import { api } from '@cv/convex/_generated/api'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { FolderView } from '@cv/convex/types'
 import { useAction, useQuery } from 'convex/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 

@@ -1,6 +1,9 @@
-import type { NotificationWorkerAction } from '@sb/core/notification-actions'
-
-const ACTION_CACHE = 'slopbench-notification-actions-v2'
+import {
+  NOTIFICATION_ACTION,
+  NOTIFICATION_ACTION_ACK,
+  NOTIFICATION_ACTION_CACHE,
+  type NotificationWorkerAction,
+} from '@cv/core/notification-actions'
 
 export type ApplyWorkerAction = (
   action: NotificationWorkerAction,
@@ -13,7 +16,7 @@ export function isWorkerAction(
   if (!value || typeof value !== 'object') return false
   const action = value as NotificationWorkerAction
   return (
-    action.type === 'slopbench:notification-action' &&
+    action.type === NOTIFICATION_ACTION &&
     typeof action.notificationId === 'string' &&
     ['read', 'show', 'allow', 'allow-session', 'deny'].includes(action.action)
   )
@@ -22,7 +25,7 @@ export function isWorkerAction(
 /** Applies durable clicks after authentication; failed actions remain retryable. */
 export async function drainPendingWorkerActions(apply: ApplyWorkerAction) {
   if (!('caches' in window)) return
-  const cache = await caches.open(ACTION_CACHE)
+  const cache = await caches.open(NOTIFICATION_ACTION_CACHE)
   const failures: unknown[] = []
   for (const request of await cache.keys()) {
     const response = await cache.match(request)
@@ -50,7 +53,7 @@ export async function drainPendingWorkerActions(apply: ApplyWorkerAction) {
 export function acknowledgeWorkerAction(action: NotificationWorkerAction) {
   if (!action.requestId) return
   navigator.serviceWorker.controller?.postMessage({
-    type: 'slopbench:notification-action-ack',
+    type: NOTIFICATION_ACTION_ACK,
     requestId: action.requestId,
   })
 }

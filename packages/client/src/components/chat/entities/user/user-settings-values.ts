@@ -14,8 +14,8 @@ import {
   SOURCE_COLOR,
   createDefaultCompactionPrompts,
   createDefaultImpersonationPrompts,
-} from '@sb/convex/model/defaults'
-import { type WebSearchInstance, isSearchEngineId } from '@sb/core/types'
+} from '@cv/convex/model/defaults'
+import { type WebSearchInstance, isSearchEngineId } from '@cv/core/types'
 
 import type {
   SettingsFormValues,

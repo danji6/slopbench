@@ -1,6 +1,6 @@
-import { isSkillName } from '@sb/core/skills/names'
-import { SKILL_HEADER_READ_BYTES } from '@sb/core/skills/types'
-import type { SkillMetadata } from '@sb/core/skills/types'
+import { isSkillName } from '@cv/core/skills/names'
+import { SKILL_HEADER_READ_BYTES } from '@cv/core/skills/types'
+import type { SkillMetadata } from '@cv/core/skills/types'
 import { open } from 'node:fs/promises'
 import path from 'node:path'
 

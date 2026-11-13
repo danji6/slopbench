@@ -2,25 +2,25 @@ import { sanitizeMessages } from '@/lib/chat/messages'
 import {
   isToolAutoApproved,
   mergeToolApprovals,
-} from '@sb/convex/lib/tool/approval'
+} from '@cv/convex/lib/tool/approval'
 import {
   _claim,
   _handoff,
   _heartbeat,
-} from '@sb/convex/model/stream/lifecycleClaims'
-import { _scheduleRetry } from '@sb/convex/model/stream/lifecycleControl'
-import { _saveMeta } from '@sb/convex/model/stream/lifecycleMeta'
+} from '@cv/convex/model/stream/lifecycleClaims'
+import { _scheduleRetry } from '@cv/convex/model/stream/lifecycleControl'
+import { _saveMeta } from '@cv/convex/model/stream/lifecycleMeta'
 import {
   _continue,
   _patchMessage,
   _recordStep,
-} from '@sb/convex/model/stream/lifecycleProgress'
+} from '@cv/convex/model/stream/lifecycleProgress'
 import {
   _complete,
   _fail,
   _finalizeStopped,
-} from '@sb/convex/model/stream/lifecycleTerminal'
-import { _getStopState } from '@sb/convex/model/stream/reads'
+} from '@cv/convex/model/stream/lifecycleTerminal'
+import { _getStopState } from '@cv/convex/model/stream/reads'
 import { type UIMessage } from 'ai'
 import { expect, test } from 'bun:test'
 import { execution, fixture } from '~/tests/helpers/execution-ownership'

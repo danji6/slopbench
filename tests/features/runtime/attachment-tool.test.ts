@@ -2,21 +2,21 @@
 import {
   read as readCursor,
   save as saveCursor,
-} from '@sb/convex/model/attachmentCursors'
+} from '@cv/convex/model/attachmentCursors'
 import {
   activeAttachmentMessages,
   hasLoadedAttachmentMedia,
-} from '@sb/convex/model/attachmentMedia'
+} from '@cv/convex/model/attachmentMedia'
 import {
   attachmentToModelOutput,
   createReadAttachmentTool,
   expireAttachmentToolPart,
-} from '@sb/convex/model/tool/attachments'
+} from '@cv/convex/model/tool/attachments'
 import type {
   AttachmentCursorCall,
   SaveAttachmentCursorArgs,
-} from '@sb/convex/types'
-import type { ReadAttachmentInput } from '@sb/core/types'
+} from '@cv/convex/types'
+import type { ReadAttachmentInput } from '@cv/core/types'
 import { afterEach, describe, expect, spyOn, test } from 'bun:test'
 import { type FunctionReference, getFunctionName } from 'convex/server'
 

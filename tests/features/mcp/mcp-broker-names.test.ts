@@ -1,5 +1,5 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { assignName, findName } from '@sb/convex/model/mcpBrokerNames'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import { assignName, findName } from '@cv/convex/model/mcpBrokerNames'
 import { expect, test } from 'bun:test'
 import { skillsDatabase } from '~/tests/helpers/skills-db'
 

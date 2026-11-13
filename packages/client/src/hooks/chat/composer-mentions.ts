@@ -1,7 +1,7 @@
 import type { WorkspaceFileIndex } from '@/hooks/chat/workspace'
 import type { MentionEntry } from '@/lib/chat/file-mentions'
 import { filterMentions } from '@/lib/chat/file-mentions'
-import { getActiveMention, mentionToken } from '@sb/core/mentions/parse'
+import { getActiveMention, mentionToken } from '@cv/core/mentions/parse'
 import type { Editor } from '@tiptap/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'

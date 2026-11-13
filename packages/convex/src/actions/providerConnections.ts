@@ -1,5 +1,5 @@
 'use node'
-import type { DiscoveredModel } from '@sb/core/model-discovery'
+import type { DiscoveredModel } from '@cv/core/model-discovery'
 import { v } from 'convex/values'
 
 import type { Id } from '../_generated/dataModel'

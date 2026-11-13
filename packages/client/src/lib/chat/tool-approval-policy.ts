@@ -1,9 +1,9 @@
 import type {
   ApprovalHold,
   PlanApprovalMeta,
-} from '@sb/core/approval-presentation'
-import { approvalRememberOption } from '@sb/core/approval-presentation'
-import type { RememberScope } from '@sb/core/types/tools'
+} from '@cv/core/approval-presentation'
+import { approvalRememberOption } from '@cv/core/approval-presentation'
+import type { RememberScope } from '@cv/core/types/tools'
 
 export type ApprovalAction = {
   id: string

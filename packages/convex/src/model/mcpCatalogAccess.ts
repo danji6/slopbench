@@ -1,5 +1,5 @@
-import { sha256 } from '@sb/core/sha256'
-import { type McpServer, mcpToolName } from '@sb/core/types'
+import { sha256 } from '@cv/core/sha256'
+import { type McpServer, mcpToolName } from '@cv/core/types'
 
 import type { Doc } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'

@@ -1,5 +1,5 @@
-import { api } from '@sb/convex/_generated/api'
-import { minRole } from '@sb/convex/lib/roles'
+import { api } from '@cv/convex/_generated/api'
+import { minRole } from '@cv/convex/lib/roles'
 import { useQuery } from 'convex/react'
 
 import { useUserProfile } from './profile'

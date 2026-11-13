@@ -1,7 +1,8 @@
+import { APP_ID } from '@cv/core/const'
 import {
   SCHEMA_MIGRATION_VERSION,
   type SchemaMigrationState,
-} from '@sb/core/migration-version'
+} from '@cv/core/migration-version'
 import { randomBytes } from 'node:crypto'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -339,7 +340,7 @@ async function deployMigrationSchema(
       join(root, 'package.json'),
       `${JSON.stringify(
         {
-          name: 'slopbench-migration-deploy',
+          name: `${APP_ID}-migration-deploy`,
           private: true,
           type: 'module',
           dependencies: { convex: '*' },
@@ -356,8 +357,8 @@ async function deployMigrationSchema(
             module: 'ESNext',
             moduleResolution: 'bundler',
             paths: {
-              '@sb/convex/*': ['./packages/convex/src/*'],
-              '@sb/core/*': ['./packages/core/src/*'],
+              '@cv/convex/*': ['./packages/convex/src/*'],
+              '@cv/core/*': ['./packages/core/src/*'],
             },
             target: 'ES2022',
           },

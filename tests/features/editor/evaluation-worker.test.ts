@@ -10,7 +10,7 @@ let base: string
 const secret = 'isolated-sidecar-fixture'
 
 beforeAll(async () => {
-  root = await mkdtemp(join(tmpdir(), 'slopbench-eval-'))
+  root = await mkdtemp(join(tmpdir(), 'corvori-eval-'))
   await writeFile(join(root, 'fixture.txt'), 'workspace fixture')
   const probe = Bun.serve({ port: 0, fetch: () => new Response() })
   const port = probe.port!

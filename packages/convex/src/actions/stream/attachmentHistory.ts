@@ -1,8 +1,8 @@
 'use node'
 
-import { attachmentRef } from '@sb/core/attachments'
-import { block } from '@sb/core/utils/blocks'
-import { isKnownTextFile } from '@sb/core/workspace/files'
+import { attachmentRef } from '@cv/core/attachments'
+import { block } from '@cv/core/utils/blocks'
+import { isKnownTextFile } from '@cv/core/workspace/files'
 
 import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'

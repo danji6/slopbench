@@ -1,4 +1,4 @@
-import { APP_ID } from '@sb/core/const'
+import { APP_ID } from '@cv/core/const'
 import { randomUUID } from 'node:crypto'
 import { createReadStream, createWriteStream } from 'node:fs'
 import {

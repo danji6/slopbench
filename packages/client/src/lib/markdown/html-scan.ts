@@ -1,4 +1,4 @@
-import { isHtmlVoidTag } from '@sb/core/xml-tags'
+import { isHtmlVoidTag } from '@cv/core/xml-tags'
 
 import { allowedTags } from './sanitize'
 

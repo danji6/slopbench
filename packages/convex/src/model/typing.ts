@@ -1,4 +1,4 @@
-import { toDisplayName } from '@sb/core/utils/names'
+import { toDisplayName } from '@cv/core/utils/names'
 
 import type { Id } from '../_generated/dataModel'
 import type { MutationCtx } from '../_generated/server'

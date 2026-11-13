@@ -1,9 +1,9 @@
 import type {
   WorkspaceDirectoryLink,
   WorkspaceTextLink,
-} from '@sb/core/types/workspace'
-import { block, closeBlock, openBlock } from '@sb/core/utils/blocks'
-import { blockPath, fileBlock } from '@sb/core/workspace/blocks'
+} from '@cv/core/types/workspace'
+import { block, closeBlock, openBlock } from '@cv/core/utils/blocks'
+import { blockPath, fileBlock } from '@cv/core/workspace/blocks'
 
 import { SHELL_REPORT_PREFIX } from './shellReport'
 import { SUBAGENT_REPORT_PREFIX } from './subagent'

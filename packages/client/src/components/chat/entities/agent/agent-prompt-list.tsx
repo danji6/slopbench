@@ -11,7 +11,7 @@ import type { MergedPromptItem } from '@/lib/chat/prompts'
 import {
   ensurePromptMarkers,
   promptItemKey,
-} from '@sb/convex/model/prompt/markers'
+} from '@cv/convex/model/prompt/markers'
 import type { Control } from 'react-hook-form'
 import { useController } from 'react-hook-form'
 

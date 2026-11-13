@@ -1,4 +1,4 @@
-import { MAX_SCOPE_PROMPTS } from '@sb/core/limits'
+import { MAX_SCOPE_PROMPTS } from '@cv/core/limits'
 import { z } from 'zod'
 
 const contextSchema = z.object({

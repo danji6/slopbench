@@ -1,4 +1,4 @@
-import { APP_ID } from '@sb/core/const'
+import { APP_ID } from '@cv/core/const'
 
 const STORAGE_KEY = `${APP_ID}-session-folder-collapse`
 

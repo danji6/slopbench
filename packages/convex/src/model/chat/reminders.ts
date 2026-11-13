@@ -1,6 +1,6 @@
-import { TODO_NUDGE_INTERVAL_STEPS } from '@sb/core/const'
-import type { ReminderPrompt } from '@sb/core/types'
-import { systemReminder } from '@sb/core/utils/blocks'
+import { TODO_NUDGE_INTERVAL_STEPS } from '@cv/core/const'
+import type { ReminderPrompt } from '@cv/core/types'
+import { systemReminder } from '@cv/core/utils/blocks'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'

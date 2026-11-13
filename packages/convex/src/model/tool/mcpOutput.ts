@@ -5,7 +5,7 @@ import {
   isMcpResultPreview,
   mcpResultBlocks,
   publicMcpOutput,
-} from '@sb/core/types/mcp-result'
+} from '@cv/core/types/mcp-result'
 import type { ModelMessage, Tool, ToolSet, UIMessage } from 'ai'
 import { dequal } from 'dequal'
 

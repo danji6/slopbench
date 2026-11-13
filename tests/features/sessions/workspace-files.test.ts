@@ -4,7 +4,7 @@ import {
   isKnownTextFile,
   isKnownTextMediaType,
   isTextFilename,
-} from '@sb/core/workspace/files'
+} from '@cv/core/workspace/files'
 import { describe, expect, test } from 'bun:test'
 
 describe('workspace file classification', () => {

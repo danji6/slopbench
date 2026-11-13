@@ -4,9 +4,9 @@ import {
   authFailureRateLimit,
   isAuthFailure,
   withRetryAfter,
-} from '@sb/convex/lib/authFailureRateLimit'
-import { rateLimitKey } from '@sb/convex/lib/rateLimits'
-import * as RateLimits from '@sb/convex/model/rateLimits'
+} from '@cv/convex/lib/authFailureRateLimit'
+import { rateLimitKey } from '@cv/convex/lib/rateLimits'
+import * as RateLimits from '@cv/convex/model/rateLimits'
 import { describe, expect, test } from 'bun:test'
 
 function rateLimitState() {

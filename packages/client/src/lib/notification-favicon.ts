@@ -1,4 +1,4 @@
-import { APP_NAME } from '@sb/core/const'
+import { APP_NAME } from '@cv/core/const'
 
 const BASE_TITLE = APP_NAME
 const FAVICON_ID = 'app-favicon'

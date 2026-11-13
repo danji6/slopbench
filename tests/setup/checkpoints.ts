@@ -1,5 +1,5 @@
-import * as checkpoints from '@sb/sidecar/checkpoints/manager'
-import { CheckpointStorage } from '@sb/sidecar/checkpoints/storage'
+import * as checkpoints from '@cv/sidecar/checkpoints/manager'
+import { CheckpointStorage } from '@cv/sidecar/checkpoints/storage'
 import { afterAll, beforeAll, spyOn } from 'bun:test'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'

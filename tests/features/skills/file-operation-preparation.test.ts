@@ -1,18 +1,18 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { complete, fail } from '@sb/convex/model/skills/completion'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import { complete, fail } from '@cv/convex/model/skills/completion'
 import {
   copyAssignments,
   reserveDestination,
-} from '@sb/convex/model/skills/endpoints'
-import { claimExecution } from '@sb/convex/model/skills/execution'
+} from '@cv/convex/model/skills/endpoints'
+import { claimExecution } from '@cv/convex/model/skills/execution'
 import {
   continueImport,
   finish,
   prepare,
-} from '@sb/convex/model/skills/imports'
-import { releaseOperation } from '@sb/convex/model/skills/lifecycle'
-import { retry, start } from '@sb/convex/model/skills/operations'
-import type { FileOperationArgs } from '@sb/convex/types'
+} from '@cv/convex/model/skills/imports'
+import { releaseOperation } from '@cv/convex/model/skills/lifecycle'
+import { retry, start } from '@cv/convex/model/skills/operations'
+import type { FileOperationArgs } from '@cv/convex/types'
 import { expect, test } from 'bun:test'
 import { skillsDatabase } from '~/tests/helpers/skills-db'
 

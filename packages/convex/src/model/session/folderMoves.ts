@@ -1,5 +1,5 @@
-import { projectFolderMove } from '@sb/core/utils/folder-tree'
-import { transitionActive } from '@sb/core/workspace/transition'
+import { projectFolderMove } from '@cv/core/utils/folder-tree'
+import { transitionActive } from '@cv/core/workspace/transition'
 import { ConvexError } from 'convex/values'
 
 import type { Doc, Id } from '../../_generated/dataModel'

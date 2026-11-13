@@ -1,5 +1,5 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { _getProviderHistory } from '@sb/convex/model/stream/reads'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import { _getProviderHistory } from '@cv/convex/model/stream/reads'
 import { expect, test } from 'bun:test'
 import { skillsDatabase } from '~/tests/helpers/skills-db'
 

@@ -6,7 +6,7 @@ import {
   mentionToken,
   normalizeMentionPath,
   parseFileMentions,
-} from '@sb/core/mentions/parse'
+} from '@cv/core/mentions/parse'
 import { describe, expect, test } from 'bun:test'
 
 describe('parseFileMentions', () => {

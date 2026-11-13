@@ -3,7 +3,7 @@ import {
   applyReasoningDurations,
   createReasoningTracker,
   trackReasoningTimings,
-} from '@sb/convex/model/stream/reasoning'
+} from '@cv/convex/model/stream/reasoning'
 import { afterEach, describe, expect, test } from 'bun:test'
 import { collectStream as drain, streamOf } from '~/tests/helpers/streams'
 

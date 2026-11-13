@@ -5,7 +5,7 @@ import {
   type TextPreview,
   readAttachmentTextPreview,
 } from '@/lib/text-file-preview'
-import { formatByteLength } from '@sb/core/utils/size'
+import { formatByteLength } from '@cv/core/utils/size'
 import { useEffect, useState } from 'react'
 
 import { Code } from './code'

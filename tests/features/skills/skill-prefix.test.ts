@@ -1,5 +1,5 @@
-import { rename } from '@sb/convex/model/session/folders'
-import { consumeInterjections } from '@sb/convex/model/stream/lifecycleProgress'
+import { rename } from '@cv/convex/model/session/folders'
+import { consumeInterjections } from '@cv/convex/model/stream/lifecycleProgress'
 import { expect, test } from 'bun:test'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'

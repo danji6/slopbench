@@ -1,8 +1,8 @@
 'use node'
 
-import { ASK_TOOL_NAME } from '@sb/core/const'
-import { READ_ATTACHMENT_TOOL_NAME } from '@sb/core/const'
-import type { WireToolCall } from '@sb/core/tool-dispatch'
+import { ASK_TOOL_NAME } from '@cv/core/const'
+import { READ_ATTACHMENT_TOOL_NAME } from '@cv/core/const'
+import type { WireToolCall } from '@cv/core/tool-dispatch'
 import type { ToolSet } from 'ai'
 
 import { internal } from '../../_generated/api'

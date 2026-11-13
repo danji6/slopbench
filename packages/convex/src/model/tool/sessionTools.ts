@@ -1,7 +1,7 @@
 'use node'
 
-import type { WireToolCall } from '@sb/core/tool-dispatch'
-import { TOOL_DESCRIPTIONS } from '@sb/core/types/tool-descriptions'
+import type { WireToolCall } from '@cv/core/tool-dispatch'
+import { TOOL_DESCRIPTIONS } from '@cv/core/types/tool-descriptions'
 import type { ToolExecutionOptions, ToolSet } from 'ai'
 
 import { internal } from '../../_generated/api'
@@ -17,7 +17,7 @@ import {
 import type { ToolDefinition, ToolManifest } from './manifest'
 import { guardMcpApproval } from './mcpApproval'
 
-export const DISPATCH_ERROR_TOOL = '__sb_tool_error'
+export const DISPATCH_ERROR_TOOL = '__cv_tool_error'
 
 export type SessionTools = {
   wireDefinitions: ToolDefinition[]

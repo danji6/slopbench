@@ -1,12 +1,12 @@
 'use node'
 
-import type { McpRuntimeScope } from '@sb/core/types'
+import type { McpRuntimeScope } from '@cv/core/types'
 import {
   MCP_DEFINITION_CONTENT_TYPE,
   type McpCatalogSnapshot,
   type McpDefinition,
   mcpDefinitionSchema,
-} from '@sb/core/types/mcp-catalog'
+} from '@cv/core/types/mcp-catalog'
 
 import { api, internal } from '../_generated/api'
 import type { Id } from '../_generated/dataModel'

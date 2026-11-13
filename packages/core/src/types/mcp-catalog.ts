@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { APP_ID } from '../const'
+
 export const MCP_BROKER_TOOLS = [
   'search_mcp_tools',
   'call_mcp_tool',
@@ -12,7 +14,7 @@ export const MCP_MANIFEST_VERSION = 7
 export const MAX_MCP_CATALOG_TOOLS = 5_000
 export const MAX_MCP_CATALOG_BYTES = 64 * 1024 * 1024
 export const MAX_MCP_DEFINITION_BYTES = 8 * 1024 * 1024
-export const MCP_DEFINITION_CONTENT_TYPE = 'application/vnd.slopbench.mcp-definition+json' // prettier-ignore
+export const MCP_DEFINITION_CONTENT_TYPE = `application/vnd.${APP_ID}.mcp-definition+json` // prettier-ignore
 
 export const mcpBrokerCallSchema = z.object({
   tool: z

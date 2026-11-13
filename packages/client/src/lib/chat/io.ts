@@ -1,6 +1,6 @@
 import { normalizeBrowserUrl } from '@/lib/auth/site-url'
 import type { SessionArchive } from '@/lib/chat'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import type { FileUIPart } from 'ai'
 
 import { ImageTool } from '../io'

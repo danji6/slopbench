@@ -1,10 +1,10 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { executeCompact, sendMessage } from '@sb/convex/model/chat/send'
-import { _claim, _handoff } from '@sb/convex/model/stream/lifecycleClaims'
-import { _continue } from '@sb/convex/model/stream/lifecycleProgress'
-import { _complete } from '@sb/convex/model/stream/lifecycleTerminal'
-import { _getProviderHistory } from '@sb/convex/model/stream/reads'
-import type { StreamExecutionArgs } from '@sb/convex/types'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import { executeCompact, sendMessage } from '@cv/convex/model/chat/send'
+import { _claim, _handoff } from '@cv/convex/model/stream/lifecycleClaims'
+import { _continue } from '@cv/convex/model/stream/lifecycleProgress'
+import { _complete } from '@cv/convex/model/stream/lifecycleTerminal'
+import { _getProviderHistory } from '@cv/convex/model/stream/reads'
+import type { StreamExecutionArgs } from '@cv/convex/types'
 import { expect, test } from 'bun:test'
 import { skillsDatabase } from '~/tests/helpers/skills-db'
 
@@ -293,7 +293,7 @@ test.each(['failed', 'stopped'])(
     const execution = await compact(state)
     await _claim(state.ctx, execution)
     const { _fail, _finalizeStopped } =
-      await import('@sb/convex/model/stream/lifecycleTerminal')
+      await import('@cv/convex/model/stream/lifecycleTerminal')
     if (outcome === 'failed')
       await _fail(state.ctx, { ...execution, message: 'Provider failed' })
     else {

@@ -1,3 +1,9 @@
+import { APP_ID } from './const'
+
+export const NOTIFICATION_ACTION = `${APP_ID}:notification-action`
+export const NOTIFICATION_ACTION_ACK = `${APP_ID}:notification-action-ack`
+export const NOTIFICATION_ACTION_CACHE = `${APP_ID}-notification-actions-v2`
+
 export type NotificationApprovalAction = 'allow' | 'allow-session' | 'deny'
 
 export type NotificationApprovalOption = {
@@ -7,7 +13,7 @@ export type NotificationApprovalOption = {
 }
 
 export type NotificationWorkerAction = {
-  type: 'slopbench:notification-action'
+  type: typeof NOTIFICATION_ACTION
   action: 'read' | 'show' | NotificationApprovalAction
   notificationId: string
   sessionId?: string

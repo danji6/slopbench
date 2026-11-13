@@ -1,4 +1,4 @@
-import type { ShellJobSummary, ShellToolOutput } from '@sb/core/types/tools'
+import type { ShellJobSummary, ShellToolOutput } from '@cv/core/types/tools'
 import type { UIMessage } from 'ai'
 
 import { type MessageRow, segmentGroupsFor } from './rows'

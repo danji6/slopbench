@@ -1,5 +1,5 @@
-import { MCP_OPERATION_STATES } from '@sb/core/types/mcp-operation'
-import { MCP_PROTOCOL_METHODS } from '@sb/core/types/mcp-protocol'
+import { MCP_OPERATION_STATES } from '@cv/core/types/mcp-operation'
+import { MCP_PROTOCOL_METHODS } from '@cv/core/types/mcp-protocol'
 import { v } from 'convex/values'
 
 import { mcpScopeValidator } from './mcp'

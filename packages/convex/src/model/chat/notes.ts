@@ -1,6 +1,6 @@
-import type { MessageRole } from '@sb/core/types'
-import { systemNote } from '@sb/core/utils/blocks'
-import { inline } from '@sb/core/utils/strings'
+import type { MessageRole } from '@cv/core/types'
+import { systemNote } from '@cv/core/utils/blocks'
+import { inline } from '@cv/core/utils/strings'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'

@@ -1,4 +1,4 @@
-import type { ShellJobSummary } from '@sb/core/types/tools'
+import type { ShellJobSummary } from '@cv/core/types/tools'
 
 export type ListShellJobs = (args: {
   sessionId: string

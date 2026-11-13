@@ -1,6 +1,6 @@
 'use node'
 
-import { isMcpResult, publicMcpOutput } from '@sb/core/types/mcp-result'
+import { isMcpResult, publicMcpOutput } from '@cv/core/types/mcp-result'
 
 import { internal } from '../_generated/api'
 import type { ActionCtx } from '../_generated/server'

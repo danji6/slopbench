@@ -1,8 +1,8 @@
 import { Popover } from '@/components/ui/popover'
 import { useActiveSessionId } from '@/hooks/chat/session'
 import { cn } from '@/lib/utils'
-import { api } from '@sb/convex/_generated/api'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import { api } from '@cv/convex/_generated/api'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import { useQuery } from 'convex/react'
 import { ListTodoIcon } from 'lucide-react'
 

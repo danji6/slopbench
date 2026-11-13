@@ -1,4 +1,4 @@
-import { attachmentReferences } from '@sb/core/attachments'
+import { attachmentReferences } from '@cv/core/attachments'
 import type { Editor } from '@tiptap/react'
 
 /** Whether the clipboard contains a slice written by an editor. */

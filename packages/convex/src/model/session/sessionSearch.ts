@@ -1,7 +1,7 @@
 import {
   type SessionSearchClause,
   matchesSessionSearch,
-} from '@sb/core/session-search/filters'
+} from '@cv/core/session-search/filters'
 
 import type { Id } from '../../_generated/dataModel'
 import type { AuthQueryCtx } from '../../functions'

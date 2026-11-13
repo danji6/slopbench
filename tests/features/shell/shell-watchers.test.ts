@@ -4,8 +4,8 @@ import {
   register,
   release,
   releaseForSession,
-} from '@sb/convex/model/shellJobs'
-import { stopForSession } from '@sb/convex/model/stream/lifecycle'
+} from '@cv/convex/model/shellJobs'
+import { stopForSession } from '@cv/convex/model/stream/lifecycle'
 import { describe, expect, test } from 'bun:test'
 import {
   agent,

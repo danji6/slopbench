@@ -1,4 +1,4 @@
-import { DISCOVERY_STALE_MS } from '@sb/core/model-discovery'
+import { DISCOVERY_STALE_MS } from '@cv/core/model-discovery'
 
 import type { ProviderDiscovery } from '../../types'
 

@@ -1,8 +1,8 @@
 import {
   type McpDefinitionPage,
   presentMcpDefinition,
-} from '@sb/core/mcp-definition-presentation'
-import type { McpBrokerSearch } from '@sb/core/types/mcp-catalog'
+} from '@cv/core/mcp-definition-presentation'
+import type { McpBrokerSearch } from '@cv/core/types/mcp-catalog'
 
 import { internal } from '../../_generated/api'
 import { ToolError } from '../../errors'

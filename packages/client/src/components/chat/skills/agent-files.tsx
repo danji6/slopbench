@@ -1,4 +1,4 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 
 import { AgentFileAccess } from './agent-file-access'
 import { AgentHomeSettings } from './agent-home'

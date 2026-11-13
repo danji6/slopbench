@@ -9,7 +9,7 @@ import {
 import {
   PROVIDER_AUTH_LABELS,
   type ProviderAuth,
-} from '@sb/core/provider-registry'
+} from '@cv/core/provider-registry'
 import { EyeIcon, EyeOffIcon } from 'lucide-react'
 
 import type { ProviderOption } from './provider-types'

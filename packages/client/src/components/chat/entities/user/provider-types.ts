@@ -1,4 +1,4 @@
-import type { ModelReasoning } from '@sb/core/types'
+import type { ModelReasoning } from '@cv/core/types'
 
 export type ProviderOption = {
   value: string

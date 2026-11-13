@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { toDashCase } from '@sb/core/utils/strings'
+import { toDashCase } from '@cv/core/utils/strings'
 import type React from 'react'
 import { useMemo } from 'react'
 

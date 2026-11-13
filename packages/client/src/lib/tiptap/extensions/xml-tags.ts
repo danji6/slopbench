@@ -1,5 +1,5 @@
 import { INDENT_UNIT } from '@/lib/tiptap/code-pairs'
-import { isEmptyXmlTagPair, xmlTagToClose } from '@sb/core/xml-tags'
+import { isEmptyXmlTagPair, xmlTagToClose } from '@cv/core/xml-tags'
 import { Extension } from '@tiptap/core'
 import { closeHistory } from '@tiptap/pm/history'
 import { Fragment } from '@tiptap/pm/model'

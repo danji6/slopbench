@@ -1,8 +1,8 @@
 import { Dialog, RippleButton } from '@/components/ui'
 import { useIsAdmin } from '@/hooks/chat'
-import { api } from '@sb/convex/_generated/api'
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { FolderMoveArgs, FolderView } from '@sb/convex/types'
+import { api } from '@cv/convex/_generated/api'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { FolderMoveArgs, FolderView } from '@cv/convex/types'
 import { useQuery } from 'convex/react'
 import { useState } from 'react'
 

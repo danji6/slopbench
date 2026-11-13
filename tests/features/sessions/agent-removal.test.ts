@@ -1,4 +1,4 @@
-import { remove } from '@sb/convex/model/agents'
+import { remove } from '@cv/convex/model/agents'
 import { expect, test } from 'bun:test'
 
 test.each(['agent_1', 'agent_2', undefined])(

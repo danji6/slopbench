@@ -1,6 +1,6 @@
 import type { SharedV3ProviderOptions } from '@ai-sdk/provider'
 import type { LanguageModelV3 } from '@ai-sdk/provider'
-import type { ModelReasoning, ReasoningTier } from '@sb/core/types'
+import type { ModelReasoning, ReasoningTier } from '@cv/core/types'
 import type { LanguageModelMiddleware } from 'ai'
 
 import type { ReasoningEffort } from '../../types'

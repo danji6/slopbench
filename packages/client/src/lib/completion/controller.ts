@@ -1,10 +1,10 @@
-import { collectCompletions } from '@sb/core/code-completion/engine'
+import { collectCompletions } from '@cv/core/code-completion/engine'
 import type {
   CompletionItem,
   CompletionProvider,
   CompletionRequest,
   CompletionResult,
-} from '@sb/core/code-completion/types'
+} from '@cv/core/code-completion/types'
 import type { Node } from '@tiptap/pm/model'
 import type { Transaction } from '@tiptap/pm/state'
 import type { Editor } from '@tiptap/react'

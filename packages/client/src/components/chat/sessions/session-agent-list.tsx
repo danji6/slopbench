@@ -10,7 +10,7 @@ import {
   useLinkAgent,
   useUnlinkAgent,
 } from '@/hooks/chat/participants'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import { PlusIcon } from 'lucide-react'
 
 import { AgentCombobox, type AgentItem } from './agent-combobox'

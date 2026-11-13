@@ -32,7 +32,7 @@ test('checks the whole library despite search, confirms missing names and suppor
       dialog.evaluate((element) => element.scrollWidth <= element.clientWidth),
     )
     .toBe(true)
-  await page.screenshot({ path: '/tmp/slopbench-skill-verification.png' })
+  await page.screenshot({ path: '/tmp/corvori-skill-verification.png' })
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
   await expect(
     page.getByRole('status').filter({ hasText: 'Checked 85 skills.' }),

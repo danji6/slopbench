@@ -4,7 +4,7 @@ import {
   normalizeUnsupportedWarnings,
   omitLargeStrings,
   stripProviderMetadata,
-} from '@sb/convex/model/stream/transformers'
+} from '@cv/convex/model/stream/transformers'
 import { describe, expect, test } from 'bun:test'
 import { collectStream } from '~/tests/helpers/streams'
 

@@ -1,8 +1,8 @@
 /// <reference types="bun-types" />
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { insertMessage } from '@sb/convex/model/messageContents'
-import { exportOne, importOne } from '@sb/convex/model/session/archive'
-import type { SessionArchive } from '@sb/convex/model/session/archive'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import { insertMessage } from '@cv/convex/model/messageContents'
+import { exportOne, importOne } from '@cv/convex/model/session/archive'
+import type { SessionArchive } from '@cv/convex/model/session/archive'
 import { describe, expect, test } from 'bun:test'
 import { skillsDatabase } from '~/tests/helpers/skills-db'
 

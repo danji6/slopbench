@@ -1,4 +1,4 @@
-import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '@sb/core/auth'
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '@cv/core/auth'
 import { betterAuth } from 'better-auth'
 import { memoryAdapter } from 'better-auth/adapters/memory'
 import { username } from 'better-auth/plugins'
@@ -68,7 +68,7 @@ async function signIn(auth: FixtureAuth, password = OLD_PASSWORD) {
 test('password changes revoke other sessions, rotate the current session and replace the credential', async () => {
   const auth = fixtureAuth()
   const signup = await request(auth, 'sign-up/email', {
-    email: 'fixture-user@sb.local',
+    email: 'fixture-user@corvori.local',
     username: 'fixture_user',
     name: 'Fixture user',
     password: OLD_PASSWORD,

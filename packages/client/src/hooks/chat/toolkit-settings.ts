@@ -6,7 +6,7 @@ import type {
   ToolkitView,
 } from '@/lib/chat/toolkits'
 import { extractErrorMessage } from '@/lib/errors'
-import { api } from '@sb/convex/_generated/api'
+import { api } from '@cv/convex/_generated/api'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { useAction, useMutation } from 'convex/react'
 import { useState } from 'react'

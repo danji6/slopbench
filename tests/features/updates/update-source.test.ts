@@ -6,7 +6,7 @@ import {
   releaseName,
   selectArchiveAsset,
   selectChecksumAsset,
-} from '@sb/core/update/source'
+} from '@cv/core/update/source'
 import { describe, expect, test } from 'bun:test'
 
 const stem = releaseName('0.3.0')

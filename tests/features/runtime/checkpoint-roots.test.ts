@@ -1,4 +1,4 @@
-import { snapshot } from '@sb/sidecar/checkpoints/snapshot'
+import { snapshot } from '@cv/sidecar/checkpoints/snapshot'
 import { afterEach, describe, expect, test } from 'bun:test'
 import { execFile } from 'node:child_process'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'

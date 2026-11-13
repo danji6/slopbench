@@ -1,10 +1,10 @@
-import { readSkillMetadata } from '@sb/sidecar/agent-files/metadata'
-import { runFileOperation } from '@sb/sidecar/agent-files/operations'
+import { readSkillMetadata } from '@cv/sidecar/agent-files/metadata'
+import { runFileOperation } from '@cv/sidecar/agent-files/operations'
 import {
   libraryRoot,
   managedHome,
   operationRoot,
-} from '@sb/sidecar/agent-files/storage'
+} from '@cv/sidecar/agent-files/storage'
 import { afterAll, beforeAll, expect, test } from 'bun:test'
 import {
   mkdir,

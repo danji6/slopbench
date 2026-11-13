@@ -1,6 +1,6 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { WindowMessage } from '@sb/convex/model/chat/queries'
-import type { MessageWindowArgs } from '@sb/convex/types'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { WindowMessage } from '@cv/convex/model/chat/queries'
+import type { MessageWindowArgs } from '@cv/convex/types'
 
 type MessageFactory = (time: number, segments?: number) => WindowMessage
 

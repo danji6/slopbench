@@ -1,7 +1,7 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { assignments } from '@sb/convex/model/skills/endpoints'
-import { assigned, list } from '@sb/convex/model/skills/library'
-import { setEnabled } from '@sb/convex/model/skills/preferences'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import { assignments } from '@cv/convex/model/skills/endpoints'
+import { assigned, list } from '@cv/convex/model/skills/library'
+import { setEnabled } from '@cv/convex/model/skills/preferences'
 import { expect, test } from 'bun:test'
 import { skillsDatabase } from '~/tests/helpers/skills-db'
 

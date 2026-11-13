@@ -1,14 +1,14 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { ActionCtx } from '@sb/convex/_generated/server'
-import { complete, fail } from '@sb/convex/model/skills/completion'
-import { claimExecution } from '@sb/convex/model/skills/execution'
-import { run } from '@sb/convex/model/skills/filesAction'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { ActionCtx } from '@cv/convex/_generated/server'
+import { complete, fail } from '@cv/convex/model/skills/completion'
+import { claimExecution } from '@cv/convex/model/skills/execution'
+import { run } from '@cv/convex/model/skills/filesAction'
 import {
   continueImport,
   finish,
   prepare,
-} from '@sb/convex/model/skills/imports'
-import { start } from '@sb/convex/model/skills/operations'
+} from '@cv/convex/model/skills/imports'
+import { start } from '@cv/convex/model/skills/operations'
 import { expect, test } from 'bun:test'
 import { getFunctionName } from 'convex/server'
 import { skillsDatabase } from '~/tests/helpers/skills-db'

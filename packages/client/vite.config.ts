@@ -59,10 +59,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(root, './src'),
-      '@sb/client': path.resolve(root, './src'),
-      '@sb/convex': path.resolve(root, '../convex/src'),
-      '@sb/core': path.resolve(root, '../core/src'),
-      '@sb/sidecar': path.resolve(root, '../sidecar/src'),
+      '@cv/client': path.resolve(root, './src'),
+      '@cv/convex': path.resolve(root, '../convex/src'),
+      '@cv/core': path.resolve(root, '../core/src'),
+      '@cv/sidecar': path.resolve(root, '../sidecar/src'),
       '~': path.resolve(root, '../..'),
     },
     dedupe: [

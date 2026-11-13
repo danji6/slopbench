@@ -1,5 +1,5 @@
 import { convexClient } from '@convex-dev/better-auth/client/plugins'
-import { APP_ID } from '@sb/core/const'
+import { APP_ID } from '@cv/core/const'
 import { getGlobalBroadcastChannel } from 'better-auth/client'
 import { usernameClient } from 'better-auth/client/plugins'
 import { createAuthClient } from 'better-auth/react'

@@ -7,15 +7,15 @@ import {
   type CompletionDocumentSource,
   codeCompletionDocument,
 } from '@/lib/completion/document'
-import { staticCompletions } from '@sb/core/code-completion/engine'
-import type { CompletionSource } from '@sb/core/code-completion/types'
+import { staticCompletions } from '@cv/core/code-completion/engine'
+import type { CompletionSource } from '@cv/core/code-completion/types'
 import type { Editor } from '@tiptap/react'
 import { type ReactNode, useEffect, useId, useMemo, useState } from 'react'
 
 export type {
   Completion,
   CompletionSource,
-} from '@sb/core/code-completion/types'
+} from '@cv/core/code-completion/types'
 
 type CompletionOptions = {
   language?: string

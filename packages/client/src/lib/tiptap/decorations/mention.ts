@@ -1,4 +1,4 @@
-import { findMentions } from '@sb/core/mentions/parse'
+import { findMentions } from '@cv/core/mentions/parse'
 import { Extension } from '@tiptap/core'
 import type { Node } from '@tiptap/pm/model'
 import { Plugin, PluginKey } from '@tiptap/pm/state'

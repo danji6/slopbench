@@ -11,12 +11,12 @@ import {
   serializeBlocksToMarkdown,
   setEditorMarkdown,
 } from '@/lib/tiptap/serialize'
-import { api } from '@sb/convex/_generated/api'
-import { alwaysLabel, approvalHold } from '@sb/convex/lib/tool/approvalPolicy'
-import { PLAN_APPROVALS, getDescription } from '@sb/core/approval-presentation'
-import { APP_ID } from '@sb/core/const'
-import { isPendingToolApproval } from '@sb/core/utils/tool-parts'
-import type { PathApprovalStatus } from '@sb/core/workspace/path-policy'
+import { api } from '@cv/convex/_generated/api'
+import { alwaysLabel, approvalHold } from '@cv/convex/lib/tool/approvalPolicy'
+import { PLAN_APPROVALS, getDescription } from '@cv/core/approval-presentation'
+import { APP_ID } from '@cv/core/const'
+import { isPendingToolApproval } from '@cv/core/utils/tool-parts'
+import type { PathApprovalStatus } from '@cv/core/workspace/path-policy'
 import type { Editor } from '@tiptap/react'
 import type { ToolUIPart } from 'ai'
 import { useMutation } from 'convex/react'

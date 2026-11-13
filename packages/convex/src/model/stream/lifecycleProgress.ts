@@ -1,5 +1,5 @@
-import { MESSAGE_SPLIT_BUDGET_BYTES } from '@sb/core/const'
-import { serializedSize } from '@sb/core/utils/size'
+import { MESSAGE_SPLIT_BUDGET_BYTES } from '@cv/core/const'
+import { serializedSize } from '@cv/core/utils/size'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'

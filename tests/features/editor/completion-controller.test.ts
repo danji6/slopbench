@@ -8,7 +8,7 @@ import { SnippetStops } from '@/lib/tiptap/extensions/snippet-stops'
 import type {
   CompletionProvider,
   CompletionResult,
-} from '@sb/core/code-completion/types'
+} from '@cv/core/code-completion/types'
 import { Editor } from '@tiptap/react'
 import { StarterKit } from '@tiptap/starter-kit'
 import { describe, expect, test } from 'bun:test'

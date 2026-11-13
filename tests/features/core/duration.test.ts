@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import { parseDurationMs } from '@sb/core/utils/duration'
+import { parseDurationMs } from '@cv/core/utils/duration'
 import { describe, expect, test } from 'bun:test'
 
 describe('parseDurationMs', () => {

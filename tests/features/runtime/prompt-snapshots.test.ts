@@ -1,6 +1,6 @@
 /// <reference types="bun-types" />
-import type { PromptItem } from '@sb/convex/model/prompt/prompts'
-import { planSnapshotEval } from '@sb/convex/model/prompt/snapshots'
+import type { PromptItem } from '@cv/convex/model/prompt/prompts'
+import { planSnapshotEval } from '@cv/convex/model/prompt/snapshots'
 import { describe, expect, test } from 'bun:test'
 
 function prompt(name: string, content = `${name} raw`): PromptItem {

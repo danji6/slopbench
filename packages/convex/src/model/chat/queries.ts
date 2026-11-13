@@ -1,9 +1,9 @@
-import type { MessageWindowArgs } from '@sb/convex/types'
+import type { MessageWindowArgs } from '@cv/convex/types'
 import {
   MESSAGE_WINDOW_BUDGET_BYTES,
   MESSAGE_WINDOW_MAX_ROWS,
-} from '@sb/core/const'
-import { serializedSize } from '@sb/core/utils/size'
+} from '@cv/core/const'
+import { serializedSize } from '@cv/core/utils/size'
 import { type IndexKey, getPage } from 'convex-helpers/server/pagination'
 import type { PaginationOptions } from 'convex/server'
 

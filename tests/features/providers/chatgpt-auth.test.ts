@@ -2,13 +2,13 @@ import {
   cancelSignIn,
   connectionStatus,
   startSignIn,
-} from '@sb/sidecar/providers/openai/oauth'
+} from '@cv/sidecar/providers/openai/oauth'
 import {
   readRegistration,
   saveRegistration,
   withRegistrationLock,
-} from '@sb/sidecar/providers/openai/storage'
-import { accessToken, disconnect } from '@sb/sidecar/providers/openai/tokens'
+} from '@cv/sidecar/providers/openai/storage'
+import { accessToken, disconnect } from '@cv/sidecar/providers/openai/tokens'
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { SignJWT, exportJWK, generateKeyPair } from 'jose'
 import { mkdtemp, readdir, rm, stat } from 'node:fs/promises'
@@ -16,7 +16,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const originalFetch = globalThis.fetch
-const originalDirectory = process.env.SLOPBENCH_AUTH_DIR
+const originalDirectory = process.env.CORVORI_AUTH_DIR
 let directory: string
 const signing = await generateKeyPair('RS256')
 const publicKey = {
@@ -32,8 +32,8 @@ let refreshes = 0
 let tokenBody = new URLSearchParams()
 
 beforeAll(async () => {
-  directory = await mkdtemp(join(tmpdir(), 'sb-oauth-test-'))
-  process.env.SLOPBENCH_AUTH_DIR = directory
+  directory = await mkdtemp(join(tmpdir(), 'cv-oauth-test-'))
+  process.env.CORVORI_AUTH_DIR = directory
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
     if (url.startsWith('http://127.0.0.1:')) return originalFetch(input, init)
@@ -73,8 +73,8 @@ beforeAll(async () => {
 })
 afterAll(async () => {
   globalThis.fetch = originalFetch
-  if (originalDirectory === undefined) delete process.env.SLOPBENCH_AUTH_DIR
-  else process.env.SLOPBENCH_AUTH_DIR = originalDirectory
+  if (originalDirectory === undefined) delete process.env.CORVORI_AUTH_DIR
+  else process.env.CORVORI_AUTH_DIR = originalDirectory
   await rm(directory, { recursive: true, force: true })
 })
 
@@ -103,7 +103,7 @@ describe('ChatGPT OAuth lifecycle', () => {
   test('validates state, exchanges exact PKCE redirect and stores protected credentials', async () => {
     const { key, url, callback } = await authorize('a')
     expect(url.searchParams.get('client_id')).toBe('dynamic_agent_client')
-    expect(url.searchParams.get('agent_name_hint')).toBe('slopbench')
+    expect(url.searchParams.get('agent_name_hint')).toBe('corvori')
     expect(url.searchParams.get('code_challenge_method')).toBe('S256')
     expect(url.searchParams.get('ext_agent_host_id')).toStartWith('urn:uuid:')
     const wrong = new URL(callback)

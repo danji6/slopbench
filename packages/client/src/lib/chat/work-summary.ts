@@ -1,6 +1,6 @@
 import { formatDuration } from '@/lib/utils'
-import type { ReasoningPart } from '@sb/convex/types'
-import type { ShellToolOutput } from '@sb/core/types/tools'
+import type { ReasoningPart } from '@cv/convex/types'
+import type { ShellToolOutput } from '@cv/core/types/tools'
 import { type ToolUIPart, isReasoningUIPart } from 'ai'
 
 import { type PartGroup, getToolStatus } from './parts'

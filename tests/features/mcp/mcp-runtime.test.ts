@@ -1,9 +1,9 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { _getExecution, list, replaceAll } from '@sb/convex/model/mcp'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import { _getExecution, list, replaceAll } from '@cv/convex/model/mcp'
 import {
   done as finishCleanup,
   get as getCleanup,
-} from '@sb/convex/model/mcpCleanup'
+} from '@cv/convex/model/mcpCleanup'
 import {
   authorizeRuntime,
   connected,
@@ -12,7 +12,7 @@ import {
   retireCurrent,
   revoke,
   updateStatus,
-} from '@sb/convex/model/mcpRuntime'
+} from '@cv/convex/model/mcpRuntime'
 import { expect, test } from 'bun:test'
 import { skillsDatabase } from '~/tests/helpers/skills-db'
 
@@ -198,7 +198,7 @@ test.each(['lost', 'disconnected'])(
     try {
       await authorizeRuntime(ctx, input)
     } catch (cause) {
-      const { extractErrorMessage } = await import('@sb/convex/errors')
+      const { extractErrorMessage } = await import('@cv/convex/errors')
       message = extractErrorMessage(cause)
     }
     expect(message).toContain(`MCP session is ${state}`)

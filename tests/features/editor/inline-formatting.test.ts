@@ -9,7 +9,7 @@ import {
 import {
   attachmentMarkdownLink,
   attachmentReferences,
-} from '@sb/core/attachments'
+} from '@cv/core/attachments'
 import { Editor } from '@tiptap/core'
 import { afterEach, expect, test } from 'bun:test'
 import { setupDom } from '~/tests/setup/dom'

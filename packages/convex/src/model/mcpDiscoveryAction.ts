@@ -1,11 +1,11 @@
 'use node'
 
-import { mcpConnectionSchema, validateMcpTools } from '@sb/core/types'
+import { mcpConnectionSchema, validateMcpTools } from '@cv/core/types'
 import type {
   McpConnection,
   McpDialedTransport,
   McpToolMeta,
-} from '@sb/core/types'
+} from '@cv/core/types'
 
 import { api } from '../_generated/api'
 import type { ActionCtx } from '../_generated/server'

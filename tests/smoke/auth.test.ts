@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import { isAllowedOrigin, siteUrl } from '@sb/convex/origins'
+import { isAllowedOrigin, siteUrl } from '@cv/convex/origins'
 import { afterEach, describe, expect, test } from 'bun:test'
 
 const env = { ...process.env }

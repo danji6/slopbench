@@ -2,15 +2,15 @@ import {
   lockAgent,
   unlockAgent,
   withAgentFiles,
-} from '@sb/sidecar/agent-files/access'
-import { publishTree } from '@sb/sidecar/agent-files/merge'
-import { readSkillMetadata } from '@sb/sidecar/agent-files/metadata'
-import { homeInfo, runFileOperation } from '@sb/sidecar/agent-files/operations'
+} from '@cv/sidecar/agent-files/access'
+import { publishTree } from '@cv/sidecar/agent-files/merge'
+import { readSkillMetadata } from '@cv/sidecar/agent-files/metadata'
+import { homeInfo, runFileOperation } from '@cv/sidecar/agent-files/operations'
 import {
   libraryRoot,
   managedHome,
   operationRoot,
-} from '@sb/sidecar/agent-files/storage'
+} from '@cv/sidecar/agent-files/storage'
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import {
   chmod,
@@ -358,9 +358,9 @@ test('interrupted home publishes reconcile their journal and preserve unrelated 
 })
 
 test('availability checks never create missing folders, and managed selections stay missing until preparation', async () => {
-  const { inspectHome } = await import('@sb/sidecar/agent-files/home-state')
+  const { inspectHome } = await import('@cv/sidecar/agent-files/home-state')
   const { resolveDestination } =
-    await import('@sb/sidecar/agent-files/destination')
+    await import('@cv/sidecar/agent-files/destination')
   const input = { ownerId: owner, agentId: 'uninitialized', revision: 0 }
   expect((await inspectHome(input)).exists).toBe(false)
   const destination = await resolveDestination(input)

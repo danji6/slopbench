@@ -1,8 +1,9 @@
 import type { LanguageModelV4 } from '@ai-sdk/provider'
-import { prepareChatGPTRequest } from '@sb/core/chatgpt-policy'
-import { parseModelExtraParameters } from '@sb/core/model-parameters'
-import type { ProviderTransportObserver } from '@sb/core/provider-continuity'
-import type { InferenceParameters } from '@sb/core/types'
+import { prepareChatGPTRequest } from '@cv/core/chatgpt-policy'
+import { APP_ID, APP_NAME } from '@cv/core/const'
+import { parseModelExtraParameters } from '@cv/core/model-parameters'
+import type { ProviderTransportObserver } from '@cv/core/provider-continuity'
+import type { InferenceParameters } from '@cv/core/types'
 import type { LanguageModel } from 'ai'
 
 import { sidecarUrl } from '../../sidecar'
@@ -83,8 +84,8 @@ export async function withChatGPTPolicy(
                     openai: {
                       ...tool.providerOptions?.openai,
                       namespace: {
-                        name: 'slopbench',
-                        description: 'Tools executed by Slopbench',
+                        name: APP_ID,
+                        description: `Tools executed by ${APP_NAME}`,
                       },
                     },
                   },

@@ -156,5 +156,5 @@ test('busy agents reactively block both choices and deletion dialog fits narrow 
     await expect(
       dialog.getByRole('button', { name, exact: true }),
     ).toBeEnabled()
-  await page.screenshot({ path: '/tmp/slopbench-library-deletion-dialog.png' })
+  await page.screenshot({ path: '/tmp/corvori-library-deletion-dialog.png' })
 })

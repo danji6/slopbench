@@ -1,5 +1,5 @@
-import { settleAbandonedTaskParts } from '@sb/convex/lib/subagent'
-import { deliverChildReport } from '@sb/convex/model/stream/subagents'
+import { settleAbandonedTaskParts } from '@cv/convex/lib/subagent'
+import { deliverChildReport } from '@cv/convex/model/stream/subagents'
 import { describe, expect, test } from 'bun:test'
 import {
   childStream1,

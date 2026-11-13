@@ -2,7 +2,7 @@
 import {
   rescheduleStream,
   reserveOrDebounceTurn,
-} from '@sb/convex/model/chat/reserve'
+} from '@cv/convex/model/chat/reserve'
 import { describe, expect, test } from 'bun:test'
 
 type DebouncePatch = Record<string, unknown> & { state: { fireAt?: number } }

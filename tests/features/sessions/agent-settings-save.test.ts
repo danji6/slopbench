@@ -9,7 +9,7 @@ import {
   type AgentSaveOptions,
   persistAgentSettings,
 } from '@/lib/chat/agent-settings-save'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import { afterEach, expect, mock, test } from 'bun:test'
 
 const ID = 'created' as Id<'agents'>

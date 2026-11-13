@@ -1,7 +1,7 @@
 import { PromptContentEditor } from '@/components/chat/prompts/prompt-content-editor'
 import { ConfirmDialog, Dialog, RippleButton } from '@/components/ui'
 import { formatMarkdown } from '@/lib/markdown/format'
-import { DEFAULT_TITLE_SYSTEM_PROMPT } from '@sb/core/title-generation'
+import { DEFAULT_TITLE_SYSTEM_PROMPT } from '@cv/core/title-generation'
 import { useState } from 'react'
 
 type TitlePromptEditorProps = {

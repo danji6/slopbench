@@ -1,4 +1,4 @@
-import type { DiscoveryConnection } from '@sb/core/model-discovery'
+import type { DiscoveryConnection } from '@cv/core/model-discovery'
 
 import { anthropicAdapter } from './anthropic'
 import { ollamaAdapter } from './ollama'

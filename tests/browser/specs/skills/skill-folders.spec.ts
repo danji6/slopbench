@@ -14,7 +14,7 @@ test('folder picker remembers confirmed selections across reloads, with no paren
   const picker = page.getByRole('dialog')
   const path = picker.getByPlaceholder('/path/to/project')
   const recent = () =>
-    page.evaluate(() => localStorage.getItem('slopbench-recent-directories'))
+    page.evaluate(() => localStorage.getItem('corvori-recent-directories'))
   await page.getByRole('button', { name: 'Files', exact: true }).click()
   await choose.click()
   await expect(
@@ -83,7 +83,7 @@ test('path bar fuzzy searches recent folders and keeps arbitrary paths navigable
 }) => {
   await page.evaluate(() => {
     localStorage.setItem(
-      'slopbench-recent-directories',
+      'corvori-recent-directories',
       JSON.stringify({
         paths: [
           '/fixture/custom-home/project',
@@ -130,7 +130,7 @@ test('path bar fuzzy searches recent folders and keeps arbitrary paths navigable
   expect(
     await page.evaluate(
       () =>
-        JSON.parse(localStorage.getItem('slopbench-recent-directories')!).paths,
+        JSON.parse(localStorage.getItem('corvori-recent-directories')!).paths,
     ),
   ).toEqual([
     '/fixture/custom-home/project',
@@ -305,7 +305,7 @@ test('managed detach dialog keeps action labels inside their buttons', async ({
       )
       .toBe(true)
     if (width === 320) {
-      await page.screenshot({ path: '/tmp/slopbench-detach-dialog.png' })
+      await page.screenshot({ path: '/tmp/corvori-detach-dialog.png' })
     }
   }
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()

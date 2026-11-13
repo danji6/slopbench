@@ -3,7 +3,7 @@ import { AgentSkills } from '@/components/chat/skills/agent-skills'
 import { SkillLibrary } from '@/components/chat/skills/skill-library'
 import { SettingsTabs } from '@/components/ui/settings-tabs'
 import '@/globals.css'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import { ConvexProvider } from 'convex/react'
 import { useState } from 'react'
 

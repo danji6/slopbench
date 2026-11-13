@@ -1,12 +1,12 @@
-import type { Doc } from '@sb/convex/_generated/dataModel'
-import { withApprovalActions } from '@sb/convex/model/notificationApprovals'
-import { notifyQuestions } from '@sb/convex/model/notifications'
+import type { Doc } from '@cv/convex/_generated/dataModel'
+import { withApprovalActions } from '@cv/convex/model/notificationApprovals'
+import { notifyQuestions } from '@cv/convex/model/notifications'
 import {
   notifyToolApprovals,
   respondApproval,
-} from '@sb/convex/model/notifications'
-import { approvalSummary } from '@sb/core/approval-presentation'
-import { ASK_TOOL_NAME } from '@sb/core/const'
+} from '@cv/convex/model/notifications'
+import { approvalSummary } from '@cv/core/approval-presentation'
+import { ASK_TOOL_NAME } from '@cv/core/const'
 import { describe, expect, test } from 'bun:test'
 import { fakeCtx } from '~/tests/setup/subagents'
 

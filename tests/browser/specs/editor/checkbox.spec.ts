@@ -41,7 +41,7 @@ test('wrapped labels stay close to their checkbox and centered after resizing', 
       })
     if (width === 320) {
       await page.screenshot({
-        path: '/tmp/slopbench-checkbox-label-wrapped.png',
+        path: '/tmp/corvori-checkbox-label-wrapped.png',
       })
     }
   }
@@ -50,5 +50,5 @@ test('wrapped labels stay close to their checkbox and centered after resizing', 
     .getByText('Also delete the managed folder and its contents')
     .click()
   await expect(checkbox).toBeChecked()
-  await page.screenshot({ path: '/tmp/slopbench-checkbox-label.png' })
+  await page.screenshot({ path: '/tmp/corvori-checkbox-label.png' })
 })

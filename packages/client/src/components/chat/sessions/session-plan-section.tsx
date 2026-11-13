@@ -15,8 +15,8 @@ import {
   useEditorDraft,
 } from '@/lib/chat/editor-draft-store'
 import { toast, toastError } from '@/lib/notifications'
-import { api } from '@sb/convex/_generated/api'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import { api } from '@cv/convex/_generated/api'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import { useMutation, useQuery } from 'convex/react'
 import { EyeIcon, Trash2Icon } from 'lucide-react'
 import { Suspense, lazy, useEffect, useRef } from 'react'

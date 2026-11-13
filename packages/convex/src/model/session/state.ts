@@ -1,5 +1,5 @@
-import { MAX_APPROVAL_PATHS, MAX_APPROVAL_PATTERNS } from '@sb/core/limits'
-import { capApprovalPaths } from '@sb/core/workspace/path-policy'
+import { MAX_APPROVAL_PATHS, MAX_APPROVAL_PATTERNS } from '@cv/core/limits'
+import { capApprovalPaths } from '@cv/core/workspace/path-policy'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../../_generated/server'

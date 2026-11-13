@@ -3,8 +3,8 @@ import { Combobox, Input, RippleButton } from '@/components/ui'
 import type {
   McpProtocolMethod,
   McpProtocolRequest,
-} from '@sb/core/types/mcp-protocol'
-import type { McpResult } from '@sb/core/types/mcp-result'
+} from '@cv/core/types/mcp-protocol'
+import type { McpResult } from '@cv/core/types/mcp-result'
 import { useState } from 'react'
 
 type Props = {

@@ -1,4 +1,4 @@
-import type { McpProgress as Progress } from '@sb/core/types/mcp-operation'
+import type { McpProgress as Progress } from '@cv/core/types/mcp-operation'
 
 /** Shows server progress without inventing a percentage for unbounded work. */
 export function McpProgress({ progress }: { progress?: Progress }) {

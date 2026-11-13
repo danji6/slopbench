@@ -2,8 +2,8 @@
 import {
   mergeReminders,
   resolveDueReminders,
-} from '@sb/convex/model/chat/reminders'
-import type { ReminderPrompt } from '@sb/core/types'
+} from '@cv/convex/model/chat/reminders'
+import type { ReminderPrompt } from '@cv/core/types'
 import { describe, expect, test } from 'bun:test'
 
 function reminder(overrides: Partial<ReminderPrompt> = {}): ReminderPrompt {

@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import { deleteMessageParts, editMessagePart } from '@sb/convex/model/chat'
+import { deleteMessageParts, editMessagePart } from '@cv/convex/model/chat'
 import { describe, expect, test } from 'bun:test'
 
 type Row = Record<string, unknown> & { _id: string }

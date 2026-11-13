@@ -1,8 +1,8 @@
-import { api } from '@sb/convex/_generated/api'
+import { api } from '@cv/convex/_generated/api'
 import {
   hasPendingToolApprovals,
   isPendingToolApproval,
-} from '@sb/core/utils/tool-parts'
+} from '@cv/core/utils/tool-parts'
 import type { OptimisticLocalStore } from 'convex/browser'
 import type { FunctionReturnType } from 'convex/server'
 

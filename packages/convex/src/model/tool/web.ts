@@ -2,7 +2,7 @@ import {
   TOOL_DESCRIPTIONS,
   webFetchQuerySchema,
   webSearchQuerySchema,
-} from '@sb/core/types'
+} from '@cv/core/types'
 
 import { ToolError } from '../../errors'
 import { callMcpTool } from './mcp'

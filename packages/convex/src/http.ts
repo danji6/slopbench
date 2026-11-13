@@ -1,4 +1,4 @@
-import { attachmentReference } from '@sb/core/attachments'
+import { attachmentReference } from '@cv/core/attachments'
 import { httpRouter } from 'convex/server'
 import { ConvexError } from 'convex/values'
 

@@ -16,7 +16,7 @@ import type { MessageRecord } from '@/lib/chat'
 import { noteContentKey } from '@/lib/chat/note-state'
 import type { HiddenChipPlacement } from '@/lib/chat/rows'
 import { cn, isTouchDevice } from '@/lib/utils'
-import type { MessageExtra } from '@sb/convex/types'
+import type { MessageExtra } from '@cv/convex/types'
 import type { UIMessage } from 'ai'
 import type { LucideIcon } from 'lucide-react'
 import {

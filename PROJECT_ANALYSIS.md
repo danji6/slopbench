@@ -143,7 +143,7 @@ REA 6.7.0 exposes 207 usable tool definitions and five skills. Static JavaScript
 analysis, later-turn evidence retrieval, independent chats/children, lifecycle
 revocation, handoff, cancellation and failure recovery are covered. Real native
 providers are unavailable in the isolated test environment; fixture results do
-not establish native coverage. The separate live Slopbench agent investigation
+not establish native coverage. The separate live Corvori agent investigation
 is deferred to a possible stage 8. See `docs/rea-conformance.md` for exact scope
 and reproduction steps.
 
@@ -373,7 +373,7 @@ rows; it does not exercise the whole authenticated application.
 
 ## Executive Summary
 
-Slopbench (temporary name) is a self-hosted AI workspace for agentic coding
+Corvori is a self-hosted AI workspace for agentic coding
 workflows, creative writing, and collaborative chat sessions. It is a Bun
 workspace with four main packages:
 

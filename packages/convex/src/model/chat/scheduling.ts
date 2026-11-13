@@ -1,4 +1,4 @@
-import { parseDurationMs } from '@sb/core/utils/duration'
+import { parseDurationMs } from '@cv/core/utils/duration'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'

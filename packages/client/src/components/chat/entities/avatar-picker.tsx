@@ -1,7 +1,7 @@
 import { Avatar } from '@/components/ui'
 import { DropZone, type DropZoneHandle } from '@/components/ui/file-picker'
 import { useAvatarThumbnail } from '@/hooks/chat'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import { XIcon } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 

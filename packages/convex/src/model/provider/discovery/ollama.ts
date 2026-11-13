@@ -1,9 +1,9 @@
 import type {
   DiscoveredModel,
   DiscoveryConnection,
-} from '@sb/core/model-discovery'
-import { parseProviderExtraHeaders } from '@sb/core/provider-headers'
-import { REASONING_TIERS } from '@sb/core/types'
+} from '@cv/core/model-discovery'
+import { parseProviderExtraHeaders } from '@cv/core/provider-headers'
+import { REASONING_TIERS } from '@cv/core/types'
 import { z } from 'zod'
 
 import { positive } from './metadata'

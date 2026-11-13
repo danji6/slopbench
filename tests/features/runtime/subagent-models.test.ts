@@ -1,9 +1,9 @@
 /// <reference types="bun-types" />
-import type { Doc } from '@sb/convex/_generated/dataModel'
-import { _suspendStep } from '@sb/convex/model/stream/subagents'
-import { resolveSubagentModel } from '@sb/convex/model/subagent/models'
-import { modelReference } from '@sb/core/model-reference'
-import type { AgentSubagentOverride, ModelReasoning } from '@sb/core/types'
+import type { Doc } from '@cv/convex/_generated/dataModel'
+import { _suspendStep } from '@cv/convex/model/stream/subagents'
+import { resolveSubagentModel } from '@cv/convex/model/subagent/models'
+import { modelReference } from '@cv/core/model-reference'
+import type { AgentSubagentOverride, ModelReasoning } from '@cv/core/types'
 import { describe, expect, test } from 'bun:test'
 import { fakeCtx } from '~/tests/setup/subagents'
 

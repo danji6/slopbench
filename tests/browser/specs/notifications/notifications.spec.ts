@@ -94,7 +94,7 @@ test('desktop options contain the description and a session click responds in th
     navigator.serviceWorker.dispatchEvent(
       new MessageEvent('message', {
         data: {
-          type: 'slopbench:notification-action',
+          type: 'corvori:notification-action',
           action: 'allow-session',
           ...captures[0].data,
           requestId: 'desktop-click',

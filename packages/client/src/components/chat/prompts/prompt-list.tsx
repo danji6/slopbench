@@ -11,7 +11,7 @@ import {
   getPromptMarkerLabel,
   isPromptMarker,
   promptItemKey,
-} from '@sb/convex/model/prompt/markers'
+} from '@cv/convex/model/prompt/markers'
 import {
   BookmarkIcon,
   ClipboardPasteIcon,

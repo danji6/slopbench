@@ -2,9 +2,9 @@ import {
   type InstallInfo,
   installBlockReason,
   resolveInstall,
-} from '@sb/core/update/install'
-import { fetchLatestRelease } from '@sb/core/update/source'
-import { isNewer } from '@sb/core/update/version'
+} from '@cv/core/update/install'
+import { fetchLatestRelease } from '@cv/core/update/source'
+import { isNewer } from '@cv/core/update/version'
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'

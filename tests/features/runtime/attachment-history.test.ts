@@ -1,4 +1,4 @@
-import { buildProviderHistory } from '@sb/convex/actions/stream/history'
+import { buildProviderHistory } from '@cv/convex/actions/stream/history'
 import { describe, expect, test } from 'bun:test'
 import {
   attachmentHistoryCtx,

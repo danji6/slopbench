@@ -1,12 +1,12 @@
 'use node'
 
-import { SKILL_PAGE_SIZE } from '@sb/core/skills/types'
+import { SKILL_PAGE_SIZE } from '@cv/core/skills/types'
 import type {
   SkillCatalogEntry,
   SkillCatalogPage,
   SkillCatalogSlice,
-} from '@sb/core/skills/types'
-import type { FolderWorkspace } from '@sb/core/types/workspace'
+} from '@cv/core/skills/types'
+import type { FolderWorkspace } from '@cv/core/types/workspace'
 
 import { internal } from '../../_generated/api'
 import type { ActionCtx } from '../../_generated/server'

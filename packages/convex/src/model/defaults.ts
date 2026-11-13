@@ -1,5 +1,5 @@
-import { DEFAULT_TITLE_SYSTEM_PROMPT } from '@sb/core/title-generation'
-import { inline } from '@sb/core/utils/strings'
+import { DEFAULT_TITLE_SYSTEM_PROMPT } from '@cv/core/title-generation'
+import { inline } from '@cv/core/utils/strings'
 
 import type { Doc } from '../_generated/dataModel'
 import { generateId } from '../lib/utils'

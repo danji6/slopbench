@@ -2,7 +2,7 @@ import {
   type EvaluationReply,
   type EvaluationRequest,
   evaluateRequest,
-} from '@sb/core/interpreter/request'
+} from '@cv/core/interpreter/request'
 import { parentPort, workerData } from 'node:worker_threads'
 
 import { createFileExistsHelper, createFileHelper } from './file-helper'

@@ -2,15 +2,15 @@ import {
   type InstallInfo,
   installBlockReason,
   resolveInstall,
-} from '@sb/core/update/install'
+} from '@cv/core/update/install'
 import {
   type ReleaseInfo,
   fetchLatestRelease,
   parseChecksums,
   selectArchiveAsset,
   selectChecksumAsset,
-} from '@sb/core/update/source'
-import { isNewer } from '@sb/core/update/version'
+} from '@cv/core/update/source'
+import { isNewer } from '@cv/core/update/version'
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import {

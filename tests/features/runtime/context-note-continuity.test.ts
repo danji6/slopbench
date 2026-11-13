@@ -1,14 +1,14 @@
-import { prepareContextNote } from '@sb/convex/model/stream/contextNotes'
-import { _claim, _continue, _handoff } from '@sb/convex/model/stream/lifecycle'
+import { prepareContextNote } from '@cv/convex/model/stream/contextNotes'
+import { _claim, _continue, _handoff } from '@cv/convex/model/stream/lifecycle'
 import {
   prepareProviderRequest,
   saveProviderContinuity,
-} from '@sb/convex/model/stream/providerRequests'
-import { _getProviderHistory } from '@sb/convex/model/stream/reads'
+} from '@cv/convex/model/stream/providerRequests'
+import { _getProviderHistory } from '@cv/convex/model/stream/reads'
 import type {
   ProviderContinuityScope,
   StreamExecutionArgs,
-} from '@sb/convex/types'
+} from '@cv/convex/types'
 import { expect, test } from 'bun:test'
 import { skillsDatabase } from '~/tests/helpers/skills-db'
 

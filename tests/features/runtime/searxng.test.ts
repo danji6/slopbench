@@ -1,6 +1,6 @@
 /// <reference types="bun-types" />
-import { normalizeSearxngUrl } from '@sb/sidecar/mcp/searxng'
-import { searchWeb } from '@sb/sidecar/mcp/web_search'
+import { normalizeSearxngUrl } from '@cv/sidecar/mcp/searxng'
+import { searchWeb } from '@cv/sidecar/mcp/web_search'
 import { afterEach, describe, expect, test } from 'bun:test'
 
 const originalFetch = globalThis.fetch

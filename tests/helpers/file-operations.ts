@@ -1,8 +1,8 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { AuthMutationCtx } from '@sb/convex/functions'
-import { complete } from '@sb/convex/model/skills/completion'
-import { claimExecution } from '@sb/convex/model/skills/execution'
-import type { OperationResult } from '@sb/convex/types'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { AuthMutationCtx } from '@cv/convex/functions'
+import { complete } from '@cv/convex/model/skills/completion'
+import { claimExecution } from '@cv/convex/model/skills/execution'
+import type { OperationResult } from '@cv/convex/types'
 
 type CompletionInput = {
   operationId: Id<'agentFileOperations'>

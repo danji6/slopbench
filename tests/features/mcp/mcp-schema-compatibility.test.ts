@@ -3,8 +3,8 @@ import { asSchema } from '@ai-sdk/provider-utils'
 import {
   mcpBrokerCallSchema,
   mcpBrokerSearchSchema,
-} from '@sb/core/types/mcp-catalog'
-import { mcpProtocolBrokerSchema } from '@sb/core/types/mcp-protocol'
+} from '@cv/core/types/mcp-catalog'
+import { mcpProtocolBrokerSchema } from '@cv/core/types/mcp-protocol'
 import { expect, test } from 'bun:test'
 
 test.each(['responses', 'chat'] as const)(

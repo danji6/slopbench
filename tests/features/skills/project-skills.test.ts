@@ -1,4 +1,4 @@
-import { projectSkillCatalog } from '@sb/sidecar/agent-files/project-catalog'
+import { projectSkillCatalog } from '@cv/sidecar/agent-files/project-catalog'
 import { expect, test } from 'bun:test'
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'

@@ -8,7 +8,7 @@ import {
   TOOL_CAPABILITIES,
   normalizeToolSelection,
   toggleToolSelection,
-} from '@sb/core/tool-capabilities'
+} from '@cv/core/tool-capabilities'
 import { expect, test } from 'bun:test'
 
 const TOOLS: ToolMetadata[] = [

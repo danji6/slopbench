@@ -1,4 +1,4 @@
-import { guardMcpApproval } from '@sb/convex/model/tool/mcpApproval'
+import { guardMcpApproval } from '@cv/convex/model/tool/mcpApproval'
 import { type ToolExecutionOptions, tool } from 'ai'
 import { expect, mock, test } from 'bun:test'
 import { z } from 'zod'

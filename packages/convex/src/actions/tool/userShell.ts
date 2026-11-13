@@ -1,6 +1,6 @@
 'use node'
 
-import type { ShellToolOutput } from '@sb/core/types/tools'
+import type { ShellToolOutput } from '@cv/core/types/tools'
 
 import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'

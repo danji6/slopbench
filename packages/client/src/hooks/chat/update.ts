@@ -5,7 +5,7 @@ import {
   setUpdateCheck,
   subscribeToUpdateCheck,
 } from '@/lib/chat/update-store'
-import { api } from '@sb/convex/_generated/api'
+import { api } from '@cv/convex/_generated/api'
 import { useAction } from 'convex/react'
 import { useEffect, useRef, useSyncExternalStore } from 'react'
 

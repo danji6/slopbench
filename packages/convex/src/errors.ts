@@ -1,4 +1,4 @@
-import { errorMessage, errorMessageChain } from '@sb/core/utils/errors'
+import { errorMessage, errorMessageChain } from '@cv/core/utils/errors'
 import { ConvexError } from 'convex/values'
 
 export type ErrorPayload = { message: string; code: number }

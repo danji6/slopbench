@@ -2,18 +2,18 @@ import {
   getSessionWithWorkspace,
   requireFolder,
   workspaceKey,
-} from '@sb/convex/model/session/folderContext'
-import { describeMove, preview } from '@sb/convex/model/session/folderMoves'
-import { cancel } from '@sb/convex/model/session/folderTransitionLocks'
-import { begin, commit } from '@sb/convex/model/session/folderTransitions'
+} from '@cv/convex/model/session/folderContext'
+import { describeMove, preview } from '@cv/convex/model/session/folderMoves'
+import { cancel } from '@cv/convex/model/session/folderTransitionLocks'
+import { begin, commit } from '@cv/convex/model/session/folderTransitions'
 import {
   create,
   createWithSources,
   list,
   reorder,
-} from '@sb/convex/model/session/folders'
-import { create as createSession } from '@sb/convex/model/session/sessions'
-import type { FolderMoveArgs, FolderTransitionArgs } from '@sb/convex/types'
+} from '@cv/convex/model/session/folders'
+import { create as createSession } from '@cv/convex/model/session/sessions'
+import type { FolderMoveArgs, FolderTransitionArgs } from '@cv/convex/types'
 import { describe, expect, test } from 'bun:test'
 import {
   type Row,

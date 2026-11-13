@@ -1,6 +1,6 @@
 import { extractErrorMessage } from '@/lib/errors'
-import { api } from '@sb/convex/_generated/api'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import { api } from '@cv/convex/_generated/api'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { useMutation } from 'convex/react'
 import { useState } from 'react'

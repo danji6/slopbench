@@ -1,5 +1,5 @@
-import { type McpServer, type McpToolMeta, mcpToolName } from '@sb/core/types'
-import { mcpServerSelection } from '@sb/core/types/mcp-catalog'
+import { type McpServer, type McpToolMeta, mcpToolName } from '@cv/core/types'
+import { mcpServerSelection } from '@cv/core/types/mcp-catalog'
 
 /** Applies server selection and per-target restrictions equally to broker and direct calls. */
 export function isMcpToolSelected(

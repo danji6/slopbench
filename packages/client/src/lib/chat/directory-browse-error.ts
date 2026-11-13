@@ -1,4 +1,4 @@
-import { errorMessage } from '@sb/core/utils/errors'
+import { errorMessage } from '@cv/core/utils/errors'
 
 /** Describes a folder browsing failure with a useful next step. */
 export function directoryBrowseError(error: unknown): string {

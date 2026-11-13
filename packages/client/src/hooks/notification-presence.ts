@@ -5,6 +5,7 @@ import {
   pageIsFocused,
 } from '@/lib/notification-presence'
 import { generateId } from '@/lib/utils'
+import { APP_ID } from '@cv/core/const'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 type PresenceMessage = {
@@ -51,7 +52,7 @@ export function useTabPresence(activeSessionId: string | null) {
   useEffect(() => {
     const next =
       'BroadcastChannel' in window
-        ? new BroadcastChannel('slopbench-notification-presence')
+        ? new BroadcastChannel(`${APP_ID}-notification-presence`)
         : null
     channel.current = next
 

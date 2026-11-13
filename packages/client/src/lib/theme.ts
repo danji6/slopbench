@@ -8,7 +8,7 @@ import {
   argbFromRgb,
   hexFromArgb,
 } from '@material/material-color-utilities'
-import { camelToDashCase, dashToCamelCase } from '@sb/core/utils/strings'
+import { camelToDashCase, dashToCamelCase } from '@cv/core/utils/strings'
 import { getFormat } from 'colord'
 
 const MAX_QUANTIZER_SIZE = 256

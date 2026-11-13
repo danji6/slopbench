@@ -7,7 +7,7 @@ import { useModels } from '@/hooks/chat'
 import { useProviderDiscoveryCoordinator } from '@/hooks/chat/provider-discovery'
 import type { UIModel } from '@/lib/chat'
 import { cn } from '@/lib/utils'
-import { parseModelReference } from '@sb/core/model-reference'
+import { parseModelReference } from '@cv/core/model-reference'
 import { useMemo, useState } from 'react'
 
 export type ModelPickerProps = ComboboxTriggerProps & {

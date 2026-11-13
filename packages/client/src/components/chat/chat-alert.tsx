@@ -3,7 +3,7 @@ import type { AlertMessageProps } from '@/components/ui'
 import { useActiveSession } from '@/hooks/chat'
 import { ChatWarning, RateLimitError } from '@/lib/chat/errors'
 import { formatLongDuration } from '@/lib/utils'
-import { api } from '@sb/convex/_generated/api'
+import { api } from '@cv/convex/_generated/api'
 import { useMutation } from 'convex/react'
 import { useEffect, useState } from 'react'
 

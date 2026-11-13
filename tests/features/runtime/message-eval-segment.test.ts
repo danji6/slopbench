@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import { _applyMessageEval } from '@sb/convex/model/chat'
+import { _applyMessageEval } from '@cv/convex/model/chat'
 import { describe, expect, test } from 'bun:test'
 import { fakeSessionState } from '~/tests/setup/session-state'
 

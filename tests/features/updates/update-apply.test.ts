@@ -1,6 +1,6 @@
 /// <reference types="bun-types" />
-import { APP_ID } from '@sb/core/const'
-import { clearReleaseCache, releaseName } from '@sb/core/update/source'
+import { APP_ID } from '@cv/core/const'
+import { clearReleaseCache, releaseName } from '@cv/core/update/source'
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'

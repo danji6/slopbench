@@ -1,4 +1,4 @@
-import type { ReadAttachmentInput } from '@sb/core/types'
+import type { ReadAttachmentInput } from '@cv/core/types'
 import type { ToolUIPart } from 'ai'
 
 export type ReadFileOutput = {

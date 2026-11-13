@@ -4,8 +4,8 @@ import type {
   FolderWorkspace,
   WorkspaceFileLink,
   WorkspaceLinkSnapshot,
-} from '@sb/core/types/workspace'
-import { MAX_BINARY_LINK_BYTES } from '@sb/core/workspace/files'
+} from '@cv/core/types/workspace'
+import { MAX_BINARY_LINK_BYTES } from '@cv/core/workspace/files'
 
 import { api, internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'

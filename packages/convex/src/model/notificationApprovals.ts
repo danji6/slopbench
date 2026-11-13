@@ -1,10 +1,10 @@
 import {
   PLAN_APPROVALS,
   approvalRememberOption,
-} from '@sb/core/approval-presentation'
-import type { NotificationApprovalOption } from '@sb/core/notification-actions'
-import { isPendingToolApproval } from '@sb/core/utils/tool-parts'
-import type { PathApprovalStatus } from '@sb/core/workspace/path-policy'
+} from '@cv/core/approval-presentation'
+import type { NotificationApprovalOption } from '@cv/core/notification-actions'
+import { isPendingToolApproval } from '@cv/core/utils/tool-parts'
+import type { PathApprovalStatus } from '@cv/core/workspace/path-policy'
 
 import type { Doc } from '../_generated/dataModel'
 import { error } from '../errors'

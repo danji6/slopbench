@@ -5,15 +5,15 @@ import {
   MAX_ASK_QUESTIONS,
   MAX_ASK_QUESTION_CHARS,
   MAX_ASK_RESPONSE_CHARS,
-} from '@sb/core/limits'
+} from '@cv/core/limits'
 import type {
   AgentQuestion,
   AskToolInput,
   AskToolOutput,
   UserAnswerDraft,
-} from '@sb/core/types'
-import { deriveAskToolOutput, isPendingAskPart } from '@sb/core/utils/ask'
-import { toDisplayName } from '@sb/core/utils/names'
+} from '@cv/core/types'
+import { deriveAskToolOutput, isPendingAskPart } from '@cv/core/utils/ask'
+import { toDisplayName } from '@cv/core/utils/names'
 
 import { error } from '../../errors'
 import type { AuthMutationCtx } from '../../functions'

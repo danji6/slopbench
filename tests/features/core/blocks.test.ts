@@ -1,6 +1,6 @@
 /// <reference types="bun-types" />
-import { block, openBlock, systemReminder } from '@sb/core/utils/blocks'
-import { fileBlock } from '@sb/core/workspace/blocks'
+import { block, openBlock, systemReminder } from '@cv/core/utils/blocks'
+import { fileBlock } from '@cv/core/workspace/blocks'
 import { describe, expect, test } from 'bun:test'
 
 describe('block', () => {

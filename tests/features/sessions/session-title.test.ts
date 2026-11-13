@@ -1,16 +1,16 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { ActionCtx, QueryCtx } from '@sb/convex/_generated/server'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { ActionCtx, QueryCtx } from '@cv/convex/_generated/server'
 import {
   generateTitle,
   regenerateTitle,
-} from '@sb/convex/actions/session/title'
-import { update } from '@sb/convex/model/session/sessionSettings'
+} from '@cv/convex/actions/session/title'
+import { update } from '@cv/convex/model/session/sessionSettings'
 import {
   _getRegenerateTitleContext,
   _getTitleContext,
   _patchTitle,
-} from '@sb/convex/model/session/title'
-import { DEFAULT_TITLE_SYSTEM_PROMPT } from '@sb/core/title-generation'
+} from '@cv/convex/model/session/title'
+import { DEFAULT_TITLE_SYSTEM_PROMPT } from '@cv/core/title-generation'
 import { expect, test } from 'bun:test'
 import { getFunctionName } from 'convex/server'
 import { skillsDatabase } from '~/tests/helpers/skills-db'

@@ -1,4 +1,4 @@
-import { MCP_DEFINITION_CONTENT_TYPE } from '@sb/core/types/mcp-catalog'
+import { MCP_DEFINITION_CONTENT_TYPE } from '@cv/core/types/mcp-catalog'
 
 import { internal } from '../_generated/api'
 import type { MutationCtx } from '../_generated/server'

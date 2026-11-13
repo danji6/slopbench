@@ -1,6 +1,6 @@
 import { useReasoningOpen } from '@/hooks/chat/reasoning-collapsible'
 import { useReasoningLabel } from '@/hooks/chat/reasoning-label'
-import type { ReasoningPart } from '@sb/convex/types'
+import type { ReasoningPart } from '@cv/convex/types'
 import { BrainIcon } from 'lucide-react'
 
 import { CollapsibleBlock } from './collapsible-block'

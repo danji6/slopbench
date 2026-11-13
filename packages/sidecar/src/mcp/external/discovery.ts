@@ -1,11 +1,11 @@
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { mcpInputValidator } from '@sb/core/mcp-schema-validation'
+import { mcpInputValidator } from '@cv/core/mcp-schema-validation'
 import {
   MAX_MCP_CATALOG_BYTES,
   MAX_MCP_CATALOG_TOOLS,
   MAX_MCP_DEFINITION_BYTES,
   type McpDefinition,
-} from '@sb/core/types/mcp-catalog'
+} from '@cv/core/types/mcp-catalog'
 
 /** Follows the complete cursor chain; a partial inventory is never published. */
 export async function discoverTools(

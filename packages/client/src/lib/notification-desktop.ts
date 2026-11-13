@@ -3,8 +3,8 @@ import {
   notificationBody,
   notificationTag,
 } from '@/lib/chat/notification-ui'
-import { APP_ID } from '@sb/core/const'
-import { desktopApprovalActions } from '@sb/core/notification-actions'
+import { APP_ID } from '@cv/core/const'
+import { desktopApprovalActions } from '@cv/core/notification-actions'
 
 /** Shows a native notification when browser permission allows it. */
 export async function showDesktopNotification(
@@ -120,7 +120,7 @@ export async function closeInactiveDesktopNotifications(
   const notifications = await registration?.getNotifications()
   const active = new Set(activeIds)
   for (const notification of notifications ?? []) {
-    if (!notification.tag.startsWith('slopbench:')) continue
+    if (!notification.tag.startsWith(`${APP_ID}:`)) continue
     const id = notification.data?.notificationId
     const viewed =
       viewedSessionId !== null &&
@@ -136,6 +136,6 @@ export async function closeAllDesktopNotifications() {
   const registration = await navigator.serviceWorker.getRegistration()
   const notifications = await registration?.getNotifications()
   notifications
-    ?.filter((notification) => notification.tag.startsWith('slopbench:'))
+    ?.filter((notification) => notification.tag.startsWith(`${APP_ID}:`))
     .forEach((notification) => notification.close())
 }

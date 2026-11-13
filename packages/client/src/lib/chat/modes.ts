@@ -1,4 +1,4 @@
-import type { SessionMode } from '@sb/convex/types'
+import type { SessionMode } from '@cv/convex/types'
 
 export type { SessionMode }
 

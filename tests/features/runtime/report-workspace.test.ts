@@ -1,5 +1,5 @@
-import { deliverChildReport } from '@sb/convex/model/stream/subagents'
-import type { ChildOutcome } from '@sb/convex/model/stream/subagents'
+import { deliverChildReport } from '@cv/convex/model/stream/subagents'
+import type { ChildOutcome } from '@cv/convex/model/stream/subagents'
 import { describe, expect, test } from 'bun:test'
 import { fakeCtx } from '~/tests/setup/subagents'
 

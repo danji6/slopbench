@@ -1,8 +1,8 @@
 import { RippleButton, Textarea } from '@/components/ui'
 import type { AnswerDraft } from '@/lib/chat/question-draft-store'
 import { cn } from '@/lib/utils'
-import { MAX_ASK_RESPONSE_CHARS } from '@sb/core/limits'
-import type { AgentQuestion } from '@sb/core/types'
+import { MAX_ASK_RESPONSE_CHARS } from '@cv/core/limits'
+import type { AgentQuestion } from '@cv/core/types'
 import { ChevronLeftIcon, ChevronRightIcon, XIcon } from 'lucide-react'
 import type { RefObject } from 'react'
 

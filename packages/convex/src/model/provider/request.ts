@@ -1,8 +1,8 @@
 import type { FetchFunction } from '@ai-sdk/provider-utils'
-import { parseModelExtraParameters } from '@sb/core/model-parameters'
-import { normalizeReasoningEffort } from '@sb/core/model-reasoning'
-import { parseProviderExtraHeaders } from '@sb/core/provider-headers'
-import type { ModelReasoning, ReasoningEffort } from '@sb/core/types'
+import { parseModelExtraParameters } from '@cv/core/model-parameters'
+import { normalizeReasoningEffort } from '@cv/core/model-reasoning'
+import { parseProviderExtraHeaders } from '@cv/core/provider-headers'
+import type { ModelReasoning, ReasoningEffort } from '@cv/core/types'
 
 import { omitLargeStrings } from '../stream/transformers'
 import { providerReasoningField, resolveModelReasoning } from './known'

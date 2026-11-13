@@ -1,11 +1,11 @@
 /// <reference types="bun-types" />
-import type { WorkspaceToolContext } from '@sb/convex/model/tool/context'
+import type { WorkspaceToolContext } from '@cv/convex/model/tool/context'
 import {
   createEditFileTool,
   createReadFileTool,
   createWriteFileTool,
-} from '@sb/convex/model/tool/files'
-import { createShellTool } from '@sb/convex/model/tool/shellTools'
+} from '@cv/convex/model/tool/files'
+import { createShellTool } from '@cv/convex/model/tool/shellTools'
 import { describe, expect, test } from 'bun:test'
 
 const context = {

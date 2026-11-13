@@ -1,5 +1,5 @@
-import { hasPendingQuestions, isPendingAskPart } from '@sb/core/utils/ask'
-import { hasPendingToolApprovals } from '@sb/core/utils/tool-parts'
+import { hasPendingQuestions, isPendingAskPart } from '@cv/core/utils/ask'
+import { hasPendingToolApprovals } from '@cv/core/utils/tool-parts'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'

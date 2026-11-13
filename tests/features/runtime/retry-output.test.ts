@@ -1,8 +1,8 @@
 import {
   assertProviderStepOutput,
   hasReplayableToolOutputSince,
-} from '@sb/convex/model/stream/retry'
-import { trackGeneratedOutput } from '@sb/convex/model/stream/transformers'
+} from '@cv/convex/model/stream/retry'
+import { trackGeneratedOutput } from '@cv/convex/model/stream/transformers'
 import { describe, expect, test } from 'bun:test'
 import { collectStream as drainStream } from '~/tests/helpers/streams'
 

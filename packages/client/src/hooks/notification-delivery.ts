@@ -11,8 +11,8 @@ import {
 } from '@/lib/notification-desktop'
 import { pageIsFocused } from '@/lib/notification-presence'
 import { toast, toastError } from '@/lib/notifications'
-import { APP_ID } from '@sb/core/const'
-import type { NotificationApprovalAction } from '@sb/core/notification-actions'
+import { APP_ID } from '@cv/core/const'
+import type { NotificationApprovalAction } from '@cv/core/notification-actions'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useTabPresence } from './notification-presence'

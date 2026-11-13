@@ -1,11 +1,11 @@
 import {
   collectCompletions,
   staticCompletions,
-} from '@sb/core/code-completion/engine'
+} from '@cv/core/code-completion/engine'
 import type {
   CompletionProvider,
   CompletionSource,
-} from '@sb/core/code-completion/types'
+} from '@cv/core/code-completion/types'
 
 /** Loads JavaScript analysis on demand, retaining one cache per editor source. */
 export function javascriptSource(
@@ -16,7 +16,7 @@ export function javascriptSource(
   let provider: Promise<CompletionProvider> | undefined
 
   return async (request) => {
-    provider ??= import('@sb/core/code-completion/javascript')
+    provider ??= import('@cv/core/code-completion/javascript')
       .then((module) => module.javascriptCompletions(symbols))
       .catch((error) => {
         provider = undefined

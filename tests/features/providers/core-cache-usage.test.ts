@@ -2,7 +2,7 @@ import {
   addCacheUsage,
   cacheHitRate,
   resolveCacheUsage,
-} from '@sb/core/cache-usage'
+} from '@cv/core/cache-usage'
 import type { LanguageModelUsage } from 'ai'
 import { describe, expect, test } from 'bun:test'
 

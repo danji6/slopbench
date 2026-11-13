@@ -1,5 +1,5 @@
 {
-  "name": "@sb/sidecar",
+  "name": "@cv/sidecar",
   "private": true,
   "type": "module",
   "scripts": {

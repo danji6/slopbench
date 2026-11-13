@@ -1,11 +1,11 @@
 /// <reference types="bun-types" />
-import { approveTool, patchToolApproval } from '@sb/convex/model/chat'
-import { getEnabledTools } from '@sb/convex/model/tool/build'
-import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
+import { approveTool, patchToolApproval } from '@cv/convex/model/chat'
+import { getEnabledTools } from '@cv/convex/model/tool/build'
+import { resolveToolManifest } from '@cv/convex/model/tool/manifest'
 import {
   hasPendingToolApprovals,
   isPendingToolApproval,
-} from '@sb/core/utils/tool-parts'
+} from '@cv/core/utils/tool-parts'
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { startPathSidecar } from '~/tests/helpers/path-sidecar'
 

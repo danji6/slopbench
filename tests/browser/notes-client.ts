@@ -1,6 +1,6 @@
 import type { MessageRow } from '@/lib/chat/rows'
-import { DEFAULT_SETTINGS } from '@sb/convex/model/defaults'
-import { parseShellCommand } from '@sb/core/shell/command'
+import { DEFAULT_SETTINGS } from '@cv/convex/model/defaults'
+import { parseShellCommand } from '@cv/core/shell/command'
 import type { UIMessage } from 'ai'
 import type { ConvexReactClient } from 'convex/react'
 import { type FunctionReference, getFunctionName } from 'convex/server'

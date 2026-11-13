@@ -1,5 +1,5 @@
 import { askBlockLabel } from '@/lib/chat/ask-tool'
-import type { AskToolInput, AskToolOutput } from '@sb/core/types'
+import type { AskToolInput, AskToolOutput } from '@cv/core/types'
 
 import type { ToolRendererProps } from './tool-part-block'
 import { ToolShell } from './tool-shell'

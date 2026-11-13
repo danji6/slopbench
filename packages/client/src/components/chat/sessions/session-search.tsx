@@ -1,7 +1,7 @@
 import { Input, Popover, RippleButton } from '@/components/ui'
 import { useDebouncedCallback } from '@/hooks'
 import { useSessionSearch } from '@/hooks/chat/sessions'
-import { SESSION_SEARCH_FILTERS } from '@sb/core/session-search/filters'
+import { SESSION_SEARCH_FILTERS } from '@cv/core/session-search/filters'
 import { CircleHelpIcon } from 'lucide-react'
 import { useState } from 'react'
 

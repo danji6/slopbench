@@ -1,6 +1,6 @@
 import { RippleButton } from '@/components/ui'
 import { cn } from '@/lib/utils'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import type { ReactNode } from 'react'
 
 import { SessionAvatar } from './session-avatar'

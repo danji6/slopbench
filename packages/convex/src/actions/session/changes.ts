@@ -3,7 +3,7 @@
 import type {
   ChangePublication,
   RestoreChangesResult,
-} from '@sb/core/types/changes'
+} from '@cv/core/types/changes'
 
 import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'

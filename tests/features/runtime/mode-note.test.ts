@@ -2,7 +2,7 @@
 import {
   buildModeNoteContent,
   decideModeNote,
-} from '@sb/convex/model/chat/notes'
+} from '@cv/convex/model/chat/notes'
 import { describe, expect, test } from 'bun:test'
 
 const withTools = { planTools: true, subagent: false }

@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import { fetchWeb } from '@sb/sidecar/mcp/fetch/web_fetch'
+import { fetchWeb } from '@cv/sidecar/mcp/fetch/web_fetch'
 import { afterEach, describe, expect, test } from 'bun:test'
 
 const originalFetch = globalThis.fetch

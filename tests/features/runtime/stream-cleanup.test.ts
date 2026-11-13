@@ -1,4 +1,4 @@
-import { pruneOrphanedOutputs } from '@sb/convex/model/stream/lifecycle'
+import { pruneOrphanedOutputs } from '@cv/convex/model/stream/lifecycle'
 import { describe, expect, test } from 'bun:test'
 
 describe('pruneOrphanedOutputs', () => {

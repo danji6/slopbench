@@ -1,4 +1,4 @@
-import { getDescription } from '@sb/core/approval-presentation'
+import { getDescription } from '@cv/core/approval-presentation'
 import type { ToolApprovalConfiguration, ToolSet } from 'ai'
 
 export const SHELL_DESCRIPTION_REQUIRED =

@@ -7,8 +7,8 @@ import {
 } from '@/components/ui'
 import { useTurnChanges } from '@/hooks/chat/changes'
 import { useScrollIntoView } from '@/hooks/chat/scroll-into-view'
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { ChangedFile } from '@sb/core/types/changes'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { ChangedFile } from '@cv/core/types/changes'
 import {
   ChevronDownIcon,
   ChevronRightIcon,

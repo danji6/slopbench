@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import { resetSessionCache } from '@sb/convex/model/chat/commands'
+import { resetSessionCache } from '@cv/convex/model/chat/commands'
 import { describe, expect, test } from 'bun:test'
 
 function evalCtx(activeStream = false) {

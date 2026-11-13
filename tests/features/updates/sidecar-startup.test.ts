@@ -19,7 +19,7 @@ let root: string
 let manager: ProcessManager
 
 beforeEach(async () => {
-  root = await mkdtemp(join(tmpdir(), 'slopbench-sidecar-startup-'))
+  root = await mkdtemp(join(tmpdir(), 'corvori-sidecar-startup-'))
   await createFixture()
   manager = new ProcessManager({
     cwd: root,
@@ -71,7 +71,7 @@ test('builds and starts under Node after dependencies appear in a child process'
     entry,
     `import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { value } from 'slopbench-startup-fixture-dependency'
+import { value } from 'corvori-startup-fixture-dependency'
 writeFileSync(join(process.env.CHAT_SIDECAR_DATA_DIR, 'started.json'), JSON.stringify({
   value,
   node: !process.versions.bun,
@@ -90,9 +90,9 @@ writeFileSync(join(process.env.CHAT_SIDECAR_DATA_DIR, 'started.json'), JSON.stri
     bun(
       '--no-env-file',
       '-e',
-      `await Bun.write('node_modules/slopbench-startup-fixture-dependency/package.json',
-        JSON.stringify({ name: 'slopbench-startup-fixture-dependency', main: 'index.js' }))
-      await Bun.write('node_modules/slopbench-startup-fixture-dependency/index.js',
+      `await Bun.write('node_modules/corvori-startup-fixture-dependency/package.json',
+        JSON.stringify({ name: 'corvori-startup-fixture-dependency', main: 'index.js' }))
+      await Bun.write('node_modules/corvori-startup-fixture-dependency/index.js',
         'export const value = 42')`,
     ),
     { cwd: root },
@@ -115,7 +115,7 @@ writeFileSync(join(process.env.CHAT_SIDECAR_DATA_DIR, 'started.json'), JSON.stri
 test('rejects a failed build without starting an existing stale bundle', async () => {
   await writeFile(
     join(root, 'packages/sidecar/src/main.ts'),
-    "import 'slopbench-startup-missing-dependency'",
+    "import 'corvori-startup-missing-dependency'",
   )
   const staleEntry = sidecarBuildEntry(config().dataDir)
   await mkdir(join(staleEntry, '..'), { recursive: true })

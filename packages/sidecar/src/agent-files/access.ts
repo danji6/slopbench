@@ -1,4 +1,4 @@
-import { transitionActive } from '@sb/core/workspace/transition'
+import { transitionActive } from '@cv/core/workspace/transition'
 
 const locks = new Map<string, string>()
 const mutating = new Map<string, number>()

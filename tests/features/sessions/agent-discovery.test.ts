@@ -1,6 +1,6 @@
-import { page } from '@sb/convex/model/agent/discovery'
-import { rememberSelection, select } from '@sb/convex/model/agent/selection'
-import { duplicate, exportData } from '@sb/convex/model/agents'
+import { page } from '@cv/convex/model/agent/discovery'
+import { rememberSelection, select } from '@cv/convex/model/agent/selection'
+import { duplicate, exportData } from '@cv/convex/model/agents'
 import { expect, test } from 'bun:test'
 import { skillsDatabase } from '~/tests/helpers/skills-db'
 

@@ -1,5 +1,5 @@
 import { type Locator, type Page, expect } from '@playwright/test'
-import { APP_ID } from '@sb/core/const'
+import { APP_ID } from '@cv/core/const'
 
 async function waitForFolderAnimations(page: Page) {
   await page.evaluate(() => new Promise(requestAnimationFrame))

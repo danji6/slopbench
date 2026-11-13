@@ -1,4 +1,4 @@
-import type { ModelProviderConfig } from '@sb/core/types'
+import type { ModelProviderConfig } from '@cv/core/types'
 
 import { chatGPTAccount } from './openai/account'
 

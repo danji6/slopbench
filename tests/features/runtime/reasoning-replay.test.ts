@@ -8,7 +8,7 @@ import {
   applyReasoningReplayPolicy,
   filterPromptReasoning,
   getReasoningPartPolicy,
-} from '@sb/convex/model/provider/options'
+} from '@cv/convex/model/provider/options'
 import { describe, expect, test } from 'bun:test'
 
 const bareReasoning: LanguageModelV4ReasoningPart = {

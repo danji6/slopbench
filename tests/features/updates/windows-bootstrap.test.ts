@@ -51,7 +51,7 @@ test.skipIf(!powershell)(
     const helper = source.match(/^function Get-Sha256Hash\([^]*?^}/m)?.[0]
     expect(helper).toBeDefined()
 
-    const directory = await mkdtemp(join(tmpdir(), 'slopbench-bootstrap-'))
+    const directory = await mkdtemp(join(tmpdir(), 'corvori-bootstrap-'))
     const contents = [Buffer.alloc(0), Buffer.from([0, 1, 127, 128, 255])]
     const archives = contents.map((_, index) =>
       join(directory, `Bun's [download ${index}].zip`),

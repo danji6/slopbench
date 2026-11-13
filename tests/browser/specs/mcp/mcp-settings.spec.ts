@@ -45,7 +45,7 @@ test('server card header controls stay independent of its accessible trigger', a
   await page.getByRole('button', { name: 'Move down' }).click()
   await expect(page.getByLabel('Card action')).toHaveText('Move 1')
   await expect(url).toBeVisible()
-  await page.screenshot({ path: '/tmp/slopbench-mcp-server-card.png' })
+  await page.screenshot({ path: '/tmp/corvori-mcp-server-card.png' })
   await collapse.focus()
   await page.keyboard.press('Space')
   await expect(trigger).toHaveAttribute('aria-expanded', 'false')
@@ -249,7 +249,7 @@ test('compact settings share label styling and align controls at both widths', a
     expect(layout.helpGap).toBeLessThanOrEqual(8)
     expect(layout.controlEnds[0]).toBe(layout.controlEnds[1])
     expect(layout.overflow).toBeLessThanOrEqual(0)
-    await page.screenshot({ path: `/tmp/slopbench-mcp-settings-${width}.png` })
+    await page.screenshot({ path: `/tmp/corvori-mcp-settings-${width}.png` })
     await page
       .getByRole('button', { name: 'About Exclude tools from context' })
       .click()
@@ -259,7 +259,7 @@ test('compact settings share label styling and align controls at both widths', a
     const bounds = await popover.boundingBox()
     expect(bounds!.width).toBeLessThanOrEqual(384)
     expect(bounds!.width).toBeLessThanOrEqual(width - 32)
-    await page.screenshot({ path: `/tmp/slopbench-mcp-help-${width}.png` })
+    await page.screenshot({ path: `/tmp/corvori-mcp-help-${width}.png` })
     await page.keyboard.press('Escape')
   }
 })

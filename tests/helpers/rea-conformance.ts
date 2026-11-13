@@ -1,21 +1,21 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { _getExecution } from '@sb/convex/model/mcp'
-import { servers as namedServers } from '@sb/convex/model/mcpBrokerAccess'
-import { connected } from '@sb/convex/model/mcpRuntime'
-import { cleanup } from '@sb/convex/model/mcpRuntimeActions'
-import { createMcpBrokerTools } from '@sb/convex/model/tool/mcpBroker'
-import { configureComponent } from '@sb/convex/model/toolkits/components'
-import { publish } from '@sb/convex/model/toolkits/publication'
-import { select } from '@sb/convex/model/toolkits/selection'
-import { mcpResultSchema } from '@sb/core/types/mcp-result'
-import { sidecarAuthentication } from '@sb/sidecar/auth'
-import { mcpCatalogRoutes } from '@sb/sidecar/mcp/external/catalog-routes'
-import { CatalogSnapshots } from '@sb/sidecar/mcp/external/catalog-snapshots'
-import { mcpOperationRoutes } from '@sb/sidecar/mcp/external/operation-routes'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import { _getExecution } from '@cv/convex/model/mcp'
+import { servers as namedServers } from '@cv/convex/model/mcpBrokerAccess'
+import { connected } from '@cv/convex/model/mcpRuntime'
+import { cleanup } from '@cv/convex/model/mcpRuntimeActions'
+import { createMcpBrokerTools } from '@cv/convex/model/tool/mcpBroker'
+import { configureComponent } from '@cv/convex/model/toolkits/components'
+import { publish } from '@cv/convex/model/toolkits/publication'
+import { select } from '@cv/convex/model/toolkits/selection'
+import { mcpResultSchema } from '@cv/core/types/mcp-result'
+import { sidecarAuthentication } from '@cv/sidecar/auth'
+import { mcpCatalogRoutes } from '@cv/sidecar/mcp/external/catalog-routes'
+import { CatalogSnapshots } from '@cv/sidecar/mcp/external/catalog-snapshots'
+import { mcpOperationRoutes } from '@cv/sidecar/mcp/external/operation-routes'
 import {
   inspectToolkit,
   toolkitConnections,
-} from '@sb/sidecar/toolkits/manifest'
+} from '@cv/sidecar/toolkits/manifest'
 import { expect } from 'bun:test'
 import { Hono } from 'hono'
 import { existsSync } from 'node:fs'
@@ -36,7 +36,7 @@ type SearchPage = {
 /** Uses real backend model/actions and sidecar HTTP handlers, with an in-memory Convex adapter. */
 export async function reaConformanceFixture(toolkit: string) {
   const f = await mcpBackendFixture()
-  const root = await mkdtemp(path.join(tmpdir(), 'sb-rea-conformance-'))
+  const root = await mkdtemp(path.join(tmpdir(), 'cv-rea-conformance-'))
   const pidDirectory = path.join(root, 'pids')
   await mkdir(pidDirectory)
   const originalFetch = globalThis.fetch
@@ -113,7 +113,7 @@ async function registerToolkit(
       XDG_CONFIG_HOME: root,
       XDG_CACHE_HOME: root,
       NODE_OPTIONS: `--import=${new URL('../fixtures/mcp/process-identity.mjs', import.meta.url).href}`,
-      SLOPBENCH_TEST_PID_DIR: path.join(root, 'pids'),
+      CORVORI_TEST_PID_DIR: path.join(root, 'pids'),
     },
   })
   await select(f.ctx, { toolkitId, agentId: f.agentId, enabled: true })

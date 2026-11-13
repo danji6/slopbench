@@ -4,7 +4,7 @@ import {
   isNewer,
   normalizeVersion,
   parseVersion,
-} from '@sb/core/update/version'
+} from '@cv/core/update/version'
 import { describe, expect, test } from 'bun:test'
 
 describe('parseVersion', () => {

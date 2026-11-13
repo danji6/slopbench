@@ -1,12 +1,12 @@
 import { Popover, RippleButton } from '@/components/ui'
 import { useModels } from '@/hooks/chat'
-import type { Doc, Id } from '@sb/convex/_generated/dataModel'
+import type { Doc, Id } from '@cv/convex/_generated/dataModel'
 import {
   defaultModelReasoning,
   normalizeReasoningEffort,
-} from '@sb/core/model-reasoning'
-import { normalizeSubagentOverrides } from '@sb/core/subagent-settings'
-import type { AgentSubagentOverride } from '@sb/core/types'
+} from '@cv/core/model-reasoning'
+import { normalizeSubagentOverrides } from '@cv/core/subagent-settings'
+import type { AgentSubagentOverride } from '@cv/core/types'
 import { Settings2Icon, XIcon } from 'lucide-react'
 import { type Control, useController } from 'react-hook-form'
 

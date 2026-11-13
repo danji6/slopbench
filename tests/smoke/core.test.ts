@@ -1,5 +1,5 @@
-import { normalizeAgentPaths } from '@sb/convex/model/caps'
-import { MAX_APPROVAL_PATHS, MAX_APPROVAL_PATH_BYTES } from '@sb/core/limits'
+import { normalizeAgentPaths } from '@cv/convex/model/caps'
+import { MAX_APPROVAL_PATHS, MAX_APPROVAL_PATH_BYTES } from '@cv/core/limits'
 import {
   approvalPathsBytes,
   approvalPathsError,
@@ -7,7 +7,7 @@ import {
   foldPaths,
   isPathAllowed,
   normalizeApprovalPath,
-} from '@sb/core/workspace/path-policy'
+} from '@cv/core/workspace/path-policy'
 import { describe, expect, test } from 'bun:test'
 
 describe('literal path grants', () => {

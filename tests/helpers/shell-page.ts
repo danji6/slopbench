@@ -1,5 +1,5 @@
-import type { ShellJobStatus } from '@sb/core/shell/job-protocol'
-import { OutputRing } from '@sb/sidecar/shell/output-ring'
+import type { ShellJobStatus } from '@cv/core/shell/job-protocol'
+import { OutputRing } from '@cv/sidecar/shell/output-ring'
 
 import { waitForAbort } from './shell-job'
 

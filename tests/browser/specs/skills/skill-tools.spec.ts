@@ -39,7 +39,7 @@ for (const scenario of ['normal', 'serialized']) {
         })
       if (scenario === 'normal' && width === 800) {
         await page.getByRole('main').screenshot({
-          path: '/tmp/slopbench-listed-skills.png',
+          path: '/tmp/corvori-listed-skills.png',
           animations: 'disabled',
         })
       }

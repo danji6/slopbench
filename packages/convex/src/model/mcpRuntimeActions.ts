@@ -1,6 +1,6 @@
 'use node'
 
-import type { McpRuntimeStatus } from '@sb/core/types'
+import type { McpRuntimeStatus } from '@cv/core/types'
 import type { PaginationResult } from 'convex/server'
 
 import { api, internal } from '../_generated/api'

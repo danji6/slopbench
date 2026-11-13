@@ -1,7 +1,7 @@
-import { stableStringify } from '@sb/core/stable-json'
-import { TOOL_CAPABILITIES } from '@sb/core/tool-capabilities'
-import { MCP_BROKER_TOOLS } from '@sb/core/types/mcp-catalog'
-import { withAgentHome } from '@sb/core/workspace/personal'
+import { stableStringify } from '@cv/core/stable-json'
+import { TOOL_CAPABILITIES } from '@cv/core/tool-capabilities'
+import { MCP_BROKER_TOOLS } from '@cv/core/types/mcp-catalog'
+import { withAgentHome } from '@cv/core/workspace/personal'
 
 import type { QueryCtx } from '../../_generated/server'
 import { error } from '../../errors'

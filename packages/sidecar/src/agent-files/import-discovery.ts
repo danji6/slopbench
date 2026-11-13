@@ -1,9 +1,9 @@
-import { SKILL_PAGE_SIZE } from '@sb/core/skills/types'
+import { SKILL_PAGE_SIZE } from '@cv/core/skills/types'
 import type {
   SkillImportCandidate,
   SkillImportPage,
-} from '@sb/core/skills/types'
-import { errorMessage } from '@sb/core/utils/errors'
+} from '@cv/core/skills/types'
+import { errorMessage } from '@cv/core/utils/errors'
 import { createReadStream, createWriteStream } from 'node:fs'
 import { mkdir, opendir, realpath, rename, rm, stat } from 'node:fs/promises'
 import path from 'node:path'

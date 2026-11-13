@@ -2,8 +2,8 @@ import {
   DEFAULT_BINARY_REASONING_PARAMETER,
   defaultModelReasoning,
   normalizeBinaryReasoningParameter,
-} from '@sb/core/model-reasoning'
-import type { ModelReasoning } from '@sb/core/types'
+} from '@cv/core/model-reasoning'
+import type { ModelReasoning } from '@cv/core/types'
 
 export type ChatCompletionsTransport = {
   defaultBaseURL?: string

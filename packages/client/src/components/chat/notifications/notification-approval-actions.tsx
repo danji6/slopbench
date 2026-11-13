@@ -2,7 +2,7 @@ import { RippleButton } from '@/components/ui'
 import type {
   NotificationApprovalAction,
   NotificationApprovalOption,
-} from '@sb/core/notification-actions'
+} from '@cv/core/notification-actions'
 import { useState } from 'react'
 
 type NotificationApprovalActionsProps = {

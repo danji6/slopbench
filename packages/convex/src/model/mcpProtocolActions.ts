@@ -1,8 +1,8 @@
 'use node'
 
-import { mcpConnectionSchema } from '@sb/core/types'
-import { mcpProtocolRequestSchema } from '@sb/core/types/mcp-protocol'
-import { MAX_MCP_RESULT_BYTES } from '@sb/core/types/mcp-result'
+import { mcpConnectionSchema } from '@cv/core/types'
+import { mcpProtocolRequestSchema } from '@cv/core/types/mcp-protocol'
+import { MAX_MCP_RESULT_BYTES } from '@cv/core/types/mcp-result'
 
 import { internal } from '../_generated/api'
 import type { Id } from '../_generated/dataModel'

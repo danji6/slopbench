@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import { commandFilter as score } from '@sb/client/lib/command-filter'
+import { commandFilter as score } from '@cv/client/lib/command-filter'
 import { describe, expect, test } from 'bun:test'
 
 /** A Convex-shaped opaque id. */

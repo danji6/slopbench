@@ -1,4 +1,4 @@
-import { normalizeSubagentOverrides } from '@sb/core/subagent-settings'
+import { normalizeSubagentOverrides } from '@cv/core/subagent-settings'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { QueryCtx } from '../../_generated/server'

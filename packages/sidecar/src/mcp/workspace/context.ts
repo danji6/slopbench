@@ -1,5 +1,5 @@
-import type { FolderWorkspace } from '@sb/core/types/workspace'
-import { transitionActive } from '@sb/core/workspace/transition'
+import type { FolderWorkspace } from '@cv/core/types/workspace'
+import { transitionActive } from '@cv/core/workspace/transition'
 import { realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'

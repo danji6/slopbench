@@ -4,7 +4,7 @@ import {
   oldestLoadedBoundary,
 } from '@/lib/chat/older-content'
 import { projectWorkRows } from '@/lib/chat/work-rows'
-import type { ShellJobSummary } from '@sb/core/types/tools'
+import type { ShellJobSummary } from '@cv/core/types/tools'
 import { expect, test } from 'bun:test'
 import { entry, syncPage } from '~/tests/helpers/older-pages'
 import { type Part, text, thinking, tool } from '~/tests/helpers/work-layout'

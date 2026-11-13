@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS } from '@sb/convex/model/defaults'
+import { DEFAULT_SETTINGS } from '@cv/convex/model/defaults'
 import type { ConvexReactClient } from 'convex/react'
 import { type FunctionReference, getFunctionName } from 'convex/server'
 
@@ -130,7 +130,7 @@ function query(name: string, args: Record<string, unknown>): unknown {
     return {
       _id: args.folderId,
       ownerId: 'owner',
-      name: 'Slopbench',
+      name: 'Corvori',
       icon: flags.get('folderIcon') ?? undefined,
       sources: [],
       revision: 0,

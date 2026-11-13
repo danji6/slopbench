@@ -10,12 +10,12 @@ import type {
   UpdateAgentArgs,
 } from '@/lib/chat'
 import { snapshotTheme } from '@/lib/theme-worker'
-import type { Doc, Id } from '@sb/convex/_generated/dataModel'
-import { createDefaultAgent } from '@sb/convex/model/defaults'
-import { ensurePromptMarkers } from '@sb/convex/model/prompt/markers'
-import { normalizeSubagentOverrides } from '@sb/core/subagent-settings'
-import { normalizeToolSelection } from '@sb/core/tool-capabilities'
-import type { AgentSubAgentsMode, AgentSubagentOverride } from '@sb/core/types'
+import type { Doc, Id } from '@cv/convex/_generated/dataModel'
+import { createDefaultAgent } from '@cv/convex/model/defaults'
+import { ensurePromptMarkers } from '@cv/convex/model/prompt/markers'
+import { normalizeSubagentOverrides } from '@cv/core/subagent-settings'
+import { normalizeToolSelection } from '@cv/core/tool-capabilities'
+import type { AgentSubAgentsMode, AgentSubagentOverride } from '@cv/core/types'
 
 /** The agent's prompt rows, grouped by scope. */
 export type AgentPromptSets = {

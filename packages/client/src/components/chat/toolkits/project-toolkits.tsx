@@ -1,6 +1,6 @@
 import { RippleButton, SettingsList } from '@/components/ui'
 import { useProjectToolkits } from '@/hooks/chat/project-toolkits'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 
 type Props = { sessionId: Id<'sessions'>; hasEnabledSources: boolean }
 

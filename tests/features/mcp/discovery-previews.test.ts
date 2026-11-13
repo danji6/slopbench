@@ -3,8 +3,8 @@ import {
   enrich,
   previewModels,
   storePreview,
-} from '@sb/convex/model/provider/previews'
-import { discoveryFingerprint } from '@sb/core/discovery-fingerprint'
+} from '@cv/convex/model/provider/previews'
+import { discoveryFingerprint } from '@cv/core/discovery-fingerprint'
 import { expect, test } from 'bun:test'
 import { providerFixture } from '~/tests/helpers/provider-db'
 

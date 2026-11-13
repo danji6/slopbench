@@ -1,5 +1,5 @@
-import { parseDiffLines } from '@sb/client/lib/shiki/diff'
-import { diffTextParts } from '@sb/client/lib/shiki/intraline'
+import { parseDiffLines } from '@cv/client/lib/shiki/diff'
+import { diffTextParts } from '@cv/client/lib/shiki/intraline'
 import { describe, expect, test } from 'bun:test'
 
 function changes(diff: string) {
@@ -77,7 +77,7 @@ describe('inline diff ranges', () => {
   })
 
   test('decorates changed ranges inside syntax tokens without altering text', async () => {
-    const { runDiffHighlighter } = await import('@sb/client/lib/shiki/core')
+    const { runDiffHighlighter } = await import('@cv/client/lib/shiki/core')
     const html = await runDiffHighlighter(
       '-const value = "<old>"\n+const value = "<new>"',
       'typescript',

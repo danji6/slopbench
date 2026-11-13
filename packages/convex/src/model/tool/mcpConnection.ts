@@ -1,9 +1,9 @@
-import { mcpConnectionSchema } from '@sb/core/types'
+import { mcpConnectionSchema } from '@cv/core/types'
 import type {
   McpRuntimeScope,
   McpRuntimeStatus,
   McpServer,
-} from '@sb/core/types'
+} from '@cv/core/types'
 
 import type { Id } from '../../_generated/dataModel'
 import { ToolError } from '../../errors'

@@ -5,8 +5,8 @@ import {
   providerRequiresBaseURL,
   resolveChatCompletionsBaseURL,
   resolveModelReasoning,
-} from '@sb/convex/model/provider/known'
-import { findModelSelection } from '@sb/convex/model/provider/providers'
+} from '@cv/convex/model/provider/known'
+import { findModelSelection } from '@cv/convex/model/provider/providers'
 import { describe, expect, test } from 'bun:test'
 
 describe('provider definitions', () => {

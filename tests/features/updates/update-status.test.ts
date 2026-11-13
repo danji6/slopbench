@@ -1,6 +1,6 @@
 /// <reference types="bun-types" />
-import { APP_ID } from '@sb/core/const'
-import { readInstall } from '@sb/sidecar/update/status'
+import { APP_ID } from '@cv/core/const'
+import { readInstall } from '@cv/sidecar/update/status'
 import { afterEach, describe, expect, test } from 'bun:test'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'

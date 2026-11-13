@@ -2,8 +2,8 @@
 import {
   collectRespondedApprovalNotes,
   insertApprovalNoteMessages,
-} from '@sb/convex/actions/stream/history'
-import { getProviderOptions } from '@sb/convex/model/provider/options'
+} from '@cv/convex/actions/stream/history'
+import { getProviderOptions } from '@cv/convex/model/provider/options'
 import {
   type UIMessage,
   type UIMessageChunk,

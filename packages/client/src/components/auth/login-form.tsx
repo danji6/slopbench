@@ -11,7 +11,8 @@ import { signIn, signUp } from '@/lib/auth/client'
 import { retryAfterSeconds } from '@/lib/auth/retry-after'
 import { extractErrorMessage } from '@/lib/errors'
 import { cn } from '@/lib/utils'
-import { api } from '@sb/convex/_generated/api'
+import { api } from '@cv/convex/_generated/api'
+import { APP_ID } from '@cv/core/const'
 import { useQuery } from 'convex/react'
 import { useState } from 'react'
 
@@ -44,7 +45,7 @@ export function LoginForm() {
     try {
       if (isSignup) {
         const res = await signUp.email({
-          email: `${username}@sb.local`,
+          email: `${username}@${APP_ID}.local`,
           password,
           name: username,
           username,

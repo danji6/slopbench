@@ -1,4 +1,4 @@
-import { decodeMcpOutput } from '@sb/core/types/mcp-result'
+import { decodeMcpOutput } from '@cv/core/types/mcp-result'
 
 import type { Doc, Id } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'

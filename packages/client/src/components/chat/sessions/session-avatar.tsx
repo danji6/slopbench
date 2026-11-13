@@ -1,7 +1,7 @@
 import { Avatar, type AvatarProps } from '@/components/ui'
 import { useAvatarThumbnail } from '@/hooks/chat'
 import { useStableValue } from '@/hooks/stable-value'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import { BotIcon } from 'lucide-react'
 
 type SessionAvatarProps = AvatarProps & {

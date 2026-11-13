@@ -1,4 +1,4 @@
-import { errorMessage } from '@sb/core/utils/errors'
+import { errorMessage } from '@cv/core/utils/errors'
 
 import { error } from '../errors'
 import { sidecarRequest } from './sidecarTransport'

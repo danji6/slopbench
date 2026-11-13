@@ -1,6 +1,6 @@
-import { orderContextNotes } from '@sb/core/context-notes'
-import { sha256 } from '@sb/core/sha256'
-import { isKnownTextFile } from '@sb/core/workspace/files'
+import { orderContextNotes } from '@cv/core/context-notes'
+import { sha256 } from '@cv/core/sha256'
+import { isKnownTextFile } from '@cv/core/workspace/files'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { QueryCtx } from '../../_generated/server'

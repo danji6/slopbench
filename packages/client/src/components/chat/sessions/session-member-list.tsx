@@ -4,7 +4,7 @@ import {
   useRemoveMember,
   useSessionMembers,
 } from '@/hooks/chat'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import { useState } from 'react'
 
 import { ParticipantList } from './participant-list'

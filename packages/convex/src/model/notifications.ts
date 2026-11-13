@@ -1,12 +1,12 @@
-import { approvalSummary } from '@sb/core/approval-presentation'
+import { approvalSummary } from '@cv/core/approval-presentation'
 import {
   MAX_NOTIFICATION_PREVIEW_CHARS,
   MAX_READ_NOTIFICATIONS,
   MAX_UNREAD_NOTIFICATIONS,
-} from '@sb/core/limits'
-import type { AskToolInput } from '@sb/core/types'
-import { isPendingAskPart } from '@sb/core/utils/ask'
-import { isPendingToolApproval } from '@sb/core/utils/tool-parts'
+} from '@cv/core/limits'
+import type { AskToolInput } from '@cv/core/types'
+import { isPendingAskPart } from '@cv/core/utils/ask'
+import { isPendingToolApproval } from '@cv/core/utils/tool-parts'
 
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx } from '../_generated/server'

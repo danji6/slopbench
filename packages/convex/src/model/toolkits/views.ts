@@ -1,4 +1,4 @@
-import { MAX_TOOLKITS, toolkitManifestSchema } from '@sb/core/types/toolkit'
+import { MAX_TOOLKITS, toolkitManifestSchema } from '@cv/core/types/toolkit'
 
 import type { Id } from '../../_generated/dataModel'
 import { error } from '../../errors'

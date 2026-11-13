@@ -6,7 +6,7 @@ import {
 import { useSessionShowHidden } from '@/hooks/chat'
 import { readSessionArchive } from '@/lib/chat/io'
 import { toast, toastError } from '@/lib/notifications'
-import { api } from '@sb/convex/_generated/api'
+import { api } from '@cv/convex/_generated/api'
 import { useAction } from 'convex/react'
 import { EyeIcon, MoreHorizontalIcon, UploadIcon } from 'lucide-react'
 import { useRef } from 'react'

@@ -1,4 +1,4 @@
-import type { AgentHome } from '@sb/core/skills/types'
+import type { AgentHome } from '@cv/core/skills/types'
 import { realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
 

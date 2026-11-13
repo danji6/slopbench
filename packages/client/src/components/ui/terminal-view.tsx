@@ -1,6 +1,6 @@
 import { SCROLLBACK_LINES } from '@/lib/terminal-feed'
 import { cn } from '@/lib/utils'
-import { ANSI_COLOR_VARS } from '@sb/core/shell/ansi'
+import { ANSI_COLOR_VARS } from '@cv/core/shell/ansi'
 import { FitAddon } from '@xterm/addon-fit'
 import type { ITheme } from '@xterm/xterm'
 import { Terminal as XTerm } from '@xterm/xterm'

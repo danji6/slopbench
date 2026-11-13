@@ -1,13 +1,13 @@
 import type {
   WorkspaceFileLink,
   WorkspaceFileListing,
-} from '@sb/core/types/workspace'
+} from '@cv/core/types/workspace'
 import {
   MAX_DIR_ENTRIES,
   MAX_TEXT_SNAPSHOT_CHARS,
   detectWorkspaceMediaType,
   isKnownTextMediaType,
-} from '@sb/core/workspace/files'
+} from '@cv/core/workspace/files'
 import { spawn } from 'node:child_process'
 import { readdir, realpath } from 'node:fs/promises'
 import path from 'node:path'

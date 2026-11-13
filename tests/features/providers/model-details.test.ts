@@ -1,5 +1,5 @@
-import { fetchModelDetails } from '@sb/convex/model/provider/modelDetails'
-import { effectiveModel } from '@sb/core/discovered-model'
+import { fetchModelDetails } from '@cv/convex/model/provider/modelDetails'
+import { effectiveModel } from '@cv/core/discovered-model'
 import { expect, test } from 'bun:test'
 
 test('optional Ollama details are deduplicated, bounded to two requests, and skipped for cached digests', async () => {

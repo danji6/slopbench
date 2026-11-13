@@ -1,5 +1,5 @@
-import type { ActionCtx } from '@sb/convex/_generated/server'
-import { restoreChanges } from '@sb/convex/actions/session/changes'
+import type { ActionCtx } from '@cv/convex/_generated/server'
+import { restoreChanges } from '@cv/convex/actions/session/changes'
 import { expect, test } from 'bun:test'
 import { getFunctionName } from 'convex/server'
 

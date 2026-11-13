@@ -1,9 +1,9 @@
 import {
   TOOL_CAPABILITIES,
   isReservedToolName,
-} from '@sb/core/tool-capabilities'
-import { mcpToolDescription, mcpToolName } from '@sb/core/types'
-import { mcpServerSelection } from '@sb/core/types/mcp-catalog'
+} from '@cv/core/tool-capabilities'
+import { mcpToolDescription, mcpToolName } from '@cv/core/types'
+import { mcpServerSelection } from '@cv/core/types/mcp-catalog'
 
 import type { AuthQueryCtx } from '../../functions'
 import { minRole } from '../../lib/roles'

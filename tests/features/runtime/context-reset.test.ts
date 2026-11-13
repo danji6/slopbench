@@ -1,24 +1,24 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import {
   drainCommandQueue,
   resetContext,
   resumeAgentMessage,
-} from '@sb/convex/model/chat/commands'
-import { deleteMessage } from '@sb/convex/model/chat/mutations'
-import { retryMessage } from '@sb/convex/model/chat/retry'
+} from '@cv/convex/model/chat/commands'
+import { deleteMessage } from '@cv/convex/model/chat/mutations'
+import { retryMessage } from '@cv/convex/model/chat/retry'
 import {
   executeCompact,
   invokeAgent,
   sendMessage,
-} from '@sb/convex/model/chat/send'
-import { insertMessage } from '@sb/convex/model/messageContents'
-import { _claim } from '@sb/convex/model/stream/lifecycleClaims'
-import { consumeInterjections } from '@sb/convex/model/stream/lifecycleProgress'
-import { _complete } from '@sb/convex/model/stream/lifecycleTerminal'
+} from '@cv/convex/model/chat/send'
+import { insertMessage } from '@cv/convex/model/messageContents'
+import { _claim } from '@cv/convex/model/stream/lifecycleClaims'
+import { consumeInterjections } from '@cv/convex/model/stream/lifecycleProgress'
+import { _complete } from '@cv/convex/model/stream/lifecycleTerminal'
 import {
   _getProviderHistory,
   _hasActiveMedia,
-} from '@sb/convex/model/stream/reads'
+} from '@cv/convex/model/stream/reads'
 import { expect, test } from 'bun:test'
 import { skillsDatabase } from '~/tests/helpers/skills-db'
 

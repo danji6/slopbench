@@ -1,4 +1,4 @@
-import { attachmentReference } from '@sb/core/attachments'
+import { attachmentReference } from '@cv/core/attachments'
 import { defaultUrlTransform } from 'react-markdown'
 
 /** Preserves validated attachment references while filtering other URLs. */

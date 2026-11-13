@@ -1,7 +1,7 @@
-import { buildWorkspaceNoteContent } from '@sb/convex/model/chat/notes'
-import { catalogNote } from '@sb/convex/model/skills/runtime'
-import { selectFileWorkspace, withAgentHome } from '@sb/core/workspace/personal'
-import { parseSkillMetadata } from '@sb/sidecar/agent-files/metadata'
+import { buildWorkspaceNoteContent } from '@cv/convex/model/chat/notes'
+import { catalogNote } from '@cv/convex/model/skills/runtime'
+import { selectFileWorkspace, withAgentHome } from '@cv/core/workspace/personal'
+import { parseSkillMetadata } from '@cv/sidecar/agent-files/metadata'
 import { expect, test } from 'bun:test'
 
 const home = {
@@ -120,7 +120,7 @@ test('description compatibility preserves standard YAML and rejects unrelated ma
 
 test('agents without a personal folder receive no personal-scope guidance', async () => {
   const { TOOL_DESCRIPTIONS, shellToolDescription } =
-    await import('@sb/core/types/tool-descriptions')
+    await import('@cv/core/types/tool-descriptions')
   for (const text of [
     buildWorkspaceNoteContent(undefined, undefined),
     buildWorkspaceNoteContent(undefined, project),

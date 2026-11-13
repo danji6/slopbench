@@ -3,7 +3,7 @@ import { md } from '@/components/markdown'
 import { ThemeColorSetting } from '@/components/theme'
 import { CodeEditor, SettingsList } from '@/components/ui'
 import { useSettings } from '@/hooks/chat'
-import { DEFAULT_SETTINGS } from '@sb/convex/model/defaults'
+import { DEFAULT_SETTINGS } from '@cv/convex/model/defaults'
 import type { Control } from 'react-hook-form'
 import { Controller, useWatch } from 'react-hook-form'
 

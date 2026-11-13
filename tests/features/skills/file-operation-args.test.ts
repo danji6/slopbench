@@ -1,14 +1,14 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { MutationCtx } from '@sb/convex/_generated/server'
-import { start as startPublicOperation } from '@sb/convex/model/skills/endpoints'
-import { validateOperationArgs } from '@sb/convex/model/skills/operationArgs'
-import { start } from '@sb/convex/model/skills/operations'
-import { start as startMutation } from '@sb/convex/skills'
-import type { FileOperationArgs } from '@sb/convex/types'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { MutationCtx } from '@cv/convex/_generated/server'
+import { start as startPublicOperation } from '@cv/convex/model/skills/endpoints'
+import { validateOperationArgs } from '@cv/convex/model/skills/operationArgs'
+import { start } from '@cv/convex/model/skills/operations'
+import { start as startMutation } from '@cv/convex/skills'
+import type { FileOperationArgs } from '@cv/convex/types'
 import {
   fileOperationArgsValidator,
   startFileOperationArgsValidator,
-} from '@sb/convex/validators/fileOperations'
+} from '@cv/convex/validators/fileOperations'
 import { expect, test } from 'bun:test'
 import { validate } from 'convex-helpers/validators'
 import type { Infer } from 'convex/values'

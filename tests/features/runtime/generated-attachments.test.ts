@@ -5,13 +5,13 @@ import {
   createReference,
   removeAttachment,
   unreferencedAttachmentIds,
-} from '@sb/convex/model/attachments'
+} from '@cv/convex/model/attachments'
 import {
   generatedFileCacheKey,
   generatedFilename,
   isGeneratedFilePart,
   parseDataUrl,
-} from '@sb/convex/model/stream/generatedFiles'
+} from '@cv/convex/model/stream/generatedFiles'
 import { describe, expect, test } from 'bun:test'
 
 const PNG_DATA_URL =

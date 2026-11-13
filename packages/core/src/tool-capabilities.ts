@@ -114,7 +114,7 @@ const reserved = new Set<string>([
   ...capabilityNames,
   'get_tool',
   'call_tool',
-  '__sb_tool_error',
+  '__cv_tool_error',
 ])
 
 /** Protects both callable names and selection keys from external aliases. */

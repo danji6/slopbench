@@ -2,10 +2,10 @@ import {
   StdioClientTransport,
   getDefaultEnvironment,
 } from '@modelcontextprotocol/sdk/client/stdio.js'
-import type { McpConnection } from '@sb/core/types'
+import type { McpConnection } from '@cv/core/types'
 import { fileURLToPath } from 'node:url'
 
-const RESERVED = new Set(['SIDECAR_SECRET', 'SLOPBENCH_MCP_LAUNCH'])
+const RESERVED = new Set(['SIDECAR_SECRET', 'CORVORI_MCP_LAUNCH'])
 
 /** Builds a minimal environment; configured bindings never inherit backend secrets. */
 export function localEnvironment(
@@ -36,7 +36,7 @@ export function localTransport(connection: McpConnection) {
     cwd: connection.cwd,
     env: {
       ...localEnvironment(connection),
-      SLOPBENCH_MCP_LAUNCH: JSON.stringify({
+      CORVORI_MCP_LAUNCH: JSON.stringify({
         command: connection.command,
         args: connection.args ?? [],
       }),

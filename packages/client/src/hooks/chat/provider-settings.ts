@@ -1,6 +1,6 @@
 import type { SettingsFormValues } from '@/components/chat/entities/user/settings-schema'
 import { providerForm } from '@/lib/provider-settings'
-import type { ModelProviderView } from '@sb/convex/model/providers'
+import type { ModelProviderView } from '@cv/convex/model/providers'
 import { useEffect } from 'react'
 import type { UseFormReturn } from 'react-hook-form'
 

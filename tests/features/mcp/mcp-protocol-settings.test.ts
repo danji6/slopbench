@@ -1,10 +1,10 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import {
   check,
   expire,
   publish,
   settingsLaunch,
-} from '@sb/convex/model/mcpProtocol'
+} from '@cv/convex/model/mcpProtocol'
 import { expect, test } from 'bun:test'
 import { skillsDatabase } from '~/tests/helpers/skills-db'
 

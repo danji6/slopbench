@@ -1,4 +1,4 @@
-import { isPathForbidden } from '@sb/core/workspace/path-policy'
+import { isPathForbidden } from '@cv/core/workspace/path-policy'
 
 import type { AgentAutoApprove, ToolApprovals } from '../../types'
 import { gitSubcommandIndex } from './gitReadOnly'
@@ -23,7 +23,7 @@ export {
   isPathAllowed,
   isPathForbidden,
   foldPaths,
-} from '@sb/core/workspace/path-policy'
+} from '@cv/core/workspace/path-policy'
 
 export { DEFAULT_SAFE_SHELL_PATTERNS } from './shellConfig'
 export {

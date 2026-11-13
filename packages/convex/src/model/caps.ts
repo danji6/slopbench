@@ -1,5 +1,5 @@
-import { environmentCapError } from '@sb/core/interpreter/store'
-import { limitError } from '@sb/core/limit-errors'
+import { environmentCapError } from '@cv/core/interpreter/store'
+import { limitError } from '@cv/core/limit-errors'
 import {
   MAX_CUSTOM_CSS_CHARS,
   MAX_MESSAGE_PART_BYTES,
@@ -9,9 +9,9 @@ import {
   MAX_TODO_CONTENT_CHARS,
   MAX_TODO_ITEMS,
   MAX_WEB_SEARCH_INSTANCES,
-} from '@sb/core/limits'
-import { serializedSize } from '@sb/core/utils/size'
-import { approvalPathsError, foldPaths } from '@sb/core/workspace/path-policy'
+} from '@cv/core/limits'
+import { serializedSize } from '@cv/core/utils/size'
+import { approvalPathsError, foldPaths } from '@cv/core/workspace/path-policy'
 
 import { error } from '../errors'
 import type { TodoItem } from '../types'

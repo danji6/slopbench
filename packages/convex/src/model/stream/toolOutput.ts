@@ -1,4 +1,4 @@
-import { isMcpResult, mcpResultPreview } from '@sb/core/types/mcp-result'
+import { isMcpResult, mcpResultPreview } from '@cv/core/types/mcp-result'
 
 import type { Id } from '../../_generated/dataModel'
 

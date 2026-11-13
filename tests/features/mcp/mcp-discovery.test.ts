@@ -1,6 +1,6 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { ActionCtx } from '@sb/convex/_generated/server'
-import { discoverMcpTools } from '@sb/convex/model/mcpDiscoveryAction'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { ActionCtx } from '@cv/convex/_generated/server'
+import { discoverMcpTools } from '@cv/convex/model/mcpDiscoveryAction'
 import { afterEach, expect, test } from 'bun:test'
 import { getFunctionName } from 'convex/server'
 

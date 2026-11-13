@@ -1,9 +1,9 @@
 import {
   TOOL_CAPABILITIES,
   isReservedToolName,
-} from '@sb/core/tool-capabilities'
-import { mcpToolDescription, mcpToolName } from '@sb/core/types'
-import { MCP_MANIFEST_VERSION } from '@sb/core/types/mcp-catalog'
+} from '@cv/core/tool-capabilities'
+import { mcpToolDescription, mcpToolName } from '@cv/core/types'
+import { MCP_MANIFEST_VERSION } from '@cv/core/types/mcp-catalog'
 import type { Infer } from 'convex/values'
 
 import type { Doc } from '../../_generated/dataModel'

@@ -1,5 +1,5 @@
-import { isContextNote } from '@sb/core/context-notes'
-import { systemNote, systemReminder } from '@sb/core/utils/blocks'
+import { isContextNote } from '@cv/core/context-notes'
+import { systemNote, systemReminder } from '@cv/core/utils/blocks'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'

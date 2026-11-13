@@ -1,4 +1,4 @@
-import { releaseName } from '@sb/core/update/source'
+import { releaseName } from '@cv/core/update/source'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 

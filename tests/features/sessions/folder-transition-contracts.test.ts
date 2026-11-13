@@ -1,11 +1,11 @@
-import { commitPrepared } from '@sb/convex/actions/session/folders'
-import { cancel } from '@sb/convex/model/session/folderTransitionLocks'
-import { begin, commit } from '@sb/convex/model/session/folderTransitions'
+import { commitPrepared } from '@cv/convex/actions/session/folders'
+import { cancel } from '@cv/convex/model/session/folderTransitionLocks'
+import { begin, commit } from '@cv/convex/model/session/folderTransitions'
 import {
   folderCancelArgs,
   folderChangeArgs,
   folderCommitArgs,
-} from '@sb/convex/validators/folders'
+} from '@cv/convex/validators/folders'
 import { expect, spyOn, test } from 'bun:test'
 import { validate } from 'convex-helpers/validators'
 import { getFunctionName } from 'convex/server'

@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import { shellInvocation } from '@sb/sidecar/shell/system-shell'
+import { shellInvocation } from '@cv/sidecar/shell/system-shell'
 import { describe, expect, test } from 'bun:test'
 
 /** Paths, not bare names, so nothing depends on the host's own PATH. */

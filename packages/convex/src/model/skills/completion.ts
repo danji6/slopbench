@@ -1,4 +1,4 @@
-import { errorMessage } from '@sb/core/utils/errors'
+import { errorMessage } from '@cv/core/utils/errors'
 
 import type { Doc } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'

@@ -1,8 +1,8 @@
 'use node'
 
-import type { EvalContext } from '@sb/core/interpreter/types'
-import { parseModelReference } from '@sb/core/model-reference'
-import { toDisplayName, toOptionalName } from '@sb/core/utils/names'
+import type { EvalContext } from '@cv/core/interpreter/types'
+import { parseModelReference } from '@cv/core/model-reference'
+import { toDisplayName, toOptionalName } from '@cv/core/utils/names'
 
 import type { Doc } from '../../_generated/dataModel'
 import { minRole } from '../../lib/roles'

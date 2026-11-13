@@ -1,4 +1,4 @@
-import { resolveCacheUsage } from '@sb/core/cache-usage'
+import { resolveCacheUsage } from '@cv/core/cache-usage'
 import type { LanguageModelUsage } from 'ai'
 
 import type { TokenUsage } from '../../types'

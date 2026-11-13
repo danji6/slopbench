@@ -1,7 +1,7 @@
 /// <reference types="bun-types" />
-import type * as ShellToolModule from '@sb/convex/model/tool/shell'
-import type { ShellToolOutput } from '@sb/convex/types'
-import type * as RegistryModule from '@sb/sidecar/shell/registry'
+import type * as ShellToolModule from '@cv/convex/model/tool/shell'
+import type { ShellToolOutput } from '@cv/convex/types'
+import type * as RegistryModule from '@cv/sidecar/shell/registry'
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 
 process.env.CHAT_JOB_MODE = 'script'
@@ -18,10 +18,10 @@ let server: ReturnType<typeof Bun.serve>
 const context = { sessionId: 'session-1', workspaceId: 'ws-1' }
 
 beforeAll(async () => {
-  registry = await import('@sb/sidecar/shell/registry')
-  shellTool = await import('@sb/convex/model/tool/shell')
+  registry = await import('@cv/sidecar/shell/registry')
+  shellTool = await import('@cv/convex/model/tool/shell')
 
-  const { createApp } = await import('@sb/sidecar/main')
+  const { createApp } = await import('@cv/sidecar/main')
   const app = createApp(async (_c, next) => next())
   server = Bun.serve({ port: PORT, fetch: (req) => app.fetch(req) })
 })

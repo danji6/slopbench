@@ -1,4 +1,4 @@
-import type * as V from '@sb/convex/validators'
+import type * as V from '@cv/convex/validators'
 import type { Infer } from 'convex/values'
 
 export const REASONING_TIERS = [

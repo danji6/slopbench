@@ -2,7 +2,7 @@ import {
   type EvaluationReply,
   type EvaluationRequest,
   evaluateRequest,
-} from '@sb/core/interpreter/request'
+} from '@cv/core/interpreter/request'
 
 self.onmessage = async (event: MessageEvent<EvaluationRequest>) => {
   try {

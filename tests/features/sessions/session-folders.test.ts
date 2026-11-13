@@ -1,15 +1,15 @@
-import { _save, getBySessionAgent } from '@sb/convex/model/session/cache'
+import { _save, getBySessionAgent } from '@cv/convex/model/session/cache'
 import {
   getSessionWithWorkspace,
   workspaceKey,
-} from '@sb/convex/model/session/folderContext'
-import { cancel } from '@sb/convex/model/session/folderTransitionLocks'
-import { begin, commit } from '@sb/convex/model/session/folderTransitions'
-import { pin, pinFolder, reorder } from '@sb/convex/model/session/folders'
-import { duplicate } from '@sb/convex/model/session/sessionDuplicate'
-import { toListItem } from '@sb/convex/model/session/sessionQueries'
-import { redeem } from '@sb/convex/model/session/shares'
-import { getApprovals } from '@sb/convex/model/session/state'
+} from '@cv/convex/model/session/folderContext'
+import { cancel } from '@cv/convex/model/session/folderTransitionLocks'
+import { begin, commit } from '@cv/convex/model/session/folderTransitions'
+import { pin, pinFolder, reorder } from '@cv/convex/model/session/folders'
+import { duplicate } from '@cv/convex/model/session/sessionDuplicate'
+import { toListItem } from '@cv/convex/model/session/sessionQueries'
+import { redeem } from '@cv/convex/model/session/shares'
+import { getApprovals } from '@cv/convex/model/session/state'
 import { describe, expect, spyOn, test } from 'bun:test'
 import {
   args,

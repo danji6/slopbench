@@ -1,4 +1,4 @@
-import type { ProviderTransportObserver } from '@sb/core/provider-continuity'
+import type { ProviderTransportObserver } from '@cv/core/provider-continuity'
 
 import {
   CHATGPT_OPENAI_OPTIONS,

@@ -11,9 +11,9 @@ import { cn } from '@/lib/utils'
 import {
   attachmentMarkdownLink,
   attachmentReference,
-} from '@sb/core/attachments'
-import { formatByteLength } from '@sb/core/utils/size'
-import { truncateToExtension } from '@sb/core/utils/strings'
+} from '@cv/core/attachments'
+import { formatByteLength } from '@cv/core/utils/size'
+import { truncateToExtension } from '@cv/core/utils/strings'
 import {
   DownloadIcon,
   FileIcon,

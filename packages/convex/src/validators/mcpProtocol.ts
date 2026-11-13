@@ -1,4 +1,4 @@
-import { MCP_PROTOCOL_METHODS } from '@sb/core/types/mcp-protocol'
+import { MCP_PROTOCOL_METHODS } from '@cv/core/types/mcp-protocol'
 import { v } from 'convex/values'
 
 export const protocolRequestValidator = v.object({

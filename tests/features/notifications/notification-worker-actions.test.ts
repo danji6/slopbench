@@ -2,7 +2,7 @@ import { drainPendingWorkerActions } from '@/lib/notification-worker-actions'
 import {
   type NotificationApprovalOption,
   desktopApprovalActions,
-} from '@sb/core/notification-actions'
+} from '@cv/core/notification-actions'
 import { expect, mock, test } from 'bun:test'
 
 function pendingCache(value: unknown) {
@@ -21,7 +21,7 @@ function pendingCache(value: unknown) {
 
 test('queued session approval survives a failed attempt and retains its selected action', async () => {
   const cache = pendingCache({
-    type: 'slopbench:notification-action',
+    type: 'corvori:notification-action',
     action: 'allow-session',
     notificationId: 'notification',
     sessionId: 'session',
@@ -46,7 +46,7 @@ test('queued session approval survives a failed attempt and retains its selected
     ).rejects.toThrow('offline')
     expect(cache.entries.size).toBe(1)
     cache.entries.set('https://example.test/__notification_actions__/second', {
-      type: 'slopbench:notification-action',
+      type: 'corvori:notification-action',
       action: 'allow-session',
       notificationId: 'second',
       sessionId: 'session',

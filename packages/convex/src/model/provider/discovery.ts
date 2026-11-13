@@ -2,8 +2,8 @@ import {
   DISCOVERY_MAX_MODELS,
   type DiscoveredModel,
   type DiscoveryConnection,
-} from '@sb/core/model-discovery'
-import { parseProviderExtraHeaders } from '@sb/core/provider-headers'
+} from '@cv/core/model-discovery'
+import { parseProviderExtraHeaders } from '@cv/core/provider-headers'
 
 import { discoveryAdapter } from './discovery/factory'
 

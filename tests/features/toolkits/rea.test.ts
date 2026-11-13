@@ -1,12 +1,12 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { resumeOperations, settle } from '@sb/convex/model/mcpOperationActions'
-import { cancelForStream } from '@sb/convex/model/mcpOperations'
-import { control, runtimeScope } from '@sb/convex/model/mcpRuntime'
-import { _claim, _handoff } from '@sb/convex/model/stream/lifecycle'
-import { select } from '@sb/convex/model/toolkits/selection'
-import { remove } from '@sb/convex/model/toolkits/settings'
-import { mcpConnectionSchema } from '@sb/core/types'
-import { toolkitSkillCatalog } from '@sb/sidecar/toolkits/catalog'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import { resumeOperations, settle } from '@cv/convex/model/mcpOperationActions'
+import { cancelForStream } from '@cv/convex/model/mcpOperations'
+import { control, runtimeScope } from '@cv/convex/model/mcpRuntime'
+import { _claim, _handoff } from '@cv/convex/model/stream/lifecycle'
+import { select } from '@cv/convex/model/toolkits/selection'
+import { remove } from '@cv/convex/model/toolkits/settings'
+import { mcpConnectionSchema } from '@cv/core/types'
+import { toolkitSkillCatalog } from '@cv/sidecar/toolkits/catalog'
 import { afterEach, expect, spyOn, test } from 'bun:test'
 import { untilOperation } from '~/tests/helpers/mcp-operations'
 import {
@@ -16,7 +16,7 @@ import {
 } from '~/tests/helpers/rea-conformance'
 
 // Explicit opt-in: normal tests never download REA or depend on a developer's checkout.
-const toolkit = process.env.SLOPBENCH_REA_ROOT
+const toolkit = process.env.CORVORI_REA_ROOT
 const conformance = test.skipIf(!toolkit)
 let active: ReaFixture | undefined
 afterEach(async () => {

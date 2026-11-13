@@ -1,4 +1,4 @@
-import type { McpServer } from '@sb/core/types'
+import type { McpServer } from '@cv/core/types'
 
 import type { AuthMutationCtx } from '../functions'
 import * as Credentials from './credentials'

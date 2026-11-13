@@ -1,10 +1,10 @@
 'use node'
 
-import type { FolderWorkspace } from '@sb/core/types/workspace'
+import type { FolderWorkspace } from '@cv/core/types/workspace'
 import {
   type PathCheckResult,
   pathApprovalStatus,
-} from '@sb/core/workspace/path-policy'
+} from '@cv/core/workspace/path-policy'
 import type { UIMessage } from 'ai'
 
 import { internal } from '../../_generated/api'

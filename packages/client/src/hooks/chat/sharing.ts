@@ -1,5 +1,5 @@
-import { api } from '@sb/convex/_generated/api'
-import type { Doc, Id } from '@sb/convex/_generated/dataModel'
+import { api } from '@cv/convex/_generated/api'
+import type { Doc, Id } from '@cv/convex/_generated/dataModel'
 import type { OptimisticLocalStore } from 'convex/browser'
 import { useMutation, useQuery } from 'convex/react'
 import { useCallback } from 'react'

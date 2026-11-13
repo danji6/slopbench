@@ -1,5 +1,5 @@
-import type { Doc, Id } from '@sb/convex/_generated/dataModel'
-import type { SessionSummary, TokenUsage } from '@sb/convex/types'
+import type { Doc, Id } from '@cv/convex/_generated/dataModel'
+import type { SessionSummary, TokenUsage } from '@cv/convex/types'
 import type {
   ApproveToolArgs as CoreApproveToolArgs,
   CreateAgentArgs as CoreCreateAgentArgs,
@@ -8,11 +8,11 @@ import type {
   SessionParticipant as CoreSessionParticipant,
   UpdateAgentArgs as CoreUpdateAgentArgs,
   MessageRole,
-} from '@sb/core/types'
+} from '@cv/core/types'
 import type { ChatStatus, FileUIPart, UIMessage } from 'ai'
 
 export type { UIMessage }
-export type * from '@sb/core/types'
+export type * from '@cv/core/types'
 
 export type SessionMember = CoreSessionMember<
   Doc<'userSessions'>,
@@ -104,7 +104,7 @@ export type MessagesEventData = {
   summaryId?: string
 }
 
-export type { UIModel, UIModelConfig } from '@sb/core/types/providers'
+export type { UIModel, UIModelConfig } from '@cv/core/types/providers'
 
 /** Identifies one attachment occurrence before it is uploaded. */
 export type PendingFilePart = FileUIPart & { id: string }

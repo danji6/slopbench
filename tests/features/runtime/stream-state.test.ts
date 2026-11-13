@@ -1,18 +1,18 @@
-import type { Doc } from '@sb/convex/_generated/dataModel'
-import { reserveOrDebounceTurn } from '@sb/convex/model/chat/reserve'
-import { getActiveStream } from '@sb/convex/model/session/memberships'
+import type { Doc } from '@cv/convex/_generated/dataModel'
+import { reserveOrDebounceTurn } from '@cv/convex/model/chat/reserve'
+import { getActiveStream } from '@cv/convex/model/session/memberships'
 import {
   ownsExecution,
   scheduleStream,
-} from '@sb/convex/model/stream/execution'
-import { _claim } from '@sb/convex/model/stream/lifecycleClaims'
-import { _prune } from '@sb/convex/model/stream/lifecycleCleanup'
-import { stopExecution } from '@sb/convex/model/stream/stop'
-import { activeStreamView } from '@sb/convex/model/stream/view'
+} from '@cv/convex/model/stream/execution'
+import { _claim } from '@cv/convex/model/stream/lifecycleClaims'
+import { _prune } from '@cv/convex/model/stream/lifecycleCleanup'
+import { stopExecution } from '@cv/convex/model/stream/stop'
+import { activeStreamView } from '@cv/convex/model/stream/view'
 import {
   streamCommandValidator,
   streamStateValidator,
-} from '@sb/convex/validators/streams'
+} from '@cv/convex/validators/streams'
 import { expect, test } from 'bun:test'
 import { validate } from 'convex-helpers/validators'
 import { lifecycleDatabase } from '~/tests/helpers/lifecycle-db'

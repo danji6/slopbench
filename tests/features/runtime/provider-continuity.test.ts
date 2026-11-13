@@ -1,16 +1,16 @@
-import { accumulateSessionUsage } from '@sb/convex/model/stream/lifecycleMeta'
+import { accumulateSessionUsage } from '@cv/convex/model/stream/lifecycleMeta'
 import {
   clearProviderContinuity,
   prepareProviderRequest,
   recordCacheDiagnostic,
   saveProviderContinuity,
-} from '@sb/convex/model/stream/providerRequests'
-import { activeStreamView } from '@sb/convex/model/stream/view'
+} from '@cv/convex/model/stream/providerRequests'
+import { activeStreamView } from '@cv/convex/model/stream/view'
 import type {
   CacheDiagnostic,
   ProviderContinuityScope,
   StreamExecutionArgs,
-} from '@sb/convex/types'
+} from '@cv/convex/types'
 import { describe, expect, test } from 'bun:test'
 
 import { lifecycleDatabase } from '../../helpers/lifecycle-db'

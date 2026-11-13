@@ -1,10 +1,10 @@
 import { RippleButton, SelectionListItem, Switch } from '@/components/ui'
 import { cn } from '@/lib/utils'
-import type { SkillListItem } from '@sb/convex/model/skills/skillListing'
+import type { SkillListItem } from '@cv/convex/model/skills/skillListing'
 import { useEffect, useRef } from 'react'
 import { Virtualizer } from 'virtua'
 
-export type { SkillListItem } from '@sb/convex/model/skills/skillListing'
+export type { SkillListItem } from '@cv/convex/model/skills/skillListing'
 
 type SkillListProps = {
   items: SkillListItem[]

@@ -5,8 +5,8 @@ import { interpreterCodeRange } from '@/lib/tiptap/interpreter-syntax'
 import type {
   Completion,
   CompletionProvider,
-} from '@sb/core/code-completion/types'
-import { SESSION_ENV, isEnvFunction } from '@sb/core/interpreter/env'
+} from '@cv/core/code-completion/types'
+import { SESSION_ENV, isEnvFunction } from '@cv/core/interpreter/env'
 
 const SESSION_COMPLETIONS: Completion[] = SESSION_ENV.map((entry) => ({
   label: entry.name,

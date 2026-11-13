@@ -1,7 +1,7 @@
-import type { api } from '@sb/convex/_generated/api'
+import type { api } from '@cv/convex/_generated/api'
 import type { FunctionReturnType } from 'convex/server'
 
-export { updateDisabledSkills as toolkitDisabledSkills } from '@sb/core/skills/names'
+export { updateDisabledSkills as toolkitDisabledSkills } from '@cv/core/skills/names'
 
 export type ToolkitView = FunctionReturnType<typeof api.toolkits.list>[number]
 

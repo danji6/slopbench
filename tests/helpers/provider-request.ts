@@ -9,11 +9,11 @@ export async function captureRequest(
   >,
 ) {
   const { dispatchLanguageModel } =
-    await import('@sb/convex/model/tool/dispatchTransport')
+    await import('@cv/convex/model/tool/dispatchTransport')
   const { generateText } = await import('ai')
   const { getProviderOptions } =
-    await import('@sb/convex/model/provider/options')
-  const { applyPromptCaching } = await import('@sb/convex/model/provider/cache')
+    await import('@cv/convex/model/provider/options')
+  const { applyPromptCaching } = await import('@cv/convex/model/provider/cache')
   let captured: Record<string, unknown> | undefined
   let logged: unknown
   const parse = (body: string) =>

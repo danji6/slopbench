@@ -1,5 +1,5 @@
 import { SettingsInput } from '@/components/ui'
-import { APP_NAME } from '@sb/core/const'
+import { APP_NAME } from '@cv/core/const'
 
 import type { McpServerFormValues } from './settings-schema'
 

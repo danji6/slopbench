@@ -1,7 +1,7 @@
 import {
   agentArchiveToCreateArgs,
   createAgentArchive,
-} from '@sb/convex/model/agent/archive'
+} from '@cv/convex/model/agent/archive'
 import { describe, expect, test } from 'bun:test'
 
 describe('agent import data normalization', () => {

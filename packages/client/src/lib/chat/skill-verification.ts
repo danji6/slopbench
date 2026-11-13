@@ -1,8 +1,8 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import type {
   SkillVerificationPage,
   VerifySkillIdsArgs,
-} from '@sb/convex/types'
+} from '@cv/convex/types'
 import type { PaginationOptions } from 'convex/server'
 
 type CheckPage = (args: {

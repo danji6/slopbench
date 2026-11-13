@@ -6,7 +6,7 @@ import {
   TrashButton,
 } from '@/components/ui'
 import { useToolkitBindings } from '@/hooks/chat/toolkit-bindings'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import { useState } from 'react'
 
 import { ToolkitFeedback } from './toolkit-feedback'

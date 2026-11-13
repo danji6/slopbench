@@ -1,18 +1,18 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { complete, fail } from '@sb/convex/model/skills/completion'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import { complete, fail } from '@cv/convex/model/skills/completion'
 import {
   operation,
   reserveDestination,
   watchdog,
-} from '@sb/convex/model/skills/endpoints'
-import { claimExecution } from '@sb/convex/model/skills/execution'
-import { invalidateHomeCaches } from '@sb/convex/model/skills/invalidation'
-import { retry, start } from '@sb/convex/model/skills/operations'
-import { cleanupRecords } from '@sb/convex/model/skills/removal'
+} from '@cv/convex/model/skills/endpoints'
+import { claimExecution } from '@cv/convex/model/skills/execution'
+import { invalidateHomeCaches } from '@cv/convex/model/skills/invalidation'
+import { retry, start } from '@cv/convex/model/skills/operations'
+import { cleanupRecords } from '@cv/convex/model/skills/removal'
 import type {
   InvalidateAgentHomeArgs,
   OperationAttemptArgs,
-} from '@sb/convex/types'
+} from '@cv/convex/types'
 import { expect, test } from 'bun:test'
 import { getFunctionName } from 'convex/server'
 import type { FunctionReference } from 'convex/server'

@@ -1,11 +1,11 @@
-import type { WorkspaceToolContext } from '@sb/convex/model/tool/context'
+import type { WorkspaceToolContext } from '@cv/convex/model/tool/context'
 import {
   createEditFileTool,
   createReadFileTool,
   createWriteFileTool,
-} from '@sb/convex/model/tool/files'
-import { createShellTool } from '@sb/convex/model/tool/shellTools'
-import { withAgentHome } from '@sb/core/workspace/personal'
+} from '@cv/convex/model/tool/files'
+import { createShellTool } from '@cv/convex/model/tool/shellTools'
+import { withAgentHome } from '@cv/core/workspace/personal'
 import { expect, test } from 'bun:test'
 import { z } from 'zod'
 

@@ -1,3 +1,4 @@
+import { APP_ID } from '@cv/core/const'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
@@ -24,8 +25,8 @@ export type ConnectionKey = { ownerId: string; connectionId: string }
 
 export function credentialDirectory() {
   return (
-    process.env.SLOPBENCH_AUTH_DIR ??
-    join(homedir(), '.config', 'slopbench', 'provider-auth')
+    process.env.CORVORI_AUTH_DIR ??
+    join(homedir(), '.config', APP_ID, 'provider-auth')
   )
 }
 

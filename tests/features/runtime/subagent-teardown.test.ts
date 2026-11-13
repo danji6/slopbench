@@ -1,4 +1,4 @@
-import { _fail, stopChildSessions } from '@sb/convex/model/stream/lifecycle'
+import { _fail, stopChildSessions } from '@cv/convex/model/stream/lifecycle'
 import { describe, expect, test } from 'bun:test'
 import { taskPart } from '~/tests/helpers/subagent-lifecycle'
 import { fakeCtx } from '~/tests/setup/subagents'

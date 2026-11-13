@@ -2,12 +2,12 @@ import type {
   SessionListItem as CoreSessionListItem,
   SessionMember as CoreSessionMember,
   SessionParticipant as CoreSessionParticipant,
-} from '@sb/core/types'
+} from '@cv/core/types'
 import type {
   McpServer,
   ModelProviderConfig,
   ToolApprovals,
-} from '@sb/core/types'
+} from '@cv/core/types'
 import type { ReasoningUIPart } from 'ai'
 import type { Infer } from 'convex/values'
 
@@ -25,7 +25,7 @@ import type * as StreamsV from './validators/streams'
 import type * as ToolkitsV from './validators/toolkits'
 
 export type { Role } from './lib/roles'
-export type * from '@sb/core/types'
+export type * from '@cv/core/types'
 
 export type McpServerInput = Infer<
   typeof V.replaceMcpServersArgsValidator

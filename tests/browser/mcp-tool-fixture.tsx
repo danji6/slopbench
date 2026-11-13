@@ -1,6 +1,6 @@
 import { ToolBlock } from '@/components/chat/messages/tool-block'
 import { StreamStoreProvider } from '@/hooks/chat/stream'
-import { mcpResult, mcpResultPreview } from '@sb/core/types/mcp-result'
+import { mcpResult, mcpResultPreview } from '@cv/core/types/mcp-result'
 import type { ToolUIPart } from 'ai'
 import { ConvexProvider, type ConvexReactClient } from 'convex/react'
 import { type FunctionReference, getFunctionName } from 'convex/server'

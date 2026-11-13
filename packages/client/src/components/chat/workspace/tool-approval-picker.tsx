@@ -4,9 +4,9 @@ import {
 } from '@/hooks/chat/tool-approval'
 import { useApprovalInteraction } from '@/hooks/chat/tool-approval-interaction'
 import { cn } from '@/lib/utils'
-import { type api } from '@sb/convex/_generated/api'
-import { HOLD_HINTS } from '@sb/convex/lib/tool/approvalPolicy'
-import { summarizeInput, toolDisplayName } from '@sb/core/approval-presentation'
+import { type api } from '@cv/convex/_generated/api'
+import { HOLD_HINTS } from '@cv/convex/lib/tool/approvalPolicy'
+import { summarizeInput, toolDisplayName } from '@cv/core/approval-presentation'
 import type { FunctionReturnType } from 'convex/server'
 import { type RefObject, Suspense, lazy } from 'react'
 

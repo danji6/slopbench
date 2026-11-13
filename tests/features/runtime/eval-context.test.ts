@@ -1,6 +1,6 @@
 /// <reference types="bun-types" />
-import { buildEvalContext } from '@sb/convex/actions/stream/evalContext'
-import type { Session } from '@sb/convex/types'
+import { buildEvalContext } from '@cv/convex/actions/stream/evalContext'
+import type { Session } from '@cv/convex/types'
 import { describe, expect, test } from 'bun:test'
 
 function contextForModel(model?: Session['model']) {

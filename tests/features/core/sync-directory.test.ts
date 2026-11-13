@@ -1,4 +1,4 @@
-import { syncDirectory } from '@sb/core/fs/sync-directory'
+import { syncDirectory } from '@cv/core/fs/sync-directory'
 import { afterEach, beforeEach, expect, mock, spyOn, test } from 'bun:test'
 import * as fs from 'node:fs/promises'
 import type { FileHandle } from 'node:fs/promises'

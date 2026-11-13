@@ -1,7 +1,7 @@
 import type { FileItem } from '@/hooks'
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { WorkspaceLinkSnapshot } from '@sb/core/types/workspace'
-import { collapseToolError } from '@sb/core/utils/tool-errors'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { WorkspaceLinkSnapshot } from '@cv/core/types/workspace'
+import { collapseToolError } from '@cv/core/utils/tool-errors'
 import type { FileUIPart, ToolUIPart, UIMessage } from 'ai'
 import { isFileUIPart, isReasoningUIPart, isTextUIPart, isToolUIPart } from 'ai'
 

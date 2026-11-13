@@ -1,5 +1,5 @@
-import { discoveryFingerprint } from '@sb/core/discovery-fingerprint'
-import type { DiscoveryConnection } from '@sb/core/model-discovery'
+import { discoveryFingerprint } from '@cv/core/discovery-fingerprint'
+import type { DiscoveryConnection } from '@cv/core/model-discovery'
 
 import { internal } from '../../_generated/api'
 import type { Doc, Id } from '../../_generated/dataModel'

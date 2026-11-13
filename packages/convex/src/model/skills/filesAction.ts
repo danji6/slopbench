@@ -1,8 +1,8 @@
 'use node'
 
-import { SKILL_PAGE_SIZE } from '@sb/core/skills/types'
-import type { AgentHome } from '@sb/core/skills/types'
-import { errorMessage } from '@sb/core/utils/errors'
+import { SKILL_PAGE_SIZE } from '@cv/core/skills/types'
+import type { AgentHome } from '@cv/core/skills/types'
+import { errorMessage } from '@cv/core/utils/errors'
 
 import { internal } from '../../_generated/api'
 import type { Doc } from '../../_generated/dataModel'

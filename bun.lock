@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "slopbench",
+      "name": "corvori",
       "dependencies": {
         "@ai-sdk/alibaba": "^2.0.85",
         "@ai-sdk/anthropic": "^4.0.99",
@@ -149,16 +149,16 @@
       },
     },
     "packages/client": {
-      "name": "@sb/client",
+      "name": "@cv/client",
     },
     "packages/convex": {
-      "name": "@sb/convex",
+      "name": "@cv/convex",
     },
     "packages/core": {
-      "name": "@sb/core",
+      "name": "@cv/core",
     },
     "packages/sidecar": {
-      "name": "@sb/sidecar",
+      "name": "@cv/sidecar",
     },
   },
   "patchedDependencies": {
@@ -515,13 +515,13 @@
 
     "@rolldown/pluginutils": ["@rolldown/pluginutils@1.1.0", "", {}, "sha512-K+NU2HDCEem4sClgHH4ZZXwdJeNFkJo+hRk479DIwdIviAPN2hFJH1KHHwg8CxHQXvi0M5XY4deTXINfIiSG6w=="],
 
-    "@sb/client": ["@sb/client@workspace:packages/client"],
+    "@cv/client": ["@cv/client@workspace:packages/client"],
 
-    "@sb/convex": ["@sb/convex@workspace:packages/convex"],
+    "@cv/convex": ["@cv/convex@workspace:packages/convex"],
 
-    "@sb/core": ["@sb/core@workspace:packages/core"],
+    "@cv/core": ["@cv/core@workspace:packages/core"],
 
-    "@sb/sidecar": ["@sb/sidecar@workspace:packages/sidecar"],
+    "@cv/sidecar": ["@cv/sidecar@workspace:packages/sidecar"],
 
     "@shikijs/core": ["@shikijs/core@4.6.0", "", { "dependencies": { "@shikijs/primitive": "4.6.0", "@shikijs/types": "4.6.0", "@shikijs/vscode-textmate": "^10.1.0", "@types/hast": "^3.0.5", "hast-util-to-html": "^9.0.6" } }, "sha512-bfd4OKgvoyXYiYmMRuleA656P4V7M/Du9lcTl38Ngm6KszMj7bq4J1IGZwSYR4c95Tv5UQALtYNWUwaI9UT3xw=="],
 

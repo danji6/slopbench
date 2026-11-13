@@ -1,20 +1,20 @@
-import { hasPendingTaskParts } from '@sb/convex/lib/subagent'
-import { createAskTool } from '@sb/convex/model/tool/ask'
-import { toolDefinitions } from '@sb/convex/model/tool/definitions'
+import { hasPendingTaskParts } from '@cv/convex/lib/subagent'
+import { createAskTool } from '@cv/convex/model/tool/ask'
+import { toolDefinitions } from '@cv/convex/model/tool/definitions'
 import {
   attachWireCalls,
   dispatchLanguageModel,
   rememberWireCalls,
-} from '@sb/convex/model/tool/dispatchTransport'
-import { guardMcpApproval } from '@sb/convex/model/tool/mcpApproval'
+} from '@cv/convex/model/tool/dispatchTransport'
+import { guardMcpApproval } from '@cv/convex/model/tool/mcpApproval'
 import {
   DISPATCH_ERROR_TOOL,
   type SessionTools,
   createDispatcherTools,
-} from '@sb/convex/model/tool/sessionTools'
-import { shellApprovalPolicy } from '@sb/convex/model/tool/shellApproval'
-import { createTaskTool } from '@sb/convex/model/tool/task'
-import { hasPendingQuestions } from '@sb/core/utils/ask'
+} from '@cv/convex/model/tool/sessionTools'
+import { shellApprovalPolicy } from '@cv/convex/model/tool/shellApproval'
+import { createTaskTool } from '@cv/convex/model/tool/task'
+import { hasPendingQuestions } from '@cv/core/utils/ask'
 import {
   type ToolSet,
   type UIMessage,
@@ -298,7 +298,7 @@ test('changed native contracts and unknown or recursive dispatches return tool e
   expect(changed.message.parts).toContainEqual(
     expect.objectContaining({ type: 'tool-work', state: 'output-error' }),
   )
-  for (const name of ['unknown', 'call_tool', 'get_tool', '__sb_tool_error']) {
+  for (const name of ['unknown', 'call_tool', 'get_tool', '__cv_tool_error']) {
     const invalid = await run(runtime, 'call_tool', { name, arguments: {} })
     expect(invalid.message.parts).toContainEqual(
       expect.objectContaining({ state: 'output-error' }),

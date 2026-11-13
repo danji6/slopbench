@@ -1,4 +1,5 @@
-import type { api } from '@sb/convex/_generated/api'
+import type { api } from '@cv/convex/_generated/api'
+import { APP_ID } from '@cv/core/const'
 import type { FunctionReturnType } from 'convex/server'
 
 export type NotificationItem = FunctionReturnType<
@@ -28,7 +29,7 @@ export function notificationToastId(notificationId: string) {
 
 /** Returns the stable native notification tag for one notification. */
 export function notificationTag(notificationId: string) {
-  return `slopbench:${notificationId}`
+  return `${APP_ID}:${notificationId}`
 }
 
 /** Identifies requests that must survive ordinary notification bookkeeping. */

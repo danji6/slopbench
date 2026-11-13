@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import { installBlockReason, resolveInstall } from '@sb/core/update/install'
+import { installBlockReason, resolveInstall } from '@cv/core/update/install'
 import { describe, expect, test } from 'bun:test'
 
 const release = JSON.stringify({ version: '0.3.0', commit: 'abc1234' })

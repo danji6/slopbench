@@ -1,12 +1,12 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { activate } from '@sb/convex/model/session/agents'
-import { refreshForOwner } from '@sb/convex/model/session/models'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import { activate } from '@cv/convex/model/session/agents'
+import { refreshForOwner } from '@cv/convex/model/session/models'
 import {
   create,
   setModel,
   setReasoningEffort,
-} from '@sb/convex/model/session/sessions'
-import { modelReference } from '@sb/core/model-reference'
+} from '@cv/convex/model/session/sessions'
+import { modelReference } from '@cv/core/model-reference'
 import { describe, expect, test } from 'bun:test'
 import {
   MEMBER,

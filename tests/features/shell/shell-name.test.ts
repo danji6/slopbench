@@ -1,6 +1,6 @@
 /// <reference types="bun-types" />
-import { shellBasename, shellLabel } from '@sb/core/shell/name'
-import { shellToolDescription } from '@sb/core/types'
+import { shellBasename, shellLabel } from '@cv/core/shell/name'
+import { shellToolDescription } from '@cv/core/types'
 import { describe, expect, test } from 'bun:test'
 
 describe('shellBasename', () => {

@@ -3,7 +3,7 @@ import {
   killShellJob,
   pollShellJob,
   subscribeShellJob,
-} from '@sb/sidecar/shell/registry'
+} from '@cv/sidecar/shell/registry'
 import { describe, expect, test } from 'bun:test'
 import {
   drainStream,

@@ -1,9 +1,9 @@
-import { withApprovalPaths } from '@sb/convex/actions/stream/engineApproval'
-import { analyzeShellPathCandidates } from '@sb/convex/lib/tool/approval'
-import type { WorkspaceToolContext } from '@sb/convex/model/tool/context'
-import { createShellTool } from '@sb/convex/model/tool/shellTools'
-import { checkPaths } from '@sb/sidecar/mcp/workspace/check-paths'
-import { checkScopedPaths } from '@sb/sidecar/mcp/workspace/scoped-checks'
+import { withApprovalPaths } from '@cv/convex/actions/stream/engineApproval'
+import { analyzeShellPathCandidates } from '@cv/convex/lib/tool/approval'
+import type { WorkspaceToolContext } from '@cv/convex/model/tool/context'
+import { createShellTool } from '@cv/convex/model/tool/shellTools'
+import { checkPaths } from '@cv/sidecar/mcp/workspace/check-paths'
+import { checkScopedPaths } from '@cv/sidecar/mcp/workspace/scoped-checks'
 import type { UIMessage } from 'ai'
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { Hono } from 'hono'
@@ -111,7 +111,7 @@ describe('shell approval through scoped MCP path checks', () => {
       previousDataEnvironment[key] = process.env[key]
       process.env[key] = value
     }
-    const { handleMcpRequest } = await import('@sb/sidecar/mcp/mcp')
+    const { handleMcpRequest } = await import('@cv/sidecar/mcp/mcp')
     const app = new Hono().all('/mcp', (c) =>
       available ? handleMcpRequest(c) : c.text('Unavailable', 503),
     )

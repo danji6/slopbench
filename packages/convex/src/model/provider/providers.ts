@@ -1,5 +1,5 @@
-import { modelReference, parseModelReference } from '@sb/core/model-reference'
-import type { UIModel, UIModelConfig } from '@sb/core/types/providers'
+import { modelReference, parseModelReference } from '@cv/core/model-reference'
+import type { UIModel, UIModelConfig } from '@cv/core/types/providers'
 
 import type { Id } from '../../_generated/dataModel'
 import type { QueryCtx } from '../../_generated/server'
@@ -24,7 +24,7 @@ export type ProviderCredentials = {
   model?: ModelEntry
 }
 
-export type { UIModel, UIModelConfig } from '@sb/core/types/providers'
+export type { UIModel, UIModelConfig } from '@cv/core/types/providers'
 
 export async function list(ctx: AuthQueryCtx): Promise<UIModelConfig> {
   try {

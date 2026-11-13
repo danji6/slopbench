@@ -8,9 +8,9 @@ import {
   pending,
   removeForMessage,
   reserve,
-} from '@sb/convex/model/mcpOperations'
-import { revoke } from '@sb/convex/model/mcpRuntime'
-import { _patchMessage } from '@sb/convex/model/stream/lifecycle'
+} from '@cv/convex/model/mcpOperations'
+import { revoke } from '@cv/convex/model/mcpRuntime'
+import { _patchMessage } from '@cv/convex/model/stream/lifecycle'
 import { afterEach, expect, test } from 'bun:test'
 import { mcpBackendFixture } from '~/tests/helpers/mcp-backend'
 

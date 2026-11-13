@@ -1,4 +1,4 @@
-import { chatGPTCacheKey, prepareChatGPTRequest } from '@sb/core/chatgpt-policy'
+import { chatGPTCacheKey, prepareChatGPTRequest } from '@cv/core/chatgpt-policy'
 import type { Handler } from 'hono'
 import { z } from 'zod'
 

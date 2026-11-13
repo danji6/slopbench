@@ -1,4 +1,4 @@
-import { skillUploadHeader } from '@sb/core/skills/upload'
+import { skillUploadHeader } from '@cv/core/skills/upload'
 import { Transform } from 'node:stream'
 
 /** Verifies only the small ownership prefix, then cancels the download. */

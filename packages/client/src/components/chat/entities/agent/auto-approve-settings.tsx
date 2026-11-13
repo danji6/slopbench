@@ -1,5 +1,5 @@
 import { SettingsList } from '@/components/ui'
-import { approvalPathsError } from '@sb/core/workspace/path-policy'
+import { approvalPathsError } from '@cv/core/workspace/path-policy'
 import type { Control } from 'react-hook-form'
 import { useController } from 'react-hook-form'
 

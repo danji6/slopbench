@@ -1,4 +1,4 @@
-import { addCacheUsage } from '@sb/core/cache-usage'
+import { addCacheUsage } from '@cv/core/cache-usage'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'

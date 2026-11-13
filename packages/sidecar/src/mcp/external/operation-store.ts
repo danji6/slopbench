@@ -1,7 +1,7 @@
-import { syncDirectory } from '@sb/core/fs/sync-directory'
-import type { McpRuntimeScope } from '@sb/core/types'
-import type { McpOperationStatus } from '@sb/core/types/mcp-operation'
-import type { McpResult } from '@sb/core/types/mcp-result'
+import { syncDirectory } from '@cv/core/fs/sync-directory'
+import type { McpRuntimeScope } from '@cv/core/types'
+import type { McpOperationStatus } from '@cv/core/types/mcp-operation'
+import type { McpResult } from '@cv/core/types/mcp-result'
 import { createHash, randomUUID } from 'node:crypto'
 import {
   mkdir,

@@ -1,17 +1,17 @@
-import { _createGenerated } from '@sb/convex/model/attachments'
+import { _createGenerated } from '@cv/convex/model/attachments'
 import {
   _beginWindow,
   _carry,
   _report,
   refresh,
-} from '@sb/convex/model/shellJobs'
-import { _claim, _handoff } from '@sb/convex/model/stream/lifecycleClaims'
-import { _trackOffloadedOutput } from '@sb/convex/model/stream/lifecycleCleanup'
+} from '@cv/convex/model/shellJobs'
+import { _claim, _handoff } from '@cv/convex/model/stream/lifecycleClaims'
+import { _trackOffloadedOutput } from '@cv/convex/model/stream/lifecycleCleanup'
 import {
   saveCache,
   saveEnvironment,
   saveLog,
-} from '@sb/convex/model/stream/lifecycleMeta'
+} from '@cv/convex/model/stream/lifecycleMeta'
 import { expect, test } from 'bun:test'
 import {
   execution,

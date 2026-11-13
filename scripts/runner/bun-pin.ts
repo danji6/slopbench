@@ -1,4 +1,4 @@
-import { compareVersions, parseVersion } from '@sb/core/update/version'
+import { compareVersions, parseVersion } from '@cv/core/update/version'
 
 import { type RunnerConfig, readVersions } from './config'
 

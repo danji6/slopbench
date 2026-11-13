@@ -1,10 +1,10 @@
 /// <reference types="bun-types" />
-import { removeOrphanToolCalls } from '@sb/convex/actions/stream/history'
-import { shellHistoryTools } from '@sb/convex/model/tool/shell'
+import { removeOrphanToolCalls } from '@cv/convex/actions/stream/history'
+import { shellHistoryTools } from '@cv/convex/model/tool/shell'
 import {
   UNRESOLVED_APPROVAL_REASON,
   settleUnansweredToolParts,
-} from '@sb/core/utils/tool-parts'
+} from '@cv/core/utils/tool-parts'
 import { type UIMessage, convertToModelMessages } from 'ai'
 import { describe, expect, test } from 'bun:test'
 

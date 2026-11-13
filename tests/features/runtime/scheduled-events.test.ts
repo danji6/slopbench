@@ -4,7 +4,7 @@ import {
   handleStreamEnd,
   runScheduledEvent,
   timeout,
-} from '@sb/convex/model/chat/scheduling'
+} from '@cv/convex/model/chat/scheduling'
 import { describe, expect, test } from 'bun:test'
 
 type Row = Record<string, unknown> & {

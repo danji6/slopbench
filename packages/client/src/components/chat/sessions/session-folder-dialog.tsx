@@ -1,7 +1,7 @@
 import { Dialog, RippleButton } from '@/components/ui'
 import { toastError } from '@/lib/notifications'
-import { api } from '@sb/convex/_generated/api'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import { api } from '@cv/convex/_generated/api'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import { useAction } from 'convex/react'
 import { useState } from 'react'
 

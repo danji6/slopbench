@@ -1,6 +1,6 @@
 /// <reference types="bun-types" />
-import { getEnabledTools } from '@sb/convex/model/tool/build'
-import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
+import { getEnabledTools } from '@cv/convex/model/tool/build'
+import { resolveToolManifest } from '@cv/convex/model/tool/manifest'
 import { describe, expect, test } from 'bun:test'
 
 const session = {
@@ -225,8 +225,8 @@ test('toolkit tools stay behind the broker when an unrelated direct alias has th
 
 test('frozen MCP contracts retain immutable references and reauthorize their materialization', async () => {
   const { compactDefinitions, frozenDefinitions } =
-    await import('@sb/convex/model/tool/definitions')
-  const { sameDefinition } = await import('@sb/convex/model/tool/manifest')
+    await import('@cv/convex/model/tool/definitions')
+  const { sameDefinition } = await import('@cv/convex/model/tool/manifest')
   const oldSchema = JSON.stringify({
     type: 'object',
     properties: { value: { type: 'string', description: 'x'.repeat(10_000) } },

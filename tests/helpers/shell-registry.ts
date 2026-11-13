@@ -4,11 +4,11 @@ import {
   type ShellStreamEvent,
   pollShellJob,
   startShellJob,
-} from '@sb/sidecar/shell/registry'
+} from '@cv/sidecar/shell/registry'
 
 /** Lazy import: routes pull in workspace, which needs the data dir set above. */
 export async function getShellRoutes() {
-  const { createApp } = await import('@sb/sidecar/main')
+  const { createApp } = await import('@cv/sidecar/main')
   return createApp(async (_c, next) => next())
 }
 

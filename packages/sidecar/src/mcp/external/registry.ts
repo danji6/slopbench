@@ -4,10 +4,10 @@ import type {
   McpConnection,
   McpRuntimeScope,
   McpRuntimeStatus,
-} from '@sb/core/types'
-import type { McpProgress } from '@sb/core/types/mcp-operation'
-import type { McpProtocolRequest } from '@sb/core/types/mcp-protocol'
-import { mcpResult } from '@sb/core/types/mcp-result'
+} from '@cv/core/types'
+import type { McpProgress } from '@cv/core/types/mcp-operation'
+import type { McpProtocolRequest } from '@cv/core/types/mcp-protocol'
+import { mcpResult } from '@cv/core/types/mcp-result'
 import { createHash, randomUUID } from 'node:crypto'
 
 import { assertToolkitRevision } from '../../toolkits/manifest'

@@ -4,7 +4,7 @@ import {
   persistAgentSettings,
 } from '@/lib/chat/agent-settings-save'
 import { type AvatarUploadResult, avatarUploadForm } from '@/lib/chat/avatar'
-import { api } from '@sb/convex/_generated/api'
+import { api } from '@cv/convex/_generated/api'
 import { useMutation } from 'convex/react'
 
 import { useHttpAction } from '../http'

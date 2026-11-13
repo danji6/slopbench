@@ -1,5 +1,5 @@
-import { modelReference } from '@sb/core/model-reference'
-import type { ModelEntry } from '@sb/core/types'
+import { modelReference } from '@cv/core/model-reference'
+import type { ModelEntry } from '@cv/core/types'
 
 import type { Id } from '../../_generated/dataModel'
 import { error } from '../../errors'

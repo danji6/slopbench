@@ -1,6 +1,6 @@
 'use node'
 
-import type { ToolkitSnapshot } from '@sb/core/types/toolkit'
+import type { ToolkitSnapshot } from '@cv/core/types/toolkit'
 
 import { api, internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'

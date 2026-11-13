@@ -1,7 +1,7 @@
 import { useAttachmentUrls } from '@/hooks/chat'
 import { buildFileItemFromPart } from '@/lib/chat'
 import { getAttachmentSendPreview } from '@/lib/chat/attachment-send-previews'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import type { FileUIPart } from 'ai'
 import { useMemo } from 'react'
 

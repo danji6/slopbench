@@ -1,4 +1,4 @@
-import { resumeIfSettled } from '@sb/convex/model/stream/subagents'
+import { resumeIfSettled } from '@cv/convex/model/stream/subagents'
 import { describe, expect, test } from 'bun:test'
 import { parentDocs } from '~/tests/helpers/subagent-lifecycle'
 import { fakeCtx } from '~/tests/setup/subagents'

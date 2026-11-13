@@ -1,4 +1,6 @@
-const INSERT_EVENT = 'slopbench:insert-composer-text'
+import { APP_ID } from '@cv/core/const'
+
+const INSERT_EVENT = `${APP_ID}:insert-composer-text`
 
 /** Inserts literal text only in response to an explicit UI action. */
 export function insertComposerText(text: string) {

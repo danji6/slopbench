@@ -3,8 +3,8 @@ import {
   type RetainedState,
   limitRetained,
   mergeRetained,
-} from '@sb/client/lib/chat/message-merge'
-import type { MessageRecord, PartMetadata } from '@sb/client/lib/chat/types'
+} from '@cv/client/lib/chat/message-merge'
+import type { MessageRecord, PartMetadata } from '@cv/client/lib/chat/types'
 import type { UIMessage } from 'ai'
 import { describe, expect, test } from 'bun:test'
 

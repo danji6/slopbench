@@ -18,7 +18,7 @@ import type { MessageRecord, PartMetadata } from '@/lib/chat'
 import { type MessageRow, segmentGroupsFor } from '@/lib/chat/rows'
 import { messageDisplayRole } from '@/lib/chat/sender-groups'
 import { cn, formatDuration, isTouchDevice } from '@/lib/utils'
-import { toDisplayName } from '@sb/core/utils/names'
+import { toDisplayName } from '@cv/core/utils/names'
 import { type UIMessage, isReasoningUIPart } from 'ai'
 import { memo, useCallback, useMemo } from 'react'
 

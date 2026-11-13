@@ -1,9 +1,9 @@
-import type { ActionCtx } from '@sb/convex/_generated/server'
+import type { ActionCtx } from '@cv/convex/_generated/server'
 import {
   prepareProviderRequest,
   recordCacheDiagnostic,
   saveProviderContinuity,
-} from '@sb/convex/model/stream/providerRequests'
+} from '@cv/convex/model/stream/providerRequests'
 import { getFunctionName } from 'convex/server'
 
 import { lifecycleDatabase } from './lifecycle-db'

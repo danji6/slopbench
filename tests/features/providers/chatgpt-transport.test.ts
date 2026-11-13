@@ -1,4 +1,4 @@
-import { fetchChatGPTResponse } from '@sb/convex/model/provider/openai/transport'
+import { fetchChatGPTResponse } from '@cv/convex/model/provider/openai/transport'
 import { afterEach, expect, spyOn, test } from 'bun:test'
 
 let fetchSpy: ReturnType<typeof spyOn<typeof globalThis, 'fetch'>>
@@ -63,7 +63,7 @@ test('preserves cancellation while stripping internal routing headers', async ()
       {
         headers: {
           'x-codex-turn-state': 'private-state',
-          'x-slopbench-auth-revision': 'private-revision',
+          'x-corvori-auth-revision': 'private-revision',
           'x-request-id': 'public-request-id',
         },
       },
@@ -73,7 +73,7 @@ test('preserves cancellation while stripping internal routing headers', async ()
     signal: controller.signal,
   })
   expect(response.headers.has('x-codex-turn-state')).toBe(false)
-  expect(response.headers.has('x-slopbench-auth-revision')).toBe(false)
+  expect(response.headers.has('x-corvori-auth-revision')).toBe(false)
   expect(response.headers.get('x-request-id')).toBe('public-request-id')
   await response.body?.cancel()
   expect(cancelled).toBe(true)

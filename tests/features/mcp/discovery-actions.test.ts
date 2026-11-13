@@ -1,10 +1,10 @@
-import type { ActionCtx } from '@sb/convex/_generated/server'
-import * as Catalog from '@sb/convex/model/provider/catalog'
+import type { ActionCtx } from '@cv/convex/_generated/server'
+import * as Catalog from '@cv/convex/model/provider/catalog'
 import {
   discover,
   refreshDetails,
-} from '@sb/convex/model/provider/connectionActions'
-import { create, list, resolve } from '@sb/convex/model/providers'
+} from '@cv/convex/model/provider/connectionActions'
+import { create, list, resolve } from '@cv/convex/model/providers'
 import { expect, test } from 'bun:test'
 import { getFunctionName } from 'convex/server'
 import type { FunctionReference } from 'convex/server'

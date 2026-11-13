@@ -1,5 +1,5 @@
-import { selectCatalog } from '@sb/core/skills/selection'
-import type { SkillCatalogEntry } from '@sb/core/skills/types'
+import { selectCatalog } from '@cv/core/skills/selection'
+import type { SkillCatalogEntry } from '@cv/core/skills/types'
 import { createHash } from 'node:crypto'
 import { realpath } from 'node:fs/promises'
 import path from 'node:path'

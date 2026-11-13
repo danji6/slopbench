@@ -1,5 +1,5 @@
-import { resolvePersonalWorkspace } from '@sb/convex/model/skills/runtime'
-import type { AgentWithHome } from '@sb/convex/types'
+import { resolvePersonalWorkspace } from '@cv/convex/model/skills/runtime'
+import type { AgentWithHome } from '@cv/convex/types'
 import { expect, test } from 'bun:test'
 
 const project = { workspaceId: 'project', path: '/project', label: 'Project' }

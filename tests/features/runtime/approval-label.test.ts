@@ -1,7 +1,7 @@
 import {
   APPROVAL_LABEL_MAX_LENGTH,
   formatAlwaysAllowLabel,
-} from '@sb/core/approval-label'
+} from '@cv/core/approval-label'
 import { describe, expect, test } from 'bun:test'
 
 describe('approval labels', () => {

@@ -3,7 +3,7 @@ import {
   applyEdits,
   createUnifiedDiff,
   isUnchangedWrite,
-} from '@sb/core/workspace/edit'
+} from '@cv/core/workspace/edit'
 import { describe, expect, test } from 'bun:test'
 
 describe('workspace edit helper', () => {

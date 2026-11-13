@@ -5,14 +5,14 @@ import {
   assertPlanContentCap,
   assertSegmentFits,
   assertTodoItemsCap,
-} from '@sb/convex/model/caps'
-import { insertMessage } from '@sb/convex/model/messageContents'
+} from '@cv/convex/model/caps'
+import { insertMessage } from '@cv/convex/model/messageContents'
 import {
   appendApprovals,
   setApprovalMode,
-} from '@sb/convex/model/session/state'
-import { MESSAGE_SPLIT_BUDGET_BYTES } from '@sb/core/const'
-import { createVariableStore } from '@sb/core/interpreter/store'
+} from '@cv/convex/model/session/state'
+import { MESSAGE_SPLIT_BUDGET_BYTES } from '@cv/core/const'
+import { createVariableStore } from '@cv/core/interpreter/store'
 import {
   MAX_APPROVAL_PATTERNS,
   MAX_CUSTOM_CSS_CHARS,
@@ -23,13 +23,13 @@ import {
   MAX_SEGMENT_BYTES,
   MAX_TODO_CONTENT_CHARS,
   MAX_TODO_ITEMS,
-} from '@sb/core/limits'
-import { splitParts } from '@sb/core/utils/size'
+} from '@cv/core/limits'
+import { splitParts } from '@cv/core/utils/size'
 import {
   MAX_DIR_ENTRIES,
   MAX_TEXT_SNAPSHOT_CHARS,
-} from '@sb/core/workspace/files'
-import { clampLinkSnapshot } from '@sb/core/workspace/snapshot'
+} from '@cv/core/workspace/files'
+import { clampLinkSnapshot } from '@cv/core/workspace/snapshot'
 import { describe, expect, test } from 'bun:test'
 import { fakeSessionState } from '~/tests/setup/session-state'
 

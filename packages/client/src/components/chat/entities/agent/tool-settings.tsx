@@ -5,7 +5,7 @@ import {
   TOOL_CAPABILITIES,
   normalizeToolSelection,
   toggleToolSelection,
-} from '@sb/core/tool-capabilities'
+} from '@cv/core/tool-capabilities'
 import { type RefObject, useLayoutEffect, useState } from 'react'
 import type { Control } from 'react-hook-form'
 import { useController } from 'react-hook-form'

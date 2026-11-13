@@ -1,5 +1,5 @@
-import type { AnsiLine } from '@sb/core/shell/ansi-scanner'
-import { createAnsiScanner } from '@sb/core/shell/ansi-scanner'
+import type { AnsiLine } from '@cv/core/shell/ansi-scanner'
+import { createAnsiScanner } from '@cv/core/shell/ansi-scanner'
 
 import { SCROLLBACK_LINES } from './terminal-feed'
 

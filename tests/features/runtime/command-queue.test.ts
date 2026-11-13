@@ -2,7 +2,7 @@
 import {
   drainCommandQueue,
   isCommandQueued,
-} from '@sb/convex/model/chat/commands'
+} from '@cv/convex/model/chat/commands'
 import { describe, expect, test } from 'bun:test'
 import { fakeSessionState } from '~/tests/setup/session-state'
 

@@ -2,20 +2,20 @@
 import {
   type PromptEvalResult,
   createOperationPlan,
-} from '@sb/convex/actions/stream/operations'
+} from '@cv/convex/actions/stream/operations'
 import {
   createDefaultCompactionPrompts,
   createDefaultImpersonationPrompts,
-} from '@sb/convex/model/defaults'
+} from '@cv/convex/model/defaults'
 import {
   buildPrompts,
   buildSystemPrompt,
   resolveCompactionPrompts,
   resolveImpersonationPrompts,
-} from '@sb/convex/model/prompt/prompts'
-import type { Prompt, PromptItem, StreamContext } from '@sb/convex/types'
-import { evaluate } from '@sb/core/interpreter/evaluate'
-import { createVariableStore } from '@sb/core/interpreter/store'
+} from '@cv/convex/model/prompt/prompts'
+import type { Prompt, PromptItem, StreamContext } from '@cv/convex/types'
+import { evaluate } from '@cv/core/interpreter/evaluate'
+import { createVariableStore } from '@cv/core/interpreter/store'
 import { describe, expect, test } from 'bun:test'
 
 function prompt(overrides: Partial<Prompt> & { id: string }): Prompt {

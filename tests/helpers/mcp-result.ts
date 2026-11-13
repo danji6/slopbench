@@ -1,4 +1,4 @@
-import { mcpResultSchema } from '@sb/core/types/mcp-result'
+import { mcpResultSchema } from '@cv/core/types/mcp-result'
 
 /** Asserts the versioned envelope before inspecting a fixture's text payload. */
 export function mcpText(output: unknown) {

@@ -1,7 +1,7 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { AuthMutationCtx } from '@sb/convex/functions'
-import { create } from '@sb/convex/model/agents'
-import { createDefaultAgent } from '@sb/convex/model/defaults'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { AuthMutationCtx } from '@cv/convex/functions'
+import { create } from '@cv/convex/model/agents'
+import { createDefaultAgent } from '@cv/convex/model/defaults'
 import { expect, test } from 'bun:test'
 
 test('creation persists the agent and every prompt scope together', async () => {

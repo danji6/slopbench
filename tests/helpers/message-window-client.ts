@@ -1,5 +1,5 @@
-import type { MessagesWindowResult } from '@sb/convex/model/chat/queries'
-import type { MessageWindowArgs } from '@sb/convex/types'
+import type { MessagesWindowResult } from '@cv/convex/model/chat/queries'
+import type { MessageWindowArgs } from '@cv/convex/types'
 import type { ConvexReactClient } from 'convex/react'
 import { type FunctionReference, getFunctionName } from 'convex/server'
 

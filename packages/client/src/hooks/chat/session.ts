@@ -4,9 +4,9 @@ import {
   resolveSessionMode,
   toggledSessionMode,
 } from '@/lib/chat/modes'
-import { api } from '@sb/convex/_generated/api'
-import type { Doc, Id } from '@sb/convex/_generated/dataModel'
-import type { ApprovalMode } from '@sb/convex/types'
+import { api } from '@cv/convex/_generated/api'
+import type { Doc, Id } from '@cv/convex/_generated/dataModel'
+import type { ApprovalMode } from '@cv/convex/types'
 import type { OptimisticLocalStore } from 'convex/browser'
 import { useMutation, useQuery } from 'convex/react'
 import { useCallback, useEffect, useMemo } from 'react'

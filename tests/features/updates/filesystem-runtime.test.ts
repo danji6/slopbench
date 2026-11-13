@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url'
 test('filesystem tools and stream queries bundle for the Convex default runtime', async () => {
   const result = await build({
     entrypoints: [
-      fileURLToPath(import.meta.resolve('@sb/convex/model/tool/build')),
-      fileURLToPath(import.meta.resolve('@sb/convex/streams')),
+      fileURLToPath(import.meta.resolve('@cv/convex/model/tool/build')),
+      fileURLToPath(import.meta.resolve('@cv/convex/streams')),
     ],
     target: 'browser',
     tsconfig: fileURLToPath(import.meta.resolve('~/tsconfig.json')),

@@ -12,18 +12,18 @@ import {
   TrashButton,
 } from '@/components/ui'
 import { expandNumber } from '@/lib/utils'
-import { effectiveModel } from '@sb/core/discovered-model'
-import { parseModelExtraParameters } from '@sb/core/model-parameters'
+import { effectiveModel } from '@cv/core/discovered-model'
+import { parseModelExtraParameters } from '@cv/core/model-parameters'
 import {
   DEFAULT_BINARY_REASONING_PARAMETER,
   defaultModelReasoning,
   normalizeBinaryReasoningParameter,
-} from '@sb/core/model-reasoning'
+} from '@cv/core/model-reasoning'
 import {
   type ModelReasoning,
   REASONING_TIERS,
   type ReasoningTier,
-} from '@sb/core/types'
+} from '@cv/core/types'
 import { useState } from 'react'
 
 import { InferenceSettings } from '../../models'

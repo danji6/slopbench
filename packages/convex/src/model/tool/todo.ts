@@ -1,6 +1,6 @@
-import { TODO_EDIT_STATUSES } from '@sb/core/const'
-import { MAX_TODO_CONTENT_CHARS, MAX_TODO_ITEMS } from '@sb/core/limits'
-import { TOOL_DESCRIPTIONS } from '@sb/core/types'
+import { TODO_EDIT_STATUSES } from '@cv/core/const'
+import { MAX_TODO_CONTENT_CHARS, MAX_TODO_ITEMS } from '@cv/core/limits'
+import { TOOL_DESCRIPTIONS } from '@cv/core/types'
 
 import { internal } from '../../_generated/api'
 import { ToolError } from '../../errors'

@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
-import { McpRegistry } from '@sb/sidecar/mcp/external/registry'
+import { McpRegistry } from '@cv/sidecar/mcp/external/registry'
 import { expect, test } from 'bun:test'
 import { randomUUID } from 'node:crypto'
 import { mcpText } from '~/tests/helpers/mcp-result'

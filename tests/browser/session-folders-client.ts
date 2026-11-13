@@ -1,7 +1,7 @@
-import { matchesSessionSearch } from '@sb/core/session-search/filters'
-import { parseSessionSearch } from '@sb/core/session-search/parse'
-import type { SessionParticipant } from '@sb/core/types/sessions'
-import { folderTrail, projectFolderMove } from '@sb/core/utils/folder-tree'
+import { matchesSessionSearch } from '@cv/core/session-search/filters'
+import { parseSessionSearch } from '@cv/core/session-search/parse'
+import type { SessionParticipant } from '@cv/core/types/sessions'
+import { folderTrail, projectFolderMove } from '@cv/core/utils/folder-tree'
 import type { ConvexReactClient } from 'convex/react'
 import { type FunctionReference, getFunctionName } from 'convex/server'
 
@@ -30,12 +30,12 @@ const searchFixtures = new URLSearchParams(location.search).has(
 let folders: FixtureFolder[] = [
   { _id: 'a', name: 'Portfolio', position: 0 },
   { _id: 'n', name: 'Design', parentId: 'a', position: 0 },
-  { _id: 'b', name: 'SlopBench', position: 1 },
+  { _id: 'b', name: 'Corvori', position: 1 },
 ]
 let sessions: FixtureSession[] = [
   { _id: 's1', title: 'Portfolio chat', folderId: 'a', pinned: false },
   { _id: 's2', title: 'Design chat', folderId: 'n', pinned: false },
-  { _id: 's3', title: 'SlopBench chat', folderId: 'b', pinned: false },
+  { _id: 's3', title: 'Corvori chat', folderId: 'b', pinned: false },
 ]
 if (new URLSearchParams(location.search).has('manyFolders')) {
   for (const parentId of [undefined, 'a']) {

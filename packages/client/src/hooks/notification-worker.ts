@@ -8,9 +8,9 @@ import {
   isWorkerAction,
 } from '@/lib/notification-worker-actions'
 import { toastError } from '@/lib/notifications'
-import { api } from '@sb/convex/_generated/api'
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { NotificationWorkerAction } from '@sb/core/notification-actions'
+import { api } from '@cv/convex/_generated/api'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { NotificationWorkerAction } from '@cv/core/notification-actions'
 import { useMutation } from 'convex/react'
 import { ConvexError } from 'convex/values'
 import { useCallback, useEffect } from 'react'

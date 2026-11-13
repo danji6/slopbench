@@ -1,10 +1,10 @@
 /// <reference types="bun-types" />
-import { injectDueReminders } from '@sb/convex/model/chat/reminders'
-import { _edit, _write, applyTodoEdits } from '@sb/convex/model/todos'
-import { getEnabledTools } from '@sb/convex/model/tool/build'
-import { resolveToolManifest } from '@sb/convex/model/tool/manifest'
-import type { TodoItem } from '@sb/convex/types'
-import { TODO_NUDGE_INTERVAL_STEPS, TODO_TOOL_TOGGLE } from '@sb/core/const'
+import { injectDueReminders } from '@cv/convex/model/chat/reminders'
+import { _edit, _write, applyTodoEdits } from '@cv/convex/model/todos'
+import { getEnabledTools } from '@cv/convex/model/tool/build'
+import { resolveToolManifest } from '@cv/convex/model/tool/manifest'
+import type { TodoItem } from '@cv/convex/types'
+import { TODO_NUDGE_INTERVAL_STEPS, TODO_TOOL_TOGGLE } from '@cv/core/const'
 import { describe, expect, test } from 'bun:test'
 
 type CtxArgs = {

@@ -2,11 +2,11 @@ import {
   isRelativeFilePath,
   selectFileWorkspace,
   withAgentHome,
-} from '@sb/core/workspace/personal'
+} from '@cv/core/workspace/personal'
 import {
   parseScopedPath,
   scopedDisplayPath,
-} from '@sb/core/workspace/scoped-path'
+} from '@cv/core/workspace/scoped-path'
 import { expect, test } from 'bun:test'
 
 test('filesystem prefixes preserve literal filenames and root references', () => {

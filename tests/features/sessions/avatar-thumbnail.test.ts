@@ -1,4 +1,4 @@
-import { pngImage, thumbnailImage } from '@sb/sidecar/io/image'
+import { pngImage, thumbnailImage } from '@cv/sidecar/io/image'
 import { afterEach, describe, expect, test } from 'bun:test'
 import sharp from 'sharp'
 

@@ -1,5 +1,5 @@
-import type { WebFetchQuery } from '@sb/core/types'
-import { MAX_WEB_FETCH_LENGTH } from '@sb/core/types'
+import type { WebFetchQuery } from '@cv/core/types'
+import { MAX_WEB_FETCH_LENGTH } from '@cv/core/types'
 
 import { type RequestContext, formatErrorMessage } from '../http'
 import { fetchBuiltin } from './builtin'

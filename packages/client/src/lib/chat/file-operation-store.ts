@@ -1,5 +1,5 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { APP_ID } from '@sb/core/const'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import { APP_ID } from '@cv/core/const'
 
 type OperationState = {
   id?: Id<'agentFileOperations'>

@@ -1,6 +1,6 @@
 /// <reference types="bun-types" />
-import { resumeAgentMessage } from '@sb/convex/model/chat/commands'
-import { executeResume } from '@sb/convex/model/chat/send'
+import { resumeAgentMessage } from '@cv/convex/model/chat/commands'
+import { executeResume } from '@cv/convex/model/chat/send'
 import { describe, expect, test } from 'bun:test'
 
 function resumeCtx({

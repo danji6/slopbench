@@ -1,21 +1,21 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { ActionCtx } from '@sb/convex/_generated/server'
-import { complete, fail } from '@sb/convex/model/skills/completion'
-import { claimExecution } from '@sb/convex/model/skills/execution'
-import { run } from '@sb/convex/model/skills/filesAction'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { ActionCtx } from '@cv/convex/_generated/server'
+import { complete, fail } from '@cv/convex/model/skills/completion'
+import { claimExecution } from '@cv/convex/model/skills/execution'
+import { run } from '@cv/convex/model/skills/filesAction'
 import {
   continueImport,
   finish,
   prepare,
-} from '@sb/convex/model/skills/imports'
-import { retry, start } from '@sb/convex/model/skills/operations'
+} from '@cv/convex/model/skills/imports'
+import { retry, start } from '@cv/convex/model/skills/operations'
 import type {
   CompleteAgentFileArgs,
   FinishSkillImportArgs,
   PrepareSkillImportArgs,
-} from '@sb/convex/types'
-import { libraryRoot } from '@sb/sidecar/agent-files/storage'
-import type { createApp } from '@sb/sidecar/main'
+} from '@cv/convex/types'
+import { libraryRoot } from '@cv/sidecar/agent-files/storage'
+import type { createApp } from '@cv/sidecar/main'
 import { afterAll, beforeAll, expect, test } from 'bun:test'
 import { getFunctionName } from 'convex/server'
 import type { FunctionReference } from 'convex/server'
@@ -42,7 +42,7 @@ beforeAll(async () => {
   root = await mkdtemp(path.join(tmpdir(), 'skill-import-integration-'))
   process.env.CHAT_SIDECAR_DATA_DIR = path.join(root, 'data')
   process.env.SIDECAR_SECRET = 'fixture-secret'
-  const { createApp } = await import('@sb/sidecar/main')
+  const { createApp } = await import('@cv/sidecar/main')
   agentFilesRoutes = createApp(async (_c, next) => next())
   globalThis.fetch = (async (
     input: string | URL | Request,

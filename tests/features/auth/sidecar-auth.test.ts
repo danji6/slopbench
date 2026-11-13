@@ -1,6 +1,6 @@
-import { sidecarRequest } from '@sb/convex/model/sidecarTransport'
-import { sidecarAuthentication } from '@sb/sidecar/auth'
-import { jobEnv } from '@sb/sidecar/shell/system-shell'
+import { sidecarRequest } from '@cv/convex/model/sidecarTransport'
+import { sidecarAuthentication } from '@cv/sidecar/auth'
+import { jobEnv } from '@cv/sidecar/shell/system-shell'
 import { describe, expect, test } from 'bun:test'
 import { Hono } from 'hono'
 
@@ -48,7 +48,7 @@ describe('sidecar authentication', () => {
   test('internal requests preserve headers and disable redirects', () => {
     const init = sidecarRequest({ headers: { Accept: 'text/event-stream' } })
     expect(new Headers(init.headers).get('Authorization')).toBe(
-      'Bearer slopbench-test-sidecar-credential',
+      'Bearer corvori-test-sidecar-credential',
     )
     expect(new Headers(init.headers).get('Accept')).toBe('text/event-stream')
     expect(init.redirect).toBe('error')

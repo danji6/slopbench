@@ -1,5 +1,5 @@
 import type * as RecentDirectoryStore from '@/lib/chat/recent-directory-store'
-import { APP_ID } from '@sb/core/const'
+import { APP_ID } from '@cv/core/const'
 import { afterEach, beforeAll, expect, test } from 'bun:test'
 import { setupDom } from '~/tests/setup/dom'
 

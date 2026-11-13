@@ -10,7 +10,7 @@ import {
   notificationPreviewFromParts,
   notifyAgentEvent,
   notifyUserMessage,
-} from '@sb/convex/model/notifications'
+} from '@cv/convex/model/notifications'
 import { describe, expect, test } from 'bun:test'
 import { fakeCtx } from '~/tests/setup/notifications'
 

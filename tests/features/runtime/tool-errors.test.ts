@@ -1,4 +1,4 @@
-import { trackToolErrors } from '@sb/convex/model/stream/transformers'
+import { trackToolErrors } from '@cv/convex/model/stream/transformers'
 import type { TextStreamPart, ToolSet } from 'ai'
 import { expect, test } from 'bun:test'
 import { collectStream, streamOf } from '~/tests/helpers/streams'

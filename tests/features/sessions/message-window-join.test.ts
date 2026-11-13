@@ -1,7 +1,7 @@
 /// <reference types="bun-types" />
-import type { Doc } from '@sb/convex/_generated/dataModel'
-import { joinSegmentsWithinBudget } from '@sb/convex/model/chat'
-import { serializedSize } from '@sb/core/utils/size'
+import type { Doc } from '@cv/convex/_generated/dataModel'
+import { joinSegmentsWithinBudget } from '@cv/convex/model/chat'
+import { serializedSize } from '@cv/core/utils/size'
 import { describe, expect, test } from 'bun:test'
 
 type Row = Record<string, unknown> & {

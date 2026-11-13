@@ -1,4 +1,4 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 
 export type Row = Record<string, unknown> & { _id: string }
 

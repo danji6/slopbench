@@ -1,6 +1,6 @@
-import { formatAlwaysAllowLabel } from '@sb/core/approval-label'
-import { type ApprovalHold, getCommand } from '@sb/core/approval-presentation'
-import type { PathApprovalStatus } from '@sb/core/workspace/path-policy'
+import { formatAlwaysAllowLabel } from '@cv/core/approval-label'
+import { type ApprovalHold, getCommand } from '@cv/core/approval-presentation'
+import type { PathApprovalStatus } from '@cv/core/workspace/path-policy'
 
 import type { ToolApprovals } from '../../types'
 import {

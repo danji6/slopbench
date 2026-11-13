@@ -1,5 +1,5 @@
-import { CheckpointManager } from '@sb/sidecar/checkpoints/manager'
-import { CheckpointStorage } from '@sb/sidecar/checkpoints/storage'
+import { CheckpointManager } from '@cv/sidecar/checkpoints/manager'
+import { CheckpointStorage } from '@cv/sidecar/checkpoints/storage'
 import { mkdir, mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'

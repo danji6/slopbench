@@ -4,8 +4,8 @@ import type {
   SkillImportCandidate,
   SkillImportPage,
   SkillMetadata,
-} from '@sb/core/skills/types'
-import { errorMessage } from '@sb/core/utils/errors'
+} from '@cv/core/skills/types'
+import { errorMessage } from '@cv/core/utils/errors'
 
 import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'

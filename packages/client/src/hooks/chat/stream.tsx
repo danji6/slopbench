@@ -6,8 +6,8 @@ import {
   messageActivitySignature,
 } from '@/lib/chat/messages'
 import { type StreamStore, createStreamStore } from '@/lib/chat/stream-store'
-import { api } from '@sb/convex/_generated/api'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import { api } from '@cv/convex/_generated/api'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import type { ChatStatus, UIMessage } from 'ai'
 import { useQuery } from 'convex/react'
 import {

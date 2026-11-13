@@ -1,4 +1,4 @@
-import type { FolderWorkspace } from '@sb/core/types/workspace'
+import type { FolderWorkspace } from '@cv/core/types/workspace'
 import { realpath, stat } from 'node:fs/promises'
 
 import { assertPlainPath } from '../../agent-files/storage'

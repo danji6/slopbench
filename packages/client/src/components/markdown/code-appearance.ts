@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS } from '@sb/convex/model/defaults'
+import { DEFAULT_SETTINGS } from '@cv/convex/model/defaults'
 import { createContext, useContext } from 'react'
 
 export type CodeAppearance = {

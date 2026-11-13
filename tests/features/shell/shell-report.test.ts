@@ -1,9 +1,9 @@
 import {
   SHELL_REPORT_PREFIX,
   toShellReportBlock,
-} from '@sb/convex/lib/shellReport'
-import { INJECTED_BLOCK_PREFIXES } from '@sb/convex/lib/workspace'
-import { _report } from '@sb/convex/model/shellJobs'
+} from '@cv/convex/lib/shellReport'
+import { INJECTED_BLOCK_PREFIXES } from '@cv/convex/lib/workspace'
+import { _report } from '@cv/convex/model/shellJobs'
 import { describe, expect, test } from 'bun:test'
 import {
   agent,

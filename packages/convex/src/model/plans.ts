@@ -1,4 +1,4 @@
-import { applyEdits } from '@sb/core/workspace/edit'
+import { applyEdits } from '@cv/core/workspace/edit'
 
 import type { Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'

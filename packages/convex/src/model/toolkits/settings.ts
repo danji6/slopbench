@@ -1,4 +1,4 @@
-import { isSkillName, updateDisabledSkills } from '@sb/core/skills/names'
+import { isSkillName, updateDisabledSkills } from '@cv/core/skills/names'
 
 import type { Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'

@@ -1,7 +1,7 @@
-import { sha256 } from '@sb/core/sha256'
-import { SKILL_CATALOG_CHARACTERS } from '@sb/core/skills/catalog'
-import { SKILL_PAGE_SIZE } from '@sb/core/skills/types'
-import type { SkillCatalogPage, SkillCatalogSlice } from '@sb/core/skills/types'
+import { sha256 } from '@cv/core/sha256'
+import { SKILL_CATALOG_CHARACTERS } from '@cv/core/skills/catalog'
+import { SKILL_PAGE_SIZE } from '@cv/core/skills/types'
+import type { SkillCatalogPage, SkillCatalogSlice } from '@cv/core/skills/types'
 
 export type CatalogRequest = {
   cursor?: string | null

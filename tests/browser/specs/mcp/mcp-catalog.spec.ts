@@ -45,7 +45,7 @@ test('catalog browsing reaches tools beyond 100 and edits their independent poli
   )
   expect(downloadBounds!.x).toBe(descriptionBounds!.x)
   await download.scrollIntoViewIfNeeded()
-  await page.screenshot({ path: '/tmp/slopbench-mcp-description.png' })
+  await page.screenshot({ path: '/tmp/corvori-mcp-description.png' })
   await page.getByRole('switch', { name: 'Enabled', exact: true }).click()
   await expect(page.getByLabel('Catalog policy')).toContainText(
     '"enabled":false',

@@ -1,4 +1,4 @@
-import { error } from '@sb/convex/errors'
+import { error } from '@cv/convex/errors'
 
 import type { InferenceAdapter } from '../inferenceTypes'
 import { withOpenAICacheUsage } from '../openai/cacheUsage'

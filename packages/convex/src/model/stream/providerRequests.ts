@@ -1,5 +1,5 @@
-import type { ProviderContinuity } from '@sb/core/provider-continuity'
-import { isRoutingHeader } from '@sb/core/provider-continuity'
+import type { ProviderContinuity } from '@cv/core/provider-continuity'
+import { isRoutingHeader } from '@cv/core/provider-continuity'
 
 import type { MutationCtx } from '../../_generated/server'
 import { error } from '../../errors'

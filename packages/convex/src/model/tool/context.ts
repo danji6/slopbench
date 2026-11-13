@@ -1,4 +1,4 @@
-import type { FolderWorkspace } from '@sb/core/types/workspace'
+import type { FolderWorkspace } from '@cv/core/types/workspace'
 
 import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'

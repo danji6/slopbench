@@ -1,5 +1,5 @@
-import type { Doc } from '@sb/convex/_generated/dataModel'
-import { type buildProviderHistory } from '@sb/convex/actions/stream/history'
+import type { Doc } from '@cv/convex/_generated/dataModel'
+import { type buildProviderHistory } from '@cv/convex/actions/stream/history'
 import type { UIMessage } from 'ai'
 
 export const SELF = 'agent_self' as Doc<'agents'>['_id']

@@ -1,5 +1,5 @@
-import type { McpRuntimeScope } from '@sb/core/types'
-import type { McpOperationStatus } from '@sb/core/types/mcp-operation'
+import type { McpRuntimeScope } from '@cv/core/types'
+import type { McpOperationStatus } from '@cv/core/types/mcp-operation'
 import { createHash } from 'node:crypto'
 
 import type { OperationStart } from './operation'

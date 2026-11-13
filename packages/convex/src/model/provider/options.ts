@@ -1,7 +1,7 @@
 import type { SharedV3ProviderOptions } from '@ai-sdk/provider'
-import { normalizeReasoningEffort } from '@sb/core/model-reasoning'
-import { parseModelReference } from '@sb/core/model-reference'
-import type { ProviderTransportObserver } from '@sb/core/provider-continuity'
+import { normalizeReasoningEffort } from '@cv/core/model-reasoning'
+import { parseModelReference } from '@cv/core/model-reference'
+import type { ProviderTransportObserver } from '@cv/core/provider-continuity'
 import type { LanguageModel } from 'ai'
 
 import { error } from '../../errors'

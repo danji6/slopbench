@@ -1,8 +1,8 @@
 import {
   MESSAGE_WINDOW_BUDGET_BYTES,
   MESSAGE_WINDOW_MAX_ROWS,
-} from '@sb/core/const'
-import { orderContextNotes } from '@sb/core/context-notes'
+} from '@cv/core/const'
+import { orderContextNotes } from '@cv/core/context-notes'
 import type { UIMessage } from 'ai'
 import { dequal } from 'dequal'
 

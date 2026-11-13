@@ -1,4 +1,4 @@
-import type { ShellToolOutput } from '@sb/core/types/tools'
+import type { ShellToolOutput } from '@cv/core/types/tools'
 import type { UIMessage } from 'ai'
 
 import { isShellReportPart } from './parts'

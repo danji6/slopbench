@@ -1,12 +1,12 @@
 /// <reference types="bun-types" />
-import * as V from '@sb/convex/validators'
+import * as V from '@cv/convex/validators'
 import { describe, expect, test } from 'bun:test'
 import { validate } from 'convex-helpers/validators'
 
 /** Every payload the note/command writers produce, as they produce it. */
 const EXTRAS = {
   reminder: { id: 'rem_1', name: 'Stand-up' },
-  workspace: { label: 'slopbench' },
+  workspace: { label: 'corvori' },
   unboundWorkspace: {},
   mode: { from: 'normal', to: 'plan' },
   command: { name: 'compact', status: 'ran' },

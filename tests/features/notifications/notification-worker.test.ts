@@ -79,7 +79,7 @@ describe('notification service worker', () => {
       })
       listeners.get('message')?.({
         data: {
-          type: 'slopbench:notification-action-ack',
+          type: 'corvori:notification-action-ack',
           requestId: `n:${action}`,
         },
         waitUntil,
@@ -158,7 +158,7 @@ describe('notification service worker', () => {
     await pending
 
     expect(postMessage).toHaveBeenCalledWith({
-      type: 'slopbench:notification-action',
+      type: 'corvori:notification-action',
       action: 'show',
       notificationId: 'notification_1',
       sessionId: 'session_1',

@@ -1,6 +1,6 @@
-import { mcpConnectionSchema } from '@sb/core/types'
-import { mcpProtocolRequestSchema } from '@sb/core/types/mcp-protocol'
-import { mcpResult } from '@sb/core/types/mcp-result'
+import { mcpConnectionSchema } from '@cv/core/types'
+import { mcpProtocolRequestSchema } from '@cv/core/types/mcp-protocol'
+import { mcpResult } from '@cv/core/types/mcp-result'
 import { Hono } from 'hono'
 import { z } from 'zod'
 

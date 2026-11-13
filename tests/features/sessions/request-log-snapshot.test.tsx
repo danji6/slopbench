@@ -1,5 +1,5 @@
 import { useRequestLogSnapshot } from '@/hooks/chat/request-log'
-import type { CacheDiagnostic } from '@sb/convex/types'
+import type { CacheDiagnostic } from '@cv/convex/types'
 import { afterEach, expect, test } from 'bun:test'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'

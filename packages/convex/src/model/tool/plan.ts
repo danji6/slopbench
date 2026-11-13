@@ -1,6 +1,6 @@
-import { MAX_PLAN_CONTENT_CHARS } from '@sb/core/limits'
-import { TOOL_DESCRIPTIONS, editFileFields } from '@sb/core/types'
-import { systemReminder } from '@sb/core/utils/blocks'
+import { MAX_PLAN_CONTENT_CHARS } from '@cv/core/limits'
+import { TOOL_DESCRIPTIONS, editFileFields } from '@cv/core/types'
+import { systemReminder } from '@cv/core/utils/blocks'
 import type { ToolSet } from 'ai'
 
 import { internal } from '../../_generated/api'

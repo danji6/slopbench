@@ -1,6 +1,6 @@
 import { useTimer } from '@/hooks/timer'
 import { formatDuration } from '@/lib/utils'
-import type { ReasoningPart } from '@sb/convex/types'
+import type { ReasoningPart } from '@cv/convex/types'
 import { useMemo } from 'react'
 
 export function useReasoningLabel(part: ReasoningPart) {

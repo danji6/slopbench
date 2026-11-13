@@ -46,7 +46,7 @@ Case times sum the timings printed for individual cases, excluding setup/teardow
 - Both native `bun test` and `bun run test` discover only the same 21 smoke cases.
 - All 13 feature commands ran a selected case successfully with only their own directory and smoke file in discovery. Direct-file invocation was also checked.
 - An intentionally failing temporary feature test left smoke passing, failed its feature command, and stopped `test:all` before the next feature. The probe was removed.
-- Full Bun logs match all 333 retained files exactly once. The five REA conformance skips are pre-existing and require `SLOPBENCH_REA_ROOT`.
+- Full Bun logs match all 333 retained files exactly once. The five REA conformance skips are pre-existing and require `CORVORI_REA_ROOT`.
 - Native per-feature processes preserve the existing QuickJS preload on Bun 1.3.14; only UI uses file isolation for module mocks. The baseline bundling check failed in the monolith but now passes in the updates suite.
 - Chromium: 188 passed in the initial full run; the six failures were stale labels/copy and a trigger auto-scroll race, all repaired and passed in a focused run. All 15 skills cases passed again after splitting folder coverage. All 194 retained Chromium cases are verified.
 - All ten browser feature commands were checked for correct discovery. WebKit launch is blocked by missing host shared libraries on this Arch-based machine; its 194 cases remain configured for explicit runs on a supported host.

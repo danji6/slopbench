@@ -1,17 +1,17 @@
 import { insertComposerText } from '@/lib/chat/composer-insert'
 import { readTextPreview } from '@/lib/text-file-preview'
-import { api } from '@sb/convex/_generated/api'
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { MAX_MESSAGE_PART_BYTES } from '@sb/core/limits'
+import { api } from '@cv/convex/_generated/api'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import { MAX_MESSAGE_PART_BYTES } from '@cv/core/limits'
 import type {
   McpProtocolCheckResult,
   McpProtocolRequest,
-} from '@sb/core/types/mcp-protocol'
-import { mcpProtocolRequestSchema } from '@sb/core/types/mcp-protocol'
+} from '@cv/core/types/mcp-protocol'
+import { mcpProtocolRequestSchema } from '@cv/core/types/mcp-protocol'
 import {
   MAX_MCP_RESULT_BYTES,
   mcpResultSchema,
-} from '@sb/core/types/mcp-result'
+} from '@cv/core/types/mcp-result'
 import { useAction, useQuery } from 'convex/react'
 import { useEffect, useRef, useState } from 'react'
 

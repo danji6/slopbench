@@ -1,4 +1,4 @@
-import { repairToolCall } from '@sb/convex/model/tool/repair'
+import { repairToolCall } from '@cv/convex/model/tool/repair'
 import { describe, expect, test } from 'bun:test'
 
 function toolCall(input: unknown, toolName = 'edit_file') {

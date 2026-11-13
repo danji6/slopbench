@@ -9,7 +9,7 @@ import {
   attachmentTokens,
   readUtf8Range,
   shouldAttachTextPaste,
-} from '@sb/core/attachments'
+} from '@cv/core/attachments'
 import { describe, expect, test } from 'bun:test'
 
 describe('durable attachment links', () => {

@@ -6,7 +6,7 @@ import {
 } from '@/hooks/chat'
 import { useScrollIntoView } from '@/hooks/chat/scroll-into-view'
 import type { SourceMessagePart } from '@/lib/chat/combine'
-import { api } from '@sb/convex/_generated/api'
+import { api } from '@cv/convex/_generated/api'
 import type { ToolUIPart } from 'ai'
 import { useQuery } from 'convex/react'
 import { useLayoutEffect, useRef } from 'react'

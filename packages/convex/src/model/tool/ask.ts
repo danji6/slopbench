@@ -5,8 +5,8 @@ import {
   MAX_ASK_QUESTIONS,
   MAX_ASK_QUESTION_CHARS,
   MAX_ASK_RESPONSE_CHARS,
-} from '@sb/core/limits'
-import { TOOL_DESCRIPTIONS } from '@sb/core/types'
+} from '@cv/core/limits'
+import { TOOL_DESCRIPTIONS } from '@cv/core/types'
 
 /** Builds the client-executed tool that pauses a turn for human input. */
 export async function createAskTool() {

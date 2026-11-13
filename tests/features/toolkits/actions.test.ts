@@ -1,5 +1,5 @@
-import { discover, link, refresh } from '@sb/convex/model/toolkits/actions'
-import { previewSkills } from '@sb/convex/model/toolkits/skillPreview'
+import { discover, link, refresh } from '@cv/convex/model/toolkits/actions'
+import { previewSkills } from '@cv/convex/model/toolkits/skillPreview'
 import { expect, test } from 'bun:test'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'

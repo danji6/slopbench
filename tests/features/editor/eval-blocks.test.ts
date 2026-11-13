@@ -1,7 +1,7 @@
 /// <reference types="bun-types" />
-import { evaluate } from '@sb/core/interpreter/evaluate'
-import { hasInterpolation, parse } from '@sb/core/interpreter/parse'
-import { createVariableStore } from '@sb/core/interpreter/store'
+import { evaluate } from '@cv/core/interpreter/evaluate'
+import { hasInterpolation, parse } from '@cv/core/interpreter/parse'
+import { createVariableStore } from '@cv/core/interpreter/store'
 import { describe, expect, test } from 'bun:test'
 
 describe('eval blocks', () => {

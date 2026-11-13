@@ -15,10 +15,10 @@
     "types": ["node"],
     "paths": {
       "@/*": ["./packages/client/src/*"],
-      "@sb/client/*": ["./packages/client/src/*"],
-      "@sb/convex/*": ["./packages/convex/src/*"],
-      "@sb/core/*": ["./packages/core/src/*"],
-      "@sb/sidecar/*": ["./packages/sidecar/src/*"],
+      "@cv/client/*": ["./packages/client/src/*"],
+      "@cv/convex/*": ["./packages/convex/src/*"],
+      "@cv/core/*": ["./packages/core/src/*"],
+      "@cv/sidecar/*": ["./packages/sidecar/src/*"],
       "~/*": ["./*"]
     }
   },

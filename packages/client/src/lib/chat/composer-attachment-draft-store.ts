@@ -1,4 +1,4 @@
-import { APP_ID } from '@sb/core/const'
+import { APP_ID } from '@cv/core/const'
 
 const DATABASE_NAME = `${APP_ID}-composer-drafts`
 const STORE_NAME = 'attachments'

@@ -1,6 +1,6 @@
 import { createUsableContext } from '@/hooks'
 import { cn } from '@/lib/utils'
-import { truncateToExtension } from '@sb/core/utils/strings'
+import { truncateToExtension } from '@cv/core/utils/strings'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   CheckIcon,

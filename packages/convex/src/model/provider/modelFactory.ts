@@ -1,5 +1,5 @@
-import { providerFeatures } from '@sb/core/provider-registry'
-import type { ModelReasoning } from '@sb/core/types'
+import { providerFeatures } from '@cv/core/provider-registry'
+import type { ModelReasoning } from '@cv/core/types'
 import type { LanguageModel, LanguageModelMiddleware } from 'ai'
 
 import { error } from '../../errors'

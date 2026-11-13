@@ -5,9 +5,9 @@ import {
   groupPartAddresses,
   groupParts,
 } from '@/lib/chat/parts'
-import type { Doc, Id } from '@sb/convex/_generated/dataModel'
-import type { Role } from '@sb/convex/lib/roles'
-import { assertRangeDeletable } from '@sb/convex/model/chat'
+import type { Doc, Id } from '@cv/convex/_generated/dataModel'
+import type { Role } from '@cv/convex/lib/roles'
+import { assertRangeDeletable } from '@cv/convex/model/chat'
 import type { UIMessage } from 'ai'
 import { describe, expect, test } from 'bun:test'
 

@@ -1,4 +1,4 @@
-import { _claim } from '@sb/convex/model/stream/lifecycle'
+import { _claim } from '@cv/convex/model/stream/lifecycle'
 import { describe, expect, test } from 'bun:test'
 import { fakeCtx } from '~/tests/helpers/stream-lifecycle'
 

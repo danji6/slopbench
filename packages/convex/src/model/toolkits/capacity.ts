@@ -1,5 +1,5 @@
-import { MAX_MCP_SERVERS } from '@sb/core/limits'
-import { MAX_TOOLKITS } from '@sb/core/types/toolkit'
+import { MAX_MCP_SERVERS } from '@cv/core/limits'
+import { MAX_TOOLKITS } from '@cv/core/types/toolkit'
 
 import type { Id } from '../../_generated/dataModel'
 import type { QueryCtx } from '../../_generated/server'

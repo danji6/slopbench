@@ -1,7 +1,7 @@
-import { resetSessionCache } from '@sb/convex/model/chat/commands'
-import { prepareCapabilities } from '@sb/convex/model/stream/capabilities'
-import { _complete } from '@sb/convex/model/stream/lifecycleTerminal'
-import { capabilitySource } from '@sb/convex/model/tool/capabilitySource'
+import { resetSessionCache } from '@cv/convex/model/chat/commands'
+import { prepareCapabilities } from '@cv/convex/model/stream/capabilities'
+import { _complete } from '@cv/convex/model/stream/lifecycleTerminal'
+import { capabilitySource } from '@cv/convex/model/tool/capabilitySource'
 import { expect, spyOn, test } from 'bun:test'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -267,7 +267,7 @@ test('stale capability preparation cannot acknowledge newer configuration or ins
   try {
     const first = (await f.nextTurn())!
     const data = await f.action.runQuery(
-      (await import('@sb/convex/_generated/api')).internal.streams._getContext,
+      (await import('@cv/convex/_generated/api')).internal.streams._getContext,
       f.execution,
     )
     const source = await capabilitySource(data!)
@@ -300,7 +300,7 @@ test('a dispatcher call approved before revocation cannot execute on resume', as
     const { convertToModelMessages, generateText } = await import('ai')
     const { MockLanguageModelV4 } = await import('ai/test')
     const { dispatchLanguageModel, rememberWireCalls } =
-      await import('@sb/convex/model/tool/dispatchTransport')
+      await import('@cv/convex/model/tool/dispatchTransport')
     const args = { command: 'pwd', description: 'Read the current directory' }
     const part = {
       type: 'tool-shell',
@@ -355,8 +355,8 @@ test('a dispatcher call approved before revocation cannot execute on resume', as
 test('toolkit selections and updates are announced without enabling companion tools', async () => {
   const f = await fixture()
   try {
-    const { publish } = await import('@sb/convex/model/toolkits/publication')
-    const { select } = await import('@sb/convex/model/toolkits/selection')
+    const { publish } = await import('@cv/convex/model/toolkits/publication')
+    const { select } = await import('@cv/convex/model/toolkits/selection')
     await f.db.patch('owner', { subject: 'owner' })
     const first = (await f.nextTurn())!
     const toolkitId = await publish(f.ctx, {

@@ -1,5 +1,5 @@
-import type { ToolkitSettingsArgs } from '@sb/convex/types'
-import { updateDisabledSkills } from '@sb/core/skills/names'
+import type { ToolkitSettingsArgs } from '@cv/convex/types'
+import { updateDisabledSkills } from '@cv/core/skills/names'
 import type { OptimisticLocalStore, OptimisticUpdate } from 'convex/browser'
 import type { ConvexReactClient } from 'convex/react'
 import { type FunctionReference, getFunctionName } from 'convex/server'

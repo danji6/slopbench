@@ -1,6 +1,6 @@
 import { v } from 'convex/values'
 
-/** Mirrors `ShellJobStatus` from `@sb/core/types/tools`. */
+/** Mirrors `ShellJobStatus` from `@cv/core/types/tools`. */
 export const shellJobStatusValidator = v.union(
   v.literal('running'),
   v.literal('done'),
@@ -61,7 +61,7 @@ export const shellOutputRangeValidator = v.object({
   ),
 })
 
-/** Mirrors `ShellToolOutput` from `@sb/core/types/tools`. */
+/** Mirrors `ShellToolOutput` from `@cv/core/types/tools`. */
 export const shellToolOutputValidator = v.object({
   jobId: v.string(),
   status: shellJobStatusValidator,

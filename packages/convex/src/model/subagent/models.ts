@@ -1,7 +1,7 @@
 import {
   defaultModelReasoning,
   normalizeReasoningEffort,
-} from '@sb/core/model-reasoning'
+} from '@cv/core/model-reasoning'
 
 import type { Doc } from '../../_generated/dataModel'
 import type { QueryCtx } from '../../_generated/server'

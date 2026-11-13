@@ -1,4 +1,4 @@
-import { assertPersonalScope } from '@sb/core/workspace/personal'
+import { assertPersonalScope } from '@cv/core/workspace/personal'
 import path from 'node:path'
 
 import {

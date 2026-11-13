@@ -1,18 +1,18 @@
-import type { ActionCtx } from '@sb/convex/_generated/server'
-import { assignments } from '@sb/convex/model/skills/endpoints'
+import type { ActionCtx } from '@cv/convex/_generated/server'
+import { assignments } from '@cv/convex/model/skills/endpoints'
 import {
   catalogForTool,
   catalogNote,
   compactSkillCatalog,
   readSkillCatalog,
-} from '@sb/convex/model/skills/runtime'
-import type { AgentWithHome, SkillAssignmentsArgs } from '@sb/convex/types'
-import { SKILL_CATALOG_CHARACTERS } from '@sb/core/skills/catalog'
-import type { FolderWorkspace } from '@sb/core/types/workspace'
+} from '@cv/convex/model/skills/runtime'
+import type { AgentWithHome, SkillAssignmentsArgs } from '@cv/convex/types'
+import { SKILL_CATALOG_CHARACTERS } from '@cv/core/skills/catalog'
+import type { FolderWorkspace } from '@cv/core/types/workspace'
 import {
   toolkitCatalogSchema,
   toolkitSkillCatalog,
-} from '@sb/sidecar/toolkits/catalog'
+} from '@cv/sidecar/toolkits/catalog'
 import { expect, test } from 'bun:test'
 import { getFunctionName } from 'convex/server'
 import { skillsDatabase } from '~/tests/helpers/skills-db'

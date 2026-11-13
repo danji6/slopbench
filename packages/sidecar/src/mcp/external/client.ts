@@ -6,13 +6,13 @@ import {
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { WebSocketClientTransport } from '@modelcontextprotocol/sdk/client/websocket.js'
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
-import { APP_ID } from '@sb/core/const'
+import { APP_ID } from '@cv/core/const'
 import {
   type McpConnection,
   type McpDialedTransport,
   type McpToolMeta,
   mcpTransportCandidates,
-} from '@sb/core/types'
+} from '@cv/core/types'
 
 import { assertToolkitRevision } from '../../toolkits/manifest'
 import { discoverTools } from './discovery'

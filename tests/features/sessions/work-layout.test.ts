@@ -10,7 +10,7 @@ import { buildWorkLayout, createWorkIdentity } from '@/lib/chat/work-layout'
 import { projectWorkRows } from '@/lib/chat/work-rows'
 import { createWorkExpansionStore } from '@/lib/chat/work-state'
 import { summarizeWork } from '@/lib/chat/work-summary'
-import type { ShellJobSummary } from '@sb/core/types/tools'
+import type { ShellJobSummary } from '@cv/core/types/tools'
 import { describe, expect, test } from 'bun:test'
 import {
   layout,

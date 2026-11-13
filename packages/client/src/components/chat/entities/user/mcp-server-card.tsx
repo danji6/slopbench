@@ -9,14 +9,14 @@ import {
 } from '@/components/ui'
 import { useMcpToolDiscovery } from '@/hooks/chat'
 import { extractErrorMessage } from '@/lib/errors'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 import {
   type McpDialedTransport,
   type McpToolMeta,
   type McpTransport,
   SUPPORTED_MCP_TRANSPORTS,
   mcpToolName,
-} from '@sb/core/types'
+} from '@cv/core/types'
 import {
   ArrowDownIcon,
   ArrowUpIcon,

@@ -1,6 +1,6 @@
-import { ToolError, toolFailure } from '@sb/convex/errors'
-import { getMcpUrl } from '@sb/convex/model/tool/mcp'
-import { TOOL_METAS } from '@sb/convex/model/tool/metas'
+import { ToolError, toolFailure } from '@cv/convex/errors'
+import { getMcpUrl } from '@cv/convex/model/tool/mcp'
+import { TOOL_METAS } from '@cv/convex/model/tool/metas'
 import { describe, expect, test } from 'bun:test'
 
 describe('MCP tool URL', () => {

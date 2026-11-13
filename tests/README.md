@@ -76,7 +76,7 @@ initialization remains unchanged.
 Prefer readiness signals to fixed sleeps. Real process, HTTP, timer, and browser
 checks remain useful when they exercise additional behavior. Keep them in the
 appropriate opt-in suite, using local fixtures instead of deployment credentials.
-The five existing REA conformance cases require `SLOPBENCH_REA_ROOT` pointing to
+The five existing REA conformance cases require `CORVORI_REA_ROOT` pointing to
 a local toolkit; otherwise they remain explicitly skipped.
 
 ## CI

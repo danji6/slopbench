@@ -1,4 +1,4 @@
-import { shellBasename } from '@sb/core/shell/name'
+import { shellBasename } from '@cv/core/shell/name'
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { delimiter, join } from 'node:path'

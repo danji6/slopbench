@@ -1,9 +1,9 @@
-import type { McpDefinitionPage } from '@sb/core/mcp-definition-presentation'
-import { mcpBrokerSearchSchema } from '@sb/core/types/mcp-catalog'
+import type { McpDefinitionPage } from '@cv/core/mcp-definition-presentation'
+import { mcpBrokerSearchSchema } from '@cv/core/types/mcp-catalog'
 import { expect, test } from 'bun:test'
 import { reaConformanceFixture, reaData } from '~/tests/helpers/rea-conformance'
 
-const toolkit = process.env.SLOPBENCH_REA_ROOT
+const toolkit = process.env.CORVORI_REA_ROOT
 
 // Explicit opt-in: use an installed checkout through isolated backend/sidecar fixtures.
 test.skipIf(!toolkit)(

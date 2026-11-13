@@ -4,15 +4,15 @@ import {
   toDirectoryBlock,
   toFileBlock,
   toPlanBlock,
-} from '@sb/convex/lib/workspace'
-import { decodeMcpOutput } from '@sb/core/types/mcp-result'
+} from '@cv/convex/lib/workspace'
+import { decodeMcpOutput } from '@cv/core/types/mcp-result'
 import type {
   WorkspaceBinaryRefLink,
   WorkspaceFileLink,
   WorkspaceSkippedLink,
-} from '@sb/core/types/workspace'
-import { block } from '@sb/core/utils/blocks'
-import { blockPath } from '@sb/core/workspace/blocks'
+} from '@cv/core/types/workspace'
+import { block } from '@cv/core/utils/blocks'
+import { blockPath } from '@cv/core/workspace/blocks'
 import type { UIMessage } from 'ai'
 
 import type { Id } from '../../_generated/dataModel'

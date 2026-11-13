@@ -2,8 +2,8 @@ import { buildRows, segmentGroupsFor } from '@/lib/chat/rows'
 import type { MessageRecord } from '@/lib/chat/types'
 import { buildWorkLayout } from '@/lib/chat/work-layout'
 import { projectWorkRows } from '@/lib/chat/work-rows'
-import type { ReasoningPart } from '@sb/convex/types'
-import type { ShellJobSummary } from '@sb/core/types/tools'
+import type { ReasoningPart } from '@cv/convex/types'
+import type { ShellJobSummary } from '@cv/core/types/tools'
 import type { UIMessage } from 'ai'
 
 export type Part = UIMessage['parts'][number]

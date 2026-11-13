@@ -1,9 +1,9 @@
-import { discoverModels } from '@sb/convex/model/provider/discovery'
+import { discoverModels } from '@cv/convex/model/provider/discovery'
 import {
   findCredentialsForModel,
   findModelSelection,
-} from '@sb/convex/model/provider/providers'
-import { modelReference, parseModelReference } from '@sb/core/model-reference'
+} from '@cv/convex/model/provider/providers'
+import { modelReference, parseModelReference } from '@cv/core/model-reference'
 import { describe, expect, test } from 'bun:test'
 
 function responses(pages: unknown[]) {
@@ -240,7 +240,7 @@ test('extracts advertised provider metadata without inventing reasoning tiers', 
     efforts: ['low', 'max'],
   })
   const { ollamaMetadata } =
-    await import('@sb/convex/model/provider/discovery/ollama')
+    await import('@cv/convex/model/provider/discovery/ollama')
   expect(
     ollamaMetadata({
       model_info: {

@@ -1,7 +1,7 @@
 /// <reference types="bun-types" />
-import { needsEmulator } from '@sb/core/shell/ansi'
-import type { AnsiLine } from '@sb/core/shell/ansi-scanner'
-import { createAnsiScanner } from '@sb/core/shell/ansi-scanner'
+import { needsEmulator } from '@cv/core/shell/ansi'
+import type { AnsiLine } from '@cv/core/shell/ansi-scanner'
+import { createAnsiScanner } from '@cv/core/shell/ansi-scanner'
 import { describe, expect, test } from 'bun:test'
 
 const text = (runs: AnsiLine[]) => runs.map((run) => run.text).join('')

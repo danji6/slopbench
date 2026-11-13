@@ -1,4 +1,4 @@
-import { orderContextNotes } from '@sb/core/context-notes'
+import { orderContextNotes } from '@cv/core/context-notes'
 
 import type { Id } from '../../_generated/dataModel'
 import { error } from '../../errors'

@@ -1,7 +1,7 @@
 'use node'
 
-import { isUtf8ContinuationByte } from '@sb/core/attachments'
-import { ATTACHMENT_READ_MAX_BYTES } from '@sb/core/const'
+import { isUtf8ContinuationByte } from '@cv/core/attachments'
+import { ATTACHMENT_READ_MAX_BYTES } from '@cv/core/const'
 
 import type { AttachmentPosition } from './attachmentPaging'
 import type { AttachmentRanges } from './attachmentRanges'

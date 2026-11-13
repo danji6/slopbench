@@ -6,7 +6,7 @@ import {
   retainShellJobs,
   subscribeToShellJobs,
 } from '@/lib/chat/shell-jobs-store'
-import type { ShellJobSummary } from '@sb/core/types/tools'
+import type { ShellJobSummary } from '@cv/core/types/tools'
 import { beforeEach, describe, expect, test } from 'bun:test'
 
 function job(overrides: Partial<ShellJobSummary> = {}): ShellJobSummary {

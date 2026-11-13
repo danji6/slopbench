@@ -1,7 +1,7 @@
 /// <reference types="bun-types" />
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { get } from '@sb/convex/model/appearances'
-import type { ThemeSnapshot } from '@sb/convex/types'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import { get } from '@cv/convex/model/appearances'
+import type { ThemeSnapshot } from '@cv/convex/types'
 import { describe, expect, test } from 'bun:test'
 
 type Row = Record<string, unknown> & { _id: string }

@@ -1,4 +1,4 @@
-import { transitionActive } from '@sb/core/workspace/transition'
+import { transitionActive } from '@cv/core/workspace/transition'
 
 import type { Id } from '../../_generated/dataModel'
 import type { QueryCtx } from '../../_generated/server'

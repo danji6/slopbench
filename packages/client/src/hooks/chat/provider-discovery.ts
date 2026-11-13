@@ -1,5 +1,5 @@
-import { api } from '@sb/convex/_generated/api'
-import { providerFeatures } from '@sb/core/provider-registry'
+import { api } from '@cv/convex/_generated/api'
+import { providerFeatures } from '@cv/core/provider-registry'
 import { useAction, useQuery } from 'convex/react'
 import { useEffect } from 'react'
 

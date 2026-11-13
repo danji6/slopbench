@@ -1,6 +1,6 @@
 import { md } from '@/components/markdown'
 import { ParamSlider, SettingsList } from '@/components/ui'
-import type { InferenceParameters } from '@sb/core/types'
+import type { InferenceParameters } from '@cv/core/types'
 
 type InferenceField = keyof InferenceParameters
 

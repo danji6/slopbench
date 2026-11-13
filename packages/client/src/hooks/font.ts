@@ -8,7 +8,7 @@ import {
 import {
   DEFAULT_SETTINGS,
   type ResolvedSettings,
-} from '@sb/convex/model/defaults'
+} from '@cv/convex/model/defaults'
 import { useEffect, useSyncExternalStore } from 'react'
 
 export type ResolvedFonts = {

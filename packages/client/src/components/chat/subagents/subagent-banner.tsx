@@ -1,6 +1,6 @@
 import { RippleButton } from '@/components/ui'
 import { isOngoingStream } from '@/lib/chat/stream'
-import type { Doc } from '@sb/convex/_generated/dataModel'
+import type { Doc } from '@cv/convex/_generated/dataModel'
 import type { ChatStatus } from 'ai'
 import { ArrowDownIcon, ArrowLeftIcon, SquareIcon } from 'lucide-react'
 import { useLocation } from 'wouter'

@@ -1,8 +1,8 @@
-import { limitError } from '@sb/core/limit-errors'
-import { MAX_MCP_SERVERS } from '@sb/core/limits'
-import type { McpServer, McpToolMeta } from '@sb/core/types'
-import { mcpConnectionSchema, validateMcpTools } from '@sb/core/types'
-import { toolkitWorkspaceSettings } from '@sb/core/types/toolkit'
+import { limitError } from '@cv/core/limit-errors'
+import { MAX_MCP_SERVERS } from '@cv/core/limits'
+import type { McpServer, McpToolMeta } from '@cv/core/types'
+import { mcpConnectionSchema, validateMcpTools } from '@cv/core/types'
+import { toolkitWorkspaceSettings } from '@cv/core/types/toolkit'
 
 import { internal } from '../_generated/api'
 import type { Doc, Id } from '../_generated/dataModel'

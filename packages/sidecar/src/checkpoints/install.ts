@@ -1,4 +1,4 @@
-import { syncDirectory } from '@sb/core/fs/sync-directory'
+import { syncDirectory } from '@cv/core/fs/sync-directory'
 import { randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
 import { chmod, mkdir, open, rename, rm, symlink } from 'node:fs/promises'

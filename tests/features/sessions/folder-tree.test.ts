@@ -1,11 +1,11 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { FolderView } from '@sb/convex/types'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { FolderView } from '@cv/convex/types'
 import {
   folderBranch,
   folderTrail,
   orderedFolderTree,
   projectFolderMove,
-} from '@sb/core/utils/folder-tree'
+} from '@cv/core/utils/folder-tree'
 import { expect, test } from 'bun:test'
 import {
   folderDropAppearance,

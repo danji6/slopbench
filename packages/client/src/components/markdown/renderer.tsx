@@ -15,7 +15,7 @@ import {
 } from '@/lib/markdown/remark'
 import { sanitizeSchema } from '@/lib/markdown/sanitize'
 import { cn } from '@/lib/utils'
-import { dedent } from '@sb/core/utils/strings'
+import { dedent } from '@cv/core/utils/strings'
 import type React from 'react'
 import Markdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'

@@ -1,10 +1,10 @@
 import type { SessionListItem } from '@/lib/chat'
-import type { FolderView } from '@sb/convex/types'
+import type { FolderView } from '@cv/convex/types'
 import {
   type FolderNode,
   folderSiblings,
   orderedFolderTree,
-} from '@sb/core/utils/folder-tree'
+} from '@cv/core/utils/folder-tree'
 
 type GroupRowMetadata = {
   depth?: number

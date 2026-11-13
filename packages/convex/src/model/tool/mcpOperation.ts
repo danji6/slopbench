@@ -1,5 +1,5 @@
-import type { WireToolCall } from '@sb/core/tool-dispatch'
-import type { McpProtocolMethod } from '@sb/core/types/mcp-protocol'
+import type { WireToolCall } from '@cv/core/tool-dispatch'
+import type { McpProtocolMethod } from '@cv/core/types/mcp-protocol'
 
 import { internal } from '../../_generated/api'
 import type { Doc, Id } from '../../_generated/dataModel'

@@ -1,6 +1,6 @@
 import { evaluateInBrowser } from '@/lib/evaluation-worker'
-import { hasInterpolation } from '@sb/core/interpreter/parse'
-import type { EvalContext } from '@sb/core/interpreter/types'
+import { hasInterpolation } from '@cv/core/interpreter/parse'
+import type { EvalContext } from '@cv/core/interpreter/types'
 import { useEffect, useState } from 'react'
 
 /** Keeps asynchronous results tied to the exact prompt/context snapshot. */

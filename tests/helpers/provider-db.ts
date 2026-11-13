@@ -1,4 +1,4 @@
-import type { AuthMutationCtx } from '@sb/convex/functions'
+import type { AuthMutationCtx } from '@cv/convex/functions'
 
 /** An indexed in-memory database for testing catalog commits and credential ownership together. */
 export function providerFixture() {

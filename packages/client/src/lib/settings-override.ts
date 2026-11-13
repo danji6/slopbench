@@ -1,5 +1,5 @@
-import type { ResolvedSettings } from '@sb/convex/model/defaults'
-import { APP_ID } from '@sb/core/const'
+import type { ResolvedSettings } from '@cv/convex/model/defaults'
+import { APP_ID } from '@cv/core/const'
 
 import { createLocalStorageStore } from './local-storage-store'
 

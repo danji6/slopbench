@@ -1,5 +1,5 @@
-import { importPage } from '@sb/sidecar/agent-files/import-discovery'
-import { runFileOperation } from '@sb/sidecar/agent-files/operations'
+import { importPage } from '@cv/sidecar/agent-files/import-discovery'
+import { runFileOperation } from '@cv/sidecar/agent-files/operations'
 import { afterAll, beforeAll, expect, test } from 'bun:test'
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'

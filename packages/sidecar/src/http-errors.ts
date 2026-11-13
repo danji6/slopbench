@@ -1,4 +1,4 @@
-import { errorMessage } from '@sb/core/utils/errors'
+import { errorMessage } from '@cv/core/utils/errors'
 import type { Context } from 'hono'
 import { ZodError } from 'zod'
 

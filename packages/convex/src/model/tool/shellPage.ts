@@ -1,10 +1,10 @@
-import type { PollResult } from '@sb/core/shell/job-protocol'
+import type { PollResult } from '@cv/core/shell/job-protocol'
 import {
   SHELL_PAGE_CHARS,
   outputPrefixLength,
   plainOutputPage,
-} from '@sb/core/shell/output-page'
-import type { ShellOutputSpan, ShellToolOutput } from '@sb/core/types/tools'
+} from '@cv/core/shell/output-page'
+import type { ShellOutputSpan, ShellToolOutput } from '@cv/core/types/tools'
 
 import { type ShellStreamEvent, openShellStream, postSidecar } from '../sidecar'
 import type {

@@ -1,7 +1,7 @@
 /// <reference types="bun-types" />
-import { injectDueReminders } from '@sb/convex/model/chat/reminders'
-import { advanceStepCount, getStepCount } from '@sb/convex/model/session/state'
-import type { ReminderPrompt } from '@sb/core/types'
+import { injectDueReminders } from '@cv/convex/model/chat/reminders'
+import { advanceStepCount, getStepCount } from '@cv/convex/model/session/state'
+import type { ReminderPrompt } from '@cv/core/types'
 import { describe, expect, test } from 'bun:test'
 import { fakeSessionState } from '~/tests/setup/session-state'
 

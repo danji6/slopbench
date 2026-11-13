@@ -9,7 +9,7 @@ import {
   reservePublication,
   restoreChanges,
   restoreResult,
-} from '@sb/convex/model/changes'
+} from '@cv/convex/model/changes'
 import { describe, expect, test } from 'bun:test'
 import { lifecycleDatabase } from '~/tests/helpers/lifecycle-db'
 

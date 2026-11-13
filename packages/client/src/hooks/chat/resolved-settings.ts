@@ -1,5 +1,5 @@
 import type { MathMode, ScrollMode, ThemeSnapshot } from '@/lib/chat'
-import { DEFAULT_SETTINGS } from '@sb/convex/model/defaults'
+import { DEFAULT_SETTINGS } from '@cv/convex/model/defaults'
 import { useMemo } from 'react'
 
 import { useActiveAgent } from './agent'

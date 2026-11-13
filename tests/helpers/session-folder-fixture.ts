@@ -1,5 +1,5 @@
-import type { begin } from '@sb/convex/model/session/folderTransitions'
-import type { FolderCommand, FolderTransitionArgs } from '@sb/convex/types'
+import type { begin } from '@cv/convex/model/session/folderTransitions'
+import type { FolderCommand, FolderTransitionArgs } from '@cv/convex/types'
 
 export type Row = Record<string, unknown>
 

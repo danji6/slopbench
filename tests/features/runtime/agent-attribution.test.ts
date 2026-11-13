@@ -1,7 +1,7 @@
 import {
   prefixSenderName,
   representMessage,
-} from '@sb/convex/actions/stream/history'
+} from '@cv/convex/actions/stream/history'
 import type { UIMessage } from 'ai'
 import { describe, expect, test } from 'bun:test'
 import {

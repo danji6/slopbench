@@ -1,4 +1,4 @@
-import { settleAbortedAskParts } from '@sb/core/utils/ask'
+import { settleAbortedAskParts } from '@cv/core/utils/ask'
 
 import { internal } from '../../_generated/api'
 import type { Doc, Id } from '../../_generated/dataModel'

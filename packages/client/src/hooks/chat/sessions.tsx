@@ -6,8 +6,8 @@ import { createUsableContext } from '@/hooks/context'
 import type { SessionListItem } from '@/lib/chat'
 import type { PaginationMetadata } from '@/lib/chat/message-store'
 import { type SessionStore, createSessionStore } from '@/lib/chat/session-store'
-import type { FolderView } from '@sb/convex/types'
-import { parseSessionSearch } from '@sb/core/session-search/parse'
+import type { FolderView } from '@cv/convex/types'
+import { parseSessionSearch } from '@cv/core/session-search/parse'
 import {
   type ReactNode,
   useCallback,

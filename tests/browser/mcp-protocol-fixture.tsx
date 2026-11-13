@@ -5,8 +5,8 @@ import {
   insertComposerText,
   listenForComposerInsertion,
 } from '@/lib/chat/composer-insert'
-import type { McpProtocolRequest } from '@sb/core/types/mcp-protocol'
-import { type McpResult, mcpResult } from '@sb/core/types/mcp-result'
+import type { McpProtocolRequest } from '@cv/core/types/mcp-protocol'
+import { type McpResult, mcpResult } from '@cv/core/types/mcp-result'
 import { useEffect, useState } from 'react'
 
 import { McpToolFixture } from './mcp-tool-fixture'

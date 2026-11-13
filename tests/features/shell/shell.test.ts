@@ -5,7 +5,7 @@ import {
   listShellJobs,
   pollShellJob,
   writeStdin,
-} from '@sb/sidecar/shell/registry'
+} from '@cv/sidecar/shell/registry'
 import { describe, expect, test } from 'bun:test'
 import {
   isAlive,

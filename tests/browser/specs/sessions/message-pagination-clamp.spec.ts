@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { APP_ID } from '@sb/core/const'
+import { APP_ID } from '@cv/core/const'
 import { recordPaginationFrames } from '~/tests/browser/pagination-frames'
 
 for (const full of [false, true]) {

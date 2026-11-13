@@ -2,9 +2,9 @@
 import {
   type MessageStoreInput,
   createMessageStore,
-} from '@sb/client/lib/chat/message-store'
-import type { MessageRecord, PartMetadata } from '@sb/client/lib/chat/types'
-import { MESSAGE_PAGE_BUDGET_BYTES } from '@sb/core/const'
+} from '@cv/client/lib/chat/message-store'
+import type { MessageRecord, PartMetadata } from '@cv/client/lib/chat/types'
+import { MESSAGE_PAGE_BUDGET_BYTES } from '@cv/core/const'
 import type { UIMessage } from 'ai'
 import { describe, expect, test } from 'bun:test'
 

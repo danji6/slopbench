@@ -5,7 +5,7 @@ import {
   formValuesToPatch,
   splitAgentForm,
 } from '@/components/chat/entities/agent/agent-form'
-import type { Id } from '@sb/convex/_generated/dataModel'
+import type { Id } from '@cv/convex/_generated/dataModel'
 
 import { getCreatedAgentId, setCreatedAgentId } from './agent-editor-store'
 import type { CreateAgentArgs, UpdateAgentArgs } from './types'

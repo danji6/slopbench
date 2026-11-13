@@ -8,7 +8,7 @@ import {
 } from '@/hooks/chat'
 import type { UsageTotals } from '@/lib/chat/types'
 import { abbreviateNumber, cn } from '@/lib/utils'
-import { cacheHitRate } from '@sb/core/cache-usage'
+import { cacheHitRate } from '@cv/core/cache-usage'
 import { useMemo } from 'react'
 
 export function TokenWidget({ className }: { className?: string }) {

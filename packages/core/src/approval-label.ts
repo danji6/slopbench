@@ -1,4 +1,4 @@
-import { truncate } from '@sb/core/utils/strings'
+import { truncate } from '@cv/core/utils/strings'
 
 export const APPROVAL_LABEL_MAX_LENGTH = 64
 

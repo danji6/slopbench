@@ -6,7 +6,7 @@ import {
   isOffloadableToolPart,
   makeOutputPreview,
   toolStateSignature,
-} from '@sb/convex/model/stream/toolOutput'
+} from '@cv/convex/model/stream/toolOutput'
 import { describe, expect, test } from 'bun:test'
 
 const bigText = 'x'.repeat(OFFLOAD_THRESHOLD + 1)

@@ -1,6 +1,6 @@
 import { highlightPlugin, tokenColorDecorations } from '@/lib/tiptap/highlight'
 import { collectDocText, toPmRange } from '@/lib/tiptap/interpreter-doc'
-import { SHELL_PREFIX, shellCommandRange } from '@sb/core/shell/command'
+import { SHELL_PREFIX, shellCommandRange } from '@cv/core/shell/command'
 import { Extension } from '@tiptap/core'
 import type { Node } from '@tiptap/pm/model'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'

@@ -1,5 +1,5 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import { messagesWindow } from '@sb/convex/model/chat/queries'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import { messagesWindow } from '@cv/convex/model/chat/queries'
 import { expect, test } from 'bun:test'
 import { skillsDatabase } from '~/tests/helpers/skills-db'
 

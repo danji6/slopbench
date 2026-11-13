@@ -1,4 +1,4 @@
-import { TEXT_READ_BYTES, readTextPage } from '@sb/sidecar/files/read-text'
+import { TEXT_READ_BYTES, readTextPage } from '@cv/sidecar/files/read-text'
 import { afterAll, beforeAll, expect, test } from 'bun:test'
 import { mkdtemp, open, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'

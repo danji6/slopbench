@@ -1,1 +1,1 @@
-export { generateId } from '@sb/core/utils/id'
+export { generateId } from '@cv/core/utils/id'

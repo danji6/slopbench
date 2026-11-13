@@ -1,6 +1,6 @@
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { ActionCtx } from '@sb/convex/_generated/server'
-import { createMcpDefinitionReader } from '@sb/convex/model/tool/mcpDefinition'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { ActionCtx } from '@cv/convex/_generated/server'
+import { createMcpDefinitionReader } from '@cv/convex/model/tool/mcpDefinition'
 import { expect, mock, test } from 'bun:test'
 
 function fixture() {

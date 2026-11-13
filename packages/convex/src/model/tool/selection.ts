@@ -2,7 +2,7 @@ import {
   TOOL_CAPABILITIES,
   isReservedToolName,
   selectedBuiltinTools,
-} from '@sb/core/tool-capabilities'
+} from '@cv/core/tool-capabilities'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { QueryCtx } from '../../_generated/server'

@@ -4,8 +4,8 @@ import {
   isMcpResult,
   isMcpResultPreview,
   mcpResultBlocks,
-} from '@sb/core/types/mcp-result'
-import type { McpContent, McpResult } from '@sb/core/types/mcp-result'
+} from '@cv/core/types/mcp-result'
+import type { McpContent, McpResult } from '@cv/core/types/mcp-result'
 
 const IMAGE_MIME_TYPE = /^image\/(png|jpeg|gif|webp|avif)$/
 const AUDIO_MIME_TYPE = /^audio\/[a-z0-9.+-]+$/i

@@ -1,8 +1,8 @@
 import { Code, Popover } from '@/components/ui'
 import { useChangeDiff } from '@/hooks/chat/changes'
 import { languageFromPath } from '@/lib/chat/tool-output'
-import type { Id } from '@sb/convex/_generated/dataModel'
-import type { ChangedFile } from '@sb/core/types/changes'
+import type { Id } from '@cv/convex/_generated/dataModel'
+import type { ChangedFile } from '@cv/core/types/changes'
 
 import { usePendingMessageLayout } from '../message-list/message-list-context'
 

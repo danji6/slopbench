@@ -1,9 +1,9 @@
 import type { InferenceParameters, ReasoningEffort, UIModel } from '@/lib/chat'
-import { api } from '@sb/convex/_generated/api'
+import { api } from '@cv/convex/_generated/api'
 import {
   defaultModelReasoning,
   normalizeReasoningEffort as normalizeConfiguredEffort,
-} from '@sb/core/model-reasoning'
+} from '@cv/core/model-reasoning'
 import { useMutation } from 'convex/react'
 import { useCallback, useMemo } from 'react'
 

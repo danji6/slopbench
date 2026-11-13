@@ -8,7 +8,7 @@ import {
   isPathForbidden,
   isShellCommandAutoApproved,
   isToolAutoApproved,
-} from '@sb/convex/lib/tool/approval'
+} from '@cv/convex/lib/tool/approval'
 import { describe, expect, test } from 'bun:test'
 
 describe('unsafe constructs', () => {
@@ -177,7 +177,7 @@ describe('extractPathCandidates', () => {
 
   test('classifies the reported sed and grep chain precisely', () => {
     const command =
-      'cd /home/null/Projects/slopbench && ' +
+      'cd /home/user/projects/example && ' +
       "sed -n '120,152p' packages/convex/src/actions/session/workspace.ts && " +
       'grep -n "postWorkspaceSidecar\\|requireAdminWorkspaceAction" -A 20 ' +
       'packages/convex/src/actions/session/workspace.ts | ' +
@@ -186,7 +186,7 @@ describe('extractPathCandidates', () => {
 
     expect(analyzeShellPathCandidates(command)).toEqual({
       candidates: [
-        '/home/null/Projects/slopbench',
+        '/home/user/projects/example',
         'packages/convex/src/actions/session/workspace.ts',
       ],
       complete: true,

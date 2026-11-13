@@ -1,5 +1,5 @@
 {
-  "name": "@sb/client",
+  "name": "@cv/client",
   "private": true,
   "type": "module",
   "scripts": {

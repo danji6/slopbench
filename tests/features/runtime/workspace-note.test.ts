@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import { buildWorkspaceNoteContent } from '@sb/convex/model/chat/notes'
+import { buildWorkspaceNoteContent } from '@cv/convex/model/chat/notes'
 import { describe, expect, test } from 'bun:test'
 
 const ws = (label: string) => ({

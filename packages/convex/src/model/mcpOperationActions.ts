@@ -1,12 +1,12 @@
 'use node'
 
-import type { McpOperationStatus } from '@sb/core/types/mcp-operation'
+import type { McpOperationStatus } from '@cv/core/types/mcp-operation'
 import {
   type McpResult,
   decodeMcpOutput,
   mcpResultPreview,
   mcpResultSchema,
-} from '@sb/core/types/mcp-result'
+} from '@cv/core/types/mcp-result'
 
 import { internal } from '../_generated/api'
 import type { Doc, Id } from '../_generated/dataModel'

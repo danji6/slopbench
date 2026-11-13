@@ -1,7 +1,7 @@
 import {
   analyzeShellPathCandidates,
   isReadOnlyShellCommand,
-} from '@sb/convex/lib/tool/approval'
+} from '@cv/convex/lib/tool/approval'
 import { describe, expect, test } from 'bun:test'
 import { REPORTED_APPROVAL_COMMANDS } from '~/tests/helpers/approval-commands'
 

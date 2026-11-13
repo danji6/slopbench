@@ -1,6 +1,6 @@
 'use node'
 
-import { block } from '@sb/core/utils/blocks'
+import { block } from '@cv/core/utils/blocks'
 import type { ModelMessage, UIMessage } from 'ai'
 
 /** Approval notes keyed by the call they annotate, settled calls only. */

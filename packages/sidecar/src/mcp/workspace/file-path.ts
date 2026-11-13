@@ -1,12 +1,12 @@
-import type { FolderWorkspace } from '@sb/core/types/workspace'
+import type { FolderWorkspace } from '@cv/core/types/workspace'
 import {
   isRelativeFilePath,
   selectFileWorkspace,
-} from '@sb/core/workspace/personal'
+} from '@cv/core/workspace/personal'
 import {
   parseScopedPath,
   scopedDisplayPath,
-} from '@sb/core/workspace/scoped-path'
+} from '@cv/core/workspace/scoped-path'
 import { isAbsolute } from 'node:path'
 
 import { resolveToolPath } from './access'

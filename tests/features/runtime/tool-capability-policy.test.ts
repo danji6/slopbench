@@ -1,5 +1,5 @@
-import { hasStoredMcpOutput } from '@sb/convex/model/tool/availabilityRead'
-import { sessionToolNames } from '@sb/convex/model/tool/selection'
+import { hasStoredMcpOutput } from '@cv/convex/model/tool/availabilityRead'
+import { sessionToolNames } from '@cv/convex/model/tool/selection'
 import { expect, test } from 'bun:test'
 import { skillsDatabase } from '~/tests/helpers/skills-db'
 

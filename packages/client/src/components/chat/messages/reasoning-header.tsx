@@ -3,7 +3,7 @@ import { useCollapsible } from '@/hooks/chat/collapsible'
 import { useReasoningLabel } from '@/hooks/chat/reasoning-label'
 import type { MessageRole } from '@/lib/chat'
 import { cn } from '@/lib/utils'
-import type { ReasoningPart } from '@sb/convex/types'
+import type { ReasoningPart } from '@cv/convex/types'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { useGrowOnly } from './grow-only'

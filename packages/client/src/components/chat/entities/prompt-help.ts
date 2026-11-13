@@ -1,5 +1,5 @@
 import { md } from '@/components/markdown'
-import { inline } from '@sb/core/utils/strings'
+import { inline } from '@cv/core/utils/strings'
 
 const start = inline`
   Prompts are instructions that guide the AI's behavior and responses. You can

@@ -1,10 +1,10 @@
-import { limitError } from '@sb/core/limit-errors'
+import { limitError } from '@cv/core/limit-errors'
 import {
   MAX_PROMPT_CONTENT_CHARS,
   MAX_PROMPT_NAME_CHARS,
   MAX_SCOPE_PROMPTS,
-} from '@sb/core/limits'
-import type { ReminderPrompt } from '@sb/core/types'
+} from '@cv/core/limits'
+import type { ReminderPrompt } from '@cv/core/types'
 
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'

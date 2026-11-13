@@ -1,19 +1,19 @@
 import { buildApprovalActions } from '@/lib/chat/tool-approval-policy'
-import { attachApprovalPreviews } from '@sb/convex/actions/stream/engineApproval'
-import { alwaysLabel, approvalHold } from '@sb/convex/lib/tool/approvalPolicy'
-import { rememberApproval } from '@sb/convex/model/chat/approvalMemory'
-import { patchToolApproval } from '@sb/convex/model/chat/approvals'
-import { getSessionWithWorkspace } from '@sb/convex/model/session/folderContext'
-import { getApprovals } from '@sb/convex/model/session/state'
-import type { WorkspaceToolContext } from '@sb/convex/model/tool/context'
+import { attachApprovalPreviews } from '@cv/convex/actions/stream/engineApproval'
+import { alwaysLabel, approvalHold } from '@cv/convex/lib/tool/approvalPolicy'
+import { rememberApproval } from '@cv/convex/model/chat/approvalMemory'
+import { patchToolApproval } from '@cv/convex/model/chat/approvals'
+import { getSessionWithWorkspace } from '@cv/convex/model/session/folderContext'
+import { getApprovals } from '@cv/convex/model/session/state'
+import type { WorkspaceToolContext } from '@cv/convex/model/tool/context'
 import {
   createEditFileTool,
   createReadFileTool,
   createWriteFileTool,
-} from '@sb/convex/model/tool/files'
-import { callMcpTool } from '@sb/convex/model/tool/mcp'
-import type { ToolApprovals } from '@sb/core/types'
-import { withAgentHome } from '@sb/core/workspace/personal'
+} from '@cv/convex/model/tool/files'
+import { callMcpTool } from '@cv/convex/model/tool/mcp'
+import type { ToolApprovals } from '@cv/core/types'
+import { withAgentHome } from '@cv/core/workspace/personal'
 import { afterAll, beforeAll, expect, test } from 'bun:test'
 import { Hono } from 'hono'
 import {
@@ -48,7 +48,7 @@ beforeAll(async () => {
   await writeFile(path.join(outside, 'note'), 'external note')
   await symlink(outside, path.join(project, 'external'))
   process.env.CHAT_SIDECAR_DATA_DIR = path.join(root, 'data')
-  const { handleMcpRequest } = await import('@sb/sidecar/mcp/mcp')
+  const { handleMcpRequest } = await import('@cv/sidecar/mcp/mcp')
   const app = new Hono().all('/mcp', handleMcpRequest)
   server = Bun.serve({ port: 0, fetch: (request) => app.fetch(request) })
   process.env.SIDECAR_URL = `http://127.0.0.1:${server.port}`

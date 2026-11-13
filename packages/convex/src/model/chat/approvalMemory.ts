@@ -1,5 +1,5 @@
-import { mcpApprovalKey } from '@sb/core/types/mcp-catalog'
-import { mcpProtocolApprovalKey } from '@sb/core/types/mcp-protocol'
+import { mcpApprovalKey } from '@cv/core/types/mcp-catalog'
+import { mcpProtocolApprovalKey } from '@cv/core/types/mcp-protocol'
 
 import { internal } from '../../_generated/api'
 import type { AuthMutationCtx } from '../../functions'

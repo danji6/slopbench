@@ -8,10 +8,10 @@ import {
   newAgentFormValues,
   splitAgentForm,
 } from '@/components/chat/entities/agent/agent-form'
-import type { Doc, Id } from '@sb/convex/_generated/dataModel'
-import { DEFAULT_SYSTEM_PROMPT } from '@sb/convex/model/defaults'
-import { agentMutableFieldsValidator } from '@sb/convex/validators/agents'
-import type { Prompt } from '@sb/core/types'
+import type { Doc, Id } from '@cv/convex/_generated/dataModel'
+import { DEFAULT_SYSTEM_PROMPT } from '@cv/convex/model/defaults'
+import { agentMutableFieldsValidator } from '@cv/convex/validators/agents'
+import type { Prompt } from '@cv/core/types'
 import { describe, expect, test } from 'bun:test'
 import { createFormControl } from 'react-hook-form'
 

@@ -1,7 +1,7 @@
 import {
   MAX_SKILL_NAME_LENGTH,
   SKILL_NAME_PATTERN,
-} from '@sb/core/skills/names'
+} from '@cv/core/skills/names'
 import { realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'

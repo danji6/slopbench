@@ -1,5 +1,5 @@
-import { sidecarAuthentication } from '@sb/sidecar/auth'
-import type { createApp } from '@sb/sidecar/main'
+import { sidecarAuthentication } from '@cv/sidecar/auth'
+import type { createApp } from '@cv/sidecar/main'
 import { beforeAll, expect, spyOn, test } from 'bun:test'
 
 let app: ReturnType<typeof createApp>
@@ -15,7 +15,7 @@ const providerPaths = [
 
 beforeAll(async () => {
   process.env.CHAT_SIDECAR_DATA_DIR ??= process.cwd()
-  const { createApp } = await import('@sb/sidecar/main')
+  const { createApp } = await import('@cv/sidecar/main')
   app = createApp(sidecarAuthentication('fixture-secret'))
 })
 

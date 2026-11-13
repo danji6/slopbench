@@ -1,5 +1,5 @@
-import { mcpInputValidator } from '@sb/core/mcp-schema-validation'
-import { parseMcpInputSchema } from '@sb/core/types/mcp-catalog'
+import { mcpInputValidator } from '@cv/core/mcp-schema-validation'
+import { parseMcpInputSchema } from '@cv/core/types/mcp-catalog'
 import { expect, test } from 'bun:test'
 
 test('modern schema constraints and formats are validated instead of ignored', () => {

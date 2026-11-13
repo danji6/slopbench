@@ -1,9 +1,9 @@
-import { CHATGPT_ROUTING_HEADERS } from '@sb/core/chatgpt-routing'
+import { CHATGPT_ROUTING_HEADERS } from '@cv/core/chatgpt-routing'
 import {
   type ProviderRequestContext,
   type ProviderResponseMetadata,
   isRoutingHeader,
-} from '@sb/core/provider-continuity'
+} from '@cv/core/provider-continuity'
 
 /** Captures routing before SSE consumption and hides internal headers from SDK logs. */
 export async function fetchChatGPTResponse(

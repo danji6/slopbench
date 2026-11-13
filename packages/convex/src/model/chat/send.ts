@@ -1,7 +1,7 @@
-import { parseFileMentions } from '@sb/core/mentions/parse'
-import { parseShellCommand, unescapeShellPrefix } from '@sb/core/shell/command'
-import type { WorkspaceLinkSnapshot } from '@sb/core/types/workspace'
-import { clampLinkSnapshot } from '@sb/core/workspace/snapshot'
+import { parseFileMentions } from '@cv/core/mentions/parse'
+import { parseShellCommand, unescapeShellPrefix } from '@cv/core/shell/command'
+import type { WorkspaceLinkSnapshot } from '@cv/core/types/workspace'
+import { clampLinkSnapshot } from '@cv/core/workspace/snapshot'
 
 import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'

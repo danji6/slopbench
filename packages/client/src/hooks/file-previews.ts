@@ -1,5 +1,5 @@
 import { isDisplayableUrl, thumbnail } from '@/lib/io'
-import { isKnownTextFile } from '@sb/core/workspace/files'
+import { isKnownTextFile } from '@cv/core/workspace/files'
 import { useEffect, useRef, useState } from 'react'
 
 export type FileItem = {

@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import { StringCache } from '@sb/client/lib/shiki/string-cache'
+import { StringCache } from '@cv/client/lib/shiki/string-cache'
 import { describe, expect, test } from 'bun:test'
 
 describe('StringCache', () => {
