@@ -319,13 +319,15 @@ export function ChatSessionView({
             scrollbar
             onScrollbarNavigate={clearComposerReveal}
             bottomInset={keyboardInset}
-            mainContent={(bottomPadding) => (
+            mainContent={(bottomPadding, dockHeight) => (
               <MessageList
                 ref={messageListRef}
                 className="mx-auto w-full flex-1"
                 innerStyle={messageStyle}
                 topPadding={topPadding}
                 bottomPadding={bottomPadding}
+                // The approval and composer reserve different amounts of space.
+                extraBottomInset={review.request ? dockHeight : 0}
                 header={hasPrompts && <ChatPrompts className="h-fit" />}
                 isAtBottom={isAtBottom}
                 onScrollChange={onMessageListScroll}

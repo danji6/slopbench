@@ -3,14 +3,13 @@ import type { ScrollTarget } from './scroll-target'
 
 type LayoutPositionOptions = {
   pending: () => boolean
-  changed: () => void
   done: () => void
 }
 
 /** Retains the document offset while animated rows and virtual measurements settle. */
 export function preserveLayoutPosition(
   target: ScrollTarget,
-  { pending, changed, done }: LayoutPositionOptions,
+  { pending, done }: LayoutPositionOptions,
 ) {
   const top = target.getScrollTop()
   let height = target.getScrollHeight()
@@ -24,7 +23,6 @@ export function preserveLayoutPosition(
     if (Math.abs(target.getScrollTop() - position) > 0.5) {
       target.setScrollTop(position)
     }
-    changed()
   }
 
   const cancel = trackUntilSettled(

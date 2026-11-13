@@ -5,7 +5,7 @@ import { ChatScrollbar } from './chat-scrollbar'
 
 export type ChatLayoutProps = {
   /** The main scrollable content with bottom padding compensation. */
-  mainContent: (bottomPadding: number) => React.ReactNode
+  mainContent: (bottomPadding: number, dockHeight: number) => React.ReactNode
   /** Content that sits at the bottom of the layout. */
   dock: React.ReactNode
   /** Space at the bottom of the viewport the dock has to stay clear of. */
@@ -39,7 +39,10 @@ export function ChatLayout({
       className="relative flex min-h-dvh flex-1 flex-col overflow-y-clip"
     >
       {scrollbar && <ChatScrollbar onNavigate={onScrollbarNavigate} />}
-      {mainContent(bottomHeight + bottomInset)}
+      {mainContent(
+        bottomHeight + bottomInset,
+        Math.max(0, bottomHeight - footerHeight),
+      )}
       <div
         className="pointer-events-none sticky inset-x-0 bottom-0 z-10 h-0"
         style={{ bottom: bottomInset }}

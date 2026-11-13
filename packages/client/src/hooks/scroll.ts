@@ -140,9 +140,10 @@ export function useAtBottomSticky(
   }, [onReachBottom])
 
   const onScroll = useCallback(
-    (e?: Event, autoScrolling = false) => {
+    (e?: Event, autoScrolling = false, extraBottomInset = 0) => {
       const { distFromBottom, contentFits } = getScrollMetrics(e)
-      const visibleDistance = Math.max(0, distFromBottom - bottomInset)
+      const reservedInset = bottomInset + extraBottomInset
+      const visibleDistance = Math.max(0, distFromBottom - reservedInset)
       setDistanceFromBottom(visibleDistance)
       const atBottom = visibleDistance < NEAR_BOTTOM_THRESHOLD
 
@@ -159,7 +160,7 @@ export function useAtBottomSticky(
           unstickDistance,
           autoScrolling,
           suspended,
-          bottomInset,
+          bottomInset: reservedInset,
         })
         if (next && !prev) onReachBottomRef.current?.()
         return next

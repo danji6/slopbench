@@ -68,9 +68,15 @@ export type MessageListProps = Omit<React.ComponentProps<'div'>, 'ref'> & {
   innerStyle?: React.CSSProperties
   topPadding?: number
   bottomPadding?: number
+  /** Extra dock padding that should be ignored for sticky bottom state. */
+  extraBottomInset?: number
   header?: React.ReactNode
   isAtBottom?: boolean
-  onScrollChange?: (e?: Event, autoScrolling?: boolean) => void
+  onScrollChange?: (
+    event?: Event,
+    autoScrolling?: boolean,
+    extraBottomInset?: number,
+  ) => void
   onIntoViewSettle?: () => void
   onInitialPositionSettled?: () => void
   onTranscriptNavigate?: () => void
@@ -85,6 +91,7 @@ export function MessageList({
   innerStyle,
   topPadding,
   bottomPadding,
+  extraBottomInset,
   header,
   isAtBottom,
   onScrollChange,
@@ -182,9 +189,20 @@ export function MessageList({
     setSubagentFollowReleased(true)
   }, [])
 
+  const releaseAfterLayout = useRef(false)
+  const reportScroll = useCallback(
+    (event?: Event, autoScrolling = false) => {
+      if (releaseAfterLayout.current) {
+        releaseAfterLayout.current = false
+        onIntoViewSettle?.()
+      }
+      onScrollChange?.(event, autoScrolling, extraBottomInset)
+    },
+    [extraBottomInset, onIntoViewSettle, onScrollChange],
+  )
   const handlePositionChange = useCallback(
-    (autoScrolling: boolean) => onScrollChange?.(undefined, autoScrolling),
-    [onScrollChange],
+    (autoScrolling: boolean) => reportScroll(undefined, autoScrolling),
+    [reportScroll],
   )
 
   const scroller = useScroller({
@@ -209,14 +227,22 @@ export function MessageList({
     isAutoScrolling,
   } = scroller
 
+  const handleIntoViewSettle = useCallback(() => {
+    // Keep explicit releases from hiding the dock in the middle of a hold.
+    if (coordinator.kind === 'layout') releaseAfterLayout.current = true
+    else onIntoViewSettle?.()
+  }, [coordinator, onIntoViewSettle])
+
   useLayoutEffect(() => {
     coordinator.resumeFollow()
     return () => coordinator.cancel()
   }, [coordinator, sessionId])
 
   const handleScrollChange = useCallback(
-    (event?: Event) => onScrollChange?.(event, isAutoScrolling()),
-    [onScrollChange, isAutoScrolling],
+    (event?: Event) => {
+      if (coordinator.kind !== 'layout') reportScroll(event, isAutoScrolling())
+    },
+    [coordinator, reportScroll, isAutoScrolling],
   )
 
   const virtuaRef = useRef<WindowVirtualizerHandle>(null)
@@ -435,7 +461,7 @@ export function MessageList({
       scrollRef: docScrollRef as React.RefObject<HTMLElement | null>,
       scrollCoordinator: coordinator,
       onLayoutChange: holdLayoutPosition,
-      onIntoViewSettle,
+      onIntoViewSettle: handleIntoViewSettle,
       releaseFollow: holdPosition,
       resumeFollow: () => unlockScroll(true),
       trackPendingLayout: coordinator.trackPendingLayout,
@@ -447,7 +473,7 @@ export function MessageList({
     }),
     [
       holdLayoutPosition,
-      onIntoViewSettle,
+      handleIntoViewSettle,
       holdPosition,
       unlockScroll,
       coordinator,

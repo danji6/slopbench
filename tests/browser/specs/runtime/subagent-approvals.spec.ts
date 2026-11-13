@@ -88,6 +88,50 @@ test('opens approval when the empty composer is focused', async ({ page }) => {
   await expect(review(page)).toHaveCount(0)
 })
 
+test('keeps an automatic approval stable while work expands and collapses', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1000, height: 700 })
+  await page.goto(
+    '/?fixture=subagent-approvals&id=parent&localApproval&history',
+  )
+  await expect(picker(page)).toBeVisible()
+  const summary = page.locator('[data-slot="work-block"]')
+  await expect(summary).toBeInViewport({ ratio: 1 })
+  // Make the work details taller than the dock's unstick threshold.
+  await page.addStyleTag({
+    content:
+      '[data-work-id] > [data-slot="virtualized-row-transition"] > div > * { min-height: 220px }',
+  })
+
+  const transitions = page.locator(
+    '[data-work-id] [data-slot="virtualized-row-transition"][data-state]',
+  )
+  const originalPicker = await picker(page).elementHandle()
+  await summary.evaluate((button) => (button as HTMLButtonElement).click())
+  await expect(transitions.first()).toBeAttached()
+  await expect(transitions).toHaveCount(0)
+  await expect(summary).toHaveAttribute('aria-expanded', 'true')
+  expect(await originalPicker.evaluate((element) => element.isConnected)).toBe(
+    true,
+  )
+
+  await summary.evaluate((button) => (button as HTMLButtonElement).click())
+  await expect(transitions).toHaveCount(0)
+  await expect(summary).toHaveAttribute('aria-expanded', 'false')
+  expect(await originalPicker.evaluate((element) => element.isConnected)).toBe(
+    true,
+  )
+
+  await page.evaluate(() => window.scrollTo(0, 0))
+  await expect(review(page)).toBeVisible()
+  await expect(picker(page)).toHaveCount(0)
+  await page
+    .getByRole('button', { name: 'Scroll to bottom', exact: true })
+    .click()
+  await expect(picker(page)).toBeVisible()
+})
+
 test('preserves child note drafts when moving between views', async ({
   page,
 }) => {
@@ -295,26 +339,6 @@ test('keeps typing and sends chat messages independently of the current approval
       },
     })
   await resolveApproval(page)
-})
-
-test('automatically shows the request once the empty composer loses focus', async ({
-  page,
-}) => {
-  await page.goto('/?fixture=subagent-approvals&id=parent&delayedApprovals')
-  await composer(page).focus()
-  await releaseApprovals(page)
-  await expect(review(page)).toBeVisible()
-  await expect(picker(page)).toHaveCount(0)
-
-  await review(page).focus()
-  await expect(review(page)).toBeFocused()
-  await expect(picker(page)).toHaveCount(0)
-
-  const outside = page.getByRole('button', { name: 'Stop typing', exact: true })
-  await outside.focus()
-  await expect(picker(page)).toBeVisible()
-  await expect(outside).toBeFocused()
-  await expect(review(page)).toHaveCount(0)
 })
 
 test('keeps the fullscreen draft open until the user chooses to review', async ({

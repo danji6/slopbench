@@ -405,11 +405,11 @@ export class Scroller {
     this._updateOverflowAnchor()
     const position = preserveLayoutPosition(target, {
       pending: () => this.coordinator.layoutPending,
-      changed: () => this.onPositionChange?.(false),
       done: () => {
         this.layoutPosition = null
         operation.finish()
         this._updateOverflowAnchor()
+        this.onPositionChange?.(false)
       },
     })
     this.layoutPosition = position
