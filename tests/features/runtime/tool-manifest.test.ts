@@ -118,7 +118,7 @@ describe('tool manifest', () => {
     expect(manifest.mcp).toBeUndefined()
   })
 
-  test('workspace tools need an admin invoker and a bound workspace', () => {
+  test('workspace tools require an admin but work without a project', () => {
     const tools = ['read_file', 'write_file', 'shell']
 
     expect(
@@ -139,7 +139,7 @@ describe('tool manifest', () => {
         resources: { settings: null, mcpServers: [] },
         spawnableAgents: [],
       } as never).names,
-    ).toEqual([])
+    ).toEqual(['read_file', 'shell', 'shell_output', 'kill_shell'])
   })
 
   test('the shell is resolved agent-over-user, and only for the shell tool', () => {

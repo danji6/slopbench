@@ -45,7 +45,7 @@ test('a tool-free chat refreshes configuration and prompts without capability no
     const refreshedSource = source()
     expect(refreshedSource).not.toBe(initialSource)
 
-    f.agent.tools = ['shell']
+    f.agent.tools = ['web_search']
     const blocked = (await f.repeat())!
     expect(blocked.toolRuntime!.current.names).toEqual([])
     expect(blocked.messages).toEqual(first.messages)
@@ -130,6 +130,42 @@ test('live selections append updates while OpenAI and Anthropic keep their tool 
     expect(removal).not.toMatch(/get_tool|call_tool/)
     await expect(
       second.tools.write_todo.execute!({ todos: [] }, {} as never),
+    ).rejects.toThrow('no longer enabled')
+  } finally {
+    await f.dispose()
+  }
+})
+
+test('introduces session paths on live enablement and drops guidance when access is revoked', async () => {
+  const f = await fixture()
+  try {
+    await f.db.patch('session', { folderId: undefined })
+    const first = (await f.nextTurn())!
+    expect(JSON.stringify(first.messages)).not.toContain('session://')
+
+    f.agent.tools = ['process_attachments']
+    const enabled = (await f.repeat())!
+    expect(enabled.toolRuntime!.frozen).toEqual(first.toolRuntime!.frozen)
+    expect(enabled.toolRuntime!.current.names).toEqual([
+      'copy_attachment',
+      'attach_file',
+    ])
+    expect(JSON.stringify(enabled.messages)).toContain('session://')
+    const definition = await enabled.tools.get_tool.execute!(
+      { name: 'copy_attachment' },
+      {} as never,
+    )
+    expect(JSON.parse(definition as string)).toMatchObject({
+      name: 'copy_attachment',
+      inputSchema: { type: 'object' },
+    })
+
+    f.agent.tools = ['read_attachment']
+    const disabled = (await f.repeat())!
+    expect(disabled.toolRuntime!.current.names).toEqual(['read_attachment'])
+    expect(JSON.stringify(disabled.messages)).not.toContain('session://')
+    await expect(
+      enabled.tools.get_tool.execute!({ name: 'copy_attachment' }, {} as never),
     ).rejects.toThrow('no longer enabled')
   } finally {
     await f.dispose()

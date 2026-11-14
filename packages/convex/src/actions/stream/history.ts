@@ -85,6 +85,7 @@ export async function buildProviderHistory(
       await resolveParts(ctx, message.parts, message.role, {
         mediaActive: activeMediaMessages.has(message._id),
         readerEnabled,
+        copyEnabled: names.includes('copy_attachment'),
         toolMediaActive:
           !data.stream.omitActiveMedia &&
           message._id === data.stream.state.processingMessageId,

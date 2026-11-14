@@ -2,6 +2,7 @@ import type { FolderWorkspace } from '@cv/core/types/workspace'
 import { realpath, stat } from 'node:fs/promises'
 
 import { assertPlainPath } from '../../agent-files/storage'
+import { ensureSessionDirectory } from '../../session-files/storage'
 
 export async function requireWorkspace(
   sessionId: string,
@@ -9,6 +10,22 @@ export async function requireWorkspace(
   context?: FolderWorkspace,
 ) {
   if (context) {
+    if (context.workspaceId !== workspaceId)
+      throw new Error('Invalid folder workspace context')
+    if (
+      context.sessionFiles &&
+      (context.fileScope === 'session' || context.sessionOnly)
+    ) {
+      const root = await ensureSessionDirectory(sessionId)
+      return {
+        workspaceId,
+        sessionId,
+        root,
+        roots: [root],
+        grantRoot: context.sessionOnly ? root : context.path,
+        label: 'Session directory',
+      }
+    }
     if (context.agentOnly && context.fileScope !== 'agent') {
       throw new Error(
         context.agentHome
@@ -16,7 +33,7 @@ export async function requireWorkspace(
           : 'No project workspace.',
       )
     }
-    if (context.workspaceId !== workspaceId || !context.sources?.length)
+    if (!context.sources?.length)
       throw new Error('Invalid folder workspace context')
 
     const roots = await Promise.all(

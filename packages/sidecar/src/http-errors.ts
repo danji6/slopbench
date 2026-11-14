@@ -25,11 +25,15 @@ export function sidecarError(err: Error, c: Context) {
       422,
     )
   }
-  if (c.req.path.startsWith('/agent-files/'))
+  if (
+    c.req.path.startsWith('/agent-files/') ||
+    c.req.path.startsWith('/session-files/')
+  ) {
     return c.json(
       { error: requestErrorMessage(err) },
       err instanceof ZodError ? 400 : 409,
     )
+  }
   return ioError(c, err)
 }
 

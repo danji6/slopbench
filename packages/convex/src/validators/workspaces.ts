@@ -29,7 +29,11 @@ export const workspaceRefValidator = v.object({
   /** True when this context has only a personal folder and no project workspace. */
   agentOnly: v.optional(v.boolean()),
   /** The scope explicitly selected for this tool invocation; omitted means workspace. */
-  fileScope: v.optional(v.union(v.literal('workspace'), v.literal('agent'))),
+  sessionFiles: v.optional(v.boolean()),
+  sessionOnly: v.optional(v.boolean()),
+  fileScope: v.optional(
+    v.union(v.literal('workspace'), v.literal('agent'), v.literal('session')),
+  ),
   /** The original workspace base used to resolve relative path approvals. */
   approvalRoot: v.optional(v.string()),
   /** Ordered project sources, or the selected personal root for agent scope. */

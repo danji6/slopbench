@@ -1,6 +1,9 @@
 import { defineSchema, defineTable } from 'convex/server'
+import { v } from 'convex/values'
 
 import * as V from './validators'
+import { attachmentTransferSchema } from './validators/attachmentTransfers'
+import { sessionFileOperationSchema } from './validators/sessionFiles'
 
 const schemaValidation = true
 
@@ -222,6 +225,19 @@ export default defineSchema({
   attachmentFiles: defineTable(V.attachmentFileSchema)
     .index('by_storageId', ['storageId'])
     .index('by_shareToken', ['shareToken']),
+
+  sessionFileOperations: defineTable(sessionFileOperationSchema)
+    .index('by_nextAttemptAt', ['nextAttemptAt']),
+
+  sessionTaskDirectories: defineTable({
+    rootId: v.id('sessions'),
+    name: v.string(),
+  }).index('by_rootId_name', ['rootId', 'name']),
+
+  attachmentTransfers: defineTable(attachmentTransferSchema)
+    .index('by_streamId', ['streamId'])
+    .index('by_contentId_callId', ['contentId', 'callId'])
+    .index('by_cleaned_expiresAt', ['cleaned', 'expiresAt']),
 
   attachmentCursors: defineTable(V.attachmentCursorSchema)
     .index('by_operationId', ['operationId'])

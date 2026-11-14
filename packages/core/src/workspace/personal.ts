@@ -28,7 +28,15 @@ export function selectFileWorkspace(
   workspace: FolderWorkspace,
   filePath = 'workspace://',
 ): FolderWorkspace {
-  const { scope, path } = parseScopedPath(filePath)
+  const { scope, path, explicit } = parseScopedPath(filePath)
+  if (scope === 'session' || (workspace.sessionOnly && !explicit)) {
+    if (!workspace.sessionFiles)
+      throw new Error('Session directory is not available')
+    return { ...workspace, fileScope: 'session' }
+  }
+  if (workspace.sessionOnly && scope === 'workspace') {
+    throw new Error('This session has no project workspace')
+  }
   if (scope !== 'agent' && workspace.agentOnly) {
     throw new Error(
       workspace.agentHome
@@ -86,4 +94,12 @@ function normalizePath(value: string) {
   }
   const result = parts.join('/')
   return /^[a-z]:/i.test(result) ? result.toLowerCase() : result
+}
+
+/** Applies the same default to shell execution and approval inspection. */
+export function defaultShellDirectory(workspace?: FolderWorkspace) {
+  if (workspace?.sessionOnly) return 'session://'
+  return workspace?.agentOnly && workspace.sessionFiles
+    ? 'agent://'
+    : 'workspace://'
 }

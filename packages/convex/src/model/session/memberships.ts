@@ -69,9 +69,11 @@ export async function requireOwner(
 }
 
 export function requireEnabled(session: {
+  sessionFilesPending?: boolean
   contextLock?: string
   settings?: { disabled?: boolean }
 }) {
+  if (session.sessionFilesPending) error('Session files are being copied', 409)
   if (session.contextLock) error('Folder sources are being updated', 409)
   if (session.settings?.disabled) error('Session is disabled', 409)
 }

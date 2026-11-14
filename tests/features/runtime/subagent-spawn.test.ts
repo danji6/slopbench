@@ -53,6 +53,7 @@ describe('_suspendStep', () => {
     // Owner membership + agent link + prompt turn + child stream
     expect(inserts.map(({ table }) => table)).toEqual([
       'sessions',
+      'sessionTaskDirectories',
       'userSessions',
       'sessionAgents',
       'messages',
@@ -72,6 +73,11 @@ describe('_suspendStep', () => {
       command: { kind: 'invoke' },
       state: { phase: 'reserved' },
     })
+
+    expect(
+      patches.find(({ id }) => id === 'inserted_sessions_1')?.patch
+        .taskDirectory,
+    ).toMatch(/^[a-z]+(?:-[a-z]+)+$/)
 
     // The child's stream job was scheduled
     expect(scheduled.length).toBeGreaterThan(0)

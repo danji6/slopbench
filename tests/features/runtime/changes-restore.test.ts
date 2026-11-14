@@ -40,6 +40,7 @@ function fixture(paths?: readonly string[], failure?: string) {
             operationId: args.operationId,
             direction: 'revert',
             revision: 0,
+            workspace,
           }
         case 'chat:_changesRestoreContext':
           return { workspace, agents: [] }

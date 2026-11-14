@@ -8,6 +8,7 @@ import type {
   RecordStreamStepArgs,
   StreamExecutionArgs,
 } from '../../types'
+import { mergePublishedAttachments } from '../attachmentTransfers'
 import { senderIdentity } from '../chat/identities'
 import { injectModeNote } from '../chat/notes'
 import { injectDueReminders } from '../chat/reminders'
@@ -45,7 +46,8 @@ export async function _patchMessage(
   const row = await getProcessingSegmentRow(ctx, stream)
   if (!row) return false
 
-  const merged = await mergeOperationParts(ctx, row._id, parts)
+  const operations = await mergeOperationParts(ctx, row._id, parts)
+  const merged = mergePublishedAttachments(row.parts, operations)
   const reads = newShellReadResults(row.parts, merged)
   await patchSegmentParts(ctx, stream.state.processingMessageId, row, merged)
   await recordToolDeliveries(ctx, stream, row, reads)

@@ -27,6 +27,7 @@ import { notifyQuestions, notifyToolApprovals } from '../notifications'
 import { createPlanLinkPart, getBySession as getPlan } from '../plans'
 import { getSessionWithWorkspace } from '../session/folderContext'
 import { getActiveStream } from '../session/memberships'
+import { reserveTaskDirectory } from '../session/sessionFiles'
 import { assertAgentAvailable } from '../skills/access'
 import {
   type SubagentModelSettings,
@@ -269,6 +270,9 @@ async function spawnChild(
     },
     lastMessageAt: now,
   })
+
+  const taskDirectory = await reserveTaskDirectory(ctx, session._id)
+  await ctx.db.patch(childSessionId, { taskDirectory })
 
   await ctx.db.insert('userSessions', {
     sessionId: childSessionId,

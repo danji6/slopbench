@@ -8,6 +8,7 @@ import {
 } from '../mcp/workspace/access'
 import { selectFileToolScope } from '../mcp/workspace/file-path'
 import { requireWorkspace } from '../mcp/workspace/resolve-workspace'
+import { sessionDirectory } from '../session-files/storage'
 import { isFilePermissionError } from './errors'
 import { captureFile, sameFile } from './snapshot'
 import type { CheckpointStorage } from './storage'
@@ -64,9 +65,12 @@ async function authorizeTarget(file: CheckpointFile, input: RestoreInput) {
     (workspace) =>
       workspace.agentHome && !isOutside(workspace.agentHome.path, file.target),
   )
+  const sessionFile =
+    input.workspace.sessionFiles &&
+    !isOutside(sessionDirectory(input.sessionId), file.target)
   const { workspace: selected } = selectFileToolScope({
     workspace: personal ?? input.workspace,
-    filePath: personal ? 'agent://' : file.target,
+    filePath: personal ? 'agent://' : sessionFile ? 'session://' : file.target,
   })
   const workspace = await requireWorkspace(
     input.sessionId,

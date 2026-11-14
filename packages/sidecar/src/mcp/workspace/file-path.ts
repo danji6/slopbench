@@ -9,6 +9,7 @@ import {
 } from '@cv/core/workspace/scoped-path'
 import { isAbsolute } from 'node:path'
 
+import { assertPlainPath } from '../../agent-files/storage'
 import { resolveToolPath } from './access'
 import { assertInside } from './paths'
 
@@ -23,6 +24,9 @@ export function selectFileToolScope<T extends FileToolInput>(input: T): T {
   if (!workspace) return input
 
   let { filePath } = input
+  if (workspace.sessionOnly && isRelativeFilePath(filePath)) {
+    filePath = `session://${filePath}`
+  }
   if (workspace.agentOnly && workspace.agentHome) {
     if (isAbsolute(filePath)) {
       // Keep the path unprefixed so normal external path approvals apply.
@@ -31,6 +35,7 @@ export function selectFileToolScope<T extends FileToolInput>(input: T): T {
     const { explicit, path } = parseScopedPath(filePath)
     if (!explicit && isRelativeFilePath(path)) filePath = `agent://${path}`
   }
+
   return {
     ...input,
     filePath,
@@ -57,6 +62,7 @@ export async function resolveFileToolPath(
     allowOutsideWorkspace,
   )
   if (parsed.explicit) assertInside(root, target.absolutePath)
+  if (parsed.scope === 'session') await assertPlainPath(target.absolutePath)
   return {
     ...target,
     relativePath: scopedDisplayPath(input, target.relativePath),

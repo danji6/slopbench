@@ -23,10 +23,16 @@ export type ShellJobProcess = {
   onExit(cb: (exitCode: number | null) => void): void
 }
 
+export type Environment = {
+  AGENT_DIR?: string
+  WORKSPACE_DIR?: string
+  SESSION_DIR?: string
+}
+
 export type SpawnShellJobInput = {
   command: string
   cwd: string
-  environment?: { AGENT_DIR?: string; WORKSPACE_DIR?: string }
+  environment?: Environment
   cols: number
   rows: number
   shell?: string

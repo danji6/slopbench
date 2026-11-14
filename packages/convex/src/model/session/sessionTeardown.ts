@@ -1,3 +1,4 @@
+import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import { type AuthMutationCtx } from '../../functions'
@@ -28,7 +29,20 @@ export async function remove(
   ctx: AuthMutationCtx,
   { sessionId }: { sessionId: Id<'sessions'> },
 ) {
-  await requireOwner(ctx, sessionId, ctx.userId)
+  const { session } = await requireOwner(ctx, sessionId, ctx.userId)
+
+  if (!session.parent) {
+    const operationId = await ctx.db.insert('sessionFileOperations', {
+      kind: 'delete',
+      sessionId,
+      nextAttemptAt: Date.now(),
+    })
+    await ctx.scheduler.runAfter(
+      0,
+      internal.actions.sessions._runSessionFileOperation,
+      { operationId },
+    )
+  }
   await revokeMcp(ctx, { sessionId }, 'Session deleted')
   await stopForSession(ctx, sessionId)
   await cancelScheduledEvents(ctx, sessionId)
@@ -110,6 +124,13 @@ export async function remove(
     await ctx.db.delete(message._id)
   }
 
+  if (!session.parent) {
+    const reservations = await ctx.db
+      .query('sessionTaskDirectories')
+      .withIndex('by_rootId_name', (q) => q.eq('rootId', sessionId))
+      .collect()
+    for (const reservation of reservations) await ctx.db.delete(reservation._id)
+  }
   await ctx.db.delete(sessionId)
 
   for (const avatarId of avatarIds) {

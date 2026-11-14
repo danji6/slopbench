@@ -6,6 +6,8 @@ import { action, internalAction } from '../_generated/server'
 import { sessionArchiveValidator } from '../validators/sessionArchives'
 import { createSessionArgsValidator } from '../validators/sessions'
 import * as Archive from './session/archive'
+import { cleanAttachmentTransfer } from './session/attachmentTransfers'
+import * as SessionFiles from './session/sessionFiles'
 import * as SessionTitles from './session/title'
 import * as Workspace from './session/workspace'
 
@@ -19,7 +21,7 @@ export const duplicate = action({
     sessionId: v.id('sessions'),
     title: v.optional(v.string()),
   },
-  handler: Workspace.duplicateSession,
+  handler: SessionFiles.duplicateSession,
 })
 
 export const regenerateTitle = action({
@@ -43,4 +45,14 @@ export const _generateTitle = internalAction({
     assistantText: v.optional(v.string()),
   },
   handler: SessionTitles.generateTitle,
+})
+
+export const _runSessionFileOperation = internalAction({
+  args: { operationId: v.id('sessionFileOperations') },
+  handler: SessionFiles.runSessionFileOperation,
+})
+
+export const _cleanAttachmentTransfer = internalAction({
+  args: { id: v.id('attachmentTransfers') },
+  handler: cleanAttachmentTransfer,
 })

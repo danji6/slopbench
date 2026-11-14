@@ -185,7 +185,7 @@ async function buildInvokeRequest(
       ctx,
       data,
       remainingPrompts,
-      manifest.names,
+      runtime?.current.names ?? manifest.names,
       manifest.version ?? 1,
       manifest.contextId,
       runtime,

@@ -149,7 +149,10 @@ async function insertContextNote(
         anchorPartCount,
         ...(args.capabilities && { capabilities: args.capabilities }),
         anchorMessageId: stream.state.processingMessageId,
-        ...(type === 'workspace' && { label: args.label }),
+        ...(type === 'workspace' && {
+          label: args.label,
+          sessionFiles: args.sessionFiles,
+        }),
       },
     },
     [{ type: 'text', text: args.content }],

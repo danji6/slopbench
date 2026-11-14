@@ -2,7 +2,9 @@ import { v } from 'convex/values'
 
 import { internalMutation, internalQuery } from './_generated/server'
 import { authMutation, authQuery } from './functions'
+import * as Transfers from './model/attachmentTransfers'
 import * as SessionArchive from './model/session/archive'
+import * as SessionFiles from './model/session/sessionFiles'
 import * as Sessions from './model/session/sessions'
 import * as SessionState from './model/session/state'
 import * as SessionTitles from './model/session/title'
@@ -19,11 +21,6 @@ export const create = authMutation({
     approvalMode: v.optional(approvalModeValidator),
   },
   handler: Sessions.create,
-})
-
-export const duplicate = authMutation({
-  args: { sessionId: v.id('sessions'), title: v.optional(v.string()) },
-  handler: Sessions.duplicate,
 })
 
 export const list = authQuery({
@@ -159,4 +156,38 @@ export const _allowToolPaths = internalMutation({
 export const _patchSessionLog = internalMutation({
   args: { sessionId: v.id('sessions'), storageId: v.id('_storage') },
   handler: Sessions._patchSessionLog,
+})
+
+export const _beginDuplicate = internalMutation({
+  args: {
+    sessionId: v.id('sessions'),
+    title: v.optional(v.string()),
+    subject: v.string(),
+    token: v.string(),
+  },
+  handler: SessionFiles.beginDuplicate,
+})
+
+export const _claimSessionFiles = internalMutation({
+  args: { operationId: v.id('sessionFileOperations'), immediate: v.boolean() },
+  handler: (ctx, args) =>
+    SessionFiles.claim(ctx, args.operationId, args.immediate),
+})
+
+export const _finishSessionFiles = internalMutation({
+  args: {
+    operationId: v.id('sessionFileOperations'),
+    attempt: v.number(),
+    success: v.boolean(),
+  },
+  handler: (ctx, args) =>
+    SessionFiles.finish(ctx, args.operationId, args.attempt, args.success),
+})
+
+export const _sweepSessionFiles = internalMutation({
+  args: {},
+  async handler(ctx) {
+    await SessionFiles.sweep(ctx)
+    await Transfers.sweep(ctx)
+  },
 })

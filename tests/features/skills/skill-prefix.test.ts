@@ -368,12 +368,10 @@ test('folder renames, source changes, and personal-folder changes preserve the f
     expect(JSON.stringify(previous.messages.at(-1))).toContain(
       'No skills are currently available',
     )
-    await expect(
-      previous.tools.read_file.execute!({ path: 'file' }, {} as never),
-    ).rejects.toThrow('no longer enabled')
-    await expect(
-      previous.tools.shell.execute!({ command: 'pwd' }, {} as never),
-    ).rejects.toThrow('no longer enabled')
+    expect(previous.toolRuntime!.current.names).toContain('read_file')
+    expect(previous.toolRuntime!.current.names).toContain('shell')
+    expect(previous.workspace?.sessionOnly).toBe(true)
+    expect(JSON.stringify(previous.messages)).toContain('session://')
   } finally {
     fixture.restore()
     await rm(root, { recursive: true, force: true })

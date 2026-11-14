@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
 
+import type { Environment } from '../../shell/pty'
 import {
   jobEnv,
   killProcessTree,
@@ -14,7 +15,7 @@ export async function runCommand(
   cwd: string,
   timeoutSeconds: number,
   signal?: AbortSignal,
-  environment?: { AGENT_DIR?: string; WORKSPACE_DIR?: string },
+  environment?: Environment,
 ) {
   return new Promise<{ exitCode: number | null; output: string }>(
     (resolve, reject) => {

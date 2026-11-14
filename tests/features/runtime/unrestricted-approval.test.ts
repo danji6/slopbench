@@ -5,7 +5,9 @@ import {
   createReadFileTool,
   createWriteFileTool,
 } from '@cv/convex/model/tool/files'
+import { filesystemWorkspace } from '@cv/convex/model/tool/sessionFilesystem'
 import { createShellTool } from '@cv/convex/model/tool/shellTools'
+import { withAgentHome } from '@cv/core/workspace/personal'
 import { describe, expect, test } from 'bun:test'
 
 const context = {
@@ -38,6 +40,28 @@ describe('unrestricted approval mode', () => {
   test('bypasses shell approval checks before inspecting the command', async () => {
     const tool = await createShellTool(context)
     expect(await asksForApproval(tool, { command: 'rm -rf .git' })).toBe(false)
+  })
+
+  test('bypasses shell approval for session and personal directories without a workspace', async () => {
+    const workspace = withAgentHome(undefined, {
+      agentId: 'agent',
+      ownerId: 'owner',
+      path: '/agent-home',
+      revision: 1,
+    })
+    const tool = await createShellTool({
+      ...context,
+      workspace: filesystemWorkspace({
+        _id: context.sessionId,
+        workspace: { ...workspace, folderId: undefined },
+      }),
+    })
+
+    for (const cwd of ['session://', 'agent://']) {
+      expect(
+        await asksForApproval(tool, { command: 'python script.py', cwd }),
+      ).toBe(false)
+    }
   })
 
   test('bypasses forbidden-path and write approvals', async () => {

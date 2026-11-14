@@ -31,6 +31,31 @@ async function resolveApproval(page: Page) {
     .click()
 }
 
+test('updates unrestricted access in an existing chat without a workspace', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=subagent-approvals&id=parent&delayedApprovals')
+  const ask = page.getByRole('button', { name: /allow unrestricted access/ })
+  const unrestricted = page.getByRole('button', { name: /require approvals/ })
+  await ask.click()
+  await expect(unrestricted).toHaveAttribute('aria-pressed', 'true')
+  await unrestricted.click()
+  await expect(ask).toHaveAttribute('aria-pressed', 'false')
+  expect(await mutations(page)).toEqual([
+    {
+      name: 'sessions:setApprovalMode',
+      args: { sessionId: 'parent', mode: 'unrestricted' },
+    },
+    {
+      name: 'sessions:setApprovalMode',
+      args: { sessionId: 'parent', mode: 'ask' },
+    },
+  ])
+
+  await page.goto('/?fixture=subagent-approvals&id=parent&nonAdmin')
+  await expect(ask).toHaveCount(0)
+})
+
 test('approves locally with a note and keeps the parent queue synchronized', async ({
   page,
 }) => {

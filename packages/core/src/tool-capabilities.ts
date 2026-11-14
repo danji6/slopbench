@@ -15,6 +15,13 @@ export const TOOL_CAPABILITIES = [
     tools: ['read_attachment'],
   },
   {
+    name: 'process_attachments',
+    label: 'Process attachments',
+    description: 'Copy and present attachments.',
+    category: 'general',
+    tools: ['copy_attachment', 'attach_file'],
+  },
+  {
     name: 'task',
     label: 'Delegate tasks',
     description: 'Delegate work to subagents.',
@@ -42,7 +49,6 @@ export const TOOL_CAPABILITIES = [
     category: 'workspace',
     tools: ['read_file'],
     requiresAdmin: true,
-    requiresWorkspace: true,
   },
   {
     name: 'edit_files',
@@ -51,7 +57,6 @@ export const TOOL_CAPABILITIES = [
     category: 'workspace',
     tools: ['write_file', 'edit_file'],
     requiresAdmin: true,
-    requiresWorkspace: true,
   },
   {
     name: 'shell',
@@ -60,7 +65,6 @@ export const TOOL_CAPABILITIES = [
     category: 'workspace',
     tools: ['shell', 'shell_output', 'kill_shell'],
     requiresAdmin: true,
-    requiresWorkspace: true,
   },
   {
     name: 'plan',
@@ -169,4 +173,17 @@ export function toggleToolSelection(
     .map((row) => row.name)
   const known = new Set(ordered)
   return [...ordered, ...[...selected].filter((name) => !known.has(name))]
+}
+
+export const SESSION_FILE_TOOL_NAMES = [
+  'copy_attachment',
+  'attach_file',
+  'read_file',
+  'write_file',
+  'edit_file',
+  'shell',
+] as const
+
+export function hasSessionFileTools(names: readonly string[]) {
+  return SESSION_FILE_TOOL_NAMES.some((name) => names.includes(name))
 }

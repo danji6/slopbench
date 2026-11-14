@@ -57,7 +57,10 @@ export type WorkspaceFileListing = { files: string[]; truncated: boolean }
 export type FolderWorkspace = {
   agentHome?: AgentHome
   agentOnly?: boolean
-  fileScope?: 'workspace' | 'agent'
+  /** Session file access is resolved by the sidecar using the trusted session ID. */
+  sessionFiles?: boolean
+  sessionOnly?: boolean
+  fileScope?: 'workspace' | 'agent' | 'session'
   approvalRoot?: string
   workspaceId: string
   folderId?: string

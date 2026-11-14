@@ -60,6 +60,7 @@ export const reminderExtraValidator = v.object({
 })
 
 export const workspaceExtraValidator = v.object({
+  sessionFiles: v.optional(v.boolean()),
   capabilities: v.optional(v.array(v.string())),
   label: v.optional(v.string()), // absent when the workspace was unbound
   fingerprint: v.optional(v.string()),

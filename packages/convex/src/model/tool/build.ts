@@ -2,6 +2,7 @@
 
 import { ASK_TOOL_NAME } from '@cv/core/const'
 import { READ_ATTACHMENT_TOOL_NAME } from '@cv/core/const'
+import { hasFilesystemTools } from '@cv/core/tool-capabilities'
 import type { WireToolCall } from '@cv/core/tool-dispatch'
 import type { ToolSet } from 'ai'
 
@@ -14,6 +15,7 @@ import { mergeToolApprovals } from '../../lib/tool/approval'
 import type { Session, StreamExecutionArgs } from '../../types'
 import type { AgentAutoApprove, ToolApprovals } from '../../types'
 import { createAskTool } from './ask'
+import { createAttachmentTransferTool } from './attachmentTransfers'
 import { createReadAttachmentTool } from './attachments'
 import type { PlanToolContext, WorkspaceToolContext } from './context'
 import {
@@ -36,6 +38,7 @@ import {
   isPlanMode,
   withPlanModeReminders,
 } from './plan'
+import { filesystemWorkspace } from './sessionFilesystem'
 import { EMPTY_TOOL_RESOURCES, type ToolResources } from './settings'
 import {
   createKillShellTool,
@@ -94,7 +97,9 @@ export async function getEnabledTools(
           messageId: options?.messageId,
           messageCreatedAt: options?.messageCreatedAt,
           workspaceId: session.workspace?.workspaceId ?? sessionId,
-          workspace: session.workspace,
+          workspace: hasFilesystemTools(manifest.names)
+            ? filesystemWorkspace(session)
+            : session.workspace,
           hasAgentHome: manifest.hasAgentHome ?? false,
           shell: manifest.shell,
           allowInteractiveShells:
@@ -302,8 +307,22 @@ async function createManifestTool(
       return createWebFetchTool()
     case 'web_search':
       return createWebSearchTool(build.resources.settings)
+    case 'copy_attachment':
+    case 'attach_file':
+      if (!planContext || !build.execution) return undefined
+      return createAttachmentTransferTool(
+        name,
+        planContext.ctx,
+        build.execution,
+      )
     case READ_ATTACHMENT_TOOL_NAME:
-      return (planContext && (createReadAttachmentTool(planContext.ctx, build.execution) as Promise<AnyTool>)) // prettier-ignore
+      return (
+        planContext &&
+        (createReadAttachmentTool(
+          planContext.ctx,
+          build.execution,
+        ) as Promise<AnyTool>)
+      )
     case 'read_skill':
       return build.skillsContext && createReadSkillTool(build.skillsContext)
     case 'list_skills':

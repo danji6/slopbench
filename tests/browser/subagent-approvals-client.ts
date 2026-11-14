@@ -61,6 +61,7 @@ let requests = [
   },
 ]
 let stopped: string[] = []
+let unrestrictedAccess = false
 let failNext = false
 let resolvePending: (() => void) | undefined
 const mutations: { name: string; args: Record<string, unknown> }[] = []
@@ -193,7 +194,8 @@ function query(name: string, args: Record<string, unknown>) {
       title: sessionId === 'parent' ? 'Parent' : 'Explore task',
       ...(sessionId !== 'parent' ? { parent: { sessionId: 'parent' } } : {}),
     }
-  if (name === 'sessions:getState') return { toolApprovals: {} }
+  if (name === 'sessions:getState')
+    return { toolApprovals: unrestrictedAccess ? { mode: 'unrestricted' } : {} }
   if (name === 'chat:getActiveStream') return stream(sessionId)
   if (name === 'chat:messagesWindow') return messageWindow(sessionId)
   if (name === 'attachments:getUrlMap') {
@@ -390,6 +392,8 @@ export const approvalFixtureClient = {
       return
     } else if (name === 'chat:stopStream' || name === 'subagents:stop') {
       stopped = [...stopped, String(args.childSessionId ?? args.sessionId)]
+    } else if (name === 'sessions:setApprovalMode') {
+      unrestrictedAccess = args.mode === 'unrestricted'
     } else if (!name.startsWith('typing:'))
       throw new Error(`Unexpected mutation: ${name}`)
     cache.clear()

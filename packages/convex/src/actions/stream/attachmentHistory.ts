@@ -13,8 +13,34 @@ export { activeAttachmentMessages } from '../../model/attachmentMedia'
 
 export type AttachmentResolveOptions = {
   mediaActive: boolean
+  copyEnabled?: boolean
   readerEnabled: boolean
   toolMediaActive: boolean
+}
+
+/** Adds the original reference even when the provider receives inline preview bytes. */
+export async function resolveAttachmentHistoryParts(
+  ctx: ActionCtx,
+  part: unknown,
+  options: AttachmentResolveOptions,
+) {
+  if (!options.copyEnabled || !isAttachmentPart(part) || part.publishedByTool)
+    return [await resolveAttachmentPart(ctx, part, options)]
+
+  const attachment = await getAttachment(ctx, part.attachmentId)
+  if (!attachment) return [part]
+
+  const resolved = await resolveStoredAttachment(ctx, part, options, attachment)
+  if (!isFilePart(resolved)) return [resolved]
+
+  return [
+    { type: 'text' as const, text: attachmentDescriptor(attachment, options) },
+    resolved,
+  ]
+}
+
+function isFilePart(part: unknown) {
+  return (part as { type?: string } | null)?.type === 'file'
 }
 
 /** Resolves one stored attachment into bounded metadata or active media. */
@@ -25,28 +51,47 @@ export async function resolveAttachmentPart(
 ) {
   if (!isAttachmentPart(part) || part.url.startsWith('data:')) return part
 
-  const attachment = await ctx.runQuery(internal.attachments._get, {
-    attachmentId: part.attachmentId,
-  })
+  const attachment = await getAttachment(ctx, part.attachmentId)
   if (!attachment) return part
+  return resolveStoredAttachment(ctx, part, options, attachment)
+}
 
+type StoredAttachment = NonNullable<Awaited<ReturnType<typeof getAttachment>>>
+
+function getAttachment(ctx: ActionCtx, attachmentId: Id<'attachments'>) {
+  return ctx.runQuery(internal.attachments._get, { attachmentId })
+}
+
+async function resolveStoredAttachment(
+  ctx: ActionCtx,
+  part: { publishedByTool?: boolean },
+  options: AttachmentResolveOptions,
+  attachment: StoredAttachment,
+) {
   if (isKnownTextFile(attachment.mediaType, attachment.filename)) {
     return {
       type: 'text' as const,
-      text: attachmentDescriptor(attachment, options.readerEnabled),
+      text: attachmentDescriptor(attachment, options),
     }
   }
-  if (!options.mediaActive) {
+  if (!options.mediaActive || part.publishedByTool) {
     return {
       type: 'text' as const,
-      text: attachmentDescriptor(attachment, false),
+      text: attachmentDescriptor(attachment, {
+        ...options,
+        readerEnabled: false,
+      }),
     }
   }
 
   const blob = await ctx.storage.get(
     attachment.previewStorageId ?? attachment.storageId,
   )
-  if (!blob) return part
+  if (!blob)
+    return {
+      type: 'text' as const,
+      text: attachmentDescriptor(attachment, options),
+    }
 
   const mediaType =
     (attachment.previewStorageId && attachment.previewMediaType) ||
@@ -69,16 +114,23 @@ function attachmentDescriptor(
     byteLength?: number
     shareToken?: string
   },
-  readerEnabled: boolean,
+  { readerEnabled, copyEnabled }: AttachmentResolveOptions,
 ) {
   const reference = attachment.shareToken
     ? attachmentRef(attachment.shareToken, attachment.filename)
     : null
   return block(
     'attachment',
-    readerEnabled
-      ? 'Use read_attachment with this reference to read its contents.'
-      : 'Reader unavailable; attachment contents were not loaded.',
+    [
+      ...(readerEnabled
+        ? ['Use read_attachment with this reference to read its contents.']
+        : []),
+      ...(copyEnabled
+        ? [
+            'Use copy_attachment with this reference to work with the original file.',
+          ]
+        : []),
+    ].join(' ') || 'Reader unavailable; attachment contents were not loaded.',
     {
       reference: reference ?? 'unavailable',
       filename: attachment.filename,
@@ -88,9 +140,12 @@ function attachmentDescriptor(
   )
 }
 
-function isAttachmentPart(
-  part: unknown,
-): part is { type: 'file'; url: string; attachmentId: Id<'attachments'> } {
+function isAttachmentPart(part: unknown): part is {
+  type: 'file'
+  url: string
+  attachmentId: Id<'attachments'>
+  publishedByTool?: boolean
+} {
   return (
     typeof part === 'object' &&
     part !== null &&

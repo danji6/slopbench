@@ -21,6 +21,7 @@ import { prepareToolAvailability } from '../../model/tool/availability'
 import { capabilitySource } from '../../model/tool/capabilitySource'
 import { resolveToolManifest } from '../../model/tool/manifest'
 import { hasToolResultMedia } from '../../model/tool/mcpOutput'
+import { filesystemWorkspace } from '../../model/tool/sessionFilesystem'
 import { prepareSessionTools } from '../../model/tool/sessionTools'
 import type { StreamExecutionArgs } from '../../types'
 import type { ReasoningEffort } from '../../types'
@@ -65,13 +66,11 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
   const needsShell =
     invokesTools &&
     data.agent.tools?.includes('shell') &&
-    !!data.session.workspace &&
     minRole(data.invoker.role, 'admin')
   const defaultShell = needsShell ? await sidecarDefaultShell() : undefined
 
   const capturesFiles =
     invokesTools &&
-    !!data.session.workspace &&
     minRole(data.invoker.role, 'admin') &&
     chosen.some((name) =>
       ['write_file', 'edit_file', 'shell', 'task'].includes(name),
@@ -247,7 +246,9 @@ export async function prepare(ctx: ActionCtx, execution: StreamExecutionArgs) {
     stream: data.stream,
     agent: data.agent,
     output: data.output,
-    workspace: data.session.workspace,
+    workspace: hasFilesystemTools(operationPlan.toolNames)
+      ? filesystemWorkspace(data.session)
+      : data.session.workspace,
     workspaceSessionId: sharedSessionId(data.session),
     isSubagent: !!data.session.parent,
     needsTitle:

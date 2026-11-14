@@ -17,6 +17,7 @@ export async function createReadFileTool(context: WorkspaceToolContext) {
     description: fileToolDescription(
       TOOL_DESCRIPTIONS.read_file,
       context.hasAgentHome ?? !!context.workspace?.agentHome,
+      context.workspace?.sessionFiles,
     ),
     inputSchema: z.strictObject(readFileFields),
     needsApproval: ({ path }) => fileNeedsApproval('read_file', path, context),
@@ -54,6 +55,7 @@ export async function createWriteFileTool(context: WorkspaceToolContext) {
     description: fileToolDescription(
       TOOL_DESCRIPTIONS.write_file,
       context.hasAgentHome ?? !!context.workspace?.agentHome,
+      context.workspace?.sessionFiles,
     ),
     inputSchema: z.strictObject(writeFileFields),
     needsApproval: ({ path }) => fileNeedsApproval('write_file', path, context),
@@ -74,6 +76,7 @@ export async function createEditFileTool(context: WorkspaceToolContext) {
     description: fileToolDescription(
       TOOL_DESCRIPTIONS.edit_file,
       context.hasAgentHome ?? !!context.workspace?.agentHome,
+      context.workspace?.sessionFiles,
     ),
     inputSchema: z.strictObject(editFileFields),
     needsApproval: ({ path }) => fileNeedsApproval('edit_file', path, context),

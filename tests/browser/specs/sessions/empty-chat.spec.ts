@@ -1,5 +1,5 @@
-import { type Page, expect, test } from '@playwright/test'
 import { APP_ID } from '@cv/core/const'
+import { type Page, expect, test } from '@playwright/test'
 
 async function expectWelcomeForAgent(page: Page, agentNumber: number) {
   const welcome = page.getByRole('region', { name: 'Welcome' })
@@ -7,6 +7,18 @@ async function expectWelcomeForAgent(page: Page, agentNumber: number) {
     welcome.getByText(new RegExp(`\\bAgent ${agentNumber}\\b`)),
   ).toBeVisible()
 }
+
+test('shows the unrestricted-access toggle before creating a chat without a workspace', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=empty-chat')
+  const ask = page.getByRole('button', { name: /allow unrestricted access/ })
+  const unrestricted = page.getByRole('button', { name: /require approvals/ })
+  await ask.click()
+  await expect(unrestricted).toHaveAttribute('aria-pressed', 'true')
+  await unrestricted.click()
+  await expect(ask).toHaveAttribute('aria-pressed', 'false')
+})
 
 test('provider setup overrides prompts and selection, and updates after setup', async ({
   page,

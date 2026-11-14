@@ -5,6 +5,7 @@ import type { Doc, Id } from '../../_generated/dataModel'
 import type { MutationCtx } from '../../_generated/server'
 import { settleAbandonedTaskParts } from '../../lib/subagent'
 import type { FailStreamArgs, StreamExecutionArgs } from '../../types'
+import { expireStreamTransfers } from '../attachmentTransfers'
 import { cleanUpGeneratedAttachments } from '../attachments'
 import { finishChanges } from '../changes'
 import { refreshHistoryContext } from '../chat/notes'
@@ -308,5 +309,6 @@ export async function discardStream(ctx: MutationCtx, streamId: Id<'streams'>) {
   await settleStream(ctx, streamId, 'unavailable')
   await cleanUpOffloadedOutputs(ctx, streamId)
   await cleanUpGeneratedAttachments(ctx, streamId)
+  await expireStreamTransfers(ctx, streamId)
   await ctx.db.delete(streamId)
 }

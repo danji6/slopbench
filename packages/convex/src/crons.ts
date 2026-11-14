@@ -59,4 +59,10 @@ crons.interval(
   internal.actions.mcpOperations._reconcile,
 )
 
+crons.interval(
+  'recover attachment transfers and session file operations',
+  { minutes: 1 },
+  internal.sessions._sweepSessionFiles,
+)
+
 export default crons

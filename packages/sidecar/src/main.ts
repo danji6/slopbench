@@ -75,6 +75,7 @@ import {
   disconnectChatGPT,
   startChatGPTSignIn,
 } from './providers/openai/handlers'
+import { sessionFileRoutes } from './session-files/routes'
 import {
   backgroundShell,
   killSessionShell,
@@ -97,6 +98,8 @@ export function createApp(authenticate: MiddlewareHandler) {
   const app = new Hono()
   app.get('/health', (c) => c.json({ ready: true }))
   app.use('*', authenticate)
+
+  app.route('/session-files', sessionFileRoutes())
   app.route('/toolkits', toolkitRoutes())
   app.route('/checkpoints', checkpointRoutes)
 

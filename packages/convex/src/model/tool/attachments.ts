@@ -166,7 +166,7 @@ function validateInput(input: ReadAttachmentInput) {
     throw new ToolError('Use offset only for forward plain attachment reads')
 }
 
-async function findAttachment(ctx: ActionCtx, value: string) {
+export async function findAttachment(ctx: ActionCtx, value: string) {
   const reference = attachmentReference(value)
   if (!reference) throw new ToolError('Invalid permanent attachment reference')
   const file = await ctx.runQuery(internal.attachments._getSharedFile, {

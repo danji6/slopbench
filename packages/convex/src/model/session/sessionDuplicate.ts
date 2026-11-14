@@ -8,6 +8,7 @@ import { insertMessage, withParts } from '../messageContents'
 import { finalizeMessageParts, notACommandChip } from '../messages'
 import { getBySession as getPlan, upsert as upsertPlan } from '../plans'
 import { portableContextExtra } from '../stream/contextNotes'
+import { assertSessionsIdle, sessionFamilies } from './folderTransitionSessions'
 import { getActiveStream, requireOwner } from './memberships'
 import { getState, patchState } from './state'
 
@@ -20,6 +21,7 @@ import { getState, patchState } from './state'
  * - Plan
  * - Environment variables
  * - Media
+ * - Session files, once the sidecar completes its copy
  *
  * Blobs are shared by reference with the source, which is safe because
  * attachment removal is refcount-aware. Large offloaded tool outputs keep
@@ -29,12 +31,18 @@ import { getState, patchState } from './state'
 export async function duplicate(
   ctx: AuthMutationCtx,
   { sessionId, title }: { sessionId: Id<'sessions'>; title?: string },
+  files?: { token: string },
 ) {
   const { session } = await requireOwner(ctx, sessionId, ctx.userId)
   if (session.contextLock) error('Folder sources are being updated', 409)
+  if (session.sessionFilesPending) error('Session files are being copied', 409)
   if (session.parent) error('Sub-agent sessions cannot be duplicated', 409)
-  if (await getActiveStream(ctx, sessionId)) {
-    error('Session is busy', 409)
+  if (await getActiveStream(ctx, sessionId)) error('Session is busy', 409)
+
+  const family = files ? await sessionFamilies(ctx, [session]) : []
+  if (files) {
+    await assertSessionsIdle(ctx, family)
+    await ctx.db.patch(sessionId, { contextLock: files.token })
   }
 
   const now = Date.now()
@@ -44,6 +52,7 @@ export async function duplicate(
 
   const newSessionId = await ctx.db.insert('sessions', {
     ownerId: ctx.userId,
+    ...(files && { sessionFilesPending: true }),
     folderId: session.folderId,
     title: newTitle,
     activeAgentId: session.activeAgentId,
@@ -64,6 +73,7 @@ export async function duplicate(
     sessionId: newSessionId,
     userId: ctx.userId,
     role: 'owner',
+    ...(files && { hidden: true }),
     groupKey: session.folderId ?? 'ungrouped',
     lastMessageAt: now,
     title: newTitle,
@@ -172,5 +182,16 @@ export async function duplicate(
     if (copyId) await ctx.db.patch(copyId, { messageId: newId })
   }
 
+  if (files) {
+    const operationId = await ctx.db.insert('sessionFileOperations', {
+      kind: 'duplicate',
+      sessionId: newSessionId,
+      sourceId: sessionId,
+      sessionIds: family.map((entry) => entry._id),
+      token: files.token,
+      nextAttemptAt: now + 60_000,
+    })
+    return { sessionId: newSessionId, operationId }
+  }
   return { sessionId: newSessionId }
 }

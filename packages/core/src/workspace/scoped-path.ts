@@ -1,4 +1,4 @@
-export type FileScope = 'workspace' | 'agent'
+export type FileScope = 'workspace' | 'agent' | 'session'
 
 export type ScopedPath = {
   scope: FileScope
@@ -8,10 +8,12 @@ export type ScopedPath = {
 
 /** Parses filesystem prefixes without URL decoding or host-dependent path rules. */
 export function parseScopedPath(value: string): ScopedPath {
-  const match = /^(agent|workspace):\/\//.exec(value)
+  const match = /^(agent|workspace|session):\/\//.exec(value)
   if (!match) {
-    if (/^(?:agent|workspace):|^[a-z][a-z\d+.-]*:\/\//i.test(value)) {
-      throw new Error('Invalid filesystem prefix; use agent:// or workspace://')
+    if (/^(?:agent|workspace|session):|^[a-z][a-z\d+.-]*:\/\//i.test(value)) {
+      throw new Error(
+        'Invalid filesystem prefix; use agent://, workspace://, or session://',
+      )
     }
     return { scope: 'workspace', path: value, explicit: false }
   }

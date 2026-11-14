@@ -9,6 +9,7 @@ import { internal } from '../../_generated/api'
 import type { Id } from '../../_generated/dataModel'
 import type { ActionCtx } from '../../_generated/server'
 import { extractErrorMessage } from '../../errors'
+import { filesystemWorkspace } from '../../model/tool/sessionFilesystem'
 import type { StreamContext, StreamExecutionArgs } from '../../types'
 
 /** Starts capture before tools can mutate files, yielding queued writers back to the scheduler. */
@@ -17,11 +18,11 @@ export async function prepareChanges(
   execution: StreamExecutionArgs,
   data: StreamContext,
 ) {
-  if (!data.session.workspace) return true
+  const workspace = filesystemWorkspace(data.session)
 
   const row = await ctx.runMutation(internal.chat._prepareChanges, {
     ...execution,
-    workspace: data.session.workspace,
+    workspace,
   })
 
   if (!row) return false
@@ -36,7 +37,7 @@ export async function prepareChanges(
         participantId: String(row.streamId),
         root: row.root,
         sessionId: row.sessionId,
-        workspace: data.session.workspace,
+        workspace,
       },
     )
     if (!result.queued) return true
@@ -202,8 +203,11 @@ export async function restoreChanges(
         resolvePersonalWorkspace(agent, context.workspace),
       ),
     )
-    const workspace =
+    const current =
       workspaces.find((value) => value !== undefined) ?? context.workspace
+    const workspace = row.workspace.sessionFiles
+      ? filesystemWorkspace({ _id: row.sessionId, workspace: current })
+      : current
     if (!workspace) throw new Error('Filesystem context is unavailable')
 
     const approvals = await ctx.runQuery(internal.sessions._getApprovals, {

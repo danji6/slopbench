@@ -3,6 +3,10 @@ import path from 'node:path'
 
 import { isOutside } from '../mcp/workspace/access'
 import { requireWorkspace } from '../mcp/workspace/resolve-workspace'
+import {
+  ensureSessionDirectory,
+  sessionDirectory,
+} from '../session-files/storage'
 import type { CheckpointStorage } from './storage'
 import type {
   BeginCapture,
@@ -32,7 +36,9 @@ export async function captureRoots(input: BeginCapture) {
     )
     workspace.roots.push(...home.roots)
   }
-  return workspace.roots
+  if (input.workspace.sessionFiles)
+    workspace.roots.push(await ensureSessionDirectory(input.sessionId))
+  return [...new Set(workspace.roots)]
 }
 
 export function createGroup(
@@ -72,6 +78,11 @@ export function enrollParticipant(group: CaptureGroup, input: BeginCapture) {
 
 export function displayFile(group: CaptureGroup, target: string) {
   for (const participant of group.participants) {
+    if (participant.workspace.sessionFiles) {
+      const root = sessionDirectory(participant.sessionId)
+      if (!isOutside(root, target))
+        return `session://${path.relative(root, target).split(path.sep).join('/')}`
+    }
     const home = participant.workspace.agentHome
     if (home && !isOutside(home.path, target))
       return `agent://${path.relative(home.path, target).split(path.sep).join('/')}`

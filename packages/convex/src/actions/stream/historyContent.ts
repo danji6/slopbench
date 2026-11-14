@@ -26,6 +26,7 @@ import { hasOutputRef } from '../../model/stream/toolOutput'
 import type { MessageRole } from '../../types'
 import {
   type AttachmentResolveOptions,
+  resolveAttachmentHistoryParts,
   resolveAttachmentPart,
 } from './attachmentHistory'
 
@@ -39,11 +40,14 @@ export async function resolveParts(
     ? undefined
     : (await import('../../model/tool/attachments')).expireAttachmentToolPart
   const resolved = await Promise.all(
-    parts.map((part) =>
-      resolvePart(ctx, expire?.(part) ?? part, role, attachmentOptions),
-    ),
+    parts.map(async (part) => {
+      const current = expire?.(part) ?? part
+      if ((current as { type?: string } | null)?.type === 'file')
+        return resolveAttachmentHistoryParts(ctx, current, attachmentOptions)
+      return [await resolvePart(ctx, current, role, attachmentOptions)]
+    }),
   )
-  return resolved as UIMessage['parts']
+  return resolved.flat() as UIMessage['parts']
 }
 
 export async function resolvePart(

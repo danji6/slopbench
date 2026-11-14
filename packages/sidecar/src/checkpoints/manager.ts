@@ -7,6 +7,7 @@ import {
 
 import { isOutside } from '../mcp/workspace/access'
 import { requireWorkspace } from '../mcp/workspace/resolve-workspace'
+import { sessionDirectory } from '../session-files/storage'
 import { changedFiles, publication } from './diff'
 import {
   captureRoots,
@@ -175,6 +176,8 @@ export class CheckpointManager {
     const previouslyCovered = group.participants.some((participant) => {
       const roots =
         participant.workspace.sources?.map((source) => source.path) ?? []
+      if (participant.workspace.sessionFiles)
+        roots.push(sessionDirectory(participant.sessionId))
       if (participant.workspace.agentHome)
         roots.push(participant.workspace.agentHome.path)
       return roots.some((root) => !isOutside(root, target))

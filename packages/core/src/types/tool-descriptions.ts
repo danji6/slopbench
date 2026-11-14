@@ -29,10 +29,14 @@ const edit_file = inline`
   nearby or overlapping changes into one edit.`
 
 /** Adds personal file guidance only when a home is available for this turn. */
-export function fileToolDescription(description: string, hasAgentHome = false) {
-  return hasAgentHome
-    ? `${description} Use agent:// paths for personal files.`
-    : description
+export function fileToolDescription(
+  description: string,
+  hasAgentHome = false,
+  hasSessionFiles = false,
+) {
+  const home = hasAgentHome ? ' Use agent:// paths for personal files.' : ''
+  const session = hasSessionFiles ? ' Use session:// paths for chat files.' : ''
+  return description + home + session
 }
 
 export function shellToolDescription(

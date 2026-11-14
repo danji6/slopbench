@@ -5,6 +5,7 @@ import {
   type PathCheckResult,
   pathApprovalStatus,
 } from '@cv/core/workspace/path-policy'
+import { defaultShellDirectory } from '@cv/core/workspace/personal'
 import type { UIMessage } from 'ai'
 
 import { internal } from '../../_generated/api'
@@ -146,7 +147,7 @@ export async function withApprovalPaths(
         context,
         context.allowedPaths,
         false,
-        input?.cwd ?? 'workspace://',
+        input?.cwd ?? defaultShellDirectory(context.workspace),
       )
     : null
 

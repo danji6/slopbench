@@ -198,6 +198,7 @@ export const assertToolAccessArgsValidator = v.object({
 })
 
 export const prepareContextNoteArgsValidator = v.object({
+  sessionFiles: v.optional(v.boolean()),
   contextId: v.optional(v.string()),
   capabilities: v.optional(v.array(v.string())),
   ...streamExecutionArgsValidator.fields,

@@ -94,6 +94,8 @@ export const sessionSchema = v.object({
   reasoningEffort: v.optional(v.string()),
   folderId: v.optional(v.id('sessionFolders')),
   contextLock: v.optional(v.string()),
+  sessionFilesPending: v.optional(v.boolean()),
+  taskDirectory: v.optional(v.string()),
   parent: v.optional(sessionParentValidator),
   lastMessageAt: v.optional(v.number()),
   lastMessagePreview: v.optional(v.string()),

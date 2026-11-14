@@ -19,6 +19,8 @@ const TOOL_ICONS: Record<BuiltinToolName, LucideIcon> = {
   edit_file: PencilIcon,
   read_file: BookOpenTextIcon,
   read_attachment: PaperclipIcon,
+  copy_attachment: PaperclipIcon,
+  attach_file: PaperclipIcon,
   web_search: GlobeIcon,
   web_fetch: GlobeIcon,
   shell: SquareTerminalIcon,

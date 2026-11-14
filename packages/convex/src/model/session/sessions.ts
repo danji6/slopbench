@@ -80,7 +80,7 @@ export async function create(
     })
   }
 
-  if (folder?.workspace && args.approvalMode === 'unrestricted') {
+  if (args.approvalMode === 'unrestricted') {
     await setStateApprovalMode(ctx, sessionId, args.approvalMode)
   }
 

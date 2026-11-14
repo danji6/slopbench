@@ -461,7 +461,7 @@ export function ChatSessionView({
                           }}
                           approval={{
                             value: approval.mode,
-                            available: canUseWorkspace,
+                            available: canApproveTools,
                             toggle: approval.toggleMode,
                           }}
                         />

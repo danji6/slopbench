@@ -1,6 +1,10 @@
 'use node'
 
 import { sha256 } from '@cv/core/sha256'
+import {
+  hasFilesystemTools,
+  hasSessionFileTools,
+} from '@cv/core/tool-capabilities'
 import { contextDependencies, contextEnabled } from '@cv/core/tool-context'
 
 import { internal } from '../../_generated/api'
@@ -51,7 +55,8 @@ export async function prepareToolContext(
   }
 
   const preparesWorkspace =
-    contextEnabled('workspace', names) || contextEnabled('workspace', previous)
+    contextEnabled('workspace', names) ||
+    (!!data.session.workspace && hasFilesystemTools(previous))
   if (preparesWorkspace) {
     const prepared = await prepareWorkspace(
       ctx,
@@ -80,9 +85,12 @@ async function prepareWorkspace(
   names: string[],
   contextId?: string,
 ) {
-  const content = contextEnabled('workspace', names)
+  const sessionFiles = hasSessionFileTools(names)
+  const guidance = sessionFiles ? sessionDirectoryGuidance(data, names) : ''
+  const workspace = hasFilesystemTools(names)
     ? buildWorkspaceNoteContent(undefined, data.session.workspace, names)
-    : 'Filesystem tools are disabled. Earlier filesystem context no longer authorizes access.'
+    : ''
+  const content = [workspace, guidance].filter(Boolean).join('\n')
   const capabilities = contextDependencies('workspace', names)
   return ctx.runMutation(internal.streams._prepareWorkspaceContext, {
     ...execution,
@@ -90,10 +98,24 @@ async function prepareWorkspace(
     capabilities,
     fingerprint: await sha256(JSON.stringify([content, capabilities])),
     label: data.session.workspace?.label,
+    sessionFiles,
     content:
       content ||
-      'No project sources or personal folder are currently available. Earlier filesystem context no longer applies.',
+      'Filesystem tools are disabled. Earlier filesystem context no longer authorizes access.',
   })
+}
+
+function sessionDirectoryGuidance(data: StreamContext, names: string[]) {
+  const { taskDirectory } = data.session
+  return [
+    'This chat has a persistent working directory at session://.',
+    ...(taskDirectory
+      ? [`Use session://tasks/${taskDirectory}/ for your task files.`]
+      : []),
+    ...(names.includes('shell')
+      ? ['Use cwd: "session://" or $SESSION_DIR in Shell.']
+      : []),
+  ].join('\n')
 }
 
 async function prepareSkills(

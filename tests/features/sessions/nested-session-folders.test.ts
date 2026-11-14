@@ -13,6 +13,7 @@ import {
   reorder,
 } from '@cv/convex/model/session/folders'
 import { create as createSession } from '@cv/convex/model/session/sessions'
+import { getApprovals } from '@cv/convex/model/session/state'
 import type { FolderMoveArgs, FolderTransitionArgs } from '@cv/convex/types'
 import { describe, expect, test } from 'bun:test'
 import {
@@ -84,6 +85,21 @@ async function moveArgs(ctx: Parameters<typeof preview>[0], extra: Row) {
 }
 
 describe('nested session folders', () => {
+  test('new sessions can start in unrestricted mode without a bound workspace', async () => {
+    const { ctx } = nested()
+    for (const folderId of [undefined, 'b' as never]) {
+      const { sessionId } = await createSession(ctx, {
+        folderId,
+        approvalMode: 'unrestricted',
+      })
+
+      expect(
+        (await getSessionWithWorkspace(ctx, sessionId))?.workspace,
+      ).toBeUndefined()
+      expect((await getApprovals(ctx, sessionId)).mode).toBe('unrestricted')
+    }
+  })
+
   test('workspace inheritance is live through multiple ancestors and sub-agent sessions', async () => {
     const { ctx, row } = nested()
     for (const id of ['s', 'child']) {

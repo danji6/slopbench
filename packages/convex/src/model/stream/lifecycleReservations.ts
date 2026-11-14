@@ -84,7 +84,7 @@ export async function reserveInvokeTurn(
 ) {
   const session = await getSessionWithWorkspace(ctx, sessionId)
   if (!session) return
-  if (session.contextLock) return
+  if (session.contextLock || session.sessionFilesPending) return
   if (session.settings?.disabled) return
   if (!session.activeAgentId) return
 

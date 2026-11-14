@@ -28,7 +28,9 @@ export const workspaceContextSchema = z.object({
     })
     .optional(),
   agentOnly: z.boolean().optional(),
-  fileScope: z.enum(['workspace', 'agent']).optional(),
+  sessionFiles: z.boolean().optional(),
+  sessionOnly: z.boolean().optional(),
+  fileScope: z.enum(['workspace', 'agent', 'session']).optional(),
   approvalRoot: z.string().optional(),
   workspaceId: z.string(),
   folderId: z.string().optional(),
@@ -90,7 +92,12 @@ export async function lockWorkspaces(input: z.infer<typeof lockSchema>) {
     }
   }
   for (const id of input.sessionIds) locks.set(id, input.token)
-  await mcpRegistry.disconnectSessions(input.sessionIds)
+  try {
+    await mcpRegistry.disconnectSessions(input.sessionIds)
+  } catch (error) {
+    unlockWorkspaces(input)
+    throw error
+  }
   return { ok: true }
 }
 
@@ -102,6 +109,10 @@ export function unlockWorkspaces(input: z.infer<typeof lockSchema>) {
 }
 
 /** Serializes source transitions against the whole filesystem operation. */
+export function workspaceOperationActive(sessionId: string) {
+  return !!active.get(sessionId)
+}
+
 export async function withWorkspaceOperation<T>(
   sessionId: string,
   operation: () => Promise<T>,

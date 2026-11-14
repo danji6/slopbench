@@ -204,9 +204,20 @@ export async function _createGenerated(
     await ctx.storage.delete(args.storageId)
     return null
   }
+  return (await createGeneratedAttachment(ctx, args)).attachmentId
+}
+
+export async function createGeneratedAttachment(
+  ctx: MutationCtx,
+  args: CreateGeneratedAttachmentArgs,
+) {
   const { generation: _generation, ...attachment } = args
   const fileId = await createFile(ctx, attachment)
-  return ctx.db.insert('attachments', { ...attachment, fileId })
+  const attachmentId = await ctx.db.insert('attachments', {
+    ...attachment,
+    fileId,
+  })
+  return { attachmentId, metadata: (await ctx.db.get(fileId))! }
 }
 
 /** Creates a message-local reference from a bearer attachment token. */

@@ -121,7 +121,6 @@ export function resolveToolManifest(data: ManifestInput): ToolManifest {
   for (const capability of TOOL_CAPABILITIES) {
     if (!selected.has(capability.name)) continue
     if ('requiresAdmin' in capability && !admin) continue
-    if ('requiresWorkspace' in capability && !data.session.workspace) continue
     names.push(...capability.tools.filter(eligible))
   }
 

@@ -29,10 +29,19 @@ test('downloads original files from attachment buttons and Markdown links', asyn
       body: notes,
     }),
   )
+  const pdf = Buffer.from('%PDF-1.7 card')
+  await page.route('https://storage.example.test/published-pdf', (route) =>
+    route.fulfill({ headers: cors, contentType: 'application/pdf', body: pdf }),
+  )
   await page.goto('/?fixture=attachment-download')
   const url = page.url()
 
   const cases = [
+    {
+      control: page.getByRole('button', { name: 'Download processed.pdf' }),
+      filename: 'processed.pdf',
+      bytes: pdf,
+    },
     {
       control: page.getByRole('button', { name: 'Download image.png' }),
       filename: 'image.png',

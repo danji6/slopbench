@@ -1,12 +1,14 @@
 import type { FolderWorkspace } from '@cv/core/types/workspace'
 import {
   assertPersonalScope,
+  defaultShellDirectory,
   selectFileWorkspace,
 } from '@cv/core/workspace/personal'
 import { stat } from 'node:fs/promises'
 
 import { resolveFileToolPath } from '../mcp/workspace/file-path'
 import { requireWorkspace } from '../mcp/workspace/resolve-workspace'
+import { ensureSessionDirectory } from '../session-files/storage'
 
 export type ShellDirectoryInput = {
   sessionId: string
@@ -18,7 +20,7 @@ export type ShellDirectoryInput = {
 
 /** Resolves execution and approval bases without changing project source authority. */
 export async function inspectShellDirectory(input: ShellDirectoryInput) {
-  const path = input.cwd ?? 'workspace://'
+  const path = input.cwd ?? defaultShellDirectory(input.workspace)
   const selected = input.workspace
     ? selectFileWorkspace(input.workspace, path)
     : undefined
@@ -46,10 +48,14 @@ export async function resolveShellDirectory(input: ShellDirectoryInput) {
   return {
     ...directory,
     environment: {
+      SESSION_DIR: input.workspace?.sessionFiles
+        ? await ensureSessionDirectory(input.sessionId)
+        : undefined,
       AGENT_DIR: input.workspace?.agentHome?.path,
-      WORKSPACE_DIR: input.workspace?.agentOnly
-        ? undefined
-        : input.workspace?.path,
+      WORKSPACE_DIR:
+        input.workspace?.agentOnly || input.workspace?.sessionOnly
+          ? undefined
+          : input.workspace?.path,
     },
   }
 }

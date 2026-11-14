@@ -107,10 +107,7 @@ export function EmptyChat({
       if (userId) setSelectedSessionFolder(userId, id)
       setOrphanDraftKey(folderId && folder === null ? draftKey : null)
       navigate(id ? `/?folder=${id}` : '/', { replace: true })
-      if (!id) {
-        setMode('normal')
-        setApprovalMode('ask')
-      }
+      if (!id) setMode('normal')
     },
     [navigate, folderId, folder, draftKey, userId],
   )
@@ -234,7 +231,7 @@ export function EmptyChat({
                 }}
                 approval={{
                   value: approvalMode,
-                  available: isAdmin && Boolean(workspaceRoot),
+                  available: isAdmin,
                   toggle: () =>
                     setApprovalMode((current) =>
                       current === 'ask' ? 'unrestricted' : 'ask',

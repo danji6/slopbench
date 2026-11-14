@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test'
 const labels = [
   'Ask questions',
   'Read attachments',
+  'Process attachments',
   'Delegate tasks',
   'Web fetch',
   'Web search',
@@ -144,4 +145,23 @@ test('the master checkbox preserves saved external choices absent from discovery
   await expect(page.getByLabel('Saved selection')).toHaveText(
     '["offline_lookup","mcp_server:offline"]',
   )
+})
+
+test('attachment processing is an independent opt-in', async ({ page }) => {
+  await page.goto('/?fixture=tool-settings')
+  const processing = page.getByRole('checkbox', {
+    name: 'Process attachments',
+    exact: true,
+  })
+  await expect(processing).not.toBeChecked()
+  await processing.click()
+  await expect(page.getByLabel('Saved selection')).toHaveText(
+    '["process_attachments"]',
+  )
+  await expect(
+    page.getByRole('checkbox', { name: 'Read attachments', exact: true }),
+  ).not.toBeChecked()
+  await page.getByRole('button', { name: 'Save selection' }).click()
+  await page.reload()
+  await expect(processing).toBeChecked()
 })

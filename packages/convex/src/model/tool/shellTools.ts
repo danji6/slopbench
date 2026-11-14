@@ -1,4 +1,5 @@
 import { TOOL_DESCRIPTIONS, shellToolDescription } from '@cv/core/types'
+import { defaultShellDirectory } from '@cv/core/workspace/personal'
 import { parseScopedPath } from '@cv/core/workspace/scoped-path'
 
 import {
@@ -35,7 +36,7 @@ export async function createShellTool(context: WorkspaceToolContext) {
         .string()
         .optional()
         .describe(
-          'Working directory: workspace-relative, absolute, workspace:// or agent:// (default: workspace://)',
+          'Working directory. session://, workspace:// and agent:// are accepted when available.',
         ),
       command: z.string().describe('Shell command to execute'),
       description: z
@@ -164,7 +165,7 @@ function jobRef(context: WorkspaceToolContext, toolCallId: string) {
 async function shellNeedsApproval(
   command: string,
   context: WorkspaceToolContext,
-  cwd = 'workspace://',
+  cwd?: string,
 ): Promise<boolean> {
   const approvals = await context.approvals?.()
   if (isUnrestrictedAccess(approvals)) return false
@@ -179,7 +180,7 @@ async function shellNeedsApproval(
     context,
     approvals?.paths,
     false,
-    cwd,
+    cwd ?? defaultShellDirectory(context.workspace),
   )
   return !result?.complete || result.uncovered.length > 0
 }
@@ -191,11 +192,17 @@ async function shellNeedsApproval(
 export async function getFlaggedPaths(
   command: string,
   context: Pick<WorkspaceToolContext, 'sessionId' | 'workspaceId' | 'workspace'>, // prettier-ignore
-  cwd = 'workspace://',
+  cwd?: string,
 ): Promise<string[] | null> {
   const { candidates: paths, complete } = analyzeShellPathCandidates(command)
   if (!complete) return null
 
-  const result = await checkToolPaths(paths, context, [], false, cwd)
+  const result = await checkToolPaths(
+    paths,
+    context,
+    [],
+    false,
+    cwd ?? defaultShellDirectory(context.workspace),
+  )
   return result?.complete ? result.flagged : null
 }

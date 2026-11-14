@@ -2,7 +2,8 @@ import { isContextNote } from './context-notes'
 import {
   BUILTIN_TOOL_NAMES,
   FILESYSTEM_TOOL_NAMES,
-  hasFilesystemTools,
+  SESSION_FILE_TOOL_NAMES,
+  hasSessionFileTools,
 } from './tool-capabilities'
 import { MCP_BROKER_TOOLS } from './types/mcp-catalog'
 
@@ -16,8 +17,8 @@ export function contextDependencies(
 ) {
   if (type === 'workspace') {
     return names.filter((name) =>
-      FILESYSTEM_TOOL_NAMES.includes(
-        name as (typeof FILESYSTEM_TOOL_NAMES)[number],
+      [...FILESYSTEM_TOOL_NAMES, ...SESSION_FILE_TOOL_NAMES].some(
+        (tool) => tool === name,
       ),
     )
   }
@@ -37,7 +38,7 @@ export function contextEnabled(
   type: ToolContextType,
   names: readonly string[],
 ) {
-  if (type === 'workspace') return hasFilesystemTools(names)
+  if (type === 'workspace') return hasSessionFileTools(names)
   if (type === 'skills') return names.includes('list_skills')
   return contextDependencies('mcp', names).some(
     (name) => name !== 'read_mcp_output',
@@ -58,6 +59,15 @@ export function canReplayToolContext(
   version = 1,
   contextId?: string,
 ) {
+  if (
+    note.type === 'workspace' &&
+    note.extra &&
+    'sessionFiles' in note.extra &&
+    note.extra.sessionFiles &&
+    !hasSessionFileTools(names)
+  ) {
+    return false
+  }
   if (contextId && isContextNote(note.type)) {
     return (
       note.sender.id === agentId &&
@@ -82,7 +92,7 @@ export function canReplayToolContext(
       : undefined
 
   if (!Array.isArray(dependencies) || !dependencies.length) return false
-  if (note.type === 'workspace' && !hasFilesystemTools(names)) return false
+  if (note.type === 'workspace' && !hasSessionFileTools(names)) return false
   if (note.type === 'skills' && !names.includes('list_skills')) return false
 
   return dependencies.every(

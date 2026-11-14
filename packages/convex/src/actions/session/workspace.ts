@@ -27,13 +27,6 @@ export async function createSession(
   return ctx.runMutation(api.sessions.create, args)
 }
 
-export async function duplicateSession(
-  ctx: ActionCtx,
-  args: { sessionId: Id<'sessions'>; title?: string },
-): Promise<{ sessionId: Id<'sessions'> }> {
-  return ctx.runMutation(api.sessions.duplicate, args)
-}
-
 export async function listDirectories(
   ctx: ActionCtx,
   args: { path?: string; showHidden?: boolean },
