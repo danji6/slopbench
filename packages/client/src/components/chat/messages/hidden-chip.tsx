@@ -271,7 +271,7 @@ function HiddenChipContent({
       onOpenChange={setOpen}
       revealOnOpen={false}
       dense
-      surface={placement === 'inline' ? 'inset' : 'inset-row'}
+      surface={placement === 'grouped' ? 'inset-row' : 'inset'}
       triggerClassName="py-(--work-header-padding-y)"
     >
       <div

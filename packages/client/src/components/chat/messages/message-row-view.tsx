@@ -392,7 +392,10 @@ function FooterRow({ duration, message, messageMeta, isLast }: FooterRowProps) {
   return (
     <div
       data-slow="message-footer"
-      className={cn('flex w-full flex-col empty:hidden', !isLast && 'pb-4')}
+      className={cn(
+        'flex w-full flex-col empty:hidden',
+        !isLast && 'pb-4 in-data-footer-before-reset:pb-0',
+      )}
     >
       {error && (
         <div className="px-4 pt-3">
@@ -407,7 +410,7 @@ function FooterRow({ duration, message, messageMeta, isLast }: FooterRowProps) {
         />
       )}
       {(showSwitcher || showDuration) && (
-        <div className="flex items-center gap-3 px-2 pt-4">
+        <div className="flex items-center gap-3 pt-4">
           {showSwitcher && (
             <MessageVersionSwitcher
               messageId={message.id}

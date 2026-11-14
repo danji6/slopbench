@@ -72,7 +72,15 @@ let planContent = 'Original plan'
 let submittedShell: ReturnType<typeof message> | undefined
 
 function initialMessages() {
-  if (params.has('contextReset')) return [message('before-reset', 1)]
+  if (params.has('contextReset')) {
+    return [
+      {
+        ...message('before-reset', 1),
+        role: 'assistant',
+        metadata: { duration: 8300 },
+      },
+    ]
+  }
   if (params.has('shellComposer') || params.has('composer')) {
     return Array.from({ length: 32 }, (_, index) =>
       message(`history${index}`, index),
@@ -488,7 +496,11 @@ export const notesClient = {
       messages = [
         ...messages,
         {
-          ...message('context-reset', Date.now(), 'contextReset'),
+          ...message(
+            `context-reset-${messages.length}`,
+            Date.now(),
+            'contextReset',
+          ),
           sender: { type: 'user', id: 'owner' },
         },
       ]

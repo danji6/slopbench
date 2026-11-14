@@ -246,6 +246,7 @@ test('subscription models retain custom inference and advanced settings', async 
     inference: { temperature: 0.2 },
   })
   expect((await resolve(ctx, ctx.userId))[0].models[0]).toMatchObject({
+    contextWindow: 256_000,
     inference: { temperature: 0.2 },
     extraParameters: '{"max_output_tokens":400}',
   })

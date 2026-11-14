@@ -2,6 +2,8 @@ import { APP_NAME } from '@cv/core/const'
 
 const BASE_TITLE = APP_NAME
 const FAVICON_ID = 'app-favicon'
+const FAVICON_URL = '/favicon.png'
+let latestUnreadCount = 0
 
 /** Formats the compact count drawn inside the favicon badge. */
 export function notificationBadgeLabel(count: number): string {
@@ -16,20 +18,36 @@ export function notificationDocumentTitle(count: number): string {
 
 /** Updates the document title and generated favicon for the unread count. */
 export function updateNotificationFavicon(count: number) {
+  latestUnreadCount = count
   document.title = notificationDocumentTitle(count)
   const link = faviconLink()
   if (count <= 0) {
-    link.href = '/favicon.svg'
+    link.href = FAVICON_URL
     return
   }
 
+  const image = new Image()
+  image.onload = () => {
+    if (count === latestUnreadCount) drawBadgedFavicon(link, image, count)
+  }
+  image.src = FAVICON_URL
+}
+
+function drawBadgedFavicon(
+  link: HTMLLinkElement,
+  image: HTMLImageElement,
+  count: number,
+) {
   const canvas = document.createElement('canvas')
   canvas.width = 32
   canvas.height = 32
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
-  drawChatIcon(ctx)
+  const scale = 32 / Math.max(image.naturalWidth, image.naturalHeight)
+  const width = image.naturalWidth * scale
+  const height = image.naturalHeight * scale
+  ctx.drawImage(image, (32 - width) / 2, (32 - height) / 2, width, height)
   ctx.fillStyle = '#ba1a1a'
   ctx.beginPath()
   ctx.arc(23, 9, 9, 0, Math.PI * 2)
@@ -51,22 +69,4 @@ function faviconLink(): HTMLLinkElement {
   link.rel = 'icon'
   document.head.append(link)
   return link
-}
-
-function drawChatIcon(ctx: CanvasRenderingContext2D) {
-  ctx.fillStyle = '#6750a4'
-  ctx.beginPath()
-  ctx.roundRect(2, 3, 27, 23, 7)
-  ctx.fill()
-  ctx.beginPath()
-  ctx.moveTo(9, 24)
-  ctx.lineTo(6, 31)
-  ctx.lineTo(16, 25)
-  ctx.fill()
-  ctx.fillStyle = '#ffffff'
-  ctx.beginPath()
-  ctx.arc(10, 14, 2, 0, Math.PI * 2)
-  ctx.arc(16, 14, 2, 0, Math.PI * 2)
-  ctx.arc(22, 14, 2, 0, Math.PI * 2)
-  ctx.fill()
 }

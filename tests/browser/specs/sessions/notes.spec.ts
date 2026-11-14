@@ -115,11 +115,8 @@ test('notes align and space like work rows while animating their inset', async (
     .locator('svg')
     .first()
     .boundingBox()
-  const thinkingIcon = await page
-    .locator('[data-slot="reasoning-block"] svg')
-    .first()
-    .boundingBox()
-  expect(Math.abs(commandIcon!.x - thinkingIcon!.x)).toBeLessThanOrEqual(1)
+  const groupLabel = await group(page).locator('span').first().boundingBox()
+  expect(Math.abs(commandIcon!.x - groupLabel!.x)).toBeLessThanOrEqual(1)
   await expect(note(page, 'command')).toHaveAttribute(
     'data-placement',
     'standalone',
@@ -439,14 +436,32 @@ test('/new inserts a deletable context marker without an active agent', async ({
   await expect(page.getByRole('option', { name: /\/new/ })).toBeVisible()
   await editor.press('Enter')
 
-  const marker = page.locator('[data-slot="context-reset"]')
+  const markers = page.locator('[data-slot="context-reset"]')
+  const marker = markers.first()
   await expect(marker.getByText('Context reset', { exact: true })).toBeVisible()
   await expect(marker.getByRole('button')).toHaveCount(0)
   await editor.fill('Message after reset')
   await editor.press('Enter')
-  await expect(
-    page.getByText('Message after reset', { exact: true }),
-  ).toBeVisible()
+  const body = page.getByText('Message after reset', { exact: true })
+  await expect(body).toBeVisible()
+
+  await editor.fill('/new')
+  await editor.press('Enter')
+  await expect(markers).toHaveCount(2)
+  const header = page.locator('[data-slot="message-header"]').last()
+  const footer = page.getByText('Worked for 8.3s', { exact: true })
+  await expect(footer).toBeVisible()
+  await expect
+    .poll(async () => {
+      const afterMarker = await visibleGap(marker, header)
+      const beforeMarker = await visibleGap(body, markers.last())
+      const afterFooter = await visibleGap(footer, marker)
+      return Math.max(
+        Math.abs(afterMarker - beforeMarker),
+        Math.abs(afterFooter - beforeMarker),
+      )
+    })
+    .toBeLessThanOrEqual(1)
 
   await marker.click({ button: 'right' })
   await page.getByRole('menuitem', { name: 'Delete', exact: true }).click()
@@ -454,7 +469,7 @@ test('/new inserts a deletable context marker without an active agent', async ({
     .getByRole('alertdialog')
     .getByRole('button', { name: 'Delete', exact: true })
     .click()
-  await expect(marker).toHaveCount(0)
+  await expect(markers).toHaveCount(1)
   await expect(
     page.getByText('Content for before-reset', { exact: true }),
   ).toBeVisible()

@@ -2,8 +2,7 @@ import type { ChatProps } from '@/components/chat/chat-types'
 import type { AgentItem } from '@/components/chat/sessions/agent-combobox'
 import { getFontFamily } from '@/fonts'
 import {
-  useActiveAgent,
-  useActiveSession,
+  useActiveAgentQuery,
   useActiveSessionStatus,
   useSettings,
   useValidatedSessionId,
@@ -24,8 +23,7 @@ export function useChatShellState(
   layoutConstraint: ChatProps['layoutConstraint'],
 ): ChatShellState {
   const activeSessionId = useValidatedSessionId()
-  const activeSession = useActiveSession()
-  const activeAgent = useActiveAgent()
+  const activeAgent = useActiveAgentQuery()
   const sessionStatus = useActiveSessionStatus()
   const settings = useSettings()
   const override = useSettingsOverride()
@@ -38,11 +36,7 @@ export function useChatShellState(
   const globalThemeColor = settings?.theme?.source ?? null
   const globalThemeMode = settings?.themeMode ?? null
   const agentThemeColor = activeAgent?.theme?.source ?? null
-  const nextThemeColor = agentThemeColor || globalThemeColor
-
-  const preserveAgent =
-    sessionStatus === 'loading' ||
-    Boolean(activeSessionId && activeSession?.activeAgentId && !activeAgent)
+  const preserveAgent = sessionStatus === 'loading' || activeAgent === undefined
   const activeAgentName = useStableValue(activeAgent?.name, preserveAgent)
   const activeAgentId = activeAgent?._id
   const activeAgentAvatarId = activeAgent?.avatarId
@@ -66,11 +60,11 @@ export function useChatShellState(
   )
 
   const resolvedThemeColor = useStableValue(
-    nextThemeColor || null,
-    sessionStatus === 'loading',
+    agentThemeColor || globalThemeColor,
+    preserveAgent,
   )
 
-  useTheme(resolvedThemeColor || null, 'you', globalThemeMode)
+  useTheme(resolvedThemeColor, 'you', globalThemeMode)
 
   const fonts = resolveFonts(settings, override)
   const chatFont = mounted && settings ? fonts.chatFont : null

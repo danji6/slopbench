@@ -24,7 +24,7 @@ const message: UIMessage = {
   id: 'fixture',
   role: attachmentOnly === 'assistant' ? 'assistant' : 'user',
   parts: attachmentOnly
-    ? [{ type: 'file', mediaType: 'image/svg+xml', url: '/favicon.svg' }]
+    ? [{ type: 'file', mediaType: 'image/png', url: '/favicon.png' }]
     : [{ type: 'text', text: 'Fixture text' }],
 }
 

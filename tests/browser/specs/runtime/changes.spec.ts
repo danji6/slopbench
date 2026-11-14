@@ -83,6 +83,42 @@ test('toggles all listed diffs from the summary footer', async ({ page }) => {
   ).toBeVisible()
 })
 
+test('keeps binary files visible as static rows when expanding all diffs', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=changes&binary=mixed')
+  const summary = page.getByRole('region', { name: 'Agent changes' })
+  const binaryFile = summary.getByText('file-1.png', { exact: true })
+  await expect(binaryFile).toBeVisible()
+  await expect(
+    summary.getByRole('button', { name: 'src/file-1.png' }),
+  ).toHaveCount(0)
+  await binaryFile.click()
+
+  await summary.getByRole('button', { name: 'Expand all' }).click()
+  await expect(
+    summary.getByRole('button', { expanded: true, name: /src\/file-/ }),
+  ).toHaveCount(4)
+  await expect(
+    summary.getByText('before file-2', { exact: true }),
+  ).toBeVisible()
+  await expect(summary.getByText('Binary file changed.')).toHaveCount(0)
+})
+
+test('omits Expand all when every file is binary', async ({ page }) => {
+  await page.goto('/?fixture=changes&binary=all')
+  const summary = page.getByRole('region', { name: 'Agent changes' })
+  await expect(summary.getByText('file-1.png', { exact: true })).toBeVisible()
+  await expect(summary.getByRole('button', { name: 'Expand all' })).toHaveCount(
+    0,
+  )
+  await summary.getByRole('button', { name: 'Show 3 more files' }).click()
+  await expect(summary.getByText('file-8.png', { exact: true })).toBeVisible()
+  await expect(summary.getByRole('button', { name: 'Expand all' })).toHaveCount(
+    0,
+  )
+})
+
 test('updates revert/reapply reactively and reports conflicting files', async ({
   page,
 }) => {

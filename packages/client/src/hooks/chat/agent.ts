@@ -66,30 +66,37 @@ export function useOwnedAgent(
   return agentId ? agent : null
 }
 
-export function useLinkedAgents(): LinkedAgent[] {
-  const session = useActiveSession()
-  const linked = useQuery(
-    api.sessionAgents.list,
-    session ? { sessionId: session._id } : 'skip',
-  )
+function useLinkedAgentsQuery(sessionId?: Id<'sessions'>) {
+  return useQuery(api.sessionAgents.list, sessionId ? { sessionId } : 'skip')
+}
 
+export function useLinkedAgents(): LinkedAgent[] {
+  const linked = useLinkedAgentsQuery(useActiveSession()?._id)
   return useMemo(
     () => (linked ?? []).flatMap((agent) => (agent ? [agent] : [])),
     [linked],
   )
 }
 
-export function useActiveAgent(): ActiveAgent | null {
+/** Returns undefined while the selected agent's details are still loading. */
+export function useActiveAgentQuery(): ActiveAgent | null | undefined {
   const sessionId = useActiveSessionId()
   const session = useActiveSession()
-  const linked = useLinkedAgents()
+  const linked = useLinkedAgentsQuery(session?._id)
   const settings = useSettings()
 
   const activeId = sessionId ? session?.activeAgentId : settings?.recentAgentId
   const owned = useOwnedAgent(activeId)
   if (!activeId) return null
 
-  return owned ?? linked.find((agent) => agent._id === activeId) ?? null
+  const agent = owned ?? linked?.find((agent) => agent?._id === activeId)
+  if (agent) return agent
+  if (owned === undefined || (session && linked === undefined)) return undefined
+  return null
+}
+
+export function useActiveAgent(): ActiveAgent | null {
+  return useActiveAgentQuery() ?? null
 }
 
 /**

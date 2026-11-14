@@ -1,4 +1,7 @@
 import { type Page, expect, test } from '@playwright/test'
+import { seedExpandedFolders } from '~/tests/browser/session-folders-helpers'
+
+test.beforeEach(async ({ page }) => seedExpandedFolders(page))
 
 const longTitle =
   'Portfolio chat with a title that scrolls across the session row '

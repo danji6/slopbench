@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test'
-import { APP_ID } from '@cv/core/const'
-import { folder, loadedPages } from '~/tests/browser/session-folders-helpers'
+import {
+  folder,
+  loadedPages,
+  seedExpandedFolders,
+} from '~/tests/browser/session-folders-helpers'
 
 test('root folders and sessions start at ten while subfolders share their five-item budget', async ({
   page,
@@ -10,6 +13,7 @@ test('root folders and sessions start at ten while subfolders share their five-i
     JSON.parse((await page.getByTestId('loaded-folders').textContent()) ?? '{}')
   await expect.poll(async () => (await counts()).ungrouped).toBe(10)
   await expect.poll(async () => (await loadedPages(page)).ungrouped).toBe(10)
+  await folder(page, 'Portfolio').click()
   await expect.poll(async () => (await counts()).a).toBe(5)
   await expect.poll(async () => (await loadedPages(page)).a).toBe(0)
   await expect(folder(page, 'Root folder 30')).toHaveCount(0)
@@ -36,6 +40,7 @@ test('root folders and sessions start at ten while subfolders share their five-i
 test('Pinned paginates folders before sessions and supports unloaded real ancestors', async ({
   page,
 }) => {
+  await seedExpandedFolders(page)
   await page.goto('/?fixture=session-folders&manySessions&manyPinnedFolders')
   const counts = async () =>
     JSON.parse((await page.getByTestId('loaded-folders').textContent()) ?? '{}')
@@ -54,7 +59,11 @@ test('picker searches unloaded folders and inherited collapse choices do not fet
   page,
 }) => {
   await page.goto('/?fixture=session-folders&manyFolders')
-  await expect(folder(page, 'Portfolio')).toBeVisible()
+  await folder(page, 'Portfolio').click()
+  await expect(folder(page, 'Portfolio')).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  )
   await page.getByRole('button', { name: 'Collapse all folders' }).click()
   await page.locator('[data-page-footer="ungrouped"] button').click()
   await expect(folder(page, 'Root folder 20')).toHaveAttribute(
@@ -78,10 +87,6 @@ test('picker searches unloaded folders and inherited collapse choices do not fet
 test('a delayed first page animates into place without a loading label', async ({
   page,
 }) => {
-  await page.addInitScript(
-    (key) => localStorage.setItem(key, JSON.stringify({ a: true })),
-    `${APP_ID}-session-folder-collapse`,
-  )
   await page.goto('/?fixture=session-folders&manySessions&slowSessions')
   await expect(folder(page, 'Portfolio')).toBeVisible()
   await folder(page, 'Portfolio').click()
@@ -122,15 +127,15 @@ test('a delayed first page animates into place without a loading label', async (
   await expect(branch.getByRole('status')).toHaveCount(0)
 })
 
-test('visible collapsed folders preload their first page without fetching hidden descendants', async ({
+test('folders start collapsed, preload visible pages, and remember expansions on reload', async ({
   page,
 }) => {
-  await page.addInitScript(
-    (key) => localStorage.setItem(key, JSON.stringify({ a: true, n: true })),
-    `${APP_ID}-session-folder-collapse`,
-  )
   await page.goto('/?fixture=session-folders&manySessions&slowSessions')
-  await expect(folder(page, 'Portfolio')).toBeVisible()
+  await expect(folder(page, 'Portfolio')).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  )
+  await expect(folder(page, 'Pinned')).toHaveAttribute('aria-expanded', 'false')
   await expect(folder(page, 'Design')).toHaveCount(0)
   await page.getByRole('button', { name: 'Resolve session queries' }).click()
   await folder(page, 'Portfolio').click()
@@ -148,6 +153,18 @@ test('visible collapsed folders preload their first page without fetching hidden
   await expect.poll(async () => (await loadedPages(page)).a).toBeUndefined()
   await folder(page, 'Portfolio').click()
   await expect(page.getByText('Portfolio chat', { exact: true })).toBeVisible()
+
+  await page.reload()
+  await expect(folder(page, 'Portfolio')).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  )
+  await expect(folder(page, 'Corvori')).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  )
+  await page.getByRole('button', { name: 'Resolve session queries' }).click()
+  await expect(folder(page, 'Design')).toHaveAttribute('aria-expanded', 'true')
 })
 
 test('picker preloads before opening without loading indicators and resets additional pages on close', async ({
@@ -228,9 +245,7 @@ test('empty chat waits for the selected folder instead of flashing the welcome h
   await expect(chat).not.toContainText(genericLabel)
   await expect(chat.getByText('Portfolio', { exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Resolve session queries' }).click()
-  await expect(
-    chat.getByText('Corvori', { exact: true }).first(),
-  ).toBeVisible()
+  await expect(chat.getByText('Corvori', { exact: true }).first()).toBeVisible()
 
   await chat.getByRole('button', { name: 'Clear session folder' }).click()
   await expect(chat.getByText(genericLabel, { exact: true })).toBeVisible()

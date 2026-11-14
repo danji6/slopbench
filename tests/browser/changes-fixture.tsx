@@ -13,16 +13,21 @@ const cache = new Map<string, unknown>()
 const subscriptions = new Map<string, number>()
 const params = new URLSearchParams(location.search)
 const delayed = params.has('delayed')
+const binaryMode = params.get('binary')
 const ready = new Set<string>()
-const files = Array.from({ length: 8 }, (_, index) => ({
-  key: `file-${index + 1}`,
-  path: `src/file-${index + 1}.ts`,
-  kind: 'modified',
-  additions: 1,
-  deletions: 1,
-  binary: false,
-  truncated: false,
-}))
+const files = Array.from({ length: 8 }, (_, index) => {
+  const binary = binaryMode === 'all' || (binaryMode === 'mixed' && index === 0)
+  return {
+    key: `file-${index + 1}`,
+    path: `src/file-${index + 1}.${binary ? 'png' : 'ts'}`,
+    kind: 'modified',
+    additions: binary ? 0 : 1,
+    deletions: binary ? 0 : 1,
+    binary,
+    truncated: false,
+  }
+})
+const textFileCount = files.filter((file) => !file.binary).length
 let state = 'applied'
 let phase = 'ready'
 let revision = 0
@@ -87,8 +92,8 @@ function result(name: string, args: Record<string, unknown>) {
       state,
       revision,
       fileCount: empty ? 0 : files.length,
-      additions: empty ? 0 : 8,
-      deletions: empty ? 0 : 8,
+      additions: empty ? 0 : textFileCount,
+      deletions: empty ? 0 : textFileCount,
       issues,
       error,
       conflicts,
@@ -110,6 +115,8 @@ function result(name: string, args: Record<string, unknown>) {
   if (name === 'chat:changeDiff') {
     if (params.has('networkDiff'))
       return `${location.origin}/diff/${args.fileKey}.patch`
+    if (files.find((file) => file.key === args.fileKey)?.binary)
+      return 'data:text/plain;charset=utf-8,Binary%20file%20changed.'
     const lines = Array.from(
       { length: 120 },
       (_, index) => ` context ${index}`,

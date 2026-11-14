@@ -1,5 +1,5 @@
-import { type Locator, type Page, expect } from '@playwright/test'
 import { APP_ID } from '@cv/core/const'
+import { type Locator, type Page, expect } from '@playwright/test'
 
 async function waitForFolderAnimations(page: Page) {
   await page.evaluate(() => new Promise(requestAnimationFrame))
@@ -71,13 +71,17 @@ export async function loadedPages(page: Page): Promise<Record<string, number>> {
   return JSON.parse((await page.getByTestId('loaded-pages').textContent())!)
 }
 
-export async function openSessionFolders(page: Page) {
+export async function seedExpandedFolders(page: Page) {
   await page.addInitScript((appId) => {
     localStorage.setItem(
       `${appId}-session-folder-collapse`,
-      JSON.stringify({ ungrouped: true }),
+      JSON.stringify({ '*': false }),
     )
   }, APP_ID)
+}
+
+export async function openSessionFolders(page: Page) {
+  await seedExpandedFolders(page)
   await page.goto('/?fixture=session-folders')
   await expect(folder(page, 'Portfolio')).toBeVisible()
   await waitForFolderAnimations(page)

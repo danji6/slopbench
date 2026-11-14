@@ -67,7 +67,10 @@ export function ChangesSummary({
   const visible = showAll ? files : files.slice(0, 5)
   const remaining = summary.fileCount - 5
   const problem = error ?? summary.error
-  const hasVisibleFiles = visible.length > 0
+  const expandableKeys = visible
+    .filter((file) => !file.binary)
+    .map((file) => file.key)
+  const hasExpandableFiles = expandableKeys.length > 0
   const hasExpandedFiles = expandedKeys.length > 0
 
   const updateExpandedFiles = (keys: string[], keyToReveal?: string) => {
@@ -154,7 +157,7 @@ export function ChangesSummary({
           />
         ))}
       </Accordion>
-      {(remaining > 0 || hasVisibleFiles) && (
+      {(remaining > 0 || hasExpandableFiles) && (
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
           {remaining > 0 && (
             <RippleButton
@@ -176,16 +179,13 @@ export function ChangesSummary({
               />
             </RippleButton>
           )}
-          {hasVisibleFiles && (
+          {hasExpandableFiles && (
             <RippleButton
               variant="stealth"
               size="sm"
               className="text-muted-foreground ml-auto text-xs font-normal"
               onClick={() => {
-                const keys = hasExpandedFiles
-                  ? []
-                  : visible.map((file) => file.key)
-                updateExpandedFiles(keys)
+                updateExpandedFiles(hasExpandedFiles ? [] : expandableKeys)
               }}
             >
               {hasExpandedFiles ? 'Collapse all' : 'Expand all'}
@@ -247,7 +247,27 @@ type ChangedFileRowProps = {
   onHover: (open: boolean) => void
 }
 
-function ChangedFileRow({
+function ChangedFileRow(props: ChangedFileRowProps) {
+  const { file, expanded } = props
+
+  return (
+    <div className="relative min-w-0">
+      <span
+        aria-hidden
+        className={`ring-m3-surface-container-low absolute top-4.5 -left-5.75 size-1.5 rounded-full ring-4 ${expanded ? 'bg-primary' : 'bg-muted-foreground'}`}
+      />
+      {file.binary ? (
+        <div className="text-m3-on-surface flex min-h-10 items-center gap-2 py-2">
+          <ChangedFileLabel file={file} />
+        </div>
+      ) : (
+        <ExpandableFileRow {...props} />
+      )}
+    </div>
+  )
+}
+
+function ExpandableFileRow({
   changeSetId,
   file,
   expanded,
@@ -262,20 +282,8 @@ function ChangedFileRow({
   usePendingMessageLayout(animating)
   useScrollIntoView({ active: expanded && revealOnOpen, blockRef })
 
-  const slash = file.path.lastIndexOf('/')
-  const directory = file.path.slice(0, slash + 1)
-  const filename = file.path.slice(slash + 1)
-
   return (
-    <Accordion.Item
-      ref={blockRef}
-      value={file.key}
-      className="relative min-w-0"
-    >
-      <span
-        aria-hidden
-        className="bg-muted-foreground ring-m3-surface-container-low group-data-open/accordion-item:bg-primary absolute top-4.5 -left-5.75 size-1.5 rounded-full ring-4"
-      />
+    <Accordion.Item ref={blockRef} value={file.key} className="min-w-0">
       <Popover
         open={hovered && !expanded}
         onOpenChange={(open, details) => {
@@ -307,32 +315,11 @@ function ChangedFileRow({
             aria-label={file.path}
             className="hover:text-primary h-auto min-h-10 min-w-0 gap-2 rounded-none! border-0 bg-transparent px-0 py-2 text-sm font-normal hover:bg-transparent focus-visible:ring-0 has-[>svg]:px-0"
           >
-            <span className="flex min-w-0 flex-1 flex-col text-left sm:flex-row sm:items-baseline sm:gap-2">
-              <span className="group-focus-visible/accordion-trigger:text-primary max-w-full truncate underline-offset-2 group-focus-visible/accordion-trigger:underline">
-                {filename}
-              </span>
-              {directory && (
-                <span className="text-muted-foreground min-w-0 truncate text-xs">
-                  {directory}
-                </span>
-              )}
-            </span>
-            {file.kind !== 'modified' && (
-              <span className="text-muted-foreground text-xs">
-                {file.kind === 'added' ? 'Added' : 'Deleted'}
-              </span>
-            )}
-            {file.binary ? (
-              <span className="text-muted-foreground text-xs">Binary</span>
-            ) : (
-              <LineCounts
-                additions={file.additions}
-                deletions={file.deletions}
-              />
-            )}
+            <ChangedFileLabel file={file} />
+            <LineCounts additions={file.additions} deletions={file.deletions} />
             <ChevronRightIcon
               aria-hidden
-              className="text-muted-foreground size-3.5 transition-transform group-data-open/accordion-item:rotate-90 motion-reduce:transition-none"
+              className="text-muted-foreground size-4 transition-transform group-data-open/accordion-item:rotate-90 motion-reduce:transition-none"
             />
           </Accordion.Trigger>
         </Popover.Trigger>
@@ -352,6 +339,32 @@ function ChangedFileRow({
         </div>
       </Accordion.Content>
     </Accordion.Item>
+  )
+}
+
+function ChangedFileLabel({ file }: { file: ChangedFile }) {
+  const slash = file.path.lastIndexOf('/')
+  const directory = file.path.slice(0, slash + 1)
+  const filename = file.path.slice(slash + 1)
+
+  return (
+    <>
+      <span className="flex min-w-0 flex-1 flex-col text-left sm:flex-row sm:items-baseline sm:gap-2">
+        <span className="group-focus-visible/accordion-trigger:text-primary max-w-full truncate underline-offset-2 group-focus-visible/accordion-trigger:underline">
+          {filename}
+        </span>
+        {directory && (
+          <span className="text-muted-foreground min-w-0 truncate text-xs">
+            {directory}
+          </span>
+        )}
+      </span>
+      {file.kind !== 'modified' && (
+        <span className="text-muted-foreground shrink-0 text-xs">
+          {file.kind === 'added' ? 'Added' : 'Deleted'}
+        </span>
+      )}
+    </>
   )
 }
 

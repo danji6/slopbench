@@ -26,7 +26,7 @@ export async function showDesktopNotification(
   } = {
     body: notificationBody(notification),
     requireInteraction: notification.requestState === 'pending',
-    icon: '/favicon.svg',
+    icon: '/favicon.png',
     tag: notificationTag(notification._id),
     data: {
       notificationId: notification._id,

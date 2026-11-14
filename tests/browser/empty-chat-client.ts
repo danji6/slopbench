@@ -3,6 +3,8 @@ import type { ConvexReactClient } from 'convex/react'
 import { type FunctionReference, getFunctionName } from 'convex/server'
 
 const flags = new URLSearchParams(location.search)
+const shellTheme = flags.has('shellTheme')
+const theme = (source: string) => ({ source, light: {}, dark: {} })
 const agents = Array.from(
   { length: flags.has('emptyAgents') ? 0 : 30 },
   (_, index) => ({
@@ -24,6 +26,10 @@ const agents = Array.from(
               )
             : undefined,
     tools: flags.has('noReadTools') ? [] : ['read_file'],
+    theme:
+      shellTheme && index < 2
+        ? theme(index === 0 ? '#176b46' : '#ad2740')
+        : undefined,
     lastSelectedAt: 30 - index,
   }),
 )
@@ -31,6 +37,7 @@ let settings: Record<string, unknown> = {
   ...DEFAULT_SETTINGS,
   recentAgentId: flags.has('noAgent') ? undefined : 'agent-0',
   recentModel: 'fixture-model',
+  ...(shellTheme && { theme: theme('#274cad'), themeMode: 'light' }),
 }
 let providersAdded = !flags.has('noProviders')
 let resolved = !flags.has('slowWelcome')
@@ -83,8 +90,13 @@ function query(name: string, args: Record<string, unknown>): unknown {
     return providersAdded ? [{ _id: 'provider', enabled: true }] : []
   if (name === 'models:list')
     return { models: [{ id: 'fixture-model', label: 'Fixture model' }] }
+  if (shellTheme && name === 'sessions:get')
+    return { _id: args.sessionId, activeAgentId: args.sessionId }
+  if (shellTheme && name === 'sessionAgents:list')
+    return agentDetailsResolved ? [] : undefined
   if (name === 'agents:get') {
-    if (!agentDetailsResolved && args.agentId === settings.recentAgentId)
+    const deferredAgentId = shellTheme ? 'agent-1' : settings.recentAgentId
+    if (!agentDetailsResolved && args.agentId === deferredAgentId)
       return undefined
     return agents.find((agent) => agent._id === args.agentId) ?? null
   }

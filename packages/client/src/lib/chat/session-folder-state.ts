@@ -13,7 +13,7 @@ export function isFolderCollapsed(
     id,
     ...ancestorIds.map((ancestor) => `branch:${ancestor}`),
   ])
-  let collapsed = false
+  let collapsed = true
   for (const [key, value] of Object.entries(state)) {
     if (keys.has(key)) collapsed = value
   }

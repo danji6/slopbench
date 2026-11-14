@@ -293,13 +293,19 @@ function LoadWindowButton({
 function getRowSpacing(row?: MessageRow, previousRow?: MessageRow) {
   if (!row || row.kind === 'footer') return
 
+  if (
+    previousRow &&
+    (row.kind === 'context-reset' || previousRow.kind === 'context-reset')
+  ) {
+    return 'h-(--message-sender-gap)'
+  }
+
   const isNoteRow = row.kind === 'hidden' && row.noteGroupId
   if (isNoteRow) return 'h-(--work-row-gap)'
 
   const startsSenderGroup =
     previousRow && !row.grouped && previousRow.messageId !== row.messageId
-  const isSummary =
-    row.kind === 'context-reset' || (row.kind === 'group' && row.summary)
+  const isSummary = row.kind === 'group' && row.summary
   if (startsSenderGroup) {
     return isSummary
       ? 'h-(--message-compaction-gap)'
@@ -336,7 +342,9 @@ function VirtualizedItem({
   const transitions = useContext(RowTransitionsContext)
   const row = rows[index]
   const previousRow = rows[index - 1]
-  const precedesNote = isNoteBoundaryRow(rows[index + 1])
+  const nextRow = rows[index + 1]
+  const precedesNote = isNoteBoundaryRow(nextRow)
+  const footerBeforeReset = row?.kind === 'footer' && nextRow?.kind === 'context-reset' // prettier-ignore
   const spacing = getRowSpacing(row, previousRow)
   const content = (
     <>
@@ -357,6 +365,7 @@ function VirtualizedItem({
       data-row-kind={row?.kind}
       data-message-id={row?.messageId}
       data-row-key={row?.key}
+      data-footer-before-reset={footerBeforeReset ? '' : undefined}
       data-note-group-id={row?.kind === 'hidden' ? row.noteGroupId : undefined}
       data-work-id={row?.kind === 'group' ? row.workId : undefined}
       data-segment-index={row?.kind === 'group' ? row.segmentIndex : undefined}
